@@ -32,13 +32,13 @@
  *
  *	Core threading and system headers.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/nsthread.h,v 1.23 2003/01/18 19:56:30 jgdavidson Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/nsthread.h,v 1.24 2003/02/04 22:55:08 jrasmuss23 Exp $
  */
 
 #ifndef NSTHREAD_H
 #define NSTHREAD_H
 
-#ifdef WIN32
+#ifdef _WIN32
 #define NS_EXPORT		__declspec(dllexport)
 #define NS_IMPORT		__declspec(dllimport)
 #else
@@ -74,7 +74,7 @@
 #define FD_SETSIZE 1024
 #endif
 
-#ifndef WIN32
+#ifndef _WIN32
 #include <sys/types.h>
 #include <dirent.h>
 #include <sys/time.h>
@@ -254,7 +254,7 @@ NS_EXTERN void Ns_SemaPost(Ns_Sema *semaPtr, int count);
  * signal.c:
  */
 
-#ifndef WIN32
+#ifndef _WIN32
 NS_EXTERN int ns_sigmask(int how, sigset_t * set, sigset_t * oset);
 NS_EXTERN int ns_sigwait(sigset_t * set, int *sig);
 NS_EXTERN int ns_signal(int sig, void (*proc)(int));
