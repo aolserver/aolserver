@@ -34,7 +34,7 @@
  *	Routines for Tcl proc and ADP registered requests.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclrequest.c,v 1.1 2001/04/12 17:53:29 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclrequest.c,v 1.2 2001/12/05 22:46:21 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -424,6 +424,7 @@ ProcFilter(void *arg, Ns_Conn *conn, int why)
     Tcl_Interp          *interp;
     int                  status;
     int                  cnt;
+    char		*result;
 
     Tcl_DStringInit(&cmd);
 
@@ -476,19 +477,20 @@ ProcFilter(void *arg, Ns_Conn *conn, int why)
      * Determine the filter result code.
      */
 
+    result = Tcl_GetStringResult(interp);
     if (why == NS_FILTER_VOID_TRACE) {
 	status = NS_OK;
     } else if (status != TCL_OK) {
 	status = NS_ERROR;
-    } else if (STREQ(interp->result, "filter_ok")) {
+    } else if (STREQ(result, "filter_ok")) {
 	status = NS_OK;
-    } else if (STREQ(interp->result, "filter_break")) {
+    } else if (STREQ(result, "filter_break")) {
 	status = NS_FILTER_BREAK;
-    } else if (STREQ(interp->result, "filter_return")) {
+    } else if (STREQ(result, "filter_return")) {
 	status = NS_FILTER_RETURN;
     } else {
 	Ns_Log(Warning, "tclfilter: %s return invalid result: %s",
-	    procPtr->name, interp->result);
+	    procPtr->name, result);
 	status = NS_ERROR;
     }
     Tcl_DStringFree(&cmd);
@@ -516,16 +518,22 @@ ProcFilter(void *arg, Ns_Conn *conn, int why)
 static int
 GetNumArgs(Tcl_Interp *interp, Proc *procPtr)
 {
+    Tcl_Obj *objPtr;
     Tcl_DString ds;
+    char *result;
 
     if (procPtr->nargs == ARGS_UNKNOWN) {
     	Tcl_DStringInit(&ds);
     	Tcl_DStringAppend(&ds, "llength [info args ", -1);
     	Tcl_DStringAppendElement(&ds, procPtr->name);
     	Tcl_DStringAppend(&ds, "]", 1);
-	if (Tcl_Eval(interp, ds.string) != TCL_OK ||
-	    Tcl_GetInt(interp, interp->result, &procPtr->nargs) != TCL_OK) {
+	if (Tcl_Eval(interp, ds.string) != TCL_OK) {
 	    procPtr->nargs = ARGS_FAILED;
+	} else {
+	    objPtr = Tcl_GetObjResult(interp);
+	    if (Tcl_GetIntFromObj(interp, objPtr, &procPtr->nargs) != TCL_OK) {
+	    	procPtr->nargs = ARGS_FAILED;
+	    }
 	}
 	Tcl_DStringFree(&ds);
     }

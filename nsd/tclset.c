@@ -33,7 +33,7 @@
  *	Implements the tcl ns_set commands 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclset.c,v 1.10 2001/04/25 21:06:24 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclset.c,v 1.11 2001/12/05 22:46:21 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -73,9 +73,8 @@ static int EnterSet(NsInterp *itPtr, Tcl_Interp *interp, Ns_Set *set, int flags)
  *	TCL_OK or TCL_ERROR.
  *
  * Side effects:
- *	A pointer to the NsSet is put into the interpreter's list of 
- *	sets; a new handle is generated and appended to 
- *	interp->result. 
+ *	A pointer to the Ns_Set is added to the interpreter's list of 
+ *	sets; a new handle is generated and appended to interp result.
  *
  *----------------------------------------------------------------------
  */
@@ -199,13 +198,14 @@ NsTclSetCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
     int           locked, i;
     char         *cmd, *key, *val;
     int           flags;
-    Ns_Set      **setvectorPtrPtr;
+    Ns_Set      **sets;
     char         *split;
-    Tcl_DString   ds;
+    Tcl_DString	  ds;
     Tcl_HashTable *tablePtr;
     Tcl_HashEntry *hPtr;
     Tcl_HashSearch search;
     NsInterp	  *itPtr = arg;
+    Tcl_Obj	  *objPtr;
 
     if (argc < 2) {
         Tcl_AppendResult(interp, "wrong # of args: should be \"",
@@ -310,14 +310,11 @@ NsTclSetCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
             if (split == NULL) {
                 split = ".";
             }
-            Tcl_DStringInit(&ds);
-            setvectorPtrPtr = Ns_SetSplit(set, *split);
-            for (i = 0; setvectorPtrPtr[i] != NULL; i++) {
-                EnterSet(itPtr, interp, setvectorPtrPtr[i], flags);
-                Tcl_DStringAppendElement(&ds, interp->result);
+            sets = Ns_SetSplit(set, *split);
+            for (i = 0; sets[i] != NULL; i++) {
+                EnterSet(itPtr, interp, sets[i], flags);
             }
-            ns_free(setvectorPtrPtr);
-            Tcl_DStringResult(interp, &ds);
+            ns_free(sets);
             break;
         }
     } else {
@@ -355,7 +352,8 @@ NsTclSetCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 		 * ns_set size
 		 */
 		
-                sprintf(interp->result, "%d", Ns_SetSize(set));
+		objPtr = Tcl_NewIntObj(Ns_SetSize(set));
+		Tcl_SetObjResult(interp, objPtr);
                 break;
 		
             case 'n':
@@ -400,7 +398,8 @@ NsTclSetCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 		 * ns_set find
 		 */
 		
-                sprintf(interp->result, "%d", Ns_SetFind(set, argv[3]));
+		objPtr = Tcl_NewIntObj(Ns_SetFind(set, argv[3]));
+		Tcl_SetObjResult(interp, objPtr);
                 break;
 		
             case 'g':
@@ -424,7 +423,8 @@ NsTclSetCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 		 * ns_set unique
 		 */
 		
-                sprintf(interp->result, "%d", Ns_SetUnique(set, argv[3]));
+		objPtr = Tcl_NewIntObj(Ns_SetUnique(set, argv[3]));
+		Tcl_SetObjResult(interp, objPtr);
                 break;
 		
             case 'i':
@@ -434,8 +434,8 @@ NsTclSetCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 		     * ns_set ifind
 		     */
 		    
-                    sprintf(interp->result, "%d",
-			    Ns_SetIFind(set, argv[3]));
+		    objPtr = Tcl_NewIntObj(Ns_SetIFind(set, argv[3]));
+		    Tcl_SetObjResult(interp, objPtr);
                     break;
 		    
                 case 'g':
@@ -460,8 +460,8 @@ NsTclSetCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 		     * ns_set iunique
 		     */
 		    
-                    sprintf(interp->result, "%d",
-			    Ns_SetIUnique(set, argv[3]));
+		    objPtr = Tcl_NewIntObj(Ns_SetIUnique(set, argv[3]));
+		    Tcl_SetObjResult(interp, objPtr);
                     break;
                 }
             }
@@ -483,14 +483,13 @@ NsTclSetCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
                 return TCL_ERROR;
             }
 	    if (i < 0) {
-                sprintf(interp->result, "Specified negative index (%d)", i);
+		Tcl_AppendResult(interp, "invalid index \"", argv[3],
+		    "\": must be >= 0", NULL);
                 return TCL_ERROR;
             }
             if (i >= Ns_SetSize(set)) {
-                sprintf(interp->result,
-			"Can't access index %d; set only has %d field%s",
-			i, Ns_SetSize(set),
-			Ns_SetSize(set) != 1 ? "s" : "");
+		Tcl_AppendResult(interp, "invalid index \"", argv[3],
+		    "\": beyond range of set fields", NULL);
                 return TCL_ERROR;
             }
             switch (*cmd) {
@@ -583,7 +582,8 @@ NsTclSetCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 		i = Ns_SetPut(set, argv[3], argv[4]);
 		break;
             }
-            sprintf(interp->result, "%d", i);
+	    objPtr = Tcl_NewIntObj(i);
+	    Tcl_SetObjResult(interp, objPtr);
         } else if (STREQ(cmd, "merge") ||
 		   STREQ(cmd, "move")) {
 	    
@@ -721,6 +721,7 @@ EnterSet(NsInterp *itPtr, Tcl_Interp *interp, Ns_Set *set, int flags)
     Tcl_HashEntry  *hPtr;
     int             new, next;
     unsigned char   type;
+    char	    buf[20];
 
     if (flags & NS_TCL_SET_SHARED) {
 	/*
@@ -749,11 +750,12 @@ EnterSet(NsInterp *itPtr, Tcl_Interp *interp, Ns_Set *set, int flags)
     
     next = tablePtr->numEntries;
     do {
-        sprintf(interp->result, "%c%u", type, next);
+        sprintf(buf, "%c%u", type, next);
 	++next;
-        hPtr = Tcl_CreateHashEntry(tablePtr, interp->result, &new);
+        hPtr = Tcl_CreateHashEntry(tablePtr, buf, &new);
     } while (!new);
     Tcl_SetHashValue(hPtr, set);
+    Tcl_AppendElement(interp, buf);
 
     /*
      * Unlock the global mutex (locked above) if it's a persistent set.
@@ -844,7 +846,7 @@ LookupSet(NsInterp *itPtr, Tcl_Interp *interp, char *id, int delete, Ns_Set **se
  *	TCL result. 
  *
  * Side effects:
- *	Will append to interp->result. 
+ *	Error message appended to interp result.
  *
  *----------------------------------------------------------------------
  */

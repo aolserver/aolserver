@@ -34,7 +34,7 @@
  *	Tcl database access routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/dbtcl.c,v 1.12 2001/11/05 20:23:28 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/dbtcl.c,v 1.13 2001/12/05 22:46:21 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -208,15 +208,11 @@ NsTclDbCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 	result = Ns_DbPoolTimedGetMultipleHandles(handlesPtrPtr, pool, 
     	    	                                  nhandles, timeout);
     	if (result == NS_OK) {
-	    Tcl_DString ds;
 	    int i;
 	    
-            Tcl_DStringInit(&ds);
 	    for (i = 0; i < nhandles; ++i) {
                 EnterDbHandle(itPtr, interp, handlesPtrPtr[i]);
-                Tcl_DStringAppendElement(&ds, interp->result);
             }
-            Tcl_DStringResult(interp, &ds);
 	}
 	if (handlesPtrPtr != &handlePtr) {
 	    ns_free(handlesPtrPtr);
@@ -323,7 +319,7 @@ NsTclDbCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 		if (Ns_DbResetHandle(handlePtr) != NS_OK) {
 		  return DbFail(interp, handlePtr, cmd);
 		}
-		sprintf(interp->result, "%d", NS_OK);
+		Tcl_SetObjResult(interp, Tcl_NewIntObj(NS_OK));
 
     	    } else if (STREQ(cmd, "cancel")) {
                 if (Ns_DbCancel(handlePtr) != NS_OK) {
@@ -331,7 +327,8 @@ NsTclDbCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
                 }
 
 	    } else if (STREQ(cmd, "connected")) {
-                sprintf(interp->result, "%d", handlePtr->connected);
+		Tcl_SetObjResult(interp, Tcl_NewIntObj(handlePtr->connected));
+
 	    } else if (STREQ(cmd, "sp_exec")) {
 		switch (Ns_DbSpExec(handlePtr)) {
 		case NS_DML:
@@ -474,7 +471,7 @@ NsTclDbCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
                 }
                 handlePtr->verbose = verbose;
             }
-            sprintf(interp->result, "%d", handlePtr->verbose);
+	    Tcl_SetObjResult(interp, Tcl_NewIntObj(handlePtr->verbose));
 
         } else if (STREQ(cmd, "setexception")) {
             if (argc != 5) {
@@ -910,7 +907,7 @@ EnterDbHandle(NsInterp *itPtr, Tcl_Interp *interp, Ns_DbHandle *handle)
         sprintf(buf, "nsdb%x", next++);
         hPtr = Tcl_CreateHashEntry(&itPtr->dbs, buf, &new);
     } while (!new);
-    Tcl_SetResult(interp, buf, TCL_VOLATILE);
+    Tcl_AppendElement(interp, buf);
     Tcl_SetHashValue(hPtr, handle);
 }
 

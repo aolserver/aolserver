@@ -34,7 +34,7 @@
  *	Implements a lot of Tcl API commands. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclmisc.c,v 1.19 2001/05/19 21:37:49 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclmisc.c,v 1.20 2001/12/05 22:46:21 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -370,12 +370,11 @@ NsTclSleepCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
         return TCL_ERROR;
     }
     if (seconds < 0) {
-        interp->result = "#seconds must be >= 0";
+	Tcl_AppendResult(interp, "invalid sections \"", argv[1],
+	    "\": shoudl be >= 0", NULL);
         return TCL_ERROR;
     }
-
     sleep(seconds);
-
     return TCL_OK;
 }
 
@@ -553,7 +552,7 @@ NsTclTimeObjCmd(ClientData dummy, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 int
 NsTclStrftimeCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 {
-    char   *fmt;
+    char   *fmt, buf[200];
     time_t  time;
     int     i;
 
@@ -571,12 +570,11 @@ NsTclStrftimeCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
         fmt = "%c";
     }
     time = i;
-    if (strftime(interp->result, TCL_RESULT_SIZE, fmt, 
-		 ns_localtime(&time)) == 0) {
-        sprintf(interp->result, "invalid time: %d", (int) time);
+    if (strftime(buf, sizeof(buf), fmt, ns_localtime(&time)) == 0) {
+	Tcl_AppendResult(interp, "invalid time: ", argv[1], NULL);
         return TCL_ERROR;
     }
-
+    Tcl_SetResult(interp, buf, TCL_VOLATILE);
     return TCL_OK;
 }
 

@@ -34,7 +34,7 @@
  *	Routines for a simple cache used by fastpath and Adp.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/cache.c,v 1.8 2001/11/05 20:23:23 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/cache.c,v 1.9 2001/12/05 22:46:21 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -880,7 +880,7 @@ NsCacheArgProc(Tcl_DString *dsPtr, void *arg)
  *	Tcl result.
  *
  * Side effects:
- *	A list of cache names will be appended to the interp->result.
+ *	A list of cache names will be appended to the interp result.
  *
  *----------------------------------------------------------------------
  */
@@ -931,7 +931,7 @@ int
 NsTclCacheStatsCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 {
     Cache *cachePtr;
-    char buf[20];
+    char buf[200];
     int entries, flushed, hits, misses, total, hitrate;
 
     if (argc != 2 && argc != 3) {
@@ -952,9 +952,10 @@ NsTclCacheStatsCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
     Ns_MutexUnlock(&cachePtr->lock);
 
     if (argc == 2) {
-	sprintf(interp->result,
+	sprintf(buf,
 	    "entries: %d  flushed: %d  hits: %d  misses: %d  hitrate: %d",
 	    entries, flushed, hits, misses, hitrate);
+	Tcl_SetResult(interp, buf, TCL_VOLATILE);
     } else {
     	sprintf(buf, "%d", entries);
     	if (Tcl_SetVar2(interp, argv[2], "entries", buf,
@@ -1062,6 +1063,7 @@ NsTclCacheSizeCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 {
     Cache *cachePtr;
     size_t maxSize, currentSize;
+    char buf[200];
     
     if (argc != 2) {
 	Tcl_AppendResult(interp, "wrong # args: should be \"",
@@ -1075,8 +1077,8 @@ NsTclCacheSizeCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
     maxSize = cachePtr->maxSize;
     currentSize = cachePtr->currentSize;
     Ns_MutexUnlock(&cachePtr->lock);
-    sprintf(interp->result, "%ld %ld", (long) maxSize, (long) currentSize);
-
+    sprintf(buf, "%ld %ld", (long) maxSize, (long) currentSize);
+    Tcl_SetResult(interp, buf, TCL_VOLATILE);
     return TCL_OK;
 }
 

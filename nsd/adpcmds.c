@@ -33,7 +33,7 @@
  *	ADP commands.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpcmds.c,v 1.7 2001/11/25 20:59:23 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpcmds.c,v 1.8 2001/12/05 22:46:21 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -653,7 +653,7 @@ NsTclAdpDebugCmd(ClientData arg, Tcl_Interp *interp, int argc,
 	      char **argv)
 {
     NsInterp *itPtr = arg;
-    char *host, *port, *procs;
+    char *host, *port, *procs, buf[20];
 
     if (argc > 4) {
 	Tcl_AppendResult(interp, "wrong # args: should be \"",
@@ -667,7 +667,8 @@ NsTclAdpDebugCmd(ClientData arg, Tcl_Interp *interp, int argc,
 	Tcl_SetResult(interp, "could not initialize debugger", TCL_STATIC);
 	return TCL_ERROR;
     }
-    sprintf(interp->result, "%d", itPtr->adp.debugLevel);
+    sprintf(buf, "%d", itPtr->adp.debugLevel);
+    Tcl_SetResult(interp, buf, TCL_VOLATILE);
     return TCL_OK;
 }
 

@@ -33,7 +33,7 @@
  *	Tcl job queueing routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tcljob.c,v 1.3 2001/04/02 19:33:52 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tcljob.c,v 1.4 2001/12/05 22:46:21 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -141,7 +141,6 @@ NsTclJobCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
     if (argc != 3) {
 	Tcl_AppendResult(interp, "wrong # args: should be \"",
 	    argv[0], " command arg\"", NULL);
-	Tcl_SetErrorCode(interp, "ns:job", "usage", interp->result, NULL);
 	return TCL_ERROR;
     }
     code = TCL_ERROR;
@@ -205,7 +204,6 @@ NsTclJobCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 	if (!stop) {
 	    if (hPtr == NULL) {
 		Tcl_AppendResult(interp, "no such job: ", argv[2], NULL);
-	    	Tcl_SetErrorCode(interp, "ns:job", "nojob", interp->result, NULL);
 	    } else if (*cmd == 'c') {
 		Tcl_SetResult(interp, running ? "1" : "0", TCL_STATIC);
 		code = TCL_OK;
@@ -226,13 +224,10 @@ NsTclJobCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
     } else {
 	Tcl_AppendResult(interp, "unknown command \"",
 	    cmd, "\": should be queue, wait, or cancel", NULL);
-	Tcl_SetErrorCode(interp, "ns:job", "usage", interp->result, NULL);
 	return TCL_ERROR;
     }
-
     if (stop) {
 	Tcl_SetResult(interp, "server shutting down", TCL_STATIC);
-	Tcl_SetErrorCode(interp, "ns:job", "stop", interp->result, NULL);
     }
     return code;
 }
@@ -287,7 +282,7 @@ JobThread(void *arg)
 	interp = Ns_TclAllocateInterp(server);
 	jobPtr->code = Tcl_Eval(interp, jobPtr->ds.string);
 	Tcl_DStringTrunc(&jobPtr->ds, 0);
-	Tcl_DStringAppend(&jobPtr->ds, interp->result, -1);
+	Tcl_DStringAppend(&jobPtr->ds, Tcl_GetStringResult(interp), -1);
 	err = Tcl_GetVar(interp, "errorCode", TCL_GLOBAL_ONLY);
 	if (err != NULL) {
 	    jobPtr->errorCode = ns_strdup(err);

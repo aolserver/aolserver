@@ -34,7 +34,7 @@
  *	Tcl commands that do stuff to the filesystem. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclfile.c,v 1.9 2001/11/05 20:23:11 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclfile.c,v 1.10 2001/12/05 22:46:21 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #include <utime.h>
@@ -192,8 +192,7 @@ NsTclCpFpCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 	    p += nwrote;
 	}
     }
-
-    sprintf(interp->result, "%d", ntotal);
+    Tcl_SetObjResult(interp, Tcl_NewIntObj(ntotal));
     return TCL_OK;
 }
 
@@ -545,11 +544,10 @@ NsTclTmpNamCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
     char buf[L_tmpnam];
 
     if (tmpnam(buf) == NULL) {
-        interp->result = "could not generate temporary filename.";
+	Tcl_SetResult(interp, "could not generate temporary filename.", TCL_STATIC);
         return TCL_ERROR;
     }
     Tcl_SetResult(interp, buf, TCL_VOLATILE);
-    
     return TCL_OK;
 }
 

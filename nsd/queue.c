@@ -34,7 +34,7 @@
  *	and service threads.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/queue.c,v 1.9 2001/04/26 18:41:49 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/queue.c,v 1.10 2001/12/05 22:46:21 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -161,11 +161,11 @@ NsTclServerCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
     status = TCL_OK;
     Ns_MutexLock(&servPtr->queue.lock);
     if (STREQ(argv[1], "waiting")) {
-        sprintf(interp->result, "%d", servPtr->queue.wait.num);
+        Tcl_SetObjResult(interp, Tcl_NewIntObj(servPtr->queue.wait.num));
     } else if (STREQ(argv[1], "keepalive")) {
-        sprintf(interp->result, "%d", nsconf.keepalive.npending);
+        Tcl_SetObjResult(interp, Tcl_NewIntObj(nsconf.keepalive.npending));
     } else if (STREQ(argv[1], "connections")) {
-        sprintf(interp->result, "%d", servPtr->queue.nextid);
+        Tcl_SetObjResult(interp, Tcl_NewIntObj(servPtr->queue.nextid));
     } else if (STREQ(argv[1], "threads")) {
         sprintf(buf, "min %d", servPtr->threads.min);
         Tcl_AppendElement(interp, buf);

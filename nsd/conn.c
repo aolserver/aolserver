@@ -34,7 +34,7 @@
  *      Manage the Ns_Conn structure
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.17 2001/07/01 02:31:44 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.18 2001/12/05 22:46:21 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -733,7 +733,7 @@ NsTclConnCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
             Tcl_SetResult(interp, itPtr->nsconn.hdrs, TCL_STATIC);
 	} else {
             Ns_TclEnterSet(interp, connPtr->headers, NS_TCL_SET_STATIC);
-	    strcpy(itPtr->nsconn.hdrs, interp->result);
+	    strcpy(itPtr->nsconn.hdrs, Tcl_GetStringResult(interp));
 	    itPtr->nsconn.flags |= CONN_TCLHDRS;
 	}
 
@@ -742,7 +742,7 @@ NsTclConnCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
             Tcl_SetResult(interp, itPtr->nsconn.outhdrs, TCL_STATIC);
 	} else {
             Ns_TclEnterSet(interp, connPtr->outputheaders, NS_TCL_SET_STATIC);
-	    strcpy(itPtr->nsconn.outhdrs, interp->result);
+	    strcpy(itPtr->nsconn.outhdrs, Tcl_GetStringResult(interp));
 	    itPtr->nsconn.flags |= CONN_TCLOUTHDRS;
 	}
 
@@ -755,7 +755,7 @@ NsTclConnCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
         	itPtr->nsconn.form[0] = '\0';
 	    } else {
                 Ns_TclEnterSet(interp, form, NS_TCL_SET_STATIC);
-        	strcpy(itPtr->nsconn.form, interp->result);
+        	strcpy(itPtr->nsconn.form, Tcl_GetStringResult(interp));
 	    }
 	    itPtr->nsconn.flags |= CONN_TCLFORM;
 	}

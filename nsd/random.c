@@ -34,7 +34,7 @@
  *	This file implements the "ns_rand" command.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/random.c,v 1.8 2001/11/05 20:23:11 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/random.c,v 1.9 2001/12/05 22:46:21 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -115,9 +115,9 @@ NsTclRandCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
     }
     d = Ns_DRand();
     if (argc == 1) {
-    	Tcl_PrintDouble(interp, d, interp->result);
+	Tcl_SetObjResult(interp, Tcl_NewDoubleObj(d));
     } else {
-    	sprintf(interp->result, "%d", (int) (d * max));
+	Tcl_SetObjResult(interp, Tcl_NewIntObj((int) (d * max)));
     }
     return TCL_OK;
 }

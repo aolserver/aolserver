@@ -34,7 +34,7 @@
  *	Tcl commands that let you do TCP sockets. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclsock.c,v 1.8 2001/11/05 20:23:11 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclsock.c,v 1.9 2001/12/05 22:46:21 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -333,6 +333,7 @@ NsTclSockAcceptCmd(ClientData dummy, Tcl_Interp *interp, int argc,
 int
 NsTclSockCheckCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 {
+    Tcl_Obj *objPtr;
     int sock;
 
     if (argc != 2) {
@@ -344,10 +345,11 @@ NsTclSockCheckCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 	return TCL_ERROR;
     }
     if (send(sock, NULL, 0, 0) != 0) {
-        interp->result = "0";
+	objPtr = Tcl_NewBooleanObj(0);
     } else {
-        interp->result = "1";
+	objPtr = Tcl_NewBooleanObj(1);
     }
+    Tcl_SetObjResult(interp, objPtr);
     return TCL_OK;
 }
 
@@ -439,7 +441,6 @@ NsTclSockOpenCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
             argv[first], ":", argv[first + 1], "\"", NULL);
         return TCL_ERROR;
     }
-
     return EnterDupedSocks(interp, sock);
 }
 
@@ -619,25 +620,18 @@ done:
 int
 NsTclSocketPairCmd(ClientData dummy,Tcl_Interp *interp, int argc, char **argv)
 {
-    int  socks[2];
-    char     buf[20];
-    int      result;
+    int	socks[2];
 
     if (ns_sockpair(socks) != 0) {
         Tcl_AppendResult(interp, "ns_sockpair failed:  ", 
 			 Tcl_PosixError(interp), NULL);
         return TCL_ERROR;
     }
-    if (EnterSock(interp, socks[1]) != TCL_OK) {
-	close(socks[0]);
+    if (EnterSock(interp, socks[0]) != TCL_OK) {
+	close(socks[1]);
 	return TCL_ERROR;
     }
-    strcpy(buf, interp->result);
-    result = EnterSock(interp, socks[0]);
-    if (result == TCL_OK) {
-    	Tcl_AppendElement(interp, buf);
-    }
-    return result;
+    return EnterSock(interp, socks[1]);
 }
 
 
@@ -725,7 +719,7 @@ NsTclSockCallbackCmd(ClientData arg, Tcl_Interp *interp, int argc,
     strcpy(cbPtr->script, argv[2]);
     if (Ns_SockCallback(sock, NsTclSockProc, cbPtr,
     	    	    	when | NS_SOCK_EXIT) != NS_OK) {
-        interp->result = "could not register callback";
+	Tcl_SetResult(interp, "could not register callback", TCL_STATIC);
 	close(sock);
         ns_free(cbPtr);
         return TCL_ERROR;
@@ -776,7 +770,7 @@ NsTclSockListenCallbackCmd(ClientData arg, Tcl_Interp *interp, int argc,
     lcbPtr->server = itPtr->servPtr->server;
     strcpy(lcbPtr->script, argv[3]);
     if (Ns_SockListenCallback(addr, port, SockListenCallback, lcbPtr) != NS_OK) {
-        interp->result = "could not register callback";
+	Tcl_SetResult(interp, "could not register callback", TCL_STATIC);
         ns_free(lcbPtr);
         return TCL_ERROR;
     }
@@ -831,7 +825,7 @@ SockSetBlocking(char *value, Tcl_Interp *interp, int argc, char **argv)
  *
  * Side effects:
  *	Ready files will be appended to pds if not null, and also 
- *	interp->result. 
+ *	interp result. 
  *
  *----------------------------------------------------------------------
  */
@@ -965,7 +959,7 @@ EnterSock(Tcl_Interp *interp, int sock)
     }
     Tcl_SetChannelOption(interp, chan, "-translation", "binary");
     Tcl_RegisterChannel(interp, chan);
-    Tcl_SetResult(interp, Tcl_GetChannelName(chan), TCL_VOLATILE);
+    Tcl_AppendElement(interp, Tcl_GetChannelName(chan));
     return TCL_OK;
 }
 
@@ -984,18 +978,10 @@ EnterDup(Tcl_Interp *interp, int sock)
 static int
 EnterDupedSocks(Tcl_Interp *interp, int sock)
 {
-    Tcl_DString ds;
-
-    if (EnterDup(interp, sock) != TCL_OK) {
+    if (EnterSock(interp, sock) != TCL_OK ||
+    	EnterDup(interp, sock) != TCL_OK) {
     	return TCL_ERROR;
     }
-    Tcl_DStringInit(&ds);
-    Tcl_DStringAppendElement(&ds, interp->result);
-    if (EnterSock(interp, sock) != TCL_OK) {
-    	return TCL_ERROR;
-    }
-    Tcl_DStringAppendElement(&ds, interp->result);
-    Tcl_DStringResult(interp, &ds);
     return TCL_OK;
 }
 
@@ -1022,8 +1008,9 @@ NsTclSockProc(int sock, void *arg, int why)
 {
     Tcl_Interp  *interp;
     Tcl_DString  script;
+    Tcl_Obj	*objPtr;
     char        *w;
-    int          result;
+    int          result, ok;
     Callback    *cbPtr = arg;
 
     if (why != NS_SOCK_EXIT || (cbPtr->when & NS_SOCK_EXIT)) {
@@ -1062,8 +1049,12 @@ NsTclSockProc(int sock, void *arg, int why)
         result = NsTclEval(interp, script.string);
 	if (result != TCL_OK) {
             Ns_TclLogError(interp);
-	} else if (!STREQ(interp->result, "1")) {
-	    why = NS_SOCK_EXIT;
+	} else {
+	    objPtr = Tcl_GetObjResult(interp);
+	    result = Tcl_GetBooleanFromObj(interp, objPtr, &ok);
+	    if (result != TCL_OK || !ok) {
+	    	why = NS_SOCK_EXIT;
+	    }
 	}
 	Ns_TclDeAllocateInterp(interp);
 	Tcl_DStringFree(&script);
@@ -1105,20 +1096,21 @@ SockListenCallback(int sock, void *arg, int why)
     ListenCallback *lcbPtr = arg;
     Tcl_Interp  *interp;
     Tcl_DString  script;
-    char       **sockv;
-    int          sockc, result;
+    Tcl_Obj	*listPtr, **objv;
+    int          result, objc;
 
     interp = Ns_TclAllocateInterp(lcbPtr->server);
     result = EnterDupedSocks(interp, sock);
     if (result == TCL_OK) {
-	Tcl_SplitList(interp, interp->result, &sockc, &sockv);
-	Tcl_DStringInit(&script);
-        Tcl_DStringAppend(&script, lcbPtr->script, -1);
-	Tcl_DStringAppendElement(&script, sockv[0]);
-	Tcl_DStringAppendElement(&script, sockv[1]);
-	ckfree((char *) sockv);
-        result = NsTclEval(interp, script.string);
-	Tcl_DStringFree(&script);
+	listPtr = Tcl_GetObjResult(interp);
+	if (Tcl_ListObjGetElements(interp, listPtr, &objc, &objv) == TCL_OK && objc == 2) {
+	    Tcl_DStringInit(&script);
+            Tcl_DStringAppend(&script, lcbPtr->script, -1);
+	    Tcl_DStringAppendElement(&script, Tcl_GetString(objv[0]));
+	    Tcl_DStringAppendElement(&script, Tcl_GetString(objv[1]));
+            result = NsTclEval(interp, script.string);
+	    Tcl_DStringFree(&script);
+	}
     }
     if (result != TCL_OK) {
         Ns_TclLogError(interp);

@@ -34,7 +34,7 @@
  *	Tcl commands for reading config file info. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclconf.c,v 1.6 2001/11/05 20:23:28 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclconf.c,v 1.7 2001/12/05 22:46:21 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -78,7 +78,6 @@ NsTclConfigCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 	fHasDefault = NS_TRUE;
 	defaultIndex = 3;
     }
-    
    
     if (STREQ(argv[1], "-exact")) {
         value = Ns_ConfigGetValueExact(argv[2], argv[3]);
@@ -88,13 +87,13 @@ NsTclConfigCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 	}
     } else if (STREQ(argv[1], "-int")) {
         if (Ns_ConfigGetInt(argv[2], argv[3], &i)) {
-            sprintf(interp->result, "%d", i);
+            Tcl_SetObjResult(interp, Tcl_NewIntObj(i));
             return TCL_OK;
         } else if (fHasDefault) {
 	    if (Tcl_GetInt(interp, argv[defaultIndex], &i) != TCL_OK) {
 		return TCL_ERROR;
 	    }
-	    sprintf(interp->result, "%d", i);
+            Tcl_SetObjResult(interp, Tcl_NewIntObj(i));
 	    return TCL_OK;
 	}
         value = NULL;
@@ -127,9 +126,8 @@ NsTclConfigCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
             argv[0], " ?-exact | -bool | -int? section key ?default?\"", NULL);
         return TCL_ERROR;
     }
-
     if (value != NULL) {
-        interp->result = value;
+	Tcl_SetResult(interp, value, TCL_STATIC);
     }
     return TCL_OK;
 }
@@ -155,18 +153,18 @@ int
 NsTclConfigSectionCmd(ClientData dummy, Tcl_Interp *interp, int argc,
 		      char **argv)
 {
-    Ns_Set *sectionPtr;
+    Ns_Set *set;
 
     if (argc != 2) {
         Tcl_AppendResult(interp, "wrong # args: should be \"",
             argv[0], " key\"", NULL);
         return TCL_ERROR;
     }
-    sectionPtr = Ns_ConfigGetSection(argv[1]);
-    if (sectionPtr == NULL) {
+    set = Ns_ConfigGetSection(argv[1]);
+    if (set == NULL) {
         Tcl_SetResult(interp, "", TCL_STATIC);
     } else {
-        Ns_TclEnterSet(interp, sectionPtr, NS_TCL_SET_STATIC);
+        Ns_TclEnterSet(interp, set, NS_TCL_SET_STATIC);
     }
     return TCL_OK;
 }
@@ -192,7 +190,7 @@ int
 NsTclConfigSectionsCmd(ClientData dummy, Tcl_Interp *interp, int argc,
 		       char **argv)
 {
-    Ns_Set **setvectorPtrPtr;
+    Ns_Set **sets;
     int      i;
 
     if (argc != 1) {
@@ -200,17 +198,10 @@ NsTclConfigSectionsCmd(ClientData dummy, Tcl_Interp *interp, int argc,
             argv[0], " key\"", NULL);
         return TCL_ERROR;
     }
-    setvectorPtrPtr = Ns_ConfigGetSections();
-    for (i = 0; setvectorPtrPtr[i] != NULL; i++) {
-        char            setId[20];
-        char           *saveResult;
-
-        saveResult = interp->result;
-        interp->result = setId;
-        Ns_TclEnterSet(interp, setvectorPtrPtr[i], NS_TCL_SET_STATIC);
-        interp->result = saveResult;
-        Tcl_AppendElement(interp, setId);
+    sets = Ns_ConfigGetSections();
+    for (i = 0; sets[i] != NULL; i++) {
+        Ns_TclEnterSet(interp, sets[i], NS_TCL_SET_STATIC);
     }
-    ns_free(setvectorPtrPtr);
+    ns_free(sets);
     return TCL_OK;
 }

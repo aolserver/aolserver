@@ -35,7 +35,7 @@
  *	by HTSUtils.c from CERN. See also RFC 1123.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/httptime.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/httptime.c,v 1.4 2001/12/05 22:46:21 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -281,13 +281,15 @@ int
 NsTclParseHttpTimeCmd(ClientData dummy, Tcl_Interp *interp, int argc,
 		      char **argv)
 {
+    time_t t;
+
     if (argc != 2) {
         Tcl_AppendResult(interp, "wrong # of args: should be \"",
                          argv[0], " httptime\"", NULL);
         return TCL_ERROR;
     }
-    sprintf(interp->result, "%d", (int) Ns_ParseHttpTime(argv[1]));
-
+    t = Ns_ParseHttpTime(argv[1]);
+    Tcl_SetObjResult(interp, Tcl_NewIntObj((int) t));
     return TCL_OK;
 }
 

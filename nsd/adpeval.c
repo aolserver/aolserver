@@ -33,7 +33,7 @@
  *	ADP string and file eval.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.9 2001/11/05 20:23:19 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.10 2001/12/05 22:46:21 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -276,7 +276,7 @@ AdpRun(NsInterp *itPtr, char *file, int argc, char **argv, Tcl_DString *outputPt
 	procs = Ns_SetIGet(hdrs, "dprocs");
 	if (NsAdpDebug(itPtr, host, port, procs) != TCL_OK) {
 	    Ns_ConnReturnNotice(itPtr->conn, 200, "Debug Init Failed",
-				interp->result);
+				Tcl_GetStringResult(interp));
 	    itPtr->adp.exception = ADP_ABORT;
 	    goto done;
 	}
@@ -434,6 +434,7 @@ done:
 int
 NsAdpDebug(NsInterp *itPtr, char *host, char *port, char *procs)
 {
+    Tcl_Interp *interp = itPtr->interp;
     Tcl_DString ds;
     int code;
 
@@ -445,10 +446,10 @@ NsAdpDebug(NsInterp *itPtr, char *host, char *port, char *procs)
 	Tcl_DStringAppendElement(&ds, procs ? procs : "");
 	Tcl_DStringAppendElement(&ds, host ? host : "");
 	Tcl_DStringAppendElement(&ds, port ? port : "");
-	code = NsTclEval(itPtr->interp, ds.string);
+	code = NsTclEval(interp, ds.string);
         Tcl_DStringFree(&ds);
 	if (code != TCL_OK) {
-	    Ns_TclLogError(itPtr->interp);
+	    Ns_TclLogError(interp);
 	    return TCL_ERROR;
 	}
 
@@ -458,10 +459,10 @@ NsAdpDebug(NsInterp *itPtr, char *host, char *port, char *procs)
 	 */
 
 	if (itPtr->adp.responsePtr != NULL &&
-	    Tcl_LinkVar(itPtr->interp, "ns_adp_output",
+	    Tcl_LinkVar(interp, "ns_adp_output",
 			(char *) &itPtr->adp.responsePtr->string,
 		TCL_LINK_STRING | TCL_LINK_READ_ONLY) != TCL_OK) {
-	    Ns_TclLogError(itPtr->interp);
+	    Ns_TclLogError(interp);
 	}
 
 	itPtr->adp.debugInit = 1;
@@ -640,6 +641,7 @@ ParseFile(NsInterp *itPtr, char *file, size_t size, Ns_DString *dsPtr)
 static void
 LogError(NsInterp *itPtr, int chunk)
 {
+    Tcl_Interp *interp = itPtr->interp;
     Ns_DString ds;
     char *argv[2];
     char *file;
@@ -649,15 +651,15 @@ LogError(NsInterp *itPtr, int chunk)
     Ns_DStringPrintf(&ds, "%d", chunk);
     Ns_DStringAppend(&ds, " of adp: ");
     Ns_DStringAppend(&ds, itPtr->adp.file ? itPtr->adp.file : "<inline>");
-    Tcl_AddErrorInfo(itPtr->interp, ds.string);
-    Ns_TclLogError(itPtr->interp);
+    Tcl_AddErrorInfo(interp, ds.string);
+    Ns_TclLogError(interp);
     Ns_DStringFree(&ds);
     file = itPtr->servPtr->adp.errorpage;
     if (file != NULL && itPtr->adp.errorLevel == 0) {
 	++itPtr->adp.errorLevel;
-	argv[0] = Tcl_GetVar(itPtr->interp, "errorInfo", TCL_GLOBAL_ONLY);
+	argv[0] = Tcl_GetVar(interp, "errorInfo", TCL_GLOBAL_ONLY);
 	if (argv[0] == NULL) {
-	    argv[0] = itPtr->interp->result;
+	    argv[0] = Tcl_GetStringResult(interp);
 	}
 	argv[1] = NULL;
 	(void) NsAdpInclude(itPtr, file, 1, argv);
