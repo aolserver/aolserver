@@ -34,7 +34,7 @@
  *	Tcl commands that let you do TCP sockets. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclsock.c,v 1.13 2002/08/25 20:09:08 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclsock.c,v 1.14 2002/10/14 23:21:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -1260,7 +1260,7 @@ NsTclSockCallbackCmd(ClientData arg, Tcl_Interp *interp, int argc,
 
     sock = dup(sock);
     cbPtr = ns_malloc(sizeof(Callback) + strlen(argv[2]));
-    cbPtr->server = itPtr->servPtr->server;
+    cbPtr->server = (itPtr->servPtr ? itPtr->servPtr->server : NULL);
     cbPtr->chan = NULL;
     cbPtr->when = when;
     strcpy(cbPtr->script, argv[2]);
@@ -1330,7 +1330,7 @@ NsTclSockCallbackObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
 
     sock = dup(sock);
     cbPtr = ns_malloc(sizeof(Callback) + Tcl_GetCharLength(objv[2]));
-    cbPtr->server = itPtr->servPtr->server;
+    cbPtr->server = (itPtr->servPtr ? itPtr->servPtr->server : NULL);
     cbPtr->chan = NULL;
     cbPtr->when = when;
     strcpy(cbPtr->script, Tcl_GetString(objv[2]));
@@ -1384,7 +1384,7 @@ NsTclSockListenCallbackCmd(ClientData arg, Tcl_Interp *interp, int argc,
         addr = NULL;
     }
     lcbPtr = ns_malloc(sizeof(ListenCallback) + strlen(argv[3]));
-    lcbPtr->server = itPtr->servPtr->server;
+    lcbPtr->server = (itPtr->servPtr ? itPtr->servPtr->server : NULL);
     strcpy(lcbPtr->script, argv[3]);
     if (Ns_SockListenCallback(addr, port, SockListenCallback, lcbPtr) != NS_OK) {
 	Tcl_SetResult(interp, "could not register callback", TCL_STATIC);
@@ -1433,7 +1433,7 @@ NsTclSockListenCallbackObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
         addr = NULL;
     }
     lcbPtr = ns_malloc(sizeof(ListenCallback) + Tcl_GetCharLength(objv[3]));
-    lcbPtr->server = itPtr->servPtr->server;
+    lcbPtr->server = (itPtr->servPtr ? itPtr->servPtr->server : NULL);
     strcpy(lcbPtr->script, Tcl_GetString(objv[3]));
     if (Ns_SockListenCallback(addr, port, SockListenCallback, lcbPtr) != NS_OK) {
 	Tcl_SetResult(interp, "could not register callback", TCL_STATIC);
