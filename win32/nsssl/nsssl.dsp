@@ -43,7 +43,7 @@ RSC=rc.exe
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /MT /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "NSSSL_EXPORTS" /YX /FD /c
-# ADD CPP /nologo /MD /W3 /GX /O2 /I "..\..\include" /I "c:\files\bsafe\include" /D "_WINDOWS" /D "_USRDLL" /D "NSSSL_EXPORTS" /D SSL_DOMESTIC=1 /D "NDEBUG" /D "WIN32" /D "_MBCS" /D FD_SETSIZE=128 /D TCL_THREADS=1 /Fp"Release/nssssl.pch" /YX /FD /c
+# ADD CPP /nologo /MD /W3 /GX /O2 /I "..\..\include" /I "..\..\..\bsafe\include" /D "BSAFE4" /D "_WINDOWS" /D "_USRDLL" /D "NSSSL_EXPORTS" /D SSL_DOMESTIC=1 /D "NDEBUG" /D "WIN32" /D "_MBCS" /D FD_SETSIZE=128 /D TCL_THREADS=1 /Fp"Release/nssssl.pch" /YX /FD /c
 # ADD BASE MTL /nologo /D "NDEBUG" /mktyplib203 /win32
 # ADD MTL /nologo /D "NDEBUG" /mktyplib203 /win32
 # ADD BASE RSC /l 0x409 /d "NDEBUG"
@@ -53,7 +53,7 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LINK32=link.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /dll /machine:I386
-# ADD LINK32 ..\nsthread\release\nsthread.lib ..\nsd\release\nsd.lib ..\nstcl\release\nstcl.lib c:\files\bsafe\lib\bsafe.lib kernel32.lib wsock32.lib /nologo /dll /machine:I386
+# ADD LINK32 ..\..\..\bsafe\lib\bsafe.lib ..\nsthread\release\nsthread.lib ..\nsd\release\nsd.lib ..\nstcl\release\nstcl.lib ws2_32.lib /nologo /dll /machine:I386
 
 !ELSEIF  "$(CFG)" == "nsssl - Win32 Debug"
 
@@ -80,7 +80,7 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LINK32=link.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /dll /debug /machine:I386 /pdbtype:sept
-# ADD LINK32 \cvs\src\bsafe\lib\bsafe.lib ..\nsd\debug\nsd.lib ..\nstcl\debug\nstcl.lib ..\nsthread\debug\nsthread.lib kernel32.lib ws2_32.lib /nologo /dll /debug /machine:I386 /out:"Debug/nsssle.dll" /pdbtype:sept
+# ADD LINK32 ..\..\..\bsafe\lib\bsafe.lib ..\nsd\debug\nsd.lib ..\nstcl\debug\nstcl.lib ..\nsthread\debug\nsthread.lib ws2_32.lib /nologo /dll /debug /machine:I386 /out:"Debug/nsssle.dll" /pdbtype:sept
 
 !ENDIF 
 
