@@ -1,5 +1,17 @@
 2004-07-01  Dossy Shiobara <dossy@panoptic.com>
 
+	* nsd/: nsd.h (1.82), nsmain.c (1.55): Ensure that supplementary
+	  groups from /etc/group are set if -u username is specified, or
+	  dropped if a uid is specified so that the nsd doesn't run with
+	  root's supplementary groups.	Closes bug #425401.
+
+2004-07-01  Dossy Shiobara <dossy@panoptic.com>
+
+	* nsd/: nsd.h (1.81), nsd.h (1.77.2.4): trivial - eliminate
+	  compiler warning for nsd/nsmain.c
+
+2004-07-01  Dossy Shiobara <dossy@panoptic.com>
+
 	* nsthread/tls.c (1.3): Make the Tcl_Panic() message from
 	  Ns_TlsGet() and Ns_TlsSet() include the full function name to aid
 	  in debugging.
