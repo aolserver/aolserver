@@ -33,7 +33,7 @@
  *	Defines standard default charset to encoding mappings.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/encoding.c,v 1.5 2001/04/02 19:36:12 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/encoding.c,v 1.6 2001/04/02 20:21:34 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -405,6 +405,7 @@ GetCharsetEncoding(char *charset, int len)
     charset = Ns_StrTrim(Ns_StrToLower(ds.string));
     hPtr = Tcl_FindHashEntry(&charsets, charset);
     if (hPtr != NULL) {
+	hPtr = Tcl_GetHashValue(hPtr);
 	encoding = LoadEncoding(hPtr);
     }
     Ns_DStringFree(&ds);
