@@ -260,8 +260,6 @@ typedef struct Conn {
     int          responseLength;
     int          recursionCount;
     int		 keepAlive;
-    Ns_DString	 response;
-    Ns_DString	 content;
     void	*cls[NS_CONN_MAXCLS];
 } Conn;
 
@@ -630,8 +628,10 @@ typedef struct NsInterp {
 	int                debugLevel;
 	int                debugInit;
 	char              *debugFile;
-	Ns_DString	  *outputPtr;
 	Ns_Cache	  *cache;
+	Tcl_Encoding	   encoding;
+	Tcl_DString	  *outputPtr;
+	Tcl_DString	   response;
     } adp;
     
     /*
@@ -663,14 +663,15 @@ typedef struct NsInterp {
  */
 
 typedef struct NsTls {
+    /*
+     * The following struct maintains a table of
+     * allocated db handles to support deadlock
+     * protection.
+     */
+
     struct {
 	Tcl_HashTable	    owned;
     } db;
-
-    struct {
-	Ns_DString	   *firstPtr;
-	int		    ncached;
-    } dstring;
 
     /*
      * The following struct maintains a table of
@@ -680,6 +681,11 @@ typedef struct NsTls {
     struct {
 	Tcl_HashTable	    interps;
     } tcl;
+
+    /*
+     * The following struct maintains a buffer
+     * for formatting simple Win32 error messages.
+     */
 
 #ifdef WIN32
     struct {
