@@ -83,7 +83,7 @@ LINK32=link.exe
 # Begin Special Build Tool
 SOURCE="$(InputPath)"
 PostBuild_Desc=copy
-PostBuild_Cmds=mkdir ..\debug	for %%m in (nsd nsthread nstcl nsodbc nsperm nscgi nssock nslog nscp) do copy ..\%%m\debug\%%m.dll ..\debug\*.dll	for %%m in (nsd nsthread nstcl) do copy ..\%%m\debug\%%m.lib ..\debug\*.*	copy debug\main.exe ..\debug\nsd.exe	for %%m in (threadtest cgitest) do copy ..\%%m\debug\*.exe ..\debug\*.*	copy ..\cgitest\debug\cgitest.exe ..\debug\nph-cgitest.exe
+PostBuild_Cmds=mkdir ..\debug	for %%m in (nsd nsthread nstcl nsodbc nsperm nscgi nssock nsssl nssock nslog nscp) do copy ..\%%m\debug\*.dll ..\debug\*.dll	for %%m in (nsd nsthread nstcl) do copy ..\%%m\debug\%%m.lib ..\debug\*.*	copy debug\main.exe ..\debug\nsd.exe	for %%m in (threadtest cgitest) do copy ..\%%m\debug\*.exe ..\debug\*.*	copy ..\cgitest\debug\cgitest.exe ..\debug\nph-cgitest.exe
 # End Special Build Tool
 
 !ENDIF 
