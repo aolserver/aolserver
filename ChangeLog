@@ -1,5 +1,12 @@
 2004-07-02  Dossy Shiobara <dossy@panoptic.com>
 
+	* nsd/mimetypes.c (1.11.2.1): Ns_GetMimeType() was returning
+	  defaultType instead of noextType if the path contained a
+	  directory with a "." but the filename component had no extension.
+	  Fixes bug #739049.  Backported from HEAD.
+
+2004-07-02  Dossy Shiobara <dossy@panoptic.com>
+
 	* nsd/: fastpath.c (1.18.2.1), return.c (1.33.2.4): Enable ADP/Tcl
 	  code to override Last-Modified: header from ns_respond when
 	  -headers AND -file are specified.  Closes bug #879076.  Backport
