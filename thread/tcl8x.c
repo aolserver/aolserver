@@ -40,7 +40,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/tcl8x.c,v 1.11 2001/03/14 15:01:49 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/tcl8x.c,v 1.12 2001/03/14 15:21:27 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "thread.h"
 #define BUILD_tcl
@@ -275,7 +275,7 @@ Tcl_GetCurrentThread()
 NS_EXPORT void
 TclpInitLock()
 {
-    Ns_MasterLock;
+    Ns_MasterLock();
 }
 
 
@@ -299,7 +299,7 @@ TclpInitLock()
 NS_EXPORT void
 TclpInitUnlock()
 {
-    Ns_MasterUnlock;
+    Ns_MasterUnlock();
 }
 
 /*
@@ -322,7 +322,7 @@ TclpInitUnlock()
 NS_EXPORT void
 TclpMasterLock()
 {
-    Ns_MasterLock;
+    Ns_MasterLock();
 }
 
 
@@ -346,7 +346,7 @@ TclpMasterLock()
 NS_EXPORT void
 TclpMasterUnlock()
 {
-    Ns_MasterUnlock;
+    Ns_MasterUnlock();
 }
 
 
@@ -405,7 +405,7 @@ Tcl_MutexLock(mutexPtr)
     Ns_Mutex *nsmutexPtr = (Ns_Mutex *) mutexPtr;
 
     if (*nsmutexPtr == NULL) {
-	Ns_MasterLock;
+	Ns_MasterLock();
 	if (*nsmutexPtr == NULL) {
 	    static int next;
 	    char buf[20];
@@ -414,7 +414,7 @@ Tcl_MutexLock(mutexPtr)
 	    Ns_MutexInit(nsmutexPtr);
 	    Ns_MutexSetName(nsmutexPtr, buf);
 	}
-	Ns_MasterUnlock;
+	Ns_MasterUnlock();
     }
     Ns_MutexLock(nsmutexPtr);
 }
@@ -497,11 +497,11 @@ TclpThreadDataKeyInit(keyPtr)
 {
     Ns_Tls *tlsPtr = (Ns_Tls *) keyPtr;
 
-    Ns_MasterLock;
+    Ns_MasterLock();
     if (*tlsPtr == NULL) {
 	Ns_TlsAlloc(tlsPtr, FreeDataBlock);
     }
-    Ns_MasterUnlock;
+    Ns_MasterUnlock();
 }
 
 /*
