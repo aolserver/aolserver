@@ -457,7 +457,6 @@ typedef struct NsServer {
 
     /*
      * The following struct maintains the core Tcl config.
-     * and detached channels table.
      */
 
     struct {         
@@ -541,13 +540,13 @@ typedef struct NsServer {
 
     /*
      * The following struct maintains detached Tcl
-     * channels.
+     * channels for the benefit of the ns_chan command.
      */
 
     struct {
-	Tcl_HashTable	    channels;
 	Ns_Mutex	    lock;
-    } detach;
+	Tcl_HashTable	    table;
+    } chans;
 
     /*
      * The following struct maintains the Tcl job queue.
@@ -641,21 +640,25 @@ typedef struct NsInterp {
     } adp;
     
     /*
-     * The following struct maintains a table of
-     * private Ns_Set's entered into this interp.
+     * The following table maintains private Ns_Set's
+     * entered into this interp.
      */
 
-    struct {
-    	Tcl_HashTable table;
-    } sets;
+   Tcl_HashTable sets;
     
     /*
-     * The following struct maintains a table of
-     * allocated database handles.
+     * The following table maintains allocated
+     * database handles.
      */
-    struct {
-        Tcl_HashTable table;
-    } dbs;
+
+    Tcl_HashTable dbs;
+
+    /*
+     * The following table maintains shared channels
+     * register with the ns_chan command.
+     */
+
+    Tcl_HashTable chans;
 
 } NsInterp;
 
@@ -890,8 +893,7 @@ extern int NsConnRunProxyRequest(Ns_Conn *conn);
 extern void NsTclAddCmds(NsInterp *itPtr, Tcl_Interp *interp);
 
 extern Tcl_CmdProc NsTclJobCmd;
-extern Tcl_CmdProc NsTclDetachCmd;
-extern Tcl_CmdProc NsTclAttachCmd;
+extern Tcl_CmdProc NsTclChanCmd;
 extern Tcl_CmdProc NsTclAfterCmd;
 extern Tcl_CmdProc NsTclAtCloseCmd;
 extern Tcl_CmdProc NsTclAtExitCmd;

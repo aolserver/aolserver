@@ -33,7 +33,7 @@
  *	Routines for managing NsServer structures.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.2 2001/03/13 22:28:49 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.3 2001/03/14 01:11:28 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -327,8 +327,8 @@ NsInitServer(Ns_ServerInitProc *initProc, char *server)
      * Initialize the Tcl detached channel support.
      */
 
-    Tcl_InitHashTable(&servPtr->detach.channels, TCL_STRING_KEYS);
-    Ns_MutexSetName2(&servPtr->detach.lock, "ns:detach", server);
+    Tcl_InitHashTable(&servPtr->chans.table, TCL_STRING_KEYS);
+    Ns_MutexSetName2(&servPtr->chans.lock, "ns:chans", server);
 
 
     /*

@@ -34,7 +34,7 @@
  *	Implements the tcl ns_set commands 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclset.c,v 1.6 2001/03/13 22:45:26 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclset.c,v 1.7 2001/03/14 01:11:28 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -217,7 +217,7 @@ NsTclSetCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 	NsFreeSets(itPtr);
     } else if (STREQ(cmd, "list")) {
 	if (argc == 2) {
-	    tablePtr = &itPtr->sets.table;
+	    tablePtr = &itPtr->sets;
     	    locked = 0;
 	} else if (STREQ(argv[2], "-shared")) {
 	    tablePtr = &itPtr->servPtr->sets.table;
@@ -697,7 +697,7 @@ EnterSet(NsInterp *itPtr, Tcl_Interp *interp, Ns_Set *set, int flags)
 	tablePtr = &itPtr->servPtr->sets.table;
         Ns_MutexLock(&itPtr->servPtr->sets.lock);
     } else {
-	tablePtr = &itPtr->sets.table;
+	tablePtr = &itPtr->sets;
 	if (flags & NS_TCL_SET_DYNAMIC) {
 	    type = SET_DYNAMIC;
 	} else {
@@ -770,7 +770,7 @@ LookupSet(NsInterp *itPtr, Tcl_Interp *interp, char *id, int delete, Ns_Set **se
     	tablePtr = &itPtr->servPtr->sets.table;
         Ns_MutexLock(&itPtr->servPtr->sets.lock);
     } else {
-	tablePtr = &itPtr->sets.table;
+	tablePtr = &itPtr->sets;
     }
     if (tablePtr != NULL) {
     	hPtr = Tcl_FindHashEntry(tablePtr, id);
@@ -845,7 +845,7 @@ NsFreeSets(NsInterp *itPtr)
     Ns_Set *set;
     char *id;
 
-    tablePtr = &itPtr->sets.table;
+    tablePtr = &itPtr->sets;
     if (tablePtr->numEntries > 0) {
     	hPtr = Tcl_FirstHashEntry(tablePtr, &search);
     	while (hPtr != NULL) {

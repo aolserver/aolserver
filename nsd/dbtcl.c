@@ -34,7 +34,7 @@
  *	Tcl database access routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/dbtcl.c,v 1.8 2001/03/12 22:06:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/dbtcl.c,v 1.9 2001/03/14 01:11:28 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -859,7 +859,7 @@ DbGetHandle(NsInterp *itPtr, Tcl_Interp *interp, char *id, Ns_DbHandle **handle,
 {
     Tcl_HashEntry  *hPtr;
 
-    hPtr = Tcl_FindHashEntry(&itPtr->dbs.table, id);
+    hPtr = Tcl_FindHashEntry(&itPtr->dbs, id);
     if (hPtr == NULL) {
 	Tcl_AppendResult(interp, "invalid database id:  \"", id, "\"",
 	    NULL);
@@ -895,10 +895,10 @@ EnterDbHandle(NsInterp *itPtr, Tcl_Interp *interp, Ns_DbHandle *handle)
     int            new, next;
     char	   buf[100];
 
-    next = itPtr->dbs.table.numEntries;
+    next = itPtr->dbs.numEntries;
     do {
         sprintf(buf, "nsdb%x", next++);
-        hPtr = Tcl_CreateHashEntry(&itPtr->dbs.table, buf, &new);
+        hPtr = Tcl_CreateHashEntry(&itPtr->dbs, buf, &new);
     } while (!new);
     Tcl_SetResult(interp, buf, TCL_VOLATILE);
     Tcl_SetHashValue(hPtr, handle);
@@ -990,7 +990,7 @@ NsFreeDbs(NsInterp *itPtr)
     Tcl_HashEntry *hPtr;
     Ns_DbHandle *handle;
 
-    tablePtr = &itPtr->dbs.table;
+    tablePtr = &itPtr->dbs;
     if (tablePtr->numEntries > 0) {
     	hPtr = Tcl_FirstHashEntry(tablePtr, &search);
     	while (hPtr != NULL) {
