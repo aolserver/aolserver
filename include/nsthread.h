@@ -32,7 +32,7 @@
  *
  *	Core threading and system headers.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/nsthread.h,v 1.25 2003/12/24 17:00:18 scottg Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/nsthread.h,v 1.26 2004/07/13 20:31:46 dossy Exp $
  */
 
 #ifndef NSTHREAD_H
@@ -72,6 +72,15 @@
 #undef FD_SETSIZE
 #endif
 #define FD_SETSIZE 1024
+#endif
+
+#ifdef __OpenBSD__
+#ifndef ENOTSUP
+/*
+ * Workaround until we have ENOTSUP in errno.h
+ */
+#define ENOTSUP         EOPNOTSUPP    
+#endif
 #endif
 
 #ifndef _WIN32
