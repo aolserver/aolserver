@@ -33,7 +33,7 @@
  *	AOLserver Ns_Main() startup routine.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.49 2003/03/07 18:08:30 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.50 2003/04/07 21:08:52 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #ifdef _WIN32
@@ -653,6 +653,14 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 int
 Ns_WaitForStartup(void)
 {
+
+    /*
+     * This dirty-read is worth the effort. 
+     */
+    if (nsconf.state.started) {
+        return NS_OK;
+    }
+
     Ns_MutexLock(&nsconf.state.lock);
     while (!nsconf.state.started) {
         Ns_CondWait(&nsconf.state.cond, &nsconf.state.lock);
