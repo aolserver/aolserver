@@ -33,7 +33,7 @@
  *	Support for the ns_http command.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclhttp.c,v 1.18 2004/03/09 18:34:56 rcrittenden0569 Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclhttp.c,v 1.19 2004/08/05 15:30:38 rcrittenden0569 Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -55,6 +55,8 @@ typedef struct {
     int state;
     char *next;
     size_t len;
+    Ns_Time stime;
+    Ns_Time etime;
     Tcl_DString ds;
 } Http;
 
@@ -98,8 +100,8 @@ NsTclHttpObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST obj
 {
     NsInterp *itPtr = arg;
     Http *httpPtr;
-    char buf[20], *result;
-    int new, status, n;
+    char buf[50], *result, *carg;
+    int new, status, n, timeidx;
     Ns_Time timeout, incr;
     Ns_Set *hdrs;
     Tcl_HashEntry *hPtr;
@@ -156,6 +158,7 @@ NsTclHttpObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST obj
                     url, NULL);
             return TCL_ERROR;
         }
+        Ns_GetTime(&httpPtr->stime);
         Ns_SockCallback(httpPtr->sock, HttpSend, httpPtr, NS_SOCK_WRITE);
         n = itPtr->https.numEntries;
         do {
@@ -183,9 +186,16 @@ NsTclHttpObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST obj
         break;
 
     case HWaitIdx:
-        if (objc < 4 || objc > 6) {
-            Tcl_WrongNumArgs(interp, 2, objv, "id resultsVar ?timeout? ?headers?");
+        if (objc < 4 || objc > 8) {
+            Tcl_WrongNumArgs(interp, 2, objv, "id resultsVar ?timeout? ?headers? ?-servicetime svcTime?");
             return TCL_ERROR;
+        }
+        carg = Tcl_GetString(objv[objc - 2]);
+        if (STRIEQ(carg, "-servicetime")) {
+            timeidx = objc - 1;
+            objc -= 2; /* so I don't have to refactor the rest of the code */
+        } else {
+            timeidx = 0;
         }
         if (objc < 5) {
             incr.sec  = 2;
@@ -213,6 +223,17 @@ NsTclHttpObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST obj
             status = Ns_CondTimedWait(&cond, &lock, &timeout);
         }
         Ns_MutexUnlock(&lock);
+        if (timeidx > 0) {
+            Ns_Time dtime;
+            if (status != NS_OK) {
+                /* if we timed-out, we didn't capture this yet */
+                Ns_GetTime(&httpPtr->etime);
+            }
+
+            Ns_DiffTime(&httpPtr->etime, &httpPtr->stime, &dtime);
+            snprintf(buf, 50, "%ld:%ld", dtime.sec, dtime.usec);
+            Tcl_SetVar(interp, Tcl_GetString(objv[timeidx]), buf, TCL_LEAVE_ERR_MSG);
+        }
         if (status != NS_OK) {
             httpPtr = NULL;
             result = "timeout";
@@ -477,6 +498,7 @@ HttpRecv(SOCKET sock, void *arg, int why)
     } else {
         state |= REQ_EOF;
     }
+    Ns_GetTime(&httpPtr->etime);
     return HttpDone(sock, httpPtr, state);
 }
 
