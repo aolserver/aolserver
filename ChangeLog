@@ -1,3 +1,23 @@
+2002-11-10  Jim Davidson <jgdavidson@aol.com>
+
+	* include/nsthread.h:
+	* nsthread/Makefile:
+	* include/nsthead.h:
+	* nsthread/Makefile :
+	* nsthread/cond.c (removed):
+	* nsthread/winthread.c (new file):
+	* nsthread/pthread.c (new file):
+	* nsthread/error.c:
+	* * nsthread/mutex.c:
+	* nsthread/nsthreadtest.c:
+	* nsthread/reentrant.c:
+	* nsthread/thread.c:
+	* nsthread/thread.h:
+	* nsthread/time.c:
+	* nsthread/tls.c:  Added WIN32 support in nsthreads similar
+	to prior implemention.
+
+
 2002-10-28  Jim Davidson <jgdavidson@aol.com>
 
 	* Makefile:
