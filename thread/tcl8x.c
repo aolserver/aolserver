@@ -31,7 +31,7 @@
  * tclNsThread.cpp --
  *
  *	This file implements the nsthread-based thread support for
- *	Tcl 8.3.1.
+ *	Tcl 8.x
  *
  * Copyright (c) 1999 AOL, Inc.
  *
@@ -47,6 +47,40 @@
 #include "tcl.h"
 
 /*
+ * The following structure and TLS key define a per-thread
+ * cache of Tcl_Obj's.  This is used to both to avoid
+ * lock contention and memory overhead with direct allocation.
+ */
+ 
+typedef struct List {
+    Tcl_Obj *firstPtr;
+    int nobjs;
+} List;
+
+static Ns_Tls tls;
+
+/*
+ * The following define the number of Tcl_Obj's to allocate/move
+ * at a time and the high water mark to prune a per-thread list.
+ * On a 32 bit system, sizeof(Tcl_Obj) = 24 so 800 * 24 =~ 16k.
+ */
+ 
+#define NALLOC	 800
+#define NHIGH	1200
+
+static List *GetList(void);
+static void FreeList(void *arg);
+static void MoveObjs(List *fromPtr, List *toPtr, int nmove);
+
+/*
+ * The following list and lock are used to manage excess
+ * free Tcl_Obj's.
+ */
+ 
+static List sharedList;
+static Ns_Mutex lock;
+
+/*
  * The following structure and start wrapper is used
  * to avoid a different definition of Tcl_ThreadCreateProc
  * and Ns_ThreadProc (e.g., on Win32).
@@ -60,7 +94,7 @@ typedef struct ThreadArg {
 static Ns_ThreadProc TclNsThread;
 
 /*
- * These are for the critical sections inside this file.
+ * These macros are for critical sections within this file.
  */
 
 #define MASTER_LOCK	Ns_MasterLock()
@@ -773,4 +807,211 @@ NS_EXPORT char *
 TclpRealloc(char *cp, unsigned int nbytes)
 {
     return ns_realloc(cp, nbytes);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * TclpNewObj --
+ *
+ *	Allocate a Tcl_Obj from the per-thread cache.
+ *
+ * Results:
+ *	Pointer to uninitialized Tcl_Obj.
+ *
+ * Side effects:
+ *	May move Tcl_Obj's from shared list or allocate new Tcl_Obj's
+ *  	if list is empty.
+ *
+ *----------------------------------------------------------------------
+ */
+
+NS_EXPORT Tcl_Obj *
+TclpNewObj(void)
+{
+    register List *listPtr;
+    register int nmove;
+    register Tcl_Obj *objPtr;
+    Tcl_Obj *newObjsPtr;
+
+    /*
+     * Get this thread's obj list structure and move
+     * or allocate new objs if necessary.
+     */
+     
+    listPtr = GetList();
+    if (listPtr->nobjs == 0) {
+    	Ns_MutexLock(&lock);
+	nmove = sharedList.nobjs;
+	if (nmove > 0) {
+	    if (nmove > NALLOC) {
+		nmove = NALLOC;
+	    }
+	    MoveObjs(&sharedList, listPtr, nmove);
+	}
+    	Ns_MutexUnlock(&lock);
+	if (listPtr->nobjs == 0) {
+	    listPtr->nobjs = nmove = NALLOC;
+	    newObjsPtr = NsAlloc(nmove * sizeof(Tcl_Obj));
+	    while (--nmove >= 0) {
+		objPtr = &newObjsPtr[nmove];
+		objPtr->internalRep.otherValuePtr = listPtr->firstPtr;
+		listPtr->firstPtr = objPtr;
+	    }
+	}
+    }
+
+    /*
+     * Pop the first object.
+     */
+
+    objPtr = listPtr->firstPtr;
+    listPtr->firstPtr = objPtr->internalRep.otherValuePtr;
+    --listPtr->nobjs;
+    return objPtr;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * TclpFreebj --
+ *
+ *	Return a free Tcl_Obj to the per-thread cache.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	May move free Tcl_Obj's to shared list upon hitting high
+ *  	water mark.
+ *
+ *----------------------------------------------------------------------
+ */
+
+NS_EXPORT void
+TclpFreeObj(Tcl_Obj *objPtr)
+{
+    List *listPtr;
+
+    /*
+     * Get this thread's list and push on the free Tcl_Obj.
+     */
+     
+    listPtr = GetList();
+    objPtr->internalRep.otherValuePtr = listPtr->firstPtr;
+    listPtr->firstPtr = objPtr;
+    
+    /*
+     * If the number of free objects has exceeded the high
+     * water mark, move some blocks to the shared list.
+     */
+     
+    ++listPtr->nobjs;
+    if (listPtr->nobjs > NHIGH) {
+	Ns_MutexLock(&lock);
+	MoveObjs(listPtr, &sharedList, NALLOC);
+	Ns_MutexUnlock(&lock);
+    }
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * MoveObjs --
+ *
+ *	Move Tcl_Obj's between lists.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *  	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+MoveObjs(List *fromPtr, List *toPtr, int nmove)
+{
+    register Tcl_Obj *objPtr;
+
+    toPtr->nobjs += nmove;
+    fromPtr->nobjs -= nmove;
+    while (--nmove >= 0) {
+	objPtr = fromPtr->firstPtr;
+	fromPtr->firstPtr = objPtr->internalRep.otherValuePtr;
+	objPtr->internalRep.otherValuePtr = toPtr->firstPtr;
+	toPtr->firstPtr = objPtr;
+    }
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * FreeList --
+ *
+ *	TLS cleanup callback.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *  	Moves any remaining Tcl_Obj's to the shared list.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+FreeList(void *arg)
+{
+    List *listPtr = arg;
+
+    if (listPtr->nobjs > 0) {
+    	Ns_MutexLock(&lock);
+    	MoveObjs(listPtr, &sharedList, listPtr->nobjs);
+    	Ns_MutexUnlock(&lock);
+    }
+    ns_free(listPtr);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * GetList --
+ *
+ *	Return this thread's Tcl_Obj cache list.
+ *
+ * Results:
+ *	Pointer to private List structure.
+ *
+ * Side effects:
+ *  	Will initialize TLS key and/or private List.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static List *
+GetList(void)
+{
+    List *listPtr;
+
+    if (tls == NULL) {
+    	MASTER_LOCK;
+	if (tls == NULL) {
+	    Ns_TlsAlloc(&tls, FreeList);
+	}
+	Ns_MutexSetName2(&lock, "nsthread", "tclobjs");
+    	MASTER_UNLOCK;
+    }
+    listPtr = Ns_TlsGet(&tls);
+    if (listPtr == NULL) {
+	listPtr = ns_calloc(1, sizeof(List));
+	Ns_TlsSet(&tls, listPtr);
+    }
+    return listPtr;
 }
