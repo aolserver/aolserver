@@ -43,7 +43,7 @@ RSC=rc.exe
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /MT /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "NSD_EXPORTS" /YX /FD /c
-# ADD CPP /nologo /MD /W3 /GX /O2 /I "..\..\include" /D "NDEBUG" /D "_WINDOWS" /D "_USRDLL" /D "NSD_EXPORTS" /D "WIN32" /D "_MBCS" /D FD_SETSIZE=128 /YX /FD /c
+# ADD CPP /nologo /MD /W3 /GX /O2 /I "..\..\include" /D "_WINDOWS" /D "_USRDLL" /D "NSD_EXPORTS" /D "NDEBUG" /D "WIN32" /D "_MBCS" /D FD_SETSIZE=128 /D TCL_THREADS=1 /YX /FD /c
 # ADD BASE MTL /nologo /D "NDEBUG" /mktyplib203 /win32
 # ADD MTL /nologo /D "NDEBUG" /mktyplib203 /win32
 # ADD BASE RSC /l 0x409 /d "NDEBUG"
@@ -69,7 +69,7 @@ LINK32=link.exe
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /MTd /W3 /Gm /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "NSD_EXPORTS" /YX /FD /GZ /c
-# ADD CPP /nologo /MDd /W3 /Gm /GX /ZI /Od /I "..\..\include" /D "_DEBUG" /D "_WINDOWS" /D "_USRDLL" /D "NSD_EXPORTS" /D "WIN32" /D "_MBCS" /D FD_SETSIZE=128 /YX /FD /GZ /c
+# ADD CPP /nologo /MDd /W3 /Gm /GX /ZI /Od /I "..\..\include" /D "_WINDOWS" /D "_USRDLL" /D "NSD_EXPORTS" /D "_DEBUG" /D "WIN32" /D "_MBCS" /D FD_SETSIZE=128 /D TCL_THREADS=1 /YX /FD /GZ /c
 # SUBTRACT CPP /Fr
 # ADD BASE MTL /nologo /D "_DEBUG" /mktyplib203 /win32
 # ADD MTL /nologo /D "_DEBUG" /mktyplib203 /win32
@@ -93,11 +93,19 @@ LINK32=link.exe
 # PROP Default_Filter "cpp;c;cxx;rc;def;r;odl;idl;hpj;bat"
 # Begin Source File
 
-SOURCE=..\..\nsd\adp.c
+SOURCE=..\..\nsd\adpcmds.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\nsd\adpfancy.c
+SOURCE=..\..\nsd\adpeval.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\nsd\adpparse.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\nsd\adprequest.c
 # End Source File
 # Begin Source File
 
@@ -145,7 +153,7 @@ SOURCE=..\..\nsd\dns.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\nsd\drv.c
+SOURCE=..\..\nsd\driver.c
 # End Source File
 # Begin Source File
 
@@ -185,6 +193,10 @@ SOURCE=..\..\nsd\index.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\nsd\info.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\nsd\keepalive.c
 # End Source File
 # Begin Source File
@@ -221,10 +233,6 @@ SOURCE=..\..\nsd\nsthread.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\nsd\nswin32.c
-# End Source File
-# Begin Source File
-
 SOURCE=..\..\nsd\op.c
 # End Source File
 # Begin Source File
@@ -238,6 +246,10 @@ SOURCE=..\..\nsd\pidfile.c
 # Begin Source File
 
 SOURCE=..\..\nsd\proc.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\nsd\queue.c
 # End Source File
 # Begin Source File
 
@@ -265,7 +277,7 @@ SOURCE=..\..\nsd\sched.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\nsd\serv.c
+SOURCE=..\..\nsd\server.c
 # End Source File
 # Begin Source File
 
@@ -329,15 +341,11 @@ SOURCE=..\..\nsd\tclset.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\nsd\tclshare.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\nsd\tclsock.c
-# End Source File
-# Begin Source File
-
-SOURCE=..\..\nsd\tclstats.c
-# End Source File
-# Begin Source File
-
-SOURCE=..\..\nsd\tclstub8x.c
 # End Source File
 # Begin Source File
 
@@ -350,6 +358,10 @@ SOURCE=..\..\nsd\tclvar.c
 # Begin Source File
 
 SOURCE=..\..\nsd\tclxkeylist.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\nsd\tls.c
 # End Source File
 # Begin Source File
 
@@ -366,6 +378,10 @@ SOURCE=..\..\nsd\urlopen.c
 # Begin Source File
 
 SOURCE=..\..\nsd\urlspace.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\nsd\win32.c
 # End Source File
 # End Group
 # Begin Group "Header Files"
