@@ -962,8 +962,8 @@ InitMaster(void)
 static pthread_key_t
 GetKey(void)
 {
+    static volatile int initialized;
     static pthread_key_t key;
-    static int initialized;
     int err;
 
     if (!initialized) {

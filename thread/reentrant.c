@@ -35,7 +35,7 @@
  *	data buffers.  See the corresponding manual page for details.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/reentrant.c,v 1.6 2000/11/06 17:53:50 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/reentrant.c,v 1.7 2001/03/12 21:53:47 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "thread.h"
 
@@ -59,12 +59,33 @@ typedef struct Tls {
 #endif
 } Tls;
 
-static Tls *GetTls(void);
-
 #ifdef MACOSX
 #define NO_REENTRANT	1
 char *strtok_r(char *s, const char *delim, char **last);
 #endif
+
+static Tls *
+GetTls(void)
+{
+    static volatile int initialized = 0;
+    static Ns_Tls tls;
+    Tls *tlsPtr;
+
+    if (!initialized) {
+	Ns_MasterLock();
+	if (!initialized) {
+	    Ns_TlsAlloc(&tls, ns_free);
+	    initialized = 0;
+	}
+	Ns_MasterUnlock();
+    }
+    tlsPtr = Ns_TlsGet(&tls);
+    if (tlsPtr == NULL) {
+	tlsPtr = ns_calloc(1, sizeof(Tls));
+	Ns_TlsSet(&tls, tlsPtr);
+    }
+    return tlsPtr;
+}
 
 struct dirent *
 ns_readdir(DIR * dir)
@@ -285,29 +306,6 @@ ns_inet_ntoa(struct in_addr addr)
     sprintf(tlsPtr->naBuf, "%u.%u.%u.%u", u.b[0], u.b[1], u.b[2], u.b[3]);
     return tlsPtr->naBuf;
 }
-
-
-static Tls *
-GetTls(void)
-{
-    static Ns_Tls tls;
-    Tls *tlsPtr;
-
-    if (tls == NULL) {
-	Ns_MasterLock();
-	if (tls == NULL) {
-	    Ns_TlsAlloc(&tls, NsFree);
-	}
-	Ns_MasterUnlock();
-    }
-    tlsPtr = Ns_TlsGet(&tls);
-    if (tlsPtr == NULL) {
-	tlsPtr = NsAlloc(sizeof(Tls));
-	Ns_TlsSet(&tls, tlsPtr);
-    }
-    return tlsPtr;
-}
-
 
 
 #ifdef MACOSX
