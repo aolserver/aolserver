@@ -34,7 +34,7 @@
  *	Win32 specific routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nswin32.c,v 1.9 2001/01/16 18:14:27 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nswin32.c,v 1.9.4.1 2002/11/10 15:02:20 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -276,9 +276,6 @@ NsInstallService(char *server)
 	Ns_DStringInit(&cmd);
 	Ns_DStringVarAppend(&cmd, "\"", nsd, "\"",
 	    " -S -s ", server, carg, "\"", config, "\"", NULL);
-    	if (nsMemPools) {
-	    Ns_DStringAppend(&cmd, " -z");
-	}
 	GetServiceName(&name, server);
 	Ns_Log(Notice, "nswin32: installing %s service: %s",
 	    name.string, cmd.string);
