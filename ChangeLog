@@ -1,3 +1,33 @@
+2005-01-17  Jim Davidson <jgdavidson@aol.com>
+
+	* include/ns.h:
+	* nsd/connio.c:
+	* nsd/conn.c: Added new Ns_ConnSetStatus and Ns_ConnGetStatus
+	routines to set/get HTTP response status code to be sent
+	in reponses by Ns_ConnFlush.
+
+	* doc/mkLinks:
+	* doc/Ns_ConnHeaders.3: Added placeholders for new
+	Ns_ConnGetStatus and Ns_ConnSetStatus routines.
+
+	* nsd/nsd.h:
+	* nsd/encoding.c: Removed previous private type/encoding
+	code now integrated into new public Ns_ConnSetType.
+
+	* nsd/return.c: Updated ReturnCharData to use new Ns_ConnFlush.
+
+	* nsd/server.c: Removed some config code to set encodings
+	now determine when needed based on charsets.
+
+	* nsd/form.c: New NsCheckQuery private routine to verify
+	query form was decoded with current encoding.
+
+	* nsd/queue.c: Fixed possible race in NsConnArgProc.
+
+	* nsd/adprequest.c:
+	* nsd/driver.c: Minor cleanup.
+
+
 2005-01-15  Jim Davidson <jgdavidson@aol.com>
 
 	Among some general code cleanup, several changes to factor
