@@ -1,3 +1,20 @@
+2004-06-14 20:41  Dossy Shiobara <dossy@panoptic.com>
+
+	* nsd/return.c: unnecessary test for data != NULL actually caused
+	  part of bug #971016 when fastpath.cache=false and
+	  fastpath.mmap=true and the file requested is zero bytes, mmap()
+	  returns 0 which gets passed along as data == NULL, causing
+	  ReturnCharData() to not flush the queued headers.  removing the
+	  if is safe as Ns_WriteConn will simply flush any queued data
+
+2004-06-14 20:40  Dossy Shiobara <dossy@panoptic.com>
+
+	* nsd/connio.c: If nsend == 0, we would never call Ns_WriteConn to
+	  flush the queued headers.  This could happen when we're sending
+	  zero bytes of data as a response.  This fixes bug #971016 in the
+	  case where fastpath.cache=false and fastpath.mmap=false and a
+	  zero byte file is requested.
+
 2004-06-14 16:40  Dossy Shiobara <dossy@panoptic.com>
 
 	* nsd/return.c: one-liner fix for sending Content-Length header
