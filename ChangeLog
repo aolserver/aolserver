@@ -1,5 +1,16 @@
 2004-07-02  Dossy Shiobara <dossy@panoptic.com>
 
+	* nsd/: fastpath.c (1.19), return.c (1.38): Enable ADP/Tcl code to
+	  override Last-Modified: header from ns_respond when -headers AND
+	  -file are specified.	Closes bug #879076.
+
+2004-07-02  Dossy Shiobara <dossy@panoptic.com>
+
+	* nsd/tclresp.c (1.17): lots of refactoring of ns_respond code to
+	  remove duplication
+
+2004-07-02  Dossy Shiobara <dossy@panoptic.com>
+
 	* nsd/init.tcl (1.31): ns_eval of script containing comments (i.e.,
 	  lines starting with #) cause an error because  is a list, which
 	  gets evaluated differently than a plain string script.  Fixes bug
