@@ -5,9 +5,15 @@
 #      utilities used by AOLserver source code and modules.
 #
 
+#
+# To build, type "gmake"
+# To override the default compiler on SOME platforms, type:
+# "gmake nativeme=1" or "gmake gccme=1".
+# To use Purify, type "gmake nativeme=1 PURIFY=/path/to/purify/executable".
+#
 
 #
-# Installation locations.
+# Installation directories.
 #
 PREFIX       =   /usr/local/aolserver
 INST         =   $(PREFIX)
@@ -23,25 +29,13 @@ INSTSRVPAG   =   $(INSTSRV)/pages
 
 
 #
-# Common build variables.  The default is to
-# use gcc for compile and shared library link.
+# Common build variables.
 #
-# NOTE: Purify only works with native compilers.  It works with gcc-2.8.1
-#       on some platforms.  IT WILL *NOT* WORK WITH GCC-2.95.2.
-#
-
-CC           =   $(PURIFY) gcc
+CC           =   gcc
 LD           =   ld
 LDSO	     =   $(CC) -shared -nostartfiles
-
-#
-# Select one of the following for debug or optimization.
-#
-#CCOPT        =   -DNDEBUG=1
-CCOPT        =  -g 
 GCCOPT       =   -g -O2 -fPIC -Wall -Wno-unused
-
-CFLAGS       +=  $(CCOPT) -I$(NSHOME)/include -D_REENTRANT=1
+CFLAGS       +=  -I$(NSHOME)/include -D_REENTRANT=1 -DNDEBUG=1
 LIBNSTHREAD  =   $(NSHOME)/thread/libnsthread.a
 LIBS         +=  
 MKDIR        =   mkdir -p
@@ -54,76 +48,28 @@ LN           =   ln -s
 AR           =   ar
 ARFLAGS      =   rv
 RANLIB       =   true
-
-#
-# RPATH is only used by some platforms (so far).
-#
 RPATH = $(PREFIX)/lib:/usr/local/aolserver/lib:/opt/aolserver/lib:/usr/local/lib
 
+
 #
-# Auto-detect the platform
+# Figure the OS and architecture.
 #
 PLATFORM = unknown
-
-
-#
-# KNOWN-GOOD PLATFORMS FOR THIS RELEASE:
-#
-# **=read notes carefully
-#
-#    HP/UX 10.20, 11.x, and better
-#    Linux i386 from Red Hat**
-#    Solaris 2.6 SPARC and better
-#    Solaris 7 x86 and better
-#    DEC OSF/1 Tru64 UNIX 4.x and better
-#    SGI Irix 6.4**
-#    FreeBSD 3.x i386 and better
-#
-# UNTESTED PLATFORMS:
-#
-#    OpenBSD 2.x and better
-#    SCO Unixware 7.x
-#    Mac OS X Public Beta (desktop Darwin/Mach 3.0-based product)
-#    Mac OS X Server (Mach 2.5-based undead zombie product)
-#
-# UNSUPPORTED PLATFORMS:
-#
-#    NetBSD 1.x (no threads library)
-#    SCO Xenix-based (OpenServer)
-#
+PLAT     = $(shell uname -a)
 
 #
-# HP/UX 11.x -- gcc
+# HP/UX
 #
-#  The HP/UX 10.20 build works fine on HP/UX 11.x
-#  "gcc -g" may have trouble supplying debug symbols.
-#  SMP is fully supported by HP/UX.
-#  
-ifeq (HP-UXB.11.00, $(shell uname -s)$(shell uname -r))
-    PLATFORM=hp11
-    # CC=$(PURIFY) cc
-    # CFLAGS+=-O2 -Ae +DAportable +z
-    CFLAGS+=$(GCCOPT)
-    LDSO=$(LD) -b
-    NSDLIBS=-lm
-    LDFLAGS=-Wl,-E
-    LIBS+=-lpthread
-    CFLAGS+=-DUSE_DLSHL=1 -D__hp11=1
-endif
-
-
-#
-# HP/UX 10.20 -- gcc
-#
-#  The HP/UX 10.20 build works fine on HP/UX 11.x.
-#  "gcc -g" may have trouble supplying debug symbols.
-#  SMP is fully supported by HP/UX if the "DCE Threads" package is installed.
-#
-ifeq (HP-UXB.10.20, $(shell uname -s)$(shell uname -r))
+ifneq (,$(findstring HP-UX,$(PLAT)))
     PLATFORM=hp10
-    # CC=$(PURIFY) cc
-    # CFLAGS+=-O2 -Ae +DAportable +z
-    CFLAGS+=$(GCCOPT)
+
+    ifndef gccme
+        CC=$(PURIFY) cc
+        CFLAGS+=-O2 -Ae +DAportable +z
+    else
+        CFLAGS+=$(GCCOPT) -mpa-risc-1-0
+    endif
+
     LDSO=$(LD) -b
     NSDLIBS=-lm
     LDFLAGS=-Wl,-E
@@ -133,16 +79,20 @@ endif
 
 
 #
-# Linux -- gcc
+# Linux
 #
-#  Post-mortem debugging with core dumps is all but impossible.
-#  We use the VA Linux release of Red Hat 6.x exclusively.
-#  SMP and threads are badly supported by Linux (we recommend Solaris x86).
-#
-ifeq (Linux,$(shell uname))
+ifneq (,$(findstring Linux,$(PLAT)))
     PLATFORM=linux
     LDFLAGS+=-Wl,-E
-    CFLAGS+=$(GCCOPT)
+
+    ## We optimize for either i686 or i586 -- they really are very different.
+    ifneq (,$(findstring "i686",$(PLAT)))
+        CFLAGS+=-mcpu=i686
+    endif
+    ifneq (,$(findstring "i586",$(PLAT)))
+        CFLAGS+=-mcpu=i586
+    endif
+
     NSDLIBS=-lm
     LIBS+=-ldl -lpthread 
     CFLAGS+=-DHAVE_CMMSG=1 -DUSE_FIONREAD=1 -DHAVE_COND_EINTR=1
@@ -150,17 +100,29 @@ endif
 
 
 #
-# Sun Solaris SPARC and x86 -- SUNWspro
+# Solaris
 #
-#  Purify only works with SUNWspro and gcc-2.8.1.
-#  The "-pipe" option to gcc does not work on some versions of Solaris.
-#  SMP is fully supported by Solaris on both SPARC and x86.
+#    Note: Purify works only on Solaris 7 SPARC with SUNWspro or gcc-2.8.1.
 #
-ifeq (SunOS,$(shell uname))
+ifneq (,$(findstring SunOS,$(PLAT)))
     PLATFORM=solaris
-    CC=$(PURIFY) /opt/SUNWspro/bin/cc
-    CFLAGS+=-g -xO2 -KPIC -xarch=v8plusa 
-    #CFLAGS+=$(GCCOPT) -mcpu=ultrasparc
+
+    ifdef nativeme
+        CC=$(PURIFY) /opt/SUNWspro/bin/cc
+        CFLAGS+=-g -xO2 -KPIC -erroff=%none
+        ifneq (,$(findstring sparc,$(PLAT)))
+            CFLAGS+=-xarch=v8plusa
+        else
+            CFLAGS+=-xpentium
+        endif
+    else
+        ifneq (,$(findstring sparc,$(PLAT)))
+            CFLAGS+=$(GCCOPT) -mcpu=ultrasparc
+        else
+            CFLAGS+=$(GCCOPT) -mcpu=pentium
+        endif
+    endif
+
     LDSO=$(LD) -G
     NSDLIBS=-lm
     LIBS+=-lsocket -lnsl -ldl -lposix4 -lthread -lresolv -R $(RPATH)
@@ -173,16 +135,12 @@ endif
 
 
 #
-# DEC OSF/1, Digital UNIX, Tru64 UNIX -- gcc
+# DEC OSF/1, Digital UNIX, Tru64 UNIX
 #
-#  This should be changed to gcc as soon as possible.
-#  This is a 64-bit platform.
-#  SMP is fully supported by DEC UNIX.
-#
-ifeq (OSF1,$(shell uname))
+ifneq (,$(findstring OSF1,$(PLAT)))
     PLATFORM=osf
     CC=$(PURIFY) cc
-    CFLAGS+=$(GCCOPT) -std1 -pthread
+    CFLAGS+=$(GGCCOPT) -std1 -pthread
     LDFLAGS+=-pthread
     LDSO=$(LD) -shared -expect_unresolved '*'
     NSDLIBS=-lm
@@ -191,43 +149,41 @@ endif
 
 
 #
-# SGI Irix (6.4 or better) -- cc
+# SGI Irix
 #
-#  We only use o32 binaries and use "cc -o32" to build.
-#  GCC: unset ABI, set SGI_ABI env variable to n32 to force linker to behave.
-#  CC: unset SGI_ABI; set the ABI variable to "-n32".
-#  gcc only works if all third-party libraries are in the "n32" ABI.
-#  The "-pipe" option to gcc does not work on some versions of Irix.
-#  Use "systune" command to set "maxuproc" and "nproc" to reasonable values.
-#  SMP is fully supported by Irix.
-#
-ifeq (IRIX, $(findstring IRIX, $(shell uname)))
+ifneq (,$(findstring IRIX,$(PLAT)))
     PLATFORM=irix
-    SGI_ABI=o32
-    ABI=-$(SGI_ABI)
-    CC=$(PURIFY) cc
-    CFLAGS+=$(ABI) -KPIC -g3 -O2 -fullwarn
-    LDSO=$(LD) $(ABI) -shared
-    #CFLAGS+=$(GCCOPT)
-    LDFLAGS+=$(ABI)
-    NSDLIBS=-lm
-    #LIBS+=-lpthread
-    CFLAGS+=-DUSE_SPROC=1 -D_SGI_MP_SOURCE=1
-    ifeq (o32, $(ABI))
-	CFLAGS+=-DUSE_DUPHIGH=1
+
+    ## Purify seems to work on Irix o32 only.
+    ifndef gccme
+        ABI=o32
+        CC=$(PURIFY) cc
+        CFLAGS  += -$(ABI) -KPIC -g3 -O2 -fullwarn -DUSE_DUPHIGH=1
+    else
+        ABI=n32
+        CFLAGS+=$(GCCOPTS) -mcpu=mips
     endif
+
+    LDFLAGS += -$(ABI)
+    LDSO=$(LD) -$(ABI) -shared
+    NSDLIBS=-lm
+    CFLAGS+=-DUSE_SPROC=1 -D_SGI_MP_SOURCE=1
+
 endif
 
 
 #
-# FreeBSD 3.x -- gcc
+# FreeBSD
 #
-#  The pthread library that ships with FreeBSD 3.3 or better is required.
-#  SMP is supported by recent FreeBSD 4.x releases.
-#
-ifeq (FreeBSD,$(shell uname))
+ifneq (,$(findstring FreeBSD,$(PLAT)))
     PLATFORM=freebsd
-    CFLAGS+=$(GCCOPT) -pthread
+    CFLAGS+=$(GGCCOPT) -pthread
+
+    ## FreeBSD doesn't make a distinction among processors in the x86 class.
+    ifneq (,$(findstring i386,$(PLAT)))
+        CFLAGS+=-mcpu=pentium
+    endif
+
     LDFLAGS+=-pthread -Wl,-E
     RANLIB=ranlib
     CFLAGS+=-D_THREAD_SAFE=1 -DHAVE_CMMSG=1 -DNO_TIMEZONE=1 -DHAVE_TIMEGM=1
@@ -236,14 +192,17 @@ endif
 
 
 #
-# OpenBSD 2.5 or better -- gcc
+# OpenBSD
 #
-# Contributed by Michael Yoon <michael@yoon.org>
-# SMP is not supported by OpenBSD.
-#
-ifeq (OpenBSD,$(shell uname))
+ifneq (,$(findstring OpenBSD,$(PLAT)))
     PLATFORM=openbsd
-    CFLAGS+=$(GCCOPT) -pthread
+    CFLAGS+=$(GGCCOPT) -pthread
+
+    ## OpenBSD doesn't make a distinction among processors in the x86 class.
+    ifneq (,$(findstring i386,$(PLAT)))
+        CFLAGS+=-mcpu=pentium
+    endif
+
     LDFLAGS+=-pthread -Wl,-E
     RANLIB=ranlib
     CFLAGS+=-DHAVE_CMMSG=1 -DUSE_DLSYMPREFIX=1 -DUSE_RTLD_LAZY=1 \
@@ -253,15 +212,11 @@ endif
 
 
 #
-# SCO Unixware 7.x -- cc
+# SCO Unixware
 #
-#  This should be changed to gcc as soon as possible -- anybody?
-#  Do not confuse Unixware with OpenServer or other Caldera OS's.
-#  SMP is fully supported by Unixware (but remains untested).
-#
-ifeq (UnixWare,$(shell uname))
+ifneq (,$(findstring UnixWare,$(PLAT)))
     PLATFORM=unixware
-    CC=$(PURIFY) cc
+    CC=cc
     CFLAGS+=-O2 -Kpic -Kthread -D__unixware
     LDFLAGS=-Wl,-B export
     LDSO=$(LD) -G
@@ -272,22 +227,16 @@ endif
 
 
 #
-# Mac OS X -- cc
+# Mac OS X
 #
-#  The Mac OS X Server and Public Beta are completely different systems.
-#  cc is gcc; the Mac OS X make is gmake.
-#  Tested under releases 1.0 and 1.02.
-#  OS X Server is an undead zombie product.  Use the Darwin version instead.
-#  SMP support by Mac OS X is unknown.
-#
-ifeq (Rhapsody,$(shell uname))
+ifneq (,$(findstring Rhapsody,$(PLAT)))
     PLATFORM=osx
 endif
-ifeq (Darwin,$(shell uname))
+ifneq (,$(findstring Darwin,$(PLAT)))
     PLATFORM=osx
 endif
 ifeq (osx,$(PLATFORM))
-    CC=$(PURIFY) cc
+    CC=cc
     LD=cc
     CFLAGS+=$(GCCOPT) -dynamic -traditional-cpp
     LDSO=$(LD) -bundle -undefined suppress
@@ -321,6 +270,7 @@ LIBTCL8X=$(NSHOME)/$(TCL8X_DIR)/unix/$(TCL8X_LIB)
 #
 # Rules for library dependencies.
 #
+
 all:
 
 libnspd:

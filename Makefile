@@ -23,22 +23,20 @@ include $(NSHOME)/include/Makefile.global
 #   nscp        -- Control port remote administration interface
 #   nslog       -- Common log format module
 #   nsperm      -- Permissions module
-#
+#   nsext       -- External database driver module
+#   nspd        -- Archive library for building an external driver
 #   nsunix      -- serve HTTP over Unix domain socket
 #   nsvhr       -- Virtual hosting redirector
 #
-#   nsext       -- External database driver module
-#   nspd        -- Archive library for building an external driver
-#
 
-MODULES   =  nssock nscgi nscp nslog nsperm nsext nspd nsunix nsvhr
-
-#
-# AOLserver main executable statically-links the thread and tcl libraries.
-#
+MODULES   =  nssock nscgi nscp nslog nsperm nsext nspd
+#MODULES   += nsunix nsvhr
 
 ALLDIRS   = nsd $(MODULES)
 
+#
+# Main build rule.
+#
 all: libtcl76 libtcl8x libnsthread
 	@for i in $(ALLDIRS); do \
 		$(ECHO) "building \"$$i\""; \
@@ -46,9 +44,7 @@ all: libtcl76 libtcl8x libnsthread
 	done
 
 #
-# Installation to $(PREFIX) directory
-#
-#  Note:  Dependencies are checked in the individual directories.
+# Installation rule.
 #
 install:
 	$(MKDIR)                    $(INSTBIN)
@@ -71,11 +67,15 @@ install:
 	done
 	(cd thread && $(MAKE) install)
 
+
+#
+# Test pages and scripts installation rule.
+#
 install-tests:
 	$(CP) -r tests $(INSTSRVPAG)
 
 #
-# Cleaning
+# Cleaning rule.
 #
 clean: libtcl8x-clean libtcl76-clean libnsthread-clean
 	@for i in $(ALLDIRS); do \

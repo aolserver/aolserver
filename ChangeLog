@@ -1,5 +1,13 @@
 2000-12-13  Kriston J. Rehberg  <kriston@aol.com>
 
+	* include/Makefile.global: Builds with architecture-specific
+	optimization options. Auto-detects architecture for most
+	platforms.  Auto-select compiler and Purify usage from command
+	line, e.g.:
+	gmake nativeme=1   (all non-free Unix)
+	gmake gccme=1      (some non-free Unix)
+	gmake PURIFY=/path/to/purify/executable  (Solaris and Irix only)
+
 	* nssock/Makefile*: now installs The Right Things in The Right
 	Places.
 
