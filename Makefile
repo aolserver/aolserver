@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/Makefile,v 1.42 2002/10/03 22:35:33 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/Makefile,v 1.43 2002/10/14 23:20:04 jgdavidson Exp $
 #
 
 NSBUILD=1
@@ -40,7 +40,9 @@ all:
 		( cd $$i && $(MAKE) all ) || exit 1; \
 	done
 
-install: all
+install: install-binaries install-doc
+
+install-binaries: all
 	for i in bin lib log include modules/tcl servers/server1/pages; do \
 		$(MKDIR) $(AOLSERVER)/$$i; \
 	done
@@ -59,6 +61,9 @@ install: all
 install-tests:
 	$(CP) -r tests $(INSTSRVPAG)
 
+install-doc:
+	cd doc && ./install-doc $(AOLSERVER)
+
 clean:
 	@for i in $(dirs); do \
 		(cd $$i && $(MAKE) clean) || exit 1; \
@@ -66,3 +71,5 @@ clean:
 
 distclean: clean
 	$(RM) config.status config.log config.cache include/Makefile.global
+
+.PHONY: all install install-binaries install-doc install-tests clean distclean
