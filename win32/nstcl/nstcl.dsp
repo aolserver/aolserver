@@ -212,6 +212,10 @@ SOURCE=..\..\tcl8.3.2\generic\tclIOCmd.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\tcl8.3.2\generic\tclIOGT.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\tcl8.3.2\generic\tclIOSock.c
 # End Source File
 # Begin Source File
