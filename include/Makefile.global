@@ -15,6 +15,7 @@
 #
 # Installation directories.
 #
+
 PREFIX       =   /usr/local/aolserver
 INST         =   $(PREFIX)
 INSTBIN      =   $(INST)/bin
@@ -27,16 +28,28 @@ INSTSRV      =   $(INST)/servers/server1
 INSTSRVMOD   =   $(INSTSRV)/modules
 INSTSRVPAG   =   $(INSTSRV)/pages
 
+#
+# Tcl configuration.
+#
+
+TCL_MAJOR  =   8
+TCL_MINOR  =   3
+TCL_PATCH  =   .3
+TCL_DEBUG  =   g
+TCL_DIR    =   tcl$(TCL_MAJOR).$(TCL_MINOR)$(TCL_PATCH)
+TCL_LIB    =   libtcl$(TCL_MAJOR).$(TCL_MINOR)$(TCL_DEBUG).a
+# NB: For older BSD versions:
+#TCL_LIB   =   libtcl$(TCL_MAJOR)$(TCL_MINOR)$(TCL_DEBUG).a
+LIBTCL     =   $(NSHOME)/$(TCL_DIR)/unix/$(TCL_LIB)
 
 #
 # Common build variables.
 #
-CC           =   gcc
+CC           =   gcc -pipe
 LD           =   ld
 LDSO	     =   $(CC) -shared -nostartfiles
-#GCCOPTIMIZE  =   -O2
-GCCOPTIMIZE  =   -g
-GCCOPT       =   $(GCCOPTIMIZE) -fPIC -Wall -Wno-unused
+#CCOPT	     =	 -O2
+CCOPT	     =	 -g
 CFLAGS       +=  -I$(NSHOME)/include -D_REENTRANT=1 -DNDEBUG=1 -DTCL_THREADS=1
 LIBNSTHREAD  =   $(NSHOME)/thread/libnsthread.a
 LIBS         +=  
@@ -52,12 +65,6 @@ ARFLAGS      =   rv
 RANLIB       =   true
 RPATH = $(PREFIX)/lib:/usr/local/aolserver/lib:/opt/aolserver/lib:/usr/local/lib
 
-#
-# Set the names of the Tcl libraries
-#
-TCL_DIR=tcl8.3.3
-TCL_LIB=libtcl8.3g.a
-LIBTCL=$(NSHOME)/$(TCL_DIR)/unix/$(TCL_LIB)
 
 #
 # Figure the OS and architecture.
@@ -73,9 +80,9 @@ ifneq (,$(findstring HP-UX,$(PLAT)))
 
     ifndef gccme
         CC=$(PURIFY) cc
-        CFLAGS+=-O2 -Ae +DAportable +z
+        CFLAGS+=-Ae +DAportable +z
     else
-        CFLAGS+=$(GCCOPT) -mpa-risc-1-0
+        CFLAGS+=-mpa-risc-1-0
     endif
 
     LDSO=$(LD) -b
@@ -104,7 +111,6 @@ ifneq (,$(findstring Linux,$(PLAT)))
     NSDLIBS=-lm
     LIBS+=-ldl -lpthread 
     CFLAGS+=-DHAVE_CMMSG=1 -DUSE_FIONREAD=1 -DHAVE_COND_EINTR=1
-    CFLAGS+=$(GCCOPT)
 endif
 
 
@@ -118,9 +124,8 @@ ifneq (,$(findstring SunOS,$(PLAT)))
 
     ifdef nativeme
         CC=$(PURIFY) /opt/SUNWspro/bin/cc
-        #CCOPTIMIZE = -x02
-        CCOPTIMIZE = -g
-        CFLAGS+=$(CCOPTIMIZE) -KPIC -erroff=%none
+        #CCOPT = -x02
+        CFLAGS+=-KPIC -erroff=%none
         ifneq (,$(findstring sparc,$(PLAT)))
             CFLAGS+=-xarch=v8plusa
         else
@@ -130,9 +135,9 @@ ifneq (,$(findstring SunOS,$(PLAT)))
     	LDSO=$(LD) -G
     else
         ifneq (,$(findstring sparc,$(PLAT)))
-            CFLAGS+=$(GCCOPT) -mcpu=ultrasparc
+            CFLAGS+=-mcpu=ultrasparc
         else
-            CFLAGS+=$(GCCOPT) -mcpu=pentium
+            CFLAGS+=-mcpu=pentium
         endif
     endif
 
@@ -151,7 +156,7 @@ endif
 ifneq (,$(findstring OSF1,$(PLAT)))
     PLATFORM=osf
     CC=$(PURIFY) cc
-    CFLAGS+=$(GGCCOPT) -std1 -pthread -DNO_VSNPRINTF
+    CFLAGS+=-std1 -pthread -DNO__ENVIRON=1
     LDFLAGS+=-pthread
     LDSO=$(LD) -shared -expect_unresolved '*'
     NSDLIBS=-lm
@@ -169,18 +174,17 @@ ifneq (,$(findstring IRIX,$(PLAT)))
     ifndef gccme
         ABI=o32
         CC=$(PURIFY) cc
-        ##CCOPTIMIZE = -g3 -O2
-        CCOPTIMIZE = -g
-        CFLAGS  += $(CCOPTIMIZE) -$(ABI) -KPIC -fullwarn -DUSE_DUPHIGH=1
+        ##CCOPT = -g3 -O2
+        CFLAGS  += -$(ABI) -KPIC -fullwarn -DUSE_DUPHIGH=1
     else
         ABI=n32
-        CFLAGS+=$(GCCOPTS) -mcpu=mips
+        CFLAGS += -mcpu=mips
     endif
 
     LDFLAGS += -$(ABI) 
     LDSO=$(LD) -$(ABI) -shared
     NSDLIBS=-lm
-    CFLAGS+=-D_SGI_MP_SOURCE=1 -DNO_VSNPRINTF
+    CFLAGS+=-D_SGI_MP_SOURCE=1 
     ifeq ($(USE_SPROC), 0)
     	LIBS += -lpthread
     else
@@ -195,19 +199,16 @@ endif
 #
 ifneq (,$(findstring FreeBSD,$(PLAT)))
     PLATFORM=freebsd
-    CFLAGS+=$(GGCCOPT) -pthread
-
+    CFLAGS+=-pthread
     ## FreeBSD doesn't make a distinction among processors in the x86 class.
     ifneq (,$(findstring i386,$(PLAT)))
         CFLAGS+=-mcpu=pentium
     endif
-
     LDFLAGS+=-pthread -Wl,-E
     RANLIB=ranlib
-    CFLAGS+=-D_THREAD_SAFE=1 -DHAVE_CMMSG=1 -DNO_TIMEZONE=1 -DHAVE_TIMEGM=1
+    CFLAGS+=-D_THREAD_SAFE=1 -DHAVE_CMMSG=1 -DNO_TIMEZONE=1 \
+	   -DHAVE_TIMEGM=1 -DNO__ENVIRON=1
     NSDLIBS=-lm
-    ## FreeBSD Tcl library name slightly different.
-    TCL_LIB=libtcl83g.a
 endif
 
 
@@ -216,17 +217,16 @@ endif
 #
 ifneq (,$(findstring OpenBSD,$(PLAT)))
     PLATFORM=openbsd
-    CFLAGS+=$(GGCCOPT) -pthread
-
+    CFLAGS+=-pthread
     ## OpenBSD doesn't make a distinction among processors in the x86 class.
     ifneq (,$(findstring i386,$(PLAT)))
         CFLAGS+=-mcpu=pentium
     endif
-
     LDFLAGS+=-pthread -Wl,-E
     RANLIB=ranlib
     CFLAGS+=-DHAVE_CMMSG=1 -DUSE_DLSYMPREFIX=1 -DUSE_RTLD_LAZY=1 \
-           -DNO_TIMEZONE=1 -DHAVE_TIMEGM=1 -D_THREAD_SAFE=1
+           -DNO_TIMEZONE=1 -DHAVE_TIMEGM=1 -D_THREAD_SAFE=1 \
+	   -DNO__ENVIRON=1
     NSDLIBS=-lm
 endif
 
@@ -237,7 +237,7 @@ endif
 ifneq (,$(findstring UnixWare,$(PLAT)))
     PLATFORM=unixware
     CC=cc
-    CFLAGS+=-O2 -Kpic -Kthread -D__unixware
+    CFLAGS+=-Kpic -Kthread -D__unixware
     LDFLAGS=-Wl,-B export
     LDSO=$(LD) -G
     LIBS+=-Kthread -lsocket
@@ -258,7 +258,7 @@ endif
 ifeq (osx,$(PLATFORM))
     CC=cc
     LD=cc
-    CFLAGS+=$(GCCOPT) -dynamic -traditional-cpp
+    CFLAGS+=-dynamic -traditional-cpp
     LDSO=$(LD) -bundle -undefined suppress
     RANLIB=ranlib
     NSDLIBS=
@@ -269,6 +269,12 @@ endif
 ifeq (unknown,$(PLATFORM))
     error unknown platform
 endif
+
+#
+# Add the debug/optimize flags.
+#
+
+CFLAGS += $(CCOPT)
 
 #
 # Rules for library dependencies.
