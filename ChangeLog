@@ -1,3 +1,8 @@
+2003-06-18  Mark Page  <mpagenva@aol.com>
+
+	* nsd/init.tcl (_ns_eval): Fix ns_eval to prevent it's bleeding of
+	unintended Tcl environment change to the global interp state.
+
 2003-06-06  Zoran Vasiljevic <zoran@archiware.com>
 
 	* nsd/queue.c: fixed "connsperthread" config parameter
