@@ -34,7 +34,7 @@
  *      Handle connection I/O.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/connio.c,v 1.19 2005/01/17 14:01:46 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/connio.c,v 1.20 2005/03/25 00:33:36 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #define IOBUFSZ 2048
@@ -54,13 +54,15 @@ static int ConnCopy(Ns_Conn *conn, size_t ncopy, Ns_DString *dsPtr,
  *
  * Ns_ConnInit --
  *
- *	Initialize a connection (no longer used).
+ *	Initialize a connection, setting the input URL encoding.
  *
  * Results:
  *	Always NS_OK.
- * 
+ *
  * Side effects:
- *	None.
+ *	Query strings and forms will be decoded given encoding
+ *	set here.  Note the URL itself has already been decoded
+ *	with the server default encoding, if any.
  *
  *-----------------------------------------------------------------
  */
@@ -68,6 +70,17 @@ static int ConnCopy(Ns_Conn *conn, size_t ncopy, Ns_DString *dsPtr,
 int
 Ns_ConnInit(Ns_Conn *conn)
 {
+    Conn *connPtr = (Conn *) conn;
+    Tcl_Encoding encoding = NULL;
+    
+    encoding = NsGetInputEncoding(connPtr);
+    if (encoding == NULL) {
+    	encoding = NsGetOutputEncoding(connPtr);
+	if (encoding == NULL) {
+	    encoding = connPtr->servPtr->urlEncoding;
+	}
+    }
+    Ns_ConnSetUrlEncoding(conn, encoding);
     return NS_OK;
 }
 
@@ -99,8 +112,8 @@ Ns_ConnClose(Ns_Conn *conn)
 	NsSockClose(connPtr->sockPtr, keep);
 	connPtr->sockPtr = NULL;
 	connPtr->flags |= NS_CONN_CLOSED;
-	if (connPtr->interp != NULL) {
-	    NsRunAtClose(connPtr->interp);
+	if (connPtr->itPtr != NULL) {
+	    NsTclRunAtClose(connPtr->itPtr);
 	}
     }
     return NS_OK;
@@ -142,6 +155,9 @@ Ns_ConnFlush(Ns_Conn *conn, char *buf, int len, int stream)
     gzh = 0;
     Tcl_DStringInit(&enc);
     Tcl_DStringInit(&gzip);
+    if (len < 0) {
+	len = strlen(buf);
+    }
 
     /*
      * Encode content to the expected charset.
@@ -442,59 +458,19 @@ Ns_WriteConn(Ns_Conn *conn, char *buf, int len)
 int
 Ns_WriteCharConn(Ns_Conn *conn, char *buf, int len)
 {
-    int             status;
-    char           *utfBytes;
-    int             utfCount; /* # of bytes in utfBytes */
-    int             utfConvertedCount;  /* # of bytes of utfBytes converted */
-    char            encodedBytes[IOBUFSZ];
-    int             encodedCount; /* # of bytes converted in encodedBytes */
-    Tcl_Interp     *interp;
-    Conn           *connPtr = (Conn *)conn;
+    Tcl_Encoding    encoding;
+    Tcl_DString	    enc;
+    int		    status;
 
-    status = NS_OK;
-
-    if (connPtr->encoding == NULL) {
-
-	status = Ns_WriteConn(conn, buf, len);
-
-    } else {
-
-	utfBytes = buf;
-	utfCount = len;
-	interp = Ns_GetConnInterp(conn);
-
-	while (utfCount > 0 && status == NS_OK) {
-
-	    /* Convert a chunk to the desired encoding. */
-
-	    status = Tcl_UtfToExternal(interp,
-		connPtr->encoding,
-		utfBytes, utfCount,
-		0, NULL,              /* flags, encoding state */
-		encodedBytes, sizeof(encodedBytes),
-		&utfConvertedCount,
-		&encodedCount,
-		NULL                  /* # of chars encoded */
-	    );
-
-	    if (status != TCL_OK && status != TCL_CONVERT_NOSPACE) {
-		status = NS_ERROR;
-		break;
-	    }
-
-	    /* Send the converted chunk. */
-
-	    status = NS_OK;
-	    buf = encodedBytes;
-	    len = encodedCount;
-
-	    status = Ns_WriteConn(conn, buf, len);
-
-	    utfCount -= utfConvertedCount;
-	    utfBytes += utfConvertedCount;
-	}
+    Tcl_DStringInit(&enc);
+    encoding = Ns_ConnGetEncoding(conn);
+    if (encoding != NULL) {
+	Tcl_UtfToExternalDString(encoding, buf, len, &enc);
+	buf = enc.string;
+	len = enc.length;
     }
-
+    status = Ns_WriteConn(conn, buf, len);
+    Tcl_DStringFree(&enc);
     return status;
 }
 
