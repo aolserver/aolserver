@@ -1,3 +1,9 @@
+2004-07-06  Dossy Shiobara <dossy@panoptic.com>
+
+	* nsd/return.c (1.39): Fix bug where internal redirect for 401
+	  omitted including the HTTP auth. "WWW-Authenticate:" header.
+	  Fixes bug #674033.
+
 2004-07-02  Dossy Shiobara <dossy@panoptic.com>
 
 	* nsd/mimetypes.c (1.12): Ns_GetMimeType() was returning
