@@ -69,8 +69,7 @@ LINK32=link.exe
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /MTd /W3 /Gm /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "NSD_EXPORTS" /YX /FD /GZ /c
-# ADD CPP /nologo /MDd /W3 /Gm /GX /ZI /Od /I "..\..\include" /D "_WINDOWS" /D "_USRDLL" /D "NSD_EXPORTS" /D "_DEBUG" /D "WIN32" /D "_MBCS" /D FD_SETSIZE=128 /D TCL_THREADS=1 /YX /FD /GZ /c
-# SUBTRACT CPP /Fr
+# ADD CPP /nologo /MDd /W3 /Gm /GX /ZI /Od /I "..\..\include" /D "_WINDOWS" /D "_USRDLL" /D "NSD_EXPORTS" /D "_DEBUG" /D "WIN32" /D "_MBCS" /D FD_SETSIZE=128 /D TCL_THREADS=1 /Fr /YX /FD /GZ /c
 # ADD BASE MTL /nologo /D "_DEBUG" /mktyplib203 /win32
 # ADD MTL /nologo /D "_DEBUG" /mktyplib203 /win32
 # ADD BASE RSC /l 0x409 /d "_DEBUG"
@@ -185,15 +184,15 @@ SOURCE=..\..\nsd\filter.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\nsd\form.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\nsd\getopt.c
 # End Source File
 # Begin Source File
 
 SOURCE=..\..\nsd\httptime.c
-# End Source File
-# Begin Source File
-
-SOURCE=..\..\nsd\htuu.c
 # End Source File
 # Begin Source File
 
@@ -325,6 +324,10 @@ SOURCE=..\..\nsd\tclfile.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\nsd\tclimg.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\nsd\tclinit.c
 # End Source File
 # Begin Source File
@@ -390,6 +393,10 @@ SOURCE=..\..\nsd\urlopen.c
 # Begin Source File
 
 SOURCE=..\..\nsd\urlspace.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\nsd\uuencode.c
 # End Source File
 # Begin Source File
 
