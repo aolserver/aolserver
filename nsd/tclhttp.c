@@ -33,7 +33,7 @@
  *	Support for the ns_http command.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclhttp.c,v 1.4 2001/04/25 22:31:53 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclhttp.c,v 1.5 2001/05/19 21:37:03 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -97,7 +97,7 @@ NsTclHttpCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
     Http *httpPtr;
     char *cmd, buf[20], *result;
     int new, status, n;
-    Ns_Time timeout, now;
+    Ns_Time timeout;
     Ns_Set *hdrs;
     Tcl_HashEntry *hPtr;
     Tcl_HashSearch search;
@@ -156,13 +156,13 @@ NsTclHttpCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 		argv[0], " wait id resultsVar ?timeout? ?headers?\"", NULL);
 	    return TCL_ERROR;
 	}
-	Ns_GetTime(&now);
 	if (argc < 5) {
-	    Ns_GetTime(&timeout);
-	    Ns_IncrTime(&timeout, 2, 0);
-	} else if (NsTclGetTime(interp, argv[4], &timeout) != TCL_OK) {
+	    n = 2;
+	} else if (Tcl_GetInt(interp, argv[4], &n) != TCL_OK) {
 	    return TCL_ERROR;
 	}
+	Ns_GetTime(&timeout);
+	Ns_IncrTime(&timeout, n, 0);
 	if (argc < 6) {
 	    hdrs = NULL;
 	} else if (Ns_TclGetSet2(interp, argv[5], &hdrs) != TCL_OK) {
