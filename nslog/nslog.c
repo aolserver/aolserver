@@ -34,7 +34,7 @@
  *	This file implements the access log using NCSA Common Log format.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nslog/nslog.c,v 1.7 2000/12/12 22:54:27 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nslog/nslog.c,v 1.7.4.1 2002/09/17 23:56:05 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 #include <sys/stat.h>	/* mkdir */
@@ -42,6 +42,9 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsl
 
 #define LOG_COMBINED	1
 #define LOG_FMTTIME	2
+#ifndef O_TEXT
+#define O_TEXT 0
+#endif
 
 /*
  * Exported variables
@@ -128,7 +131,7 @@ Ns_ModuleInit(char *server, char *module)
     logPtr = ns_calloc(1, sizeof(Log));
     logPtr->fd = -1;
     logPtr->module = module;
-    Ns_MutexInit2(&logPtr->lock, "nslog");
+    Ns_MutexInit(&logPtr->lock);
     Ns_DStringInit(&logPtr->buffer);
 
     /*
