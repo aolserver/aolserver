@@ -33,7 +33,7 @@
  *	Routines for the core server connection threads.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/serv.c,v 1.8 2000/09/28 23:57:53 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/serv.c,v 1.9 2000/09/29 00:46:40 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -491,6 +491,9 @@ NsConnArgProc(Tcl_DString *dsPtr, void *arg)
 {
     Conn *connPtr;
     
+    /*
+     * A race condition here causes problems occasionally.
+     */
     if (arg != NULL) {
 	connPtr = *((Conn **) arg);
     	AppendConn(dsPtr, connPtr, "running", time(NULL));
@@ -960,28 +963,35 @@ AppendConn(Tcl_DString *dsPtr, Conn *connPtr, char *state, time_t now)
 
     time(&now);
     Tcl_DStringStartSublist(dsPtr);
-    sprintf(buf, "%d", connPtr->id);
-    Tcl_DStringAppendElement(dsPtr, buf);
-    Tcl_DStringAppendElement(dsPtr, Ns_ConnPeer((Ns_Conn *) connPtr));
-    Tcl_DStringAppendElement(dsPtr, state);
 
     /*
-     * Carefully copy the bytes to avoid chasing a pointer
-     * which may be changing in the connection thread.  This
-     * is not entirely safe but acceptible for a seldom-used
-     * admin command.
+     * An annoying race condition can be lethal here.
      */
-
-    p = (connPtr->request && connPtr->request->method) ?
+    if ( connPtr != NULL ) {
+	
+	sprintf(buf, "%d", connPtr->id);
+	Tcl_DStringAppendElement(dsPtr, buf);
+	Tcl_DStringAppendElement(dsPtr, Ns_ConnPeer((Ns_Conn *) connPtr));
+	Tcl_DStringAppendElement(dsPtr, state);
+	
+	/*
+	 * Carefully copy the bytes to avoid chasing a pointer
+	 * which may be changing in the connection thread.  This
+	 * is not entirely safe but acceptible for a seldom-used
+	 * admin command.
+	 */
+	
+	p = (connPtr->request && connPtr->request->method) ?
 	    connPtr->request->method : "?";
-    Tcl_DStringAppendElement(dsPtr, strncpy(buf, p, sizeof(buf)));
-    p = (connPtr->request && connPtr->request->url) ?
+	Tcl_DStringAppendElement(dsPtr, strncpy(buf, p, sizeof(buf)));
+	p = (connPtr->request && connPtr->request->url) ?
 	    connPtr->request->url : "?";
-    Tcl_DStringAppendElement(dsPtr, strncpy(buf, p, sizeof(buf)));
-    sprintf(buf, "%d", (int) difftime(now, connPtr->startTime));
-    Tcl_DStringAppendElement(dsPtr, buf);
-    sprintf(buf, "%d", connPtr->nContentSent);
-    Tcl_DStringAppendElement(dsPtr, buf);
+	Tcl_DStringAppendElement(dsPtr, strncpy(buf, p, sizeof(buf)));
+	sprintf(buf, "%d", (int) difftime(now, connPtr->startTime));
+	Tcl_DStringAppendElement(dsPtr, buf);
+	sprintf(buf, "%d", connPtr->nContentSent);
+	Tcl_DStringAppendElement(dsPtr, buf);
+    }
     Tcl_DStringEndSublist(dsPtr);
 }
 

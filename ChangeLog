@@ -4,6 +4,9 @@
 	* nsd/serv.c (NsConnArgProc): Race condition when threads exit
 	while [ns_info threads] is run; arg can be NULL.  Seen mostly by
 	people who regularly visit nstelemetry.adp.
+	(AppendConn): same thing but with connPtr.  This may be a losing
+	battle.  It appears to work on a busy Irix server, so I'm
+	declaring victory for now.
 
 2000-09-28  Jim Davidson
 	
