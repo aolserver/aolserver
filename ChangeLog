@@ -1,11 +1,16 @@
 2000-10-17  Kriston J. Rehberg  <Kriston@AOL.NET>
 
+	* tcl/http.tcl (ns_httpopen): CRLF now returned in ns_httpopen.
+	Contributed by ArsDigita.
+
 	* tcl8.3.2/generic/tclCmdIL.c: Nonsense case of lsorting a list
-	with length <= 0 caused a memory leak.  Fixed.
-
+	with length <= 0 caused a memory leak.  Fixed.  Contributed by
+	ArsDigita.
+	
 	* nsd/adpfancy.c: We now use the Arsdigita version of adpfancy.
-
-	* nsd/adp.c: ArsDigita changes.
+	Contributed by ArsDigita.
+	
+	* nsd/adp.c: Sundry ArsDigita changes.
 
 2000-10-16  Kriston J. Rehberg  <Kriston@AOL.NET>
 
