@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Makefile.global,v 1.45 2001/12/11 23:47:35 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Makefile.global,v 1.46 2002/02/16 00:13:37 jgdavidson Exp $
 #
 
 #
@@ -130,7 +130,7 @@ ifneq (,$(findstring SunOS,$(uname)))
     endif
     LDSO=/usr/ccs/bin/ld -G
     RFLAG = -R
-    RPATH += -Wl,$(RFLAG),/usr/lib/lwp
+    RPATH = $(RFLAG) $(AOLSERVER)/lib $(RFLAG) /usr/lwp
     LIBS+=-lsocket -lnsl -ldl -lposix4 -lthread -lresolv
     CFLAGS+=-D_POSIX_PTHREAD_SEMANTICS=1 -DUSE_PTHREAD_SYSSCOPE=1 \
             -DUSE_PTHREAD_PSHARED=1 -DHAVE_ETIME_BUG=1 \
