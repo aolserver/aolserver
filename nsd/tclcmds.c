@@ -33,7 +33,7 @@
  * 	Connect Tcl command names to the functions that implement them
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.14 2001/04/02 19:37:01 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.15 2001/04/12 17:53:29 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -83,7 +83,8 @@ extern Tcl_CmdProc
     NsTclParseHeaderCmd,
     NsTclRWLockCmd,
     NsTclRandCmd,
-    NsTclRegisterCmd,
+    NsTclRegisterAdpCmd,
+    NsTclRegisterProcCmd,
     NsTclRegisterFilterCmd,
     NsTclRegisterTraceCmd,
     NsTclRenameCmd,
@@ -168,7 +169,7 @@ extern Tcl_CmdProc
     NsTclVarCmd,
     NsTclWriteContentCmd,
     NsTclRegisterTagCmd,
-    NsTclRegisterAdpCmd,
+    NsTclRegisterAdpTagCmd,
     NsTclCacheStatsCmd,
     NsTclCacheFlushCmd,
     NsTclCacheNamesCmd,
@@ -329,12 +330,14 @@ static Cmd servCmds[] = {
     {"ns_socklistencallback", NsTclSockListenCallbackCmd, NULL},
 
     /*
-     * tclop.c
+     * tclrequest.c
      */
 
     {"ns_register_filter", NsTclRegisterFilterCmd, NULL},
     {"ns_register_trace", NsTclRegisterTraceCmd, NULL},
-    {"ns_register_proc", NsTclRegisterCmd, NULL},
+    {"ns_register_adp", NsTclRegisterAdpCmd, NULL},
+    {"ns_register_proc", NsTclRegisterProcCmd, NULL},
+    {"ns_unregister_adp", NsTclUnRegisterCmd, NULL},
     {"ns_unregister_proc", NsTclUnRegisterCmd, NULL},
     {"ns_atclose", NsTclAtCloseCmd, NULL},
 
@@ -406,8 +409,8 @@ static Cmd servCmds[] = {
      */
 
     {"ns_register_adptag", NsTclRegisterTagCmd, NULL},
-    {"ns_adp_registeradp", NsTclRegisterAdpCmd, NULL},
-    {"ns_adp_registertag", NsTclRegisterAdpCmd, NULL},
+    {"ns_adp_registeradp", NsTclRegisterAdpTagCmd, NULL},
+    {"ns_adp_registertag", NsTclRegisterAdpTagCmd, NULL},
 
     /*
      * dbtcl.c

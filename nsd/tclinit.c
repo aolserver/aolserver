@@ -33,7 +33,7 @@
  *	Initialization routines for Tcl.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.14 2001/03/16 22:55:40 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.15 2001/04/12 17:53:29 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -505,35 +505,30 @@ NsTclEval(Tcl_Interp *interp, char *script)
 /*
  *----------------------------------------------------------------------
  *
- * Ns_TclRegisterDeferred --
+ * Ns_TclLogError --
  *
- *	Register a procedure to be called when the interp is cleaned up.
+ *	Log the global errorInfo variable to the server log. 
  *
  * Results:
- *	None.
+ *	Returns a pointer to the errorInfo. 
  *
  * Side effects:
- *	Procedure will be called later.
+ *	None. 
  *
  *----------------------------------------------------------------------
  */
 
-void
-Ns_TclRegisterDeferred(Tcl_Interp *interp, Ns_TclDeferProc *procPtr,
-	void *arg)
+char *
+Ns_TclLogError(Tcl_Interp *interp)
 {
-    NsInterp   *itPtr = NsGetInterp(interp);
-    AtCleanup  *cleanupPtr, **nextPtrPtr;
+    char *errorInfo;
 
-    cleanupPtr = ns_malloc(sizeof(AtCleanup));
-    cleanupPtr->procPtr = procPtr;
-    cleanupPtr->arg = arg;
-    cleanupPtr->nextPtr = NULL;
-    nextPtrPtr = &itPtr->firstAtCleanupPtr;
-    while (*nextPtrPtr != NULL) {
-	nextPtrPtr = &((*nextPtrPtr)->nextPtr);
+    errorInfo = Tcl_GetVar(interp, "errorInfo", TCL_GLOBAL_ONLY);
+    if (errorInfo == NULL) {
+        errorInfo = "";
     }
-    *nextPtrPtr = cleanupPtr;
+    Ns_Log(Error, "%s\n%s", interp->result, errorInfo);
+    return errorInfo;
 }
 
 

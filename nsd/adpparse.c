@@ -33,7 +33,7 @@
  *	ADP parser.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpparse.c,v 1.3 2001/03/19 15:44:55 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpparse.c,v 1.4 2001/04/12 17:53:29 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -88,7 +88,7 @@ NsTclRegisterTagCmd(ClientData arg, Tcl_Interp *interp, int argc,
 }
 
 int
-NsTclRegisterAdpCmd(ClientData arg, Tcl_Interp *interp, int argc,
+NsTclRegisterAdpTagCmd(ClientData arg, Tcl_Interp *interp, int argc,
 		    char **argv)
 {
     return RegisterCmd(arg, interp, argc, argv, 0);
