@@ -47,7 +47,7 @@
  *
  */
 
-static const char *RCSID = "@(#): $Header: /Users/dossy/Desktop/cvs/aolserver/nsssl/ssl.c,v 1.1 2001/04/23 21:06:01 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#): $Header: /Users/dossy/Desktop/cvs/aolserver/nsssl/ssl.c,v 1.2 2001/04/24 17:10:07 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 #include "ssl.h"
@@ -69,6 +69,7 @@ static const char *RCSID = "@(#): $Header: /Users/dossy/Desktop/cvs/aolserver/ns
  * BSAFE algorithm chooser
  *
  */
+
 B_ALGORITHM_METHOD *ALGORITHM_CHOOSER[] = {
 #ifndef SSL_EXPORT
     &AM_DES_CBC_DECRYPT,
@@ -93,7 +94,6 @@ B_ALGORITHM_METHOD *ALGORITHM_CHOOSER[] = {
     (B_ALGORITHM_METHOD *) NULL
 };
 
-
 /*
  * BSAFE message digest chooser
  */
@@ -101,7 +101,6 @@ B_ALGORITHM_METHOD *DIGEST_CHOOSER[] = {
     &AM_MD5,
     (B_ALGORITHM_METHOD *) NULL
 };
-
 
 /*
  * ClientHello data structure
@@ -117,12 +116,12 @@ typedef struct {
     unsigned char   data;
 } ClientHello;
 
-
 /*
  * ServerHello data structure
  *
  * Used for setting up the server's side of the connection.
  */
+
 typedef struct {
     unsigned char   msg;
     unsigned char   sessionIdHit;
@@ -134,12 +133,12 @@ typedef struct {
     unsigned char   data;
 } ServerHello;
 
-
 /*
  * ClientMasterKey data structure
  *
  * Used to hold and protect the server's private RSA key.
  */
+
 typedef struct {
     unsigned char   msg;
     unsigned char   cipherKind[3];
@@ -148,7 +147,6 @@ typedef struct {
     unsigned char   keyArgLength[2];
     unsigned char   data;
 } ClientMasterKey;
-
 
 /*
  * surrenderCtx callback
@@ -160,86 +158,40 @@ typedef struct {
  * register the function Surrender so that BSAFE yields the thread
  * occasionally.
  */
+
 static A_SURRENDER_CTX surrenderCtx;
 static Ns_Cs csRandom;
 static B_ALGORITHM_OBJ randomObject = NULL;
 
-
 /*
- * Static variables
+ * Static functions defined in this file.
  */
+
+static int Recv(SSLConn *cPtr, void *vbuf, int toread);
+static int Decrypt(SSLConn * con);
+static int Encrypt(SSLConn * con);
+static int RecvRecord(SSLConn * con);
+static int SendRecord(SSLConn * con);
+static int SetupDigester(SSLConn * con);
+static int KeyMaterial(SSLConn * con, unsigned char *dest, char *num);
+static int DetermineSessionKeys(SSLConn * con);
+static int VerifyKeyArgs(SSLConn * con);
+static int SetupEncryption(SSLConn * con);
+static int EncryptInit(SSLConn * con, int fRead);
+static void EncryptFinal(SSLConn * con, int fRead, unsigned char *data, int length);
+static void DescribeError(unsigned char *errorcode);
+static int Surrender(POINTER ignored);
+static void RandomCleanup(void *ignored);
+static int CheckForAlgorithm(int trialck);
+static char *DescribeAlgorithm(int trialck);
+static int GenerateRandomBytes(unsigned char *output, int outputLength);
+static int NewSessionID(unsigned char *buf);
+static void U32TOA(unsigned u, unsigned char *dest);
+static void U24TOA(unsigned u, unsigned char *dest);
+static void U24TOA(unsigned u, unsigned char *dest);
+static void U16TOA(unsigned u, unsigned char *dest);
+
 static unsigned char f4Data[3] = {0x01, 0x00, 0x01};
-
-
-static int
-Recv(SSLConn *cPtr, void *vbuf, int toread);
-
-static int
-Decrypt(SSLConn * con);
-
-static int
-Encrypt(SSLConn * con);
-
-static int
-RecvRecord(SSLConn * con);
-
-static int
-SendRecord(SSLConn * con);
-
-static int
-SetupDigester(SSLConn * con);
-
-static int
-KeyMaterial(SSLConn * con, unsigned char *dest, char *num);
-
-static int
-DetermineSessionKeys(SSLConn * con);
-
-static int
-VerifyKeyArgs(SSLConn * con);
-
-static int
-SetupEncryption(SSLConn * con);
-
-static int
-EncryptInit(SSLConn * con, int fRead);
-
-static void
-EncryptFinal(SSLConn * con, int fRead, unsigned char *data, int length);
-
-static void
-DescribeError(unsigned char *errorcode);
-
-static int
-Surrender(POINTER ignored);
-
-static void
-RandomCleanup(void *ignored);
-
-static int
-CheckForAlgorithm(int trialck);
-
-static char *
-DescribeAlgorithm(int trialck);
-
-static int
-GenerateRandomBytes(unsigned char *output, int outputLength);
-
-static int
-NewSessionID(unsigned char *buf);
-
-static void
-U32TOA(unsigned u, unsigned char *dest);
-
-static void
-U24TOA(unsigned u, unsigned char *dest);
-
-static void
-U24TOA(unsigned u, unsigned char *dest);
-
-static void
-U16TOA(unsigned u, unsigned char *dest);
-
 
 
 /* 
@@ -264,6 +216,7 @@ U16TOA(unsigned u, unsigned char *dest);
  *
  *----------------------------------------------------------------------
  */
+
 int
 NsSSLGenerateKeypair(unsigned int modulusBits,
 		     ITEM *       publicExponent,
@@ -339,7 +292,6 @@ NsSSLGenerateKeypair(unsigned int modulusBits,
     return status;
 }
 
-
 
 /* 
  *---------------------------------------------------------------------- 
@@ -360,13 +312,14 @@ NsSSLGenerateKeypair(unsigned int modulusBits,
  *
  *----------------------------------------------------------------------
  */
+
 int
 NsSSLInitialize(char *server, char *module)
 {
     unsigned long seeds[NSEEDS];
     static int initialized;
     
-    if (initialized != NS_TRUE) {
+    if (!initialized) {
 	Ns_GenSeeds(seeds, NSEEDS);
         if (B_CreateAlgorithmObject(&randomObject) != 0 ||
     	    B_SetAlgorithmInfo(randomObject, AI_MD5Random, NULL) != 0 ||
@@ -378,21 +331,18 @@ NsSSLInitialize(char *server, char *module)
         Ns_CsInit(&csRandom);
         surrenderCtx.Surrender = Surrender;
         surrenderCtx.handle = NULL;
-
 	if (server != NULL) {
-	    
 	    Ns_RegisterShutdown(RandomCleanup, NULL);
-	    Ns_TclInitInterps(server, NsSSLInterpInit, NULL);
 	} else {
 	    Ns_Log(Notice, "nsssl: running in stand-alone mode");
 	}
-	
-        initialized = NS_TRUE;
+        initialized = 1;
     }
-
+    if (server != NULL) {
+	Ns_TclInitInterps(server, NsSSLInterpInit, NULL);
+    }
     return NS_OK;
 }
-
 
 
 /* 
@@ -411,6 +361,7 @@ NsSSLInitialize(char *server, char *module)
  *
  *----------------------------------------------------------------------
  */
+
 void *
 NsSSLCreateServer(char *cert, char *key)
 {
@@ -437,7 +388,6 @@ NsSSLCreateServer(char *cert, char *key)
     return (void *) sPtr;
 }
 
-
 
 /* 
  *---------------------------------------------------------------------- 
@@ -455,6 +405,7 @@ NsSSLCreateServer(char *cert, char *key)
  *
  *----------------------------------------------------------------------
  */
+
 void
 NsSSLDestroyServer(void *server)
 {
@@ -467,7 +418,6 @@ NsSSLDestroyServer(void *server)
     ns_free(ctx);
 
 }
-
 
 
 /* 
@@ -491,6 +441,7 @@ NsSSLDestroyServer(void *server)
  *
  *----------------------------------------------------------------------
  */
+
 void *
 NsSSLCreateConn(SOCKET socket, int timeout, void *server)
 {
@@ -843,7 +794,6 @@ NsSSLCreateConn(SOCKET socket, int timeout, void *server)
     return (void *) con;
 }
 
-
 
 /* 
  *---------------------------------------------------------------------- 
@@ -863,6 +813,7 @@ NsSSLCreateConn(SOCKET socket, int timeout, void *server)
  *
  *----------------------------------------------------------------------
  */
+
 void
 NsSSLDestroyConn(void *conn)
 {
@@ -907,7 +858,6 @@ NsSSLDestroyConn(void *conn)
 
 }
 
-
 
 /* 
  *---------------------------------------------------------------------- 
@@ -926,13 +876,13 @@ NsSSLDestroyConn(void *conn)
  *
  *----------------------------------------------------------------------
  */
+
 int
 NsSSLSend(void *conn, void *vbuf, int towrite)
 {
     int             nwrote, ncopy;
     unsigned char  *buf = vbuf;
     SSLConn        *con = conn;
-    
 
     nwrote = towrite;
     while (towrite) {
@@ -970,10 +920,9 @@ NsSSLSend(void *conn, void *vbuf, int towrite)
 	    }
         }
     }
-    
+  
     return nwrote;
 }
-
 
 
 /* 
@@ -993,6 +942,7 @@ NsSSLSend(void *conn, void *vbuf, int towrite)
  *
  *----------------------------------------------------------------------
  */
+
 int
 NsSSLRecv(void *conn, void *vbuf, int toread)
 {
@@ -1024,7 +974,6 @@ NsSSLRecv(void *conn, void *vbuf, int toread)
     return ncopy;
 }
 
-
 
 /* 
  *---------------------------------------------------------------------- 
@@ -1041,6 +990,7 @@ NsSSLRecv(void *conn, void *vbuf, int toread)
  *
  *----------------------------------------------------------------------
  */
+
 int
 NsSSLFlush(void *conn)
 {
@@ -1079,13 +1029,6 @@ NsSSLFlush(void *conn)
     return NS_OK;
 }
 
-
-
-/*
- * Private functions
- */
-
-
 
 /* 
  *---------------------------------------------------------------------- 
@@ -1102,34 +1045,43 @@ NsSSLFlush(void *conn)
  * 
  *---------------------------------------------------------------------- 
  */ 
+
 static int
 Recv(SSLConn *cPtr, void *vbuf, int toread)
 {
     char       *buf = (char *) vbuf;
-    int		nread;
+    int		tocopy;
 
-    
     while (toread > 0) {
-	
-    	nread = Ns_SockRecv(cPtr->socket, buf, toread, cPtr->timeout);
-
-	if (nread <= 0) {
-	    /* 
-	     * This happens when a user drops the connection by
-	     * hitting "stop" or rejects the server's master key
-	     * and/or certificate.
-	     */
-	    Ns_Log(Debug, "nsssl: client dropped connection");
-	    return NS_ERROR;
+	if (cPtr->cnt > 0) {
+	    if (toread < cPtr->cnt) {
+		tocopy = toread;
+	    } else {
+		tocopy = cPtr->cnt;
+	    }
+	    memcpy(buf, cPtr->base, tocopy);
+	    cPtr->base  += tocopy;
+	    cPtr->cnt   -= tocopy;
+	    buf		+= tocopy;
+	    toread	-= tocopy;
 	}
-
-	toread -= nread;
-	buf += nread;
+	if (toread > 0) {
+	    cPtr->base = cPtr->buf;
+    	    cPtr->cnt  = Ns_SockRecv(cPtr->socket, cPtr->base,
+		sizeof(cPtr->buf), cPtr->timeout);
+	    if (cPtr->cnt <= 0) {
+		/* 
+		 * This happens when a user drops the connection by
+		 * hitting "stop" or rejects the server's master key
+		 * and/or certificate.
+		 */
+		Ns_Log(Debug, "nsssl: client dropped connection");
+		return NS_ERROR;
+	    }
+	}
     }
-
     return NS_OK;
 }
-
 
 
 /* 
@@ -1151,6 +1103,7 @@ Recv(SSLConn *cPtr, void *vbuf, int toread)
  * 
  *----------------------------------------------------------------------
  */
+
 static int
 Decrypt(SSLConn * con)
 {
@@ -1284,7 +1237,6 @@ Decrypt(SSLConn * con)
     return status;
 }
 
-
 
 /* 
  *---------------------------------------------------------------------- 
@@ -1304,6 +1256,7 @@ Decrypt(SSLConn * con)
  * 
  *----------------------------------------------------------------------
  */
+
 static int
 Encrypt(SSLConn * con)
 {
@@ -1449,7 +1402,6 @@ Encrypt(SSLConn * con)
 
 }
 
-
 
 /* 
  *---------------------------------------------------------------------- 
@@ -1469,6 +1421,7 @@ Encrypt(SSLConn * con)
  *
  *----------------------------------------------------------------------
  */
+
 static int
 RecvRecord(SSLConn * con)
 {
@@ -1531,7 +1484,6 @@ RecvRecord(SSLConn * con)
     return NS_OK;
 }
 
-
 
 /* 
  *---------------------------------------------------------------------- 
@@ -1554,6 +1506,7 @@ RecvRecord(SSLConn * con)
  * 
  *----------------------------------------------------------------------
  */
+
 static int
 SendRecord(SSLConn * con)
 {
@@ -1634,7 +1587,6 @@ SendRecord(SSLConn * con)
     return NS_OK;
 }
 
-
 
 /* 
  *---------------------------------------------------------------------- 
@@ -1653,6 +1605,7 @@ SendRecord(SSLConn * con)
  *
  *----------------------------------------------------------------------
  */
+
 static int
 SetupDigester(SSLConn * con)
 {
@@ -1688,7 +1641,6 @@ SetupDigester(SSLConn * con)
     
 }
 
-
 
 /* 
  *---------------------------------------------------------------------- 
@@ -1707,6 +1659,7 @@ SetupDigester(SSLConn * con)
  *
  *----------------------------------------------------------------------
  */
+
 static int
 KeyMaterial(SSLConn * con, unsigned char *dest, char *num)
 {
@@ -1742,7 +1695,6 @@ KeyMaterial(SSLConn * con, unsigned char *dest, char *num)
     return NS_OK;
 }
 
-
 
 /* 
  *---------------------------------------------------------------------- 
@@ -1765,6 +1717,7 @@ KeyMaterial(SSLConn * con, unsigned char *dest, char *num)
  *
  *----------------------------------------------------------------------
  */
+
 static int
 DetermineSessionKeys(SSLConn * con)
 {
@@ -1838,7 +1791,6 @@ DetermineSessionKeys(SSLConn * con)
     return NS_OK;
 }
 
-
 
 /* 
  *---------------------------------------------------------------------- 
@@ -1858,6 +1810,7 @@ DetermineSessionKeys(SSLConn * con)
  *
  *----------------------------------------------------------------------
  */
+
 static int
 VerifyKeyArgs(SSLConn * con)
 {
@@ -1932,7 +1885,6 @@ VerifyKeyArgs(SSLConn * con)
     return status;
 }
 
-
 
 /* 
  *---------------------------------------------------------------------- 
@@ -1957,6 +1909,7 @@ VerifyKeyArgs(SSLConn * con)
  *
  *----------------------------------------------------------------------
  */
+
 static int
 SetupEncryption(SSLConn * con)
 {
@@ -2044,7 +1997,6 @@ SetupEncryption(SSLConn * con)
     return NS_OK;
 }
 
-
 
 /* 
  *---------------------------------------------------------------------- 
@@ -2069,6 +2021,7 @@ SetupEncryption(SSLConn * con)
  *
  *----------------------------------------------------------------------
  */
+
 static int
 EncryptInit(SSLConn * con, int fRead)
 {
@@ -2169,7 +2122,6 @@ EncryptInit(SSLConn * con, int fRead)
     return NS_OK;
 }
 
-
 
 /* 
  *---------------------------------------------------------------------- 
@@ -2189,6 +2141,7 @@ EncryptInit(SSLConn * con, int fRead)
  *
  *----------------------------------------------------------------------
  */
+
 static void
 EncryptFinal(SSLConn * con, int fRead, unsigned char *data, int length)
 {
@@ -2208,7 +2161,6 @@ EncryptFinal(SSLConn * con, int fRead, unsigned char *data, int length)
 
 }
 
-
 
 /* 
  *---------------------------------------------------------------------- 
@@ -2227,6 +2179,7 @@ EncryptFinal(SSLConn * con, int fRead, unsigned char *data, int length)
  *
  *----------------------------------------------------------------------
  */
+
 static void
 DescribeError(unsigned char *errorcode)
 {
@@ -2254,7 +2207,6 @@ DescribeError(unsigned char *errorcode)
     Ns_Log(Debug, "nsssl: client sent this error: '%s'", msg);
 }
 
-
 
 /* 
  *---------------------------------------------------------------------- 
@@ -2272,6 +2224,7 @@ DescribeError(unsigned char *errorcode)
  *
  *----------------------------------------------------------------------
  */
+
 static int
 Surrender(POINTER ignored)
 {
@@ -2281,7 +2234,6 @@ Surrender(POINTER ignored)
 
     return NS_OK;
 }
-
 
 
 /* 
@@ -2300,6 +2252,7 @@ Surrender(POINTER ignored)
  *
  *----------------------------------------------------------------------
  */
+
 static void
 RandomCleanup(void *ignored)
 {
@@ -2308,7 +2261,6 @@ RandomCleanup(void *ignored)
     randomObject = NULL;
     Ns_CsDestroy(&csRandom);
 }
-
 
 
 /* 
@@ -2327,6 +2279,7 @@ RandomCleanup(void *ignored)
  *
  *----------------------------------------------------------------------
  */
+
 static int
 CheckForAlgorithm(int trialck)
 {
@@ -2344,7 +2297,6 @@ CheckForAlgorithm(int trialck)
     return NS_ERROR;
 }
 
-
 
 /* 
  *---------------------------------------------------------------------- 
@@ -2361,6 +2313,7 @@ CheckForAlgorithm(int trialck)
  *
  *----------------------------------------------------------------------
  */
+
 static char *
 DescribeAlgorithm(int trialck)
 {
@@ -2393,7 +2346,6 @@ DescribeAlgorithm(int trialck)
     return desc;
 }
 
-
 
 /* 
  *---------------------------------------------------------------------- 
@@ -2413,6 +2365,7 @@ DescribeAlgorithm(int trialck)
  *
  *----------------------------------------------------------------------
  */
+
 static int
 GenerateRandomBytes(unsigned char *output, int outputLength)
 {
@@ -2433,7 +2386,6 @@ GenerateRandomBytes(unsigned char *output, int outputLength)
     return retval;
 }
 
-
 
 /* 
  *---------------------------------------------------------------------- 
@@ -2451,12 +2403,12 @@ GenerateRandomBytes(unsigned char *output, int outputLength)
  *
  *----------------------------------------------------------------------
  */
+
 static int
 NewSessionID(unsigned char *buf)
 {
     return GenerateRandomBytes(buf, SSL_SESSION_ID_LENGTH);
 }
-
 
 
 /* 
@@ -2474,6 +2426,7 @@ NewSessionID(unsigned char *buf)
  *
  *----------------------------------------------------------------------
  */
+
 static void
 U32TOA(unsigned u, unsigned char *dest)
 {
@@ -2482,7 +2435,6 @@ U32TOA(unsigned u, unsigned char *dest)
     dest[2] = (u & 0x0000FF00) >> 8;
     dest[3] = u & 0x000000FF;
 }
-
 
 
 /* 
@@ -2500,6 +2452,7 @@ U32TOA(unsigned u, unsigned char *dest)
  *
  *----------------------------------------------------------------------
  */
+
 static void
 U24TOA(unsigned u, unsigned char *dest)
 {
@@ -2525,6 +2478,7 @@ U24TOA(unsigned u, unsigned char *dest)
  *
  *----------------------------------------------------------------------
  */
+
 static void
 U16TOA(unsigned u, unsigned char *dest)
 {

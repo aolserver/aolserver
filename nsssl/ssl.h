@@ -209,6 +209,16 @@ typedef struct {
     int             incomingLength;
     unsigned char   outgoing[SSL_MAXRECSIZE];
     int             outgoingLength;
+
+    /*
+     * The following are used for raw socket
+     * read-ahead.
+     */
+
+    int		    cnt;
+    char	   *base;
+    char	    buf[SSL_MAXRECSIZE];
+
 }               SSLConn;
 
 
