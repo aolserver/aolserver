@@ -33,7 +33,7 @@
  *
  *	Internal nsthread definitions.
  *
- * RCS: $Id: thread.h,v 1.4 2000/08/28 22:51:06 jgdavidson Exp $
+ * RCS: $Id: thread.h,v 1.5 2000/10/20 21:54:09 jgdavidson Exp $
  *
  */
 
@@ -50,6 +50,7 @@ struct Block;
 
 typedef struct Pool {
     int     nfree[NBUCKETS];
+    int     nused[NBUCKETS];
     struct Block *firstPtr[NBUCKETS];
 } Pool;
 
@@ -60,43 +61,20 @@ typedef struct Pool {
  */
 
 typedef struct Thread {
-    struct Thread  *nextPtr;
-    struct Thread  *prevPtr;
-    time_t	    ctime;
+    struct Thread  *nextPtr;	/* Next in list of all threads. */
+    time_t	    ctime;	/* Thread structure create time. */
     int		    flags;	/* Detached, joined, etc. */
     Ns_ThreadProc  *proc;	/* Thread startup routine. */ 
     void           *arg;	/* Argument to startup proc. */
+    int             tid;        /* Small id for thread (logging and such). */
     char	    name[NS_THREAD_NAMESIZE+1]; /* Thread name. */
     char	    parent[NS_THREAD_NAMESIZE+1]; /* Parent name. */
-    int		    tid;	/* Small id for thread (logging and such). */
     Ns_Pool	   *pool;	/* Per-thread memory pool. */
     long	    stackSize;	/* Stack size in bytes for this thread. */
     void	   *stackBase;	/* Approximate stack base for Ns_CheckStack. */
     void	   *exitarg;	/* Return code from Ns_ExitThread. */
     Pool      	    memPool; 	/* Fast memory block cache pool. */
-
-    /*
-     * Array of TLS pointers and various direct buffers for thread
-     * safe functions in reentrant.c.
-     */
-
-    void           *tlsPtr[NS_THREAD_MAXTLS];
-    struct {
-    	char	    	naBuf[16];
-#ifndef WIN32
-    	char	       *stBuf;
-        struct tm   	gtBuf;
-        struct tm   	ltBuf;
-	char		ctBuf[27];
-	char		asBuf[27];
-    	struct {
-		struct dirent ent;
-		char name[PATH_MAX+1];
-	} rdBuf;
-        char            *strsepbuf;
-        char            *strsepptr;
-#endif
-    } tls;
+    void           *tlsPtr[NS_THREAD_MAXTLS]; /* TLS slots. */
 }               Thread;
 
 /*
@@ -117,18 +95,18 @@ typedef struct Mutex {
  * Global functions used within the nsthread core.
  */
 
-extern Thread  *NsNewThread(Ns_ThreadProc *proc, void *arg, long stackSize, int detached);
-extern void     NsSetThread(Thread *thrPtr);
 extern Thread  *NsGetThread(void);
-extern void     NsSetThread2(Thread *thrPtr);
-extern Thread  *NsGetThread2(void);
+extern void     NsSetThread(Thread *thrPtr);
+extern Thread  *NsNewThread(void);
+extern Thread  *NsNewThread2(Ns_ThreadProc *proc, void *arg, long stack, int flags);
+extern void     NsCleanupThread(Thread *thrPtr);
+extern void	NsCleanupTls(Thread *thrPtr);
 extern void     NsThreadCreate(Thread *thrPtr);
 extern void     NsThreadExit(void);
 extern void     NsThreadMain(void *arg);
 extern void     NsThreadError(char *fmt, ...);
 extern void     NsThreadAbort(char *fmt, ...);
 extern void     NsThreadFatal(char *nsFuncName, char *osFuncName, int errNum);
-extern void	NsCleanupTls(Thread *thrPtr);
 extern void	NsMutexInit(void **lockPtr);
 extern void	NsMutexDestroy(void **lockPtr);
 extern void	NsMutexLock(void **lockPtr);
@@ -145,9 +123,10 @@ extern void    *NsGetCond(Ns_Cond *condPtr);
  */
 
 extern void	NsInitPools(void);
-extern void	NsFlushPool(Pool *poolPtr);
 extern void    *NsPoolRealloc(void *ptr, size_t size);
 extern void    *NsPoolMalloc(size_t size);
 extern void     NsPoolFree(void *ptr);
+extern void	NsPoolFlush(Pool *poolPtr);
+extern void	NsPoolDump(Pool *poolPtr, FILE *fp);
 
 #endif /* THREAD_H */

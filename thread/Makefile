@@ -33,6 +33,8 @@ $(TEST):  $(TEST_OBJS) $(LIBNSTHREAD)
 #
 osthread.o: pthread.cpp sproc.cpp 
 
+$(OBJS): thread.h
+
 #
 # Installs to the lib/ directory of the binary distribution.
 #

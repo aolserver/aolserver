@@ -34,7 +34,7 @@
  *	Routines for creating, exiting, and joining threads.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/thread.c,v 1.6 2000/08/17 16:43:17 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/thread.c,v 1.7 2000/10/20 21:54:09 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "thread.h"
 
@@ -54,7 +54,6 @@ static void FreeThread(Thread *thrPtr);
 static Ns_Mutex lock;
 static Ns_Cond cond;
 static Thread *firstPtr;
-static Thread *lastPtr;
 
 
 /*
@@ -74,7 +73,8 @@ static Thread *lastPtr;
  */
 
 void
-Ns_ThreadCreate(Ns_ThreadProc *proc, void *arg, long stackSize, Ns_Thread *resultPtr)
+Ns_ThreadCreate(Ns_ThreadProc *proc, void *arg, long stackSize,
+    	    	Ns_Thread *resultPtr)
 {
     int flags;
 
@@ -84,7 +84,7 @@ Ns_ThreadCreate(Ns_ThreadProc *proc, void *arg, long stackSize, Ns_Thread *resul
 
 void
 Ns_ThreadCreate2(Ns_ThreadProc *proc, void *arg, long stackSize,
-	int flags, Ns_Thread *resultPtr)
+	    	 int flags, Ns_Thread *resultPtr)
 {
     Thread *thrPtr;
 
@@ -111,7 +111,7 @@ Ns_ThreadCreate2(Ns_ThreadProc *proc, void *arg, long stackSize,
      * Create the new thread structure.
      */
 
-    thrPtr = NsNewThread(proc, arg, stackSize, flags);
+    thrPtr = NsNewThread2(proc, arg, stackSize, flags);
     if (resultPtr != NULL) {
 	*resultPtr = (Ns_Thread) thrPtr;
     }
@@ -129,15 +129,13 @@ Ns_ThreadCreate2(Ns_ThreadProc *proc, void *arg, long stackSize,
  *
  * Ns_ThreadExit --
  *
- *	Cleanup the thread's tls and memory pool and either frees the
- *	thread if it's detached or marks the thread as exited which
- *	allows it to be joined.
+ *	Set the exitarg and call the interface exit routine.
  *
  * Results:
  *	None.
  *
  * Side effects:
- *	Joinable threads condition may be broadcast.
+ *	See NsFreeThread.
  *
  *----------------------------------------------------------------------
  */
@@ -147,24 +145,7 @@ Ns_ThreadExit(void *arg)
 {
     Thread *thisPtr = NsGetThread();
 
-    NsCleanupTls(thisPtr);
-    if (thisPtr->pool != NULL) {
-	Ns_PoolDestroy(thisPtr->pool);
-	thisPtr->pool = NULL;
-    }
-    if (nsMemPools) {
-        NsFlushPool(&thisPtr->memPool);
-    }
-    Ns_MutexLock(&lock);
-    if (thisPtr->flags & NS_THREAD_DETACHED) {
-	FreeThread(thisPtr);
-    } else {
-	thisPtr->arg = NULL;
-    	thisPtr->exitarg = arg;
-	thisPtr->flags |= NS_THREAD_EXITED;
-	Ns_CondBroadcast(&cond);
-    }
-    Ns_MutexUnlock(&lock);
+    thisPtr->exitarg = arg;
     NsThreadExit();
 }
 
@@ -238,70 +219,10 @@ NsThreadMain(void *arg)
     Thread      *thrPtr = (Thread *) arg;
 
     NsSetThread(thrPtr);
+    thrPtr->stackBase = &arg;
+    sprintf(thrPtr->name, "-t%d-", thrPtr->tid);
     (*thrPtr->proc) (thrPtr->arg);
     Ns_ThreadExit(0);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsNewThread --
- *
- *	Allocate a new thread data structure.  Note that the Thread
- *	must be allocated directly, bypassing ns_calloc, as the
- *	per-thread memory pool resides in the Thread.  Also, the
- *	careful lock bypassing is needed to avoid endless recursion
- *	at startup.
- *
- * Results:
- *	Pointer to new Thread.
- *
- * Side effects:
- *	None.
- *
- *----------------------------------------------------------------------
- */
-
-Thread *
-NsNewThread(Ns_ThreadProc *proc, void *arg, long stackSize, int flags)
-{
-    Thread *thrPtr, *thisPtr;
-    static int state;
-
-    thisPtr = NsGetThread();
-    thrPtr = calloc(1, sizeof(Thread));
-    if (thrPtr == NULL) {
-	NsThreadFatal("NsNewThread", "calloc", ENOMEM);
-    }
-    thrPtr->proc = proc;
-    thrPtr->arg = arg;
-    thrPtr->stackSize = stackSize;
-    thrPtr->ctime = time(NULL);
-    if (state != 0) {
-	Ns_MutexLock(&lock);
-    }
-    strcpy(thrPtr->parent, thisPtr ? thisPtr->name : "");
-    thrPtr->flags = (flags & NS_THREAD_DETACHED);
-    thrPtr->nextPtr = NULL;
-    thrPtr->prevPtr = lastPtr;
-    lastPtr = thrPtr;
-    if (thrPtr->prevPtr != NULL) {
-	thrPtr->prevPtr->nextPtr = thrPtr;
-    }
-    if (firstPtr == NULL) {
-	firstPtr = thrPtr;
-    }
-    if (state == 0) {
-	++state;
-    } else {
-	if (state == 1) {
-	    Ns_MutexSetName2(&lock, "nsthread", "new");
-	    ++state;
-	}
-	Ns_MutexUnlock(&lock);
-    }
-    return thrPtr;
 }
 
 
@@ -440,18 +361,19 @@ int
 Ns_CheckStack(void)
 {
     Thread *thisPtr = NsGetThread();
+    long size, base, here;
     
     /* 
      * Check to see if the thread may be about to grow beyond it's allocated
      * stack.  Currently, this function is only called in Tcl_Eval where
-     * it traps the common case of infinite Tcl recursion.  The 1k slop
-     * trys to take into account the stack used before ThreadMain is called
-     * and the stack used by Tcl_Eval and Ns_CheckStack.  It's just a very
-     * conservative guess.
+     * it traps the common case of infinite Tcl recursion.  The 1024
+     * slop is just a conservative guess.
      */
 
-    if (abs(((long) thisPtr->stackBase) - ((long) &thisPtr)) >
-	    (thisPtr->stackSize - 1024)) {
+    size = thisPtr->stackSize - 1024;
+    base = (long) thisPtr->stackBase;
+    here = (long) &thisPtr;
+    if (size > 0 && abs(base - here) > size) {
 	return NS_ERROR;
     }
     return NS_OK;
@@ -511,9 +433,161 @@ Ns_ThreadGetParent(void)
 /*
  *----------------------------------------------------------------------
  *
+ * Ns_ThreadMemStats --
+ *
+ *	Write pool stats for all threads and the shared pool to open
+ *	file.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	Output to open file or stderr.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+Ns_ThreadMemStats(FILE *fp)
+{
+    Thread *thrPtr;
+
+    if (fp == NULL) {
+	fp = stderr;
+    }
+    Ns_MutexLock(&lock);
+    thrPtr = firstPtr;
+    while (thrPtr != NULL) {
+    	fprintf(fp, "[%d:%s]:", thrPtr->tid, thrPtr->name);
+	NsPoolDump(&thrPtr->memPool, fp);
+	thrPtr = thrPtr->nextPtr;
+    }
+    Ns_MutexUnlock(&lock);
+    fprintf(fp, "[shared]:");
+    NsPoolDump(NULL, fp);
+    fflush(fp);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsNewThread, NsNewThread2 --
+ *
+ *	Allocate a new thread data structure.  Note that the Thread
+ *	must be allocated directly, bypassing ns_calloc, as the
+ *	per-thread memory pool resides in the Thread.  Also, the
+ *	careful lock bypassing is needed to avoid endless recursion
+ *	at startup.
+ *
+ * Results:
+ *	Pointer to new Thread.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static Thread *
+NewThread(Ns_ThreadProc *proc, void *arg, long stacksize, int flags,
+    	   Thread *parentPtr)
+{
+    Thread *thrPtr, *thisPtr;
+    static int state;
+
+    thrPtr = calloc(1, sizeof(Thread));
+    if (thrPtr == NULL) {
+	NsThreadFatal("NsNewThread", "calloc", ENOMEM);
+    }
+    thrPtr->ctime = time(NULL);
+    thrPtr->proc = proc;
+    thrPtr->arg = arg;
+    thrPtr->stackSize = stacksize;
+    thrPtr->flags = flags;
+    if (parentPtr != NULL) {
+    	strcpy(thrPtr->parent, parentPtr->name);
+    }
+    if (state != 0) {
+	Ns_MutexLock(&lock);
+    }
+    thrPtr->nextPtr = firstPtr;
+    firstPtr = thrPtr;
+    if (state == 0) {
+	++state;
+    } else {
+	if (state == 1) {
+	    Ns_MutexSetName2(&lock, "nsthread", "new");
+	    ++state;
+	}
+	Ns_MutexUnlock(&lock);
+    }
+    return thrPtr;
+}
+
+Thread *
+NsNewThread2(Ns_ThreadProc *proc, void *arg, long stacksize, int flags)
+{
+    return NewThread(proc, arg, stacksize, flags, NsGetThread());
+}
+
+Thread *
+NsNewThread(void)
+{
+    return NewThread(NULL, NULL, 0, NS_THREAD_DETACHED, NULL);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsCleanupThread --
+ *
+ *	Cleanup the thread's tls and memory pool and either free the
+ *	thread if it's detached or marks the thread as exited which
+ *	allows it to be joined.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	Joinable threads condition may be broadcast.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+NsCleanupThread(Thread *thisPtr)
+{
+    char stats[200];
+
+    NsCleanupTls(thisPtr);
+    if (thisPtr->pool != NULL) {
+	Ns_PoolDestroy(thisPtr->pool);
+	thisPtr->pool = NULL;
+    }
+    if (nsMemPools) {
+        NsPoolFlush(&thisPtr->memPool);
+    }
+    Ns_MutexLock(&lock);
+    if (thisPtr->flags & NS_THREAD_DETACHED) {
+	FreeThread(thisPtr);
+    } else {
+	thisPtr->arg = NULL;
+	thisPtr->flags |= NS_THREAD_EXITED;
+	Ns_CondBroadcast(&cond);
+    }
+    Ns_MutexUnlock(&lock);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  * FreeThread --
  *
- *	Deallocate a thread data structure.
+ *	Deallocate a thread data structure and remove from the linked
+ *  	list.
  *
  * Results:
  *	None.
@@ -527,78 +601,13 @@ Ns_ThreadGetParent(void)
 static void
 FreeThread(Thread *thrPtr)
 {
-    if (firstPtr == thrPtr) {
-	firstPtr = thrPtr->nextPtr;
-    } else {
-	thrPtr->prevPtr->nextPtr = thrPtr->nextPtr;
+    Thread **thrPtrPtr;
+
+    thrPtrPtr = &firstPtr;
+    while (*thrPtrPtr != thrPtr) {
+	thrPtrPtr = &(*thrPtrPtr)->nextPtr;
     }
-    if (lastPtr == thrPtr) {
-	lastPtr = thrPtr->prevPtr;
-    } else {
-	thrPtr->nextPtr->prevPtr = thrPtr->prevPtr;
-    }
-    thrPtr->nextPtr = thrPtr->prevPtr = NULL;
+    *thrPtrPtr = thrPtr->nextPtr;
+    thrPtr->nextPtr = NULL;
     free(thrPtr);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsSetThread2 --
- *
- *	Setup the thread data structure for the calling thread.
- *	Called from NsSetThread.
- *
- * Results:
- *	None.
- *
- * Side effects:
- *	Thread name is initialized to a simple numbered string name.
- *
- *----------------------------------------------------------------------
- */
-
-void
-NsSetThread2(Thread *thisPtr)
-{
-    thisPtr->stackBase = &thisPtr;
-    sprintf(thisPtr->name, "-t%d-", thisPtr->tid);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsGetThread2 --
- *
- *	Get a new thread data structure for an unknown thread, called
- *	from NsGetThread normally just once, the first time in the
- *	initial thread.
- *
- * Results:
- *	Pointer to new Thread structure.
- *
- * Side effects:
- *	Allocates and sets a new Thread.
- *
- *----------------------------------------------------------------------
- */
-
-Thread *
-NsGetThread2(void)
-{
-    Thread *thrPtr, temp;
-
-    /*
-     * Set a temporary thread to avoid possible endless recursion
-     * in NsNewThread.
-     */
-
-    memset(&temp, 0, sizeof(temp));
-    NsSetThread(&temp);
-
-    thrPtr = NsNewThread(NULL, NULL, nsThreadStackSize, NS_THREAD_DETACHED);
-    NsSetThread(thrPtr);
-    return thrPtr;
 }

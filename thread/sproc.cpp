@@ -54,9 +54,9 @@
 #include "thread.h"
 #include <sys/prctl.h>		/* prctl(), PRDA definition. */
 #include <ulocks.h>		/* Arena locks. */
+#include <mutex.h>		/* test_then_add. */
 #include <sys/ioctl.h>
 #include <sys/wait.h>
-#include <mutex.h>
 
 extern void	__exit(int);
 
@@ -70,16 +70,12 @@ extern void	__exit(int);
 
 typedef struct Sproc {
     int     	   pid;     	/* Thread initialized pid. */
-    int     	   startPid;	/* Manager initialized pid. */
-    struct Sproc  *nextPtr; 	/* Pointer to next starting, free,
-    	    	    	    	 * or running Sproc */
+    struct Sproc  *nextRunPtr; 	/* Next starting, free, or running Sproc */
+    struct Sproc  *nextWaitPtr;	/* Next Sproc in CondWait. */
+    struct Sproc  *wakeupPtr;	/* Next Sproc to wakeup from CondWait. */
     struct Thread *thrPtr;  	/* Pointer to NsThread structure. */
-    struct Sproc  *prevWaitPtr; /* Previous Sproc in CondWait. */
-    struct Sproc  *nextWaitPtr; /* Next Sproc in CondWait. */
-    struct Sproc  *nextWakeupPtr; /* Next Sproc in CondWait. */
     enum {  	    	    	/* State of sproc structure as follows: */
 	SprocRunning,	    	/* Sproc is running freely. */
-	SprocStarting,	    	/* Sproc is starting, not yet initialized. */
 	SprocCondWait,	    	/* Sproc is in a condition wait. */
 	SprocExited 	    	/* Sproc has exited and to be reaped. */
     } state;
@@ -91,8 +87,7 @@ typedef struct Sproc {
 
 typedef struct {
     Ns_Mutex    lock;	    	/* Lock around Cond structure. */
-    Sproc      *firstWaitPtr;	/* First waiting Sproc or NULL. */
-    Sproc      *lastWaitPtr;	/* Last waiting Sproc or NULL. */
+    Sproc      *waitPtr;	/* First waiting Sproc or NULL. */
 } Cond;
 
 /*
@@ -100,20 +95,19 @@ typedef struct {
  * all threads.  Instead, it's a pointer to a virtual address which always
  * points to the "per-process data area" (see <sys/prctl.h> for details). The
  * address of the current thread's Sproc process is stored at this location
- * at thread startup in SprocMain() and accessed via NsGetThread2() called
- * by NsGetThread().  If you're interested in how per-thread context
- * management would be done on other platforms check out the LinuxThreads
- * source code.  For example, on Sparc Linux (and Solaris) a pointer to
- * thread context is stored in CPU register #6 and on Intel Linux it's
- * calculated based on the known spacing of thread context mmaped()'ed at
- * high virtual memory addresses.
+ * at thread startup in SprocMain() and accessed via NsGetThread().
+ * If you're interested in how per-thread context management would
+ * be done on other platforms check out the LinuxThreads source
+ * code.  For example, on Sparc Linux (and Solaris) a pointer to thread
+ * context is stored in CPU register #6 and on Intel Linux it's
+ * calculated based on the known spacing of thread context mmaped()'ed 
+ * at high virtual memory addresses.
  */
 
 static Sproc  **prdaPtrPtr = (Sproc **) (&((PRDA)->usr2_prda));
 
 static Sproc   *firstStartPtr;	/* List of sprocs to be started. */
 static Ns_Mutex mgrLock;	/* Lock around mgrCond and sproc lists. */
-static Ns_Cond  mgrCond;	/* Thread/manager signal condition. */
 static int      mgrPipe[2];	/* Trigger pipe to wakeup manager. */
 static int      mgrPid = -1;	/* Manager pid, -1 until first thread. */
 static int      initPid = -1;	/* Initial thread pid, -1 until first thread. */
@@ -129,7 +123,7 @@ static void     CatchCLD(int signal);
 static void	CatchHUP(void);
 static void	CheckHUP(void);
 static usptr_t *GetArena(void);
-static void     StartSproc(Sproc *sPtr);
+static int      StartSproc(Sproc *sPtr);
 static int	GetWakeup(Sproc *sPtr);
 static void	WakeupSproc(int pid);
 static Sproc   *InitSproc(void);
@@ -334,7 +328,7 @@ Ns_CondInit(Ns_Cond *condPtr)
     cPtr = ns_malloc(sizeof(Cond));
     Ns_MutexInit(&cPtr->lock);
     Ns_MutexSetName2(&cPtr->lock, "nsthread:cond", name);
-    cPtr->firstWaitPtr = cPtr->lastWaitPtr = NULL;
+    cPtr->waitPtr = NULL;
     *condPtr = (Ns_Cond) cPtr;
 }
 
@@ -364,7 +358,7 @@ Ns_CondDestroy(Ns_Cond *condPtr)
     	Cond *cPtr = (Cond *) *condPtr;
 
     	Ns_MutexDestroy(&cPtr->lock);
-	cPtr->firstWaitPtr = cPtr->lastWaitPtr = NULL;
+	cPtr->waitPtr = NULL;
     	ns_free(cPtr);
     	*condPtr = NULL;
     }
@@ -396,13 +390,9 @@ Ns_CondSignal(Ns_Cond *condPtr)
     int		  wakeup;
 
     Ns_MutexLock(&cPtr->lock);
-    sPtr = cPtr->firstWaitPtr;
+    sPtr = cPtr->waitPtr;
     if (sPtr != NULL) {
-    	cPtr->firstWaitPtr = sPtr->nextWaitPtr;
-	if (cPtr->lastWaitPtr == sPtr) {
-	    cPtr->lastWaitPtr = NULL;
-	}
-	sPtr->nextWakeupPtr = NULL;
+	cPtr->waitPtr = sPtr->nextWaitPtr;
 	wakeup = GetWakeup(sPtr);
     }
     Ns_MutexUnlock(&cPtr->lock);
@@ -438,14 +428,14 @@ Ns_CondBroadcast(Ns_Cond *condPtr)
     int            wakeup;
 
     Ns_MutexLock(&cPtr->lock);
-    sPtr = cPtr->firstWaitPtr;
+    sPtr = cPtr->waitPtr;
     while (sPtr != NULL) {
-	sPtr->nextWakeupPtr = sPtr->nextWaitPtr;
+	sPtr->wakeupPtr = sPtr->nextWaitPtr;
 	sPtr = sPtr->nextWaitPtr;
     }
-    sPtr = cPtr->firstWaitPtr;
+    sPtr = cPtr->waitPtr;
     if (sPtr != NULL) {
-	cPtr->firstWaitPtr = cPtr->lastWaitPtr = NULL;
+	cPtr->waitPtr = NULL;
 	wakeup = GetWakeup(sPtr);
     }
     Ns_MutexUnlock(&cPtr->lock);
@@ -506,7 +496,7 @@ Ns_CondTimedWait(Ns_Cond *condPtr, Ns_Mutex *mutexPtr, Ns_Time *timePtr)
     struct timespec ts;
     Cond           *cPtr;
     sigset_t        set;
-    Sproc	   *sPtr, *nextPtr;
+    Sproc	   *sPtr, *wakeupPtr, **waitPtrPtr;
     Ns_Time 	    now, wait;
 
     /*
@@ -524,15 +514,12 @@ Ns_CondTimedWait(Ns_Cond *condPtr, Ns_Mutex *mutexPtr, Ns_Time *timePtr)
     sPtr = GETSPROC();
     cPtr = GETCOND(condPtr);
     Ns_MutexLock(&cPtr->lock);
+    waitPtrPtr = &cPtr->waitPtr;
+    while (*waitPtrPtr != NULL) {
+	waitPtrPtr = &(*waitPtrPtr)->nextWaitPtr;
+    }
+    *waitPtrPtr = sPtr;
     sPtr->nextWaitPtr = NULL;
-    sPtr->prevWaitPtr = cPtr->lastWaitPtr;
-    cPtr->lastWaitPtr = sPtr;
-    if (sPtr->prevWaitPtr != NULL) {
-        sPtr->prevWaitPtr->nextWaitPtr = sPtr;
-    }
-    if (cPtr->firstWaitPtr == NULL) {
-        cPtr->firstWaitPtr = sPtr;
-    }
 
     /*
      * Unlock the coordinating mutex and wait for a wakeup signal
@@ -587,17 +574,12 @@ Ns_CondTimedWait(Ns_Cond *condPtr, Ns_Mutex *mutexPtr, Ns_Time *timePtr)
 	if (sPtr->state == SprocRunning) {
 	    status = NS_OK;
 	} else {
-            if (cPtr->firstWaitPtr == sPtr) {
-                cPtr->firstWaitPtr = sPtr->nextWaitPtr;
-            } else {
-                sPtr->prevWaitPtr->nextWaitPtr = sPtr->nextWaitPtr;
-            }
-            if (cPtr->lastWaitPtr == sPtr) {
-                cPtr->lastWaitPtr = sPtr->prevWaitPtr;
-            } else if (sPtr->nextWaitPtr != NULL) {
-                sPtr->nextWaitPtr->prevWaitPtr = sPtr->prevWaitPtr;
-            }
-	    sPtr->nextWaitPtr = sPtr->prevWaitPtr = NULL;
+	    waitPtrPtr = &cPtr->waitPtr;
+	    while (*waitPtrPtr != sPtr) {
+		waitPtrPtr = &(*waitPtrPtr)->nextWaitPtr;
+	    }
+	    *waitPtrPtr = sPtr->nextWaitPtr;
+	    sPtr->nextWaitPtr = NULL;
 	    sPtr->state = SprocRunning;
 	}
     }
@@ -607,10 +589,10 @@ Ns_CondTimedWait(Ns_Cond *condPtr, Ns_Mutex *mutexPtr, Ns_Time *timePtr)
      * a broadcast.
      */
 
-    nextPtr = sPtr->nextWakeupPtr;
-    if (nextPtr != NULL) {
-	sPtr->nextWakeupPtr = NULL;
-	wakeup = GetWakeup(nextPtr);
+    wakeupPtr = sPtr->wakeupPtr;
+    if (wakeupPtr != NULL) {
+	sPtr->wakeupPtr = NULL;
+	wakeup = GetWakeup(wakeupPtr);
     }
 
     /*
@@ -624,7 +606,7 @@ Ns_CondTimedWait(Ns_Cond *condPtr, Ns_Mutex *mutexPtr, Ns_Time *timePtr)
      * released. 
      */
 
-    if (nextPtr != NULL) {
+    if (wakeupPtr != NULL) {
 	WakeupSproc(wakeup);
     }
 
@@ -694,8 +676,7 @@ void
 NsThreadCreate(Thread *thrPtr)
 {
     Sproc	*sPtr;
-
-    Ns_MutexLock(&mgrLock);
+    int		 trigger = 0;
 
     /*
      * Create the manager sproc if necessary.
@@ -709,34 +690,33 @@ NsThreadCreate(Thread *thrPtr)
 	if (pipe(mgrPipe) != 0) {
             NsThreadFatal("NsThreadCreate", "pipe", errno);
 	}
+        fcntl(mgrPipe[0], F_SETFD, 1);
+        fcntl(mgrPipe[1], F_SETFD, 1);
 	ns_signal(SIGCLD, CatchCLD);	/* NB: Trap exit of manager. */
-	mgrSproc.thrPtr = NsNewThread(MgrThread, NULL, 8192, 0);
+	mgrSproc.thrPtr = NsNewThread2(MgrThread, NULL, 8192, NS_THREAD_DETACHED);
 	mgrSproc.state = SprocRunning;
-	StartSproc(&mgrSproc);
-	mgrPid = mgrSproc.startPid;
+	mgrPid = StartSproc(&mgrSproc);
     }
     
     /*
-     * Allocate a new sproc, queue for start, trigger the manager,
-     * and wait for startup to complete.
+     * Allocate a new sproc and queue for start.
      */
      
     sPtr = ns_calloc(1, sizeof(Sproc));
     sPtr->thrPtr = thrPtr;
-    if (thrPtr->flags & NS_THREAD_DETACHED) {
-    	sPtr->state = SprocRunning;
-    } else {
-    	sPtr->state = SprocStarting;
-    }
+    sPtr->state = SprocRunning;
+
+    Ns_MutexLock(&mgrLock);
     if (firstStartPtr == NULL) {
+	trigger = 1;
+    }
+    sPtr->nextRunPtr = firstStartPtr;
+    firstStartPtr = sPtr;
+    Ns_MutexUnlock(&mgrLock);
+
+    if (trigger) {
 	MgrTrigger();
     }
-    sPtr->nextPtr = firstStartPtr;
-    firstStartPtr = sPtr;
-    while (sPtr->state == SprocStarting) {
-        Ns_CondWait(&mgrCond, &mgrLock);
-    }
-    Ns_MutexUnlock(&mgrLock);
 }
 
 
@@ -764,6 +744,9 @@ NsThreadExit(void)
 {
     Sproc *sPtr = GETSPROC();
 
+    if (sPtr->thrPtr != NULL) {
+    	NsFreeThread(sPtr->thrPtr);
+    }
     Ns_MutexLock(&mgrLock);
     sPtr->state = SprocExited;
     sPtr->thrPtr = NULL;
@@ -795,7 +778,6 @@ NsSetThread(Thread *thisPtr)
 
     thisPtr->tid = sPtr->pid;
     sPtr->thrPtr = thisPtr;
-    NsSetThread2(thisPtr);
 }
 
 
@@ -819,8 +801,14 @@ Thread      *
 NsGetThread(void)
 {
     Sproc *sPtr = GETSPROC();
+    Thread *thrPtr;
 
-    return (sPtr->thrPtr ? sPtr->thrPtr : NsGetThread2());
+    thrPtr = sPtr->thrPtr;
+    if (thrPtr == NULL) {
+	thrPtr = NsNewThread();
+	NsSetThread(thrPtr);
+    }
+    return thrPtr;
 }
 
 
@@ -853,7 +841,7 @@ InitSproc(void)
     static Sproc initSproc;
 
     if (initSproc.pid == 0) {
-	initSproc.pid = initSproc.startPid = getpid();
+	initSproc.pid = getpid();
 	initSproc.state = SprocRunning;
     }
     return &initSproc;
@@ -933,19 +921,6 @@ SprocMain(void *arg, size_t stacksize)
     *prdaPtrPtr = sPtr;
     sPtr->pid = getpid();
     CatchHUP();
-
-    /*
-     * Signal the parent of this thread that initialization is
-     * complete.
-     */
-
-    Ns_MutexLock(&mgrLock);
-    if (sPtr->state == SprocStarting) {
-    	sPtr->state = SprocRunning;
-    	Ns_CondBroadcast(&mgrCond);
-    }
-    Ns_MutexUnlock(&mgrLock);
-
     NsThreadMain(sPtr->thrPtr);
 }
 
@@ -1159,14 +1134,17 @@ CheckHUP(void)
  *----------------------------------------------------------------------
  */
 
-static void
+static int
 StartSproc(Sproc *sPtr)
 {
-    sPtr->startPid = sprocsp(SprocMain, PR_SALL, (void *) sPtr,
+    int pid;
+
+    pid = sprocsp(SprocMain, PR_SALL, (void *) sPtr,
     	    	    	     NULL, sPtr->thrPtr->stackSize);
-    if (sPtr->startPid < 0) {
+    if (pid < 0) {
 	NsThreadFatal("StartSproc", "sprocsp", errno);
     }
+    return pid;
 }
 
 
@@ -1261,11 +1239,11 @@ MgrThread(void *arg)
 		_exit(1);
 	    }
     	    sPtrPtr = &runPtr;
-	    while ((*sPtrPtr)->startPid != pid) {
-	    	sPtrPtr = &(*sPtrPtr)->nextPtr;
+	    while ((*sPtrPtr)->pid != pid) {
+	    	sPtrPtr = &(*sPtrPtr)->nextRunPtr;
 	    }
     	    sPtr = *sPtrPtr;
-	    *sPtrPtr = sPtr->nextPtr;
+	    *sPtrPtr = sPtr->nextRunPtr;
 	    Ns_MutexLock(&mgrLock);
 	    if (sPtr->state != SprocExited) {
 		NsThreadError("sproc %d called _exit() directly", pid);
@@ -1280,8 +1258,8 @@ MgrThread(void *arg)
          */
 
 	while ((sPtr = startPtr) != NULL) {
-	    startPtr = sPtr->nextPtr;
-	    sPtr->nextPtr = runPtr;
+	    startPtr = sPtr->nextRunPtr;
+	    sPtr->nextRunPtr = runPtr;
 	    runPtr = sPtr;
 	    StartSproc(sPtr);
 	}
@@ -1423,7 +1401,7 @@ fork(void)
 	 */
 
     	sPtr = GETSPROC();
-	sPtr->pid = sPtr->startPid = getpid();
+	sPtr->pid = getpid();
     }
     return pid;
 }

@@ -35,9 +35,31 @@
  *	data buffers.  See the corresponding manual page for details.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/reentrant.c,v 1.4 2000/10/03 17:55:20 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/reentrant.c,v 1.5 2000/10/20 21:54:09 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "thread.h"
+
+/*
+ * The following structure maintains state for the
+ * reentrant wrappers.
+ */
+
+typedef struct Tls {
+    char	    	naBuf[16];
+#ifndef WIN32
+    char	       *stBuf;
+    struct tm   	gtBuf;
+    struct tm   	ltBuf;
+    char		ctBuf[27];
+    char		asBuf[27];
+    struct {
+	struct dirent ent;
+	char name[PATH_MAX+1];
+    } rdBuf;
+#endif
+} Tls;
+
+static Tls *GetTls(void);
 
 #ifdef MACOSX
 #define NO_REENTRANT	1
@@ -53,7 +75,7 @@ ns_readdir(DIR * dir)
     ent = readdir(dir);
 
 #else
-    Thread *thisPtr = NsGetThread();
+    Tls *tlsPtr = GetTls();
 
 #if defined(NO_REENTRANT)
     static Ns_Mutex lock;
@@ -61,20 +83,20 @@ ns_readdir(DIR * dir)
     Ns_MutexLock(&lock);
     ent = readdir(dir);
     if (ent != NULL) {
-	memcpy(&thisPtr->tls.rdBuf.ent, ent,
+	memcpy(&tlsPtr->rdBuf.ent, ent,
 	       sizeof(*ent) - sizeof(ent->d_name) + ent->d_namlen + 1);
-	ent = &thisPtr->tls.rdBuf.ent;
+	ent = &tlsPtr->rdBuf.ent;
     }
     Ns_MutexUnlock(&lock);
 
 #elif defined(__hp10)
-    ent = &thisPtr->tls.rdBuf.ent;
+    ent = &tlsPtr->rdBuf.ent;
     if (readdir_r(dir, ent) != 0) {
         ent = NULL;
     }
 
 #else
-    ent = &thisPtr->tls.rdBuf.ent; 
+    ent = &tlsPtr->rdBuf.ent; 
     if (readdir_r(dir, ent, &ent) != 0) {
 	ent = NULL;
     }
@@ -95,7 +117,7 @@ ns_localtime(const time_t * clock)
     ptm = localtime(clock);
 
 #else
-    Thread *thisPtr = NsGetThread();
+    Tls *tlsPtr = GetTls();
 
 #if defined(NO_REENTRANT)
     static Ns_Mutex lock;
@@ -103,19 +125,19 @@ ns_localtime(const time_t * clock)
     Ns_MutexLock(&lock);
     ptm = localtime(clock);
     if (ptm != NULL) {
-	thisPtr->tls.ltBuf = *ptm;
-	ptm = &thisPtr->tls.ltBuf;
+	tlsPtr->ltBuf = *ptm;
+	ptm = &tlsPtr->ltBuf;
     }
     Ns_MutexUnlock(&lock);
 
 #elif defined(__hp10)
-    ptm = &thisPtr->tls.ltBuf;
+    ptm = &tlsPtr->ltBuf;
     if (localtime_r(clock, ptm) != 0) {
 	ptm = NULL;
     }
 
 #else
-    ptm = localtime_r(clock, &thisPtr->tls.ltBuf);
+    ptm = localtime_r(clock, &tlsPtr->ltBuf);
 
 #endif
 #endif
@@ -133,7 +155,7 @@ ns_gmtime(const time_t * clock)
     ptm = gmtime(clock);
 
 #else
-    Thread *thisPtr = NsGetThread();
+    Tls *tlsPtr = GetTls();
 
 #if defined(NO_REENTRANT)
     static Ns_Mutex lock;
@@ -141,19 +163,19 @@ ns_gmtime(const time_t * clock)
     Ns_MutexLock(&lock);
     ptm = gmtime(clock);
     if (ptm != NULL) {
-	thisPtr->tls.gtBuf = *ptm;
-	ptm = &thisPtr->tls.gtBuf;
+	tlsPtr->gtBuf = *ptm;
+	ptm = &tlsPtr->gtBuf;
     }
     Ns_MutexUnlock(&lock);
 
 #elif defined(__hp10)
-    ptm = &thisPtr->tls.gtBuf;
-    if (gmtime_r(clock, &thisPtr->tls.gtBuf) != 0) {
+    ptm = &tlsPtr->gtBuf;
+    if (gmtime_r(clock, &tlsPtr->gtBuf) != 0) {
 	ptm = NULL;
     }
 
 #else
-    ptm = gmtime_r(clock, &thisPtr->tls.gtBuf);
+    ptm = gmtime_r(clock, &tlsPtr->gtBuf);
 
 #endif
 #endif
@@ -171,7 +193,7 @@ ns_ctime(const time_t * clock)
     ct = ctime(clock);
 
 #else
-    Thread *thisPtr = NsGetThread();
+    Tls *tlsPtr = GetTls();
 
 #if defined(NO_REENTRANT)
     static Ns_Mutex lock;
@@ -179,19 +201,19 @@ ns_ctime(const time_t * clock)
     Ns_MutexLock(&lock);
     ct = ctime(clock);
     if (ct != NULL) {
-	strcpy(thisPtr->tls.ctBuf, ct);
-	ct = thisPtr->tls.ctBuf;
+	strcpy(tlsPtr->ctBuf, ct);
+	ct = tlsPtr->ctBuf;
     }
     Ns_MutexUnlock(&lock);
 
 #elif defined(__hp10)
-    ct = thisPtr->tls.ctBuf;
+    ct = tlsPtr->ctBuf;
     if (ctime_r(clock, ct, 27) != 0) {
 	ct = NULL;
     }
 
 #else
-    ct = ctime_r(clock, thisPtr->tls.ctBuf);
+    ct = ctime_r(clock, tlsPtr->ctBuf);
 
 #endif
 #endif
@@ -209,7 +231,7 @@ ns_asctime(const struct tm *tmPtr)
     at = asctime(tmPtr);
 
 #else
-    Thread *thisPtr = NsGetThread();
+    Tls *tlsPtr = GetTls();
 
 #if defined(NO_REENTRANT)
     static Ns_Mutex lock;
@@ -217,23 +239,22 @@ ns_asctime(const struct tm *tmPtr)
     Ns_MutexLock(&lock);
     at = asctime(tmPtr);
     if (at != NULL) {
-	strcpy(thisPtr->tls.asBuf, at);
-	at = thisPtr->tls.asBuf;
+	strcpy(tlsPtr->asBuf, at);
+	at = tlsPtr->asBuf;
     }
     Ns_MutexUnlock(&lock);
 
 #elif defined(__hp10)
-    at = thisPtr->tls.asBuf;
+    at = tlsPtr->asBuf;
     if (asctime_r(tmPtr, at, 27) != 0) {
 	at = NULL;
     }
 
 #else
-    at = asctime_r(tmPtr, thisPtr->tls.asBuf);
+    at = asctime_r(tmPtr, tlsPtr->asBuf);
 
 #endif
 #endif
-
     return at;
 }
 
@@ -244,8 +265,9 @@ ns_strtok(char *s1, const char *s2)
 #ifdef WIN32
     return strtok(s1, s2);
 #else
-    Thread *thisPtr = NsGetThread();
-    return strtok_r(s1, s2, &thisPtr->tls.stBuf);
+    Tls *tlsPtr = GetTls();
+
+    return strtok_r(s1, s2, &tlsPtr->stBuf);
 #endif
 }
 
@@ -253,17 +275,39 @@ ns_strtok(char *s1, const char *s2)
 char *
 ns_inet_ntoa(struct in_addr addr)
 {
-    Thread *thisPtr = NsGetThread();
+    Tls *tlsPtr = GetTls();
     union {
     	unsigned long l;
     	unsigned char b[4];
     } u;
     
     u.l = (unsigned long) addr.s_addr;
-    sprintf(thisPtr->tls.naBuf, "%u.%u.%u.%u", u.b[0], u.b[1], u.b[2], u.b[3]);
-
-    return thisPtr->tls.naBuf;
+    sprintf(tlsPtr->naBuf, "%u.%u.%u.%u", u.b[0], u.b[1], u.b[2], u.b[3]);
+    return tlsPtr->naBuf;
 }
+
+
+static Tls *
+GetTls(void)
+{
+    static Ns_Tls tls;
+    Tls *tlsPtr;
+
+    if (tls == NULL) {
+	Ns_MasterLock();
+	if (tls == NULL) {
+	    Ns_TlsAlloc(&tls, ns_free);
+	}
+	Ns_MasterUnlock();
+    }
+    tlsPtr = Ns_TlsGet(&tls);
+    if (tlsPtr == NULL) {
+	tlsPtr = ns_malloc(sizeof(Tls));
+	Ns_TlsSet(&tls, tlsPtr);
+    }
+    return tlsPtr;
+}
+
 
 
 #ifdef MACOSX

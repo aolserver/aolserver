@@ -31,7 +31,7 @@
 #include "nsthread.h"
 #undef Ns_ThreadMalloc
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/test.c,v 1.5 2000/08/28 22:54:04 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/test.c,v 1.6 2000/10/20 21:54:09 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 static Ns_Mutex block;
 static Ns_Mutex mlock;
@@ -279,6 +279,8 @@ Dumper(void *arg)
 	Ns_ThreadEnum(DumpThread, NULL);
 	printf("current locks:\n");
 	Ns_MutexEnum(DumpLock, NULL);
+	printf("memory stats:\n");
+	Ns_ThreadMemStats(stdout);
 	Ns_MutexUnlock(&mlock);
     }
     Ns_MutexUnlock(&dlock);
@@ -314,9 +316,9 @@ main(int argc, char *argv[])
     Ns_SemaInit(&sema, 3);
     Msg("sema initialized to 3");
     atexit(AtExit);
-    Ns_ThreadCreate(PauseThread, (void *) 30, 0, NULL);
-    Ns_ThreadCreate(PauseThread, (void *) 30, 0, NULL);
-    Ns_ThreadCreate(PauseThread, (void *) 30, 0, NULL);
+    Ns_ThreadCreate(PauseThread, (void *) 1, 0, NULL);
+    Ns_ThreadCreate(PauseThread, (void *) 50, 0, NULL);
+    Ns_ThreadCreate(PauseThread, (void *) 10, 0, NULL);
     Msg("pid = %d", getpid());
     Ns_TlsAlloc(&key, junk);
     for (i = 0; i < 10; ++i) {
@@ -349,5 +351,6 @@ mem:
     MemTime(1);
     Ns_ThreadEnum(DumpThread, NULL);
     Ns_MutexEnum(DumpLock, NULL);
+    Ns_ThreadMemStats(stdout);
     return 0;
 }
