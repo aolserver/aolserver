@@ -28,7 +28,7 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/fastpath.tcl,v 1.2 2000/05/02 14:39:31 kriston Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/fastpath.tcl,v 1.3 2000/08/01 20:12:25 kriston Exp $
 #
 
 #
@@ -151,7 +151,8 @@ proc _ns_dirlist {} {
 
     set hidedot [nsv_get _ns_fastpath hidedot]
     set location [ns_conn location]
-    set list "<base href=$location$url/>"
+    
+    set prefix "${location}${url}/"
     set up "<a href=..>..</a>"
     if $simple {
 	append list "
@@ -171,7 +172,9 @@ $up
 	if {$hidedot && [string match .* $tail]} {
 	    continue
 	}
-	set link "<a href=$tail>$tail</a>"
+	
+	set link "<a href=${prefix}${tail}>${tail}</a>"
+
 	if $simple {
 	    append list $link\n
 	} else {
@@ -179,14 +182,16 @@ $up
 	    if [catch {
 		file stat $f stat
 	    } errMsg ] {
-		append list \
-		    "<tr align=left><td>$link</td><td>N/A</td><td>N/A</td></tr>\n"
+		append list "
+<tr align=left><td>$link</td><td>N/A</td><td>N/A</td></tr>\n
+"
 	    } else {
 		set size [expr $stat(size) / 1000 + 1]K
 		set mtime $stat(mtime)
 		set time [clock format $mtime -format "%d-%h-%Y %H:%M"]
-		append list \
-		    "<tr align=left><td>$link</td><td>$size</td><td>$time</td></tr>\n"
+		append list "
+<tr align=left><td>$link</td><td>$size</td><td>$time</td></tr>\n
+"
 	    }
 	}
     }
