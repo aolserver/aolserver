@@ -33,7 +33,7 @@
  *	Routines for managing NsServer structures.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.10 2001/04/25 19:56:44 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.11 2001/04/25 21:06:57 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -342,16 +342,6 @@ NsInitServer(Ns_ServerInitProc *initProc, char *server)
 	i = 4;
     }
     servPtr->job.threads.max = i;
-
-    /*
-     * Initialize Tcl HTTP requests.
-     */
-
-    Tcl_InitHashTable(&servPtr->http.ids, TCL_STRING_KEYS);
-    Ns_MutexInit(&servPtr->http.lock);
-    Ns_MutexSetName2(&servPtr->http.lock, "ns:http", server);
-    Ns_CondInit(&servPtr->http.cond);
-    servPtr->http.next = 0;
 
     /*
      * Initialize the fastpath.
