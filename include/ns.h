@@ -33,7 +33,7 @@
  *      All the public types and function declarations for the core
  *	AOLserver.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.59 2004/06/08 19:28:14 rcrittenden0569 Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.60 2004/06/20 10:28:50 vasiljevic Exp $
  */
 
 #ifndef NS_H
@@ -783,14 +783,11 @@ NS_EXTERN int Ns_TclDetachedThread(Tcl_Interp *interp, char *script);
  * tclxkeylist.c:
  */
 
-NS_EXTERN char *Tcl_DeleteKeyedListField (Tcl_Interp  *interp, CONST char *fieldName,
-        CONST char *keyedList);
-NS_EXTERN int Tcl_GetKeyedListField (Tcl_Interp  *interp, CONST char *fieldName,
-        CONST char *keyedList, char **fieldValuePtr);
-NS_EXTERN int Tcl_GetKeyedListKeys (Tcl_Interp  *interp, char CONST *subFieldName,
-        CONST char *keyedList, int *keysArgcPtr, char ***keysArgvPtr);
-NS_EXTERN char *Tcl_SetKeyedListField (Tcl_Interp  *interp, CONST char *fieldName,
-        CONST char *fieldvalue, CONST char *keyedList);
+NS_EXTERN int TclX_KeyedListDelete (Tcl_Interp *interp, Tcl_Obj *keylPtr, char *key);
+NS_EXTERN int TclX_KeyedListGet (Tcl_Interp *interp, Tcl_Obj *keylPtr, char *key, Tcl_Obj **valuePtrPtr);
+NS_EXTERN int TclX_KeyedListGetKeys (Tcl_Interp *interp, Tcl_Obj *keylPtr, char *key, Tcl_Obj **listObjPtrPtr);
+NS_EXTERN int TclX_KeyedListSet (Tcl_Interp *interp, Tcl_Obj *keylPtr, char *key, Tcl_Obj *valuePtr);
+
 
 /*
  * listen.c:

@@ -2,1144 +2,1425 @@
  * tclxkeylist.c --
  *
  *	Keyed list support, modified from the original
- *	Tcl7.x based TclX and Tcl source.
+ *	Tcl8.x based TclX and Tcl source.
  *
- * Copyright (c) 1995-1998 America Online Inc.
+ * Copyright (c) 1995-2003 America Online Inc.
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclxkeylist.c,v 1.5 2003/03/07 18:08:43 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclxkeylist.c,v 1.6 2004/06/20 10:28:51 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
-/*
+/* 
  * tclXkeylist.c --
- * 
- * Extended Tcl keyed list commands and interfaces.
- * ---------------------------------------------------------------------------
- * -- Copyright 1991-1995 Karl Lehenbauer and Mark Diekhans.
- * 
+ *
+ *  Extended Tcl keyed list commands and interfaces.
+ *-----------------------------------------------------------------------------
+ * Copyright 1991-1999 Karl Lehenbauer and Mark Diekhans.
+ *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose and without fee is hereby granted, provided
  * that the above copyright notice appear in all copies.  Karl Lehenbauer and
  * Mark Diekhans make no representations about the suitability of this
  * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
- * ---------------------------------------------------------------------------
- * -- $Id: tclxkeylist.c,v 1.5 2003/03/07 18:08:43 vasiljevic Exp $
- * ---------------------------------------------------------------------------
- * --
- * 
- * November 9, 1995 modified for use in the AOLserver.
- * November, 1998 modified for Tcl81 compatibility.
- * October, 2000 modified for AOLserver 3.2 compatibility.
+ *-----------------------------------------------------------------------------
+ * $Id: tclxkeylist.c,v 1.6 2004/06/20 10:28:51 vasiljevic Exp $
+ *-----------------------------------------------------------------------------
  */
+
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+/*          Stuff copied from the rest of TclX to avoid dependencies         */
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
 
 /* #include "tclExtdInt.h" */
-#define _ANSI_ARGS_(x) x
-#ifndef CONST
-#define CONST
+/*
+ * Assert macro for use in TclX.  Some GCCs libraries are missing a function
+ * used by their macro, so we define out own.
+ */
+#ifdef TCLX_DEBUG
+#   define TclX_Assert(expr) ((expr) ? (void)0 : \
+                              panic("TclX assertion failure: %s:%d \"%s\"\n",\
+                                    __FILE__, __LINE__, "expr"))
+#else
+#   define TclX_Assert(expr)
 #endif
-#define ISSPACE(c) (isspace ((unsigned char) c))
-#define UCHAR(c) ((unsigned char)(c))
-#define STRNEQU(str1, str2, cnt) \
-        (((str1) [0] == (str2) [0]) && (strncmp (str1, str2, cnt) == 0))
-static char    *tclXWrongArgs = "wrong # args: ";
+
+#define TRUE  1
+#define FALSE 0
 
 /*
- * The following routines where copied from the Tcl 7.6 source and inlined
- * here to ensure this file has no dependencies on internal Tcl procedures
- * to avoid any changes in the future (e.g., the TclFindElement routine
- * was changed between 7.6 and 8.1).
+ * Macro that behaves like strdup, only uses ckalloc.  Also macro that does the
+ * same with a string that might contain zero bytes,
  */
+#define ckstrdup(a) \
+    (char*)strcpy(ckalloc(strlen((a)+1)), (a))
 
-static int	FindElement(Tcl_Interp *interp, char *list,
-	char **elementPtr, char **nextPtr, int *sizePtr, int *bracePtr);
-static void	CopyAndCollapse(int count, char *src, char *dst);
-#define TclFindElement FindElement
-#define TclCopyAndCollapse CopyAndCollapse
-extern Tcl_CmdProc Tcl_KeylkeysCmd;
-
+#define ckbinstrdup(a,b) \
+    (char*)memcpy(ckalloc((unsigned int)((b)+1)),(a),(unsigned int)((b)+1))
 
 /*
- * Type used to return information about a field that was found in a keyed
- * list.
+ * Used to return argument messages by most commands.
  */
-typedef struct fieldInfo_t {
-    int             argc;
-    char          **argv;
-    int             foundIdx;
-    char           *valuePtr;
-    int             valueSize;
-}               fieldInfo_t;
+char *tclXWrongArgs = "wrong # args: ";
+
+/*
+ * Those are used in TclX_IsNullObj() in read-only mode
+ * therefore no need to mutex protect them (see below).
+ */
+static Tcl_ObjType *listType;
+static Tcl_ObjType *stringType;
+
+/*
+ * This is called once from InitInterp() call in tclinit.c
+ * for first-time initialization of special Tcl objects.
+ */
+void NsTclInitKeylistType (void)
+{
+    listType   = Tcl_GetObjType("list");
+    stringType = Tcl_GetObjType("string");
+}
+
+/*-----------------------------------------------------------------------------
+ * TclX_WrongArgs --
+ *
+ *   Easily create "wrong # args" error messages.
+ *
+ * Parameters:
+ *   o commandNameObj - Object containing name of command (objv[0])
+ *   o string - Text message to append.
+ * Returns:
+ *   TCL_ERROR
+ *-----------------------------------------------------------------------------
+ */
+int
+TclX_WrongArgs (interp, commandNameObj, string)
+    Tcl_Interp  *interp;
+    Tcl_Obj     *commandNameObj;
+    char        *string;
+{
+    char    *commandName;
+    Tcl_Obj *resultPtr = Tcl_GetObjResult (interp);
+    int      commandLength;
+
+    commandName = Tcl_GetStringFromObj (commandNameObj, &commandLength);
+
+    Tcl_AppendStringsToObj (resultPtr,
+			    tclXWrongArgs,
+			    commandName,
+			    (char *)NULL);
+
+    if (*string != '\0') {
+	Tcl_AppendStringsToObj (resultPtr, " ", string, (char *)NULL);
+    }
+    return TCL_ERROR;
+}
+
+/*-----------------------------------------------------------------------------
+ * TclX_AppendObjResult --
+ *
+ *   Append a variable number of strings onto the object result already
+ * present for an interpreter.  If the object is shared, the current contents
+ * are discarded.
+ *
+ * Parameters:
+ *   o interp - Interpreter to set the result in.
+ *   o args - Strings to append, terminated by a NULL.
+ *-----------------------------------------------------------------------------
+ */
+void
+TclX_AppendObjResult TCL_VARARGS_DEF (Tcl_Interp *, arg1)
+{
+    Tcl_Interp *interp;
+    Tcl_Obj *resultPtr;
+    va_list argList;
+    char *string;
+
+    interp = TCL_VARARGS_START (Tcl_Interp *, arg1, argList);
+    resultPtr = Tcl_GetObjResult (interp);
+
+    if (Tcl_IsShared(resultPtr)) {
+        resultPtr = Tcl_NewStringObj((char *)NULL, 0);
+        Tcl_SetObjResult(interp, resultPtr);
+    }
+
+    TCL_VARARGS_START(Tcl_Interp *,arg1,argList);
+    while (1) {
+        string = va_arg(argList, char *);
+        if (string == NULL) {
+            break;
+        }
+        Tcl_AppendToObj (resultPtr, string, -1);
+    }
+    va_end(argList);
+}
+
+/*-----------------------------------------------------------------------------
+ * TclX_IsNullObj --
+ *
+ *   Check if an object is {}, either in list or zero-lemngth string form, with
+ * out forcing a conversion.
+ *
+ * Parameters:
+ *   o objPtr - Object to check.
+ * Returns:
+ *   True if NULL, FALSE if not.
+ *-----------------------------------------------------------------------------
+ */
+int
+TclX_IsNullObj (objPtr)
+    Tcl_Obj *objPtr;
+{
+    int length;
+
+    if (objPtr->typePtr == NULL) {
+        return (objPtr->length == 0);
+    } else {
+        if (objPtr->typePtr == listType) {
+            Tcl_ListObjLength (NULL, objPtr, &length);
+            return (length == 0);
+        } else if (objPtr->typePtr == stringType) {
+            Tcl_GetStringFromObj (objPtr, &length);
+            return (length == 0);
+        }
+    }
+    Tcl_GetStringFromObj (objPtr, &length);
+    return (length == 0);
+}
+
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+/*                    Here is where the original file begins                 */
+/*---------------------------------------------------------------------------*/
+/*---------------------------------------------------------------------------*/
+
+/*
+ * Keyed lists are stored as arrays recursively defined objects.  The data
+ * portion of a keyed list entry is a Tcl_Obj which may be a keyed list object
+ * or any other Tcl object.  Since determine the structure of a keyed list is
+ * lazy (you don't know if an element is data or another keyed list) until it
+ * is accessed, the object can be transformed into a keyed list from a Tcl
+ * string or list.
+ */
+
+/*
+ * An entry in a keyed list array.   (FIX: Should key be object?)
+ */
+typedef struct {
+    char    *key;
+    Tcl_Obj *valuePtr;
+} keylEntry_t;
+
+/*
+ * Internal representation of a keyed list object.
+ */
+typedef struct {
+    int          arraySize;   /* Current slots available in the array.  */
+    int          numEntries;  /* Number of actual entries in the array. */
+    keylEntry_t *entries;     /* Array of keyed list entries.           */
+} keylIntObj_t;
+
+/*
+ * Amount to increment array size by when it needs to grow.
+ */
+#define KEYEDLIST_ARRAY_INCR_SIZE 16
+
+/*
+ * Macro to duplicate a child entry of a keyed list if it is share by more
+ * than the parent.
+ */
+#define DupSharedKeyListChild(keylIntPtr, idx) \
+    if (Tcl_IsShared (keylIntPtr->entries [idx].valuePtr)) { \
+        keylIntPtr->entries [idx].valuePtr = \
+            Tcl_DuplicateObj (keylIntPtr->entries [idx].valuePtr); \
+        Tcl_IncrRefCount (keylIntPtr->entries [idx].valuePtr); \
+    }
+
+/*
+ * Macros to validate an keyed list object or internal representation
+ */
+#ifdef TCLX_DEBUG
+#   define KEYL_OBJ_ASSERT(keylAPtr) {\
+        TclX_Assert (keylAPtr->typePtr == &keyedListType); \
+        ValidateKeyedList (keylAIntPtr); \
+    }
+#   define KEYL_REP_ASSERT(keylAIntPtr) \
+        ValidateKeyedList (keylAIntPtr)
+#else
+#  define KEYL_REP_ASSERT(keylAIntPtr)
+#endif
+
 
 /*
  * Prototypes of internal functions.
  */
-static int CompareKeyListField _ANSI_ARGS_((Tcl_Interp *interp,
-        CONST char *fieldName, CONST char *field, char **valuePtr,
-        int *valueSizePtr, int *bracedPtr));
+#ifdef TCLX_DEBUG
+static void
+ValidateKeyedList _ANSI_ARGS_((keylIntObj_t *keylIntPtr));
+#endif
 
-static int SplitAndFindField _ANSI_ARGS_((Tcl_Interp *interp,
-        CONST char *fieldName, CONST char *keyedList,
-        fieldInfo_t * fieldInfoPtr));
-
-/*
- * ----------------------------------------------------------------------------
- * -
- * 
- * CompareKeyListField -- Compare a field name to a field (keyword/value pair)
- * to determine if the field names match.
- * 
- * Parameters: o interp (I/O) - Error message will be return in result if there
- * is an error. o fieldName (I) - Field name to compare against field. o
- * field (I) - Field to see if its name matches. o valuePtr (O) - If the
- * field names match, a pointer to value part is returned. o valueSizePtr (O)
- * - If the field names match, the length of the value part is returned here.
- * o bracedPtr (O) - If the field names match, non-zero/zero to inficate that
- * the value was/warn't in braces. Returns: TCL_OK - If the field names
- * match. TCL_BREAK - If the fields names don't match. TCL_ERROR -  If the
- * list has an invalid format.
- * ---------------------------------------------------------------------------
- * -- */
-    static int
-                    CompareKeyListField(interp, fieldName, field, valuePtr, valueSizePtr,
-                    bracedPtr)
-    Tcl_Interp     *interp;
-    CONST char     *fieldName;
-    CONST char     *field;
-    char          **valuePtr;
-    int            *valueSizePtr;
-    int            *bracedPtr;
-{
-    char           *elementPtr, *nextPtr;
-    int             fieldNameSize, elementSize;
-
-    if (field[0] == '\0') {
-        interp->result =
-            "invalid keyed list format: list contains an empty field entry";
-        return TCL_ERROR;
-    }
-    if (TclFindElement(interp, (char *) field, &elementPtr, &nextPtr,
-            &elementSize, NULL) != TCL_OK)
-        return TCL_ERROR;
-    if (elementSize == 0) {
-        interp->result =
-            "invalid keyed list format: list contains an empty field name";
-        return TCL_ERROR;
-    }
-    if (nextPtr[0] == '\0') {
-        Tcl_AppendResult(interp, "invalid keyed list format or inconsistent ",
-            "field name scoping: no value associated with ",
-            "field \"", elementPtr, "\"", (char *) NULL);
-        return TCL_ERROR;
-    }
-    fieldNameSize = strlen((char *) fieldName);
-    if (!((elementSize == fieldNameSize) &&
-            STRNEQU(elementPtr, ((char *) fieldName), (size_t)fieldNameSize)))
-        return TCL_BREAK;               /* Names do not match */
-
-    /*
-     * Extract the value from the list.
-     */
-    if (TclFindElement(interp, nextPtr, &elementPtr, &nextPtr, &elementSize,
-            bracedPtr) != TCL_OK)
-        return TCL_ERROR;
-    if (nextPtr[0] != '\0') {
-        Tcl_AppendResult(interp, "invalid keyed list format: ",
-            "trailing data following value in field: \"",
-            elementPtr, "\"", (char *) NULL);
-        return TCL_ERROR;
-    }
-    *valuePtr = elementPtr;
-    *valueSizePtr = elementSize;
-    return TCL_OK;
-}
-
-
-/*
- * ----------------------------------------------------------------------------
- * -
- * 
- * SplitAndFindField -- Split a keyed list into an argv and locate a field
- * (key/value pair) in the list.
- * 
- * Parameters: o interp (I/O) - Error message will be return in result if there
- * is an error. o fieldName (I) - The name of the field to find.  Will
- * validate that the name is not empty.  If the name has a sub-name
- * (seperated by "."), search for the top level name. o fieldInfoPtr (O) -
- * The following fields are filled in: o argc - The number of elements in the
- * keyed list. o argv - The keyed list argv is returned here, even if the key
- * was not found.  Client must free.  Will be NULL is an error occurs. o
- * foundIdx - The argv index containing the list entry that matches the field
- * name, or -1 if the key was not found. o valuePtr - Pointer to the value
- * part of the found element. NULL in not found. o valueSize - The size of
- * the value part. Returns: Standard Tcl result.
- * ---------------------------------------------------------------------------
- * -- */
 static int
-SplitAndFindField(interp, fieldName, keyedList, fieldInfoPtr)
-    Tcl_Interp     *interp;
-    CONST char     *fieldName;
-    CONST char     *keyedList;
-    fieldInfo_t    *fieldInfoPtr;
-{
-    int             idx, result, braced;
+ValidateKey _ANSI_ARGS_((Tcl_Interp *interp,
+                         char *key,
+                         int keyLen,
+                         int isPath));
 
-    if (fieldName == '\0') {
-        interp->result = "null key not allowed";
+static keylIntObj_t *
+AllocKeyedListIntRep _ANSI_ARGS_((void));
+
+static void
+FreeKeyedListData _ANSI_ARGS_((keylIntObj_t *keylIntPtr));
+
+static void
+EnsureKeyedListSpace _ANSI_ARGS_((keylIntObj_t *keylIntPtr,
+                                  int           newNumEntries));
+
+static void
+DeleteKeyedListEntry _ANSI_ARGS_((keylIntObj_t *keylIntPtr,
+                                  int           entryIdx));
+
+static int
+FindKeyedListEntry _ANSI_ARGS_((keylIntObj_t *keylIntPtr,
+                                char         *key,
+                                int          *keyLenPtr,
+                                char        **nextSubKeyPtr));
+
+static int
+ObjToKeyedListEntry _ANSI_ARGS_((Tcl_Interp  *interp,
+                                 Tcl_Obj     *objPtr,
+                                 keylEntry_t *entryPtr));
+
+static void
+DupKeyedListInternalRep _ANSI_ARGS_((Tcl_Obj *srcPtr,
+                                     Tcl_Obj *copyPtr));
+
+static void
+FreeKeyedListInternalRep _ANSI_ARGS_((Tcl_Obj *keylPtr));
+
+static int
+SetKeyedListFromAny _ANSI_ARGS_((Tcl_Interp *interp,
+                                 Tcl_Obj    *objPtr));
+
+static void
+UpdateStringOfKeyedList _ANSI_ARGS_((Tcl_Obj *keylPtr));
+
+
+int 
+TclX_KeylgetObjCmd _ANSI_ARGS_((ClientData   clientData,
+                                Tcl_Interp  *interp,
+                                int          objc,
+                                Tcl_Obj     *CONST objv[]));
+
+int
+TclX_KeylsetObjCmd _ANSI_ARGS_((ClientData   clientData,
+                                Tcl_Interp  *interp,
+                                int          objc,
+                                Tcl_Obj     *CONST objv[]));
+
+int 
+TclX_KeyldelObjCmd _ANSI_ARGS_((ClientData   clientData,
+                                Tcl_Interp  *interp,
+                                int          objc,
+                                Tcl_Obj     *CONST objv[]));
+
+int 
+TclX_KeylkeysObjCmd _ANSI_ARGS_((ClientData   clientData,
+                                 Tcl_Interp  *interp,
+                                 int          objc,
+                                 Tcl_Obj     *CONST objv[]));
+
+/*
+ * Type definition.
+ */
+static Tcl_ObjType keyedListType = {
+    "keyedList",              /* name */
+    FreeKeyedListInternalRep, /* freeIntRepProc */
+    DupKeyedListInternalRep,  /* dupIntRepProc */
+    UpdateStringOfKeyedList,  /* updateStringProc */
+    SetKeyedListFromAny       /* setFromAnyProc */
+};
+
+
+/*-----------------------------------------------------------------------------
+ * ValidateKeyedList --
+ *   Validate a keyed list (only when TCLX_DEBUG is enabled).
+ * Parameters:
+ *   o keylIntPtr - Keyed list internal representation.
+ *-----------------------------------------------------------------------------
+ */
+#ifdef TCLX_DEBUG
+static void
+ValidateKeyedList (keylIntPtr)
+    keylIntObj_t *keylIntPtr;
+{
+    int idx;
+
+    TclX_Assert (keylIntPtr->arraySize >= keylIntPtr->numEntries);
+    TclX_Assert (keylIntPtr->arraySize >= 0);
+    TclX_Assert (keylIntPtr->numEntries >= 0);
+    TclX_Assert ((keylIntPtr->arraySize > 0) ?
+                 (keylIntPtr->entries != NULL) : TRUE);
+    TclX_Assert ((keylIntPtr->numEntries > 0) ?
+                 (keylIntPtr->entries != NULL) : TRUE);
+
+    for (idx = 0; idx < keylIntPtr->numEntries; idx++) {
+        keylEntry_t *entryPtr = &(keylIntPtr->entries [idx]);
+        TclX_Assert (entryPtr->key != NULL);
+        TclX_Assert (entryPtr->valuePtr->refCount >= 1);
+        if (entryPtr->valuePtr->typePtr == &keyedListType) {
+            ValidateKeyedList (entryPtr->valuePtr->internalRep.otherValuePtr);
+        }
+    }
+}
+#endif
+
+/*-----------------------------------------------------------------------------
+ * ValidateKey --
+ *   Check that a key or keypath string is a valid value.
+ *
+ * Parameters:
+ *   o interp - Used to return error messages.
+ *   o key - Key string to check.
+ *   o keyLen - Length of the string, used to check for binary data.
+ *   o isPath - TRUE if this is a key path, FALSE if its a simple key and
+ *     thus "." is illegal.
+ * Returns:
+ *    TCL_OK or TCL_ERROR.
+ *-----------------------------------------------------------------------------
+ */
+static int
+ValidateKey (interp, key, keyLen, isPath)
+    Tcl_Interp *interp;
+    char *key;
+    int keyLen;
+    int isPath;
+{
+    char *keyp;
+
+    if (strlen (key) != (size_t) keyLen) {
+        Tcl_AppendStringsToObj (Tcl_GetObjResult (interp),
+                                "keyed list key may not be a ",
+                                "binary string", (char *) NULL);
         return TCL_ERROR;
     }
-    fieldInfoPtr->argv = NULL;
-
-    if (Tcl_SplitList(interp, (char *) keyedList, &fieldInfoPtr->argc,
-            (CONST char ***)&fieldInfoPtr->argv) != TCL_OK)
-        goto errorExit;
-
-    result = TCL_BREAK;
-    for (idx = 0; idx < fieldInfoPtr->argc; idx++) {
-        result = CompareKeyListField(interp, fieldName,
-            fieldInfoPtr->argv[idx],
-            &fieldInfoPtr->valuePtr,
-            &fieldInfoPtr->valueSize,
-            &braced);
-        if (result != TCL_BREAK)
-            break;                      /* Found or error, exit before idx is
-                                         * incremented. */
+    if (key [0] == '\0') {
+        Tcl_AppendStringsToObj (Tcl_GetObjResult (interp),
+                                "keyed list key may not be an ",
+                                "empty string", (char *) NULL);
+        return TCL_ERROR;
     }
-    if (result == TCL_ERROR)
-        goto errorExit;
-
-    if (result == TCL_BREAK) {
-        fieldInfoPtr->foundIdx = -1;    /* Not found */
-        fieldInfoPtr->valuePtr = NULL;
-    } else {
-        fieldInfoPtr->foundIdx = idx;
+    for (keyp = key; *keyp != '\0'; keyp++) {
+        if ((!isPath) && (*keyp == '.')) {
+            Tcl_AppendStringsToObj (Tcl_GetObjResult (interp),
+                                    "keyed list key may not contain a \".\"; ",
+                                    "it is used as a separator in key paths",
+                                    (char *) NULL);
+            return TCL_ERROR;
+        }
     }
     return TCL_OK;
-
-errorExit:
-    if (fieldInfoPtr->argv != NULL)
-        ckfree((char *) fieldInfoPtr->argv);
-    fieldInfoPtr->argv = NULL;
-    return TCL_ERROR;
 }
 
-
-/*
- * ----------------------------------------------------------------------------
- * -
- * 
- * Tcl_GetKeyedListKeys -- Retrieve a list of keyes from a keyed list.  The list
- * is walked rather than converted to a argv for increased performance.
- * 
- * Parameters: o interp (I/O) - Error message will be return in result if there
- * is an error. o subFieldName (I) - If "" or NULL, then the keys are
- * retreved for the top level of the list.  If specified, it is name of the
- * field who's subfield keys are to be retrieve. o keyedList (I) - The list
- * to search for the field. o keyesArgcPtr (O) - The number of keys in the
- * keyed list is returned here. o keyesArgvPtr (O) - An argv containing the
- * key names.  It is dynamically allocated, containing both the array and the
- * strings. A single call to ckfree will release it. Returns: TCL_OK - If the
- * field was found. TCL_BREAK - If the field was not found. TCL_ERROR - If an
- * error occured.
- * ---------------------------------------------------------------------------
- * -- */
-int
-Tcl_GetKeyedListKeys(interp, subFieldName, keyedList, keyesArgcPtr,
-    keyesArgvPtr)
-    Tcl_Interp     *interp;
-    CONST char     *subFieldName;
-    CONST char     *keyedList;
-    int            *keyesArgcPtr;
-    char         ***keyesArgvPtr;
+
+/*-----------------------------------------------------------------------------
+ * AllocKeyedListIntRep --
+ *   Allocate an and initialize the keyed list internal representation.
+ *
+ * Returns:
+ *    A pointer to the keyed list internal structure.
+ *-----------------------------------------------------------------------------
+ */
+static keylIntObj_t *
+AllocKeyedListIntRep ()
 {
-    char           *scanPtr, *subFieldList;
-    int             result, keyCount, totalKeySize, idx;
-    char           *fieldPtr, *keyPtr, *nextByte, *dummyPtr;
-    int             fieldSize, keySize;
-    char          **keyArgv;
+    keylIntObj_t *keylIntPtr;
 
-    /*
-     * Skip leading white spaces in list.  This keeps totally empty lists
-     * with some white-spaces from being confused with empty field entries
-     * later on in the parsing.
-     */
-    for (; *keyedList != '\0'; keyedList++) {
-        if (ISSPACE(*keyedList) == 0)
+    keylIntPtr = (keylIntObj_t *) ckalloc (sizeof (keylIntObj_t));
+
+    keylIntPtr->arraySize = 0;
+    keylIntPtr->numEntries = 0;
+    keylIntPtr->entries = NULL;
+
+    return keylIntPtr;
+}
+
+/*-----------------------------------------------------------------------------
+ * FreeKeyedListData --
+ *   Free the internal representation of a keyed list.
+ *
+ * Parameters:
+ *   o keylIntPtr - Keyed list internal structure to free.
+ *-----------------------------------------------------------------------------
+ */
+static void
+FreeKeyedListData (keylIntPtr)
+    keylIntObj_t *keylIntPtr;
+{
+    int idx;
+
+    for (idx = 0; idx < keylIntPtr->numEntries ; idx++) {
+        ckfree (keylIntPtr->entries [idx].key);
+        Tcl_DecrRefCount (keylIntPtr->entries [idx].valuePtr);
+    }
+    if (keylIntPtr->entries != NULL)
+        ckfree ((VOID*) keylIntPtr->entries);
+    ckfree ((VOID*) keylIntPtr);
+}
+
+/*-----------------------------------------------------------------------------
+ * EnsureKeyedListSpace --
+ *   Ensure there is enough room in a keyed list array for a certain number
+ * of entries, expanding if necessary.
+ *
+ * Parameters:
+ *   o keylIntPtr - Keyed list internal representation.
+ *   o newNumEntries - The number of entries that are going to be added to
+ *     the keyed list.
+ *-----------------------------------------------------------------------------
+ */
+static void
+EnsureKeyedListSpace (keylIntPtr, newNumEntries)
+    keylIntObj_t *keylIntPtr;
+    int           newNumEntries;
+{
+    KEYL_REP_ASSERT (keylIntPtr);
+
+    if ((keylIntPtr->arraySize - keylIntPtr->numEntries) < newNumEntries) {
+        int newSize = keylIntPtr->arraySize + newNumEntries +
+            KEYEDLIST_ARRAY_INCR_SIZE;
+        if (keylIntPtr->entries == NULL) {
+            keylIntPtr->entries = (keylEntry_t *)
+                ckalloc (newSize * sizeof (keylEntry_t));
+        } else {
+            keylIntPtr->entries = (keylEntry_t *)
+                ckrealloc ((VOID *) keylIntPtr->entries,
+                           newSize * sizeof (keylEntry_t));
+        }
+        keylIntPtr->arraySize = newSize;
+    }
+
+    KEYL_REP_ASSERT (keylIntPtr);
+}
+
+/*-----------------------------------------------------------------------------
+ * DeleteKeyedListEntry --
+ *   Delete an entry from a keyed list.
+ *
+ * Parameters:
+ *   o keylIntPtr - Keyed list internal representation.
+ *   o entryIdx - Index of entry to delete.
+ *-----------------------------------------------------------------------------
+ */
+static void
+DeleteKeyedListEntry (keylIntPtr, entryIdx)
+    keylIntObj_t *keylIntPtr;
+    int           entryIdx;
+{
+    int idx;
+
+    ckfree (keylIntPtr->entries [entryIdx].key);
+    Tcl_DecrRefCount (keylIntPtr->entries [entryIdx].valuePtr);
+
+    for (idx = entryIdx; idx < keylIntPtr->numEntries - 1; idx++)
+        keylIntPtr->entries [idx] = keylIntPtr->entries [idx + 1];
+    keylIntPtr->numEntries--;
+
+    KEYL_REP_ASSERT (keylIntPtr);
+}
+
+/*-----------------------------------------------------------------------------
+ * FindKeyedListEntry --
+ *   Find an entry in keyed list.
+ *
+ * Parameters:
+ *   o keylIntPtr - Keyed list internal representation.
+ *   o key - Name of key to search for.
+ *   o keyLenPtr - In not NULL, the length of the key for this
+ *     level is returned here.  This excludes subkeys and the `.' delimiters.
+ *   o nextSubKeyPtr - If not NULL, the start of the name of the next
+ *     sub-key within key is returned.
+ * Returns:
+ *   Index of the entry or -1 if not found.
+ *-----------------------------------------------------------------------------
+ */
+static int
+FindKeyedListEntry (keylIntPtr, key, keyLenPtr, nextSubKeyPtr)
+    keylIntObj_t *keylIntPtr;
+    char         *key;
+    int          *keyLenPtr;
+    char        **nextSubKeyPtr;
+{
+    char *keySeparPtr;
+    int keyLen, findIdx;
+
+    keySeparPtr = strchr (key, '.');
+    if (keySeparPtr != NULL) {
+        keyLen = keySeparPtr - key;
+    } else {
+        keyLen = strlen (key);
+    }
+
+    for (findIdx = 0; findIdx < keylIntPtr->numEntries; findIdx++) {
+        if ((strncmp (keylIntPtr->entries [findIdx].key, key, 
+                      (unsigned int)keyLen) == 0) &&
+            (keylIntPtr->entries [findIdx].key [keyLen] == '\0'))
             break;
     }
 
-    /*
-     * If the keys of a subfield are requested, the dig out that field's list
-     * and then rummage through it getting the keys.
-     */
-    subFieldList = NULL;
-    if ((subFieldName != NULL) && (subFieldName[0] != '\0')) {
-        result = Tcl_GetKeyedListField(interp, subFieldName, keyedList,
-            &subFieldList);
-        if (result != TCL_OK)
-            return result;
-        keyedList = subFieldList;
+    if (nextSubKeyPtr != NULL) {
+        if (keySeparPtr == NULL) {
+            *nextSubKeyPtr = NULL;
+        } else {
+            *nextSubKeyPtr = keySeparPtr + 1;
+        }
+    }
+    if (keyLenPtr != NULL) {
+        *keyLenPtr = keyLen;
+    }
+    
+    if (findIdx >= keylIntPtr->numEntries) {
+        return -1;
+    }
+    
+    return findIdx;
+}
+
+/*-----------------------------------------------------------------------------
+ * ObjToKeyedListEntry --
+ *   Convert an object to a keyed list entry. (Keyword/value pair).
+ *
+ * Parameters:
+ *   o interp - Used to return error messages, if not NULL.
+ *   o objPtr - Object to convert.  Each entry must be a two element list,
+ *     with the first element being the key and the second being the
+ *     value.
+ *   o entryPtr - The keyed list entry to initialize from the object.
+ * Returns:
+ *    TCL_OK or TCL_ERROR.
+ *-----------------------------------------------------------------------------
+ */
+static int
+ObjToKeyedListEntry (interp, objPtr, entryPtr)
+    Tcl_Interp  *interp;
+    Tcl_Obj     *objPtr;
+    keylEntry_t *entryPtr;
+{
+    int objc;
+    Tcl_Obj **objv;
+    char *key;
+    int keyLen;
+
+    if (Tcl_ListObjGetElements (interp, objPtr, &objc, &objv) != TCL_OK) {
+        Tcl_ResetResult (interp);
+        Tcl_AppendStringsToObj (Tcl_GetObjResult (interp),
+                                "keyed list entry not a valid list, ",
+                                "found \"", 
+                                Tcl_GetStringFromObj (objPtr, NULL),
+                                "\"", (char *) NULL);
+        return TCL_ERROR;
     }
 
-    /*
-     * Walk the list count the number of field names and their length.
-     */
-    keyCount = 0;
-    totalKeySize = 0;
-    scanPtr = (char *) keyedList;
-
-    while (*scanPtr != '\0') {
-        result = TclFindElement(interp, scanPtr, &fieldPtr, &scanPtr,
-            &fieldSize, NULL);
-        if (result != TCL_OK)
-            goto errorExit;
-        result = TclFindElement(interp, fieldPtr, &keyPtr, &dummyPtr,
-            &keySize, NULL);
-        if (result != TCL_OK)
-            goto errorExit;
-
-        keyCount++;
-        totalKeySize += keySize + 1;
+    if (objc != 2) {
+        Tcl_AppendStringsToObj (Tcl_GetObjResult (interp),
+                                "keyed list entry must be a two ",
+                                "element list, found \"",
+                                Tcl_GetStringFromObj (objPtr, NULL),
+                                "\"", (char *) NULL);
+        return TCL_ERROR;
     }
 
-    /*
-     * Allocate a structure to hold both the argv and strings.
-     */
-    keyArgv = (char **) ckalloc(((keyCount + 1) * sizeof(char *)) +
-        totalKeySize);
-    keyArgv[keyCount] = NULL;
-    nextByte = ((char *) keyArgv) + ((keyCount + 1) * sizeof(char *));
-
-    /*
-     * Walk the list once more, copying in the strings and building up the
-     * argv.
-     */
-    scanPtr = (char *) keyedList;
-    idx = 0;
-
-    while (*scanPtr != '\0') {
-        TclFindElement(interp, scanPtr, &fieldPtr, &scanPtr, &fieldSize,
-            NULL);
-        TclFindElement(interp, fieldPtr, &keyPtr, &dummyPtr, &keySize, NULL);
-        keyArgv[idx++] = nextByte;
-        strncpy(nextByte, keyPtr, (size_t)keySize);
-        nextByte[keySize] = '\0';
-        nextByte += keySize + 1;
+    key = Tcl_GetStringFromObj (objv [0], &keyLen);
+    if (ValidateKey (interp, key, keyLen, FALSE) == TCL_ERROR) {
+        return TCL_ERROR;
     }
-    *keyesArgcPtr = keyCount;
-    *keyesArgvPtr = keyArgv;
 
-    if (subFieldList != NULL)
-        ckfree(subFieldList);
+    entryPtr->key = ckstrdup (key);
+    entryPtr->valuePtr = Tcl_DuplicateObj (objv [1]);
+    Tcl_IncrRefCount (entryPtr->valuePtr);
+
     return TCL_OK;
+}
+
+/*-----------------------------------------------------------------------------
+ * FreeKeyedListInternalRep --
+ *   Free the internal representation of a keyed list.
+ *
+ * Parameters:
+ *   o keylPtr - Keyed list object being deleted.
+ *-----------------------------------------------------------------------------
+ */
+static void
+FreeKeyedListInternalRep (keylPtr)
+    Tcl_Obj *keylPtr;
+{
+    FreeKeyedListData ((keylIntObj_t *) keylPtr->internalRep.otherValuePtr);
+}
 
-errorExit:
-    if (subFieldList != NULL)
-        ckfree(subFieldList);
+/*-----------------------------------------------------------------------------
+ * DupKeyedListInternalRep --
+ *   Duplicate the internal representation of a keyed list.
+ *
+ * Parameters:
+ *   o srcPtr - Keyed list object to copy.
+ *   o copyPtr - Target object to copy internal representation to.
+ *-----------------------------------------------------------------------------
+ */
+static void
+DupKeyedListInternalRep (srcPtr, copyPtr)
+    Tcl_Obj *srcPtr;
+    Tcl_Obj *copyPtr;
+{
+    keylIntObj_t *srcIntPtr =
+        (keylIntObj_t *) srcPtr->internalRep.otherValuePtr;
+    keylIntObj_t *copyIntPtr;
+    int idx;
+
+    KEYL_REP_ASSERT (srcIntPtr);
+
+    copyIntPtr = (keylIntObj_t *) ckalloc (sizeof (keylIntObj_t));
+    copyIntPtr->arraySize = srcIntPtr->arraySize;
+    copyIntPtr->numEntries = srcIntPtr->numEntries;
+    copyIntPtr->entries = (keylEntry_t *)
+        ckalloc (copyIntPtr->arraySize * sizeof (keylEntry_t));
+
+    for (idx = 0; idx < srcIntPtr->numEntries ; idx++) {
+        copyIntPtr->entries [idx].key = 
+            ckstrdup (srcIntPtr->entries [idx].key);
+        copyIntPtr->entries [idx].valuePtr = srcIntPtr->entries [idx].valuePtr;
+        Tcl_IncrRefCount (copyIntPtr->entries [idx].valuePtr);
+    }
+
+    copyPtr->internalRep.otherValuePtr = (VOID *) copyIntPtr;
+    copyPtr->typePtr = &keyedListType;
+
+    KEYL_REP_ASSERT (copyIntPtr);
+}
+
+/*-----------------------------------------------------------------------------
+ * SetKeyedListFromAny --
+ *   Convert an object to a keyed list from its string representation.  Only
+ * the first level is converted, as there is no way of knowing how far down
+ * the keyed list recurses until lower levels are accessed.
+ *
+ * Parameters:
+ *   o objPtr - Object to convert to a keyed list.
+ *-----------------------------------------------------------------------------
+ */
+static int
+SetKeyedListFromAny (interp, objPtr) 
+    Tcl_Interp *interp;
+    Tcl_Obj    *objPtr;
+{
+    keylIntObj_t *keylIntPtr;
+    int idx, objc;
+    Tcl_Obj **objv;
+
+    if (Tcl_ListObjGetElements (interp, objPtr, &objc, &objv) != TCL_OK)
+        return TCL_ERROR;
+    
+    keylIntPtr = AllocKeyedListIntRep ();
+
+    EnsureKeyedListSpace (keylIntPtr, objc);
+
+    for (idx = 0; idx < objc; idx++) {
+        if (ObjToKeyedListEntry (interp, objv [idx], 
+                &(keylIntPtr->entries [keylIntPtr->numEntries])) != TCL_OK)
+            goto errorExit;
+        keylIntPtr->numEntries++;
+    }
+
+    if ((objPtr->typePtr != NULL) &&
+        (objPtr->typePtr->freeIntRepProc != NULL)) {
+        (*objPtr->typePtr->freeIntRepProc) (objPtr);
+    }
+    objPtr->internalRep.otherValuePtr = (VOID *) keylIntPtr;
+    objPtr->typePtr = &keyedListType;
+
+    KEYL_REP_ASSERT (keylIntPtr);
+    return TCL_OK;
+    
+  errorExit:
+    FreeKeyedListData (keylIntPtr);
     return TCL_ERROR;
 }
-
-
-/*
- * ----------------------------------------------------------------------------
- * -
- * 
- * Tcl_GetKeyedListField -- Retrieve a field value from a keyed list.  The list
- * is walked rather than converted to a argv for increased performance.  This
- * if the name contains sub-fields, this function recursive.
- * 
- * Parameters: o interp (I/O) - Error message will be return in result if there
- * is an error. o fieldName (I) - The name of the field to extract.  Will
- * recusively process sub-field names seperated by `.'. o keyedList (I) - The
- * list to search for the field. o fieldValuePtr (O) - If the field is found,
- * a pointer to a dynamicly allocated string containing the value is returned
- * here.  If NULL is specified, then only the presence of the field is
- * validated, the value is not returned. Returns: TCL_OK - If the field was
- * found. TCL_BREAK - If the field was not found. TCL_ERROR - If an error
- * occured.
- * ---------------------------------------------------------------------------
- * -- */
-int
-Tcl_GetKeyedListField(interp, fieldName, keyedList, fieldValuePtr)
-    Tcl_Interp     *interp;
-    CONST char     *fieldName;
-    CONST char     *keyedList;
-    char          **fieldValuePtr;
+
+/*-----------------------------------------------------------------------------
+ * UpdateStringOfKeyedList --
+ *    Update the string representation of a keyed list.
+ *
+ * Parameters:
+ *   o objPtr - Object to convert to a keyed list.
+ *-----------------------------------------------------------------------------
+ */
+static void
+UpdateStringOfKeyedList (keylPtr)
+    Tcl_Obj  *keylPtr;
 {
-    char           *nameSeparPtr, *scanPtr, *valuePtr;
-    int             valueSize, result, braced;
-
-    if (fieldName == '\0') {
-        interp->result = "null key not allowed";
-        return TCL_ERROR;
-    }
-
-    /*
-     * Skip leading white spaces in list.  This keeps totally empty lists
-     * with some white-spaces from being confused with empty field entries
-     * later on in the parsing.
-     */
-    for (; *keyedList != '\0'; keyedList++) {
-        if (ISSPACE(*keyedList) == 0)
-            break;
-    }
+#define UPDATE_STATIC_SIZE 32
+    int idx, strLen;
+    Tcl_Obj **listObjv, *entryObjv [2], *tmpListObj;
+    Tcl_Obj *staticListObjv [UPDATE_STATIC_SIZE];
+    char *listStr;
+    keylIntObj_t *keylIntPtr =
+        (keylIntObj_t *) keylPtr->internalRep.otherValuePtr;
 
     /*
-     * Check for sub-names, temporarly delimit the top name with a '\0'.
+     * Conversion to strings is done via list objects to support binary data.
      */
-    nameSeparPtr = strchr((char *) fieldName, '.');
-    if (nameSeparPtr != NULL)
-        *nameSeparPtr = '\0';
-
-    /*
-     * Walk the list looking for a field name that matches.
-     */
-    scanPtr = (char *) keyedList;
-    result = TCL_BREAK;                 /* Assume not found */
-
-    while (*scanPtr != '\0') {
-        char           *fieldPtr;
-        int             fieldSize;
-        char            saveChar;
-
-        result = TclFindElement(interp, scanPtr, &fieldPtr, &scanPtr,
-            &fieldSize, NULL);
-        if (result != TCL_OK)
-            break;
-
-        saveChar = fieldPtr[fieldSize];
-        fieldPtr[fieldSize] = '\0';
-
-        result = CompareKeyListField(interp, (char *) fieldName, fieldPtr,
-            &valuePtr, &valueSize, &braced);
-        fieldPtr[fieldSize] = saveChar;
-        if (result != TCL_BREAK)
-            break;                      /* Found or an error */
-    }
-
-    if (result != TCL_OK)
-        goto exitPoint;                 /* Not found or an error */
-
-    /*
-     * If a subfield is requested, recurse to get the value otherwise
-     * allocate a buffer to hold the value.
-     */
-    if (nameSeparPtr != NULL) {
-        char            saveChar;
-
-        saveChar = valuePtr[valueSize];
-        valuePtr[valueSize] = '\0';
-        result = Tcl_GetKeyedListField(interp, nameSeparPtr + 1, valuePtr,
-            fieldValuePtr);
-        valuePtr[valueSize] = saveChar;
+    if (keylIntPtr->numEntries > UPDATE_STATIC_SIZE) {
+        listObjv =
+            (Tcl_Obj **) ckalloc (keylIntPtr->numEntries * sizeof (Tcl_Obj *));
     } else {
-        if (fieldValuePtr != NULL) {
-            char           *fieldValue;
-
-            fieldValue = ckalloc((size_t)(valueSize + 1));
-            if (braced) {
-                strncpy(fieldValue, valuePtr, (size_t)valueSize);
-                fieldValue[valueSize] = '\0';
-            } else {
-                TclCopyAndCollapse(valueSize, valuePtr, fieldValue);
-            }
-            *fieldValuePtr = fieldValue;
-        }
+        listObjv = staticListObjv;
     }
-exitPoint:
-    if (nameSeparPtr != NULL)
-        *nameSeparPtr = '.';
-    return result;
+
+    /*
+     * Convert each keyed list entry to a two element list object.  No
+     * need to incr/decr ref counts, the list objects will take care of that.
+     * FIX: Keeping key as string object will speed this up.
+     */
+    for (idx = 0; idx < keylIntPtr->numEntries; idx++) {
+        entryObjv [0] = 
+            Tcl_NewStringObj (keylIntPtr->entries [idx].key,
+                              (int)strlen (keylIntPtr->entries [idx].key));
+        entryObjv [1] = keylIntPtr->entries [idx].valuePtr;
+        listObjv [idx] = Tcl_NewListObj (2, entryObjv);
+    }
+
+    tmpListObj = Tcl_NewListObj (keylIntPtr->numEntries, listObjv);
+    listStr = Tcl_GetStringFromObj (tmpListObj, &strLen);
+    keylPtr->bytes = ckbinstrdup (listStr, strLen);
+    keylPtr->length = strLen;
+
+    Tcl_DecrRefCount (tmpListObj);
+    if (listObjv != staticListObjv)
+        ckfree ((VOID*) listObjv);
 }
-
-
-/*
- * ----------------------------------------------------------------------------
- * -
- * 
- * Tcl_SetKeyedListField -- Set a field value in keyed list.
- * 
- * Parameters: o interp (I/O) - Error message will be return in result if there
- * is an error. o fieldName (I) - The name of the field to extract.  Will
- * recusively process sub-field names seperated by `.'. o fieldValue (I) -
- * The value to set for the field. o keyedList (I) - The keyed list to set a
- * field value in, may be an NULL or an empty list to create a new keyed
- * list. Returns: A pointer to a dynamically allocated string, or NULL if an
- * error occured.
- * ---------------------------------------------------------------------------
- * -- */
-char           *
-Tcl_SetKeyedListField(interp, fieldName, fieldValue, keyedList)
-    Tcl_Interp     *interp;
-    CONST char     *fieldName;
-    CONST char     *fieldValue;
-    CONST char     *keyedList;
+
+/*-----------------------------------------------------------------------------
+ * TclX_NewKeyedListObj --
+ *   Create and initialize a new keyed list object.
+ *
+ * Returns:
+ *    A pointer to the object.
+ *-----------------------------------------------------------------------------
+ */
+Tcl_Obj *
+TclX_NewKeyedListObj ()
 {
-    char           *nameSeparPtr;
-    char           *newField = NULL, *newList;
-    fieldInfo_t     fieldInfo;
-    char           *elemArgv[2];
+    Tcl_Obj *keylPtr = Tcl_NewObj ();
+    keylIntObj_t *keylIntPtr = AllocKeyedListIntRep ();
 
-    if (fieldName[0] == '\0') {
-        Tcl_AppendResult(interp, "empty field name", (char *) NULL);
-        return NULL;
+    keylPtr->internalRep.otherValuePtr = (VOID *) keylIntPtr;
+    keylPtr->typePtr = &keyedListType;
+    return keylPtr;
+}
+
+/*-----------------------------------------------------------------------------
+ * TclX_KeyedListGet --
+ *   Retrieve a key value from a keyed list.
+ *
+ * Parameters:
+ *   o interp - Error message will be return in result if there is an error.
+ *   o keylPtr - Keyed list object to get key from.
+ *   o key - The name of the key to extract.  Will recusively process sub-keys
+ *     seperated by `.'.
+ *   o valueObjPtrPtr - If the key is found, a pointer to the key object
+ *     is returned here.  NULL is returned if the key is not present.
+ * Returns:
+ *   o TCL_OK - If the key value was returned.
+ *   o TCL_BREAK - If the key was not found.
+ *   o TCL_ERROR - If an error occured.
+ *-----------------------------------------------------------------------------
+ */
+int
+TclX_KeyedListGet (interp, keylPtr, key, valuePtrPtr)
+    Tcl_Interp *interp;
+    Tcl_Obj    *keylPtr;
+    char       *key;
+    Tcl_Obj   **valuePtrPtr;
+{
+    keylIntObj_t *keylIntPtr;
+    char *nextSubKey;
+    int findIdx;
+
+    if (Tcl_ConvertToType (interp, keylPtr, &keyedListType) != TCL_OK)
+        return TCL_ERROR;
+    keylIntPtr = (keylIntObj_t *) keylPtr->internalRep.otherValuePtr;
+    KEYL_REP_ASSERT (keylIntPtr);
+
+    findIdx = FindKeyedListEntry (keylIntPtr, key, NULL, &nextSubKey);
+
+    /*
+     * If not found, return status.
+     */
+    if (findIdx < 0) {
+        *valuePtrPtr = NULL;
+        return TCL_BREAK;
     }
-    if (keyedList == NULL)
-        keyedList = "";
 
     /*
-     * Check for sub-names, temporarly delimit the top name with a '\0'.
+     * If we are at the last subkey, return the entry, otherwise recurse
+     * down looking for the entry.
      */
-    nameSeparPtr = strchr((char *) fieldName, '.');
-    if (nameSeparPtr != NULL)
-        *nameSeparPtr = '\0';
-
-    if (SplitAndFindField(interp, fieldName, keyedList, &fieldInfo) != TCL_OK)
-        goto errorExit;
-
-    /*
-     * Either recursively retrieve build the field value or just use the
-     * supplied value.
-     */
-    elemArgv[0] = (char *) fieldName;
-    if (nameSeparPtr != NULL) {
-        char            saveChar = 0;
-
-        if (fieldInfo.valuePtr != NULL) {
-            saveChar = fieldInfo.valuePtr[fieldInfo.valueSize];
-            fieldInfo.valuePtr[fieldInfo.valueSize] = '\0';
-        }
-        elemArgv[1] = Tcl_SetKeyedListField(interp, nameSeparPtr + 1,
-            fieldValue, fieldInfo.valuePtr);
-
-        if (fieldInfo.valuePtr != NULL)
-            fieldInfo.valuePtr[fieldInfo.valueSize] = saveChar;
-        if (elemArgv[1] == NULL)
-            goto errorExit;
-        newField = Tcl_Merge(2, (CONST char**)elemArgv);
-        ckfree(elemArgv[1]);
+    if (nextSubKey == NULL) {
+        *valuePtrPtr = keylIntPtr->entries [findIdx].valuePtr;
+        return TCL_OK;
     } else {
-        elemArgv[1] = (char *) fieldValue;
-        newField = Tcl_Merge(2, (CONST char**)elemArgv);
+        return TclX_KeyedListGet (interp, 
+                                  keylIntPtr->entries [findIdx].valuePtr,
+                                  nextSubKey,
+                                  valuePtrPtr);
     }
-
-    /*
-     * If the field does not current exist in the keyed list, append it,
-     * otherwise replace it.
-     */
-    if (fieldInfo.foundIdx == -1) {
-        fieldInfo.foundIdx = fieldInfo.argc;
-        fieldInfo.argc++;
-    }
-    fieldInfo.argv[fieldInfo.foundIdx] = newField;
-    newList = Tcl_Merge(fieldInfo.argc, (CONST char**)fieldInfo.argv);
-
-    if (nameSeparPtr != NULL)
-        *nameSeparPtr = '.';
-    ckfree((char *) newField);
-    ckfree((char *) fieldInfo.argv);
-    return newList;
-
-errorExit:
-    if (nameSeparPtr != NULL)
-        *nameSeparPtr = '.';
-    if (newField != NULL)
-        ckfree((char *) newField);
-    if (fieldInfo.argv != NULL)
-        ckfree((char *) fieldInfo.argv);
-    return NULL;
 }
-
-
-/*
- * ----------------------------------------------------------------------------
- * -
- * 
- * Tcl_DeleteKeyedListField -- Delete a field value in keyed list.
- * 
- * Parameters: o interp (I/O) - Error message will be return in result if there
- * is an error. o fieldName (I) - The name of the field to extract.  Will
- * recusively process sub-field names seperated by `.'. o fieldValue (I) -
- * The value to set for the field. o keyedList (I) - The keyed list to delete
- * the field from. Returns: A pointer to a dynamically allocated string
- * containing the new list, or NULL if an error occured.
- * ---------------------------------------------------------------------------
- * -- */
-char           *
-Tcl_DeleteKeyedListField(interp, fieldName, keyedList)
-    Tcl_Interp     *interp;
-    CONST char     *fieldName;
-    CONST char     *keyedList;
+
+/*-----------------------------------------------------------------------------
+ * TclX_KeyedListSet --
+ *   Set a key value in keyed list object.
+ *
+ * Parameters:
+ *   o interp - Error message will be return in result object.
+ *   o keylPtr - Keyed list object to update.
+ *   o key - The name of the key to extract.  Will recusively process
+ *     sub-key seperated by `.'.
+ *   o valueObjPtr - The value to set for the key.
+ * Returns:
+ *   TCL_OK or TCL_ERROR.
+ *-----------------------------------------------------------------------------
+ */
+int
+TclX_KeyedListSet (interp, keylPtr, key, valuePtr)
+    Tcl_Interp *interp;
+    Tcl_Obj    *keylPtr;
+    char       *key;
+    Tcl_Obj    *valuePtr;
 {
-    char           *nameSeparPtr;
-    char           *newList;
-    int             idx;
-    fieldInfo_t     fieldInfo;
-    char           *elemArgv[2];
-    char           *newElement;
+    keylIntObj_t *keylIntPtr;
+    char *nextSubKey;
+    int findIdx, keyLen, status;
+    Tcl_Obj *newKeylPtr;
+
+    if (Tcl_ConvertToType (interp, keylPtr, &keyedListType) != TCL_OK)
+        return TCL_ERROR;
+    keylIntPtr = (keylIntObj_t *) keylPtr->internalRep.otherValuePtr;
+    KEYL_REP_ASSERT (keylIntPtr);
+
+    findIdx = FindKeyedListEntry (keylIntPtr, key,
+                                  &keyLen, &nextSubKey);
 
     /*
-     * Check for sub-names, temporarly delimit the top name with a '\0'.
+     * If we are at the last subkey, either update or add an entry.
      */
-    nameSeparPtr = strchr((char *) fieldName, '.');
-    if (nameSeparPtr != NULL)
-        *nameSeparPtr = '\0';
-
-    if (SplitAndFindField(interp, fieldName, keyedList, &fieldInfo) != TCL_OK)
-        goto errorExit;
-
-    if (fieldInfo.foundIdx == -1) {
-        Tcl_AppendResult(interp, "field name not found: \"", fieldName,
-            "\"", (char *) NULL);
-        goto errorExit;
-    }
-
-    /*
-     * If sub-field, recurse down to find the field to delete. If empty field
-     * returned or no sub-field, delete the found entry by moving everything
-     * up in the argv.
-     */
-    elemArgv[0] = (char *) fieldName;
-    if (nameSeparPtr != NULL) {
-        char            saveChar = 0;
-
-        if (fieldInfo.valuePtr != NULL) {
-            saveChar = fieldInfo.valuePtr[fieldInfo.valueSize];
-            fieldInfo.valuePtr[fieldInfo.valueSize] = '\0';
+    if (nextSubKey == NULL) {
+        if (findIdx < 0) {
+            EnsureKeyedListSpace (keylIntPtr, 1);
+            findIdx = keylIntPtr->numEntries;
+            keylIntPtr->numEntries++;
+        } else {
+            ckfree (keylIntPtr->entries [findIdx].key);
+            Tcl_DecrRefCount (keylIntPtr->entries [findIdx].valuePtr);
         }
-        elemArgv[1] = Tcl_DeleteKeyedListField(interp, nameSeparPtr + 1,
-            fieldInfo.valuePtr);
-        if (fieldInfo.valuePtr != NULL)
-            fieldInfo.valuePtr[fieldInfo.valueSize] = saveChar;
-        if (elemArgv[1] == NULL)
-            goto errorExit;
-        if (elemArgv[1][0] == '\0')
-            newElement = NULL;
-        else
-            newElement = Tcl_Merge(2, (CONST char**)elemArgv);
-        ckfree(elemArgv[1]);
-    } else
-        newElement = NULL;
+        keylIntPtr->entries [findIdx].key =
+            (char *) ckalloc ((unsigned int)(keyLen + 1));
+        strncpy (keylIntPtr->entries [findIdx].key, key, (unsigned int)keyLen);
+        keylIntPtr->entries [findIdx].key [keyLen] = '\0';
+        keylIntPtr->entries [findIdx].valuePtr = valuePtr;
+        Tcl_IncrRefCount (valuePtr);
+        Tcl_InvalidateStringRep (keylPtr);
 
-    if (newElement == NULL) {
-        for (idx = fieldInfo.foundIdx; idx < fieldInfo.argc; idx++)
-            fieldInfo.argv[idx] = fieldInfo.argv[idx + 1];
-        fieldInfo.argc--;
-    } else
-        fieldInfo.argv[fieldInfo.foundIdx] = newElement;
-
-    newList = Tcl_Merge(fieldInfo.argc, (CONST char**)fieldInfo.argv);
-
-    if (nameSeparPtr != NULL)
-        *nameSeparPtr = '.';
-    if (newElement != NULL)
-        ckfree(newElement);
-    ckfree((char *) fieldInfo.argv);
-    return newList;
-
-errorExit:
-    if (nameSeparPtr != NULL)
-        *nameSeparPtr = '.';
-    if (fieldInfo.argv != NULL)
-        ckfree((char *) fieldInfo.argv);
-    return NULL;
-}
-
-
-/*
- * ----------------------------------------------------------------------------
- * -
- * 
- * Tcl_KeyldelCmd -- Implements the TCL keyldel command: keyldel listvar key
- * 
- * Results: Standard TCL results.
- * 
- * ---------------------------------------------------------------------------- */
-int
-Tcl_KeyldelCmd(clientData, interp, argc, argv)
-    ClientData      clientData;
-    Tcl_Interp     *interp;
-    int             argc;
-    char          **argv;
-{
-    char           *keyedList, *newList;
-    char           *varPtr;
-
-    if (argc != 3) {
-        Tcl_AppendResult(interp, tclXWrongArgs, argv[0],
-            " listvar key", (char *) NULL);
-        return TCL_ERROR;
+        KEYL_REP_ASSERT (keylIntPtr);
+        return TCL_OK;
     }
-    keyedList = (char*)Tcl_GetVar(interp, argv[1], TCL_LEAVE_ERR_MSG);
-    if (keyedList == NULL)
-        return TCL_ERROR;
 
-    newList = Tcl_DeleteKeyedListField(interp, argv[2], keyedList);
-    if (newList == NULL)
-        return TCL_ERROR;
+    /*
+     * If we are not at the last subkey, recurse down, creating new
+     * entries if neccessary.  If this level key was not found, it
+     * means we must build new subtree. Don't insert the new tree until we
+     * come back without error.
+     */
+    if (findIdx >= 0) {
+        DupSharedKeyListChild (keylIntPtr, findIdx);
+        status =
+            TclX_KeyedListSet (interp, 
+                               keylIntPtr->entries [findIdx].valuePtr,
+                               nextSubKey, valuePtr);
+        if (status == TCL_OK) {
+            Tcl_InvalidateStringRep (keylPtr);
+        }
 
-    varPtr = (char*)Tcl_SetVar(interp, argv[1], newList, TCL_LEAVE_ERR_MSG);
-    ckfree((char *) newList);
+        KEYL_REP_ASSERT (keylIntPtr);
+        return status;
+    } else {
+        newKeylPtr = TclX_NewKeyedListObj ();
+        if (TclX_KeyedListSet (interp, newKeylPtr,
+                               nextSubKey, valuePtr) != TCL_OK) {
+            Tcl_DecrRefCount (newKeylPtr);
+            return TCL_ERROR;
+        }
+        EnsureKeyedListSpace (keylIntPtr, 1);
+        findIdx = keylIntPtr->numEntries++;
+        keylIntPtr->entries [findIdx].key =
+            (char *) ckalloc ((unsigned int)(keyLen + 1));
+        strncpy (keylIntPtr->entries [findIdx].key, key, (unsigned int)keyLen);
+        keylIntPtr->entries [findIdx].key [keyLen] = '\0';
+        keylIntPtr->entries [findIdx].valuePtr = newKeylPtr;
+        Tcl_IncrRefCount (newKeylPtr);
+        Tcl_InvalidateStringRep (keylPtr);
 
-    return (varPtr == NULL) ? TCL_ERROR : TCL_OK;
-}
-
-
-/*
- * ----------------------------------------------------------------------------
- * -
- * 
- * Tcl_KeylgetCmd -- Implements the TCL keylget command: keylget listvar ?key?
- * ?retvar | {}?
- * 
- * Results: Standard TCL results.
- * 
- * ----------------------------------------------------------------------------- */
-int
-Tcl_KeylgetCmd(clientData, interp, argc, argv)
-    ClientData      clientData;
-    Tcl_Interp     *interp;
-    int             argc;
-    char          **argv;
-{
-    char           *keyedList;
-    char           *fieldValue;
-    char          **fieldValuePtr;
-    int             result;
-
-    if ((argc < 2) || (argc > 4)) {
-        Tcl_AppendResult(interp, tclXWrongArgs, argv[0],
-            " listvar ?key? ?retvar | {}?", (char *) NULL);
-        return TCL_ERROR;
+        KEYL_REP_ASSERT (keylIntPtr);
+        return TCL_OK;
     }
-    keyedList = (char*)Tcl_GetVar(interp, argv[1], TCL_LEAVE_ERR_MSG);
-    if (keyedList == NULL)
+}
+
+/*-----------------------------------------------------------------------------
+ * TclX_KeyedListDelete --
+ *   Delete a key value from keyed list.
+ *
+ * Parameters:
+ *   o interp - Error message will be return in result if there is an error.
+ *   o keylPtr - Keyed list object to update.
+ *   o key - The name of the key to extract.  Will recusively process
+ *     sub-key seperated by `.'.
+ * Returns:
+ *   o TCL_OK - If the key was deleted.
+ *   o TCL_BREAK - If the key was not found.
+ *   o TCL_ERROR - If an error occured.
+ *-----------------------------------------------------------------------------
+ */
+int
+TclX_KeyedListDelete (interp, keylPtr, key)
+    Tcl_Interp *interp;
+    Tcl_Obj    *keylPtr;
+    char       *key;
+{
+    keylIntObj_t *keylIntPtr, *subKeylIntPtr;
+    char *nextSubKey;
+    int findIdx, status;
+
+    if (Tcl_ConvertToType (interp, keylPtr, &keyedListType) != TCL_OK)
         return TCL_ERROR;
+    keylIntPtr = (keylIntObj_t *) keylPtr->internalRep.otherValuePtr;
+
+    findIdx = FindKeyedListEntry (keylIntPtr, key, NULL, &nextSubKey);
+
+    /*
+     * If not found, return status.
+     */
+    if (findIdx < 0) {
+        KEYL_REP_ASSERT (keylIntPtr);
+        return TCL_BREAK;
+    }
+
+    /*
+     * If we are at the last subkey, delete the entry.
+     */
+    if (nextSubKey == NULL) {
+        DeleteKeyedListEntry (keylIntPtr, findIdx);
+        Tcl_InvalidateStringRep (keylPtr);
+
+        KEYL_REP_ASSERT (keylIntPtr);
+        return TCL_OK;
+    }
+
+    /*
+     * If we are not at the last subkey, recurse down.  If the entry is
+     * deleted and the sub-keyed list is empty, delete it as well.  Must
+     * invalidate string, as it caches all representations below it.
+     */
+    DupSharedKeyListChild (keylIntPtr, findIdx);
+
+    status = TclX_KeyedListDelete (interp,
+                                   keylIntPtr->entries [findIdx].valuePtr,
+                                   nextSubKey);
+    if (status == TCL_OK) {
+        subKeylIntPtr = (keylIntObj_t *)
+            keylIntPtr->entries [findIdx].valuePtr->internalRep.otherValuePtr;
+        if (subKeylIntPtr->numEntries == 0) {
+            DeleteKeyedListEntry (keylIntPtr, findIdx);
+        }
+        Tcl_InvalidateStringRep (keylPtr);
+    }
+
+    KEYL_REP_ASSERT (keylIntPtr);
+    return status;
+}
+
+/*-----------------------------------------------------------------------------
+ * TclX_KeyedListGetKeys --
+ *   Retrieve a list of keyed list keys.
+ *
+ * Parameters:
+ *   o interp - Error message will be return in result if there is an error.
+ *   o keylPtr - Keyed list object to get key from.
+ *   o key - The name of the key to get the sub keys for.  NULL or empty
+ *     to retrieve all top level keys.
+ *   o listObjPtrPtr - List object is returned here with key as values.
+ * Returns:
+ *   o TCL_OK - If the zero or more key where returned.
+ *   o TCL_BREAK - If the key was not found.
+ *   o TCL_ERROR - If an error occured.
+ *-----------------------------------------------------------------------------
+ */
+int
+TclX_KeyedListGetKeys (interp, keylPtr, key, listObjPtrPtr)
+    Tcl_Interp *interp;
+    Tcl_Obj    *keylPtr;
+    char       *key;
+    Tcl_Obj   **listObjPtrPtr;
+{
+    keylIntObj_t *keylIntPtr;
+    Tcl_Obj *nameObjPtr, *listObjPtr;
+    char *nextSubKey;
+    int idx, findIdx;
+
+    if (Tcl_ConvertToType (interp, keylPtr, &keyedListType) != TCL_OK)
+        return TCL_ERROR;
+    keylIntPtr = (keylIntObj_t *) keylPtr->internalRep.otherValuePtr;
+
+    /*
+     * If key is not NULL or empty, then recurse down until we go past
+     * the end of all of the elements of the key.
+     */
+    if ((key != NULL) && (key [0] != '\0')) {
+        findIdx = FindKeyedListEntry (keylIntPtr, key, NULL, &nextSubKey);
+        if (findIdx < 0) {
+            TclX_Assert (keylIntPtr->arraySize >= keylIntPtr->numEntries);
+            return TCL_BREAK;
+        }
+        TclX_Assert (keylIntPtr->arraySize >= keylIntPtr->numEntries);
+        return TclX_KeyedListGetKeys (interp, 
+                                      keylIntPtr->entries [findIdx].valuePtr,
+                                      nextSubKey,
+                                      listObjPtrPtr);
+    }
+
+    /*
+     * Reached the end of the full key, return all keys at this level.
+     */
+    listObjPtr = Tcl_NewListObj (0, NULL);
+    for (idx = 0; idx < keylIntPtr->numEntries; idx++) {
+        nameObjPtr = Tcl_NewStringObj (keylIntPtr->entries [idx].key,
+                                       -1);
+        if (Tcl_ListObjAppendElement (interp, listObjPtr,
+                                      nameObjPtr) != TCL_OK) {
+            Tcl_DecrRefCount (nameObjPtr);
+            Tcl_DecrRefCount (listObjPtr);
+            return TCL_ERROR;
+        }
+    }
+    *listObjPtrPtr = listObjPtr;
+    TclX_Assert (keylIntPtr->arraySize >= keylIntPtr->numEntries);
+    return TCL_OK;
+}
+
+/*-----------------------------------------------------------------------------
+ * Tcl_KeylgetObjCmd --
+ *     Implements the TCL keylget command:
+ *         keylget listvar ?key? ?retvar | {}?
+ *-----------------------------------------------------------------------------
+ */
+int
+TclX_KeylgetObjCmd (clientData, interp, objc, objv)
+    ClientData   clientData;
+    Tcl_Interp  *interp;
+    int          objc;
+    Tcl_Obj     *CONST objv[];
+{
+    Tcl_Obj *keylPtr, *valuePtr;
+    char *varName, *key;
+    int keyLen, status;
+
+    if ((objc < 2) || (objc > 4)) {
+        return TclX_WrongArgs (interp, objv [0],
+                               "listvar ?key? ?retvar | {}?");
+    }
+    varName = Tcl_GetStringFromObj (objv [1], NULL);
 
     /*
      * Handle request for list of keys, use keylkeys command.
      */
-    if (argc == 2)
-        return Tcl_KeylkeysCmd(clientData, interp, argc, (CONST char **)argv);
+    if (objc == 2)
+        return TclX_KeylkeysObjCmd (clientData, interp, objc, objv);
+
+    keylPtr = Tcl_GetVar2Ex(interp, varName, NULL, 
+                            TCL_PARSE_PART1|TCL_LEAVE_ERR_MSG);
+    if (keylPtr == NULL) {
+        return TCL_ERROR;
+    }
 
     /*
      * Handle retrieving a value for a specified key.
      */
-    if (argv[2] == '\0') {
-        interp->result = "null key not allowed";
+    key = Tcl_GetStringFromObj (objv [2], &keyLen);
+    if (ValidateKey (interp, key, keyLen, TRUE) == TCL_ERROR) {
         return TCL_ERROR;
     }
-    if ((argc == 4) && (argv[3][0] == '\0'))
-        fieldValuePtr = NULL;
-    else
-        fieldValuePtr = &fieldValue;
 
-    result = Tcl_GetKeyedListField(interp, argv[2], keyedList,
-        fieldValuePtr);
-    if (result == TCL_ERROR)
+    status = TclX_KeyedListGet (interp, keylPtr, key, &valuePtr);
+    if (status == TCL_ERROR)
         return TCL_ERROR;
 
     /*
-     * Handle field name not found.
+     * Handle key not found.
      */
-    if (result == TCL_BREAK) {
-        if (argc == 3) {
-            Tcl_AppendResult(interp, "key \"", argv[2],
-                "\" not found in keyed list", (char *) NULL);
+    if (status == TCL_BREAK) {
+        if (objc == 3) {
+            TclX_AppendObjResult (interp, "key \"",  key,
+                                  "\" not found in keyed list",
+                                  (char *) NULL);
             return TCL_ERROR;
         } else {
-            interp->result = "0";
+            Tcl_SetBooleanObj (Tcl_GetObjResult (interp), FALSE);
             return TCL_OK;
         }
     }
 
     /*
-     * Handle field name found and return in the result.
+     * No variable specified, so return value in the result.
      */
-    if (argc == 3) {
-        Tcl_SetResult(interp, fieldValue, TCL_DYNAMIC);
+    if (objc == 3) {
+        Tcl_SetObjResult (interp, valuePtr);
         return TCL_OK;
     }
 
     /*
-     * Handle null return variable specified and key was found.
+     * Variable (or empty variable name) specified.
      */
-    if (argv[3][0] == '\0') {
-        interp->result = "1";
-        return TCL_OK;
-    }
-
-    /*
-     * Handle returning the value to the variable.
-     */
-    if (Tcl_SetVar(interp, argv[3], fieldValue, TCL_LEAVE_ERR_MSG) == NULL)
-        result = TCL_ERROR;
-    else
-        result = TCL_OK;
-    ckfree(fieldValue);
-    interp->result = "1";
-    return result;
-}
-
-
-/*
- * ----------------------------------------------------------------------------
- * -
- * 
- * Tcl_KeylkeysCmd -- Implements the TCL keylkeys command: keylkeys listvar
- * ?key?
- * 
- * Results: Standard TCL results.
- * 
- * ----------------------------------------------------------------------------- */
-int
-Tcl_KeylkeysCmd(clientData, interp, argc, argv)
-    ClientData      clientData;
-    Tcl_Interp     *interp;
-    int             argc;
-    CONST char    **argv;
-{
-    char           *keyedList, **keyesArgv;
-    int             result, keyesArgc;
-
-    if ((argc < 2) || (argc > 3)) {
-        Tcl_AppendResult(interp, tclXWrongArgs, argv[0],
-            " listvar ?key?", (char *) NULL);
-        return TCL_ERROR;
-    }
-    keyedList = (char*)Tcl_GetVar(interp, argv[1], TCL_LEAVE_ERR_MSG);
-    if (keyedList == NULL)
-        return TCL_ERROR;
-
-    /*
-     * If key argument is not specified, then argv [2] is NULL, meaning get
-     * top level keys.
-     */
-    result = Tcl_GetKeyedListKeys(interp, argv[2], keyedList, &keyesArgc,
-        &keyesArgv);
-    if (result == TCL_ERROR)
-        return TCL_ERROR;
-    if (result == TCL_BREAK) {
-        Tcl_AppendResult(interp, "field name not found: \"", argv[2],
-            "\"", (char *) NULL);
-        return TCL_ERROR;
-    }
-    Tcl_SetResult(interp, Tcl_Merge(keyesArgc, (CONST char**)keyesArgv), TCL_DYNAMIC);
-    ckfree((char *) keyesArgv);
-    return TCL_OK;
-}
-
-
-/*
- * ----------------------------------------------------------------------------
- * -
- * 
- * Tcl_KeylsetCmd -- Implements the TCL keylset command: keylset listvar key
- * value ?key value...?
- * 
- * Results: Standard TCL results.
- * 
- * ----------------------------------------------------------------------------- */
-int
-Tcl_KeylsetCmd(clientData, interp, argc, argv)
-    ClientData      clientData;
-    Tcl_Interp     *interp;
-    int             argc;
-    char          **argv;
-{
-    char           *keyedList, *newList, *prevList;
-    char           *varPtr;
-    int             idx;
-
-    if ((argc < 4) || ((argc % 2) != 0)) {
-        Tcl_AppendResult(interp, tclXWrongArgs, argv[0],
-            " listvar key value ?key value...?", (char *) NULL);
-        return TCL_ERROR;
-    }
-    keyedList = (char*)Tcl_GetVar(interp, argv[1], 0);
-
-    newList = keyedList;
-    for (idx = 2; idx < argc; idx += 2) {
-        prevList = newList;
-        newList = Tcl_SetKeyedListField(interp, argv[idx], argv[idx + 1],
-            prevList);
-        if (prevList != keyedList)
-            ckfree(prevList);
-        if (newList == NULL)
+    if (!TclX_IsNullObj (objv [3])) {
+        if (Tcl_SetVar2Ex(interp, Tcl_GetStringFromObj(objv [3], NULL), NULL,
+                          valuePtr, TCL_PARSE_PART1|TCL_LEAVE_ERR_MSG) == NULL)
             return TCL_ERROR;
     }
-    varPtr = (char*)Tcl_SetVar(interp, argv[1], newList, TCL_LEAVE_ERR_MSG);
-    ckfree((char *) newList);
-
-    return (varPtr == NULL) ? TCL_ERROR : TCL_OK;
-}
-
-/*
- *----------------------------------------------------------------------
- *
- * FindElement --
- *
- *	Given a pointer into a Tcl list, locate the first (or next)
- *	element in the list.
- *
- * Results:
- *	The return value is normally TCL_OK, which means that the
- *	element was successfully located.  If TCL_ERROR is returned
- *	it means that list didn't have proper list structure;
- *	interp->result contains a more detailed error message.
- *
- *	If TCL_OK is returned, then *elementPtr will be set to point
- *	to the first element of list, and *nextPtr will be set to point
- *	to the character just after any white space following the last
- *	character that's part of the element.  If this is the last argument
- *	in the list, then *nextPtr will point to the NULL character at the
- *	end of list.  If sizePtr is non-NULL, *sizePtr is filled in with
- *	the number of characters in the element.  If the element is in
- *	braces, then *elementPtr will point to the character after the
- *	opening brace and *sizePtr will not include either of the braces.
- *	If there isn't an element in the list, *sizePtr will be zero, and
- *	both *elementPtr and *termPtr will refer to the null character at
- *	the end of list.  Note:  this procedure does NOT collapse backslash
- *	sequences.
- *
- * Side effects:
- *	None.
- *
- *----------------------------------------------------------------------
- */
-
-static int
-FindElement(interp, list, elementPtr, nextPtr, sizePtr, bracePtr)
-    Tcl_Interp *interp;		/* Interpreter to use for error reporting. 
-				 * If NULL, then no error message is left
-				 * after errors. */
-    register char *list;	/* String containing Tcl list with zero
-				 * or more elements (possibly in braces). */
-    char **elementPtr;		/* Fill in with location of first significant
-				 * character in first element of list. */
-    char **nextPtr;		/* Fill in with location of character just
-				 * after all white space following end of
-				 * argument (i.e. next argument or end of
-				 * list). */
-    int *sizePtr;		/* If non-zero, fill in with size of
-				 * element. */
-    int *bracePtr;		/* If non-zero fill in with non-zero/zero
-				 * to indicate that arg was/wasn't
-				 * in braces. */
-{
-    register char *p;
-    int openBraces = 0;
-    int inQuotes = 0;
-    int size;
-
-    /*
-     * Skim off leading white space and check for an opening brace or
-     * quote.   Note:  use of "isascii" below and elsewhere in this
-     * procedure is a temporary hack (7/27/90) because Mx uses characters
-     * with the high-order bit set for some things.  This should probably
-     * be changed back eventually, or all of Tcl should call isascii.
-     */
-
-    while (isspace(UCHAR(*list))) {
-	list++;
-    }
-    if (*list == '{') {
-	openBraces = 1;
-	list++;
-    } else if (*list == '"') {
-	inQuotes = 1;
-	list++;
-    }
-    if (bracePtr != 0) {
-	*bracePtr = openBraces;
-    }
-    p = list;
-
-    /*
-     * Find the end of the element (either a space or a close brace or
-     * the end of the string).
-     */
-
-    while (1) {
-	switch (*p) {
-
-	    /*
-	     * Open brace: don't treat specially unless the element is
-	     * in braces.  In this case, keep a nesting count.
-	     */
-
-	    case '{':
-		if (openBraces != 0) {
-		    openBraces++;
-		}
-		break;
-
-	    /*
-	     * Close brace: if element is in braces, keep nesting
-	     * count and quit when the last close brace is seen.
-	     */
-
-	    case '}':
-		if (openBraces == 1) {
-		    char *p2;
-
-		    size = p - list;
-		    p++;
-		    if (isspace(UCHAR(*p)) || (*p == 0)) {
-			goto done;
-		    }
-		    for (p2 = p; (*p2 != 0) && (!isspace(UCHAR(*p2)))
-			    && (p2 < p+20); p2++) {
-			/* null body */
-		    }
-		    if (interp != NULL) {
-			Tcl_ResetResult(interp);
-			sprintf(interp->result,
-				"list element in braces followed by \"%.*s\" instead of space",
-				(int) (p2-p), p);
-		    }
-		    return TCL_ERROR;
-		} else if (openBraces != 0) {
-		    openBraces--;
-		}
-		break;
-
-	    /*
-	     * Backslash:  skip over everything up to the end of the
-	     * backslash sequence.
-	     */
-
-	    case '\\': {
-		int size;
-
-		(void) Tcl_Backslash(p, &size);
-		p += size - 1;
-		break;
-	    }
-
-	    /*
-	     * Space: ignore if element is in braces or quotes;  otherwise
-	     * terminate element.
-	     */
-
-	    case ' ':
-	    case '\f':
-	    case '\n':
-	    case '\r':
-	    case '\t':
-	    case '\v':
-		if ((openBraces == 0) && !inQuotes) {
-		    size = p - list;
-		    goto done;
-		}
-		break;
-
-	    /*
-	     * Double-quote:  if element is in quotes then terminate it.
-	     */
-
-	    case '"':
-		if (inQuotes) {
-		    char *p2;
-
-		    size = p-list;
-		    p++;
-		    if (isspace(UCHAR(*p)) || (*p == 0)) {
-			goto done;
-		    }
-		    for (p2 = p; (*p2 != 0) && (!isspace(UCHAR(*p2)))
-			    && (p2 < p+20); p2++) {
-			/* null body */
-		    }
-		    if (interp != NULL) {
-			Tcl_ResetResult(interp);
-			sprintf(interp->result,
-				"list element in quotes followed by \"%.*s\" %s", (int) (p2-p), p,
-				"instead of space");
-		    }
-		    return TCL_ERROR;
-		}
-		break;
-
-	    /*
-	     * End of list:  terminate element.
-	     */
-
-	    case 0:
-		if (openBraces != 0) {
-		    if (interp != NULL) {
-			Tcl_SetResult(interp, "unmatched open brace in list",
-				TCL_STATIC);
-		    }
-		    return TCL_ERROR;
-		} else if (inQuotes) {
-		    if (interp != NULL) {
-			Tcl_SetResult(interp, "unmatched open quote in list",
-				TCL_STATIC);
-		    }
-		    return TCL_ERROR;
-		}
-		size = p - list;
-		goto done;
-
-	}
-	p++;
-    }
-
-    done:
-    while (isspace(UCHAR(*p))) {
-	p++;
-    }
-    *elementPtr = list;
-    *nextPtr = p;
-    if (sizePtr != 0) {
-	*sizePtr = size;
-    }
+    Tcl_SetBooleanObj (Tcl_GetObjResult (interp), TRUE);
     return TCL_OK;
 }
 
-/*
- *----------------------------------------------------------------------
- *
- * CopyAndCollapse --
- *
- *	Copy a string and eliminate any backslashes that aren't in braces.
- *
- * Results:
- *	There is no return value.  Count chars. get copied from src
- *	to dst.  Along the way, if backslash sequences are found outside
- *	braces, the backslashes are eliminated in the copy.
- *	After scanning count chars. from source, a null character is
- *	placed at the end of dst.
- *
- * Side effects:
- *	None.
- *
- *----------------------------------------------------------------------
+/*-----------------------------------------------------------------------------
+ * Tcl_KeylsetObjCmd --
+ *     Implements the TCL keylset command:
+ *         keylset listvar key value ?key value...?
+ *-----------------------------------------------------------------------------
  */
-
-static void
-CopyAndCollapse(count, src, dst)
-    int count;			/* Total number of characters to copy
-				 * from src. */
-    register char *src;		/* Copy from here... */
-    register char *dst;		/* ... to here. */
+int
+TclX_KeylsetObjCmd (clientData, interp, objc, objv)
+    ClientData   clientData;
+    Tcl_Interp  *interp;
+    int          objc;
+    Tcl_Obj     *CONST objv[];
 {
-    register char c;
-    int numRead;
+    Tcl_Obj *keylVarPtr, *newVarObj;
+    char *varName, *key;
+    int idx, keyLen;
 
-    for (c = *src; count > 0; src++, c = *src, count--) {
-	if (c == '\\') {
-	    *dst = Tcl_Backslash(src, &numRead);
-	    dst++;
-	    src += numRead-1;
-	    count -= numRead-1;
-	} else {
-	    *dst = c;
-	    dst++;
-	}
+    if ((objc < 4) || ((objc % 2) != 0)) {
+        return TclX_WrongArgs (interp, objv [0],
+                               "listvar key value ?key value...?");
     }
-    *dst = 0;
+    varName = Tcl_GetStringFromObj (objv [1], NULL);
+
+    /*
+     * Get the variable that we are going to update.  If the var doesn't exist,
+     * create it.  If it is shared by more than being a variable, duplicated
+     * it.
+     */
+    keylVarPtr = Tcl_GetVar2Ex(interp, varName, NULL, TCL_PARSE_PART1);
+    if ((keylVarPtr == NULL) || (Tcl_IsShared (keylVarPtr))) {
+        if (keylVarPtr == NULL) {
+            keylVarPtr = TclX_NewKeyedListObj ();
+        } else {
+            keylVarPtr = Tcl_DuplicateObj (keylVarPtr);
+        }
+        newVarObj = keylVarPtr;
+    } else {
+        newVarObj = NULL;
+    }
+
+    for (idx = 2; idx < objc; idx += 2) {
+        key = Tcl_GetStringFromObj (objv [idx], &keyLen);
+        if (ValidateKey (interp, key, keyLen, TRUE) == TCL_ERROR) {
+            goto errorExit;
+        }
+        if (TclX_KeyedListSet (interp, keylVarPtr, key, objv [idx+1]) != TCL_OK) {
+            goto errorExit;
+        }
+    }
+
+    if (Tcl_SetVar2Ex(interp, varName, NULL, keylVarPtr,
+                      TCL_PARSE_PART1|TCL_LEAVE_ERR_MSG) == NULL) {
+        goto errorExit;
+    }
+
+    return TCL_OK;
+
+  errorExit:
+    if (newVarObj != NULL) {
+        Tcl_DecrRefCount (newVarObj);
+    }
+    return TCL_ERROR;
 }
+
+/*-----------------------------------------------------------------------------
+ * Tcl_KeyldelObjCmd --
+ *     Implements the TCL keyldel command:
+ *         keyldel listvar key ?key ...?
+ *----------------------------------------------------------------------------
+ */
+int
+TclX_KeyldelObjCmd (clientData, interp, objc, objv)
+    ClientData   clientData;
+    Tcl_Interp  *interp;
+    int          objc;
+    Tcl_Obj     *CONST objv[];
+{
+    Tcl_Obj *keylVarPtr, *keylPtr;
+    char *varName, *key;
+    int idx, keyLen, status;
+
+    if (objc < 3) {
+        return TclX_WrongArgs (interp, objv [0], "listvar key ?key ...?");
+    }
+    varName = Tcl_GetStringFromObj (objv [1], NULL);
+
+    /*
+     * Get the variable that we are going to update.  If it is shared by more
+     * than being a variable, duplicated it.
+     */
+    keylVarPtr = Tcl_GetVar2Ex(interp, varName, NULL, 
+                               TCL_PARSE_PART1|TCL_LEAVE_ERR_MSG);
+    if (keylVarPtr == NULL) {
+        return TCL_ERROR;
+    }
+    if (Tcl_IsShared (keylVarPtr)) {
+        keylPtr = Tcl_DuplicateObj (keylVarPtr);
+        keylVarPtr = Tcl_SetVar2Ex(interp, varName, NULL, keylPtr,
+                                   TCL_PARSE_PART1|TCL_LEAVE_ERR_MSG);
+        if (keylVarPtr == NULL) {
+            Tcl_DecrRefCount (keylPtr);
+            return TCL_ERROR;
+        }
+        if (keylVarPtr != keylPtr)
+            Tcl_DecrRefCount (keylPtr);
+    }
+    keylPtr = keylVarPtr;
+
+    for (idx = 2; idx < objc; idx++) {
+        key = Tcl_GetStringFromObj (objv [idx], &keyLen);
+        if (ValidateKey (interp, key, keyLen, TRUE) == TCL_ERROR) {
+            return TCL_ERROR;
+        }
+
+        status = TclX_KeyedListDelete (interp, keylPtr, key);
+        switch (status) {
+          case TCL_BREAK:
+            TclX_AppendObjResult (interp, "key not found: \"",
+                                  key, "\"", (char *) NULL);
+            return TCL_ERROR;
+          case TCL_ERROR:
+            return TCL_ERROR;
+        }
+    }
+
+    return TCL_OK;
+}
+
+/*-----------------------------------------------------------------------------
+ * Tcl_KeylkeysObjCmd --
+ *     Implements the TCL keylkeys command:
+ *         keylkeys listvar ?key?
+ *-----------------------------------------------------------------------------
+ */
+int
+TclX_KeylkeysObjCmd (clientData, interp, objc, objv)
+    ClientData   clientData;
+    Tcl_Interp  *interp;
+    int          objc;
+    Tcl_Obj     *CONST objv[];
+{
+    Tcl_Obj *keylPtr, *listObjPtr;
+    char *varName, *key;
+    int keyLen, status;
+
+    if ((objc < 2) || (objc > 3)) {
+        return TclX_WrongArgs (interp, objv [0], "listvar ?key?");
+    }
+    varName = Tcl_GetStringFromObj (objv [1], NULL);
+
+    keylPtr = Tcl_GetVar2Ex(interp, varName, NULL, 
+                            TCL_PARSE_PART1|TCL_LEAVE_ERR_MSG);
+    if (keylPtr == NULL) {
+        return TCL_ERROR;
+    }
+
+    /*
+     * If key argument is not specified, then objv [2] is NULL or empty,
+     * meaning get top level keys.
+     */
+    if (objc < 3) {
+        key = NULL;
+    } else {
+        key = Tcl_GetStringFromObj (objv [2], &keyLen);
+        if (ValidateKey (interp, key, keyLen, TRUE) == TCL_ERROR) {
+            return TCL_ERROR;
+        }
+    }
+
+    status = TclX_KeyedListGetKeys (interp, keylPtr, key, &listObjPtr);
+    switch (status) {
+      case TCL_BREAK:
+        TclX_AppendObjResult (interp, "key not found: \"", key, "\"",
+                              (char *) NULL);
+        return TCL_ERROR;
+      case TCL_ERROR:
+        return TCL_ERROR;
+    }
+
+    Tcl_SetObjResult (interp, listObjPtr);
+
+    return TCL_OK;
+}
+
+/*-----------------------------------------------------------------------------
+ * TclX_KeyedListInit --
+ *   Initialize the keyed list commands for this interpreter.
+ *
+ * Parameters:
+ *   o interp - Interpreter to add commands to.
+ *-----------------------------------------------------------------------------
+ */
+void
+TclX_KeyedListInit (interp)
+    Tcl_Interp *interp;
+{
+    Tcl_RegisterObjType (&keyedListType);
+
+    Tcl_CreateObjCommand (interp, 
+			  "keylget",
+			  TclX_KeylgetObjCmd,
+                          (ClientData) NULL,
+			  (Tcl_CmdDeleteProc*) NULL);
+
+    Tcl_CreateObjCommand (interp, 
+			  "keylset",
+			  TclX_KeylsetObjCmd,
+                          (ClientData) NULL,
+			  (Tcl_CmdDeleteProc*) NULL);
+
+    Tcl_CreateObjCommand (interp,
+			  "keyldel",
+			  TclX_KeyldelObjCmd,
+                          (ClientData) NULL,
+			  (Tcl_CmdDeleteProc*) NULL);
+
+    Tcl_CreateObjCommand (interp, 
+			  "keylkeys",
+			  TclX_KeylkeysObjCmd,
+                          (ClientData) NULL,
+			  (Tcl_CmdDeleteProc*) NULL);
+}
+
+

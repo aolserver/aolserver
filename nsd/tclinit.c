@@ -33,7 +33,7 @@
  *	Initialization routines for Tcl.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.41 2003/11/16 15:04:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.42 2004/06/20 10:28:51 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -1109,6 +1109,7 @@ InitInterp(Tcl_Interp *interp, NsServer *servPtr, NsInterp **itPtrPtr)
 	    NsTclInitQueueType();
 	    NsTclInitAddrType();
 	    NsTclInitTimeType();
+        NsTclInitKeylistType();
 	    initialized = 1;
 	}
 	Ns_MasterUnlock();

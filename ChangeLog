@@ -1,8 +1,12 @@
-2004-06-19  Zoran Vasiljevic <zv@archiware.com>
+2004-06-20  Zoran Vasiljevic <zv@archiware.com>
 
-	* nsd/tclsock.c: fixed command-line parsing glitch in
-	  new NsTclSockOpenObjCmd() implementation. 
-	
+	* include/ns.h:
+	* nsd/nsd.h:
+	* nsd/tclcmds.c:
+	* nsd/tclinit.c:
+	* nsd/tclxkeylist.c: added objectified version of TclX
+	  keyed-list implementation (Patch #812522).
+
 2004-06-19  Zoran Vasiljevic <zv@archiware.com>
 
 	* nsd/tclsock.c: Improved NsTclSockOpenObjCmd() to accept
