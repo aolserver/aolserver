@@ -28,7 +28,7 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/sendmail.tcl,v 1.4 2002/02/08 07:56:16 hobbs Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/sendmail.tcl,v 1.5 2003/02/03 14:35:53 jrasmuss23 Exp $
 #
 
 #
@@ -163,7 +163,7 @@ proc _ns_sendmail {smtp smtpport timeout tolist bcclist \
     ## Perform the SMTP conversation
     if { [catch {
 	_ns_smtp_recv $rfp 220 $timeout
-	_ns_smtp_send $wfp "HELO AOLserver [ns_info hostname]" $timeout
+	_ns_smtp_send $wfp "HELO [ns_info hostname]" $timeout
 	_ns_smtp_recv $rfp 250 $timeout
 	_ns_smtp_send $wfp "MAIL FROM:<$from>" $timeout
 	_ns_smtp_recv $rfp 250 $timeout
