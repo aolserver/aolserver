@@ -34,7 +34,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.17.2.6 2004/07/16 19:49:16 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.17.2.7 2004/08/11 19:52:53 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -155,7 +155,7 @@ NsInitDrivers(void)
 int
 Ns_DriverInit(char *server, char *module, Ns_DriverInitData *init)
 {
-    char *path,*address, *host, *bindaddr, *defproto;
+    char *path,*address, *host, *bindaddr, *defproto, *defserver;
     int i, n, sockwait, defport;
     ServerMap *mapPtr;
     Tcl_HashEntry *hPtr;
@@ -186,6 +186,7 @@ Ns_DriverInit(char *server, char *module, Ns_DriverInitData *init)
 
     host = Ns_ConfigGetValue(path, "hostname");
     bindaddr = address = Ns_ConfigGetValue(path, "address");
+    defserver = Ns_ConfigGetValue(path, "defaultserver");
 
     /*
      * If the listen address was not specified, attempt to determine it
@@ -364,32 +365,41 @@ Ns_DriverInit(char *server, char *module, Ns_DriverInitData *init)
      */
 
     if (server == NULL) {
-	char *vhost;
+        if (defserver == NULL) {
+            Ns_Fatal("%s: virtual servers configured,"
+                    " but %s has no defaultserver defined",
+                    module, path);
+        }
+        defMapPtr = NULL;
 	path = Ns_ConfigGetPath(NULL, module, "servers", NULL);
 	set = Ns_ConfigGetSection(path);
 	for (i = 0; set != NULL && i < Ns_SetSize(set); ++i) {
 	    server = Ns_SetKey(set, i);
-	    vhost = Ns_SetValue(set, i);
+	    host = Ns_SetValue(set, i);
 	    servPtr = NsGetServer(server);
             if (servPtr == NULL) {
                 Ns_Log(Error, "%s: no such server: %s", module, server);
             } else {
-                hPtr = Tcl_CreateHashEntry(&hosts, vhost, &n);
+                hPtr = Tcl_CreateHashEntry(&hosts, host, &n);
                 if (!n) {
-                    Ns_Log(Error, "%s: duplicate host map: %s", module, vhost);
+                    Ns_Log(Error, "%s: duplicate host map: %s", module, host);
                 } else {
-                    Ns_DStringVarAppend(&ds, defproto, "://", vhost, NULL);
+                    Ns_DStringVarAppend(&ds, defproto, "://", host, NULL);
                     mapPtr = ns_malloc(sizeof(ServerMap) + ds.length);
                     mapPtr->servPtr  = servPtr;
                     strcpy(mapPtr->location, ds.string);
                     Ns_DStringTrunc(&ds, 0);
-                    if (!defMapPtr && STREQ(host, vhost)) {
+                    if (defMapPtr == NULL && STREQ(defserver, server)) {
                         defMapPtr = mapPtr;
                     }
                     Tcl_SetHashValue(hPtr, mapPtr);
                 }
             }
 	}
+        if (defMapPtr == NULL) {
+            Ns_Fatal("%s: default server %s not defined in %s",
+                    module, path);
+        }
     }
 
     return NS_OK;
