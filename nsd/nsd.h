@@ -30,6 +30,10 @@
 #ifndef NSD_H
 #define NSD_H
 
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+
 #include "ns.h"
 #include <pthread.h>
 #include <assert.h>

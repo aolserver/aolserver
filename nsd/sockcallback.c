@@ -34,7 +34,7 @@
  *	Support for the socket callback thread.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sockcallback.c,v 1.6 2001/11/05 20:23:41 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sockcallback.c,v 1.7 2001/11/05 21:11:23 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -288,9 +288,9 @@ SockCallbackThread(void *ignored)
     Ns_WaitForStartup();
     Ns_Log(Notice, "socks: starting");
 
-    events[0] = POLLRDNORM;
-    events[1] = POLLWRNORM;
-    events[2] = POLLRDBAND;
+    events[0] = POLLIN;
+    events[1] = POLLOUT;
+    events[2] = POLLPRI;
     when[0] = NS_SOCK_READ;
     when[1] = NS_SOCK_WRITE;
     when[2] = NS_SOCK_EXCEPTION;
@@ -298,7 +298,7 @@ SockCallbackThread(void *ignored)
     max = 100;
     pfds = ns_malloc(sizeof(struct pollfd) * max);
     pfds[0].fd = trigPipe[0];
-    pfds[0].events = POLLRDNORM;
+    pfds[0].events = POLLIN;
     
     while (1) {
 
@@ -366,12 +366,12 @@ SockCallbackThread(void *ignored)
 	    break;
 	}
 	do {
-	    n = poll(pfds, nfds, INFTIM);
+	    n = poll(pfds, nfds, -1);
 	} while (n < 0 && errno == EINTR);
 	if (n < 0) {
 	    Ns_Fatal("poll() failed: %s", strerror(errno));
 	}
-	if ((pfds[0].revents & POLLRDNORM) && read(trigPipe[0], &c, 1) != 1) {
+	if ((pfds[0].revents & POLLIN) && read(trigPipe[0], &c, 1) != 1) {
 	    Ns_Fatal("trigger read() failed: %s", strerror(errno));
 	}
 

@@ -34,7 +34,7 @@
  *	Wrappers and convenience functions for TCP/IP stuff. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sock.c,v 1.7 2001/11/05 20:23:38 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sock.c,v 1.8 2001/11/05 21:11:23 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -141,13 +141,13 @@ Ns_SockWait(int sock, int what, int timeout)
     pfd.fd = sock;
     switch (what) {
     case NS_SOCK_READ:
-	pfd.events = POLLRDNORM;
+	pfd.events = POLLIN;
 	break;
     case NS_SOCK_WRITE:
-	pfd.events = POLLWRNORM;
+	pfd.events = POLLOUT;
 	break;
     case NS_SOCK_EXCEPTION:
-	pfd.events = POLLRDBAND;
+	pfd.events = POLLPRI;
 	break;
     default:
 	return NS_ERROR;

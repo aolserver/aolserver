@@ -34,7 +34,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.6 2001/11/05 20:23:38 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.7 2001/11/05 21:11:23 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -558,7 +558,7 @@ SockPoll(Sock *sockPtr)
 	pfds = ns_realloc(pfds, maxfds * sizeof(struct pollfd));
     }
     pfds[nfds].fd = sockPtr->sock;
-    pfds[nfds].events = POLLRDNORM;
+    pfds[nfds].events = POLLIN;
     pfds[nfds].revents = 0;
     sockPtr->pidx = nfds++;
     if (timeout > sockPtr->timeout) {
@@ -610,7 +610,7 @@ DriversThread(void *ignored)
     maxfds = 1000;
     pfds = ns_malloc(sizeof(struct pollfd) * maxfds);
     pfds[0].fd = trigPipe[0];
-    pfds[0].events = POLLRDNORM;
+    pfds[0].events = POLLIN;
 
     while (!stopping || nactive) {
 
@@ -624,7 +624,7 @@ DriversThread(void *ignored)
     	    drvPtr = activeDrvPtr;
 	    while (drvPtr != NULL) {
 		pfds[nfds].fd = drvPtr->sock;
-		pfds[nfds].events = POLLRDNORM;
+		pfds[nfds].events = POLLIN;
 		drvPtr->pidx = nfds++;
 		drvPtr = drvPtr->nextPtr;
 	    }
@@ -636,7 +636,7 @@ DriversThread(void *ignored)
 	 */
 
 	if (readPtr == NULL && closePtr == NULL) {
-	    pollto = INFTIM;
+	    pollto = -1;
 	} else {
 	    timeout = INT_MAX;
 	    sockPtr = readPtr;
@@ -666,7 +666,7 @@ DriversThread(void *ignored)
 	if (n < 0) {
 	    Ns_Fatal("driver: poll() failed: %s", strerror(errno));
 	}
-	if ((pfds[0].revents & POLLRDNORM) && recv(trigPipe[0], &c, 1, 0) != 1) {
+	if ((pfds[0].revents & POLLIN) && recv(trigPipe[0], &c, 1, 0) != 1) {
 	    Ns_Fatal("driver: trigger recv() failed: %s", strerror(errno));
 	}
 
@@ -681,7 +681,7 @@ DriversThread(void *ignored)
 	    closePtr = NULL;
 	    while (sockPtr != NULL) {
 		nextPtr = sockPtr->nextPtr;
-		if (pfds[sockPtr->pidx].revents & POLLRDNORM) {
+		if (pfds[sockPtr->pidx].revents & POLLIN) {
 		    n = recv(sockPtr->sock, drain, sizeof(drain), 0);
 		    if (n <= 0) {
 			sockPtr->timeout = now;
@@ -705,7 +705,7 @@ DriversThread(void *ignored)
 	readPtr = NULL;
 	while (sockPtr != NULL) {
 	    nextPtr = sockPtr->nextPtr;
-	    if (!(pfds[sockPtr->pidx].revents & POLLRDNORM)) {
+	    if (!(pfds[sockPtr->pidx].revents & POLLIN)) {
 		if (sockPtr->timeout <= now || (stopping && sockPtr->keep)) {
 		    SockRelease(sockPtr);
 		} else {
@@ -781,7 +781,7 @@ DriversThread(void *ignored)
 	    while (drvPtr != NULL) {
 		nextDrvPtr = drvPtr->nextPtr;
 		if (waitPtr != NULL
-	    		|| (!(pfds[drvPtr->pidx].revents & POLLRDNORM))
+	    		|| (!(pfds[drvPtr->pidx].revents & POLLIN))
 			|| ((sockPtr = SockAccept(drvPtr)) == NULL)) {
 		    /*
 		     * Add this driver to the temporary idle list.
