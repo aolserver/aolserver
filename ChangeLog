@@ -1,3 +1,8 @@
+2003-03-19  Mark Page  <mpagenva@aol.com>
+
+        * nsext/nsext.c: Change back to using ns_socketpair for local
+        proxies, to retain PEEK functionality.
+
 2003-03-19  Zoran Vasiljevic <zoran@archiware.com>
 
 	* nsd/modload.c: added fallback for loading regular
