@@ -33,7 +33,7 @@
  *	ADP string and file eval.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.11 2001/12/18 22:34:42 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.12 2002/05/15 20:13:07 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -876,6 +876,7 @@ FreeInterpPage(void *arg)
 {
     InterpPage *ipagePtr = arg;
     Page *pagePtr = ipagePtr->pagePtr;
+    NsServer *servPtr = pagePtr->servPtr;
     int i;
 
     for (i = 0; i < pagePtr->code.nscripts; ++i) {
@@ -883,14 +884,14 @@ FreeInterpPage(void *arg)
 	    Tcl_DecrRefCount(ipagePtr->objs[i]);
 	}
     }
-    Ns_MutexLock(&pagePtr->servPtr->adp.pagelock);
+    Ns_MutexLock(&servPtr->adp.pagelock);
     if (--pagePtr->refcnt == 0) {
 	if (pagePtr->hPtr != NULL) {
 	    Tcl_DeleteHashEntry(pagePtr->hPtr);
 	}
 	ns_free(pagePtr);
     }
-    Ns_MutexUnlock(&pagePtr->servPtr->adp.pagelock);
+    Ns_MutexUnlock(&servPtr->adp.pagelock);
     ns_free(ipagePtr);
 }
 
