@@ -1,3 +1,9 @@
+2000-10-17  Kriston J. Rehberg  <Kriston@AOL.NET>
+
+	* nsd/adpfancy.c: We now use the Arsdigita version of adpfancy.
+
+	* nsd/adp.c: ArsDigita changes.
+
 2000-10-16  Kriston J. Rehberg  <Kriston@AOL.NET>
 
 	* tcl/init.tcl:  Initialize errorCode and errorInfo like tclsh

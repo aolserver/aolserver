@@ -57,7 +57,7 @@
  * ns_param   "ParserName" "utf8"
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/adp.c,v 1.11 2000/08/28 13:12:13 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/adp.c,v 1.12 2000/10/17 14:26:27 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -1494,9 +1494,9 @@ Ns_AdpRequest(Ns_Conn *conn, char *file)
 	    }
 	    if (Ns_ConnResponseStatus(conn) == 0) {
                 status = Ns_ConnReturnData(conn, 200,
-                                            adPtr->output.string,
-                                            adPtr->output.length,
-                                            adPtr->mimeType);
+					   adPtr->output.string,
+					   adPtr->output.length,
+					   adPtr->mimeType);
 	    } else {
                 status = NS_OK;
             }

@@ -36,7 +36,20 @@
  *	the Ns_AdpRegisterParser() API call.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/adpfancy.c,v 1.5 2000/08/25 13:49:57 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+/*
+ * Hacked by Karl Goldstein and Jim Guggemos:
+ * (1) Removed check for quotes so that registered tags can be placed
+ * within quoted attributes (i.e. <a href="<mytag>">)
+ * (2) Added BalancedEndTag function so that registered tags can be
+ * nested (i.e. <mytag> ... <mytag> ... </mytag>  ... </mytag>
+ *
+ */
+ 
+/* 4/19/00 : Hacked by mcazzell@lovemail.com [moe]
+ * Removed check for comments so that server side includes
+ * or similar constructs can be registered with fancy tags.
+ */ 
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/adpfancy.c,v 1.6 2000/10/17 14:26:27 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -73,6 +86,7 @@ static void      NAppendTclEscaped(Ns_DString *ds, char *in, int n);
 static void      FancyParsePage(Ns_DString *outPtr, char *in);
 static Ns_Set   *TagToSet(char *sTag);
 static char     *ReadToken(char *in, Ns_DString *tagPtr);
+static char     *BalancedEndTag(char *in, RegTag *rtPtr);
 static RegTag   *GetRegTag(char *tag);
 
 /*
@@ -607,7 +621,8 @@ FancyParsePage(Ns_DString *outPtr, char *in)
 		AddTextChunk(outPtr, tag.string, tag.length);
 	    }
             Ns_SetFree(params);
-	} else if ((rtPtr = GetRegTag(tag.string + 1)) != NULL) {
+	} else if (tag.string[0] == '<'
+	    && (rtPtr = GetRegTag(tag.string + 1)) != NULL) {
 
 	    /*
 	     * It is a registered tag. In this case, we generate
@@ -625,7 +640,7 @@ FancyParsePage(Ns_DString *outPtr, char *in)
 	     */
 	    
 	    if (rtPtr->endtag &&
-		((end = Ns_StrNStr(top, rtPtr->endtag)) == NULL)) {
+		((end = BalancedEndTag(top, rtPtr)) == NULL)) {
 
 		Ns_Log(Warning, "adpfancy: unterminated registered tag '%s'",
 		       rtPtr->tag);
@@ -812,7 +827,8 @@ TagToSet(char *sTag)
 		*sTag = c;
 	    }
       } else {
-          set->fields[set->size-1].value = ns_strcopy(set->fields[set->size-1].name);
+	  set->fields[set->size-1].value = 
+	    ns_strcopy(set->fields[set->size-1].name);
 	}
     } while (*sTag != '\0' && *sTag != '>');
 
@@ -849,6 +865,7 @@ ReadToken(char *in, Ns_DString *tagPtr)
     }
 
     Ns_DStringNAppend(tagPtr, &c, 1);
+    /* Starting to read a tag */
     if (c == '<') {
 	if ((c = *in++) == '\0') {
 	    in--;
@@ -869,6 +886,8 @@ ReadToken(char *in, Ns_DString *tagPtr)
 		goto done;
 	    }
 	} else {
+	    /* 4/19/00: [moe] Removed code which ignores HTML Comments
+
 	    if (c == '!') {
 		if ((c = *in++) == '\0') {
 		    in--;
@@ -885,10 +904,11 @@ ReadToken(char *in, Ns_DString *tagPtr)
 		    }
 		}
 	    }
-	    while ((quoting || c != '>') && (c = *in++) != '\0') {
-		if (c == '\"') {
-		    quoting = !quoting;
-		} else if (!quoting && ((c == '<') || (c == '%'))) {
+
+	    */
+
+	    while (c != '>' && (c = *in++) != '\0') {
+	      if (c == '<') {
 		    in--;
 		    goto done;
 		}
@@ -985,5 +1005,54 @@ GetRegTag(char *tag)
     
  done:
     return rtPtr;
+}
+
+static char * 
+BalancedEndTag(char *in, RegTag *rtPtr)
+{
+
+  int tag_depth = 1;
+  int taglen, endlen;
+
+  taglen = strlen(rtPtr->tag);
+  endlen = strlen(rtPtr->endtag);
+
+  while (tag_depth) {
+
+    /*  
+     * Scan ahead for a '<'
+     */
+
+    for ( ; *in && *in != '<'; ++in ) ;
+    if (*in == '\0') return NULL;
+
+    /* skip '<' */
+    ++in;
+
+    /*
+     * The current parser seems to allow white space between < and the tag
+     */
+
+    for ( ; *in && isspace(UCHAR(*in)); ++in ) ;
+    if (*in == '\0') return NULL;
+
+    /*  
+     * If the next word matches the close tag, then decrement tag_depth
+     */
+
+    if (! strncasecmp(in, rtPtr->endtag, endlen)) {
+      tag_depth--;
+    }
+
+    /*  
+     * else if the next word matches the open tag, then increment tag_depth
+     */
+
+    else if (! strncasecmp(in, rtPtr->tag, taglen)) {
+      tag_depth++;
+    }
+  }
+
+  return in;
 }
 
