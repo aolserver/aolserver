@@ -34,7 +34,7 @@
  *	Tcl wrappers around all thread objects 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclthread.c,v 1.13 2002/07/08 02:50:55 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclthread.c,v 1.14 2002/09/28 19:24:54 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #ifdef NS_NOCOMPAT
 #undef NS_NOCOMPAT
@@ -55,6 +55,8 @@ static int GetAddr(Tcl_Interp *interp, char type, char *id, void **addrPtr);
 static void SetAddr(Tcl_Interp *interp, int type, void *addr);
 static int GetArgs(Tcl_Interp *interp, int objc, Tcl_Obj **objv,
 	CONST char *opts[], int type, int create, int *optPtr, void **addrPtr);
+static void CreateTclThread(NsInterp *itPtr, char *script, int detached,
+			    Ns_Thread *thrPtr);
 
 
 /*
@@ -759,7 +761,7 @@ NsTclThreadCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
     NsInterp *itPtr = arg;
     void *status;
     Ns_Thread tid;
-    ThreadArg *argPtr;
+    int detached;
 
     if (argc < 2) {
         Tcl_AppendResult(interp, "wrong # args: should be \"",
@@ -773,11 +775,8 @@ NsTclThreadCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
                 argv[0], " ", argv[1], " script\"", NULL);
             return TCL_ERROR;
         }
-	argPtr = ns_malloc(sizeof(ThreadArg) + strlen(argv[2]));
-	argPtr->server = (itPtr ? itPtr->servPtr->server : NULL);
-	argPtr->detached = STREQ(argv[1], "begindetached");
-	strcpy(argPtr->script, argv[2]);
-	Ns_ThreadCreate(NsTclThread, argPtr, 0, &tid);
+	detached = STREQ(argv[1], "begindetached");
+	CreateTclThread(itPtr, argv[2], detached, &tid);
         SetAddr(interp, 't', tid);
     } else if (STREQ(argv[1], "wait") || STREQ(argv[1], "join")) {
         if (argc < 3) {
@@ -870,6 +869,84 @@ GetAddr(Tcl_Interp *interp, char type, char *id, void **addrPtr)
     }
     *addrPtr = addr;
     return TCL_OK;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_TclThread --
+ *
+ *	Run a Tcl script in a new thread. 
+ *
+ * Results:
+ *	NS_OK. 
+ *
+ * Side effects:
+ *	None. 
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Ns_TclThread(Tcl_Interp *interp, char *script, Ns_Thread *thrPtr)
+{
+    NsInterp *itPtr = NsGetInterp(interp);
+
+    CreateTclThread(itPtr, script, 1, thrPtr);
+    return NS_OK;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_TclDetachedThread --
+ *
+ *	Run a Tcl script in a detached thread. 
+ *
+ * Results:
+ *	NS_OK. 
+ *
+ * Side effects:
+ *	None. 
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Ns_TclDetachedThread(Tcl_Interp *interp, char *script)
+{
+    return Ns_TclThread(interp, script, NULL);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * CreateTclThread --
+ *
+ *	Create a new Tcl thread.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	Depends on new thread script.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+CreateTclThread(NsInterp *itPtr, char *script, int detached, Ns_Thread *thrPtr)
+{
+    ThreadArg *argPtr;
+
+    argPtr = ns_malloc(sizeof(ThreadArg) + strlen(script));
+    argPtr->server = (itPtr ? itPtr->servPtr->server : NULL);
+    argPtr->detached = detached;
+    strcpy(argPtr->script, script);
+    Ns_ThreadCreate(NsTclThread, argPtr, 0, thrPtr);
 }
 
 
