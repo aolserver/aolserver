@@ -34,15 +34,9 @@
  *	This file implements the "ns_rand" command.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/random.c,v 1.12 2002/07/08 02:50:55 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/random.c,v 1.13 2002/09/16 19:48:27 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
-
-#ifdef NO_RAND48
-#define HAVE_RANDOM 1
-#else
-#define HAVE_RAND48 1
-#endif
 
 /*
  * Local functions defined in this file
@@ -67,6 +61,7 @@ static Ns_Sema sema;	/* Semaphore that controls counting threads. */
  */
 
 static Ns_Cs lock;
+static volatile int initialized;
 
 /*
  *----------------------------------------------------------------------
@@ -197,15 +192,13 @@ NsTclRandObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST obj
 double
 Ns_DRand(void)
 {
-    static int initialized;
-
     if (!initialized) {
 	Ns_CsEnter(&lock);
 	if (!initialized) {
 	    unsigned long seed;
 	    Ns_GenSeeds(&seed, 1);
-#ifdef HAVE_RAND48
-    	    srand48(seed);
+#ifdef HAVE_DRAND48
+    	    srand48((long) seed);
 #elif defined(HAVE_RANDOM)
     	    srandom((unsigned int) seed);
 #else
@@ -215,7 +208,7 @@ Ns_DRand(void)
 	}
 	Ns_CsLeave(&lock);
     }
-#if HAVE_RAND48
+#if HAVE_DRAND48
     return drand48();
 #elif HAVE_RANDOM
     return ((double) random() / (LONG_MAX + 1.0));
