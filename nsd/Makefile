@@ -16,7 +16,7 @@ OBJS = \
 	nsconf.o nsthread.o op.o pathname.o pidfile.o proc.o queue.o \
 	quotehtml.o random.o return.o rollfile.o sched.o server.o \
 	sock.o sockcallback.o str.o tclcmds.o tclconf.o tclfile.o \
-	tclinit.o tclmisc.o tclop.o tclresp.o tclset.o tclsock.o \
+	tclinit.o tcljob.o tclmisc.o tclop.o tclresp.o tclset.o tclsock.o \
 	tclthread.o tclxkeylist.o tclvar.o tls.o unix.o url.o \
 	urlencode.o urlopen.o urlspace.o
 
