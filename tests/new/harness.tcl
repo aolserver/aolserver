@@ -14,6 +14,9 @@ proc assert {true message} {
 }
 
 proc assertEquals {expected actual {message ""}} {
+    if {![info exists ::assertionCount]} {
+        set ::assertionCount 0
+    }
     incr ::assertionCount
     if {![string length $message]} {
         set message "no description provided"
