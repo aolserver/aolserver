@@ -34,7 +34,7 @@
  *      Handle connection I/O.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/connio.c,v 1.18 2005/01/16 03:25:06 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/connio.c,v 1.19 2005/01/17 14:01:46 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #define IOBUFSZ 2048
@@ -184,14 +184,14 @@ Ns_ConnFlush(Ns_Conn *conn, char *buf, int len, int stream)
 	    }
 	    hlen = -1;	/* NB: Surpress Content-length header. */
 	}
-	Ns_ConnSetRequiredHeaders(conn, NULL, hlen);
+	Ns_ConnSetRequiredHeaders(conn, Ns_ConnGetType(conn), hlen);
 	if (conn->flags & NS_CONN_CHUNK) {
 	    Ns_ConnCondSetHeaders(conn, "Transfer-Encoding", "chunked");
 	}
 	if (gzh) {
 	    Ns_ConnCondSetHeaders(conn, "Content-Encoding", "gzip");
 	}
-	Ns_ConnQueueHeaders(conn, 200);
+	Ns_ConnQueueHeaders(conn, Ns_ConnGetStatus(conn));
     }
 
     /*
