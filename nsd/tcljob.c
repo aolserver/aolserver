@@ -80,7 +80,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tcljob.c,v 1.21 2003/10/09 20:18:34 pmoosman Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tcljob.c,v 1.22 2003/10/14 01:29:50 pmoosman Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -1118,8 +1118,8 @@ JobThread(void *arg)
             FreeJob(jobPtr);
         }
 
-        ReleaseQueue(queuePtr, 1);
         Ns_CondBroadcast(&queuePtr->cond);
+        ReleaseQueue(queuePtr, 1);
     }
 
     --tp.nthreads;
