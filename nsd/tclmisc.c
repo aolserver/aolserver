@@ -34,7 +34,7 @@
  *	Implements a lot of Tcl API commands. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclmisc.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclmisc.c,v 1.4 2000/08/08 22:19:10 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -943,6 +943,8 @@ NsTclInfoCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
         sprintf(interp->result, "%d", Ns_InfoUptime());
     } else if (STREQ(argv[1], "boottime")) {
         sprintf(interp->result, "%d", Ns_InfoBootTime());
+    } else if (STREQ(argv[1], "pid")) {
+        sprintf(interp->result, "%d", Ns_InfoPid());
     } else if (STREQ(argv[1], "version")) {
 	Tcl_SetResult(interp, Ns_InfoVersion(), TCL_STATIC);
     } else if (STREQ(argv[1], "home")) {
@@ -959,8 +961,6 @@ NsTclInfoCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 	Tcl_SetResult(interp, Ns_InfoLabel(), TCL_STATIC);
     } else if (STREQ(argv[1], "builddate")) {
 	Tcl_SetResult(interp, Ns_InfoBuildDate(), TCL_STATIC);
-    } else if (STREQ(argv[1], "pid")) {
-	Tcl_SetResult(interp, Ns_InfoPid(), TCL_STATIC);
     } else {
         Tcl_AppendResult(interp, "unknown command \"", argv[1],
                          "\":  should be "
