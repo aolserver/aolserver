@@ -328,6 +328,10 @@ SOURCE=..\..\nsd\tclfile.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\nsd\tclhttp.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\nsd\tclimg.c
 # End Source File
 # Begin Source File
