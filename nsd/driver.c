@@ -34,7 +34,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.31 2004/08/11 19:43:49 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.32 2004/08/12 14:26:35 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -750,8 +750,8 @@ NsSockClose(Sock *sockPtr, int keep)
 	    && (*drvPtr->proc)(DriverKeep, sock, NULL, 0) == 0) {
         sockPtr->state = SOCK_READWAIT;
     } else {
-    	sockPtr->state = SOCK_CLOSEWAIT;
 	(void) (*drvPtr->proc)(DriverClose, sock, NULL, 0);
+    	sockPtr->state = SOCK_CLOSEWAIT;
     }
     Ns_MutexLock(&drvPtr->lock);
     sockPtr->nextPtr = drvPtr->closeSockPtr;
@@ -830,18 +830,17 @@ DriverThread(void *arg)
 {
     SOCKET lsock;
     Driver *drvPtr = (Driver *) arg;
-    int n, pollto, flags, id;
+    int n, pollto, flags;
     Sock *sockPtr, *closePtr, *nextPtr;
     QueWait *queWaitPtr;
     Conn *connPtr, *nextConnPtr, *freeConnPtr;
     Limits *limitsPtr;
-    char drain[1024], *msg, *limit;
-    Ns_Time diff;
+    char drain[1024];
+    Ns_Time *nowPtr, diff;
     Sock *waitPtr = NULL;	/* Sock's waiting for I/O events. */
     Sock *readSockPtr = NULL;	/* Sock's to send to reader threads. */
     Sock *runSockPtr = NULL;	/* Sock's ready for pre-queue callbacks. */
     Sock *queSockPtr = NULL;    /* Sock's ready to queue. */
-    Sock *errSockPtr = NULL;	/* Sock's requiring error processing. */
 
     ThreadName(drvPtr, "driver");
     
@@ -876,6 +875,7 @@ DriverThread(void *arg)
      * connections are complete and gracefully closed.
      */
 
+    nowPtr = &drvPtr->now;
     drvPtr->pfds = NULL;
     drvPtr->nfds = 0;
     drvPtr->maxfds = 100;
@@ -883,7 +883,7 @@ DriverThread(void *arg)
     drvPtr->pfds[0].fd = drvPtr->trigger[0];
     drvPtr->pfds[0].events = POLLIN;
     drvPtr->pfds[1].fd = lsock;
-    Ns_GetTime(&drvPtr->now);
+    Ns_GetTime(nowPtr);
 
     while (!(flags & DRIVER_SHUTDOWN) || drvPtr->nactive) {
 
@@ -925,7 +925,7 @@ DriverThread(void *arg)
 	 * Calculate the final timeout in ms.
 	 */
 
-        if (Ns_DiffTime(&drvPtr->timeout, &drvPtr->now, &diff) <= 0)  {
+        if (Ns_DiffTime(&drvPtr->timeout, nowPtr, &diff) <= 0)  {
             pollto = 0;
         } else if (diff.sec > 214783) { /* NB: Avoid overflow. */
             pollto = -1;
@@ -954,7 +954,7 @@ DriverThread(void *arg)
          * Update the time for this spin.
          */
 
-        Ns_GetTime(&drvPtr->now);
+        Ns_GetTime(nowPtr);
 
         /*
          * Process ready sockets.
@@ -977,7 +977,7 @@ DriverThread(void *arg)
 		        sockPtr->timeout = drvPtr->now;
 		    }
 	    	}
-	    	if (Ns_DiffTime(&sockPtr->timeout, &drvPtr->now, NULL) <= 0) {
+	    	if (Ns_DiffTime(&sockPtr->timeout, nowPtr, NULL) <= 0) {
                     /* Close wait complete or timeout. */
                     SockClose(drvPtr, sockPtr);
 	    	} else {
@@ -1011,8 +1011,7 @@ DriverThread(void *arg)
 
 	    	if (!(drvPtr->pfds[sockPtr->pidx].revents & POLLIN)) {
                     /* Timeout or wait longer for input. */
-                    if (Ns_DiffTime(&sockPtr->timeout, &drvPtr->now,
-                                NULL) <= 0) {
+                    if (Ns_DiffTime(&sockPtr->timeout, nowPtr, NULL) <= 0) {
                         /* Timeout waiting for input. */
                         SockClose(drvPtr, sockPtr);
 		    } else {
@@ -1033,7 +1032,7 @@ DriverThread(void *arg)
 
                         case STATUS_PENDING:
                             /* Wait for more content. */
-                            SockWait(sockPtr, &drvPtr->now,
+                            SockWait(sockPtr, nowPtr,
                                     drvPtr->recvwait, &waitPtr);
                             break;
 
@@ -1047,19 +1046,7 @@ DriverThread(void *arg)
 		break;
 
             case SOCK_RUNWAIT:
-                /*
-                 * Handle connections blocked from running due to
-                 * resource limits.  Note these connections are
-		 * also held on the drvPtr->firstConnPtr list and
-		 * will be placed on waitPtr below if necessary.
-                 */
-
-                if (drvPtr->pfds[sockPtr->pidx].revents & POLLIN) {
-		    sockPtr->state = SOCK_DROPPED;
-		} else if (Ns_DiffTime(&sockPtr->timeout, &drvPtr->now,
-                                NULL) <= 0) {
-		    sockPtr->state = SOCK_TIMEOUT;
-                }
+		/* NB: Handled below when processing Conn queue. */
                 break;
                     
 	    default:
@@ -1115,12 +1102,12 @@ DriverThread(void *arg)
             if (sockPtr->state == SOCK_READWAIT) {
                 /* Allocate a new Conn for the connection. */
                 sockPtr->connPtr = AllocConn(drvPtr, sockPtr);
-                SockWait(sockPtr, &drvPtr->now, drvPtr->keepwait, &waitPtr);
+                SockWait(sockPtr, nowPtr, drvPtr->keepwait, &waitPtr);
             } else if (!drvPtr->closewait || shutdown(sockPtr->sock, 1) != 0) {
                 /* Graceful close diabled or shutdown() failed. */
                 SockClose(drvPtr, sockPtr);
             } else {
-                SockWait(sockPtr, &drvPtr->now, drvPtr->closewait, &waitPtr);
+                SockWait(sockPtr, nowPtr, drvPtr->closewait, &waitPtr);
             }
 	}
 
@@ -1131,12 +1118,9 @@ DriverThread(void *arg)
         while ((connPtr = freeConnPtr) != NULL) {
             freeConnPtr = connPtr->nextPtr;
             limitsPtr = connPtr->limitsPtr;
-            if (!(connPtr->flags & NS_CONN_OVERFLOW)
-                    && !(connPtr->flags & NS_CONN_TIMEOUT)) {
-                Ns_MutexLock(&limitsPtr->lock);
-                --limitsPtr->nrunning;
-                Ns_MutexUnlock(&limitsPtr->lock);
-            }
+            Ns_MutexLock(&limitsPtr->lock);
+            --limitsPtr->nrunning;
+            Ns_MutexUnlock(&limitsPtr->lock);
             FreeConn(drvPtr, connPtr);
         }
 
@@ -1190,29 +1174,48 @@ DriverThread(void *arg)
             Ns_MutexLock(&limitsPtr->lock);
 	    if (sockPtr->state == SOCK_RUNWAIT) {
 		--limitsPtr->nwaiting;
+                if (drvPtr->pfds[sockPtr->pidx].revents & POLLIN) {
+		    sockPtr->state = SOCK_DROPPED;
+		    goto dropped;
+		}
 	    }
+            ++limitsPtr->nrunning;
             if (limitsPtr->nrunning < limitsPtr->maxrun) {
-                ++limitsPtr->nrunning;
                 sockPtr->state = SOCK_RUNNING;
+	    } else if (Ns_DiffTime(&sockPtr->timeout, nowPtr, NULL) <= 0) {
+		sockPtr->state = SOCK_TIMEOUT;
 	    } else if (limitsPtr->nwaiting < limitsPtr->maxwait) {
+                --limitsPtr->nrunning;
 		++limitsPtr->nwaiting;
 		sockPtr->state = SOCK_RUNWAIT;
 	    } else {
 		sockPtr->state = SOCK_OVERFLOW;
 	    }
+dropped:
             Ns_MutexUnlock(&limitsPtr->lock);
 	    switch (sockPtr->state) {
-	    case SOCK_RUNNING:
-		SockPush(sockPtr, &queSockPtr);
-		break;
-
 	    case SOCK_RUNWAIT:
 		AppendConn(drvPtr, connPtr);
 		SockPush(sockPtr, &waitPtr);
 		break;
 
+	    case SOCK_DROPPED:
+		SockClose(drvPtr, sockPtr);
+		break;
+
+	    case SOCK_TIMEOUT:
+		connPtr->flags |= NS_CONN_TIMEOUT;
+		/* FALLTHROUGH */
+
 	    case SOCK_OVERFLOW:
-		SockPush(sockPtr, &errSockPtr);
+		connPtr->flags |= NS_CONN_OVERFLOW;
+                connPtr->responseStatus = 503;
+		/* FALLTHROUGH */
+
+	    case SOCK_RUNNING:
+	    	/* NB: Sock no longer responsible for Conn. */
+	    	sockPtr->connPtr = NULL;
+	    	NsQueueConn(connPtr);
 		break;
 
 	    default:
@@ -1220,41 +1223,6 @@ DriverThread(void *arg)
 		break;
 	    }
 	    connPtr = nextConnPtr;
-	}
-
-	/*
-	 * Handle connections which require error processing.
-	 */
-
-	while ((sockPtr = errSockPtr) != NULL) {
-	    errSockPtr = sockPtr->nextPtr;
-	    connPtr = sockPtr->connPtr;
-	    id = connPtr->id;
-	    limit = connPtr->limitsPtr->name;
-	    if (sockPtr->state == SOCK_DROPPED) {
-		msg = "dropped";
-                SockClose(drvPtr, sockPtr);
-	    } else {
-	    	if (sockPtr->state == SOCK_OVERFLOW) {
-		    msg = "overflow";
-		    connPtr->flags |= NS_CONN_OVERFLOW;
-		} else {
-		    msg = "timeout";
-                    connPtr->flags |= NS_CONN_TIMEOUT;
-		}
-                connPtr->responseStatus = 503;
-		SockPush(sockPtr, &queSockPtr);
-	    }
-	    Ns_Log(Warning, "%s: %s %s: %d", drvPtr->name, msg, limit, id);
-	}
-
-	/*
-	 * Queue connections.
-	 */
-
-	while ((sockPtr = queSockPtr) != NULL) {
-	    queSockPtr = sockPtr->nextPtr;
-	    NsQueueConn(sockPtr->connPtr);
 	}
 
 	/*
@@ -1485,10 +1453,7 @@ SockClose(Driver *drvPtr, Sock *sockPtr)
      */
      
     if (sockPtr->connPtr != NULL) {
-        /*
-         * Calling FreeConn() here seems to trash the server.
-         */
-        // FreeConn(drvPtr, sockPtr->connPtr);
+        FreeConn(drvPtr, sockPtr->connPtr);
 	sockPtr->connPtr = NULL;
     }
     ns_sockclose(sockPtr->sock);

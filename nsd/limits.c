@@ -33,7 +33,7 @@
  *  Routines to manage resource limits.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/limits.c,v 1.3 2004/07/30 16:07:18 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/limits.c,v 1.4 2004/08/12 14:26:35 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -142,10 +142,10 @@ NsTclLimitsObjCmd(ClientData data, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
         LGetIdx, LSetIdx, LListIdx, LRegisterIdx
     } opt;
     static CONST char *cfgs[] = {
-        "-maxrun", "-maxwait", "-maxupload", NULL
+        "-maxrun", "-maxwait", "-maxupload", "-timeout", NULL
     };
     enum {
-        LCRunIdx, LCWaitIdx, LCUploadIdx
+        LCRunIdx, LCWaitIdx, LCUploadIdx, LCTimeoutIdx
     } cfg;
 
     if (objc < 2) {
@@ -214,6 +214,10 @@ NsTclLimitsObjCmd(ClientData data, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 
                 case LCUploadIdx:
                     limitsPtr->maxupload = val;
+                    break;
+
+                case LCTimeoutIdx:
+                    limitsPtr->timeout = val;
                     break;
 
             }
