@@ -33,7 +33,7 @@
  *	AOLserver Ns_Main() startup routine.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.10 2000/10/09 23:21:01 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.11 2000/10/13 00:22:49 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -103,9 +103,8 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
     int            i, fd;
     char          *config;
     Ns_Time 	   timeout;
-    char	   cwd[PATH_MAX], *addr;
-    struct hostent *he;
-    struct in_addr ia;
+    char	   cwd[PATH_MAX];
+    Ns_DString	   addr;
 #ifndef WIN32
     int		   uid = 0;
     int		   gid = 0;
@@ -117,7 +116,6 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
     struct rlimit  rl;
 #endif
     static int	   mode = 0;
-
 
     /*
      * Set up logging defaults (for Ns_Log at startup time).
@@ -218,13 +216,11 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
     if (gethostname(nsconf.hostname, sizeof(nsconf.hostname)) != 0) {
         strcpy(nsconf.hostname, "localhost");
     }
-    addr = "";
-    he = gethostbyname(nsconf.hostname);
-    if (he != NULL && he->h_addr_list[0] != NULL) {
-	memcpy(&ia.s_addr, he->h_addr_list[0], sizeof(ia.s_addr));
-	addr = inet_ntoa(ia);
+    Ns_DStringInit(&addr);
+    if (Ns_GetAddrByHost(&addr, nsconf.hostname)) {
+    	strcpy(nsconf.address, addr.string);
     }
-    strcpy(nsconf.address, addr ? addr : "");
+    Ns_DStringFree(&addr);
     
 #ifdef WIN32
 #define POPTS	"IRS"
@@ -420,11 +416,12 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
     }
 
     /*
-     * Fork into the background and create a new session if running in daemon mode.
+     * Fork into the background and create a new session if running 
+     * in daemon mode.
      */
 
     if (mode == 0) {
-	i = fork();
+	i = ns_fork();
 	if (i < 0) {
 	    Ns_Fatal("nsmain: fork() failed: '%s'", strerror(errno));
 	}
