@@ -33,7 +33,7 @@
  *	Support for the configuration file
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/config.c,v 1.4 2000/08/17 06:09:49 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/config.c,v 1.5 2001/01/12 22:46:47 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #define ISSLASH(c)      ((c) == '/' || (c) == '\\')
@@ -423,11 +423,9 @@ NsConfigEval(char *config)
 
     setPtr = NULL;
     interp = Tcl_CreateInterp();
-    Tcl_CreateCommand(interp, "ns_log", NsTclLogCmd, NULL, NULL);
-    Tcl_CreateCommand(interp, "ns_info", NsTclInfoCmd, NULL, NULL);
-    Tcl_CreateCommand(interp, "ns_config", NsTclConfigCmd, NULL, NULL);
     Tcl_CreateCommand(interp, "ns_section", SectionCmd, &setPtr, NULL);
     Tcl_CreateCommand(interp, "ns_param", ParamCmd, &setPtr, NULL);
+    NsTclCreateGenericCmds(interp);
 
     if (Tcl_Eval(interp, config) != TCL_OK) {
 	err = Tcl_GetVar(interp, "errorInfo", TCL_GLOBAL_ONLY);
