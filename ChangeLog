@@ -7,6 +7,9 @@
 	* nsd: Ns_Log and Ns_Fatal statements are hopefully more
 	standardized and more useful to admins and developers.
 
+	* Irix now builds as -o32 using the native compiler by default.
+	See Makefile.global on how to change.
+
 2000-08-15  Kriston J. Rehberg  <Kriston@AOL.NET>
 
 	* include/Makefile.global (INSTLOG): should have pointed to
