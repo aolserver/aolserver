@@ -1,3 +1,9 @@
+2004-08-18  Dossy Shiobara <dossy@panoptic.com>
+
+	* tcl/fastpath.tcl (1.8.2.2): If _ns_dirlist gets an URL without a
+	  trailing slash, issue a 302 redirect back to the same url WITH
+	  the trailing slash.  Fixes SF Bug #935907.  Backported from HEAD.
+
 2004-08-17  Dossy Shiobara <dossy@panoptic.com>
 
 	* nsd/fastpath.c (1.18.2.2): Minor change to eliminate Win32
