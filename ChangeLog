@@ -1,3 +1,8 @@
+2004-08-05  Rob Crittenden <rcrittenden0569@aol.com>
+
+	* nsd/tclhttp.c: Add new option to ns_http wait, -servicetime, so
+	  you can capture how long the HTTP request took.
+
 2004-07-28  Dossy Shiobara <dossy@panoptic.com>
 
 	* include/ns.h (1.55.2.8): BUMP: 4.0.8a
