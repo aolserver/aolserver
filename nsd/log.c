@@ -34,7 +34,7 @@
  *	Manage the server log file.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/log.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/log.c,v 1.4 2000/08/06 21:22:16 scottg Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -440,7 +440,7 @@ Log(Ns_LogSeverity severity, char *fmt, va_list *argsPtr)
     }
 
     Ns_MutexLock(&lock);
-    if ( (logFileFd = fp) == NULL) {
+    if ( (fp = logFileFd) == NULL) {
 	fp = stderr;
     }
 
