@@ -1,3 +1,8 @@
+2003-06-25  Mark Page  <mpagenva@aol.com>
+
+	* nsd/init.tcl: (ns_eval) Fix thread-safety issue with ns_eval,
+	where multiple simultanous usages can clobber a change.
+
 2003-06-18  Mark Page  <mpagenva@aol.com>
 
 	* nsthread/thread.c (Ns_ThreadCreate): Fix typo in Ns_ThreadCreate
