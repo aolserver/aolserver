@@ -33,7 +33,7 @@
  *	ADP parser.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpparse.c,v 1.13 2003/03/07 18:08:14 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpparse.c,v 1.14 2004/01/01 06:35:12 scottg Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -396,7 +396,7 @@ ParseAtts(char *s, char *e, int *servPtr, Tcl_DString *attsPtr, int atts)
 	    } while (s < e && isspace(UCHAR(*s)));
 	    vs = s;
 
-            if (*s != '"') {
+            if (*s != '"' && *s != '\'') {
                 while (s < e && !isspace(UCHAR(*s))) {
                     ++s;
                 }
@@ -410,7 +410,7 @@ ParseAtts(char *s, char *e, int *servPtr, Tcl_DString *attsPtr, int atts)
             
 	    ve = s;
 	    end = *vs;
-	    if (end != '=' && end != '"') {
+	    if (end != '=' && end != '"' && end != '\'') {
 		end = 0;
 	    }
 	    if (end && ve > vs && ve[-1] == end) {
