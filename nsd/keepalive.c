@@ -33,7 +33,7 @@
  *	Routines for monitoring keep-alive sockets.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/keepalive.c,v 1.5 2000/08/17 06:09:49 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/keepalive.c,v 1.6 2000/10/12 17:24:12 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -169,19 +169,30 @@ NsStartKeepAlive(void)
     int n;
 
     Ns_MutexSetName2(&lock, "nsd", "keepalive");
-    if (nsconf.keepalive.enabled) {
-	/*
-	 * Adjust the keep-alive value, allocated the keep-alive
-	 * structures, and create the KeepThread.
-	 */
 
-	n = FD_SETSIZE - 256;
-	if (nsconf.keepalive.maxkeep > n) {
+    /*
+     * Adjust and verify the max keepalive is a safe value.
+     */
+
+    if (nsconf.keepalive.enabled) {
+	n = FD_SETSIZE - 100;
+    	if (nsconf.keepalive.maxkeep > n) {
 	    Ns_Log(Warning, "keepalive: "
-		   "max keepalive %d truncated to %d (FD_SETSIZE - 256)",
-		   nsconf.keepalive.maxkeep, n);
+		" maxkeepalive adjusted down to (FD_SETSIZE-100) = %d", n);
 	    nsconf.keepalive.maxkeep = n;
 	}
+    	if (nsconf.keepalive.maxkeep <= 0) {
+	    Ns_Log(Warning, "keepalive: insufficient maxkeepalive %d: "
+		"keepalive disabled", nsconf.keepalive.maxkeep);
+	    nsconf.keepalive.enabled = 0;
+    	}
+    }
+
+    /*
+     * Pre-allocate the keepalive structures if enabled.
+     */
+
+    if (nsconf.keepalive.enabled) {
 	keepBufPtr = ns_malloc(sizeof(Keep) * nsconf.keepalive.maxkeep);
 	for (n = 0; n < nsconf.keepalive.maxkeep - 1; ++n) {
 	    keepBufPtr[n].nextPtr = &keepBufPtr[n+1];
