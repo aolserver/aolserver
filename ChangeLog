@@ -1,5 +1,15 @@
 2004-08-17  Dossy Shiobara <dossy@panoptic.com>
 
+	* nsd/driver.c (1.35): Fix stupid crash bug on Win32 -- put the
+	  ns_free() in the wrong place.
+
+2004-08-17  Dossy Shiobara <dossy@panoptic.com>
+
+	* win32/build.tcl (1.6): Parse command line args at start.  Attempt
+	  to build "debug" and "release" binaries.  Still needs work.
+
+2004-08-17  Dossy Shiobara <dossy@panoptic.com>
+
 	* nsd/fastpath.c (1.21): Minor change to eliminate Win32
 	  compile-time warning.  Closes SF Bug #696806.
 
