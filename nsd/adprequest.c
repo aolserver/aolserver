@@ -33,7 +33,7 @@
  *	ADP connection request support.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adprequest.c,v 1.2 2001/03/19 15:46:15 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adprequest.c,v 1.3 2001/03/23 17:04:33 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -160,33 +160,48 @@ Ns_AdpRequest(Ns_Conn *conn, char *file)
 	    break;
 
 	default:
-	    if (servPtr->adp.enableexpire) {
-		Ns_ConnCondSetHeaders(conn, "Expires", "now");
-	    }
-	    out = itPtr->adp.output.string;
-	    len = itPtr->adp.output.length;
-	    type = itPtr->adp.mimetype;
-	    charset = itPtr->adp.charset;
-	    if (charset == NULL) {
-		charset = strstr(type, "charset=");
-		if (charset != NULL) {
-		    charset += 8;
-		}
-	    }
-	    if (charset != NULL) {
-		encoding = Ns_GetEncoding(charset);
-		if (encoding != NULL) {
-		    Tcl_UtfToExternalDString(encoding,
-			itPtr->adp.output.string,
-			itPtr->adp.output.length, &ds);
-		    out = ds.string;
-		    len = ds.length;
-		}
-	    }
-	    if (Ns_ConnResponseStatus(conn) == 0) {
-                status = Ns_ConnReturnData(conn, 200, out, len, type);
-	    } else {
+	    if (Ns_ConnResponseStatus(conn) != 0) {
+		/*
+		 * A response has already been sent, either because the
+		 * connection was set in streaming mode or an ns_return
+		 * command was called.
+		 */
+
                 status = NS_OK;
+
+	    } else {
+		/*
+		 * Encode the output buffer from UTF to the requested
+		 * charset.
+		 */
+
+		out = connPtr->content.string;
+		len = connPtr->content.length;
+		type = itPtr->adp.mimetype;
+		charset = itPtr->adp.charset;
+		if (charset == NULL) {
+		    charset = strstr(type, "charset=");
+		    if (charset != NULL) {
+			charset += 8;
+		    }
+		}
+		if (charset != NULL) {
+		    encoding = Ns_GetEncoding(charset);
+		    if (encoding != NULL) {
+			Tcl_UtfToExternalDString(encoding, out, len, &ds);
+			out = ds.string;
+			len = ds.length;
+		    }
+		}
+
+		/*
+		 * Flush out the headers and content.
+		 */
+
+		if (servPtr->adp.enableexpire) {
+		    Ns_ConnCondSetHeaders(conn, "Expires", "now");
+		}
+		status = Ns_ConnReturnData(conn, 200, out, len, type);
             }
 	    break;
     }
@@ -195,13 +210,14 @@ Ns_AdpRequest(Ns_Conn *conn, char *file)
      * Cleanup the per-thead ADP context.
      */
 
-    Ns_DStringTrunc(&itPtr->adp.output, 0);
+    itPtr->adp.outputPtr = NULL;
     itPtr->adp.exception = ADP_OK;
     itPtr->adp.depth = 0;
     itPtr->adp.argc = 0;
     itPtr->adp.argv = NULL;
     itPtr->adp.cwd = NULL;
     itPtr->adp.file = NULL;
+    itPtr->adp.evalLevel = 0;
     itPtr->adp.debugLevel = 0;
     itPtr->adp.debugInit = 0;
     itPtr->adp.debugFile = NULL;
@@ -235,13 +251,12 @@ Ns_AdpRequest(Ns_Conn *conn, char *file)
 void
 NsAdpFlush(NsInterp *itPtr)
 {
-    if (itPtr->adp.stream &&
-	itPtr->adp.evalLevel == 0 &&
-	itPtr->adp.output.length > 0) {
+    Ns_DString *dsPtr = itPtr->adp.outputPtr;
 
-	Ns_WriteConn(itPtr->conn, itPtr->adp.output.string,
-		     itPtr->adp.output.length);
-	Ns_DStringTrunc(&itPtr->adp.output, 0);
+    if (itPtr->adp.stream &&
+	itPtr->adp.evalLevel == 0 && dsPtr->length > 0) {
+	Ns_WriteConn(itPtr->conn, dsPtr->string, dsPtr->length);
+	Ns_DStringTrunc(dsPtr, 0);
     }
 }
 
@@ -328,11 +343,13 @@ NsAdpSetCharSet(NsInterp *itPtr, char *charset)
 void
 NsFreeAdp(NsInterp *itPtr)
 {
-    Ns_DStringFree(&itPtr->adp.output);
     if (itPtr->adp.cache != NULL) {
 	Ns_CacheDestroy(itPtr->adp.cache);
     }
     if (itPtr->adp.mimetype != NULL) {
         ns_free(itPtr->adp.mimetype);
+    }
+    if (itPtr->adp.charset != NULL) {
+        ns_free(itPtr->adp.charset);
     }
 }

@@ -34,7 +34,7 @@
  *      Manage the Ns_Conn structure
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.10 2001/03/22 21:30:17 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.11 2001/03/23 17:04:33 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #define IOBUFSZ 2048
@@ -114,7 +114,7 @@ Ns_ConnRead(Ns_Conn *conn, void *vbuf, int toread)
 	nread = -1;
     } else {
     	nread = (*connPtr->drvPtr->readProc)(connPtr->drvData, vbuf, toread);
-        if (nread > 0 && connPtr->readState == Content) {
+        if (nread > 0 && (conn->flags & NS_CONN_READHDRS)) {
             connPtr->nContent += nread;
 	}
     }
@@ -151,7 +151,7 @@ Ns_ConnWrite(Ns_Conn *conn, void *vbuf, int towrite)
 	nwrote = -1;
     } else {
     	nwrote = (*connPtr->drvPtr->writeProc)(connPtr->drvData, vbuf, towrite);
-    	if (nwrote > 0 && connPtr->sendState == Content) {
+    	if (nwrote > 0 && (conn->flags & NS_CONN_SENTHDRS)) {
             connPtr->nContentSent += nwrote;
     	}
     }
@@ -1062,7 +1062,7 @@ Ns_ConnReadHeaders(Ns_Conn *conn, Ns_Set *set, int *nreadPtr)
                 status = NS_ERROR;
             } else {
                 if (ds.string[0] == '\0') {
-		    connPtr->readState = Content;
+		    connPtr->flags |= NS_CONN_READHDRS;
                     break;
                 }
                 status = Ns_ParseHeader(set, ds.string,

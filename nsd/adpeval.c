@@ -33,7 +33,7 @@
  *	ADP string and file eval.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.2 2001/03/16 22:57:36 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.3 2001/03/23 17:04:33 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -73,8 +73,8 @@ typedef struct {
     char             **argv;
     char              *cwd;
     char	      *file;
-    int                length;
     Ns_DString         cwdBuf;
+    Ns_DString	      *outputPtr;
 } Frame;
 
 /*
@@ -98,10 +98,11 @@ typedef struct Key {
 
 static int  ParseFile(NsInterp *itPtr, char *file, size_t size, Ns_DString *);
 static void PushFrame(NsInterp *itPtr, Frame *framePtr, char *file, 
-		      int argc, char **argv);
-static void PopFrame(NsInterp *itPtr, Frame *framePtr, int move);
+		      int argc, char **argv, Ns_DString *outputPtr);
+static void PopFrame(NsInterp *itPtr, Frame *framePtr);
 static void LogError(NsInterp *itPtr, int chunk);
-static int AdpRun(NsInterp *itPtr, char *file, int argc, char **argv, int parse);
+static int AdpRun(NsInterp *itPtr, char *file, int argc, char **argv,
+		  Ns_DString *outputPtr);
 static int EvalBlocks(NsInterp *itPtr, Block *firstPtr);
 static int EvalChunks(NsInterp *itPtr, char *chunks);
 static Page *NewPage(Ns_DString *dsPtr, struct stat *stPtr, int blocks);
@@ -155,7 +156,7 @@ int
 NsAdpEval(NsInterp *itPtr, char *string, int argc, char **argv)
 {
     Frame             frame;
-    Ns_DString        ds;
+    Ns_DString        adp, output;
     int               code;
     
     /*
@@ -164,14 +165,17 @@ NsAdpEval(NsInterp *itPtr, char *string, int argc, char **argv)
      * interp from the output buffer.
      */
      
-    Ns_DStringInit(&ds);
+    Ns_DStringInit(&adp);
+    Ns_DStringInit(&output);
     ++itPtr->adp.evalLevel;
-    PushFrame(itPtr, &frame, NULL, argc, argv);
-    NsAdpParse(itPtr->servPtr, &ds, string);
-    code = EvalChunks(itPtr, ds.string);
-    PopFrame(itPtr, &frame, 1);
+    PushFrame(itPtr, &frame, NULL, argc, argv, &output);
+    NsAdpParse(itPtr->servPtr, &adp, string);
+    code = EvalChunks(itPtr, adp.string);
+    PopFrame(itPtr, &frame);
     --itPtr->adp.evalLevel;
-    Ns_DStringFree(&ds);
+    Tcl_SetResult(itPtr->interp, output.string, TCL_VOLATILE);
+    Ns_DStringFree(&output);
+    Ns_DStringFree(&adp);
     return code;
 }
 
@@ -197,17 +201,32 @@ NsAdpEval(NsInterp *itPtr, char *string, int argc, char **argv)
 int
 NsAdpSource(NsInterp *itPtr, char *file, int argc, char **argv)
 {
-    return AdpRun(itPtr, file, argc, argv, 1);
+    Ns_DString output;
+    int code;
+
+    Ns_DStringInit(&output);
+    code = AdpRun(itPtr, file, argc, argv, &output);
+    if (code == TCL_OK) {
+	Tcl_SetResult(itPtr->interp, output.string, TCL_VOLATILE);
+    }
+    Ns_DStringFree(&output);
+    return code;
 }
 
 int
 NsAdpInclude(NsInterp *itPtr, char *file, int argc, char **argv)
 {
-    return AdpRun(itPtr, file, argc, argv, 0);
+    Conn *connPtr = (Conn *) itPtr->conn;
+
+    if (connPtr == NULL) {
+	Tcl_SetResult(itPtr->interp, "no connection", TCL_STATIC);
+	return TCL_ERROR;
+    }
+    return AdpRun(itPtr, file, argc, argv, &connPtr->content);
 }
 
 static int
-AdpRun(NsInterp *itPtr, char *file, int argc, char **argv, int source)
+AdpRun(NsInterp *itPtr, char *file, int argc, char **argv, Ns_DString *outputPtr)
 {
     NsServer  *servPtr = itPtr->servPtr;
     Tcl_Interp *interp = itPtr->interp;
@@ -377,13 +396,13 @@ AdpRun(NsInterp *itPtr, char *file, int argc, char **argv, int source)
      */
          
     if (status == TCL_OK) {
-    	PushFrame(itPtr, &frame, file, argc, argv);
+    	PushFrame(itPtr, &frame, file, argc, argv, outputPtr);
         if (cachePtr == NULL || cachePtr == servPtr->adp.cache) {
             status = EvalChunks(itPtr, dsPtr->string);
         } else {
             status = EvalBlocks(itPtr, pagePtr->firstPtr);
         }
-    	PopFrame(itPtr, &frame, source);
+    	PopFrame(itPtr, &frame);
 	NsAdpFlush(itPtr);
     }
     if (itPtr->adp.debugLevel > 0) {
@@ -437,7 +456,7 @@ NsAdpDebug(NsInterp *itPtr, char *host, char *port, char *procs)
 	    return TCL_ERROR;
 	}
 	if (Tcl_LinkVar(itPtr->interp, "ns_adp_output",
-			(char *) &itPtr->adp.output.string,
+			(char *) &itPtr->adp.outputPtr->string,
 		TCL_LINK_STRING | TCL_LINK_READ_ONLY) != TCL_OK) {
 	    Ns_TclLogError(itPtr->interp);
 	}
@@ -468,7 +487,8 @@ NsAdpDebug(NsInterp *itPtr, char *host, char *port, char *procs)
  */
 
 static void
-PushFrame(NsInterp *itPtr, Frame *framePtr, char *file, int argc, char **argv)
+PushFrame(NsInterp *itPtr, Frame *framePtr, char *file, int argc,
+	  char **argv, Ns_DString *outputPtr)
 {
     char    *slash;
 
@@ -477,10 +497,11 @@ PushFrame(NsInterp *itPtr, Frame *framePtr, char *file, int argc, char **argv)
      */
 
     framePtr->cwd = itPtr->adp.cwd;
-    framePtr->length = itPtr->adp.output.length;
     framePtr->argc = itPtr->adp.argc;
     framePtr->argv = itPtr->adp.argv;
     framePtr->file = itPtr->adp.file;
+    framePtr->outputPtr = itPtr->adp.outputPtr;
+    itPtr->adp.outputPtr = outputPtr;
     itPtr->adp.argc = argc;
     itPtr->adp.argv = argv;
     itPtr->adp.file = file;
@@ -520,21 +541,8 @@ PushFrame(NsInterp *itPtr, Frame *framePtr, char *file, int argc, char **argv)
  */
 
 static void
-PopFrame(NsInterp *itPtr, Frame *framePtr, int move)
+PopFrame(NsInterp *itPtr, Frame *framePtr)
 {
-    char *result;
-
-    /*
-     * If move is set, transfer the output generated in this frame
-     * to the interp.
-     */
-
-    if (move && itPtr->adp.output.length > framePtr->length) {
-	result = itPtr->adp.output.string + framePtr->length;
-	Tcl_SetResult(itPtr->interp, result, TCL_VOLATILE);
-	Ns_DStringTrunc(&itPtr->adp.output, framePtr->length);
-    }
-
     /*
      * Restore the previous frame.
      */
@@ -543,6 +551,7 @@ PopFrame(NsInterp *itPtr, Frame *framePtr, int move)
     itPtr->adp.argv = framePtr->argv;
     itPtr->adp.cwd = framePtr->cwd;
     itPtr->adp.file = framePtr->file;
+    itPtr->adp.outputPtr = framePtr->outputPtr;
     --itPtr->adp.depth;
     Ns_DStringFree(&framePtr->cwdBuf);
 }
@@ -689,7 +698,7 @@ EvalChunks(NsInterp *itPtr, char *chunks)
     while (*ch && itPtr->adp.exception == ADP_OK) {
 	n = strlen(ch);
 	if (*ch++ == 't') {
-	    Ns_DStringNAppend(&itPtr->adp.output, ch, n-1);
+	    Ns_DStringNAppend(itPtr->adp.outputPtr, ch, n-1);
 	} else {
 	    script = ch;
 	    if (itPtr->adp.debugLevel > 0) {
@@ -784,7 +793,7 @@ EvalBlocks(NsInterp *itPtr, Block *blockPtr)
     code = TCL_OK;
     while (blockPtr != NULL && itPtr->adp.exception == ADP_OK) {
 	if (blockPtr->scriptObjPtr == NULL) {
-	    Ns_DStringNAppend(&itPtr->adp.output, blockPtr->text, blockPtr->length);
+	    Ns_DStringNAppend(itPtr->adp.outputPtr, blockPtr->text, blockPtr->length);
 	} else {
     	    code = Tcl_EvalObjEx(interp, blockPtr->scriptObjPtr, 0);
 	    if (code != TCL_OK && code != TCL_RETURN && itPtr->adp.exception == ADP_OK) {

@@ -34,7 +34,7 @@
  *	and service threads.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/queue.c,v 1.4 2001/03/22 21:32:17 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/queue.c,v 1.5 2001/03/23 17:04:34 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -102,13 +102,13 @@ Ns_QueueConn(Ns_Driver driver, void *drvData)
 	status = NS_OK;
 	connPtr = servPtr->queue.freePtr;
 	servPtr->queue.freePtr = connPtr->nextPtr;
+	connPtr->nextPtr = NULL;
 
 	/*
 	 * Initialize the structure and place it at the end 
 	 * of the wait queue. 
 	 */
 
-	memset(connPtr, 0, sizeof(Conn));
 	connPtr->id = servPtr->queue.nextid++;
 	connPtr->startTime = time(NULL);
 	connPtr->drvPtr = (Driver *) driver;
@@ -360,7 +360,6 @@ NsConnThread(void *arg)
     char             thrname[32];
     int              status;
     char            *p;
-    Ns_Set	    *headers, *outputheaders;
     Ns_Thread	     joinThread;
     
     /*
@@ -372,13 +371,6 @@ NsConnThread(void *arg)
     Ns_MutexUnlock(&servPtr->queue.lock);
     sprintf(thrname, "-conn%d-", id); 
     Ns_ThreadSetName(thrname);
-
-    /*
-     * Pre-allocate some sets and warm up Tcl. 
-     */
-
-    headers = Ns_SetCreate(NULL);
-    outputheaders = Ns_SetCreate(NULL);
 
     /*
      * Signal that conn threads appear warmed up if necessary and
@@ -438,9 +430,22 @@ NsConnThread(void *arg)
 	 * Re-initialize and run the connection.
 	 */
 
+	connPtr->contentLength = 0;
+	connPtr->flags = 0;
+	connPtr->nContent = 0;
+	connPtr->nContentSent = 0;
+	connPtr->responseStatus = 0;
+	connPtr->responseLength = 0;
+	connPtr->recursionCount = 0;
+	connPtr->keepAlive = 0;
+	connPtr->peer = NULL;
+	connPtr->peerBuf[0] = '\0';
 	sprintf(connPtr->idstr, "cns%d", connPtr->id);
-	connPtr->headers = headers;
-	connPtr->outputheaders = outputheaders;
+	connPtr->headers = Ns_SetCreate(NULL);
+	connPtr->outputheaders = Ns_SetCreate(NULL);
+	Ns_DStringTrunc(&connPtr->response, 0);
+	Ns_DStringTrunc(&connPtr->content, 0);
+
 	ConnRun(connPtr);
 
 	/*
@@ -452,26 +457,23 @@ NsConnThread(void *arg)
 
 	if (connPtr->interp != NULL) {
             Ns_TclDeAllocateInterp(connPtr->interp);
+	    connPtr->interp = NULL;
 	}
 	if (connPtr->request != NULL) {
             Ns_FreeRequest(connPtr->request);
+	    connPtr->request = NULL;
 	}
         if (connPtr->authUser != NULL) {
 	    ns_free(connPtr->authUser);
+	    connPtr->authUser = connPtr->authPasswd = NULL;
 	}
 	if (connPtr->query != NULL) {
 	    Ns_SetFree(connPtr->query);
+	    connPtr->query = NULL;
 	}
-
-	/*
-	 * NB: Headers and/or output headers could have been
-	 * modified by the connection and/or cleanups.
-	 */
-
-	headers = connPtr->headers;
-	outputheaders = connPtr->outputheaders;
-        Ns_SetTrunc(headers, 0);
-        Ns_SetTrunc(outputheaders, 0);
+	Ns_SetFree(connPtr->headers);
+	Ns_SetFree(connPtr->outputheaders);
+	connPtr->headers = connPtr->outputheaders = NULL;
 
 	/*
 	 * Remove from the active list and push on the free list.
@@ -490,6 +492,7 @@ NsConnThread(void *arg)
 	    servPtr->queue.active.lastPtr = connPtr->prevPtr;
 	}
 	servPtr->threads.idle++;
+	connPtr->prevPtr = NULL;
 	connPtr->nextPtr = servPtr->queue.freePtr;
 	servPtr->queue.freePtr = connPtr;
 	if (connPtr->nextPtr == NULL) {
@@ -516,8 +519,6 @@ NsConnThread(void *arg)
     joinThread = servPtr->threads.last;
     Ns_ThreadSelf(&servPtr->threads.last);
     Ns_MutexUnlock(&servPtr->queue.lock);
-    Ns_SetFree(headers);
-    Ns_SetFree(outputheaders);
     if (joinThread != NULL) {
 	JoinConnThread(&joinThread);
     }

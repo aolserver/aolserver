@@ -222,11 +222,6 @@ typedef struct Driver {
     Ns_ConnSendFileProc     *sendFileProc;
 } Driver;
 
-typedef enum {
-    Headers,
-    Content
-} ConnState;
-
 struct NsServer;
 
 typedef struct Conn {
@@ -259,14 +254,14 @@ typedef struct Conn {
     char	*peer;
     char	 peerBuf[32];
     Tcl_Interp  *interp;
-    ConnState    readState;
-    ConnState    sendState;
     int          nContent;
     int          nContentSent;
     int          responseStatus;
     int          responseLength;
     int          recursionCount;
     int		 keepAlive;
+    Ns_DString	 response;
+    Ns_DString	 content;
     void	*cls[NS_CONN_MAXCLS];
 } Conn;
 
@@ -618,8 +613,7 @@ typedef struct NsInterp {
 
     /*
      * The following struct maintains per-interp ADP
-     * context including the output buffer and
-     * eval stack.
+     * context including.
      */
 
     struct {
@@ -637,7 +631,7 @@ typedef struct NsInterp {
 	int                debugLevel;
 	int                debugInit;
 	char              *debugFile;
-	Ns_DString	   output;
+	Ns_DString	  *outputPtr;
 	Ns_Cache	  *cache;
     } adp;
     
