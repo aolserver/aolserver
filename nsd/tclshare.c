@@ -450,7 +450,7 @@ ShareTraceProc(clientData, interp, name1, name2, flags)
     int length;                 /* Length of string */
     char *name; 
     Tcl_DString ds;		/* Buffer for globalized name */
-    NsInterp *itPtr = NsGetInterp(interp);
+    NsInterp *itPtr = NsGetInterpData(interp);
     NsServer *servPtr = itPtr->servPtr;
 
     name = (char*)GetGlobalizedName(&ds, (char*)name1);

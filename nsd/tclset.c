@@ -33,7 +33,7 @@
  *	Implements the tcl ns_set commands 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclset.c,v 1.17 2003/11/16 15:04:58 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclset.c,v 1.18 2005/03/25 00:32:37 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -85,7 +85,7 @@ static int EnterSet(NsInterp *itPtr, Ns_Set *set, int flags);
 int
 Ns_TclEnterSet(Tcl_Interp *interp, Ns_Set *set, int flags)
 {
-    NsInterp *itPtr = NsGetInterp(interp);
+    NsInterp *itPtr = NsGetInterpData(interp);
 
     if (itPtr == NULL) {
 	Tcl_SetResult(interp, "ns_set not supported", TCL_STATIC);
@@ -730,7 +730,7 @@ LookupInterpSet(Tcl_Interp *interp, char *id, int delete, Ns_Set **setPtr)
 {
     NsInterp *itPtr;
 
-    itPtr = NsGetInterp(interp);
+    itPtr = NsGetInterpData(interp);
     if (itPtr == NULL) {
 	Tcl_SetResult(interp, "ns_set not supported", TCL_STATIC);
 	return TCL_ERROR;
