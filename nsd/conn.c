@@ -34,7 +34,7 @@
  *      Manage the Ns_Conn structure
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.7.2.3.2.2 2002/11/10 15:02:07 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.7.2.3.2.3 2003/02/27 14:25:26 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -1182,11 +1182,21 @@ Ns_ConnGetQuery(Ns_Conn *conn)
 					 dsPtr) != NS_OK) {
 		goto bailout;
             }
+	    /*
+	     * Save POST's rawdata to query's _rawPost.  This is
+             * retained within this set element, and can be accessed
+             * via [ns_conn content], for functionality which requires
+             * access to the raw POST payload (E.g., SOAP, XML-PRC).
+	     */
+            connPtr->query = Ns_SetCreate(NULL);
+            Ns_SetPut(connPtr->query, "_rawPost", dsPtr->string);
         } else if (conn->request->query != NULL) {
             Ns_DStringAppend(dsPtr, conn->request->query);
         }
         if (dsPtr->length > 0) {
-	    connPtr->query = Ns_SetCreate(NULL);
+            if (connPtr->query == NULL) {
+                connPtr->query = Ns_SetCreate(NULL);
+            }
 	    if (QueryToSet(dsPtr->string, connPtr->query, connPtr->enc) != NS_OK) {
 		Ns_SetFree(connPtr->query);
 		connPtr->query = NULL;
@@ -1455,6 +1465,13 @@ NsTclConnCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
         Tcl_SetResult(interp, connPtr->authPasswd, TCL_STATIC);
     } else if (STREQ(argv[1], "contentlength")) {
         sprintf(interp->result, "%u", (unsigned) conn->contentLength);
+    } else if (STREQ(argv[1], "content")) {
+        form = Ns_ConnGetQuery(conn);
+        if (form != NULL) {
+            Tcl_SetResult(interp, Ns_SetGet(form, "_rawPost" ), TCL_STATIC);
+        } else {
+            Tcl_SetResult(interp, NULL, TCL_STATIC);
+        }
     } else if (STREQ(argv[1], "peeraddr")) {
         Tcl_SetResult(interp, Ns_ConnPeer(conn), TCL_STATIC);
     } else if (STREQ(argv[1], "peerport")) {
