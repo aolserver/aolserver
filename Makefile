@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/Makefile,v 1.33 2002/06/10 22:36:17 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/Makefile,v 1.34 2002/06/12 22:41:40 jgdavidson Exp $
 #
 
 #
@@ -61,7 +61,9 @@ endif
 
 dirs   = nsthread nsd nssock nsssl nscgi nscp nslog nsperm nsdb nsext nspd
 
-all: tcl
+all: tcl aolserver
+
+aolserver:
 	@for i in $(dirs); do \
 		( cd $$i && $(MAKE) all ) || exit 1; \
 	done
