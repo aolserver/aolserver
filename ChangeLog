@@ -1,3 +1,13 @@
+2004-08-14  Dossy Shiobara <dossy@panoptic.com>
+
+	* nsd/dns.c (1.7.2.1), aclocal.m4 (1.1.4.1), configure.in
+	  (1.13.2.2), configure (1.15.2.2): gethostbyaddr() and
+	  gethostbyname() are not thread-safe.	Use the new getaddrinfo()
+	  and getnameinfo() API where available, otherwise use
+	  gethostbyaddr_r() and gethostbyname_r() if available.  Otherwise,
+	  continue to use the non-safe versions but emit a warning at
+	  configure time.  Fixes SF Bug #1008721.  Backported from HEAD.
+
 2004-08-13  Dossy Shiobara <dossy@panoptic.com>
 
 	* win32/: nscgi/nscgi.dsp (1.5.2.1), nscp/nscp.dsp (1.5.2.1),
