@@ -1,10 +1,14 @@
+2004-11-05  Dossy Shiobara <dossy@panoptic.com>
+
+	* nsd/sockcallback.c (1.15): Dereferencing cbPtr->nextPtr is
+	  dangerous since cbPtr could have been freed.
+
 2004-10-27  Jim Davidson <jgdavidson@aol.com>
 
 	* include/nsd.h:
 	* nsd/adpcmds.c:
 	* nsd/adpeval.c: Updates to new ADP cache capability, changing
 	ns_adp_include -ttl option to -cache and adding -nocache option.
-
 
 2004-10-26  Jim Davidson <jgdavidson@aol.com>
 
@@ -20,7 +24,6 @@
 	* nsd/driver.c:
 	* nsd/request.c: Fixes to avoid thread race conditions when
 	when using ns_info threads.
-
 
 2004-10-06  Jim Davidson <jgdavidson@aol.com>
 
@@ -44,7 +47,6 @@
 	in debugger mode (i.e., with the -d command line option).
 
 	* nsd/nsd.h: Various updates to support the above additions.
-
 
 2004-09-30  Dossy Shiobara <dossy@panoptic.com>
 
