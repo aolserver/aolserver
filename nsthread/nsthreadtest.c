@@ -41,10 +41,14 @@
  * Special direct include of pthread.h for compatibility tests.
  */
 
+#ifdef _WIN32
+#define PTHREAD_TEST 0
+#else
 #include <pthread.h>
 #define PTHREAD_TEST 1
+#endif
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/nsthreadtest.c,v 1.1 2002/06/12 11:36:44 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/nsthreadtest.c,v 1.2 2003/01/18 19:56:30 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 /*
  * Collection of synchronization objects for tests.
@@ -327,7 +331,10 @@ DumperThread(void *arg)
 	DumpString(&ds);
 	Ns_MutexList(&ds);
 	DumpString(&ds);
+#ifndef _WIN32
+	/* NB: Not yet exported in WIN32 Tcl. */
 	Tcl_GetMemoryInfo(&ds);
+#endif
 	DumpString(&ds);
 	Ns_MutexUnlock(&mlock);
     }

@@ -39,6 +39,22 @@
 	Also, updated the Conn and Sock structures to maintain the
 	servPtr and location correctly Host header based connections.
 
+	* nsthread/Makefile:
+	* nsthread/cond.c (removed):
+	* nsthread/error.c:
+	* nsthread/memory.c:
+	* nsthread/mutex.c:
+	* nsthread/nsthreadtest.c:
+	* nsthread/pthread.c (added):
+	* nsthread/reentrant.c:
+	* nsthread/thread.c:
+	* nsthread/thread.h:
+	* nsthread/time.c:
+	* nsthread/tls.c:
+	* nsthread/winthread.c (added):
+	* include/nsthread.h:  Brought forward nsthread library
+	from 3.5 which includes support for Win32.
+
 
 2003-01-18  Zoran Vasiljevic <zoran@archiware.com>
 	

@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/Makefile,v 1.4 2002/09/21 17:07:36 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/Makefile,v 1.5 2003/01/18 19:56:30 jgdavidson Exp $
 #
 
 LIB     = nsthread
@@ -36,8 +36,8 @@ LIBINIT	= NsthreadsInit
 PGM	= nsthreadtest
 PGMOBJS	= nsthreadtest.o
 LIBOBJS = \
-	cond.o error.o master.o memory.o mutex.o cslock.o	\
+	error.o master.o memory.o mutex.o cslock.o	\
 	rwlock.o reentrant.o sema.o thread.o tls.o signal.o	\
-	compat.o time.o fork.o
+	compat.o time.o fork.o pthread.o
 
 include ../include/Makefile.build

@@ -34,10 +34,9 @@
  *	Routines for creating, exiting, and joining threads.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/thread.c,v 1.4 2002/09/10 23:19:30 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/thread.c,v 1.5 2003/01/18 19:56:30 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "thread.h"
-#include <sched.h>		/* sched_yield() */
 
 /*
  * The following constants define the default and minimum stack
@@ -61,12 +60,10 @@ typedef struct Thread {
     int		    tid;        /* Id set by thread for logging. */
     char	    name[NS_THREAD_NAMESIZE+1]; /* Thread name. */
     char	    parent[NS_THREAD_NAMESIZE+1]; /* Parent name. */
-}               Thread;
+} Thread;
 
-static void *ThreadMain(void *arg);
 static Thread *NewThread(void);
 static Thread *GetThread(void);
-static void SetThread(Thread *thrPtr);
 static void CleanupThread(void *arg);
 
 /*
@@ -86,7 +83,7 @@ static long stacksize = STACK_DEFAULT;
 /*
  *----------------------------------------------------------------------
  *
- * NsthreadsInit --
+ * NsInitThreads --
  *
  *	Initialize threads interface.
  *
@@ -100,7 +97,7 @@ static long stacksize = STACK_DEFAULT;
  */
 
 void
-NsthreadsInit(void)
+NsInitThreads(void)
 {
     static int once = 0;
 
@@ -133,11 +130,7 @@ void
 Ns_ThreadCreate(Ns_ThreadProc *proc, void *arg, long stack,
     	    	Ns_Thread *resultPtr)
 {
-    static char *func = "Ns_ThreadCreate";
-    pthread_attr_t attr;
-    pthread_t pid;
     Thread *thrPtr;
-    int err;
 
     Ns_MasterLock();
 
@@ -165,99 +158,7 @@ Ns_ThreadCreate(Ns_ThreadProc *proc, void *arg, long stack,
     }
     strcpy(thrPtr->parent, Ns_ThreadGetName());
     Ns_MasterUnlock();
-
-    /*
-     * Set the stack size.  It could be smarter to leave the default 
-     * on platforms which map large stacks with guard zones
-     * (e.g., Solaris and Linux).
-     */
-
-    err = pthread_attr_init(&attr);
-    if (err != 0) {
-        NsThreadFatal(func, "pthread_attr_init", err);
-    }
-    err = pthread_attr_setstacksize(&attr, (size_t) stack); 
-    if (err != 0) {
-        NsThreadFatal(func, "pthread_attr_setstacksize", err);
-    }
-
-    /*
-     * System scope always preferred, ignore any unsupported error.
-     */
-
-    err = pthread_attr_setscope(&attr, PTHREAD_SCOPE_SYSTEM);
-    if (err != 0 && err != ENOTSUP) {
-        NsThreadFatal(func, "pthread_setscope", err);
-    }
-
-    err = pthread_create(&pid, &attr, ThreadMain, thrPtr);
-    if (err != 0) {
-        NsThreadFatal(func, "pthread_create", err);
-    }
-    err = pthread_attr_destroy(&attr);
-    if (err != 0) {
-        NsThreadFatal(func, "pthread_attr_destroy", err);
-    }
-    if (resultPtr != NULL) {
-	*resultPtr = (Ns_Thread) pid;
-    } else {
-    	err = pthread_detach(pid);
-        if (err != 0) {
-            NsThreadFatal(func, "pthread_detach", err);
-        }
-    }
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Ns_ThreadExit --
- *
- *	Exit the thread.
- *
- * Results:
- *	None.
- *
- * Side effects:
- *	Exit arg will be passed through pthread_exit.
- *
- *----------------------------------------------------------------------
- */
-
-void
-Ns_ThreadExit(void *arg)
-{
-    pthread_exit(arg);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Ns_ThreadJoin --
- *
- *	Wait for exit of a non-detached thread.
- *
- * Results:
- *	None.
- *
- * Side effects:
- *	Requested thread is destroyed after join.
- *
- *----------------------------------------------------------------------
- */
-
-void
-Ns_ThreadJoin(Ns_Thread *threadPtr, void **argPtr)
-{
-    pthread_t pid = (pthread_t) *threadPtr;
-    int err;
-
-    err = pthread_join(pid, argPtr);
-    if (err != 0) {
-	NsThreadFatal("Ns_ThreadJoin", "pthread_join", err);
-    }
+    NsCreateThread(thrPtr, stacksize, resultPtr);
 }
 
 
@@ -305,68 +206,22 @@ Ns_ThreadStackSize(long size)
  *	user code.
  *
  * Side effects:
- *	See SetThread.
- *
- *----------------------------------------------------------------------
- */
-
-static void *
-ThreadMain(void *arg)
-{
-    Thread      *thrPtr = (Thread *) arg;
-    char	 name[NS_THREAD_NAMESIZE];
-
-    SetThread(thrPtr);
-    sprintf(name, "-thread%d-", thrPtr->tid);
-    Ns_ThreadSetName(name);
-    (*thrPtr->proc) (thrPtr->arg);
-    return NULL;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Ns_ThreadId --
- *
- *	Return the numeric thread id for calling thread.
- *
- * Results:
- *	Integer thread id.
- *
- * Side effects:
  *	None.
- *
- *----------------------------------------------------------------------
- */
-
-int
-Ns_ThreadId(void)
-{
-    return (int) pthread_self();
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Ns_ThreadSelf --
- *
- *	Return opaque handle to thread's data structure.
- *
- * Results:
- *	None.
- *
- * Side effects:
- *	Value at thrPtr is updated with thread's data structure pointer.
  *
  *----------------------------------------------------------------------
  */
 
 void
-Ns_ThreadSelf(Ns_Thread *threadPtr)
+NsThreadMain(void *arg)
 {
-    *threadPtr = (Ns_Thread) pthread_self();
+    Thread      *thrPtr = (Thread *) arg;
+    char	 name[NS_THREAD_NAMESIZE];
+
+    thrPtr->tid = Ns_ThreadId();
+    Ns_TlsSet(&key, thrPtr);
+    sprintf(name, "-thread%d-", thrPtr->tid);
+    Ns_ThreadSetName(name);
+    (*thrPtr->proc) (thrPtr->arg);
 }
 
 
@@ -527,31 +382,6 @@ NewThread(void)
 /*
  *----------------------------------------------------------------------
  *
- * SetThread --
- *
- *	Pthread routine to set this thread's nsthread data structure
- *	and update the tid.
- *
- * Results:
- *	None
- *
- * Side effects:
- *	Key is allocated the first time.
- *
- *----------------------------------------------------------------------
- */
-
-static void
-SetThread(Thread *thrPtr)
-{
-    thrPtr->tid = (int) pthread_self();
-    Ns_TlsSet(&key, thrPtr);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
  * GetThread --
  *
  *	Return this thread's nsthread data structure, initializing
@@ -567,7 +397,7 @@ SetThread(Thread *thrPtr)
  *----------------------------------------------------------------------
  */
 
-static Thread      *
+static Thread *
 GetThread(void)
 {
     Thread *thisPtr;
@@ -576,32 +406,10 @@ GetThread(void)
     if (thisPtr == NULL) {
 	thisPtr = NewThread();
     	thisPtr->flags = NS_THREAD_DETACHED;
-	SetThread(thisPtr);
+	thisPtr->tid = Ns_ThreadId();
+	Ns_TlsSet(&key, thisPtr);
     }
     return thisPtr;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Ns_ThreadYield --
- *
- *	Yield the cpu to another thread.
- *
- * Results:
- *	None.
- *
- * Side effects:
- *	See sched_yield().
- *
- *----------------------------------------------------------------------
- */
-
-void
-Ns_ThreadYield(void)
-{
-    sched_yield();
 }
 
 

@@ -32,18 +32,18 @@
  *
  *	Core threading and system headers.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/nsthread.h,v 1.22 2002/08/26 02:03:28 jgdavidson Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/nsthread.h,v 1.23 2003/01/18 19:56:30 jgdavidson Exp $
  */
 
 #ifndef NSTHREAD_H
 #define NSTHREAD_H
 
-#ifdef __cplusplus
-#define NS_EXTERN		extern "C"
+#ifdef WIN32
+#define NS_EXPORT		__declspec(dllexport)
+#define NS_IMPORT		__declspec(dllimport)
 #else
-#define NS_EXTERN		extern 
-#endif
-
+#define NS_EXPORT
+#define NS_IMPORT
 #ifndef _REENTRANT
 #define _REENTRANT
 #endif
@@ -53,6 +53,19 @@
 #if defined(__sun) && !defined(_POSIX_PTHREAD_SEMANTICS)
 #define _POSIX_PTHREAD_SEMANTICS
 #endif
+#endif
+
+#ifdef NSTHREAD_EXPORTS
+#define NS_STORAGE_CLASS	NS_EXPORT
+#else
+#define NS_STORAGE_CLASS	NS_IMPORT
+#endif
+
+#ifdef __cplusplus
+#define NS_EXTERN		extern "C" NS_STORAGE_CLASS
+#else
+#define NS_EXTERN		extern NS_STORAGE_CLASS
+#endif
 
 #ifndef __linux
 #ifdef FD_SETSIZE
@@ -61,17 +74,42 @@
 #define FD_SETSIZE 1024
 #endif
 
-#include "tcl.h"
+#ifndef WIN32
+#include <sys/types.h>
 #include <dirent.h>
 #include <sys/time.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <string.h>
-#include <sys/types.h>
 #include <unistd.h>
 #include <sys/socket.h>
 #include <netdb.h>
 #include <sys/uio.h>
+
+#else
+
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <windows.h>
+#include <winsock2.h>
+#include <sys/timeb.h>
+#include <sys/types.h>
+#include <io.h>
+#include <process.h>
+#include <direct.h>
+typedef struct DIR_ *DIR;
+struct dirent {
+    char *d_name;
+};
+NS_EXTERN DIR *opendir(char *pathname);
+NS_EXTERN struct dirent *readdir(DIR *dp);
+NS_EXTERN int closedir(DIR *dp);
+#define sleep(n)	(Sleep((n)*1000))
+
+#endif
+
+#include "tcl.h"
 #include <limits.h>
 #include <time.h>
 #include <fcntl.h>
@@ -83,7 +121,6 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <assert.h>
-
 #ifndef PATH_MAX
 #define PATH_MAX 1024
 #endif
@@ -99,6 +136,7 @@
 #define NS_THREAD_JOINED	2
 #define NS_THREAD_EXITED	4
 #define NS_THREAD_NAMESIZE	32
+#define NS_THREAD_MAXTLS	100
 
 /*
  * The following objects are defined as pointers to dummy structures
@@ -216,9 +254,11 @@ NS_EXTERN void Ns_SemaPost(Ns_Sema *semaPtr, int count);
  * signal.c:
  */
 
+#ifndef WIN32
 NS_EXTERN int ns_sigmask(int how, sigset_t * set, sigset_t * oset);
 NS_EXTERN int ns_sigwait(sigset_t * set, int *sig);
 NS_EXTERN int ns_signal(int sig, void (*proc)(int));
+#endif
 
 /*
  * thread.c:
@@ -260,8 +300,6 @@ NS_EXTERN void *Ns_TlsGet(Ns_Tls *tlsPtr);
 /*
  * Unsupported legacy API's and macros.
  */
-
-#define NS_EXPORT
 
 /*
  * compat.c:

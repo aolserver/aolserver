@@ -35,7 +35,7 @@
  *	data buffers.  See the corresponding manual page for details.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/reentrant.c,v 1.1 2002/06/10 22:30:23 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/reentrant.c,v 1.2 2003/01/18 19:56:30 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "thread.h"
 
@@ -46,6 +46,7 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nst
 
 typedef struct Tls {
     char	    	nabuf[16];
+#ifndef _WIN32
     char	       *stbuf;
     struct tm   	gtbuf;
     struct tm   	ltbuf;
@@ -55,9 +56,11 @@ typedef struct Tls {
 	struct dirent ent;
 	char name[PATH_MAX+1];
     } rdbuf;
+#endif
 } Tls;
 
 static Ns_Tls tls;
+static Tls *GetTls(void);
 
 void
 NsInitReentrant(void)
@@ -65,18 +68,67 @@ NsInitReentrant(void)
     Ns_TlsAlloc(&tls, ns_free);
 }
 
-static Tls *
-GetTls(void)
+char *
+ns_inet_ntoa(struct in_addr addr)
 {
-    Tls *tlsPtr;
-
-    tlsPtr = Ns_TlsGet(&tls);
-    if (tlsPtr == NULL) {
-	tlsPtr = ns_calloc(1, sizeof(Tls));
-	Ns_TlsSet(&tls, tlsPtr);
-    }
-    return tlsPtr;
+    Tls *tlsPtr = GetTls();
+    union {
+    	unsigned long l;
+    	unsigned char b[4];
+    } u;
+    
+    u.l = (unsigned long) addr.s_addr;
+    sprintf(tlsPtr->nabuf, "%u.%u.%u.%u", u.b[0], u.b[1], u.b[2], u.b[3]);
+    return tlsPtr->nabuf;
 }
+
+#ifdef _WIN32
+
+/*
+ * Routines on WIN32 are thread safe.
+ */
+
+struct dirent *
+ns_readdir(DIR * dir)
+{
+    return readdir(dir);
+}
+
+struct tm *
+ns_localtime(const time_t * clock)
+{
+    return localtime(clock);
+}
+
+struct tm *
+ns_gmtime(const time_t * clock)
+{
+    return gmtime(clock);
+}
+
+char *
+ns_ctime(const time_t * clock)
+{
+    return ctime(clock);
+}
+
+char *
+ns_asctime(const struct tm *tmPtr)
+{
+    return asctime(tmPtr);
+}
+
+char *
+ns_strtok(char *s1, const char *s2)
+{
+    return strtok(s1, s2);
+}
+
+#else
+
+/*
+ * Copy to per-thread buffers from reentrant routines.
+ */
 
 struct dirent *
 ns_readdir(DIR * dir)
@@ -99,7 +151,6 @@ ns_localtime(const time_t * clock)
     return localtime_r(clock, &tlsPtr->ltbuf);
 }
 
-
 struct tm *
 ns_gmtime(const time_t * clock)
 {
@@ -107,7 +158,6 @@ ns_gmtime(const time_t * clock)
 
     return gmtime_r(clock, &tlsPtr->gtbuf);
 }
-
 
 char *
 ns_ctime(const time_t * clock)
@@ -117,7 +167,6 @@ ns_ctime(const time_t * clock)
     return ctime_r(clock, tlsPtr->ctbuf);
 }
 
-
 char *
 ns_asctime(const struct tm *tmPtr)
 {
@@ -125,7 +174,6 @@ ns_asctime(const struct tm *tmPtr)
 
     return asctime_r(tmPtr, tlsPtr->asbuf);
 }
-
 
 char *
 ns_strtok(char *s1, const char *s2)
@@ -135,17 +183,17 @@ ns_strtok(char *s1, const char *s2)
     return strtok_r(s1, s2, &tlsPtr->stbuf);
 }
 
+#endif
 
-char *
-ns_inet_ntoa(struct in_addr addr)
+static Tls *
+GetTls(void)
 {
-    Tls *tlsPtr = GetTls();
-    union {
-    	unsigned long l;
-    	unsigned char b[4];
-    } u;
-    
-    u.l = (unsigned long) addr.s_addr;
-    sprintf(tlsPtr->nabuf, "%u.%u.%u.%u", u.b[0], u.b[1], u.b[2], u.b[3]);
-    return tlsPtr->nabuf;
+    Tls *tlsPtr;
+
+    tlsPtr = Ns_TlsGet(&tls);
+    if (tlsPtr == NULL) {
+	tlsPtr = ns_calloc(1, sizeof(Tls));
+	Ns_TlsSet(&tls, tlsPtr);
+    }
+    return tlsPtr;
 }

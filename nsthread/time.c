@@ -34,7 +34,7 @@
  *	Ns_Time support routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/time.c,v 1.2 2002/08/26 02:03:29 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/time.c,v 1.3 2003/01/18 19:56:30 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "thread.h"
 
@@ -59,11 +59,26 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nst
 void
 Ns_GetTime(Ns_Time *timePtr)
 {
+#ifdef _WIN32
+/*
+ * Number of 100 nanosecond units from 1/1/1601 to 1/1/1970
+ */
+#define EPOCH_BIAS  116444736000000000i64
+    union {
+	unsigned __int64    i;
+	FILETIME	    s;
+    } ft;
+
+    GetSystemTimeAsFileTime(&ft.s);
+    timePtr->sec = (time_t)((ft.i - EPOCH_BIAS) / 10000000i64);
+    timePtr->usec =(long)((ft.i / 10i64) % 1000000i64);
+#else
     struct timeval tv;
 
     gettimeofday(&tv, NULL);
     timePtr->sec = tv.tv_sec;
     timePtr->usec = tv.tv_usec;
+#endif
 }
 
 

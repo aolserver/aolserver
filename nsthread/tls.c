@@ -27,15 +27,30 @@
  * version of this file under either the License or the GPL.
  */
 
+
 /* 
  * tls.c --
  *
- *	Thread local storage.
+ *	Thread local storage support for nsthreads.  Note that the nsthread
+ *	library handles thread local storage directly.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/tls.c,v 1.1 2002/06/10 22:30:24 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/tls.c,v 1.2 2003/01/18 19:56:30 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "thread.h"
+
+/*
+ * The following global variable specifies the maximum TLS id.  Modifying
+ * this value has no effect.
+ */
+
+int nsThreadMaxTls = NS_THREAD_MAXTLS;
+
+/* 
+ * Static functions defined in this file.
+ */
+
+static Ns_TlsCleanup *cleanupProcs[NS_THREAD_MAXTLS];
 
 
 /*
@@ -55,16 +70,19 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nst
  */
 
 void
-Ns_TlsAlloc(Ns_Tls *tlsPtr, Ns_TlsCleanup *cleanup)
+Ns_TlsAlloc(Ns_Tls *keyPtr, Ns_TlsCleanup *cleanup)
 {
-    pthread_key_t key;
-    int err;
+    static int nextkey = 1;
+    int key;
 
-    err = pthread_key_create(&key, cleanup);
-    if (err != 0) {
-	NsThreadFatal("Ns_TlsAlloc", "pthread_key_create", err);
+    Ns_MasterLock();
+    if (nextkey == NS_THREAD_MAXTLS) {
+	Tcl_Panic("Ns_TlsAlloc: exceded max tls: %d", NS_THREAD_MAXTLS);
     }
-    *tlsPtr = (Ns_Tls) key;
+    key = nextkey++;
+    cleanupProcs[key] = cleanup;
+    Ns_MasterUnlock();
+    *keyPtr = (void *) key;
 }
 
 
@@ -85,15 +103,16 @@ Ns_TlsAlloc(Ns_Tls *tlsPtr, Ns_TlsCleanup *cleanup)
  */
 
 void
-Ns_TlsSet(Ns_Tls *tlsPtr, void *value)
+Ns_TlsSet(Ns_Tls *keyPtr, void *value)
 {
-    pthread_key_t key = (pthread_key_t) *tlsPtr;
-    int err;
+    void **slots = NsGetTls();
+    int key = (int) (*keyPtr);
 
-    err = pthread_setspecific(key, value);
-    if (err != 0) {
-	NsThreadFatal("Ns_TlsSet", "pthread_setspecific", err);
+    if (key < 1 || key >= NS_THREAD_MAXTLS) {
+	Tcl_Panic("Ns_Tls: invalid key: %d: should be between 1 and %d",
+		    key, NS_THREAD_MAXTLS);
     }
+    slots[key] = value;
 }
 
 
@@ -114,9 +133,56 @@ Ns_TlsSet(Ns_Tls *tlsPtr, void *value)
  */
 
 void *
-Ns_TlsGet(Ns_Tls *tlsPtr)
+Ns_TlsGet(Ns_Tls *keyPtr)
 {
-    pthread_key_t key = (pthread_key_t) *tlsPtr;
+    void **slots = NsGetTls();
+    int key = (int) (*keyPtr);
 
-    return pthread_getspecific(key);
+    if (key < 1 || key >= NS_THREAD_MAXTLS) {
+	Tcl_Panic("Ns_Tls: invalid key: %d: should be between 1 and %d",
+		    key, NS_THREAD_MAXTLS);
+    }
+    return slots[key];
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsCleanupTls --
+ *
+ *	Cleanup thread local storage in LIFO order for an exiting thread.
+ *	Note the careful use of the counters to keep iterating over the
+ *	list, up to 5 times, until all TLS values are NULL.  This emulates
+ *	the Pthread TLS behavior which catches a destructor inadvertantly
+ *	calling a library which resets a TLS value after it's been destroyed.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	Cleanup procs are invoked for non-null values.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+NsCleanupTls(void **slots)
+{
+    int i, trys, retry;
+    void *arg;
+
+    trys = 0;
+    do {
+	retry = 0;
+    	i = NS_THREAD_MAXTLS;
+    	while (i-- > 0) {
+	    if (cleanupProcs[i] != NULL && slots[i] != NULL) {
+	    	arg = slots[i];
+	    	slots[i] = NULL;
+	    	(*cleanupProcs[i])(arg);
+		retry = 1;
+	    }
+	}
+    } while (retry && trys++ < 5);
 }
