@@ -33,7 +33,7 @@
  *	Ns_Info* API and ns_info command support.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/info.c,v 1.7 2002/06/12 11:34:54 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/info.c,v 1.8 2002/07/05 23:30:08 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -608,6 +608,194 @@ NsTclInfoCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
                          "version, "
                          "or winnt", NULL);
         return TCL_ERROR;
+    }
+    return TCL_OK;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsTclInfoObjCmd --
+ *
+ *	Implements ns_info. 
+ *
+ * Results:
+ *	Tcl result. 
+ *
+ * Side effects:
+ *	See docs. 
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+NsTclInfoObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
+{
+    NsInterp *itPtr = arg;
+    char *elog;
+    Tcl_DString ds;
+    static CONST char *cmds[] = {
+	"address", "argv0", "builddate", "callbacks", "config",
+	"hostname", "label", "locks", "log", "name", "pageroot",
+	"pid", "platform", "scheduled", "server", "servers",
+	"sockcallbacks", "tag", "tcllib", "threads", "version",
+	"winnt", "nsd", "pools", "major", "minor", 
+	"uptime", "boottime", "patchlevel", "home", NULL
+    };
+    enum {
+	addressidx, argv0idx, builddateidx, callbacksidx, configidx,
+	hostnameidx, labelidx, locksidx, logidx, nameidx, pagerootidx,
+	pididx, platformidx, scheduledidx, serveridx, serversidx,
+	sockcallbacksidx, tagidx, tcllibidx, threadsidx, versionidx,
+	winntidx, nsdidx, poolsidx, majoridx, minoridx,
+	uptimeidx, boottimeidx, patchlevelidx, homeidx
+    };
+    int idx;
+
+    if (objc != 2) {
+	Tcl_WrongNumArgs(interp, 1, objv, "command");
+        return TCL_ERROR;
+    }
+    if (Tcl_GetIndexFromObj(interp, objv[1], cmds, "command", 0, &idx) != TCL_OK) {
+	return TCL_ERROR;
+    }
+
+    Tcl_DStringInit(&ds);
+    switch (idx) {
+    case argv0idx:
+	Tcl_SetResult(interp, nsconf.argv0, TCL_STATIC);
+	break;
+
+    case nsdidx:
+	Tcl_SetResult(interp, nsconf.nsd, TCL_STATIC);
+	break;
+
+    case nameidx:
+        Tcl_SetResult(interp, Ns_InfoServerName(), TCL_STATIC);
+	break;
+
+    case configidx:
+	Tcl_SetResult(interp, Ns_InfoConfigFile(), TCL_STATIC);
+	break;
+
+    case callbacksidx:
+    	NsGetCallbacks(&ds);
+	Tcl_DStringResult(interp, &ds);
+	break;
+
+    case sockcallbacksidx:
+    	NsGetSockCallbacks(&ds);
+	Tcl_DStringResult(interp, &ds);
+	break;
+
+    case scheduledidx:
+    	NsGetScheduled(&ds);
+	Tcl_DStringResult(interp, &ds);
+	break;
+
+    case locksidx:
+	Ns_MutexList(&ds);
+	Tcl_DStringResult(interp, &ds);
+	break;
+
+    case threadsidx:
+	Ns_ThreadList(&ds, ThreadArgProc);
+	Tcl_DStringResult(interp, &ds);
+	break;
+
+    case poolsidx:
+	Tcl_GetMemoryInfo(&ds);
+	Tcl_DStringResult(interp, &ds);
+	break;
+
+    case logidx:
+        elog = Ns_InfoErrorLog();
+	Tcl_SetResult(interp, elog == NULL ? "STDOUT" : elog, TCL_STATIC);
+	break;
+
+    case platformidx:
+	Tcl_SetResult(interp, Ns_InfoPlatform(), TCL_STATIC);
+	break;
+
+    case hostnameidx:
+	Tcl_SetResult(interp, Ns_InfoHostname(), TCL_STATIC);
+	break;
+
+    case addressidx:
+	Tcl_SetResult(interp, Ns_InfoAddress(), TCL_STATIC);
+	break;
+
+    case uptimeidx:
+	Tcl_SetObjResult(interp, Tcl_NewIntObj(Ns_InfoUptime()));
+	break;
+
+    case boottimeidx:
+	Tcl_SetObjResult(interp, Tcl_NewIntObj(Ns_InfoBootTime()));
+	break;
+
+    case pididx:
+	Tcl_SetObjResult(interp, Tcl_NewIntObj(Ns_InfoPid()));
+	break;
+
+    case majoridx:
+	Tcl_SetObjResult(interp, Tcl_NewIntObj(NS_MAJOR_VERSION));
+	break;
+
+    case minoridx:
+	Tcl_SetObjResult(interp, Tcl_NewIntObj(NS_MINOR_VERSION));
+	break;
+
+    case versionidx:
+	Tcl_SetResult(interp, NS_VERSION, TCL_STATIC);
+	break;
+
+    case patchlevelidx:
+	Tcl_SetResult(interp, NS_PATCH_LEVEL, TCL_STATIC);
+	break;
+
+    case homeidx:
+	Tcl_SetResult(interp, Ns_InfoHomePath(), TCL_STATIC);
+	break;
+
+    case winntidx:
+	Tcl_SetResult(interp, "0", TCL_STATIC);
+	break;
+
+    case labelidx:
+	Tcl_SetResult(interp, Ns_InfoLabel(), TCL_STATIC);
+	break;
+
+    case builddateidx:
+	Tcl_SetResult(interp, Ns_InfoBuildDate(), TCL_STATIC);
+	break;
+
+    case tagidx:
+	Tcl_SetResult(interp, Ns_InfoTag(), TCL_STATIC);
+	break;
+
+    case serversidx:
+	Tcl_SetResult(interp, nsconf.servers.string, TCL_STATIC);
+	break;
+
+    case tcllibidx:
+    case pagerootidx:
+    case serveridx:
+	if (itPtr == NULL) {
+	    Tcl_SetResult(interp, "no server", TCL_STATIC);
+	    return TCL_ERROR;
+	}
+	switch (idx) {
+    	case serveridx:
+            Tcl_SetResult(interp, itPtr->servPtr->server, TCL_STATIC);
+	    break;
+    	case tcllibidx:
+	    Tcl_SetResult(interp, itPtr->servPtr->tcl.library, TCL_STATIC);
+	    break;
+    	case pagerootidx:
+	    Tcl_SetResult(interp, itPtr->servPtr->fastpath.pageroot, TCL_STATIC);
+	    break;
+	}
     }
     return TCL_OK;
 }
