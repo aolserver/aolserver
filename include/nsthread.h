@@ -32,7 +32,7 @@
  *
  *	Core threading and system headers.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/nsthread.h,v 1.14 2000/11/17 16:52:15 jgdavidson Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/nsthread.h,v 1.15 2001/04/23 21:02:38 jgdavidson Exp $
  */
 
 #ifndef NSTHREAD_H
@@ -76,7 +76,7 @@
 #endif
 
 #include <windows.h>
-#include <winsock.h>
+#include <winsock2.h>
 #include <sys/timeb.h>
 #include <sys/types.h>
 #include <io.h>
