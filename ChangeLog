@@ -3,6 +3,11 @@
 	* nsmain.c: Segmentation fault when using -g <group> flag: line
 	294 should read Ns_GetGid(garg) instead of Ns_GetGid(optarg).
 
+2001-03-12 Jim Davidson
+
+	Initial checkin of AOLserver 4.0 (beta), now supporting vitual
+	servers and (finally) removing supporting for Tcl 7.6.
+	
 2001-03-08  Kris Rehberg
 
 	*** AOLserver 3.3 RELEASED ***
