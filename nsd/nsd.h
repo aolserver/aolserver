@@ -71,7 +71,7 @@
  */
 
 #define NSD_NAME             "AOLserver"
-#define NSD_VERSION	     "4.0b2"
+#define NSD_VERSION	     NS_PATCH_LEVEL
 #define NSD_LABEL            "aolserver4_0"
 #define NSD_TAG              "$Name:  $"
 #define NS_CONFIG_PARAMETERS "ns/parameters"

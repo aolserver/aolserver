@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Makefile,v 1.28 2001/12/05 20:59:27 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Makefile,v 1.29 2001/12/11 23:49:02 jgdavidson Exp $
 #
 
 LIB      =  libnsd.so
@@ -50,3 +50,5 @@ OBJS = \
 	urlencode.o urlopen.o urlspace.o uuencode.o
 
 include  ../include/Makefile.library
+
+$(OBJS): nsd.h

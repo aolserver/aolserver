@@ -33,7 +33,7 @@
  *	Ns_Info* API and ns_info command support.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/info.c,v 1.3 2001/12/05 22:46:21 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/info.c,v 1.4 2001/12/11 23:49:02 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -543,8 +543,14 @@ NsTclInfoCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 	Tcl_SetObjResult(interp, Tcl_NewIntObj(Ns_InfoBootTime()));
     } else if (STREQ(cmd, "pid")) {
 	Tcl_SetObjResult(interp, Tcl_NewIntObj(Ns_InfoPid()));
+    } else if (STREQ(cmd, "major")) {
+	Tcl_SetObjResult(interp, Tcl_NewIntObj(NS_MAJOR_VERSION));
+    } else if (STREQ(cmd, "minor")) {
+	Tcl_SetObjResult(interp, Tcl_NewIntObj(NS_MINOR_VERSION));
     } else if (STREQ(cmd, "version")) {
-	Tcl_SetResult(interp, Ns_InfoServerVersion(), TCL_STATIC);
+	Tcl_SetResult(interp, NS_VERSION, TCL_STATIC);
+    } else if (STREQ(cmd, "patchlevel")) {
+	Tcl_SetResult(interp, NS_PATCH_LEVEL, TCL_STATIC);
     } else if (STREQ(cmd, "home")) {
 	Tcl_SetResult(interp, Ns_InfoHomePath(), TCL_STATIC);
     } else if (STREQ(cmd, "winnt")) {
