@@ -1,36 +1,36 @@
 2002-10-28  Jim Davidson <jgdavidson@aol.com>
 
-	Makefile:
-	doc/install-doc:  Added man page install targets.
+	* Makefile:
+	* doc/install-doc:  Added man page install targets.
 
-	configure:
-	configure.in:  Fixed duplicate LDRFLAG in LDLIB.
+	* configure:
+	* configure.in:  Fixed duplicate LDRFLAG in LDLIB.
 
-	nscp/nscp.c: Added command logging.
+	* nscp/nscp.c: Added command logging.
 
-	nsd/config.c:
-	nsd/nsmain.c:  Added argv, argc, and optind command line
+	* nsd/config.c:
+	* nsd/nsmain.c:  Added argv, argc, and optind command line
 	global vars to config interp.
 
-	nsd/conn.c:
-	nsd/tclop.c:  Changed ns_atclose to really execute at
+	* nsd/conn.c:
+	* nsd/tclop.c:  Changed ns_atclose to really execute at
 	connection close instead of at the end of ns_register_proc's
 	and within the unused Ns_TclEval.
 
-	nsd/drv.c:  Fixed bug in RunDriver for benefit of nsvhr
+	* nsd/drv.c:  Fixed bug in RunDriver for benefit of nsvhr
 	driver.
 
-	nsd/nsd.h:  Bumped label to 3.5.1.
+	* nsd/nsd.h:  Bumped label to 3.5.1.
 
-	nsd/unix.c:  Added poll() emulation for OS/X.
+	* nsd/unix.c:  Added poll() emulation for OS/X.
 
-	tcl/file.c:  Fixed binary upload bug and added ns_getformfile
+	* tcl/file.c:  Fixed binary upload bug and added ns_getformfile
 	for secure way to get temp files.
 
-	nsdb:
-	nsdb/Makefile:
-	nsdb/nsdb.c:  Added stub nsdb module to be compatible with
-	AOLserver 4.x config.
+	* nsdb:
+	* nsdb/Makefile:
+	* nsdb/nsdb.c:  Added stub nsdb module to be compatible with
+	* AOLserver 4.x config.
 
 
 2002-09-24  Kriston Rehberg  <kriston@aol.com>
