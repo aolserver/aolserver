@@ -28,7 +28,7 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/Attic/namespace.tcl,v 1.3 2000/08/02 23:38:25 kriston Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/Attic/namespace.tcl,v 1.4 2000/08/18 21:51:16 jgdavidson Exp $
 #
 
 #
@@ -46,7 +46,7 @@
 #
 
 if {[info command namespace] == ""} {
-	return
+    return
 }
 
 
@@ -124,6 +124,7 @@ proc _ns_getnamespace n {
 	    }
 	    append script [list proc $p $args [info body $p]]\n
 	}
+	append script [concat namespace export [namespace export]]\n
 	return $script
     }
 }
