@@ -34,7 +34,7 @@
  *	Ns_Time support routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/time.c,v 1.4 2000/10/18 15:35:04 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/time.c,v 1.5 2001/04/02 22:52:34 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "thread.h"
 
@@ -60,16 +60,22 @@ void
 Ns_GetTime(Ns_Time *timePtr)
 {
 #ifdef WIN32
-    struct _timeb tb;
+/*
+ * Number of 100 nanosecond units from 1/1/1601 to 1/1/1970
+ */
+#define EPOCH_BIAS  116444736000000000i64
+    union {
+	unsigned __int64    i;
+	FILETIME	    s;
+    } ft;
 
-    _ftime(&tb);
-    timePtr->sec = tb.time;
-    timePtr->usec = tb.millitm * 1000;
+    GetSystemTimeAsFileTime(&ft.s);
+    timePtr->sec = (time_t)((ft.i - EPOCH_BIAS) / 10000000i64);
+    timePtr->usec =(long)((ft.i / 10i64) % 1000000i64);
 #else
-    struct timezone tz;
     struct timeval tv;
 
-    gettimeofday(&tv, &tz);
+    gettimeofday(&tv, NULL);
     timePtr->sec = tv.tv_sec;
     timePtr->usec = tv.tv_usec;
 #endif
@@ -98,7 +104,7 @@ Ns_AdjTime(Ns_Time *timePtr)
     if (timePtr->usec < 0) {
 	timePtr->sec += (timePtr->usec / 1000000L) - 1;
 	timePtr->usec = (timePtr->usec % 1000000L) + 1000000L;
-    } else {
+    } else if (timePtr->usec > 1000000L) {
 	timePtr->sec += timePtr->usec / 1000000L;
 	timePtr->usec = timePtr->usec % 1000000L;
     }
@@ -126,10 +132,10 @@ void
 Ns_DiffTime(Ns_Time *t1, Ns_Time *t0, Ns_Time *resultPtr)
 {
     if (t1->usec >= t0->usec) {
-	resultPtr->sec = (int) difftime(t1->sec, t0->sec);
+	resultPtr->sec = t1->sec - t0->sec;
 	resultPtr->usec = t1->usec - t0->usec;
     } else {
-	resultPtr->sec = (int) difftime(t1->sec, t0->sec) - 1;
+	resultPtr->sec = t1->sec - t0->sec - 1;
 	resultPtr->usec = 1000000L + t1->usec - t0->usec;
     }
     Ns_AdjTime(resultPtr);
