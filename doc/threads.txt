@@ -1,47 +1,50 @@
 
-$Header: /Users/dossy/Desktop/cvs/aolserver/doc/Attic/threads.txt,v 1.1 2000/05/09 21:42:31 kriston Exp $
+$Header: /Users/dossy/Desktop/cvs/aolserver/doc/Attic/threads.txt,v 1.2 2000/08/10 00:08:31 kriston Exp $
 
-Note On Thread Interfaces:
---------------------------
 
-The implementation of the underlying thread interface can have a noticble
-effect on the overal performance of AOLserver.  While AOLserver runs on
-many platforms, not all platforms perform the same with the same hardware,
-e.g., the same Intel hardware provide very diferent throughput and
-latency on Linux and FreeBsd.
+Note On Thread Interfaces
+-------------------------
 
-A major influence on the overall performance is the scheduling scope of
-the thread library.  Multithreading scope is often described as having
-a "1-1", "1-n", or "n-m" model.  1-1 means each thread is scheduled by
-the kernel along with all other threads.  1-n means one kernel thread is
-actually used by all process threads and thread context switching occurs
-in a user-level library.  n-m means some number of kernel threads share
-the load of some larger number of process threads.  The nature of the
-AOLserver workload (e.g., many simultaneous, I/O and system call bound
-threads) has shown that the 1-1 model generally works best.  1-n often
-does not provide enough concurrency and n-m introduces library overhead.
-In general the OS vendors go to great lengths to make sure the kernel
-scheduling algorithms perform very well under a variety of circumstance
-whereas library implementations are generally more simplistic in design,
+The implementation of the underlying thread interface can have a
+noticeable effect on the overal performance of AOLserver.  While
+AOLserver runs on many platforms, not all platforms perform the same
+with the same hardware, e.g., the same Intel hardware provide very
+diferent throughput and latency on Linux and FreeBsd.
+
+A major influence on the overall performance is the scheduling scope
+of the thread library.  Multithreading scope is often described as
+having a "1-1", "1-n", or "n-m" model.  1-1 means each thread is
+scheduled by the kernel along with all other threads.  1-n means one
+kernel thread is actually used by all process threads and thread
+context switching occurs in a user-level library.  n-m means some
+number of kernel threads share the load of some larger number of
+process threads.  The nature of the AOLserver workload (e.g., many
+simultaneous, I/O and system call bound threads) has shown that the
+1-1 model generally works best.  1-n often does not provide enough
+concurrency and n-m introduces library overhead.  In general the OS
+vendors go to great lengths to make sure the kernel scheduling
+algorithms perform very well under a variety of circumstance whereas
+library implementations are generally more simplistic in design,
 forced to share resources with many non-threaded processes, or require
 careful wrapping of many system calls with non-blocking I/O and signal
-handling.  Heavily loaded sites may realize better performance a change
-in configuration, e.g., upgrading to HP/11 from HP/10 or running SGI
-sproc-based nsd instead of the pthread-based nsd.
+handling.  Heavily-loaded sites may realize better performance a
+change in configuration, e.g., upgrading to HP/11 from HP/10 or
+running SGI sproc-based nsd instead of the pthread-based nsd.
 
-However, this does not mean that 1-n or n-m platforms should be avoided or
-you should not run AOLserver unless your platform is 1.1.  In general, if
-you experience reasonable performance you do not need to worry about the
-performance of the underlying thread library.  In fact, there are cases
-where the 1-n or n-m model may outperform, e.g., code which is somewhat
-compute bound and subject to lock contention.  The reason is a 1-n or n-m
-platform can switch threads when it encounters a held lock and continue
-to make progress whereas a 1-1 thread must have the kernel put the
-thread on a lower level wait queue, generally a more expensive operation.
-Another example is a large-scale hosting environment where many customers
-share a single machine.  You may find better scalability with 1-n threads
-than 1-1 on the same hardware as each low-traffic customer would require
-a single Unix process instead of six or more for base operation.
+However, this does not mean that 1-n or n-m platforms should be
+avoided or you should not run AOLserver unless your platform is 1-1.
+In general, if you experience reasonable performance you do not need
+to worry about the performance of the underlying thread library.  In
+fact, there are cases where the 1-n or n-m model may outperform, e.g.,
+code which is somewhat compute bound and subject to lock contention.
+The reason is a 1-n or n-m platform can switch threads when it
+encounters a held lock and continue to make progress whereas a 1-1
+thread must have the kernel put the thread on a lower level wait
+queue, generally a more expensive operation.  Another example is a
+large-scale hosting environment where many customers share a single
+machine.  You may find better scalability with 1-n threads than 1-1 on
+the same hardware as each low-traffic customer would require a single
+Unix process instead of six or more for base operation.
 
 Listed below are the available and currently used threading models on
 each platform AOLserver runs on:
@@ -56,27 +59,22 @@ Linux		1-1		1-1	clone()-based LinuxThreads.
 SGI pthread	n-m		n-m	1-1 currently cannot be enabled.
 
 SGI sproc	1-1		1-1	sproc-based custom interface often
-
 					provides better performance then
-
 					pthread-interface.
 
 HP/10		1-n		1-n	Performs poorly under load.
 
-HP/11		1-1		1-1	n-m currenlty cannot be enabled.
+HP/11		1-1		1-1	n-m currently cannot be enabled.
 
 FreeBSD		1-n		1-n	rfork()-based 1-1 interface may be
-
 					available shortly.
 
 Apple OS/X	?		?	Likely 1-1.
 
 DEC Unix 4.0	1-1, n-m	n-m	1-1 can be enabled but blows up
-
-					after many thread create/exit's.
-
+					after many thread creates/exits.
 					n-m model performs well.
 
 Windows NT	1-1		1-1	New Fiber() Win32 API may provide
-
 					n-m in the future.
+

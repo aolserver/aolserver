@@ -1,90 +1,77 @@
 
-$Header: /Users/dossy/Desktop/cvs/aolserver/doc/Attic/nsssl2.txt,v 1.3 2000/06/19 23:46:53 scottg Exp $
+$Header: /Users/dossy/Desktop/cvs/aolserver/doc/Attic/nsssl2.txt,v 1.4 2000/08/10 00:08:31 kriston Exp $
 
 
-The nsssl2 Socket Driver
-------------------------
+The nsssl Socket Driver
+-----------------------
+
+This document is not intended to be interpreted as an endorsement of
+any product or service.
 
 
-EXPORT NOTICE 
+***********************************************************************
+*
+* EXPORT NOTICE
+*
+* This source code is subject to the U.S. Export Administration
+* Regulations and other U.S. law, and may not be exported or
+* re-exported to certain countries (currently Afghanistan
+* (Taliban-controlled areas), Cuba, Iran, Iraq, Libya, North Korea,
+* Serbia (except Kosovo), Sudan and Syria) or to persons or entities
+* prohibited from receiving U.S. exports (including Denied Parties,
+* Specially Designated Nationals, and entities on the Bureau of Export
+* Administration Entity List).
+*
+***********************************************************************
 
-This source code is subject to the U.S. Export Administration
-Regulations and other U.S. law, and may not be exported or re-exported
-to certain countries (currently Afghanistan (Taliban-controlled
-areas), Cuba, Iran, Iraq, Libya, North Korea, Serbia (except Kosovo),
-Sudan and Syria) or to persons or entities prohibited from receiving
-U.S. exports (including Denied Parties, Specially Designated
-Nationals, and entities on the Bureau of Export Administration Entity
-List).
-
-
-The nsssl2 driver supports SSL v2 according to the Netscape SSL
+The nsssl driver supports SSL v2 according to the Netscape SSL
 documentation, which you can find at http://developer.netscape.com/.
-It was developed using the BSAFE 3, 4 or 5 libraries from RSA Data
-Security at http://www.rsa.com/.
+It was developed using the BSAFE libraries from RSA Data Security at
+http://www.rsasecurity.com/.
 
-While fully functional for providing security over the internet using
-the "HTTPS" protocol, this initial public release of nsssl2 does
-sacrifice completeness for the sake of simplicity and reliability.
-For one thing, it only supports SSL v2 which by itself is more than
-adequate for most web sites.  Some seldom-used SSL v2 features that
-were omitted include client certificates and the SHA-1 message digest
-algorithm.  The reasoning behind this is that users browsing the web
-very seldom have client certificates, let alone know what they are
-intended for.  Likewise, in virtually all cases, MD5 is the message
-digest requested by all browsers and is fully supported.  In any
-event, we always welcome contributions to add these features to
-nsssl2.
+Some seldom-used SSL v2 features that were omitted include client
+certificates and the SHA-1 message digest algorithm.  The reasoning
+behind this is that users browsing the web very seldom have client
+certificates, let alone know what they are intended for.  Likewise, in
+virtually all cases, MD5 is the message digest requested by all
+browsers and is fully supported.  In any event, we always welcome
+contributions to add these features to nsssl.
 
+We are interested in supporting SSL v3 and welcome your contributions
+to help us get there.
 
 
 Compiling and Installing
 ------------------------
 
-To compile the default exportable nsssle.so module by doing a:
+If you have BSAFE, simply type "gmake" in the root directory of the
+AOLserver source distribution.  If you want 128-bit/1024-bit
+(domestic) security, type "gmake DOMESTIC=1".  If you have a BSAFE
+version newer than BSAFE 3, add "BSAFE_VERSION=BSAFEx" where "x" is
+"4" or "5".
 
-   make BSAFE4=1 BSAFEDIR=/path/to/bsafe/library
-
-
-To compile the 128-bit/1024-bit version of nsssl.so:
-
-   make DOMESTIC=1 BSAFE4=1 BSAFEDIR=/path/to/bsafe/library
-
-
-An example:
-
-   make DOMESTIC=1 BSAFE4=1 BSAFEDIR=/rsa/cryptoc43/linux/i386-libc6/library
+The BSAFE encryption toolkit is available from RSA Data Security at
+http://www.rsasecurity.com/.
 
 
-If you have the BSAFE 3.x library, don't use a BSAFE4 or BSAFE5 argument
-at all, just do a:
+RSA Alternatives (or "Why We Don't Use OpenSSL")
+------------------------------------------------
 
-	make BSAFEDIR=/path/to/bsafe3
+RSA Data Security, at http://www.rsasecurity.com/, holds the patents
+and intellectual rights to the most important algorithms used by SSL:
+RSA, RC5, RC4, RC2, and MD5.  As a direct result of this the use of
+anything but RSA products to implement these algorithms is illegal in
+the United States of America and other countries with which the USA
+has intellectual property treaties.  The patent on the RSA public-key
+algorithm expires in the Fall of 2000, but RSA's rights and/or patents
+on RC4, RC5, and MD5 still remain.  In particular, the source code
+implementation of the RC4 cipher used by OpenSSL/SSLeay is contraband.
 
-
-Installing is a bit iffy. Easiest to just manually copy the
-nsssle.so or nsssl.so module to the /bin directory of the server. 
-
-
-
-NOTES:
-
-1. GNU Make is required. If you don't have it, get it from
-   http://www.gnu.org.
-
-2. When compiling the 128-bit/1024-bit version, an export notice
-   banner will be displayed that you must answer y or n to.
-
-3. A 'make clean' is done automatically before every compile -- I know
-   this contradicts one of the reasons for having a Makefile, but it's
-   there to prevent confusion. There are three source files that have
-   SSL_EXPORT ifdef's, and if you compile once with DOMESTIC set, and
-   then again without DOMESTIC set but you haven't done a 'make clean'
-   in between, then the objects you built with DOMESTIC will be
-   compiled into the final object when you compile without
-   DOMESTIC. If you're developing, just take out the reference to
-	 'clean' in the 'all' target of the Makefile.
-
+While it is theoretically possible to implement SSL v2 using
+unencumbered algorithms the performance and security are both too low.
+Therefore, we use RSA BSAFE libraries to implement SSL v2.  This is
+not intended to be interpreted as an endorsement of any product or
+service.
 
 
 Key Pair and Certificate Request Generation
@@ -103,6 +90,9 @@ certificate request by typing:
 Your directory will now include two files, "keyfile.pem" and
 "certreq.pem."  Put the "keyfile.pem" file in a safe place for now.
 Send the "certreq.pem" file to your favorite Certificate Authority.
+Some Certificate Authorities are http://www.thawte.com/ and
+http://www.verisign.com/.  This is not intended to be interpreted as
+an endorsement of any product or service.
 
 
 What To Do Next
@@ -112,9 +102,11 @@ After a while, you will receive a signed certificate from your
 Certificate Authority in PEM (Privacy-Enhanced Mail) format.  Save the
 body of the message (and just the body) in a file called
 "certfile.pem" and place it and the "keyfile.pem" file into the
-"./servers/server1/modules/nsssl/" directory.  Edit your nsd.tcl file
-to load nsssl.so (or nsssle.so), and verify the location of these two
-files in the "ns/server/server1/module/nsssl" section.
+"./servers/server1/modules/nsssl/" directory.  If you are using the
+domestic version of nsssl, edit the "sslmodule" variable in your
+nsd.tcl file to read "nsssle.so".  Check the included nsd.tcl
+distributed with this version of AOLserver to see the most-current
+options.
 
 That's it!  You're all set and ready to use the SSL v2 protocol to
 provide secure access to your web site!
@@ -124,16 +116,16 @@ Security Notes
 --------------
 
 Due to export, patent, and intellectual property issues with RSA, RC4,
-RC2, and some other algorithms, the 40-bit/512-bit export version is
-the only binary of nsssl2 that America Online is permitted to
-distribute from http://aolserver.com/.  If you wish to use the
-128-bit/1024-bit domestic version of nsssl2, you will have to obtain
-RSA BSAFE 3, 4 or 5 libraries from http://www.rsa.com/ and build
-nsssl2 on your own.  Unfortunately, we are forbidden to distribute a
-binary build of nsssl2 with 128-bit/1024-bit domestic encryption for
-the reasons stated above.  We are permitted to distribute a binary
-build with 40-bit/512-bit encryption, and we are also allowed to
-distribute the nsssl2 source code itself.
+MD5, and RC2, the 40-bit/512-bit export version is the only binary of
+nsssl that America Online is permitted to distribute from
+http://aolserver.com/.  If you wish to use the 128-bit/1024-bit
+domestic version of nsssl, you will have to obtain RSA BSAFE 3, 4 or 5
+libraries from http://www.rsa.com/ and build nsssl on your own.
+Unfortunately, we are forbidden to distribute a binary build of nsssl
+with 128-bit/1024-bit domestic encryption for the reasons stated
+above.  We are permitted to distribute a binary build with
+40-bit/512-bit encryption, and we are also allowed to distribute the
+nsssl source code itself.
 
 The "keyfile.pem" is a very sensitive document!  Do not let it out of
 your hands, do not send it out over the network, and don't delete it.
@@ -143,27 +135,29 @@ all over again.  You should put this in the
 "./servers/server1/modules/nsssl/" directory.
 
 The "certreq.pem" file generated by keygen.tcl should be deleted once
-you receive your signed certificate, but it's harmless (but useless)
-to keep around.
+you receive your signed certificate, though it's harmless to keep
+around.  When you need to renew your certificate most Certificate
+Authorities should not need it again.
 
 The "certfile.pem" file that you will receive from the certificate
 authority is very valuable, though it can be handled in a less-secure
-fashion.  You put this in the "./servers/server1/modules/nsssl/"
-directory.
-
+fashion since it's presented to the browsers that visit your web site.
+You put this in the "./servers/server1/modules/nsssl/" directory.
 
 Implementation Notes
 --------------------
 
- nsssl2 vs. nssock
+ nsssl vs. nssock
  ----------------- 
 
- If you are familiar with the AOLserver socket driver "nssock," you
- may notice that the driver-related portions of nsssl2 are almost
- identical.  In fact, they are so alike that nsssl2 will eventually
- merge back into the nssock driver with #ifdefs to enable SSL.  This
- eliminates lots of duplicated code and should eliminate version skew
- if nssock and the AOLserver socket driver API change over time.
+ The nsssl and nssock modules are nearly identical, save for the extra
+ encryption steps used in SSL.  This release of AOLserver has merged
+ nsssl and nssock together.  The SSL=1 variable determins whether
+ nssock or nsssl is built.  The advantage is that both nssock and
+ nsssl function identically as far as the network is concerned.  This
+ also means that nssock and nsssl will continue to share important new
+ features such as connection keepalive in both HTTP and HTTPS
+ protocols.
 
 
  Running AOLserver in Stand-Alone Mode
@@ -186,8 +180,7 @@ Implementation Notes
 
    o When AOLserver starts up as a normal web server, it invokes
    Ns_ModuleInit which starts up the socket driver and initializes
-   SSL.  The only Tcl command registered is "ssl_info," a meek
-   version-reporting function.
+   SSL.
 
    o When AOLserver starts up with ./modules/nsssl/keygen.tcl, the Tcl
    "load" command this file asks the Tcl interpreter to load nsssl.so
@@ -198,5 +191,7 @@ Implementation Notes
 
  In this fashion way we can use the same code for serving pages as
  well as generating the key pair and certificate request without
- having another cumbersome binary executable hanging around.
+ having another cumbersome binary executable hanging around.  Now that
+ nsssl and nssock are one, maintenance of this code can now be done in
+ one place.
 
