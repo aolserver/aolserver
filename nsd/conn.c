@@ -34,7 +34,7 @@
  *      Manage the Ns_Conn structure
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.24 2002/07/23 12:03:10 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.25 2002/07/23 15:04:39 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -694,22 +694,27 @@ NsTclConnObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 	return TCL_ERROR;
     }
 
+    result  = Tcl_GetObjResult(interp);
+    connPtr = (Conn *) conn = itPtr->conn;
+
     /*
      * Only the "isconnected" option operates without a conn.
      */
 
-    if (itPtr->conn == NULL && opt != CIsConnectedIdx) {
+    if (opt == CIsConnectedIdx) {
+	Tcl_SetBooleanObj(result, connPtr ? 0 : 1);
+	return TCL_OK;
+    }
+    if (connPtr == NULL) {
 	Tcl_SetResult(interp, "no current connection", TCL_STATIC);
         return TCL_ERROR;
     }
 
-    connPtr = (Conn *) conn = itPtr->conn;
     request = connPtr->request;
-    result  = Tcl_GetObjResult(interp);
     switch (opt) {
 
 	case CIsConnectedIdx:
-	    Tcl_SetBooleanObj(result, connPtr ? 0 : 1);
+	    /* NB: Not reached - silence compiler warning. */
 	    break;
 		
 	case CUrlvIdx:
