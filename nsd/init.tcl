@@ -28,7 +28,7 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/init.tcl,v 1.12 2003/01/18 11:42:36 vasiljevic Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/init.tcl,v 1.13 2003/01/23 18:29:53 shmooved Exp $
 #
 
 #
@@ -164,8 +164,8 @@ proc ns_cleanupchans {} {
 proc ns_cleanupvars {} {
     foreach g [info globals] {
         switch -glob -- $g {
-            tcl*  - 
-            error - 
+            auto_* -
+            tcl_*  - 
             env {
                 # NB: Save these core Tcl vars.
             }
@@ -177,6 +177,10 @@ proc ns_cleanupvars {} {
             }
         }
     }
+
+    global errorInfo errorCode
+    set errorInfo ""
+    set errorCode ""
 }
 
 
