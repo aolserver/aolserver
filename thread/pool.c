@@ -35,7 +35,7 @@
  *  	fixed size blocks from block caches.  
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/pool.c,v 1.14 2001/01/10 18:26:04 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/pool.c,v 1.15 2001/03/12 21:54:22 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "thread.h"
 
@@ -135,7 +135,7 @@ static void  *Block2Ptr(Block *blockPtr, int bucket, int reqsize);
  * startup.
  */
 
-static int	initialized;
+static volatile int initialized;
 static int	nbuckets;  /* Number of buckets. */
 static size_t	maxalloc;  /* Max block allocation size. */
 static Pool    *sharedPtr; /* Pool to which blocks are flushed. */
@@ -632,7 +632,9 @@ Ptr2Block(void *ptr)
 	|| ((unsigned char *) ptr)[blockPtr->b_reqsize] != MAGIC
 #endif
 	|| blockPtr->b_magic2 != MAGIC) {
-	NsThreadAbort("Ns_Pool: invalid block: %p", blockPtr);
+	NsThreadAbort("Ns_Pool: invalid block: %p: %x %x %x",
+	    blockPtr, blockPtr->b_magic1, blockPtr->b_magic2,
+	    ((unsigned char *) ptr)[blockPtr->b_reqsize]);
     }
     return blockPtr;
 }
@@ -853,7 +855,6 @@ int
 Ns_PoolBlockSize(void *ptr, int *reqPtr, int *usePtr)
 {
     Block *blockPtr;
-    int bucket;
 
     blockPtr = (((Block *) ptr) - 1);
     if (blockPtr->b_magic1 != MAGIC || blockPtr->b_magic2 != MAGIC) {
