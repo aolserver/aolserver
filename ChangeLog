@@ -1,3 +1,33 @@
+2002-10-29  Jim Davidson <jgdavidson@aol.com>
+
+	* sample-config.tcl:  Updated with examples for connection
+	thread pools and Host header virtual servers.
+
+	* Makefile:  Uses /bin/sh to invoke install-doc.
+
+	* doc/install-doc:  Uses /bin/sh to invoke mkLinks.
+
+	* nsd/form.c:
+	* nsd/conn.c:
+	* tcl/form.tcl:  Changed "ns_conn files" command to just
+	return names of file upload widgets, moving access to other
+	meta data to new fileoffset, filelength, and fileheaders
+	subcommands. Also, removed the ns_conn string command
+	instead of updating.
+
+	* nsd/nsd.h:
+	* nsd/driver.c:
+	* nsd/nsmain.c:
+	* nsd/server.c:
+	* nsd/queue.c:  Implemented multiple named thread pools
+	for virtual servers and Host header based virtual server
+	selection.  See sample-config.tcl for config example.
+
+	* nsd/info.c: Fixed crash bug with NULL server.
+
+	* nsd/tclcmds.c: Removed NsTclConnCmd and NsTclServerCmd string commands.
+
+
 2002-10-14  Jim Davidson <jgdavidson@aol.com>
 
 	* doc/install-doc (new):  New script to install and cross
