@@ -1,3 +1,8 @@
+2004-07-13  Dossy Shiobara <dossy@panoptic.com>
+
+	* include/nsthread.h (1.26): OpenBSD 3.5 doesn't define ENOTSUP, so
+	  we'll define it ourselves.  Closes SF Bug #985076.
+
 2004-07-06  Dossy Shiobara <dossy@panoptic.com>
 
 	* nsd/return.c (1.39): Fix bug where internal redirect for 401
