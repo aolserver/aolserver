@@ -28,7 +28,7 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/form.tcl,v 1.3 2000/08/01 20:36:17 kriston Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/form.tcl,v 1.4 2001/04/23 21:16:42 jgdavidson Exp $
 #
 
 #
@@ -94,147 +94,24 @@ proc ns_queryexists { key } {
 proc ns_getform { }  {
     global _ns_form
 
-    if ![info exists _ns_form] {
-	set _ns_form ""
-	set method [ns_conn method]
-	set type [ns_set iget [ns_conn headers] content-type]
-	
-	## MSIE redirected POST bug workaround.
-	if {![string match "POST" [ns_conn method]] || \
-		![string match "*multipart/form-data*" \
-		      [string tolower $type]] } {
-	    
-	    # Return ordinary or non-existant form.
-	    set _ns_form [ns_conn form]
-
-	} else {
-
-	    # Spool content into a temporary read/write file.
-	    # ns_openexcl can fail, hence why we keep spinning
-	    
-	    set fp ""
-	    while {$fp == ""} {
-		set tmpfile [ns_tmpnam]
-		set fp [ns_openexcl $tmpfile]
-	    }
-	    ns_conncptofp $fp
-	    seek $fp 0
-	    set _ns_form [_ns_parseformfp $fp $type]
-	    close $fp
-	    ns_unlink $tmpfile
+    if {![info exists _ns_form]} {
+	set _ns_form [ns_conn form]
+	foreach {n i} [ns_conn files] {
+		set o [lindex $i 0]
+		set l [lindex $i 1]
+	    	set fp ""
+	    	while {$fp == ""} {
+			set tmpfile [ns_tmpnam]
+			set fp [ns_openexcl $tmpfile]
+	    	}
+		fconfigure $fp -translation binary -encoding binary
+		ns_conn copy $o $l $fp
+		close $fp
+		ns_atclose "ns_unlink -nocomplain $tmpfile"
+	    	ns_set put $_ns_form $n.tmpfile $tmpfile
 	}
     }
-
     return $_ns_form
-}
-
-
-#
-# _ns_parseformfp --
-#
-#	Parse a multi-part form data file.
-#
-
-proc _ns_parseformfp {fp contentType} {
-    # parse the boundary out of the content-type header
-
-    regexp -nocase {boundary=(.*)$} $contentType 1 b
-    set boundary "--$b"
-
-    set form [ns_set create $boundary]
-
-    while { ![eof $fp] } {
-	# skip past the next boundary line
-	if ![string match $boundary* [string trim [gets $fp]]] {
-	    continue
-	}
-
-	# fetch the disposition line and field name
-	set disposition [string trim [gets $fp]]
-	if ![string length $disposition] {
-	    break
-	}
-
-	set disposition [split $disposition \;]
-	set name [string trim [lindex [split [lindex $disposition 1] =] 1] \"]
-
-	# fetch and save any field headers (usually just content-type for files)
-	
-	while { ![eof $fp] } {
-	    set line [string trim [gets $fp]]
-	    if ![string length $line] {
-		break
-	    }
-	    set header [split $line :]
-	    set key [string tolower [string trim [lindex $header 0]]]
-	    set value [string trim [lindex $header 1]]
-	    
-	    ns_set put $form $name.$key $value
-	}
-
-	if { [llength $disposition] == 3 } {
-	    # uploaded file -- save the original filename as the value
-	    set filename [string trim \
-	    		  [lindex [split [lindex $disposition 2] =] 1] \"]
-	    ns_set put $form $name $filename
-
-	    # read lines of data until another boundary is found
-	    set start [tell $fp]
-	    set end $start
-	    
-	    while { ![eof $fp] } {
-		if [string match $boundary* [string trim [gets $fp]]] {
-		    break
-		}
-		set end [tell $fp]
-	    }
-	    set length [expr $end - $start - 2]
-
-	    # create a temp file for the content, which will be deleted
-	    # when the connection close.  ns_openexcl can fail, hence why 
-	    # we keep spinning
-
-	    set tmp ""
-	    while { $tmp == "" } {
-		set tmpfile [ns_tmpnam]
-		set tmp [ns_openexcl $tmpfile]
-	    }
-
-	    if { $length > 0 } {
-		seek $fp $start
-		ns_cpfp $fp $tmp $length
-	    }
-
-	    ns_atclose "ns_unlink -nocomplain $tmpfile"
-
-	    close $tmp
-	    seek $fp $end
-	    ns_set put $form $name.tmpfile $tmpfile
-
-	} else {
-	    # ordinary field - read lines until next boundary
-	    set first 1
-	    set value ""
-	    set start [tell $fp]
-
-	    while { [gets $fp line] >= 0 } {
-		set line [string trimright $line \r]
-		if [string match $boundary* $line] {
-		    break
-		}
-		if $first {
-		    set first 0
-		} else {
-		    append value \n
-		}
-		append value $line
-		set start [tell $fp]
-	    }
-	    seek $fp $start
-	    ns_set put $form $name $value
-	}
-    }
-    return $form
 }
 
 
