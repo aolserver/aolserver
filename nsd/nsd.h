@@ -715,9 +715,8 @@ typedef struct NsInterp {
 	bool               stream;
 	int	           exception;
 	int                depth;
-	int                argc;
-	char             **argv;
-	char		  *file;
+	int                objc;
+	Tcl_Obj		 **objv;
 	char              *cwd;
 	int                errorLevel;
 	int                debugLevel;
@@ -864,9 +863,9 @@ extern void NsAdpSetCharSet(NsInterp *itPtr, char *charset);
 extern void NsAdpFlush(NsInterp *itPtr);
 extern void NsAdpStream(NsInterp *itPtr);
 extern int NsAdpDebug(NsInterp *itPtr, char *host, char *port, char *procs);
-extern int NsAdpSource(NsInterp *itPtr, char *file, int argc, char **argv);
-extern int NsAdpInclude(NsInterp *itPtr, char *file, int argc, char **argv);
-extern int NsAdpEval(NsInterp *itPtr, char *script, int argc, char **argv, int safe);
+extern int NsAdpEval(NsInterp *itPtr, int objc, Tcl_Obj *objv[], int safe);
+extern int NsAdpSource(NsInterp *itPtr, int objc, Tcl_Obj *objv[]);
+extern int NsAdpInclude(NsInterp *itPtr, char *file, int objc, Tcl_Obj *objv[]);
 extern void NsAdpParse(AdpParse *parsePtr, NsServer *servPtr, char *utf, int safe);
 
 /*
