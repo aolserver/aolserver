@@ -1,5 +1,5 @@
 
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/sample-config.tcl,v 1.2.4.1 2002/09/17 23:52:03 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/Attic/sample-config.tcl,v 1.2.2.1 2002/10/28 23:18:23 jgdavidson Exp $
 
 #
 # sample-config.tcl --  The AOLserver Startup Script
