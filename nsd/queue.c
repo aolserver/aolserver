@@ -34,7 +34,7 @@
  *	and service threads.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/queue.c,v 1.29 2004/08/28 01:07:22 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/queue.c,v 1.30 2004/10/26 19:53:27 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -61,6 +61,7 @@ static void AppendConnList(Tcl_DString *dsPtr, Conn *firstPtr, char *state);
  */
 
 static Ns_Tls        ctdtls;
+static Ns_Mutex	     connlock;
 
 
 /*
@@ -83,6 +84,7 @@ void
 NsInitQueue(void)
 {
     Ns_TlsAlloc(&ctdtls, ns_free);
+    Ns_MutexSetName(&connlock, "nsconnlock");
 }
 
 
@@ -318,12 +320,10 @@ NsConnArgProc(Tcl_DString *dsPtr, void *arg)
 {
     ConnThreadData *dataPtr = arg;
     
-    /*
-     * A race condition here causes problems occasionally.
-     */
-
-    if (arg != NULL) {
-        NsAppendConn(dsPtr, NULL, dataPtr->connPtr, "running");
+    if (dataPtr->connPtr != NULL) {
+    	Ns_MutexLock(&connlock);
+        NsAppendConn(dsPtr, dataPtr->connPtr, "running");
+    	Ns_MutexUnlock(&connlock);
     } else {
     	Tcl_DStringAppendElement(dsPtr, "");
     }
@@ -420,22 +420,28 @@ NsConnThread(void *arg)
 	}
 	poolPtr->threads.idle--;
 	poolPtr->queue.wait.num--;
-        dataPtr->connPtr = connPtr;
+        Ns_MutexUnlock(&poolPtr->lock);
 
 	/*
 	 * Run the connection.
 	 */
 
-        Ns_MutexUnlock(&poolPtr->lock);
+	Ns_MutexLock(&connlock);
+        dataPtr->connPtr = connPtr;
+	Ns_MutexUnlock(&connlock);
+
 	Ns_GetTime(&connPtr->times.run);
         ConnRun(connPtr);
-        Ns_MutexLock(&poolPtr->lock);
+
+	Ns_MutexLock(&connlock);
+        dataPtr->connPtr = NULL;
+	Ns_MutexUnlock(&connlock);
 
 	/*
 	 * Remove from the active list and push on the free list.
 	 */
 
-        dataPtr->connPtr = NULL;
+        Ns_MutexLock(&poolPtr->lock);
 	if (connPtr->prevPtr != NULL) {
 	    connPtr->prevPtr->nextPtr = connPtr->nextPtr;
 	} else {
@@ -612,48 +618,19 @@ NsCreateConnThread(Pool *poolPtr)
  */
 
 void
-NsAppendConn(Tcl_DString *dsPtr, Ns_Time *nowPtr, Conn *connPtr, char *state)
+NsAppendConn(Tcl_DString *dsPtr, Conn *connPtr, char *state)
 {
-    char buf[100];
-    char  *p;
     Ns_Time now, diff;
 
-    if (nowPtr == NULL) {
-	Ns_GetTime(&now);
-	nowPtr = &now;
-    }
-
+    Ns_GetTime(&now);
+    Ns_DiffTime(&now, &connPtr->times.queue, &diff);
     Tcl_DStringStartSublist(dsPtr);
-
-    /*
-     * An annoying race condition can be lethal here.
-     */
-
-    if (connPtr != NULL) {
-	sprintf(buf, "%d", connPtr->id);
-	Tcl_DStringAppendElement(dsPtr, buf);
-	Tcl_DStringAppendElement(dsPtr, Ns_ConnPeer((Ns_Conn *) connPtr));
-	Tcl_DStringAppendElement(dsPtr, state);
-	
-	/*
-	 * Carefully copy the bytes to avoid chasing a pointer
-	 * which may be changing in the connection thread.  This
-	 * is not entirely safe but acceptible for a seldom-used
-	 * admin command.
-	 */
-	
-	p = (connPtr->request && connPtr->request->method) ?
-	    connPtr->request->method : "?";
-	Tcl_DStringAppendElement(dsPtr, strncpy(buf, p, sizeof(buf)));
-	p = (connPtr->request && connPtr->request->url) ?
-	    connPtr->request->url : "?";
-	Tcl_DStringAppendElement(dsPtr, strncpy(buf, p, sizeof(buf)));
-	Ns_DiffTime(nowPtr, &connPtr->times.queue, &diff);
-	sprintf(buf, "%ld.%ld", diff.sec, diff.usec);
-	Tcl_DStringAppendElement(dsPtr, buf);
-	sprintf(buf, "%d", connPtr->nContentSent);
-	Tcl_DStringAppendElement(dsPtr, buf);
-    }
+    Ns_DStringPrintf(dsPtr, "%d", connPtr->id);
+    Tcl_DStringAppendElement(dsPtr, Ns_ConnPeer((Ns_Conn *) connPtr));
+    Tcl_DStringAppendElement(dsPtr, state);
+    NsAppendRequest(dsPtr, connPtr->request);
+    Ns_DStringPrintf(dsPtr, " %ld.%ld %d",
+		     diff.sec, diff.usec, connPtr->nContentSent);
     Tcl_DStringEndSublist(dsPtr);
 }
 
@@ -677,11 +654,8 @@ NsAppendConn(Tcl_DString *dsPtr, Ns_Time *nowPtr, Conn *connPtr, char *state)
 static void
 AppendConnList(Tcl_DString *dsPtr, Conn *firstPtr, char *state)
 {
-    Ns_Time now;
-
-    Ns_GetTime(&now);
     while (firstPtr != NULL) {
-	NsAppendConn(dsPtr, &now, firstPtr, state);
+	NsAppendConn(dsPtr, firstPtr, state);
 	firstPtr = firstPtr->nextPtr;
     }
 }

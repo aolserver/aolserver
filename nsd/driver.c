@@ -34,7 +34,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.39 2004/10/06 18:49:38 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.40 2004/10/26 19:53:29 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -1298,7 +1298,7 @@ dropped:
 		    pdata.pfds[sockPtr->pidx].revents, 
 		    sockPtr->acceptTime.sec, sockPtr->acceptTime.usec,
 		    sockPtr->timeout.sec, sockPtr->timeout.usec);
-	    	NsAppendConn(drvPtr->queryPtr, &now, sockPtr->connPtr, "i/o");
+	    	NsAppendConn(drvPtr->queryPtr, sockPtr->connPtr, "i/o");
 	    	Tcl_DStringEndSublist(drvPtr->queryPtr);
 		sockPtr = sockPtr->nextPtr;
 	    }
@@ -2026,6 +2026,7 @@ AllocConn(Driver *drvPtr, Ns_Time *nowPtr, Sock *sockPtr)
     connPtr->responseStatus = 0;
     connPtr->nContentSent = 0;
     connPtr->sockPtr = sockPtr;
+    connPtr->nextPtr = connPtr->prevPtr = NULL;
     return connPtr;
 }
 
