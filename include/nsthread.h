@@ -32,7 +32,7 @@
  *
  *	Core threading and system headers.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/nsthread.h,v 1.10 2000/11/06 19:31:01 jgdavidson Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/nsthread.h,v 1.11 2000/11/09 00:49:10 jgdavidson Exp $
  */
 
 #ifndef NSTHREAD_H
@@ -187,6 +187,23 @@ typedef struct Ns_Time {
 typedef void (Ns_ThreadProc) (void *arg);
 typedef void (Ns_TlsCleanup) (void *arg);
 
+typedef struct Ns_PoolBucketInfo {
+    unsigned int blocksize;
+    unsigned int nrequest;
+    unsigned int nget;
+    unsigned int nput;
+    unsigned int nfree;
+    unsigned int nlock;
+    unsigned int nwait;
+} Ns_PoolBucketInfo;
+
+typedef struct Ns_PoolInfo {
+    char	 *name;
+    unsigned int  nsysalloc;
+    int		  nbuckets;
+    Ns_PoolBucketInfo buckets[1];
+} Ns_PoolInfo;
+
 typedef struct Ns_ThreadInfo {
     Ns_Thread *thread;
     char *name;
@@ -316,14 +333,15 @@ NS_EXTERN void Ns_MutexEnum(Ns_MutexInfoProc *proc, void *arg);
  */
 
 NS_EXTERN Ns_Pool *Ns_PoolCreate(char *name);
+NS_EXTERN void Ns_PoolFlush(Ns_Pool *pool);
 NS_EXTERN void Ns_PoolDestroy(Ns_Pool *pool);
-NS_EXTERN void Ns_PoolStats(Ns_Pool *pool, FILE *fp);
 NS_EXTERN void *Ns_PoolAlloc(Ns_Pool *pool, size_t size);
 NS_EXTERN void Ns_PoolFree(Ns_Pool *pool, void *cp);
 NS_EXTERN void *Ns_PoolRealloc(Ns_Pool *pool, void *ptr, size_t size);
 NS_EXTERN void *Ns_PoolCalloc(Ns_Pool *pool, size_t elsize, size_t nelem);
 NS_EXTERN char *Ns_PoolStrDup(Ns_Pool *pool, char *old);
 NS_EXTERN char *Ns_PoolStrCopy(Ns_Pool *pool, char *old);
+NS_EXTERN Ns_PoolInfo *Ns_PoolStats(Ns_Pool *pool);
 NS_EXTERN Ns_Pool *Ns_ThreadPool(void);
 NS_EXTERN void *Ns_ThreadMalloc(size_t size);
 NS_EXTERN void *Ns_ThreadAlloc(size_t size);
@@ -333,6 +351,7 @@ NS_EXTERN void Ns_ThreadFree(void *ptr);
 NS_EXTERN void *Ns_ThreadCalloc(size_t nelem, size_t elsize);
 NS_EXTERN char *Ns_ThreadStrDup(char *old);
 NS_EXTERN char *Ns_ThreadStrCopy(char *old);
+NS_EXTERN Ns_PoolInfo *Ns_ThreadPoolStats(Ns_Thread *thread);
 
 /*
  * pthread.c, sproc.c, win32.c:
@@ -405,7 +424,6 @@ NS_EXTERN void Ns_ThreadSelf(Ns_Thread *thrPtr);
 NS_EXTERN int Ns_CheckStack(void);
 NS_EXTERN char *Ns_ThreadGetName(void);
 NS_EXTERN char *Ns_ThreadGetParent(void);
-NS_EXTERN void  Ns_ThreadMemStats(FILE *fp);
 
 /*
  * time.c:
