@@ -1,5 +1,22 @@
 2004-07-13  Dossy Shiobara <dossy@panoptic.com>
 
+	* nsd/: driver.c (1.22), op.c (1.12): Needed a more graceful way of
+	  taking a pre-queue socket and send it a 400 Bad Request.  Still a
+	  hack, but I think it's safer this way.
+
+2004-07-13  Dossy Shiobara <dossy@panoptic.com>
+
+	* nsd/driver.c (1.21): Change to make HTTP request "Host:" header
+	  mandatory for HTTP/1.1 connections by returning 400 Bad Request
+	  response.  Closes SF Bug #787728.  Also, changed virtual server
+	  code to use the "hostname" param from the "ns/module/nssock"
+	  section to map the default virtual server based on the value
+	  (hostname) from the "ns/module/nssock/servers" section, when the
+	  "Host:" header is either not specified (HTTP/1.0) or is not found
+	  in the virtual server table.	Closes SF Bug #812036.
+
+2004-07-13  Dossy Shiobara <dossy@panoptic.com>
+
 	* nslog/nslog.c (1.15): conn->headers can be NULL causing segfault.
 	  Closes SF Bug #990439.
 
