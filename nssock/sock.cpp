@@ -65,7 +65,7 @@
  *	the server core and close client connections.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nssock/Attic/sock.cpp,v 1.8 2000/12/12 18:48:43 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nssock/Attic/sock.cpp,v 1.9 2000/12/17 21:28:17 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 
@@ -235,7 +235,7 @@ NS_EXPORT int
 Ns_ModuleInit(char *server, char *name)
 {
     char *path,*address, *host, *bindaddr;
-    int n, def;
+    int n;
     Ns_DString ds;
     struct in_addr  ia;
     struct hostent *he;
@@ -846,11 +846,11 @@ SockThread(void *ignored)
 
 		    if (drvPtr->sndbuf > 0) {
 			setsockopt(connPtr->sock, SOL_SOCKET, SO_SNDBUF,
-			    &drvPtr->sndbuf, sizeof(drvPtr->sndbuf));
+			    (char *) &drvPtr->sndbuf, sizeof(drvPtr->sndbuf));
 		    }
 		    if (drvPtr->rcvbuf > 0) {
 			setsockopt(connPtr->sock, SOL_SOCKET, SO_RCVBUF,
-			    &drvPtr->rcvbuf, sizeof(drvPtr->rcvbuf));
+			    (char *) &drvPtr->rcvbuf, sizeof(drvPtr->rcvbuf));
 		    }
 
 		    /*
