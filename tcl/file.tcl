@@ -28,7 +28,7 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/file.tcl,v 1.3 2002/02/08 07:56:16 hobbs Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/file.tcl,v 1.4 2003/11/01 16:42:26 vasiljevic Exp $
 #
 
 #
@@ -65,7 +65,7 @@ proc ns_tcl_abort {} {
 }
 
 
-proc ns_sourceproc {conn ignored} {
+proc ns_sourceproc {conn args} {
 
     ns_share errorPage
 
