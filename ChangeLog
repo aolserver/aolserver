@@ -1,3 +1,34 @@
+2002-08-24  Jim Davidson <jgdavidson@aol.com>
+
+	* nsd/filter.c:
+	* nsd/server.c:
+	* nsd/tclatclose.c:
+	* nsd/tclvar.c:
+	* nsd/tclinit.c:
+	* nsd/tcljob.c:
+	* nsd/nsd.h:  Moved private struct definitions out of nsd.h
+	back to files which depend on them, e.g., struct Filter.
+
+	* nsd/tclatclose.c:
+	* nsd/tclinit.c:  Moved Ns_TclRegisterDeferred to tclinit.c.
+
+	* nsd/adpeval.c:
+	* nsd/tclsock.c:
+	* nsd/tclinitc:  Eliminated NsTclEval in favor of Tcl_EvalEx.
+
+	* nsd/log.c:
+	* nsd/nsconf.h:
+	* nsd/nsconf.c:  Removed complicated and dubious log
+	buffering option.  The new ns_logctl feature can be used
+	to batch noisy requests.
+
+	* nsd/tclinit.c:
+	* nsd/tclcmds.c:
+	* nsd/init.tcl:  Added new ns_init command to replace the
+	nsv-based namespace copy/update mechanism.  The init.tcl
+	is now called only at startup.
+
+
 2002-07-14  Jim Davidson <jgdavidson@aol.com>
 
 	* nsd/log.c:
