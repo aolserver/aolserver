@@ -1,3 +1,15 @@
+2004-06-22  Zoran Vasiljevic <zv@archiware.com>
+
+	* nsd/tclxkeylist.c: added compatiblity layer for the following
+	functions, since it broke some older code:
+	    Tcl_GetKeyedListKeys
+	    Tcl_GetKeyedListField
+	    Tcl_SetKeyedListField
+	    Tcl_DeleteKeyedListField
+
+	The compatiblity layer for the string-based Tcl-API is not done.
+	I will add this if requested.
+
 2004-06-20  Zoran Vasiljevic <zv@archiware.com>
 
 	* include/ns.h:
