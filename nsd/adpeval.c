@@ -33,7 +33,7 @@
  *	ADP string and file eval.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.18 2002/10/04 16:17:32 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.19 2003/01/24 01:19:15 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -763,8 +763,6 @@ AdpEval(NsInterp *itPtr, AdpCode *codePtr, Tcl_Obj **objs)
 		    objPtr = Tcl_NewStringObj(ptr, len);
 		    Tcl_IncrRefCount(objPtr);
     	            result = Tcl_EvalObjEx(interp, objPtr, 0);
-		    /* NB: Object now bytecodes, free unneeded string. */
-		    Tcl_InvalidateStringRep(objPtr);
 		    objs[nscript] = objPtr;
 		}
 	    }
