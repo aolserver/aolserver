@@ -143,18 +143,18 @@ proc displayThreadPool {} {
   <th colspan=4> ns_job thread pool </th>
 </tr>
 <tr>
-  <th>MAX_THREADS</th>
-  <th>NUM_THREAD</th>
-  <th>NUM_IDLE</th>
-  <th>REQ</th>
+  <th>maxthreads</th>
+  <th>numthread</th>
+  <th>numidle</th>
+  <th>req</th>
 </tr>
 "
     outputMsg "
 <tr>
-  <td>$threadArr(MAX_THREADS)</td>
-  <td>$threadArr(NUM_THREADS)</td>
-  <td>$threadArr(NUM_IDLE)</td>
-  <td>$threadArr(REQ)</td>
+  <td>$threadArr(maxthreads)</td>
+  <td>$threadArr(numthreads)</td>
+  <td>$threadArr(numidle)</td>
+  <td>$threadArr(req)</td>
 </tr>
 "
     outputMsg "\
@@ -184,11 +184,11 @@ proc displayQueues {} {
   <th colspan=5> ns_job queue list </th>
 </tr>
 <tr>
-  <th>NAME</th>
-  <th>DESC</th>
-  <th>MAX_THREAD</th>
-  <th>NUM_RUNNING</th>
-  <th>REQ</th>
+  <th>name</th>
+  <th>desc</th>
+  <th>maxthread</th>
+  <th>numrunning</th>
+  <th>req</th>
 </tr>
 "
 
@@ -197,11 +197,11 @@ proc displayQueues {} {
         
         outputMsg "
 <tr>
-  <td>$queueArr(NAME)</td>
-  <td>$queueArr(DESC)</td>
-  <td>$queueArr(MAX_THREADS)</td>
-  <td>$queueArr(NUM_RUNNING)</td>
-  <td>$queueArr(REQ)</td>
+  <td>$queueArr(name)</td>
+  <td>$queueArr(desc)</td>
+  <td>$queueArr(maxthreads)</td>
+  <td>$queueArr(numrunning)</td>
+  <td>$queueArr(req)</td>
 </tr>
 "
     }
@@ -246,14 +246,15 @@ proc watchJobs {queueId} {
   <th colspan=8> $queueId </th>
 <tr>
 <tr>
-  <th>ID</th>
-  <th>State</th>
-  <th>Type</th>
-  <th>Request</th>
-  <th>Script</th>
-  <th>Results</th>
-  <th>TIME</th>
-  <th>START_TIME</th>
+  <th>id</th>
+  <th>state</th>
+  <th>type</th>
+  <th>request</th>
+  <th>script</th>
+  <th>results</th>
+  <th>time</th>
+  <th>starttime</th>
+  <th>endtime</th>
 </tr>
 "
                 set first [false]
@@ -261,21 +262,23 @@ proc watchJobs {queueId} {
             
             outputMsg "
 <tr>
-  <td>$jobArr(ID)</td>
-  <td>$jobArr(STATE)</td>
-  <td>$jobArr(TYPE)</td>
-  <td>$jobArr(REQ)</td>
-  <td>$jobArr(SCRIPT)</td>
-  <td>$jobArr(RESULTS)</td>
-  <td align=\"right\">$jobArr(TIME) ms</td>
-  <td>$jobArr(START_TIME)</td>
+  <td>$jobArr(id)</td>
+  <td>$jobArr(state)</td>
+  <td>$jobArr(type)</td>
+  <td>$jobArr(req)</td>
+  <td>$jobArr(script)</td>
+  <td>$jobArr(results)</td>
+  <td align=\"right\">$jobArr(time) ms</td>
+  <td>[clock format $jobArr(starttime) -format {%D %T}]</td>
+  <td>[clock format $jobArr(endtime) -format {%D %T}]</td>
 </tr>
 "
+
             #
             # Keep watching if any jobs are queued or running.
             #
-            if {($jobArr(STATE) == "JOB_SCHEDULED") ||
-                ($jobArr(STATE) == "JOB_RUNNING") } {
+            if {($jobArr(state) == "scheduled") ||
+                ($jobArr(state) == "running") } {
                 set done 0
             }   
         }
@@ -334,14 +337,15 @@ proc watchAllJobs {} {
   <th colspan=8> $queueId </th>
 <tr>
 <tr>
-  <th>ID</th>
-  <th>State</th>
-  <th>Type</th>
-  <th>Request</th>
-  <th>Script</th>
-  <th>Results</th>
-  <th>TIME</th>
-  <th>START_TIME</th>
+  <th>id</th>
+  <th>state</th>
+  <th>type</th>
+  <th>request</th>
+  <th>script</th>
+  <th>results</th>
+  <th>time</th>
+  <th>starttime</th>
+  <th>endtime</th>
 </tr>
 "
                     set first [false]
@@ -349,21 +353,22 @@ proc watchAllJobs {} {
                     
                 outputMsg "
 <tr>
-  <td>$jobArr(ID)</td>
-  <td>$jobArr(STATE)</td>
-  <td>$jobArr(TYPE)</td>
-  <td>$jobArr(REQ)</td>
-  <td>$jobArr(SCRIPT)</td>
-  <td>$jobArr(RESULTS)</td>
-  <td align=\"right\">$jobArr(TIME) ms</td>
-  <td>$jobArr(START_TIME)</td>
+  <td>$jobArr(id)</td>
+  <td>$jobArr(state)</td>
+  <td>$jobArr(type)</td>
+  <td>$jobArr(req)</td>
+  <td>$jobArr(script)</td>
+  <td>$jobArr(results)</td>
+  <td align=\"right\">$jobArr(time) ms</td>
+  <td>[clock format $jobArr(starttime) -format {%D %T}]</td>
+  <td>[clock format $jobArr(endtime) -format {%D %T}]</td>
 </tr>
 "
                 #
                 # Keep watching if any jobs are queued or running.
                 #
-                if {($jobArr(STATE) == "JOB_SCHEDULED") ||
-                    ($jobArr(STATE) == "JOB_RUNNING") } {
+                if {($jobArr(state) == "scheduled") ||
+                    ($jobArr(state) == "running") } {
                     set done 0
                 }   
             }
@@ -480,8 +485,8 @@ proc busyWait {queueId} {
         foreach job $jobList {
             array set jobArr $job
             
-            if {($jobArr(STATE) == "JOB_SCHEDULED") ||
-                ($jobArr(STATE) == "JOB_RUNNING") } {
+            if {($jobArr(state) == "scheduled") ||
+                ($jobArr(state) == "running") } {
                 set done 0
             }   
         }
@@ -888,7 +893,7 @@ proc ns_job_unit_test_8 {testNum} {
     foreach queue $queueList {
         array set queueArr $queue
         
-        if {[string match $queueArr(NAME) $queueId_1]} {
+        if {[string match $queueArr(name) $queueId_1]} {
             set found [true]
         }
     }
@@ -908,7 +913,7 @@ proc ns_job_unit_test_8 {testNum} {
     foreach queue $queueList {
         array set queueArr $queue
         
-        if {[string match $queueArr(NAME) $queueId_1]} {
+        if {[string match $queueArr(name) $queueId_1]} {
             set found [true]
         }
     }
