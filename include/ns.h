@@ -33,7 +33,7 @@
  *      All the public types and function declarations for the core
  *	AOLserver.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.16 2001/03/19 15:46:49 jgdavidson Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.17 2001/03/23 17:01:49 jgdavidson Exp $
  */
 
 #ifndef NS_H
@@ -63,6 +63,9 @@ typedef void *ClientData;
 #define NS_CONN_CLOSED		  1
 #define NS_CONN_SKIPHDRS	  2
 #define NS_CONN_SKIPBODY	  4
+#define NS_CONN_READHDRS	  8
+#define NS_CONN_SENTHDRS	 16
+
 #define NS_CONN_MAXCLS		  16
 
 #define NS_AOLSERVER_3_PLUS
