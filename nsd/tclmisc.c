@@ -34,7 +34,7 @@
  *	Implements a lot of Tcl API commands. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclmisc.c,v 1.11 2001/01/15 18:53:17 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclmisc.c,v 1.12 2001/01/16 23:03:05 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -902,7 +902,6 @@ NsTclInfoCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
                          argv[0], " command", NULL);
         return TCL_ERROR;
     }
-
     Tcl_DStringInit(&ds);
     if (STREQ(argv[1], "argv0")) {
 	Tcl_SetResult(interp, nsconf.argv0, TCL_STATIC);
@@ -911,7 +910,7 @@ NsTclInfoCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
     } else if (STREQ(argv[1], "pageroot")) {
 	Tcl_SetResult(interp, Ns_PageRoot(NULL), TCL_STATIC);
     } else if (STREQ(argv[1], "server") || STREQ(argv[1], "servers")) {
-        Tcl_SetResult(interp, nsServer, TCL_STATIC);
+        Tcl_SetResult(interp, Ns_TclInterpServer(interp), TCL_STATIC);
     } else if (STREQ(argv[1], "name")) {
         Tcl_SetResult(interp, Ns_InfoServerName(), TCL_STATIC);
     } else if (STREQ(argv[1], "config")) {

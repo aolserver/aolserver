@@ -33,7 +33,7 @@
  *	Make outgoing HTTP requests.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/urlopen.c,v 1.6 2001/01/15 18:53:17 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/urlopen.c,v 1.7 2001/01/16 23:03:05 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -260,7 +260,7 @@ NsTclGetUrlCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
     }
     Ns_DStringInit(&ds);
     if (*argv[1] == '/') {
-        if (Ns_FetchPage(&ds, argv[1], nsServer) != NS_OK) {
+        if (Ns_FetchPage(&ds, argv[1], Ns_TclInterpServer(interp)) != NS_OK) {
             Tcl_AppendResult(interp, "Could not get contents of URL \"",
                              argv[1], "\"", NULL);
             status = TCL_ERROR;
