@@ -1,5 +1,5 @@
 
-$Header: /Users/dossy/Desktop/cvs/aolserver/win32/Attic/README,v 1.1.1.1.12.2 2002/11/10 15:23:19 jgdavidson Exp $
+$Header: /Users/dossy/Desktop/cvs/aolserver/win32/Attic/README,v 1.1.1.1.12.3 2002/12/03 23:15:54 jgdavidson Exp $
 
 
 AOLserver Win32 Port
@@ -41,7 +41,7 @@ debug and release versions:
 cd tcl8.4/win
 nmake -f makefile.vc OPTS=threads,symbols,msvcrt INSTALLDIR=c:/aolserver \
 	 MSVCDIR=dummy
-nmake -f makefile.vc OPTS=threads,symbols,msvcrt INSTALLDIR=c:/aolserver \
+nmake -f makefile.vc OPTS=threads,msvcrt INSTALLDIR=c:/aolserver \
 	MSVCDIR=dummy install
 nmake -f makefile.vc OPTS=threads,msvcrt INSTALLDIR=c:/aolserver \
 	MSVCDIR=dummy
@@ -65,11 +65,11 @@ config usable for testing.  It assumes a debug or release build has
 been completed as described above.  To use try:
 
 	cd test
-	../debug/nsd -ft nsd.tcl
+	..\debug\nsd -ft nsd.tcl
 
 or:
 
-	../release/nsd -ft nsd.tcl
+	..\release\nsd -ft nsd.tcl
 
 Note the default address selected by the nssock module to listen for
 connections.  Point your browser to that address/port and you should
@@ -84,16 +84,16 @@ To install, create an AOLserver installation directory as you would do
 on Unix and copy the binaries from Debug or Release to the bin
 subdirectory.  You may then run the server in a DOS window as on Unix:
 
-	bin/nsd -f -t nsd.tcl
+	bin\nsd -f -t nsd.tcl
 
 On NT, you can also install as an NT service with:
 
-	bin/nsd -I -f nsd.tcl
+	bin\nsd -I -t nsd.tcl
 
 Then start/stop the server with the Services control panel.  To remove
 an installed server use:
 
-	bin/nsd -R -f nsd.tcl
+	bin\nsd -R -t nsd.tcl
 
 
 General Notes
