@@ -727,6 +727,8 @@ extern Ns_SockProc NsTclSockProc;
 extern Ns_ArgProc NsTclSockArgProc;
 extern Ns_ThreadProc NsConnThread;
 extern Ns_ArgProc NsConnArgProc;
+extern Ns_Callback NsDbCheckPool;
+extern Ns_ArgProc NsDbCheckArgProc;
 
 extern void NsGetCallbacks(Tcl_DString *dsPtr);
 extern void NsGetSockCallbacks(Tcl_DString *dsPtr);
@@ -771,7 +773,7 @@ extern void NsDbInitServer(char *server);
 extern void NsTclInitServer(char *server);
 extern void NsLoadModules(char *server);
 
-extern void NsEnableDNSCache(int timeout);
+extern void NsEnableDNSCache(int timeout, int maxentries);
 
 extern void NsCreatePidFile(char *server);
 extern void NsRemovePidFile(char *server);

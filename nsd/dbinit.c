@@ -35,7 +35,7 @@
  *	pools of database handles.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/dbinit.c,v 1.7 2001/03/12 22:06:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/dbinit.c,v 1.8 2001/03/14 15:03:09 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -110,8 +110,6 @@ typedef struct Handle {
 
 static Pool    *GetPool(char *pool);
 static void     ReturnHandle(Handle * handle);
-static void	CheckPool(Pool *poolPtr);
-static Ns_Callback CheckPools;
 static int      IsStale(Handle *, time_t now);
 static int	Connect(Handle *);
 static Pool    *CreatePool(char *pool, char *path, char *driver);
@@ -513,7 +511,7 @@ Ns_DbPoolTimedGetMultipleHandles(Ns_DbHandle **handles, char *pool,
  *	NS_OK if pool was bounce, NS_ERROR otherwise.
  *
  * Side effects:
- *	Handles are all marked stale and then closed by CheckPool.
+ *	Handles are all marked stale and then closed by NsDbCheckPool.
  *
  *----------------------------------------------------------------------
  */
@@ -539,7 +537,7 @@ Ns_DbBouncePool(char *pool)
 	handlePtr = handlePtr->nextPtr;
     }
     Ns_MutexUnlock(&poolPtr->lock);
-    CheckPool(poolPtr);
+    NsDbCheckPool(poolPtr);
 
     return NS_OK;
 }
@@ -568,7 +566,7 @@ NsDbInitPools(void)
     Pool           *poolPtr;
     Ns_Set         *pools;
     char           *path, *pool, *driver;
-    int		    new, i, tcheck;
+    int		    new, i;
 
     /*
      * Attempt to create each database pool.
@@ -576,7 +574,6 @@ NsDbInitPools(void)
 
     Tcl_InitHashTable(&poolsTable, TCL_STRING_KEYS);
     pools = Ns_ConfigSection("ns/db/pools");
-    tcheck = INT_MAX;
     for (i = 0; pools != NULL && i < Ns_SetSize(pools); ++i) {
 	pool = Ns_SetKey(pools, i);
 	hPtr = Tcl_CreateHashEntry(&poolsTable, pool, &new);
@@ -591,13 +588,7 @@ NsDbInitPools(void)
 	    Tcl_DeleteHashEntry(hPtr);
 	} else {
 	    Tcl_SetHashValue(hPtr, poolPtr);
-	    if (tcheck > poolPtr->maxidle) {
-	    	tcheck = poolPtr->maxidle;
-	    }
 	}
-    }
-    if (tcheck > 0) {
-	Ns_ScheduleProc(CheckPools, NULL, 1, tcheck);
     }
 }
 
@@ -889,39 +880,32 @@ IsStale(Handle *handlePtr, time_t now)
 /*
  *----------------------------------------------------------------------
  *
- * CheckPools --
+ * NsDbCheckArgProc --
  *
- *	Schedule procedure to check all pools.
+ *	Ns_ArgProc callback for the pool checker.
  *
  * Results:
  *	None.
  *
  * Side effects:
- *	None.
+ *	Copies name of pool to given dstring.
  *
  *----------------------------------------------------------------------
  */
 
-static void
-CheckPools(void *ignored)
+void
+NsDbCheckArgProc(Tcl_DString *dsPtr, void *arg)
 {
-    Tcl_HashEntry *hPtr;
-    Tcl_HashSearch search;
-    Pool *poolPtr;
+    Pool *poolPtr = arg;
 
-    hPtr = Tcl_FirstHashEntry(&poolsTable, &search);
-    while (hPtr != NULL) {
-	poolPtr = Tcl_GetHashValue(hPtr);
-	CheckPool(poolPtr);
-	hPtr = Tcl_NextHashEntry(&search);
-    }
+    Tcl_DStringAppendElement(dsPtr, poolPtr->name);
 }
 
 
 /*
  *----------------------------------------------------------------------
  *
- * CheckPool --
+ * NsDbCheckPool --
  *
  *	Verify all handles in a pool are not stale.
  *
@@ -934,9 +918,10 @@ CheckPools(void *ignored)
  *----------------------------------------------------------------------
  */
 
-static void
-CheckPool(Pool *poolPtr)
+void
+NsDbCheckPool(void *arg)
 {
+    Pool 	 *poolPtr = arg;
     Handle       *handlePtr, *nextPtr;
     Handle       *checkedPtr;
     time_t	  now;
@@ -1088,7 +1073,10 @@ CreatePool(char *pool, char *path, char *driver)
 	handlePtr->poolname = pool;
 	ReturnHandle(handlePtr);
     }
-
+    if (!Ns_ConfigGetInt(path, "checkinterval", &i) || i < 0) {
+	i = 600;	/* 10 minutes. */
+    }
+    Ns_ScheduleProc(NsDbCheckPool, poolPtr, 0, i);
     return poolPtr;
 }
 

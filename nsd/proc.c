@@ -34,7 +34,7 @@
  *	callbacks, scheduled procs, etc.).
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/proc.c,v 1.5 2001/03/12 22:06:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/proc.c,v 1.6 2001/03/14 15:03:09 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -57,13 +57,14 @@ struct proc {
 	char *desc;
 	Ns_ArgProc *argProc;
 } procs[] = {
-	{(void *) NsTclThread, "tclthread", NsTclArgProc},
-	{(void *) NsTclCallback, "tclcallback", NsTclArgProc},
-	{(void *) NsTclSchedProc, "tclschedproc", NsTclArgProc},
-	{(void *) NsTclSignalProc, "tclsigproc", NsTclArgProc},
-	{(void *) NsTclSockProc, "tclsockcallback", NsTclSockArgProc},
-	{(void *) NsCachePurge, "cachepurge", NsCacheArgProc},
-	{(void *) NsConnThread, "connthread", NsConnArgProc},
+	{(void *) NsTclThread, "ns:tclthread", NsTclArgProc},
+	{(void *) NsTclCallback, "ns:tclcallback", NsTclArgProc},
+	{(void *) NsTclSchedProc, "ns:tclschedproc", NsTclArgProc},
+	{(void *) NsTclSignalProc, "ns:tclsigproc", NsTclArgProc},
+	{(void *) NsTclSockProc, "ns:tclsockcallback", NsTclSockArgProc},
+	{(void *) NsCachePurge, "ns:cachepurge", NsCacheArgProc},
+	{(void *) NsConnThread, "ns:connthread", NsConnArgProc},
+	{(void *) NsDbCheckPool, "ns:dbcheck", NsDbCheckArgProc},
 	{NULL, NULL, NULL}
 };
 
