@@ -69,7 +69,7 @@ LINK32=link.exe
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /MTd /W3 /Gm /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "NSSSL_EXPORTS" /YX /FD /GZ /c
-# ADD CPP /nologo /MTd /W3 /Gm /GX /ZI /Od /I "..\..\include" /I "c:\files\bsafe\include" /D "_WINDOWS" /D "_USRDLL" /D "NSSOCK_EXPORTS" /D SSL_DOMESTIC=1 /D "_DEBUG" /D "WIN32" /D "_MBCS" /D FD_SETSIZE=128 /D TCL_THREADS=1 /Fp"Debug/nssock.pch" /YX /FD /GZ /c
+# ADD CPP /nologo /MTd /W3 /Gm /GX /ZI /Od /I "..\..\include" /I "..\..\..\bsafe\include" /D "BSAFE4" /D "_WINDOWS" /D "_USRDLL" /D "NSSOCK_EXPORTS" /D SSL_DOMESTIC=1 /D "_DEBUG" /D "WIN32" /D "_MBCS" /D FD_SETSIZE=128 /D TCL_THREADS=1 /Fp"Debug/nssock.pch" /YX /FD /GZ /c
 # SUBTRACT CPP /X
 # ADD BASE MTL /nologo /D "_DEBUG" /mktyplib203 /win32
 # ADD MTL /nologo /D "_DEBUG" /mktyplib203 /win32
@@ -80,7 +80,7 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LINK32=link.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /dll /debug /machine:I386 /pdbtype:sept
-# ADD LINK32 ..\nsthread\debug\nsthread.lib ..\nsd\debug\nsd.lib ..\nstcl\debug\nstcl.lib kernel32.lib wsock32.lib c:\files\bsafe\lib\bsafe.lib /nologo /dll /debug /machine:I386 /out:"Debug/nsssle.dll" /pdbtype:sept
+# ADD LINK32 \cvs\src\bsafe\lib\bsafe.lib ..\nsd\debug\nsd.lib ..\nstcl\debug\nstcl.lib ..\nsthread\debug\nsthread.lib kernel32.lib ws2_32.lib /nologo /dll /debug /machine:I386 /out:"Debug/nsssle.dll" /pdbtype:sept
 
 !ENDIF 
 
@@ -93,23 +93,23 @@ LINK32=link.exe
 # PROP Default_Filter "cpp;c;cxx;rc;def;r;odl;idl;hpj;bat"
 # Begin Source File
 
-SOURCE=..\..\nssock\nsssl.c
+SOURCE=..\..\nsssl\nsssl.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\nssock\ssl.c
+SOURCE=..\..\nsssl\ssl.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\nssock\ssltcl.c
+SOURCE=..\..\nsssl\ssltcl.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\nssock\t_stdlib.c
+SOURCE=..\..\nsssl\t_stdlib.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\nssock\x509.c
+SOURCE=..\..\nsssl\x509.c
 # End Source File
 # End Group
 # Begin Group "Header Files"
