@@ -33,7 +33,7 @@
  *      All the public types and function declarations for the core
  *	AOLserver.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.3 2000/08/02 23:38:25 kriston Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.4 2000/08/18 00:07:20 jgdavidson Exp $
  */
 
 #ifndef NS_H
@@ -524,8 +524,6 @@ NS_EXTERN Ns_Entry *Ns_CacheNextEntry(Ns_CacheSearch *search);
 NS_EXTERN void Ns_CacheFlush(Ns_Cache *cache);
 NS_EXTERN void Ns_CacheLock(Ns_Cache *cache);
 NS_EXTERN void Ns_CacheUnlock(Ns_Cache *cache);
-NS_EXTERN void *Ns_CacheTimedGetValue(Ns_Cache *cache, char *key,
-				   Ns_Time *timePtr, int *okPtr);
 NS_EXTERN int Ns_CacheTimedWait(Ns_Cache *cache, Ns_Time *timePtr);
 NS_EXTERN void Ns_CacheWait(Ns_Cache *cache);
 NS_EXTERN void Ns_CacheSignal(Ns_Cache *cache);
