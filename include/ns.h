@@ -33,7 +33,7 @@
  *      All the public types and function declarations for the core
  *	AOLserver.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.24 2001/04/13 19:51:01 jgdavidson Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.25 2001/04/23 21:19:25 jgdavidson Exp $
  */
 
 #ifndef NS_H
@@ -65,6 +65,7 @@ typedef void *ClientData;
 #define NS_CONN_SKIPBODY	  4
 #define NS_CONN_READHDRS	  8
 #define NS_CONN_SENTHDRS	 16
+#define NS_CONN_KEEPALIVE	 32
 
 #define NS_CONN_MAXCLS		  16
 
@@ -99,6 +100,8 @@ typedef void *ClientData;
 #define NS_ROWS 		  2
 #define NS_DML  		  1
 #define NS_ENCRYPT_BUFSIZE 	 16
+#define NS_DRIVER_ASYNC		  1	/* Use async read-ahead. */
+#define NS_DRIVER_SSL		  2	/* Use SSL port, protocol defaults. */
 
 #ifdef WIN32
 typedef __int64 INT64;
@@ -264,32 +267,6 @@ typedef enum {
 } Ns_DbProcId;
 
 /*
- * This is used with the Ns_DrvProc structure.
- */
-
-typedef enum {
-    Ns_DrvIdName,
-    Ns_DrvIdStart,
-    Ns_DrvIdAccept,
-    Ns_DrvIdStop,
-    Ns_DrvIdInit,
-    Ns_DrvIdRead,
-    Ns_DrvIdWrite,
-    Ns_DrvIdClose,
-    Ns_DrvIdFree,
-    Ns_DrvIdPeer,
-    Ns_DrvIdLocation,
-    Ns_DrvIdHost,
-    Ns_DrvIdPort,
-    Ns_DrvIdSendFd,
-    Ns_DrvIdSendFile,
-    Ns_DrvIdDetach,
-    Ns_DrvIdConnectionFd,
-    Ns_DrvIdMoveContext,
-    Ns_DrvIdPeerPort
-} Ns_DrvId;
-
-/*
  * Typedefs of functions
  */
 
@@ -428,6 +405,65 @@ typedef struct {
 } Ns_DbTableInfo;
 
 /*
+ * The following structure defines an I/O
+ * scatter/gather buffer.
+ */
+
+typedef struct Ns_Buf {
+    char  *buf;
+    size_t len;
+} Ns_Buf;
+
+/*
+ * The following structure defines a driver.
+ */
+
+typedef struct Ns_Driver {
+    void	*arg;		    /* Driver callback data. */
+    char	*server;	    /* Virtual server name. */
+    char	*module;	    /* Driver module. */
+    char        *name;		    /* Driver name. */
+    char        *location;	    /* Location, e.g, "http://foo:9090" */
+    char        *address;	    /* Address in location. */
+    int     	 sendwait;	    /* send() I/O timeout. */
+    int     	 recvwait;	    /* recv() I/O timeout. */
+    int		 bufsize;	    /* Conn bufsize (0 for SSL) */
+    int		 sndbuf;	    /* setsockopt() SNDBUF option. */
+    int		 rcvbuf;	    /* setsockopt() RCVBUF option. */
+} Ns_Driver;
+
+/*
+ * The following structure defins the public
+ * parts of the driver socket connection.
+ */
+
+typedef struct Ns_Sock {
+    Ns_Driver *driver;
+    SOCKET sock;
+    void  *arg;
+} Ns_Sock;
+
+/*
+ * The following enum defines the commands which
+ * the socket driver proc must handle.
+ */
+
+typedef enum {
+    DriverRecv,
+    DriverSend,
+    DriverKeep,
+    DriverClose
+} Ns_DriverCmd;
+
+/*
+ * The following typedef defines a socket driver
+ * callback.
+ */
+
+typedef int (Ns_DriverProc)(Ns_DriverCmd cmd, Ns_Sock *sock,
+			    Ns_Buf *bufs, int nbufs);
+
+/*
  * More typedefs of functions 
  */
 
@@ -449,36 +485,6 @@ typedef Tcl_HashSearch 		 Ns_CacheSearch;
 
 typedef struct _Ns_Cls 		*Ns_Cls;
 typedef void 	      		*Ns_OpContext;
-
-/*
- * Typedefs for a modular socket driver.
- */
-
-typedef int     (Ns_DriverStartProc) (char *server, char *driver, void **dargPtr);
-typedef int     (Ns_DriverAcceptProc) (void *darg, void **cargPtr);
-typedef void    (Ns_DriverStopProc) (void *carg);
-typedef int     (Ns_ConnInitProc) (void *carg);
-typedef int     (Ns_ConnReadProc) (void *carg, void *buf, int nread);
-typedef int     (Ns_ConnWriteProc) (void *carg, void *buf, int nwrite);
-typedef int     (Ns_ConnCloseProc) (void *carg);
-typedef void   *(Ns_ConnDetachProc) (void *carg);
-typedef void    (Ns_ConnFreeProc) (void *carg);
-typedef char   *(Ns_ConnPeerProc) (void *carg);
-typedef int     (Ns_ConnPeerPortProc) (void *carg);
-typedef char   *(Ns_ConnLocationProc) (void *carg);
-typedef char   *(Ns_ConnHostProc) (void *carg);
-typedef int     (Ns_ConnPortProc) (void *carg);
-typedef char   *(Ns_ConnDriverNameProc) (void *carg);
-typedef int     (Ns_ConnSendFdProc) (void *carg, int fd, int nsend);
-typedef int     (Ns_ConnSendFileProc) (void *carg, char *file);
-typedef int	(Ns_ConnConnectionFdProc) (void *carg);
-
-typedef struct Ns_DrvProc {
-    Ns_DrvId        id;
-    void           *proc;
-} Ns_DrvProc;
-
-typedef struct Ns_Driver_ *Ns_Driver;
 
 /*
  * adp.c:
@@ -575,6 +581,7 @@ NS_EXTERN int Ns_ConnClose(Ns_Conn *conn);
 NS_EXTERN int Ns_ConnInit(Ns_Conn *connPtr);
 NS_EXTERN int Ns_ConnRead(Ns_Conn *conn, void *vbuf, int toread);
 NS_EXTERN int Ns_ConnWrite(Ns_Conn *conn, void *buf, int towrite);
+NS_EXTERN int Ns_ConnContentFd(Ns_Conn *conn);
 NS_EXTERN int Ns_ConnReadLine(Ns_Conn *conn, Ns_DString *dsPtr, int *nreadPtr);
 NS_EXTERN int Ns_WriteConn(Ns_Conn *conn, char *buf, int len);
 NS_EXTERN int Ns_ConnPuts(Ns_Conn *conn, char *string);
@@ -583,7 +590,7 @@ NS_EXTERN int Ns_ConnSendChannel(Ns_Conn *conn, Tcl_Channel chan, int nsend);
 NS_EXTERN int Ns_ConnSendFp(Ns_Conn *conn, FILE *fp, int nsend);
 NS_EXTERN int Ns_ConnSendFd(Ns_Conn *conn, int fd, int nsend);
 NS_EXTERN int Ns_ConnCopyToDString(Ns_Conn *conn, size_t ncopy,
-                                Ns_DString *dsPtr);
+				   Ns_DString *dsPtr);
 NS_EXTERN int Ns_ConnCopyToChannel(Ns_Conn *conn, size_t ncopy, Tcl_Channel chan);
 NS_EXTERN int Ns_ConnCopyToFile(Ns_Conn *conn, size_t ncopy, FILE *fp);
 NS_EXTERN int Ns_ConnCopyToFd(Ns_Conn *conn, size_t ncopy, int fd);
@@ -601,6 +608,7 @@ NS_EXTERN Ns_Set *Ns_ConnOutputHeaders(Ns_Conn *conn);
 NS_EXTERN char *Ns_ConnAuthUser(Ns_Conn *conn);
 NS_EXTERN char *Ns_ConnAuthPasswd(Ns_Conn *conn);
 NS_EXTERN int Ns_ConnContentLength(Ns_Conn *conn);
+NS_EXTERN char *Ns_ConnContent(Ns_Conn *conn);
 NS_EXTERN char *Ns_ConnServer(Ns_Conn *conn);
 NS_EXTERN int Ns_ConnResponseStatus(Ns_Conn *conn);
 NS_EXTERN int Ns_ConnContentSent(Ns_Conn *conn);
@@ -688,10 +696,8 @@ NS_EXTERN int Ns_GetAddrByHost(Ns_DString *dsPtr, char *host);
  * driver.c:
  */
 
-NS_EXTERN Ns_Driver Ns_RegisterDriver(char *server, char *name,
-				   Ns_DrvProc *procs, void *arg);
-NS_EXTERN void *Ns_GetDriverContext(Ns_Driver driver);
-NS_EXTERN char *Ns_GetDriverServer(Ns_Driver driver);
+NS_EXTERN int Ns_DriverInit(char *server, char *module, char *name,
+			    Ns_DriverProc *proc, void *arg, int opts);
 
 /*
  * dstring.c:
@@ -1014,12 +1020,6 @@ NS_EXTERN int Ns_ScheduleProcEx(Ns_SchedProc *proc, void *arg, int flags,
 NS_EXTERN void Ns_UnscheduleProc(int id);
 
 /*
- * queue.c:
- */
-
-NS_EXTERN int Ns_QueueConn(Ns_Driver driver, void *arg);
-
-/*
  * set.c:
  */
 
@@ -1213,6 +1213,8 @@ NS_EXTERN void *Ns_ServerSpecificDestroy(char *handle, int id, int flags);
 NS_EXTERN int Ns_CloseOnExec(int fd);
 NS_EXTERN int Ns_NoCloseOnExec(int fd);
 NS_EXTERN int Ns_DupHigh(int *fdPtr);
+NS_EXTERN int Ns_GetTemp(void);
+NS_EXTERN void Ns_ReleaseTemp(int fd);
 
 /*
  * unix.c, win32.c:
