@@ -1,3 +1,10 @@
+2004-09-30  Dossy Shiobara <dossy@panoptic.com>
+
+	* include/ns.h (1.68), nsd/tclhttp.c (1.21), nsd/sockcallback.c
+	  (1.14): Implement Ns_SockCancelCallbackEx() in order to correctly
+	  cancel actions in the SockCallbackThread.  Fix for SF Bug
+	  #1037196.
+
 2004-09-29  Dossy Shiobara <dossy@panoptic.com>
 
 	* include/ns.h (1.67), nsd/tclhttp.c (1.20), nsd/sockcallback.c
