@@ -33,7 +33,7 @@
  *	ADP connection request support.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adprequest.c,v 1.7 2001/03/27 16:45:04 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adprequest.c,v 1.8 2001/04/02 19:41:06 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -95,7 +95,7 @@ Ns_AdpRequest(Ns_Conn *conn, char *file)
 {
     Conn	     *connPtr = (Conn *) conn;
     Tcl_Interp       *interp;
-    Tcl_DString	      response;
+    Tcl_DString	      rds, tds;
     NsInterp          *itPtr;
     int               status;
     char             *type, *start, *argv[1];
@@ -109,8 +109,26 @@ Ns_AdpRequest(Ns_Conn *conn, char *file)
     interp = Ns_GetConnInterp(conn);
     itPtr = NsGetInterp(interp);
     servPtr = itPtr->servPtr;
-    Tcl_DStringInit(&response);
-    itPtr->adp.responsePtr = &response;
+
+    /*
+     * Set the response type and output buffers.
+     */
+
+    Tcl_DStringInit(&rds);
+    Tcl_DStringInit(&tds);
+    itPtr->adp.responsePtr = &rds;
+    itPtr->adp.typePtr = &tds;
+
+    /*
+     * Determine the output type.  This will set both the input
+     * and output encodings by default.
+     */
+
+    type = Ns_GetMimeType(file);
+    if (type == NULL || (strcmp(type, "*/*") == 0)) {
+        type = NSD_TEXTHTML;
+    }
+    NsAdpSetMimeType(itPtr, type);
 
     /*
      * Set the old conn variable for backwards compatibility.
@@ -119,19 +137,14 @@ Ns_AdpRequest(Ns_Conn *conn, char *file)
     Tcl_SetVar2(interp, "conn", NULL, connPtr->idstr, TCL_GLOBAL_ONLY);
     Tcl_ResetResult(interp);
 
-    itPtr->adp.stream = 0;
+    /*
+     * Enable TclPro debugging if requested.
+     */
+
     if (servPtr->adp.enabledebug &&
 	STREQ(conn->request->method, "GET") &&
 	(setPtr = Ns_ConnGetQuery(conn)) != NULL) {
 	itPtr->adp.debugFile = Ns_SetIGet(setPtr, "debug");
-    }
-    type = Ns_GetMimeType(file);
-    if (type == NULL || (strcmp(type, "*/*") == 0)) {
-        type = "text/html; charset=iso-8859-1";
-    }
-    NsAdpSetMimeType(itPtr, type);
-    if (servPtr->adp.enableexpire) {
-	Ns_ConnCondSetHeaders(conn, "Expires", "now");
     }
 
     /*
@@ -159,19 +172,22 @@ Ns_AdpRequest(Ns_Conn *conn, char *file)
      * Cleanup the per-thead ADP context.
      */
 
-    itPtr->adp.outputPtr = NULL;
-    itPtr->adp.exception = ADP_OK;
     itPtr->adp.depth = 0;
     itPtr->adp.argc = 0;
     itPtr->adp.argv = NULL;
     itPtr->adp.cwd = NULL;
     itPtr->adp.file = NULL;
+
+    itPtr->adp.outputPtr = NULL;
+    itPtr->adp.responsePtr = NULL;
+    itPtr->adp.typePtr = NULL;
+    itPtr->adp.exception = ADP_OK;
+    itPtr->adp.stream = 0;
     itPtr->adp.debugLevel = 0;
     itPtr->adp.debugInit = 0;
     itPtr->adp.debugFile = NULL;
-    NsAdpSetMimeType(itPtr, NULL);
-    NsAdpSetCharSet(itPtr, NULL);
-    Tcl_DStringFree(&response);
+    Tcl_DStringFree(&rds);
+    Tcl_DStringFree(&tds);
     return status;
 }
 
@@ -235,35 +251,32 @@ NsAdpStream(NsInterp *itPtr)
 /*
  *----------------------------------------------------------------------
  *
- * NsAdpSetMimeType, NsAdpSetCharSet --
+ * NsAdpSetMimeType --
  *
- *	Sets the mime type (charset) for this adp.
+ *	Sets the mime type and connection encoding for this adp.
  *
  * Results:
  *	None.
  *
  * Side effects:
- *  	New mime type (charset) will be used on output.
+ *  	Type may effect output encoding charset.
  *
  *----------------------------------------------------------------------
  */
 
 void
-NsAdpSetMimeType(NsInterp *itPtr, char *mimetype)
+NsAdpSetMimeType(NsInterp *itPtr, char *type)
 {
-    if (itPtr->adp.mimetype != NULL) {
-	ns_free(itPtr->adp.mimetype);
-    }
-    itPtr->adp.mimetype = ns_strcopy(mimetype);
-}
+    Tcl_Encoding encoding;
 
-void
-NsAdpSetCharSet(NsInterp *itPtr, char *charset)
-{
-    if (itPtr->adp.charset != NULL) {
-	ns_free(itPtr->adp.charset);
+    if (itPtr->adp.typePtr != NULL) {
+	Tcl_DStringFree(itPtr->adp.typePtr);
+	Tcl_DStringAppend(itPtr->adp.typePtr, type, -1);
+	encoding = Ns_GetTypeEncoding(type);
+	if (encoding != NULL) {
+	    Ns_ConnSetEncoding(itPtr->conn, encoding);
+	}
     }
-    itPtr->adp.charset = ns_strcopy(charset);
 }
 
 
@@ -289,53 +302,47 @@ NsFreeAdp(NsInterp *itPtr)
     if (itPtr->adp.cache != NULL) {
 	Ns_CacheDestroy(itPtr->adp.cache);
     }
-    if (itPtr->adp.mimetype != NULL) {
-        ns_free(itPtr->adp.mimetype);
-    }
-    if (itPtr->adp.charset != NULL) {
-        ns_free(itPtr->adp.charset);
-    }
 }
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * AdpFlush --
+ *
+ *	Flush the headers and/or ADP content.
+ *
+ * Results:
+ *	NS_OK or NS_ERROR if a connection write routine failed.
+ *
+ * Side effects:
+ *  	Content is encoded and/or sent.
+ *
+ *----------------------------------------------------------------------
+ */
 
 static int
 AdpFlush(NsInterp *itPtr, int stream)
 {
+    Tcl_Encoding encoding;
     Ns_Conn *conn;
     Tcl_DString  ds;
-    int result, len, senthdrs;
-    char *buf, *charset, *type;
+    int result, len;
+    char *buf, *type;
 
     Tcl_DStringInit(&ds);
     conn = itPtr->conn;
     buf = itPtr->adp.responsePtr->string;
     len = itPtr->adp.responsePtr->length;
-    type = itPtr->adp.mimetype;
-
-    /*
-     * On the first flush request, determine the output
-     * encoding to which the UTF buffer should be converted
-     * if any.
-     */
-
-    senthdrs = (conn->flags & NS_CONN_SENTHDRS);
-    if (!senthdrs) {
-	charset = itPtr->adp.charset;
-	if (charset == NULL && type != NULL) {
-	    charset = strstr(type, "charset=");
-	    if (charset != NULL) {
-		charset += 8;
-		itPtr->adp.encoding = Ns_GetEncoding(charset);
-	    }
-	}
-    }
+    type = itPtr->adp.typePtr->string;
 
     /*
      * If necessary, encode the output.
      */
 
-    if (itPtr->adp.encoding != NULL) {
-	Tcl_UtfToExternalDString(itPtr->adp.encoding, buf, len, &ds);
+    encoding = Ns_ConnGetEncoding(conn);
+    if (encoding != NULL) {
+	Tcl_UtfToExternalDString(encoding, buf, len, &ds);
 	buf = ds.string;
 	len = ds.length;
     }
@@ -346,7 +353,10 @@ AdpFlush(NsInterp *itPtr, int stream)
      */
 
     result = NS_OK;
-    if (!senthdrs) {
+    if (!(conn->flags & NS_CONN_SENTHDRS)) {
+	if (itPtr->servPtr->adp.enableexpire) {
+	    Ns_ConnCondSetHeaders(conn, "Expires", "now");
+	}
 	Ns_ConnSetRequiredHeaders(conn, type, stream ? 0 : len);
 	result = Ns_ConnFlushHeaders(conn, 200);
     }
