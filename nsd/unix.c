@@ -34,7 +34,7 @@
  *	Unix specific routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/unix.c,v 1.8 2001/01/16 18:13:49 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/unix.c,v 1.9 2001/01/16 22:58:08 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -133,13 +133,13 @@ NsRestoreSignals(void)
  *----------------------------------------------------------------------
  */
 
-static int trigger[2];
+static int trigger[2] = {-1, -1};
 
 static void Wakeup(int sig)
 {
     unsigned char c = (unsigned char) sig;
 
-    if (write(trigger[1], &c, 1) != 1) {
+    if (trigger[1] >= 0 && write(trigger[1], &c, 1) != 1) {
 	Ns_Fatal("signal: wakeup trigger write() failed: %s",
 	    strerror(errno));
     }
@@ -149,8 +149,7 @@ void
 NsHandleSignals(void)
 {
     sigset_t set;
-    int err, sig, done;
-    fd_set rset;
+    int err;
     unsigned char c;
     
     /*
@@ -180,40 +179,24 @@ NsHandleSignals(void)
      * Wait endlessly for trigger wakeups.
      */
 
-    done = 0;
-    do {
+    while (1) {
 	do {
-	    FD_ZERO(&rset);
-	    FD_SET(trigger[0], &rset);
-	    err = select(trigger[0]+1, &rset, NULL, NULL, NULL);
+	    err = read(trigger[0], &c, 1);
 	} while (err < 0 && errno == EINTR);
 	if (err < 0) {
-	    Ns_Fatal("signal: select() failed: %s", strerror(errno));
-	}
-	if (!FD_ISSET(trigger[0], &rset)) {
-	    continue;
-	}
-	if (read(trigger[0], &c, 1) != 1) {
 	    Ns_Fatal("signal: wakupe trigger read() failed: %s",
 		strerror(errno));
 	}
-	sig = (int) c;
-	switch (sig) {
-	case SIGHUP:
+	if (c == SIGHUP) {
 	    NsRunSignalProcs();
-	    break;
-	case NS_SIGTCL:
+	} else if (c == NS_SIGTCL) {
 	    NsTclRunInits();
+	} else if (c == SIGTERM || c == SIGINT) {
 	    break;
-	case SIGTERM:
-	case SIGINT:
-	    done = 1;
-	    break;
-	default:
-	    Ns_Fatal("signal: unexpected wakeup signal: %d", sig);
-	    break;
+	} else {
+	    Ns_Fatal("signal: unexpected wakeup signal: %u", c);
 	}
-    } while (!done);
+    }
 
     /*
      * Restore the default signal handlers and exit.
