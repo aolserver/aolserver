@@ -1,3 +1,8 @@
+2004-02-18 11:35  Dossy Shiobara <dossy@panoptic.com>
+
+	* nsperm/nsperm.c: fixed bug #899364, restoring old nsperm
+	  functionality as it was in 3.x.
+
 2003-11-23  mpagenva <mpagenva@aol.com>
         * nsd/tclhttp.c: remove validity check on method param to ns_http 
           queue, since methods in addition to put and post can be valid.
