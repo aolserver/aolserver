@@ -34,7 +34,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.20 2004/02/24 12:15:58 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.21 2004/07/13 22:03:36 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -121,6 +121,7 @@ static Driver *firstDrvPtr; /* First in list of all drivers. */
 static Conn *firstConnPtr;  /* Conn free list. */
 static Ns_Mutex connlock;   /* Lock around Conn free list. */
 static Tcl_HashTable hosts; /* Host header to server table. */
+static ServerMap *defMapPtr;	/* Default server when not found in table. */
 
 
 /*
@@ -166,7 +167,7 @@ NsInitDrivers(void)
 int
 Ns_DriverInit(char *server, char *module, Ns_DriverInitData *init)
 {
-    char *path,*address, *host, *bindaddr, *defproto;
+    char *path, *address, *host, *bindaddr, *defproto;
     int i, n, socktimeout, defport;
     ServerMap *mapPtr;
     Tcl_HashEntry *hPtr;
@@ -370,24 +371,28 @@ Ns_DriverInit(char *server, char *module, Ns_DriverInitData *init)
      */
 
     if (server == NULL) {
+	char *vhost;
 	path = Ns_ConfigGetPath(NULL, module, "servers", NULL);
 	set = Ns_ConfigGetSection(path);
 	for (i = 0; set != NULL && i < Ns_SetSize(set); ++i) {
 	    server = Ns_SetKey(set, i);
-	    host = Ns_SetValue(set, i);
+	    vhost = Ns_SetValue(set, i);
 	    servPtr = NsGetServer(server);
 	    if (servPtr == NULL) {
 		Ns_Log(Error, "%s: no such server: %s", module, server);
 	    } else {
-		hPtr = Tcl_CreateHashEntry(&hosts, host, &n);
+		hPtr = Tcl_CreateHashEntry(&hosts, vhost, &n);
 		if (!n) {
-		    Ns_Log(Error, "%s: duplicate host map: %s", module, host);
+		    Ns_Log(Error, "%s: duplicate host map: %s", module, vhost);
 		} else {
-		    Ns_DStringVarAppend(&ds, defproto, "://", host, NULL);
+		    Ns_DStringVarAppend(&ds, defproto, "://", vhost, NULL);
     		    mapPtr = ns_malloc(sizeof(ServerMap) + ds.length);
     		    mapPtr->servPtr  = servPtr;
 		    strcpy(mapPtr->location, ds.string);
 		    Ns_DStringTrunc(&ds, 0);
+		    if (!defMapPtr && STREQ(host, vhost)) {
+			defMapPtr = mapPtr;
+		    }
     		    Tcl_SetHashValue(hPtr, mapPtr);
 		}
 	    }
@@ -1073,7 +1078,13 @@ DriverThread(void *arg)
 	while ((sockPtr = preqPtr) != NULL) {
 	    preqPtr = sockPtr->nextPtr;
 	    if (!SetServer(sockPtr->connPtr)) {
-		SockRelease(drvPtr, sockPtr);
+		connPtr = sockPtr->connPtr;
+		/* NB: Sock no longer responsible for Conn. */
+		sockPtr->connPtr = NULL;
+		sockPtr->state = SOCK_RUNNING;
+		connPtr->times.queue = drvPtr->now;
+		(void) Ns_ConnReturnBadRequest(connPtr, NULL);
+		// SockRelease(drvPtr, sockPtr);
 	    } else {
             	sockPtr->connPtr->times.ready = drvPtr->now;
 		if (RunPreQueues(sockPtr->connPtr)) {
@@ -1657,30 +1668,39 @@ RunPreQueues(Conn *connPtr)
 static int
 SetServer(Conn *connPtr)
 {
-    ServerMap *mapPtr;
+    ServerMap *mapPtr = NULL;
     Tcl_HashEntry *hPtr;
     char *host;
+    int status = 1;
 
     connPtr->servPtr = connPtr->drvPtr->servPtr;
     connPtr->location = connPtr->drvPtr->location;
+    host = Ns_SetIGet(connPtr->headers, "Host");
+    if (!host && connPtr->request->version >= 1.1) {
+	status = 0;
+    }
     if (connPtr->servPtr == NULL) {
-	host = Ns_SetIGet(connPtr->headers, "Host");
-	if (host != NULL) {
+	if (host) {
 	    hPtr = Tcl_FindHashEntry(&hosts, host);
 	    if (hPtr != NULL) {
 		mapPtr = Tcl_GetHashValue(hPtr);
-		connPtr->servPtr = mapPtr->servPtr;
-		connPtr->location = mapPtr->location;
 	    }
 	}
+	if (!mapPtr) {
+	    mapPtr = defMapPtr;
+	}
+	if (mapPtr) {
+	    connPtr->servPtr = mapPtr->servPtr;
+	    connPtr->location = mapPtr->location;
+	}
         if (connPtr->servPtr == NULL) {
-            return 0;
+            status = 0;
         }
     }
     connPtr->server = connPtr->servPtr->server;
     connPtr->encoding = connPtr->servPtr->encoding.outputEncoding;
     connPtr->urlEncoding = connPtr->servPtr->encoding.urlEncoding;
-    return 1;
+    return status;
 }
 
 
