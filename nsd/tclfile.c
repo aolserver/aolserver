@@ -34,7 +34,7 @@
  *	Tcl commands that do stuff to the filesystem. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclfile.c,v 1.13 2002/06/13 04:41:21 jcollins Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclfile.c,v 1.14 2002/06/14 01:51:26 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #include <utime.h>
@@ -2000,7 +2000,7 @@ NsTclChanObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST obj
 	if (hPtr != NULL) {
 	    chan = Tcl_GetHashValue(hPtr);
 	    Tcl_RegisterChannel(interp, chan);
-	    Tcl_SetResult(interp, Tcl_GetChannelName(chan), TCL_VOLATILE);
+	    Tcl_SetResult(interp, (char *) Tcl_GetChannelName(chan), TCL_VOLATILE);
 	}
     	Ns_MutexUnlock(&servPtr->chans.lock);
 	if (hPtr == NULL) {
