@@ -1,4 +1,3 @@
-
 '\"
 '\" The contents of this file are subject to the AOLserver Public License
 '\" Version 1.1 (the "License"); you may not use this file except in
@@ -28,41 +27,110 @@
 '\" version of this file under either the License or the GPL.
 '\" 
 '\"
-'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_Config.3,v 1.2 2002/09/28 19:58:27 jgdavidson Exp $
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_Config.3,v 1.3 2003/04/10 16:09:14 shmooved Exp $
 '\"
 '\" 
 .so man.macros
 
-.TH Ns_Config 3 4.0 AOLserver "AOLserver Library Procedures"
+.TH Ns_Config 3 3.5 AOLserver "AOLserver Library Procedures"
 .BS
 '\" Note:  do not modify the .SH NAME line immediately below!
 .SH NAME
-Ns_ConfigGetBool, Ns_ConfigGetInt, Ns_ConfigGetInt64, Ns_ConfigGetPath, Ns_ConfigGetSection, Ns_ConfigGetSections, Ns_ConfigGetValue, Ns_ConfigGetValueExact \- library procedures
+Ns_ConfigGetBool, Ns_ConfigGetInt, Ns_ConfigGetInt64, Ns_ConfigGetPath, 
+Ns_ConfigGetSection, Ns_ConfigGetSections, Ns_ConfigGetValue, 
+.br
+Ns_ConfigGetValueExact \- Extract information from the server configuration files
 .SH SYNOPSIS
 .nf
 \fB#include "ns.h"\fR
 .sp
-\fBNs_ConfigGetBool\fR(\fIarg, arg\fR)
+int
+\fBNs_ConfigGetBool\fR(\fIchar *section, char *key, int *valuePtr\fR)
 .sp
-\fBNs_ConfigGetInt\fR(\fIarg, arg\fR)
+int
+\fBNs_ConfigGetInt\fR(\fIchar *section, char *key, int *valuePtr\fR)
 .sp
-\fBNs_ConfigGetInt64\fR(\fIarg, arg\fR)
+int
+\fBNs_ConfigGetInt64\fR(\fIchar *section, char *key, INT64 *valuePtr\fR)
 .sp
-\fBNs_ConfigGetPath\fR(\fIarg, arg\fR)
+char *
+\fBNs_ConfigGetPath\fR(\fIchar *server, char *module, ...\fR)
 .sp
-\fBNs_ConfigGetSection\fR(\fIarg, arg\fR)
+Ns_Set *
+\fBNs_ConfigGetSection\fR(\fIchar *section\fR)
 .sp
-\fBNs_ConfigGetSections\fR(\fIarg, arg\fR)
+Ns_Set **
+\fBNs_ConfigGetSections\fR(\fIvoid\fR)
 .sp
-\fBNs_ConfigGetValue\fR(\fIarg, arg\fR)
+char *
+\fBNs_ConfigGetValue\fR(\fIchar *section, char *key\fR)
 .sp
-\fBNs_ConfigGetValueExact\fR(\fIarg, arg\fR)
+char *
+\fBNs_ConfigGetValueExact\fR(\fIchar *section, char *key\fR)
 .BE
-
 .SH DESCRIPTION
 .PP
-These functions ...
+These functions allow you to extract information from the server 
+config files. 
+.TP
+\fBNs_ConfigGetBool\fR(\fIsection, key, valuePtr\fR)
 
+Examines key in section and returns NS_TRUE for values 1, y, yes, on,
+t, or true, case insensitive, and sets valuePtr to 1.  Returns
+NS_FALSE for values 0, n, no, off, f, false, case insensitive, and
+sets valuePtr to 0.
+.TP
+\fBNs_ConfigGetInt\fR(\fIsection, key, valuePtr\fR)
+
+Examines key in section and attempts to convert to an integer value.
+On success, returns NS_TRUE, otherwise NS_FALSE. The value of the
+integer is placed into valuePtr.
+.TP
+\fBNs_ConfigGetInt64\fR(\fIsection, key, valuePtr\fR)
+
+Like Ns_ConfigGetInt, but with INT64 data instead of system-native int
+types.  This function isn't available on WIN32.
+.TP
+\fBNs_ConfigGetPath\fR(\fIserver, module, ...\fR)
+
+Get the full name of a config file section if it exists. Returns a
+pointer to to an ASCIIZ string of the full path name, or NULL if that
+path is not in the config file. The \fIserver\fR and/or \fImodule\fR
+parameters may be NULL and must be followed a variable list of
+additional parameters, the last element of which must be NULL.
+.sp
+Examples:
+.br
+Ns_ConfigGetPath("server1", "nscp", NULL)
+.br
+\ returns  "ns/server/server1/module/nscp"
+.br
+Ns_ConfigGetPath("server1", "nscp", "users", NULL)
+.br
+\ returns  "ns/server/server1/module/nscp/users"
+.br
+Ns_ConfigGetPath(NULL, "globalmod", "subsect1", "subsect2", NULL)
+.br
+\ returns  "ns/module/globalmod/subsect1/subsect2"
+.TP
+\fBNs_ConfigGetSection\fR(\fIsection\fR)
+
+Returns an Ns_Set of the section's parameters, or NULL if the section
+does not exist.
+.TP
+\fBNs_ConfigGetSections\fR()
+
+Returns a pointer to an array of pointers to Ns_Sets, one for each
+config section. The result is a malloc'ed copy of the config sections.
+.TP
+\fBNs_ConfigGetValue\fR(\fIsection, key\fR)
+
+Returns a pointer to the value of the key in section, or NULL if the
+key doesn't exist.
+.TP
+\fBNs_ConfigGetValueExact\fR(\fIsection, key\fR)
+
+Case sensitive equivalent of Ns_ConfigGetValue. 
 .SH "SEE ALSO"
 nsd(1), info(n)
 

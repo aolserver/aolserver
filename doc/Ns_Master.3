@@ -28,31 +28,62 @@
 '\" version of this file under either the License or the GPL.
 '\" 
 '\"
-'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_Master.3,v 1.2 2002/09/28 19:58:27 jgdavidson Exp $
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_Master.3,v 1.3 2003/04/10 16:09:19 shmooved Exp $
 '\"
 '\" 
 .so man.macros
 
-.TH Ns_Master 3 4.0 AOLserver "AOLserver Library Procedures"
+.TH Ns_Master 3 3.5 AOLserver "AOLserver Library Procedures"
 .BS
 '\" Note:  do not modify the .SH NAME line immediately below!
 .SH NAME
-Ns_MasterLock, Ns_MasterUnlock \- library procedures
+Ns_MasterLock, Ns_MasterUnlock \- Enter and leave the single master critical section lock
 .SH SYNOPSIS
 .nf
 \fB#include "ns.h"\fR
 .sp
-\fBNs_MasterLock\fR(\fIarg, arg\fR)
+void
+\fBNs_MasterLock\fR(\fIvoid\fR)
 .sp
-\fBNs_MasterUnlock\fR(\fIarg, arg\fR)
+void
+\fBNs_MasterUnlock\fR(\fIvoid\fR)
 .BE
 
 .SH DESCRIPTION
 .PP
-These functions ...
+The single master critical section lock is used throughout the core
+server to protect portions of code from being run by more than one
+thread at a time. These are convenience functions which actually make
+calls to \fBNs_CsEnter\fR and \fBNs_CsLeave\fR to perform the locking
+and unlocking function.
+
+You should not use these functions in your modules. To protect
+critical sections in your modules you should create and initialize
+your own named locks, then wrap your critical sections with calls to
+\fBNs_CsEnter\fR and \fBNs_CsLeave\fR.
+
+.TP
+\fBNs_MasterLock\fR()
+
+Enter the single master lock. The thread that holds this lock is
+guaranteed exclusive access to the section of code that follows the
+call to \fBNs_MasterLock\fR. Other threads that attempt to enter the
+master critical section while another thread owns the master lock will
+block until the owning thread releases the master lock.
+
+Be extremely careful with code you place within the master critical
+section. If the thread that owns the master lock blocks for any reason
+while in the master critical section, other threads that need to enter
+that section of code will block until the master lock is released.
+.TP
+\fBNs_MasterUnlock\fR()
+
+Leave the single master critical section. The thread that owns the
+lock must release it after the critical section of code has completed
+so that other threads may execute the critical section code.
 
 .SH "SEE ALSO"
-nsd(1), info(n)
+nsd(1), info(n), Ns_CsEnter(3), Ns_CsLeave(3)
 
 .SH KEYWORDS
 

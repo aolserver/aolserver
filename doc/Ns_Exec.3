@@ -28,42 +28,104 @@
 '\" version of this file under either the License or the GPL.
 '\" 
 '\"
-'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_Exec.3,v 1.2 2002/09/28 19:58:27 jgdavidson Exp $
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_Exec.3,v 1.3 2003/04/10 16:09:17 shmooved Exp $
 '\"
 '\" 
 .so man.macros
 
-.TH Ns_Exec 3 4.0 AOLserver "AOLserver Library Procedures"
+.TH Ns_Exec 3 3.5 AOLserver "AOLserver Library Procedures"
 .BS
 '\" Note:  do not modify the .SH NAME line immediately below!
 .SH NAME
-, Ns_ExecArgblk, Ns_ExecArgv, Ns_ExecProc, Ns_ExecProcess, Ns_Fork, Ns_WaitForProcess, Ns_WaitProcess, ns_fork \- library procedures
+Ns_ExecArgblk, Ns_ExecArgv, Ns_ExecProc, Ns_ExecProcess, Ns_Fork, Ns_GetEnviron, 
+Ns_WaitForProcess, Ns_WaitProcess, ns_fork \- External process execution
 .SH SYNOPSIS
 .nf
 \fB#include "ns.h"\fR
 .sp
-\fB\fR(\fIarg, arg\fR)
+int
+\fBNs_ExecArgblk\fR(\fIchar *exec, char *dir, int fdin, int fdout,
+              char *args, Ns_Set *env\fR)
 .sp
-\fBNs_ExecArgblk\fR(\fIarg, arg\fR)
+int
+\fBNs_ExecArgv\fR(\fIchar *exec, char *dir, int fdin, int fdout, 
+            char **argv, Ns_Set *env\fR)
 .sp
-\fBNs_ExecArgv\fR(\fIarg, arg\fR)
+int
+\fBNs_ExecProc\fR(\fIchar *exec, char **argv\fR)
 .sp
-\fBNs_ExecProc\fR(\fIarg, arg\fR)
+int
+\fBNs_ExecProcess\fR(\fIchar *exec, char *dir, int fdin, int fdout,
+			char *args, Ns_Set *env\fR)
 .sp
-\fBNs_ExecProcess\fR(\fIarg, arg\fR)
+int
+\fBNs_Fork\fR(\fIvoid\fR)
 .sp
-\fBNs_Fork\fR(\fIarg, arg\fR)
+char
+\fB**Ns_GetEnviron\fR(\fIvoid\fR)
 .sp
-\fBNs_WaitForProcess\fR(\fIarg, arg\fR)
+int
+\fBNs_WaitForProcess\fR(\fIint pid, int *statusPtr\fR)
 .sp
-\fBNs_WaitProcess\fR(\fIarg, arg\fR)
+int
+\fBNs_WaitProcess\fR(\fIint pid\fR)
 .sp
-\fBns_fork\fR(\fIarg, arg\fR)
+int
+\fBns_fork\fR(\fIvoid\fR)
 .BE
 
 .SH DESCRIPTION
 .PP
-These functions ...
+These functions handle fork and exec operations. See files:
+nsd/exec.c, nsd/tclenv.c and nsthread/fork.c.
+.TP
+\fBNs_ExecArgblk\fR(\fIexec, dir, fdin, fdout, args, env\fR)
+
+Executes a command in a child process. Return process id of 
+child process exec\'ing the command or \-1 on failure. Provides extended
+error checking and error messages.
+.TP
+\fBNs_ExecArgv\fR(\fIexec, dir, fdin, fdout, argv, env\fR)
+
+Execute a command in a child process using fork(2) and execve(2),
+returns the process id of child process exec\'ing the command or
+\-1 on failure. The child sends an extended error message to the
+parent.
+.TP
+\fBNs_ExecProc\fR(\fIexec, argv\fR)
+
+Executes a command in a child process. Returns the process id
+of the child process exec\'ing the command or \-1 on failure. 
+Simplifies call to Ns_ExecArgv.
+.TP
+\fBNs_ExecProcess\fR(\fIexec, dir, fdin, fdout, args, env\fR)
+
+Executes a command in a child process. Returns the process id
+of the child process exec\'ing the command or \-1 on failure. 
+Calls Ns_ExecArgblk with same arguments.
+.TP
+\fBNs_Fork\fR(\fI\fR)
+Posix style fork(), using fork1() on Solaris if needed. See
+fork\(2\) man page. Calls ns_fork.
+.TP
+\fBNs_GetEnviron\fR(\fI\fR)
+
+Returns pointer to the environment vector.
+.TP
+\fBNs_WaitForProcess\fR(\fIpid, statusPtr\fR)
+
+Wait for child process. Returns NS_OK on success, or 
+NS_ERROR on failure. *statusPtr is set to the exit 
+code of the child process.
+.TP
+\fBNs_WaitProcess\fR(\fIpid\fR)
+
+Wait for child process. Calls Ns_WaitForProcess with NULL
+statusPtr. Returns NS_OK on success, or NS_ERROR on failure.
+.TP
+\fBns_fork\fR(\fI\fR)
+
+Posix style fork(), using fork1() on Solaris if needed.
 
 .SH "SEE ALSO"
 nsd(1), info(n)

@@ -28,30 +28,62 @@
 '\" version of this file under either the License or the GPL.
 '\" 
 '\"
-'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_Pathname.3,v 1.2 2002/09/28 19:58:27 jgdavidson Exp $
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_Pathname.3,v 1.3 2003/04/10 16:09:19 shmooved Exp $
 '\"
 '\" 
 .so man.macros
 
-.TH Ns_Pathname 3 4.0 AOLserver "AOLserver Library Procedures"
+.TH Ns_Pathname 3 3.5 AOLserver "AOLserver Library Procedures"
 .BS
 '\" Note:  do not modify the .SH NAME line immediately below!
 .SH NAME
-Ns_MakePath, Ns_NormalizePath, Ns_PathIsAbsolute \- library procedures
+Ns_MakePath, Ns_NormalizePath, Ns_PathIsAbsolute \- Pathname procedures
 .SH SYNOPSIS
 .nf
 \fB#include "ns.h"\fR
 .sp
-\fBNs_MakePath\fR(\fIarg, arg\fR)
+char *
+\fBNs_MakePath\fR(\fINs_DString *dest, ...\fR)
 .sp
-\fBNs_NormalizePath\fR(\fIarg, arg\fR)
+char *
+\fBNs_NormalizePath\fR(\fINs_DString *dsPtr, char *path\fR)
 .sp
-\fBNs_PathIsAbsolute\fR(\fIarg, arg\fR)
+int
+\fBNs_PathIsAbsolute\fR(\fIchar *path\fR)
 .BE
 
 .SH DESCRIPTION
 .PP
-These functions ...
+These functions operate on file pathnames. They work with Unix and
+Windows pathnames on their respective hosts.
+.TP
+\fBNs_MakePath\fR(\fIdest, ...\fR)
+
+Construct a path name from a list of path elements. The Ns_MakePath
+function constructs a path name by appending a list of path elements
+to the given Ns_DString. The path elements are separated by single
+slashes, and the resulting path name is appended to the given
+Ns_DString. The last argument needs to be NULL to indicate the end of
+the argument list.
+.TP
+\fBNs_NormalizePath\fR(\fIdsPtr, path\fR)
+
+Normalize a path name. This function removes any extraneous slashes
+from the path and resolves "." and ".."  references. The result is
+appended to the given Ns_DString. The following code appends "/dog" to
+the Ns_DString:
+
+.CS
+Ns_NormalizePath(&ds,
+    "/dog/cat/../../rat/../../dog//mouse/..");
+.CE
+.TP
+\fBNs_PathIsAbsolute\fR(\fIpath\fR)
+
+Check for an absolute path name. Return NS_TRUE if the path is
+absolute and NS_FALSE otherwise. Under Unix, an absolute path starts
+with a "/". On Windows, it starts with a drive letter followed
+immediately by a ":".
 
 .SH "SEE ALSO"
 nsd(1), info(n)
