@@ -1,3 +1,8 @@
+2003-02-01  Nathan Folkman <shmooved@aol.com>
+
+        * nsd/tclmisc.c: Fixed Ns_ThreadList to include connection 
+        argument and proc information via Ns_GetProcInfo.
+
 2003-01-24  Nathan Folkman <shmooved@aol.com>
 
         * nsd/tclvar.c: Added a NULL as the last argument to 
