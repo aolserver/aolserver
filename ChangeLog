@@ -1,3 +1,8 @@
+2004-09-22  Dossy Shiobara <dossy@panoptic.com>
+
+	* configure (1.22), configure.in (1.17): get{addr,name}info on
+	  Solaris 9 is in -lsocket.
+
 2004-09-21  Dossy Shiobara <dossy@panoptic.com>
 
 	* configure (1.21), configure.in (1.16): Ensure we use the compiler
