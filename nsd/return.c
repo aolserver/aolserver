@@ -34,11 +34,15 @@
  *	Functions that return data to a browser. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.28 2003/08/19 21:23:08 shmooved Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.29 2003/08/19 21:44:20 rahul032213 Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
 #define MAX_RECURSION 3       /* Max return direct recursion limit. */
+
+#define HTTP11_HDR_TE "Transfer-Encoding"
+#define HTTP11_TE_CHUNKED "chunked"
+
 
 /*
  * Local functions defined in this file
@@ -150,6 +154,28 @@ Ns_RegisterReturn(int status, char *url)
     }
 }
 
+static int isSetupForChunkedEncoding(Ns_Conn *conn) 
+{
+  int headerCount = 0;
+  int i;
+  Ns_Set* outHeaders;
+
+  if (conn == NULL)
+    return 0;
+
+  outHeaders = Ns_ConnOutputHeaders(conn);
+  headerCount = Ns_SetSize (outHeaders);
+
+  if (outHeaders && headerCount) {
+    for (i = 0 ; i < headerCount ; i++) {
+      if ( !strcasecmp(Ns_SetKey (outHeaders, i), HTTP11_HDR_TE) &&
+	   !strcasecmp(Ns_SetValue (outHeaders, i), HTTP11_TE_CHUNKED) )
+	return 1;
+    }
+  }
+  return 0;
+}
+
 
 /*
  *----------------------------------------------------------------------
@@ -177,6 +203,7 @@ Ns_ConnConstructHeaders(Ns_Conn *conn, Ns_DString *dsPtr)
     char *value, *keep;
     char *key, *lengthHdr;
     Conn *connPtr;
+    int  doChunkEncoding = 0;
 
     /*
      * Construct the HTTP response status line.
@@ -191,7 +218,13 @@ Ns_ConnConstructHeaders(Ns_Conn *conn, Ns_DString *dsPtr)
 	    break;
 	}
     }
-    Ns_DStringVarAppend(dsPtr, "HTTP/1.0 ", buf, " ", reason, "\r\n", NULL);
+
+    doChunkEncoding = isSetupForChunkedEncoding(conn);
+
+    if (!doChunkEncoding)
+      Ns_DStringVarAppend(dsPtr, "HTTP/1.0 ", buf, " ", reason, "\r\n", NULL);
+    else
+      Ns_DStringVarAppend(dsPtr, "HTTP/1.1 ", buf, " ", reason, "\r\n", NULL);
 
     /*
      * Output any headers.
@@ -220,9 +253,9 @@ Ns_ConnConstructHeaders(Ns_Conn *conn, Ns_DString *dsPtr)
 	    connPtr->headers != NULL &&
 	    connPtr->request != NULL &&
 	    ((connPtr->responseStatus == 200 &&
-	    lengthHdr != NULL &&
-	    connPtr->responseLength == length) ||
-            connPtr->responseStatus == 304) &&
+	      (lengthHdr != NULL &&
+	      connPtr->responseLength == length)|| doChunkEncoding) ||
+	     connPtr->responseStatus == 304) &&
 	    STREQ(connPtr->request->method, "GET") &&
 	    (key = Ns_SetIGet(conn->headers, "connection")) != NULL &&
 	    STRIEQ(key, "keep-alive")) {
@@ -231,7 +264,9 @@ Ns_ConnConstructHeaders(Ns_Conn *conn, Ns_DString *dsPtr)
 	} else {
 	    keep = "close";
 	}
+
 	Ns_ConnCondSetHeaders(conn, "Connection", keep);
+	
 
 	for (i = 0; i < Ns_SetSize(conn->outputheaders); i++) {
 	    key = Ns_SetKey(conn->outputheaders, i);
