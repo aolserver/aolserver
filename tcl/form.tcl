@@ -28,13 +28,40 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/form.tcl,v 1.5 2002/02/08 07:56:16 hobbs Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/form.tcl,v 1.6 2002/10/14 23:21:26 jgdavidson Exp $
 #
 
 #
-# form.tcl -- Handle url-encoded or multi-part data for forms
+# form.tcl -- Handle url-encoded or multi-part forms.
+#
+# Multi-part forms are described in RFC 1867:
+#
+#	http://www.ietf.org/rfc/rfc1867.txt
+#
+# Briefly, use:
+#
+#	<form enctype="multipart/form-data" action="url" method=post>
+#	First file: <input name="file1" type="file">
+#	Second file: <input name="file2" type="file">
+#	<input type="submit">
+#	</form>
+#
+# and then access with:
+#
+#	set tmpfile1 [ns_getformfile file1]
+#	set tmpfile2 [ns_getformfile file2]
+#	set fp1 [open $tmpfile1]
+#	set fp2 [open $tmpfile2]
+#
+# Temp files created by ns_getform are removed when the connection closes.
 #
 
+
+#
+# ns_queryget --
+#
+#	Get a value from the http form.
+#
 
 proc ns_queryget {key {value ""}}  {
     set form [ns_getform]
@@ -46,6 +73,13 @@ proc ns_queryget {key {value ""}}  {
     }
     return $value
 }
+
+
+#
+# ns_querygetall --
+#
+#	Get all values of the same key name from the http form.
+#
 
 proc ns_querygetall {key {def_result ""}} {
     set form [ns_getform]
@@ -68,6 +102,7 @@ proc ns_querygetall {key {def_result ""}} {
      return $result
 }
 
+
 #
 # ns_queryexists --
 #
@@ -87,31 +122,48 @@ proc ns_queryexists { key } {
 #
 # ns_getform --
 #
-#	Return the connection form, spooling multipart form data
+#	Return the connection form, copying multipart form data
 #	into temp files if necessary.
 #
 
 proc ns_getform { }  {
-    global _ns_form
+    global _ns_form _ns_formfiles
 
     if {![info exists _ns_form]} {
 	set _ns_form [ns_conn form]
-	foreach {n i} [ns_conn files] {
-		set o [lindex $i 0]
-		set l [lindex $i 1]
+	foreach {name offset length type} [ns_conn files] {
 	    	set fp ""
 	    	while {$fp == ""} {
 			set tmpfile [ns_tmpnam]
 			set fp [ns_openexcl $tmpfile]
 	    	}
-		fconfigure $fp -translation binary -encoding binary
-		ns_conn copy $o $l $fp
+		fconfigure $fp -translation binary 
+		ns_conn copy $offset $length $fp
 		close $fp
 		ns_atclose "ns_unlink -nocomplain $tmpfile"
-	    	ns_set put $_ns_form $n.tmpfile $tmpfile
+		set _ns_formfiles($name,file) $tmpfile
+		set _ns_formfiles($name,type) $type
+	    	#ns_set put $_ns_form $name.tmpfile $tmpfile
 	}
     }
     return $_ns_form
+}
+
+
+#
+# ns_getformfile --
+#
+#	Return a tempfile for a form file field.
+#
+
+proc ns_getformfile {name} {
+    global _ns_formfiles
+
+    ns_getform
+    if {![info exists _ns_formfiles($name,file)]} {
+	return ""
+    }
+    return $_ns_formfiles($name,file)
 }
 
 
@@ -131,4 +183,3 @@ proc ns_openexcl file {
     }
     return $fp
 }
-
