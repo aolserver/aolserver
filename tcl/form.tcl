@@ -28,7 +28,7 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/form.tcl,v 1.6 2002/10/14 23:21:26 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/form.tcl,v 1.7 2002/10/30 00:02:26 jgdavidson Exp $
 #
 
 #
@@ -131,19 +131,24 @@ proc ns_getform { }  {
 
     if {![info exists _ns_form]} {
 	set _ns_form [ns_conn form]
-	foreach {name offset length type} [ns_conn files] {
+	foreach {file} [ns_conn files] {
+		set off [ns_conn fileoffset $file]
+		set len [ns_conn filelength $file]
+		set hdr [ns_conn fileheaders $file]
+		set type [ns_set get $hdr content-type]
 	    	set fp ""
 	    	while {$fp == ""} {
 			set tmpfile [ns_tmpnam]
 			set fp [ns_openexcl $tmpfile]
 	    	}
 		fconfigure $fp -translation binary 
-		ns_conn copy $offset $length $fp
+		ns_conn copy $off $len $fp
 		close $fp
 		ns_atclose "ns_unlink -nocomplain $tmpfile"
-		set _ns_formfiles($name,file) $tmpfile
-		set _ns_formfiles($name,type) $type
-	    	#ns_set put $_ns_form $name.tmpfile $tmpfile
+		set _ns_formfiles($file) $tmpfile
+	    	ns_set put $_ns_form $file.content-type $type
+		# NB: Insecure, access via ns_getformfile.
+	    	ns_set put $_ns_form $file.tmpfile $tmpfile
 	}
     }
     return $_ns_form
@@ -160,10 +165,10 @@ proc ns_getformfile {name} {
     global _ns_formfiles
 
     ns_getform
-    if {![info exists _ns_formfiles($name,file)]} {
+    if {![info exists _ns_formfiles($name)]} {
 	return ""
     }
-    return $_ns_formfiles($name,file)
+    return $_ns_formfiles($name)
 }
 
 
