@@ -28,7 +28,7 @@
  */
 
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscgi/nscgi.c,v 1.11 2001/03/28 01:15:53 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscgi/nscgi.c,v 1.12 2001/04/23 21:19:46 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 #include <sys/stat.h>
@@ -45,7 +45,6 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsc
 #define CGI_SYSENV	8
 
 #ifdef WIN32
-#include <share.h>
 #define S_ISREG(m)	((m)&_S_IFREG)
 #define S_ISDIR(m)	((m)&_S_IFDIR)
 #define DEVNULL	    "nul:"
@@ -63,7 +62,6 @@ struct Cgi;
 typedef struct Mod {
     char	   *server;
     char	   *module;
-    char	   *tmpdir;
     Ns_Set         *interps;
     Ns_Set         *mergeEnv;
     struct Cgi     *firstCgiPtr;
@@ -75,27 +73,6 @@ typedef struct Mod {
     Ns_Mutex 	    lock;
     Ns_Cond 	    cond;
 } Mod;
-
-/*
- * The following structure is used to maintain a list of open temp files
- * used to spool CGI input.  A file is used to avoid tricky asynchronous I/O
- * between two open pipes for input and output and to ensure the client gets
- * a proper EOF.  You may think this would be slower however it's probably
- * fine because the majority of the work for a temp file is the multiple,
- * synchronous I/O's for creating and deleting the file.  By creating the file
- * once and quickly truncating the content after the CGI consumes the data
- * it's likely the content simply dies in the kernel buffer cache anyway so
- * that the overall performance should approach (or even surpass) that of
- * a direct pipe.  Note that a pipe is used for output for proper streaming.
- */
- 
-typedef struct Tmp {
-    struct Tmp *nextPtr;
-    int fd;
-} Tmp;
-
-static Ns_Mutex tmpLock;
-static Tmp *firstTmpPtr;
 
 /*
  * The following structure, allocated on the stack of CgiRequest, is used
@@ -117,7 +94,7 @@ typedef struct Cgi {
     char           *exec;
     char           *interp;
     Ns_Set         *interpEnv;
-    Tmp		   *tmpPtr;
+    int		    ifd;
     int		    ofd;
     int		    cnt;
     char	   *ptr;
@@ -156,10 +133,6 @@ static int	CgiSpool(Cgi *cgiPtr, Ns_Conn *conn);
 static int	CgiCopy(Cgi *cgiPtr, Ns_Conn *conn);
 static int	CgiRead(Cgi *cgiPtr);
 static int	CgiReadLine(Cgi *cgiPtr, Ns_DString *dsPtr);
-static int	CgiOpenTmp(char *tmp);
-static Tmp *	CgiGetTmp(Mod *modPtr);
-static void 	CgiFreeTmp(Tmp *tmpPtr);
-static void	CgiCloseTmp(Tmp *tmpPtr, char *err);
 static char    *NextWord(char *s);
 static void	SetAppend(Ns_Set *set, int index, char *sep, char *value);
 static void	SetUpdate(Ns_Set *set, char *key, char *value);
@@ -209,7 +182,6 @@ Ns_ModuleInit(char *server, char *module)
 	}
 	Ns_DupHigh(&devNull);
 	Ns_CloseOnExec(devNull);
-	Ns_MutexSetName2(&tmpLock, "nscgi", "tmpfd");
 	initialized = 1;
     }
 
@@ -221,10 +193,6 @@ Ns_ModuleInit(char *server, char *module)
     modPtr = ns_calloc(1, sizeof(Mod));
     modPtr->module = module;
     modPtr->server = server;
-    modPtr->tmpdir = Ns_ConfigGet(path, "tmpdir");
-    if (modPtr->tmpdir == NULL) {
-	modPtr->tmpdir = P_tmpdir;
-    }
     if (!Ns_ConfigGetInt(path, "maxinput", &modPtr->maxInput)) {
         modPtr->maxInput = DEFAULT_MAXINPUT;
     }
@@ -441,7 +409,7 @@ CgiInit(Cgi *cgiPtr, Map *mapPtr, Ns_Conn *conn)
     cgiPtr->buf[0] = '\0';
     cgiPtr->modPtr = modPtr;
     cgiPtr->pid = -1;
-    cgiPtr->ofd = -1;
+    cgiPtr->ofd = cgiPtr->ifd = -1;
     cgiPtr->ptr = cgiPtr->buf;
     for (i = 0; i < NDSTRINGS; ++i) {
 	Ns_DStringInit(&cgiPtr->ds[i]);
@@ -610,51 +578,30 @@ err:
 static int
 CgiSpool(Cgi *cgiPtr, Ns_Conn *conn)
 {
-    int     tocopy, toread, nread;
-    Tmp	   *tmpPtr;
-    char   *err;
-    Mod *modPtr = cgiPtr->modPtr;
-
-    /*
-     * Pop a temp file.
-     */
-
-    tmpPtr = CgiGetTmp(modPtr);
-    if (tmpPtr == NULL) {
-	return NS_ERROR;
-    }
-
-    /*
-     * Copy content to the file.
-     */
+    int     len, fd;
+    char   *content, *err;
+    Mod    *modPtr = cgiPtr->modPtr;
 
     err = NULL;
-    tocopy = conn->contentLength;
-    while (tocopy > 0) {
-	toread = tocopy;
-	if (toread > sizeof(cgiPtr->buf)) {
-	    toread = sizeof(cgiPtr->buf);
-	}
-	nread = Ns_ConnRead(conn, cgiPtr->buf, toread);
-	if (nread <= 0) {
-	    cgiPtr->flags |= CGI_ECONTENT;
-	    CgiFreeTmp(tmpPtr);
-	    return NS_ERROR;
-	}
-	if (write(tmpPtr->fd, cgiPtr->buf, nread) != nread) {
-	    err = "write";
-	    break;
-	}
-	tocopy -= nread;
-    }
-    if (tocopy == 0 && lseek(tmpPtr->fd, 0L, SEEK_SET) != 0) {
+    len = conn->contentLength;
+    content = Ns_ConnContent(conn);
+    fd = Ns_GetTemp();
+    if (fd < 0) {
+	Ns_Log(Error, "nscgi: could not allocate temp file.");
+    } else if (write(fd, content, len) != len) {
+	err = "write";
+    } else if (lseek(fd, 0, SEEK_SET) != 0) {
 	err = "lseek";
     }
     if (err != NULL) {
-	CgiCloseTmp(tmpPtr, err);
+	Ns_Log(Error, "nscgi: temp file %s failed: %s", err, strerror(errno));
+	close(fd);
+	fd = -1;
+    }
+    if (fd < 0) {
 	return NS_ERROR;
     }
-    cgiPtr->tmpPtr = tmpPtr;
+    cgiPtr->ifd = fd;
     return NS_OK;
 }
 
@@ -710,11 +657,11 @@ CgiFree(Cgi *cgiPtr)
     }
         
     /*
-     * Truncate and release the temp file.
+     * Release the temp file.
      */
 
-    if (cgiPtr->tmpPtr != NULL) {
-    	CgiFreeTmp(cgiPtr->tmpPtr);
+    if (cgiPtr->ifd >= 0) {
+	Ns_ReleaseTemp(cgiPtr->ifd);
     }
      
     /*
@@ -979,7 +926,7 @@ CgiExec(Cgi *cgiPtr, Ns_Conn *conn)
      */
      
     cgiPtr->pid = Ns_ExecProcess(cgiPtr->exec, cgiPtr->dir,
-    	cgiPtr->tmpPtr ? cgiPtr->tmpPtr->fd : devNull,
+	cgiPtr->ifd < 0 ? devNull : cgiPtr->ifd,
 	opipe[1], dsPtr->string, cgiPtr->env);
     close(opipe[1]);
     if (cgiPtr->pid < 0) {
@@ -1349,134 +1296,3 @@ SetUpdate(Ns_Set *set, char *key, char *value)
     Ns_SetUpdate(set, key, value ? value : "");
 }
 
-
-/*
- *----------------------------------------------------------------------
- *
- * CgiCloseTmp -
- *
- *	Close temp file.
- *
- * Results:
- *	None.
- *
- * Side effects:
- *	On NT, file is removed.
- *
- *----------------------------------------------------------------------
- */
-
-static void
-CgiCloseTmp(Tmp *tmpPtr, char *err)
-{
-    if (err != NULL) {
-	Ns_Log(Error, "nscgi: temp file %s(%d) failed: %s",
-	       err, tmpPtr->fd, strerror(errno));
-    }
-    close(tmpPtr->fd);
-    ns_free(tmpPtr);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * CgiGetTmp -
- *
- *	Pop or allocate a temp file.  Temp files are immediately
- *	removed on Unix and marked non-shared and delete on close
- *	on NT to avoid snooping of data being sent to the CGI.
- *
- * Results:
- *	Pointer to Tmp.
- *
- * Side effects:
- *	File may be opened.
- *
- *----------------------------------------------------------------------
- */
-
-static Tmp *
-CgiGetTmp(Mod *modPtr)
-{
-    Tmp *tmpPtr;
-    
-    Ns_MutexLock(&tmpLock);
-    tmpPtr = firstTmpPtr;
-    if (tmpPtr != NULL) {
-	firstTmpPtr = tmpPtr->nextPtr;
-    }
-    Ns_MutexUnlock(&tmpLock);
-    if (tmpPtr == NULL) {
-	Ns_DString ds;
-	char *tmp;
-	int fd;
-	Ns_DStringInit(&ds);
-	tmp = Ns_MakePath(&ds, modPtr->tmpdir, "cgi.XXXXXX", NULL);
-	if (mktemp(tmp) == NULL || tmp[0] == '\0') {
-	    Ns_Log(Error, "nscgi: %s: mktemp(%s) failed: %s",
-		   modPtr->server, tmp, strerror(errno));
-	} else {
-	    int flags = O_RDWR|O_CREAT|O_TRUNC;
-
-#ifdef WIN32
-	    flags |= _O_SHORT_LIVED|_O_NOINHERIT|_O_TEMPORARY;
-	    fd = _sopen(tmp, flags, _SH_DENYRW, _S_IREAD|_S_IWRITE);
-#else
-	    fd = open(tmp, flags, 0600);
-	    if (fd >= 0 && unlink(tmp) != 0) {
-		Ns_Log(Error, "nscgi: unlink(%s) failed: %s",
-		       tmp, strerror(errno));
-		close(fd);
-		fd = -1;
-	    }
-	    if (fd >= 0) {
-		Ns_DupHigh(&fd);
-		Ns_CloseOnExec(fd);
-	    }
-#endif
-	    if (fd < 0) {
-		Ns_Log(Error, "nscgi: could not open temp file %s: %s",
-		       tmp, strerror(errno));
-	    } else {
-		tmpPtr = ns_malloc(sizeof(Tmp));
-		tmpPtr->nextPtr = NULL;
-		tmpPtr->fd = fd;
-	    }
-	}
-	Ns_DStringFree(&ds);
-    }
-    return tmpPtr;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * CgiFreeTmp -
- *
- *	Return a temp file to the pool.
- *
- * Results:
- *	None.
- *
- * Side effects:
- *	File may be closed on error.
- *
- *----------------------------------------------------------------------
- */
-
-static void
-CgiFreeTmp(Tmp *tmpPtr)
-{
-    if (lseek(tmpPtr->fd, 0, SEEK_SET) != 0) {
-	CgiCloseTmp(tmpPtr, "lseek");
-    } else if (ftruncate(tmpPtr->fd, 0) != 0) {
-	CgiCloseTmp(tmpPtr, "ftruncate");
-    } else {
-	Ns_MutexLock(&tmpLock);
-	tmpPtr->nextPtr = firstTmpPtr;
-	firstTmpPtr = tmpPtr;
-	Ns_MutexUnlock(&tmpLock);
-    }
-}
