@@ -33,7 +33,7 @@
  *  Routines for the managing the connection thread pools.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/pools.c,v 1.2 2004/07/30 12:38:47 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/pools.c,v 1.3 2004/07/30 16:07:18 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -85,7 +85,7 @@ NsInitPools(void)
     defpool.name = ns_strdup("default");
     hPtr = Tcl_CreateHashEntry(&pools, "default", &new);
     if (new) {
-        Tcl_SetHashValue(hPtr, &pools);
+        Tcl_SetHashValue(hPtr, &defpool);
     }
 }
 
@@ -124,6 +124,7 @@ InitPool(Pool *poolPtr)
     memset(poolPtr, 0, sizeof(Pool));
     Ns_MutexInit(&poolPtr->lock);
     Ns_CondInit(&poolPtr->cond);
+    poolPtr->name = NULL;
     poolPtr->threads.min = 0;       
     poolPtr->threads.max = 10;      
     poolPtr->threads.timeout = 120; /* NB: Exit after 2 minutes idle. */
@@ -229,7 +230,7 @@ NsTclPoolsObjCmd(ClientData data, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
         PGetIdx, PSetIdx, PListIdx, PRegisterIdx
     } opt;
     static CONST char *cfgs[] = {
-        "maxthreads", "minthreads", "maxconns", "timeout", NULL
+        "-maxthreads", "-minthreads", "-maxconns", "-timeout", NULL
     };
     enum {
         PCMaxThreadsIdx, PCMinThreadsIdx, PCMaxConnsIdx, PCTimeoutIdx
@@ -347,10 +348,10 @@ AppendPool(Tcl_Interp *interp, char *key, int val)
     Tcl_Obj *result = Tcl_GetObjResult(interp);
 
     if (Tcl_ListObjAppendElement(interp, result, Tcl_NewStringObj(key, -1))
-                != TCL_OK ||
-        Tcl_ListObjAppendElement(interp, result, Tcl_NewIntObj(val))
-                != TCL_OK) {
-    return 0;
+            != TCL_OK ||
+            Tcl_ListObjAppendElement(interp, result, Tcl_NewIntObj(val))
+            != TCL_OK) {
+        return 0;
     }
     return 1;
 }

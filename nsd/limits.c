@@ -33,7 +33,7 @@
  *  Routines to manage resource limits.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/limits.c,v 1.2 2004/07/30 12:38:47 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/limits.c,v 1.3 2004/07/30 16:07:18 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -246,10 +246,10 @@ AppendLimit(Tcl_Interp *interp, char *limit, int val)
     Tcl_Obj *result = Tcl_GetObjResult(interp);
 
     if (Tcl_ListObjAppendElement(interp, result, Tcl_NewStringObj(limit, -1))
-                != TCL_OK ||
-        Tcl_ListObjAppendElement(interp, result, Tcl_NewIntObj(val))
-                != TCL_OK) {
-    return 0;
+            != TCL_OK ||
+            Tcl_ListObjAppendElement(interp, result, Tcl_NewIntObj(val))
+            != TCL_OK) {
+        return 0;
     }
     return 1;
 }
@@ -259,11 +259,11 @@ static int
 LimitsResult(Tcl_Interp *interp, Limits *limitsPtr)
 {
     if (!AppendLimit(interp, "nrunning", limitsPtr->nrunning) ||
-    !AppendLimit(interp, "nwaiting", limitsPtr->nwaiting) ||
-        !AppendLimit(interp, "maxwait", limitsPtr->maxwait) ||
-        !AppendLimit(interp, "maxupload", limitsPtr->maxupload) ||
-        !AppendLimit(interp, "maxrun", limitsPtr->maxrun)) {
-    return TCL_ERROR;
+            !AppendLimit(interp, "nwaiting", limitsPtr->nwaiting) ||
+            !AppendLimit(interp, "maxwait", limitsPtr->maxwait) ||
+            !AppendLimit(interp, "maxupload", limitsPtr->maxupload) ||
+            !AppendLimit(interp, "maxrun", limitsPtr->maxrun)) {
+        return TCL_ERROR;
     }
     return TCL_OK;
 }
