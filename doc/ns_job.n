@@ -28,7 +28,7 @@
 '\" version of this file under either the License or the GPL.
 '\" 
 '\"
-'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_job.n,v 1.5 2003/09/11 21:50:47 pmoosman Exp $
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_job.n,v 1.6 2003/09/19 14:21:36 pmoosman Exp $
 '\"
 '\" 
 .so man.macros
@@ -41,27 +41,39 @@ ns_job \- commands
 .SH SYNOPSIS
 \fBns_job\fR option ?\fIarg arg ...\fR?
 
-\fBns_job\fR create \fIqueue_name ?maxthreads? \fR
+\fBns_job\fR create \fI?-desc description? queueId ?maxthreads? \fR
 
-\fBns_job\fR queue \fIqueue_name script \fR
+\fBns_job\fR queue \fI?-detached? queueId  script \fR
 
-\fBns_job\fR wait \fIqueue_name job_id \fR
+\fBns_job\fR wait \fI?-timeout seconds milliseconds? queueId  jobId \fR
 
-\fBns_job\fR cancel \fIqueue_name job_id \fR
+\fBns_job\fR waitany \fI?-timeout seconds milliseconds? queueId \fR
 
-\fBns_job\fR jobs \fIqueue_name \fR
+\fBns_job\fR cancel \fIqueueId jobId \fR
 
-\fBns_job\fR job_list \fIqueue_name \fR
+\fBns_job\fR delete \fIqueueId \fR
+
+\fBns_job\fR jobs \fIqueueId \fR
+
+\fBns_job\fR job \fIqueueId \fR
 
 \fBns_job\fR queues
 
-\fBns_job\fR queue_list 
+\fBns_job\fR threadlist 
+
+\fBns_job\fR queuelist 
+
+\fBns_job\fR joblist 
+
+\fBns_job\fR genid
 
 .BE
 
 .SH DESCRIPTION
 .PP
-ns_job manages sets of thread pools called "queues". Queues have a max number of threads and when the current number of running thread reaches "max" then jobs are queued.
+ns_job manages a thread pool and a set of named "queues". Queues have a max number of threads and when the current number of running thread reaches "max" then jobs are queued.
+
+New threads are created when there are less than \fI maxthread \fR number of idle threads.
 
 
 .SH OPTIONS
@@ -70,19 +82,20 @@ ns_job manages sets of thread pools called "queues". Queues have a max number of
 \fBcreate \fR
 .RS
 
-create \fIqueue_name ?maxthreads? \fR
+create \fI?-desc description? queueId ?maxthreads? \fR
 
-Create a new thread pool queue called \fIqueue_name\fR. If \fImaxthreads\fR is not specified, then the default of 4 is used.
+Create a new job queue called \fIqueueId\fR. If \fImaxthreads\fR is not specified, then the default of 4 is used.
+
 
 .RE
 \fBqueue\fR
 .RS
 
-queue \fIqueue_name script ?detached?\fR
+queue \fI?-detached? queueId script\fR
 
 Add a new job to the queue. If there are less than \fImaxthreads\fR current running then the job will be started. If there are \fImaxthreads\fR currently running then this new job will be queued.
 
-If \fIdetached\fR is true then the job will be cleaned when it completes; no wait will be nessary.
+If \fIdetached\fR is true, then the job will be cleaned up when it completes; no wait will be necessary.
 
 The new job's ID is returned.
 
@@ -90,47 +103,131 @@ The new job's ID is returned.
 \fBwait\fR
 .RS
 
-wait \fIqueue_name job_id \fR
+wait \fI?-timeout seconds milliseconds? queueId jobId \fR
 
 Wait for the specified queued or running job to finish. \fIwait\fR returns the results of the script.
 
+An error is thrown if the specified timeout period is reached.
+
 .RE
-\fBwait_any\fR
+\fBwaitany\fR
 .RS
 
-wait_any \fIqueue_name \fR
+waitany \fI?-timeout seconds milliseconds? queueId \fR
 
 Wait for any job on the queue complete.
+
+An error is thrown if the specified timeout period is reached.
 
 .RE
 \fBcancel\fR
 .RS
 
-cancel \fR\fIqueue_name job_id \fR
+cancel \fR\fIqueueId jobId \fR
 
 Remove the specified job from the queue. If the job is currently running, then the job will be removed from the queue when it completes.
 
 \fI1 (true) \fR is returned if the job is currently running and can not be cancelled.
 
+
+.RE
+\fBdelete\fR
+.RS
+
+delete \fR\fIqueueId \fR
+
+Request that the specified queue be deleted. The queue will only be deleted when all jobs are removed.
+
 .RE
 \fBjobs \fR
 .RS
 
-jobs \fIqueue_name \fR
+jobs \fIqueueId \fR
 
-This API returns a list of job "results" in an arbitrary order. Use \fBjob_list\fR instead.
+Return a list of the job IDs.
 
 .RE
 \fBqueues \fR
 .RS
 
-Returns a list of the current queues.
+Returns a list of the queues IDs.
+
 
 .RE
-\fBjob_list \fR
+\fBthreadlist \fR
 .RS
 
-Returns a list of all the jobs in the queue. The "job" consists of:
+Returns a list of the thread pool's fields.
+
+
+MAX_THREADS
+.RS
+Max number of threads for all the queues in the thread pool.
+.RE
+
+NUM_THREADS
+.RS
+Number of allocated threads.
+.RE
+
+NUM_IDLE
+.RS
+Number of currently idle threads.
+.RE
+
+REQ
+.RS
+THREADPOOL_REQ_STOP
+.RS
+The thread pools is being stopped. This probably means that the server is shutting down.
+.RE
+.RE
+
+
+
+.RE
+\fBqueuelist \fR
+.RS
+
+Returns a list of the queues. A queue has the following fields:
+
+NAME
+.RS
+Name of the queue.
+.RE
+
+DESC
+.RS
+Description of the queue.
+.RE
+
+MAX_THREADS
+.RS
+Max number of threads to run for this queue.
+.RE
+
+
+NUM_RUNNING
+.RS
+Number of currently running jobs in this queue.
+.RE
+
+
+REQ
+.RS
+QUEUE_REQ_DELETE
+.RS
+Someone requested this queue be deleted. Queue will not be deleted until all the jobs on the queue are removed.
+.RE
+.RE
+
+
+
+.RE
+\fBjoblist \fR
+.RS
+
+Returns a list the jobs in the specified queue. A job has the following fields:
 
 ID
 .RS
@@ -153,7 +250,6 @@ The job is has completed.
 .RE
 .RE
 
-
 RESULTS
 .RS
 If the job has completed, then this field will contain the results. If the job is running or scheduled to run, then this will contain the script.
@@ -171,6 +267,8 @@ Codes
  TCL_BREAK
  TCL_CONTINUE
 .RE
+.RE
+.RE
 
 TYPE
 .RS
@@ -187,12 +285,14 @@ REQ
 
 .RE
 
+
+.RE
+\fBgenid \fR
+.RS
+
+Generate a new unique ID. This new ID can be used as the queue ID without conflicting with any other queue ID. 
+
 .SH BUGS
-
-There is currently no way to destroy a created queue.
-
-The ns_job jobs API needs changes in order to make it useful.
-
 
 .SH "SEE ALSO"
 nsd(1), info(n)
