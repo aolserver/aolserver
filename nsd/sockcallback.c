@@ -34,7 +34,7 @@
  *	Support for the socket callback thread.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sockcallback.c,v 1.13 2004/09/29 18:58:30 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sockcallback.c,v 1.14 2004/09/30 19:46:55 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -100,12 +100,13 @@ Ns_SockCallback(SOCKET sock, Ns_SockProc *proc, void *arg, int when)
 /*
  *----------------------------------------------------------------------
  *
- * Ns_SockCancelCallback --
+ * Ns_SockCancelCallback, Ns_SockCancelCallbackEx --
  *
- *	Remove a callback registered on a socket. 
+ *	Remove a callback registered on a socket.  Optionally execute
+ *	a callback from the SockCallbackThread.
  *
  * Results:
- *	None. 
+ *	NS_OK/NS_ERROR
  *
  * Side effects:
  *	Will wake up the callback thread. 
@@ -116,7 +117,13 @@ Ns_SockCallback(SOCKET sock, Ns_SockProc *proc, void *arg, int when)
 void
 Ns_SockCancelCallback(SOCKET sock)
 {
-    (void) Queue(sock, NULL, NULL, 0);
+    (void) Ns_SockCancelCallbackEx(sock, NULL, NULL);
+}
+
+int
+Ns_SockCancelCallbackEx(SOCKET sock, Ns_SockProc *proc, void *arg)
+{
+    return Queue(sock, proc, arg, NS_SOCK_CANCEL);
 }
 
 
@@ -322,9 +329,19 @@ SockCallbackThread(void *ignored)
 	    if (!new) {
 		ns_free(Tcl_GetHashValue(hPtr));
 	    }
-	    Tcl_SetHashValue(hPtr, cbPtr);
+	    if (cbPtr->when & NS_SOCK_CANCEL) {
+                if (cbPtr->proc != NULL) {
+                    (void) (*cbPtr->proc)(cbPtr->sock, cbPtr->arg,
+                        NS_SOCK_CANCEL);
+                }
+                if (!new) {
+                    Tcl_DeleteHashEntry(hPtr);
+                }
+                ns_free(cbPtr);
+            } else {
+                Tcl_SetHashValue(hPtr, cbPtr);
+            }
 	    cbPtr = cbPtr->nextPtr;
-
 	}
 
 	/*

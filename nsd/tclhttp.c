@@ -33,7 +33,7 @@
  *	Support for the ns_http command.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclhttp.c,v 1.20 2004/09/29 18:58:30 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclhttp.c,v 1.21 2004/09/30 19:46:55 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -531,7 +531,7 @@ HttpAbort(Http *httpPtr)
     Ns_MutexLock(&lock);
     state = httpPtr->state;
     if (!(state & REQ_DONE)) {
-        Ns_SockCallback(httpPtr->sock, HttpCancel, httpPtr, NS_SOCK_ANY);
+        Ns_SockCancelCallbackEx(httpPtr->sock, HttpCancel, httpPtr);
         while (!(httpPtr->state & REQ_DONE)) {
             Ns_CondWait(&cond, &lock);
         }
