@@ -47,7 +47,7 @@
 #include <pthread.h>
 #endif
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/test.c,v 1.10 2000/11/09 00:48:41 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/test.c,v 1.11 2000/11/14 23:39:05 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 /*
  * Collection of synchronization objects for tests.
@@ -233,7 +233,6 @@ int             nrunning;
 void
 MemThread(void *arg)
 {
-    Ns_Thread thread;
     int             i;
     void           *ptr;
 
@@ -347,7 +346,7 @@ DumpThreads(Ns_ThreadInfo * iPtr, void *ignored)
 
     printf("\t%d(%d): %s %s %p %p %s", iPtr->tid, iPtr->flags, iPtr->name, iPtr->parent,
 	   iPtr->proc, iPtr->arg, ns_ctime(&iPtr->ctime));
-    DumpMem(iPtr->thread);
+    DumpMem(&iPtr->thread);
 }
      
 

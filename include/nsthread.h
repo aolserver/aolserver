@@ -32,7 +32,7 @@
  *
  *	Core threading and system headers.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/nsthread.h,v 1.12 2000/11/10 12:40:45 jgdavidson Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/nsthread.h,v 1.13 2000/11/14 23:39:05 jgdavidson Exp $
  */
 
 #ifndef NSTHREAD_H
@@ -197,7 +197,7 @@ typedef struct Ns_PoolInfo {
 } Ns_PoolInfo;
 
 typedef struct Ns_ThreadInfo {
-    Ns_Thread *thread;
+    Ns_Thread thread;
     char *name;
     char *parent;
     int tid;
@@ -255,8 +255,8 @@ NS_EXTERN int Ns_AllocThreadLocalStorage(Ns_ThreadLocalStorage *tls,
 				      Ns_TlsCleanup *cleanup);
 NS_EXTERN int Ns_SetThreadLocalStorage(Ns_ThreadLocalStorage *tls, void *p);
 NS_EXTERN int Ns_GetThreadLocalStorage(Ns_ThreadLocalStorage *tls, void **p);
-NS_EXTERN int Ns_WaitForThread(Ns_Thread *thrPtr);
-NS_EXTERN int Ns_WaitThread(Ns_Thread *thrPtr, int *exitCodePtr);
+NS_EXTERN int Ns_WaitForThread(Ns_Thread *threadPtr);
+NS_EXTERN int Ns_WaitThread(Ns_Thread *threadPtr, int *exitCodePtr);
 NS_EXTERN void Ns_ExitThread(int exitCode);
 NS_EXTERN int Ns_BeginDetachedThread(Ns_ThreadProc *proc, void *arg);
 NS_EXTERN int Ns_BeginThread(Ns_ThreadProc *proc, void *arg, Ns_Thread *thrPtr);
@@ -405,7 +405,7 @@ NS_EXTERN void Ns_ThreadYield(void);
 NS_EXTERN void Ns_ThreadSetName(char *name);
 NS_EXTERN void Ns_ThreadEnum(Ns_ThreadInfoProc *proc, void *arg);
 NS_EXTERN int Ns_ThreadId(void);
-NS_EXTERN void Ns_ThreadSelf(Ns_Thread *thrPtr);
+NS_EXTERN void Ns_ThreadSelf(Ns_Thread *threadPtr);
 NS_EXTERN int Ns_CheckStack(void);
 NS_EXTERN char *Ns_ThreadGetName(void);
 NS_EXTERN char *Ns_ThreadGetParent(void);
