@@ -1,3 +1,11 @@
+2003-03-19  Zoran Vasiljevic <zoran@archiware.com>
+
+	* nsd/modload.c: added fallback for loading regular
+	shared libraries in addition to bundles on Darwin.
+
+	* include/tcl.h: added set of version macros
+	* nsd/config.c: added Ns_GetVersion API call.
+
 2003-03-10  Scott S. Goodwin  <scott@scottg.net>
 
 	* nscgi/nscgi.c: (bug) SERVER_NAME is now set correctly.
