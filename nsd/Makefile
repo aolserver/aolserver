@@ -27,11 +27,15 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Makefile,v 1.24 2001/05/28 21:58:12 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Makefile,v 1.25 2001/11/05 20:23:01 jgdavidson Exp $
 #
 
 
+include ../include/Makefile.global
+
 LIB	= $(NSD_FILE)
+MAIN	= nsd
+
 OBJS = \
 	adpcmds.o adpeval.o adpparse.o adprequest.o auth.o binder.o \
 	cache.o callbacks.o cls.o config.o conn.o connio.o crypt.o \
@@ -44,14 +48,30 @@ OBJS = \
 	set.o sock.o sockcallback.o str.o tclatclose.o tclcmds.o tclconf.o \
 	tclenv.o tclfile.o tclhttp.o tclimg.o tclinit.o tcljob.o tclmisc.o \
 	tclresp.o tclrequest.o tclsched.o tclset.o tclshare.o tclsock.o \
-	tclobj.o tclthread.o tclvar.o tclxkeylist.o tls.o unix.o url.o \
-	urlencode.o urlopen.o urlspace.o uuencode.o stamp.o
+	tclobj.o tclthread.o tclvar.o tclxkeylist.o unix.o url.o \
+	urlencode.o urlopen.o urlspace.o uuencode.o stamp.o \
+	compat.o cond.o error.o fork.o locks.o master.o \
+	memory.o reentrant.o sema.o  signal.o thread.o time.o specific.o
 
-LIBINST=cpinit
+all: $(MAIN)
 
-include ../include/Makefile.library
+$(OBJS): nsd.h
 
-cpinit:
+$(LIB): $(OBJS)
+	$(RM) $(LIB)
+	$(LDSO) -o $(LIB) $(OBJS) $(LIBS)
+
+$(MAIN): $(LIB) main.o
+	$(CC) -o $(MAIN) main.o $(NSD_LIB) $(NSTCL_LIB) $(LIBS) $(RPATH)
+
+install: all
+	$(MKDIR) $(INSTBIN)
+	$(RM) $(INSTBIN)/$(MAIN)
+	$(CP) $(LIB) $(INSTLIB)/
+	$(CP) $(MAIN) $(INSTBIN)/
 	$(CP) init.tcl $(INSTBIN)/
 	$(CP) translate-ini $(INSTBIN)/
 	$(CP) sample-config.tcl $(INST)/
+
+clean:
+	$(RM) $(MAIN) $(OBJS) $(LIB)
