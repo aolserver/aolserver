@@ -34,7 +34,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.34 2004/08/16 20:29:05 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.35 2004/08/18 00:13:52 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -2070,16 +2070,16 @@ FreeConn(Driver *drvPtr, Conn *connPtr)
      * Cleanup content buffers.
      */
 
-#ifndef _WIN32
     if (connPtr->mlen > 0) {
+#ifndef _WIN32
         if (munmap(connPtr->content, connPtr->mlen) != 0) {
             Ns_Fatal("FreeConn: munmap() failed: %s", strerror(errno));
         }
+#else
+        ns_free(connPtr->content);
+#endif
         connPtr->mlen = 0;
     }
-#else
-    ns_free(connPtr->content);
-#endif
     if (connPtr->tfd >= 0) {
         Ns_ReleaseTemp(connPtr->tfd);
         connPtr->tfd = -1;
