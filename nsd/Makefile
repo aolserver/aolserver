@@ -9,7 +9,7 @@ LIBS	+= $(NSDLIBS)
 OBJS = \
 	adpparse.o binder.o dbinit.o fastpath.o lisp.o nsmain.o \
 	request.o set.o tclenv.o tclsched.o tclshare.o adpcmds.o \
-	adpeval.o adprequest.o auth.o cache.o callbacks.o config.o \
+	adpeval.o adprequest.o auth.o cache.o callbacks.o cls.o config.o \
 	conn.o crypt.o dbdrv.o dbtcl.o dbutil.o dns.o driver.o \
 	dstring.o exec.o fd.o filter.o httptime.o htuu.o index.o info.o \
 	keepalive.o listen.o log.o main.o mimetypes.o modload.o \
