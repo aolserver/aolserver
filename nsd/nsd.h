@@ -935,6 +935,8 @@ extern void NsConfUpdate(void);
 extern void NsEnableDNSCache(int timeout, int maxentries);
 extern void NsStartPools(void);
 extern void NsStopPools(Ns_Time *timeoutPtr);
+extern int NsTclGetPool(Tcl_Interp *interp, char *pool, Pool **poolPtrPtr);
+extern Tcl_ObjCmdProc NsTclListPoolsObjCmd;
 extern void NsCreateConnThread(Pool *poolPtr);
 extern int  NsStartDrivers(void);
 extern void NsWaitDriversShutdown(Ns_Time *toPtr);
@@ -966,8 +968,8 @@ extern void NsSendSignal(int sig);
  * Conn routines.
  */
 
-extern Limits *NsGetLimits(char *server, char *method, char *url);
-extern Pool *NsGetPool(Conn *connPtr);
+extern Limits *NsGetRequestLimits(char *server, char *method, char *url);
+extern Pool *NsGetConnPool(Conn *connPtr);
 
 /*
  * ADP routines.

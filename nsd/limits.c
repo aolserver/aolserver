@@ -33,7 +33,7 @@
  *  Routines to manage resource limits.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/limits.c,v 1.7 2005/01/15 23:54:08 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/limits.c,v 1.8 2005/01/17 16:03:39 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -61,13 +61,13 @@ static Tcl_HashTable  limtable;
  *
  * NsInitLimits --
  *
- *  Initialize the limits API.
+ *	Initialize request limits.
  *
  * Results:
- *  None.
+ *	None.
  *
  * Side effects:
- *  None.
+ *	Will create the default limits.
  *
  *----------------------------------------------------------------------
  */
@@ -80,28 +80,20 @@ NsInitLimits(void)
     defLimitsPtr = FindLimits("default", 1);
 }
 
-Limits *
-NsGetLimits(char *server, char *method, char *url)
-{
-    Limits *limitsPtr;
-
-    limitsPtr = Ns_UrlSpecificGet(server, method, url, limid);
-    return (limitsPtr ? limitsPtr : defLimitsPtr);
-}
-
 
 /*
  *----------------------------------------------------------------------
  *
- * NsTclLimitsObjCmd --
+ *NsTclLimitsObjCmd --
  *
- *  Implements ns_limits command. 
+ *	Implements ns_limits command to create and query request limit
+ *	structures.
  *
  * Results:
- *  Tcl result. 
+ *	Standard Tcl result. 
  *
  * Side effects:
- *  See docs. 
+ *	May create a new limit structure.
  *
  *----------------------------------------------------------------------
  */
@@ -222,55 +214,49 @@ NsTclLimitsObjCmd(ClientData data, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
     return TCL_OK;
 }
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsGetRequestLimits --
+ *
+ *	Return the limits structure for a given request.
+ *
+ * Results:
+ *	Pointer to limits.
+ *
+ * Side effects:
+ *	May return the default limits if no more specific limits
+ *	have been created.
+ *
+ *----------------------------------------------------------------------
+ */
 
-static int
-AppendLimit(Tcl_Interp *interp, char *limit, unsigned int val)
+Limits *
+NsGetRequestLimits(char *server, char *method, char *url)
 {
-    Tcl_Obj *result = Tcl_GetObjResult(interp);
-
-    if (Tcl_ListObjAppendElement(interp, result, Tcl_NewStringObj(limit, -1))
-            != TCL_OK ||
-            Tcl_ListObjAppendElement(interp, result, Tcl_NewIntObj((int) val))
-            != TCL_OK) {
-        return 0;
-    }
-    return 1;
-}
-
-
-static int
-LimitsResult(Tcl_Interp *interp, Limits *limitsPtr)
-{
-    if (!AppendLimit(interp, "nrunning", limitsPtr->nrunning) ||
-            !AppendLimit(interp, "nwaiting", limitsPtr->nwaiting) ||
-            !AppendLimit(interp, "maxwait", limitsPtr->maxwait) ||
-            !AppendLimit(interp, "maxupload", limitsPtr->maxupload) ||
-            !AppendLimit(interp, "dropped", limitsPtr->ndropped) ||
-            !AppendLimit(interp, "timeout", limitsPtr->ntimeout) ||
-            !AppendLimit(interp, "overflow", limitsPtr->noverflow) ||
-            !AppendLimit(interp, "maxrun", limitsPtr->maxrun)) {
-        return TCL_ERROR;
-    }
-    return TCL_OK;
-}
-
-
-static int
-GetLimits(Tcl_Interp *interp, Tcl_Obj *objPtr, Limits **limitsPtrPtr,
-      int create)
-{
-    char *limits = Tcl_GetString(objPtr);
     Limits *limitsPtr;
 
-    limitsPtr = FindLimits(limits, create);
-    if (limitsPtr == NULL) {
-        Tcl_AppendResult(interp, "no such limits: ", limits, NULL);
-        return TCL_ERROR;
-    }
-    *limitsPtrPtr = limitsPtr;
-    return TCL_OK;
+    limitsPtr = Ns_UrlSpecificGet(server, method, url, limid);
+    return (limitsPtr ? limitsPtr : defLimitsPtr);
 }
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * FindLimits --
+ *
+ *	Return the limits by name.
+ *
+ * Results:
+ *	Pointer to Limits or NULL if no such limits and create is zero.
+ *
+ * Side effects:
+ *	If create is not zero, will create new default limits.
+ *
+ *----------------------------------------------------------------------
+ */
 
 static Limits *
 FindLimits(char *limits, int create)
@@ -296,4 +282,86 @@ FindLimits(char *limits, int create)
         }
     }
     return (hPtr ? Tcl_GetHashValue(hPtr) : NULL);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * GetLimits --
+ *
+ *	Utility routing to find Limits by Tcl_Obj for Tcl.
+ *
+ * Results:
+ *	Standard Tcl result.
+ *
+ * Side effects:
+ *	Will update limitsPtrPtr with pointer to Limits or leave
+ *	an error message in given interp if no limits found and
+ *	create is zero. 
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+GetLimits(Tcl_Interp *interp, Tcl_Obj *objPtr, Limits **limitsPtrPtr,
+      int create)
+{
+    char *limits = Tcl_GetString(objPtr);
+    Limits *limitsPtr;
+
+    limitsPtr = FindLimits(limits, create);
+    if (limitsPtr == NULL) {
+        Tcl_AppendResult(interp, "no such limits: ", limits, NULL);
+        return TCL_ERROR;
+    }
+    *limitsPtrPtr = limitsPtr;
+    return TCL_OK;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * LimitsResult --
+ *
+ *	Return a list of info about a given limits.
+ *
+ * Results:
+ *	TCL_ERROR if list could not be appended, TCL_OK otherwise.
+ *
+ * Side effects:
+ *	Will leave list in given interp result.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+LimitsResult(Tcl_Interp *interp, Limits *limitsPtr)
+{
+    if (!AppendLimit(interp, "nrunning", limitsPtr->nrunning) ||
+            !AppendLimit(interp, "nwaiting", limitsPtr->nwaiting) ||
+            !AppendLimit(interp, "maxwait", limitsPtr->maxwait) ||
+            !AppendLimit(interp, "maxupload", limitsPtr->maxupload) ||
+            !AppendLimit(interp, "dropped", limitsPtr->ndropped) ||
+            !AppendLimit(interp, "timeout", limitsPtr->ntimeout) ||
+            !AppendLimit(interp, "overflow", limitsPtr->noverflow) ||
+            !AppendLimit(interp, "maxrun", limitsPtr->maxrun)) {
+        return TCL_ERROR;
+    }
+    return TCL_OK;
+}
+
+static int
+AppendLimit(Tcl_Interp *interp, char *limit, unsigned int val)
+{
+    Tcl_Obj *result = Tcl_GetObjResult(interp);
+
+    if (Tcl_ListObjAppendElement(interp, result, Tcl_NewStringObj(limit, -1))
+            != TCL_OK ||
+            Tcl_ListObjAppendElement(interp, result, Tcl_NewIntObj((int) val))
+            != TCL_OK) {
+        return 0;
+    }
+    return 1;
 }

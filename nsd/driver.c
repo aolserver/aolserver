@@ -34,7 +34,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.42 2005/01/17 14:01:10 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.43 2005/01/17 16:03:34 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -1873,7 +1873,7 @@ SetupConn(Conn *connPtr)
      * Get limits and check content length.
      */
      
-    connPtr->limitsPtr = NsGetLimits(connPtr->server,
+    connPtr->limitsPtr = NsGetRequestLimits(connPtr->server,
             connPtr->request->method, connPtr->request->url);
 
     hdr = Ns_SetIGet(connPtr->headers, "content-length");
