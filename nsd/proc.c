@@ -34,7 +34,7 @@
  *	callbacks, scheduled procs, etc.).
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/proc.c,v 1.7 2001/12/08 00:14:59 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/proc.c,v 1.8 2002/05/15 20:13:45 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -64,7 +64,6 @@ struct proc {
 	{(void *) NsTclSockProc, "ns:tclsockcallback", NsTclSockArgProc},
 	{(void *) NsCachePurge, "ns:cachepurge", NsCacheArgProc},
 	{(void *) NsConnThread, "ns:connthread", NsConnArgProc},
-	{(void *) NsDbCheckPool, "ns:dbcheck", NsDbCheckArgProc},
 	{NULL, NULL, NULL}
 };
 
