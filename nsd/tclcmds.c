@@ -33,7 +33,7 @@
  * 	Connect Tcl command names to the functions that implement them
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.29 2002/07/14 23:08:32 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.30 2002/08/25 20:10:56 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -77,13 +77,13 @@ extern Tcl_ObjCmdProc
     NsTclGifSizeObjCmd,
     NsTclGmTimeObjCmd,
     NsTclGuessTypeObjCmd,
-    NsTclInfoObjCmd,
     NsTclHTUUDecodeObjCmd,
     NsTclHTUUEncodeObjCmd,
     NsTclHeadersObjCmd,
     NsTclHttpObjCmd,
     NsTclHttpTimeObjCmd,
-    //NsTclInfoObjCmd,
+    NsTclInfoObjCmd,
+    NsTclInitObjCmd,
     NsTclJpegSizeObjCmd,
     NsTclKillObjCmd,
     //NsTclLibraryObjCmd,
@@ -615,6 +615,7 @@ static Cmd servCmds[] = {
      */
 
     {"ns_server", NsTclServerCmd, NsTclServerObjCmd},
+    {"ns_init", NULL, NsTclInitObjCmd},
 
     /*
      * Add more server Tcl commands here.
