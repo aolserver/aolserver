@@ -34,7 +34,7 @@
  *	Support for the slave bind/listen process.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/binder.c,v 1.7 2000/10/07 20:24:00 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/binder.c,v 1.8 2000/10/13 00:22:09 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -104,6 +104,9 @@ Ns_SockListen(char *address, int port)
     int backlog;
     static int first = 1;
     Tcl_HashEntry *hPtr;
+    char *addrstr;
+
+    addrstr = address ? address : "0.0.0.0";
 
     if (first) {
 	Ns_MutexSetName2(&lock, "ns", "binder");
@@ -131,8 +134,12 @@ Ns_SockListen(char *address, int port)
 	sock = (int) Tcl_GetHashValue(hPtr);
 	Tcl_DeleteHashEntry(hPtr);
 	if (listen(sock, backlog) == 0) {
+	    Ns_Log(Notice, "prebind: listen(%s,%d) = %d",
+		   addrstr, port, sock);
 	    goto done;
 	}
+	Ns_Log(Notice, "prebind: listen(%s,%d) failed: %s",
+		   addrstr, port, strerror(errno));
 	close(sock);
     }
 
@@ -300,11 +307,11 @@ NsForkBinder(void)
      * process-based Linux and SGI threads.
      */
 
-    pid = Ns_Fork();
+    pid = ns_fork();
     if (pid < 0) {
 	Ns_Fatal("binder: fork() failed: '%s'", strerror(errno));
     } else if (pid == 0) {
-	pid = fork();
+	pid = ns_fork();
 	if (pid < 0) {
 	    Ns_Fatal("binder: fork() failed: '%s'", strerror(errno));
 	} else if (pid == 0) {
