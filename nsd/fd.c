@@ -34,9 +34,24 @@
  *      Manipulate file descriptors of open files.
  */
  
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/fd.c,v 1.4 2000/08/17 06:09:49 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/fd.c,v 1.5 2001/04/23 21:08:58 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
+#ifdef WIN32
+#include <share.h>
+#endif
+
+/*
+ * The following structure maitains and open temp fd.
+ */
+
+typedef struct Tmp {
+    struct Tmp *nextPtr;
+    int fd;
+} Tmp;
+
+static Tmp *firstTmpPtr;
+static Ns_Mutex lock;
 
 /*
  * The following constants are defined for this file
@@ -167,4 +182,108 @@ Ns_DupHigh(int *fdPtr)
     }
 #endif
     return *fdPtr;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_GetTemp --
+ *
+ *	Pop or allocate a temp file.  Temp files are immediately
+ *	removed on Unix and marked non-shared and delete on close
+ *	on NT to avoid snooping of data being sent to the CGI.
+ *
+ * Results:
+ *	Open file descriptor.
+ *
+ * Side effects:
+ *	File may be opened.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Ns_GetTemp(void)
+{
+    Tmp *tmpPtr;
+    Ns_Time now;
+    Ns_DString ds;
+    char *path, buf[64];
+    int fd, flags, trys;
+    
+    Ns_MutexLock(&lock);
+    tmpPtr = firstTmpPtr;
+    if (tmpPtr != NULL) {
+	firstTmpPtr = tmpPtr->nextPtr;
+    }
+    Ns_MutexUnlock(&lock);
+    if (tmpPtr != NULL) {
+	fd = tmpPtr->fd;
+	ns_free(tmpPtr);
+	return fd;
+    }
+    Ns_DStringInit(&ds);
+    flags = O_RDWR|O_CREAT|O_TRUNC|O_EXCL;
+#ifdef WIN32
+    flags |= _O_SHORT_LIVED|_O_NOINHERIT|_O_TEMPORARY|_O_BINARY;
+#endif
+    trys = 0;
+    do {
+	Ns_GetTime(&now);
+	sprintf(buf, "nstmp.%d.%d", (int) now.sec, (int) now.usec);
+	path = Ns_MakePath(&ds, P_tmpdir, buf, NULL);
+#ifdef WIN32
+	fd = _sopen(path, flags, _SH_DENYRW, _S_IREAD|_S_IWRITE);
+#else
+	fd = open(path, flags, 0600);
+#endif
+    } while (fd < 0 && trys++ < 10 && errno == EEXIST);
+    if (fd < 0) {
+	Ns_Log(Error, "tmp: could not open temp file %s: %s",
+	       path, strerror(errno));
+#ifndef WIN32
+    } else {
+	Ns_DupHigh(&fd);
+	Ns_CloseOnExec(fd);
+	if (unlink(path) != 0) {
+	    Ns_Log(Warning, "tmp: unlink(%s) failed: %s", path, strerror(errno));
+#endif
+    }
+    Ns_DStringFree(&ds);
+    return fd;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_ReleaseTemp --
+ *
+ *	Return a temp file to the pool.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	File may be closed on error.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+Ns_ReleaseTemp(int fd)
+{
+    Tmp *tmpPtr;
+
+    if (lseek(fd, 0, SEEK_SET) != 0 || ftruncate(fd, 0) != 0) {
+	close(fd);
+    } else {
+	tmpPtr = ns_malloc(sizeof(Tmp));
+	tmpPtr->fd = fd;
+	Ns_MutexLock(&lock);
+	tmpPtr->nextPtr = firstTmpPtr;
+	firstTmpPtr = tmpPtr;
+	Ns_MutexUnlock(&lock);
+    }
 }
