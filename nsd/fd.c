@@ -34,7 +34,7 @@
  *      Manipulate file descriptors of open files.
  */
  
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/fd.c,v 1.8 2003/02/04 23:10:47 jrasmuss23 Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/fd.c,v 1.9 2005/01/15 23:54:08 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #ifdef _WIN32
@@ -276,8 +276,9 @@ void
 Ns_ReleaseTemp(int fd)
 {
     Tmp *tmpPtr;
+    off_t zero = 0;
 
-    if (lseek(fd, 0, SEEK_SET) != 0 || ftruncate(fd, 0) != 0) {
+    if (lseek(fd, zero, SEEK_SET) != 0 || ftruncate(fd, zero) != 0) {
 	close(fd);
     } else {
 	tmpPtr = ns_malloc(sizeof(Tmp));

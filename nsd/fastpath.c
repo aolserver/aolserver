@@ -34,7 +34,7 @@
  *      Get page possibly from a file cache.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/fastpath.c,v 1.21 2004/08/17 19:44:57 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/fastpath.c,v 1.22 2005/01/15 23:54:08 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -520,7 +520,8 @@ FastReturn(NsServer *servPtr, Ns_Conn *conn, int status,
 	}
 #ifndef _WIN32
 	if (servPtr->fastpath.mmap) {
-	    map = mmap(0, (size_t) stPtr->st_size, PROT_READ, MAP_SHARED, fd, 0);
+	    map = mmap(0, (size_t) stPtr->st_size, PROT_READ, MAP_SHARED,
+			fd, (off_t) 0);
 	    if (map != MAP_FAILED) {
 	    	close(fd);
 	    	fd = -1;
@@ -530,7 +531,8 @@ FastReturn(NsServer *servPtr, Ns_Conn *conn, int status,
 	}
 #endif
 	if (fd != -1) {
-            result = Ns_ConnReturnOpenFd(conn, status, type, fd, stPtr->st_size);
+            result = Ns_ConnReturnOpenFd(conn, status, type, fd,
+					 (int) stPtr->st_size);
 	    close(fd);
 	}
 
@@ -575,7 +577,7 @@ FastReturn(NsServer *servPtr, Ns_Conn *conn, int status,
 	        Ns_Log(Warning, "fastpath: failed to open '%s': '%s'",
 		       file, strerror(errno));
 	    } else {
-		filePtr = ns_malloc(sizeof(File) + stPtr->st_size);
+		filePtr = ns_malloc(sizeof(File) + (size_t) stPtr->st_size);
 		filePtr->refcnt = 1;
 		filePtr->size = stPtr->st_size;
 		filePtr->mtime = stPtr->st_mtime;

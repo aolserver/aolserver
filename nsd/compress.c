@@ -33,7 +33,7 @@
  * Support for simple gzip compression using Zlib.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/compress.c,v 1.2 2004/11/20 01:46:00 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/compress.c,v 1.3 2005/01/15 23:54:08 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 #ifdef HAVE_ZLIB_H
@@ -81,7 +81,7 @@ Ns_Compress(char *buf, int len, Tcl_DString *outPtr, int level)
      */
 
     glen = len + (len / 100) + 13 + sizeof(header) + sizeof(footer);
-    Tcl_DStringSetLength(outPtr, glen);
+    Tcl_DStringSetLength(outPtr, (int) glen);
 
     /*
      * Compress output starting 2-bytes from the end of the header. 
@@ -94,14 +94,14 @@ Ns_Compress(char *buf, int len, Tcl_DString *outPtr, int level)
         return NS_ERROR;
     }
     memcpy(gbuf, header, sizeof(header));
-    Tcl_DStringSetLength(outPtr, glen + skip);
+    Tcl_DStringSetLength(outPtr, (int) glen + skip);
 
     /*
      * Append footer of CRC and uncompressed length.
      */
 
     crc = crc32(0, Z_NULL, 0);
-    crc = crc32(crc, buf, len);
+    crc = crc32(crc, buf, (uInt) len);
     footer[0] = htonl(crc);
     footer[1] = htonl(len);
     Tcl_DStringAppend(outPtr, (char *) footer, sizeof(footer));

@@ -33,7 +33,7 @@
  *	AOLserver Ns_Main() startup routine.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.60 2004/11/15 16:14:10 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.61 2005/01/15 23:54:08 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #ifdef _WIN32
@@ -363,7 +363,7 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 	 */
 
 	if (uarg != NULL) {
-	    if (initgroups(uarg, gid) != 0) {
+	    if (initgroups(uarg, (int) gid) != 0) {
 		Ns_Fatal("nsmain: initgroups(%s, %d) failed: '%s'",
 			uarg, gid, strerror(errno));
 	    }

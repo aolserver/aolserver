@@ -33,7 +33,7 @@
  *  Routines to manage resource limits.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/limits.c,v 1.6 2004/08/28 01:07:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/limits.c,v 1.7 2005/01/15 23:54:08 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -42,7 +42,7 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
  */
 
 static int LimitsResult(Tcl_Interp *interp, Limits *limitsPtr);
-static int AppendLimit(Tcl_Interp *interp, char *limit, int val);
+static int AppendLimit(Tcl_Interp *interp, char *limit, unsigned int val);
 static int GetLimits(Tcl_Interp *interp, Tcl_Obj *objPtr,
         Limits **limitsPtrPtr, int create);
 static Limits *FindLimits(char *limits, int create);
@@ -224,13 +224,13 @@ NsTclLimitsObjCmd(ClientData data, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 
 
 static int
-AppendLimit(Tcl_Interp *interp, char *limit, int val)
+AppendLimit(Tcl_Interp *interp, char *limit, unsigned int val)
 {
     Tcl_Obj *result = Tcl_GetObjResult(interp);
 
     if (Tcl_ListObjAppendElement(interp, result, Tcl_NewStringObj(limit, -1))
             != TCL_OK ||
-            Tcl_ListObjAppendElement(interp, result, Tcl_NewIntObj(val))
+            Tcl_ListObjAppendElement(interp, result, Tcl_NewIntObj((int) val))
             != TCL_OK) {
         return 0;
     }
