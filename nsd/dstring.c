@@ -35,7 +35,7 @@
  *	with Tcl_DString's.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/dstring.c,v 1.5 2000/11/09 01:49:25 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/dstring.c,v 1.6 2000/11/13 21:09:24 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -134,7 +134,7 @@ char *
 Ns_DStringAppendElement(Ns_DString *dsPtr, char *string)
 {
     int newSize, flags;
-    char *dst, *newString;
+    char *dst;
     extern int TclNeedSpace(char *, char *);
 
     newSize = Tcl_ScanElement(string, &flags) + dsPtr->length + 1;
@@ -332,7 +332,6 @@ char *
 Ns_DStringNAppend(Ns_DString *dsPtr, char *string, int length)
 {
     int newSize;
-    char *newString;
 
     if (length < 0) {
 	length = strlen(string);
