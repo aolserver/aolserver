@@ -33,7 +33,7 @@
  *	ADP commands.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpcmds.c,v 1.5 2001/03/27 16:44:40 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpcmds.c,v 1.6 2001/04/02 19:37:01 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -700,44 +700,11 @@ NsTclAdpMimeTypeCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
               argv[0], " ?mimetype?\"", NULL);
         return TCL_ERROR;
     }
-    if (argc == 2) {
-        NsAdpSetMimeType(itPtr, argv[1]);
+    if (itPtr->adp.typePtr != NULL) {
+	if (argc == 2) {
+	    NsAdpSetMimeType(itPtr, argv[1]);
+	}
+	Tcl_SetResult(interp, itPtr->adp.typePtr->string, TCL_VOLATILE);
     }
-    Tcl_SetResult(interp, itPtr->adp.mimetype, TCL_VOLATILE);
-    return TCL_OK;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsTclAdpCharSetCmd --
- *
- *	Process the ns_adp_charset command to set or get the output
- *      character set and encoding.
- *
- * Results:
- *	A standard Tcl result.
- *
- * Side effects:
- *  	Potentially enables output encoding for this adp page.
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclAdpCharSetCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
-{
-    NsInterp *itPtr = arg;
-    
-    if (argc != 1 && argc != 2) {
-        Tcl_AppendResult(interp, "wrong # args: should be \"",
-              argv[0], " ?charset?\"", NULL);
-        return TCL_ERROR;
-    }
-    if (argc == 2) {
-        NsAdpSetCharSet(itPtr, argv[1]);
-    }
-    Tcl_SetResult(interp, itPtr->adp.charset, TCL_VOLATILE);
     return TCL_OK;
 }

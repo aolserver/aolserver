@@ -33,9 +33,13 @@
  * 	Connect Tcl command names to the functions that implement them
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.13 2001/03/23 18:31:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.14 2001/04/02 19:37:01 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
+
+/*
+ * Tcl object and string commands.
+ */
 
 extern Tcl_ObjCmdProc
     NsTclAdpAppendObjCmd,
@@ -195,7 +199,6 @@ extern Tcl_CmdProc
     NsTclAdpDebugCmd,
     NsTclAdpParseCmd,
     NsTclAdpMimeTypeCmd,
-    NsTclAdpCharSetCmd,
     NsTclNsvGetCmd,
     NsTclNsvExistsCmd,
     NsTclNsvSetCmd,
@@ -501,7 +504,6 @@ static Cmd servCmds[] = {
     {"ns_adp_debug", NsTclAdpDebugCmd, NULL},
     {"ns_adp_mime", NsTclAdpMimeTypeCmd, NULL},
     {"ns_adp_mimetype", NsTclAdpMimeTypeCmd, NULL},
-    {"ns_adp_charset", NsTclAdpCharSetCmd, NULL},
 
     /*
      * tclvar.c
