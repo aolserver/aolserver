@@ -1,3 +1,10 @@
+2004-12-06  Dossy Shiobara <dossy@panoptic.com>
+
+	* include/ns.h (1.73), nsd/dns.c (1.12), nsd/tclsock.c (1.21),
+	  tests/new/ns_addrbyhost.test (1.2): Implement
+	  Ns_GetAllAddrByHost() and [ns_addrbyhost -all].  Closes SF RFE
+	  #999452.
+
 2004-12-01  Dossy Shiobara <dossy@panoptic.com>
 
 	* include/ns.h (1.72): Provide NS_VERSION_NUM definition to make
