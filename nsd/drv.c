@@ -37,7 +37,7 @@
  *      happens. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/drv.c,v 1.5 2001/01/16 18:14:27 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/drv.c,v 1.5.4.1 2002/10/28 23:15:55 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -307,7 +307,7 @@ RunDriver(void *arg)
     Ns_Log(Notice, "drv: driver '%s' accepting '%s'", dPtr->label, loc);
 
     while ((status = ((*dPtr->acceptProc)(dData, &cData))) == NS_OK) {
-	if (Ns_QueueConn(dData, cData) != NS_OK) {
+	if (Ns_QueueConn(dPtr, cData) != NS_OK) {
 	   (*dPtr->closeProc)(dData);
 	}
     }
