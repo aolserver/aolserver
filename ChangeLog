@@ -1,5 +1,10 @@
 2003-03-19  Mark Page  <mpagenva@aol.com>
 
+        * nsd/tclhttp.c: Added method argument to ns_http queue api to
+        allow sending POSTs as well as GETs.
+
+2003-03-19  Mark Page  <mpagenva@aol.com>
+
         * nsext/nsext.c: Change back to using ns_socketpair for local
         proxies, to retain PEEK functionality.
 
