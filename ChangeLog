@@ -1,3 +1,17 @@
+2004-07-30  Dossy Shiobara <dossy@panoptic.com>
+
+	* include/ns.h (1.64), nsd/driver.c (1.26), nsd/limits.c (1.2),
+	  nsd/nsd.h (1.85), nsd/op.c (1.13), nsd/pools.c (1.2), nsd/queue.c
+	  (1.26), nsd/return.c (1.41): Implement the "maxwait" limit.  Use
+	  connPtr->responseStatus to short circuit request processing, for
+	  returning HTTP 400 and 503 status responses indirectly from the
+	  driver thread.
+
+2004-07-29  Dossy Shiobara <dossy@panoptic.com>
+
+	* nsd/driver.c (1.25): Missed incrementing connPtr->roff when
+	  applying Jim's changes.  Oops.
+
 2004-07-29  Dossy Shiobara <dossy@panoptic.com>
 
 	* include/ns.h (1.63), nsd/Makefile (1.40), nsd/connio.c (1.15),
