@@ -1,3 +1,7 @@
+2003-08-06  Elizabeth Thomas <eathomas93@aol.com>
+
+	* nsd/tclset.c: Fix ns_set split argument checking. (#757849)
+
 2003-08-05  Elizabeth Thomas <eathomas93@aol.com>
 
 	* nsd/conn.c:
