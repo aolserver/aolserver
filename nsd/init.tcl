@@ -28,7 +28,7 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/init.tcl,v 1.10 2002/11/06 19:11:01 jcollins Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/init.tcl,v 1.11 2003/01/17 19:56:23 shmooved Exp $
 #
 
 #
@@ -383,7 +383,7 @@ _ns_sourcefiles $shared $private
 # Source the module-specific Tcl libraries.
 #
 
-foreach mod {[ns_ictl getmodules]} {
+foreach mod [ns_ictl getmodules] {
     _ns_sourcemodule $mod
 }
 
