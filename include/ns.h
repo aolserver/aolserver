@@ -33,7 +33,7 @@
  *      All the public types and function declarations for the core
  *	AOLserver.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.13 2001/03/12 22:05:17 jgdavidson Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.14 2001/03/13 16:44:35 jgdavidson Exp $
  */
 
 #ifndef NS_H
@@ -63,6 +63,7 @@ typedef void *ClientData;
 #define NS_CONN_CLOSED		  1
 #define NS_CONN_SKIPHDRS	  2
 #define NS_CONN_SKIPBODY	  4
+#define NS_CONN_MAXCLS		  16
 
 #define NS_AOLSERVER_3_PLUS
 #define NS_UNAUTHORIZED		(-2)
@@ -435,10 +436,12 @@ typedef void  (Ns_AdpParserProc)(Ns_DString *, char *);
  * Typedefs of variables
  */
 
-typedef void 	       Ns_Cache;
-typedef void 	       Ns_Entry;
-typedef Tcl_HashSearch Ns_CacheSearch;
-typedef void 	      *Ns_OpContext;
+typedef struct _Ns_Cache	*Ns_Cache;
+typedef struct _Ns_Entry	*Ns_Entry;
+typedef Tcl_HashSearch 		 Ns_CacheSearch;
+
+typedef struct _Ns_Cls 		*Ns_Cls;
+typedef void 	      		*Ns_OpContext;
 
 /*
  * Typedefs for a modular socket driver.
@@ -534,9 +537,14 @@ NS_EXTERN void *Ns_RegisterAtServerShutdown(Ns_Callback *proc, void *arg);
 NS_EXTERN void *Ns_RegisterAtShutdown(Ns_Callback *proc, void *arg);
 NS_EXTERN void *Ns_RegisterAtReady(Ns_Callback *proc, void *arg);
 NS_EXTERN void *Ns_RegisterAtExit(Ns_Callback *proc, void *arg);
-NS_EXTERN void Ns_RegisterProcDesc(void *procAddr, char *desc);
-NS_EXTERN void Ns_RegisterProcInfo(void *procAddr, char *desc, Ns_ArgProc *argProc);
-NS_EXTERN void Ns_GetProcInfo(Tcl_DString *dsPtr, void *procAddr, void *arg);
+
+/*
+ * cls.c:
+ */
+
+NS_EXTERN void Ns_ClsAlloc(Ns_Cls *clsPtr, Ns_Callback *proc);
+NS_EXTERN void *Ns_ClsGet(Ns_Cls *clsPtr, Ns_Conn *conn);
+NS_EXTERN void Ns_ClsSet(Ns_Cls *clsPtr, Ns_Conn *conn, void *data);
 
 /*
  * config.c:
@@ -668,11 +676,11 @@ NS_EXTERN int Ns_GetHostByAddr(Ns_DString *dsPtr, char *addr);
 NS_EXTERN int Ns_GetAddrByHost(Ns_DString *dsPtr, char *host);
 
 /*
- * drv.c:
+ * driver.c:
  */
 
 NS_EXTERN Ns_Driver Ns_RegisterDriver(char *server, char *name,
-				   Ns_DrvProc *procs, void *ctx);
+				   Ns_DrvProc *procs, void *arg);
 NS_EXTERN void *Ns_GetDriverContext(Ns_Driver driver);
 NS_EXTERN char *Ns_GetDriverServer(Ns_Driver driver);
 
@@ -731,9 +739,8 @@ NS_EXTERN int Ns_UrlIsDir(char *server, char *url);
 
 NS_EXTERN void *Ns_RegisterFilter(char *server, char *method, char *URL,
 			       Ns_FilterProc *proc, int when, void *args);
-NS_EXTERN void *Ns_RegisterServerTrace(char *server, Ns_TraceProc *proc,
-				    void *context);
-NS_EXTERN void *Ns_RegisterCleanup(char *server, Ns_TraceProc *proc, void *context);
+NS_EXTERN void *Ns_RegisterServerTrace(char *server, Ns_TraceProc *proc, void *arg);
+NS_EXTERN void *Ns_RegisterCleanup(char *server, Ns_TraceProc *proc, void *arg);
 
 /*
  * htuu.c
@@ -742,15 +749,6 @@ NS_EXTERN void *Ns_RegisterCleanup(char *server, Ns_TraceProc *proc, void *conte
 NS_EXTERN int Ns_HtuuEncode(unsigned char *string, unsigned int bufsize,
 			 char *buf);
 NS_EXTERN int Ns_HtuuDecode(char *string, unsigned char *buf, int bufsize);
-
-/*
- * id.c:
- */
-
-NS_EXTERN int Ns_GetUserHome(Ns_DString *pds, char *user);
-NS_EXTERN int Ns_GetGid(char *group);
-NS_EXTERN int Ns_GetUserGid(char *user);
-NS_EXTERN int Ns_GetUid(char *user);
 
 /*
  * index.c:
@@ -830,7 +828,7 @@ NS_EXTERN char *Tcl_SetKeyedListField (Tcl_Interp  *interp, const char *fieldNam
  */
 
 NS_EXTERN int Ns_SockListenCallback(char *addr, int port, Ns_SockProc *proc,
-				 void *ctx);
+				 void *arg);
 NS_EXTERN int Ns_SockPortBound(int port);
 
 /*
@@ -924,6 +922,14 @@ NS_EXTERN char *Ns_HomePath(Ns_DString *dsPtr, ...);
 NS_EXTERN char *Ns_ModulePath(Ns_DString *dsPtr, char *server, char *module, ...);
 
 /*
+ * proc.c:
+ */
+
+NS_EXTERN void Ns_RegisterProcDesc(void *procAddr, char *desc);
+NS_EXTERN void Ns_RegisterProcInfo(void *procAddr, char *desc, Ns_ArgProc *argProc);
+NS_EXTERN void Ns_GetProcInfo(Tcl_DString *dsPtr, void *procAddr, void *arg);
+
+/*
  * quotehtml.c:
  */
 
@@ -1003,10 +1009,10 @@ NS_EXTERN int Ns_ScheduleProcEx(Ns_SchedProc *proc, void *arg, int flags,
 NS_EXTERN void Ns_UnscheduleProc(int id);
 
 /*
- * serv.c:
+ * queue.c:
  */
 
-NS_EXTERN int Ns_QueueConn(Ns_Driver driver, void *ctx);
+NS_EXTERN int Ns_QueueConn(Ns_Driver driver, void *arg);
 
 /*
  * set.c:
@@ -1067,7 +1073,7 @@ NS_EXTERN SOCKET Ns_SockAsyncConnect(char *host, int port);
 NS_EXTERN SOCKET Ns_SockTimedConnect(char *host, int port, int timeout);
 NS_EXTERN int Ns_SockSetNonBlocking(SOCKET sock);
 NS_EXTERN int Ns_SockSetBlocking(SOCKET sock);
-NS_EXTERN int Ns_SockCallback(SOCKET sock, Ns_SockProc *proc, void *ctx, int when);
+NS_EXTERN int Ns_SockCallback(SOCKET sock, Ns_SockProc *proc, void *arg, int when);
 NS_EXTERN void Ns_SockCancelCallback(SOCKET sock);
 NS_EXTERN int Ns_GetSockAddr(struct sockaddr_in *psa, char *host, int port);
 NS_EXTERN void Ns_ClearSockErrno(void);
@@ -1091,7 +1097,7 @@ NS_EXTERN char *Ns_NextWord(char *line);
 NS_EXTERN char *Ns_StrNStr(char *pattern, char *expression);
 
 /*
- * tclNsd.c:
+ * tclfile.c:
  */
 
 NS_EXTERN int Ns_TclGetOpenChannel(Tcl_Interp *interp, char *chanId, int write,
@@ -1201,8 +1207,13 @@ NS_EXTERN int Ns_DupHigh(int *fdPtr);
  * unix.c, win32.c:
  */
 
-NS_EXTERN int			ns_sockpair(SOCKET *socks);
-NS_EXTERN int			ns_pipe(int *fds);
+NS_EXTERN int ns_sockpair(SOCKET *socks);
+NS_EXTERN int ns_pipe(int *fds);
+NS_EXTERN int Ns_GetUserHome(Ns_DString *pds, char *user);
+NS_EXTERN int Ns_GetGid(char *group);
+NS_EXTERN int Ns_GetUserGid(char *user);
+NS_EXTERN int Ns_GetUid(char *user);
+
 
 /*
  * Compatibility macros.

@@ -267,6 +267,7 @@ typedef struct Conn {
     int          responseLength;
     int          recursionCount;
     int		 keepAlive;
+    void	*cls[NS_CONN_MAXCLS];
 } Conn;
 
 /*
@@ -711,6 +712,8 @@ extern int NsRemoveService(char *server);
 extern void NsInitBinder(char *args, char *file);
 extern void NsForkBinder(void);
 extern void NsStopBinder(void);
+
+extern void NsClsCleanup(Conn *connPtr);
 
 extern void NsInitMimeTypes(void);
 extern void NsLogOpen(void);
