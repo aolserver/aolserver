@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/configure.in,v 1.11 2002/10/03 22:24:05 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/configure.in,v 1.12 2002/10/07 18:29:06 jgdavidson Exp $
 #
 
 #
@@ -94,13 +94,7 @@ case "$system" in
 	LDLIB="$TCL_SHLIB_LD"
 	case "$LDLIB" in
 	    *gcc*)
-		LDLIB="$LDLIB -nostartfiles \$(CCRFLAG)"
-		;;
-	    *cc*)
-		LDLIB="$LDLIB \$(CCRFLAG)"
-		;;
-	    *)
-		LDLIB="$LDLIB \$(LDRFLAG)"
+		LDLIB="$LDLIB -nostartfiles"
 		;;
 	esac
 	CCRPATH="\$(CCRFLAG)\$(INSTLIB)"
