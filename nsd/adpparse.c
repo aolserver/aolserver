@@ -33,7 +33,7 @@
  *	ADP parser.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpparse.c,v 1.14 2004/01/01 06:35:12 scottg Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpparse.c,v 1.15 2004/08/14 21:26:06 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -69,6 +69,7 @@ static void AppendBlock(AdpParse *parsePtr, char *s, char *e, int type);
 static void Parse(AdpParse *parsePtr, NsServer *servPtr, char *utf);
 static int RegisterCmd(ClientData arg, Tcl_Interp *interp, int argc,
 		char **argv, int type);
+static void Blocks2Script(AdpParse *parsePtr);
 
 
 /*
@@ -195,7 +196,7 @@ RegisterCmd(ClientData arg, Tcl_Interp *interp, int argc,
  */
 
 void
-NsAdpParse(AdpParse *parsePtr, NsServer *servPtr, char *utf, int safe)
+NsAdpParse(AdpParse *parsePtr, NsServer *servPtr, char *utf, int flags)
 {
     char *s, *e;
 
@@ -203,6 +204,7 @@ NsAdpParse(AdpParse *parsePtr, NsServer *servPtr, char *utf, int safe)
      * Initialize the parse structure.
      */
 
+    flags = servPtr->adp.flags | flags;
     Tcl_DStringInit(&parsePtr->hdr);
     Tcl_DStringInit(&parsePtr->text);
     parsePtr->code.nscripts = parsePtr->code.nblocks = 0;
@@ -220,7 +222,7 @@ NsAdpParse(AdpParse *parsePtr, NsServer *servPtr, char *utf, int safe)
 	*s = '\0';
 	Parse(parsePtr, servPtr, utf);
 	*s = '<';
-	if (!safe) {
+	if (!(flags & ADP_SAFE)) {
 	    if (s[2] != '=') {
 	        AppendBlock(parsePtr, s + 2, e, 's');
 	    } else {
@@ -242,6 +244,14 @@ NsAdpParse(AdpParse *parsePtr, NsServer *servPtr, char *utf, int safe)
 
     parsePtr->code.len = (int *) parsePtr->hdr.string;
     parsePtr->code.base = parsePtr->text.string;
+
+    /*
+     * If configured, collapse blocks to a single script.
+     */
+
+    if (flags & ADP_SINGLE) {
+    	Blocks2Script(parsePtr);
+    }
 }
 
 
@@ -665,4 +675,57 @@ Parse(AdpParse *parsePtr, NsServer *servPtr, char *utf)
 
     AppendBlock(parsePtr, t, t + strlen(t), 't');
     Tcl_DStringFree(&tag);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Blocks2Script --
+ *
+ *	Collapse text/script blocks in a parse structure into a single
+ *	script.  This enables a complete scripts to be made up of
+ *	multiple blocks, e.g., <% if $true { %> Text <% } %>.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	Parse structure is updated to a single script block.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+Blocks2Script(AdpParse *parsePtr)
+{
+    char *utf, save;
+    int i, len;
+    Tcl_DString tmp, *textPtr;
+
+    textPtr = &parsePtr->text;
+    Tcl_DStringInit(&tmp);
+    Tcl_DStringAppend(&tmp, textPtr->string, textPtr->length);
+    Tcl_DStringTrunc(textPtr, 0);
+
+    utf = tmp.string;
+    for (i = 0; i < parsePtr->code.nblocks; ++i) {
+	len = parsePtr->code.len[i];
+	if (len < 0) {
+	    len = -len;	
+	    Tcl_DStringAppend(textPtr, utf, len);
+	} else {
+	    Tcl_DStringAppend(textPtr, "ns_adp_append", -1);
+	    save = utf[len];
+	    utf[len] = '\0';
+	    Tcl_DStringAppendElement(textPtr, utf);
+	    utf[len] = save;
+	}
+	Tcl_DStringAppend(textPtr, "\n", 1);
+	utf += len;
+    }
+    parsePtr->code.nscripts = parsePtr->code.nblocks = 1;
+    parsePtr->code.len[0] = -textPtr->length;
+    parsePtr->code.base = textPtr->string;
+    Tcl_DStringFree(&tmp);
 }
