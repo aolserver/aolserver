@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/Makefile,v 1.39 2002/09/21 17:07:36 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/Makefile,v 1.40 2002/09/21 17:53:01 jgdavidson Exp $
 #
 
 NSBUILD=1
@@ -40,7 +40,7 @@ all:
 		( cd $$i && $(MAKE) all ) || exit 1; \
 	done
 
-install: 
+install: all
 	for i in bin lib log include modules/tcl servers/server1/pages; do \
 		$(MKDIR) $(prefix)/$$i; \
 	done
