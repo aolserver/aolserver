@@ -33,9 +33,16 @@
  *	URL level HTTP authorization support.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/auth.c,v 1.9 2002/07/08 02:50:37 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/auth.c,v 1.10 2002/09/28 19:23:05 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
+
+/*
+ * The following proc is used for simple user authorization.  It
+ * could be useful for global modules (e.g., nscp).
+ */
+
+static Ns_UserAuthorizeProc    *userProcPtr; 
 
 
 /*
@@ -215,4 +222,54 @@ NsTclRequestAuthorizeObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
     }
     
     return TCL_OK;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_AuthorizeUser --
+ *
+ *	Verify that a user's password matches his name.
+ *	passwd is the unencrypted password.
+ *
+ * Results:
+ *	NS_OK or NS_ERROR; if none registered, NS_ERROR.
+ *
+ * Side effects:
+ *	Depends on the supplied routine.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Ns_AuthorizeUser(char *user, char *passwd)
+{
+    if (userProcPtr == NULL) {
+	return NS_ERROR;
+    }
+    return (*userProcPtr)(user, passwd);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_SetUserAuthorizeProc --
+ *
+ *	Set the proc to call when authorizing users.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+Ns_SetUserAuthorizeProc(Ns_UserAuthorizeProc *procPtr)
+{
+    userProcPtr = procPtr;
 }
