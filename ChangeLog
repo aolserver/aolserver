@@ -1,3 +1,11 @@
+2002-06-12  Jeremy Collins <jeremy.collins@phpsource.net>
+
+	* nsd/conn.c:
+	* nsd/tclcmds.c: Reimplemented "ns_conn" as an obj based
+	command.  In the process I also modified NsTclConnObjCmd to use
+	Tcl_GetIndexFromObj.  This should improve performance as well as
+	the readability of the code.
+
 2002-06-12  Jim Davidson <jgdavidson@aol.com>
 	
 	* include/nsthread.h:
