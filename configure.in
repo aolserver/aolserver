@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/configure.in,v 1.3 2002/09/16 19:58:29 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/configure.in,v 1.4 2002/09/16 22:06:56 jgdavidson Exp $
 #
 
 #
@@ -77,6 +77,19 @@ AC_SUBST(TCL_DEFS)
 AC_CHECK_FUNCS(timegm fork1 poll drand48 random _NSGetEnviron)
 AC_CHECK_HEADER(mach-o/dyld.h,[AC_DEFINE(USE_DYLD)],)
 AC_CHECK_HEADER(dl.h,[AC_DEFINE(USE_DLSHL)],)
+AC_MSG_CHECKING([need for dup high])
+AC_TRY_RUN([
+#include <stdio.h>
+int
+main(int argc, char **argv)
+{
+	return (sizeof(stdout->_file) == 1) ? 0 : 1;
+}], duphigh=yes, duphigh=no, duphigh=no)
+if test "${duphigh}" = "yes"
+then
+    AC_DEFINE(USE_DUPHIGH)
+fi
+AC_MSG_RESULT($duphigh)
 
 #
 # Create Makefile.global.

@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Attic/Makefile.global.in,v 1.4 2002/09/16 19:59:19 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Attic/Makefile.global.in,v 1.5 2002/09/16 22:06:57 jgdavidson Exp $
 #
 
 #
@@ -109,7 +109,6 @@ ifneq (,$(findstring SunOS,$(uname)))
     AR=/usr/ccs/bin/ar
     CCRPATH += $(CCRFLAG)/usr/lib/lwp
     LDRPATH += $(LDRFLAG)/usr/lib/lwp
-    CFLAGS+=-DUSE_DUPHIGH=1 
     LDLIB+=-nostartfiles
     LIBS+=-lrt
 endif
@@ -120,7 +119,6 @@ ifneq (,$(findstring Darwin,$(uname)))
     LDLIB=cc -dynamiclib -install_name $(ASLIBDIR)/$(LIBFILE)
     CCRPATH=
     LDRPATH=
-    CFLAGS+=-DUSE_DLSYMPREFIX=1
 endif
 
 # Add dynamic library entry point flags.
