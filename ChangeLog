@@ -1,3 +1,11 @@
+2003-06-06  Zoran Vasiljevic <zoran@archiware.com>
+
+	* nsd/queue.c: fixed "connsperthread" config parameter
+	as reported in bug item #749801. Default is set to
+	"0" i.e. thread will perform unlimited number of
+	connections (never exit) unless it's idle timer
+	(if configured) expires. 
+
 2003-05-31  Zoran Vasiljevic <zoran@archiware.com>
 
 	* nsd/config.c: uses Ns_TclDestroyInterp instead of the
