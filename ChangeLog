@@ -1,5 +1,10 @@
 2004-07-28  Dossy Shiobara <dossy@panoptic.com>
 
+	* configure (1.17): Forgot to re-run autoconf2.13 after the very
+	  last change to configure.in.
+
+2004-07-28  Dossy Shiobara <dossy@panoptic.com>
+
 	* include/ns.h (1.62): BUMP: 4.1.0a
 
 2004-07-28  Dossy Shiobara <dossy@panoptic.com>
