@@ -752,6 +752,7 @@ extern Tcl_CmdProc NsTclVArrayCmd;
 extern Tcl_CmdProc NsTclVUnsetCmd;
 extern Tcl_CmdProc NsTclVIncrCmd;
 extern Tcl_CmdProc NsTclVAppendCmd;
+extern Tcl_CmdProc NsTclVNamesCmd;
 
 extern Tcl_CmdProc NsTclStatsCmd;
 

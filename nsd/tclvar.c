@@ -35,7 +35,7 @@
 
 #include "nsd.h"
 
-static char rcsid[] = "$Id: tclvar.c,v 1.3 2000/08/02 23:38:25 kriston Exp $";
+static char rcsid[] = "$Id: tclvar.c,v 1.4 2000/10/16 22:49:36 kriston Exp $";
 
 /*
  * The following structure defines a collection of arrays.  
@@ -441,6 +441,56 @@ NsTclVUnsetCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
     }
     return TCL_OK;
 }
+
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsTclVNamesCmd --
+ *
+ *      Implements nsv_names.
+ *
+ * Results:
+ *      Tcl result.
+ *
+ * Side effects:
+ *      See docs.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+NsTclVNamesCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
+{
+    Tcl_HashEntry *hPtr;
+    Tcl_HashSearch search;
+    Bucket *bucketPtr;
+    char *pattern, *key;
+    int i;
+    
+    if (argc != 1 && argc !=2) {
+        Tcl_AppendResult(interp, "wrong # args: should be: \"",
+			 argv[0], "?pattern?\"", NULL);
+        return TCL_ERROR;
+    }
+    pattern = argv[1];
+    for (i=0; i < nsconf.tcl.nsvbuckets; i++) {
+        bucketPtr = &buckets[i];
+        Ns_MutexLock(&bucketPtr->lock);
+        hPtr = Tcl_FirstHashEntry(&bucketPtr->arrays, &search);
+        while (hPtr != NULL) {
+            key = Tcl_GetHashKey(&bucketPtr->arrays, hPtr);
+            if (pattern == NULL || Tcl_StringMatch(key, pattern)) {
+                Tcl_AppendElement(interp, key);
+            }
+            hPtr = Tcl_NextHashEntry(&search);
+        }
+        Ns_MutexUnlock(&bucketPtr->lock);
+    }
+    return TCL_OK;
+}
+
 
 
 /*
