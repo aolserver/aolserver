@@ -6,6 +6,7 @@
 
 	* nsd/tclimg.c: Addition error checks in gif size read.
         * nsd/adpcmds.c: Error check calls to ns_adp funcs.
+        * nsd/tclinit.c: Error check calls to Ns_TclGetConn and Ns_TclServerInterp.
 
 2003-05-19  Mark Page <mpagenva@aol.com>
 
