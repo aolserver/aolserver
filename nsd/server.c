@@ -33,11 +33,19 @@
  *	Routines for managing NsServer structures.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.6 2001/03/26 15:34:15 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.7 2001/03/28 00:26:20 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
 static Tcl_HashTable table;
+
+/*
+ * Various external init routines.
+ */
+
+extern void NsTclInitServer(char *server);
+extern void NsDbInitServer(char *server);
+extern void NsLoadModules(char *server);
 
 
 /*
