@@ -1,3 +1,8 @@
+2004-02-18 01:30  Dossy Shiobara <dossy@panoptic.com>
+
+	* nsperm/nsperm.c: fixed bug #899364, restoring old nsperm
+	  functionality as it was in 3.x.
+
 2004-02-15  Jim Davidson <jgdavidson@aol.com>
 
 	* nsd/conn.c:
