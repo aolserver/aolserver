@@ -1,3 +1,43 @@
+2002-09-28  Jim Davidson <jgdavidson@aol.com>
+
+	* nsd/adpparse.c:
+	* nsd/auth.c:
+	* nsd/conn.c:
+	* nsd/connio.c:
+	* nsd/driver.c:
+	* nsd/dstring.c:
+	* nsd/filter.c:
+	* nsd/init.c:
+	* nsd/log.c:
+	* nsd/main.c:
+	* nsd/modload.c:
+	* nsd/nsd.h:
+	* nsd/nsmain.c:
+	* nsd/queue.c:
+	* nsd/return.c:
+	* nsd/server.c:
+	* nsd/tclenv.c:
+	* nsd/tclinit.c:
+	* nsd/tclthread.c:
+	* include/ns.h: Added missing AOLserver 3.x API's including
+	static module support, Ns_TclRegisterAt traces, connection
+	I/O functions, loadable comm driver stubs, and more.
+
+	* configure:
+	* configure.in:
+	* nsd/exec.c:  Removed weird USE_PROCTHREAD code.
+
+	* nsd/init.tcl:  Uses "ns_ictl modules" for module list.
+
+	* nscgi/nscgi.c:  Uses Ns_CopyEnviron, renamed from
+	Ns_GetEnvironment.
+
+	* Makefile:  Fixed install bug for install-sh.
+	
+	* README:  Updated to match AOLserver 3.5.  Various outdated
+	docs removed.
+
+
 2002-09-10  Jim Davidson <jgdavidson@aol.com>
 
 	* Makefile:
