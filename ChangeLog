@@ -1,5 +1,9 @@
 2004-11-19  Dossy Shiobara <dossy@panoptic.com>
 
+	* nsd/Makefile (1.39.2.2): Adding -lz to LIBS is now redundant.
+
+2004-11-19  Dossy Shiobara <dossy@panoptic.com>
+
 	* include/nsthread.h (1.24.2.4): Need to include <inttypes.h> on
 	  some platforms (OS X, Solaris 10) to get C99 "uint32_t" and other
 	  types.  Backport from HEAD.
