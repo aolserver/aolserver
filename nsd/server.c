@@ -33,7 +33,7 @@
  *	Routines for managing NsServer structures.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.30 2004/08/14 21:26:13 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.31 2004/10/06 18:50:38 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -230,6 +230,9 @@ NsInitServer(char *server, Ns_ServerInitProc *initProc)
     if (servPtr->tcl.library == NULL) {
 	Ns_ModulePath(&ds, server, "tcl", NULL);
 	servPtr->tcl.library = Ns_DStringExport(&ds);
+    }
+    if (!Ns_ConfigGetBool(path, "oldhttp", &servPtr->tcl.oldhttp)) {
+	servPtr->tcl.oldhttp = 1;
     }
     servPtr->tcl.initfile = Ns_ConfigGetValue(path, "initfile");
     if (servPtr->tcl.initfile == NULL) {
