@@ -35,7 +35,7 @@
  *  	Tcl commands.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscp/nscp.c,v 1.8 2000/08/28 14:22:23 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscp/nscp.c,v 1.9 2000/10/09 23:21:01 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 
@@ -117,13 +117,13 @@ Ns_ModuleInit(char *s, char *module)
 
     server = s;
     path = Ns_ConfigGetPath(server, module, NULL);
-    addr = Ns_ConfigGet(path, "address");
-    if (addr == NULL) {
-	addr = "127.0.0.1";
+
+    if ( ((addr = Ns_ConfigGet(path, "address")) == NULL)
+	 || (!Ns_ConfigGetInt(path, "port", &port)) )  {
+	Ns_Log(Error, "nscp: address and port must be specified in config");
+	return NS_ERROR;
     }
-    if (!Ns_ConfigGetInt(path, "port", &port)) {
-	port = 9999;
-    }
+    
     if (!Ns_ConfigGetBool(path, "echopassword", &fEchoPw)) {
     	fEchoPw = 1;
     }
@@ -281,7 +281,7 @@ EvalThread(void *arg)
 {
     Tcl_Interp *interp;
     Tcl_DString ds;
-    char buf[30], *res;
+    char buf[64], *res;
     int n, len, ncmd, stop;
     Arg *aPtr = (Arg *) arg;
 
@@ -316,7 +316,7 @@ EvalThread(void *arg)
 	Tcl_DStringTrunc(&ds, 0);
 	++ncmd;
 retry:
-	sprintf(buf, "nscp %d> ", ncmd);
+	sprintf(buf, "%s:nscp %d> ", server, ncmd);
 	while (1) {
 	    if (!GetLine(aPtr->sock, buf, &ds, 1)) {
 		goto done;
@@ -324,7 +324,7 @@ retry:
 	    if (Tcl_CommandComplete(ds.string)) {
 		break;
 	    }
-	    sprintf(buf, "nscp %d>>> ", ncmd);
+	    sprintf(buf, "%s:nscp %d>>> ", server, ncmd);
 	}
 	while (ds.length > 0 && ds.string[ds.length-1] == '\n') {
 	    Tcl_DStringTrunc(&ds, ds.length-1);
@@ -465,7 +465,7 @@ Login(SOCKET sock)
 {
     Tcl_HashEntry *hPtr;
     Tcl_DString uds, pds;
-    char *encpass, *user, *pass, *msg, buf[30];
+    char *encpass, *user, *pass, msg[255], buf[30];
     int ok;
 
     user = NULL;
@@ -473,7 +473,7 @@ Login(SOCKET sock)
     Tcl_DStringInit(&uds);
     Tcl_DStringInit(&pds);
     if (GetLine(sock, "login: ", &uds, 1) &&
-	GetLine(sock, "password: ", &pds, fEchoPw)) {
+	GetLine(sock, "Password: ", &pds, fEchoPw)) {
 	user = Ns_StrTrim(uds.string);
 	pass = Ns_StrTrim(pds.string);
     	hPtr = Tcl_FindHashEntry(&users, user);
@@ -492,11 +492,15 @@ Login(SOCKET sock)
 	}
     }
     if (ok) {
-	Ns_Log(Notice, "nscp: logged in: %s", user);
-	msg = "\nWelcome to AOLserver\n";
+	Ns_Log(Notice, "nscp: logged in: '%s'", user);
+	sprintf(msg, "\nWelcome to %s running at %s (pid %d)\n"
+		"%s/%s (%s) for %s built on %s\n\n",
+		server, Ns_InfoNameOfExecutable(), Ns_InfoPid(),
+		Ns_InfoServerName(), Ns_InfoServerVersion(), Ns_InfoLabel(),
+		Ns_InfoPlatform(), Ns_InfoBuildDate());
     } else {
-	Ns_Log(Warning, "nscp: login failed: %s", user ? user : "?");
-	msg = "\nAccess denied\n";
+	Ns_Log(Warning, "nscp: login failed: '%s'", user ? user : "?");
+	sprintf(msg, "Access denied!\n");
     }
     (void) send(sock, msg, strlen(msg), 0);
     Tcl_DStringFree(&uds);
@@ -534,6 +538,6 @@ ExitCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 
     stopPtr = (int *) arg;
     *stopPtr = 1;
-    Tcl_SetResult(interp, "\nGoodbye\n", TCL_STATIC);
+    Tcl_SetResult(interp, "\nGoodbye!", TCL_STATIC);
     return TCL_OK;
 }

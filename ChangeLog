@@ -1,5 +1,14 @@
 2000-10-09  Kriston J. Rehberg  <Kriston@AOL.NET>
 
+	* nsd/nsmain.c (Ns_InfoNameOfExecutable): new function just
+	returns nsconf.nsd which is determined elsewhere.
+
+	* nscp/nscp.c (Login): Tells you lots of harmless info about the
+	machine once you log in.  Also, nscp does not run unless
+	configuration is explicitly set
+
+	* nsd/nsmain.c: Some typo or other.
+
 	* General: Files were re-arranged and some were renamed.  The
 	sample SSL key/cert files are sample-certfile, sample-keyfile.
 	The nsd.tcl is now called sample-config.tcl (so that existing
@@ -10,7 +19,8 @@
 	them with "gmake install-tests".
 
 	* nsd/tclxkeylist.c, nsd/tclcmds.c, nsd/Makefile: Re-added TclX
-	keyl* commands that were in AOLserver 2.x.
+	keyl* commands that were in AOLserver 2.x.  These are inferior to
+	ns_set which is why they were left out in the first place.
 
 2000-10-04  Jim Davidson
 

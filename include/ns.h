@@ -33,7 +33,7 @@
  *      All the public types and function declarations for the core
  *	AOLserver.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.4 2000/08/18 00:07:20 jgdavidson Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.5 2000/10/09 23:21:01 kriston Exp $
  */
 
 #ifndef NS_H
@@ -851,6 +851,7 @@ NS_EXTERN char *Ns_InfoServerName(void);
 NS_EXTERN char *Ns_InfoServerVersion(void);
 NS_EXTERN char *Ns_InfoConfigFile(void);
 NS_EXTERN int Ns_InfoPid(void);
+NS_EXTERN char *Ns_InfoNameOfExecutable(void);
 NS_EXTERN char *Ns_InfoPlatform(void);
 NS_EXTERN int Ns_InfoUptime(void);
 NS_EXTERN int Ns_InfoBootTime(void);
