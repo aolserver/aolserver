@@ -34,7 +34,7 @@
  *	Routines for a simple cache used by fastpath and Adp.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/cache.c,v 1.7 2001/06/26 22:10:53 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/cache.c,v 1.8 2001/11/05 20:23:23 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -64,7 +64,6 @@ typedef struct Cache {
     Entry *firstEntryPtr;
     Entry *lastEntryPtr;
     Tcl_HashEntry *hPtr;
-    Ns_Pool *pool;
     int keys;
     time_t timeout;
     int schedId;
@@ -205,9 +204,6 @@ Ns_CacheDestroy(Ns_Cache *cache)
     Ns_MutexDestroy(&cachePtr->lock);
     Ns_CondDestroy(&cachePtr->cond);
     Tcl_DeleteHashTable(&cachePtr->entriesTable);
-    if (cachePtr->pool != NULL) {
-	Ns_PoolDestroy(cachePtr->pool);
-    }
     ns_free(cachePtr);
 }
 
@@ -266,12 +262,7 @@ Ns_CacheFind(char *name)
 void *
 Ns_CacheMalloc(Ns_Cache *cache, size_t len)
 {
-    Cache *cachePtr = (Cache *) cache;
-
-    if (cachePtr->pool == NULL) {
-	Ns_PoolCreate(cachePtr->name);
-    }
-    return Ns_PoolAlloc(cachePtr->pool, len);
+    return ns_malloc(len);
 }
 
 
@@ -294,9 +285,7 @@ Ns_CacheMalloc(Ns_Cache *cache, size_t len)
 void
 Ns_CacheFree(Ns_Cache *cache, void *ptr)
 {
-    Cache *cachePtr = (Cache *) cache;
-
-    Ns_PoolFree(cachePtr->pool, ptr);
+    ns_free(ptr);
 }
 
 
