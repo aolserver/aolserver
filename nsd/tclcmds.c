@@ -33,7 +33,7 @@
  * 	Connect Tcl command names to the functions that implement them
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.33 2002/10/14 23:20:52 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.34 2002/10/30 00:02:20 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -245,14 +245,12 @@ extern Tcl_CmdProc
     NsTclClientDebugCmd,
     NsTclParseQueryCmd,
     NsTclQueryResolveCmd,
-    NsTclServerCmd,
     NsTclSetExpiresCmd,
     NsTclShutdownCmd,
     Tcl_KeyldelCmd,
     Tcl_KeylgetCmd,
     Tcl_KeylkeysCmd,
     Tcl_KeylsetCmd,
-    NsTclConnCmd,
     NsTclCrashCmd,
     NsTclCryptCmd,
     NsTclGetUrlCmd,
@@ -555,7 +553,7 @@ static Cmd servCmds[] = {
 
     {"ns_conncptofp", NsTclWriteContentCmd, NsTclWriteContentObjCmd},
     {"ns_writecontent", NsTclWriteContentCmd, NsTclWriteContentObjCmd},
-    {"ns_conn", NsTclConnCmd, NsTclConnObjCmd},
+    {"ns_conn", NULL, NsTclConnObjCmd},
 
     /*
      * adpparse.c
@@ -615,7 +613,7 @@ static Cmd servCmds[] = {
      * serv.c
      */
 
-    {"ns_server", NsTclServerCmd, NsTclServerObjCmd},
+    {"ns_server", NULL, NsTclServerObjCmd},
 
     /*
      * tclinit.c
