@@ -27,34 +27,22 @@
  * version of this file under either the License or the GPL.
  */
 
-
 /* 
- * adpfancy.c --
+ * adpparse.c --
  *
- *	Support for registered tags within ADPs, the <script> tag,
- *      uncached ADPs, and streaming. This is a good example of
- *	the Ns_AdpRegisterParser() API call.
+ *	ADP parser.
  */
 
-/*
- * Hacked by Karl Goldstein and Jim Guggemos:
- * (1) Removed check for quotes so that registered tags can be placed
- * within quoted attributes (i.e. <a href="<mytag>">)
- * (2) Added BalancedEndTag function so that registered tags can be
- * nested (i.e. <mytag> ... <mytag> ... </mytag>  ... </mytag>
- *
- */
- 
-/* 4/19/00 : Hacked by mcazzell@lovemail.com [moe]
- * Removed check for comments so that server side includes
- * or similar constructs can be registered with fancy tags.
- */ 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpparse.c,v 1.1 2001/03/12 22:06:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpparse.c,v 1.2 2001/03/16 20:48:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
+#define SERV_STREAM	1
+#define SERV_RUNAT	2
+#define SERV_NOTTCL	4
+
 /*
- * Types
+ * The following structure maintains proc and adp registered tags.
  */
 
 typedef struct {
@@ -62,24 +50,15 @@ typedef struct {
     char          *endtag;  /* The closing tag or null (e.g., "/netscape")*/
     char          *string;  /* Proc (e.g., "ns_adp_netscape") or ADP string. */
     int		   isproc;  /* Arg is a proc, not ADP string. */
-} RegTag;
+} Tag;
 
 /*
  * Local functions defined in this file
  */
 
-static void      StartText(Ns_DString *dsPtr);
-static void      StartScript(Ns_DString *dsPtr);
-static void      NAppendChunk(Ns_DString *dsPtr, char *text, int length);
-static void      AppendChunk(Ns_DString *dsPtr, char *text);
-static void      EndChunk(Ns_DString *dsPtr);
-static void      AddTextChunk(Ns_DString *dsPtr, char *text, int length);
-static void      AppendTclEscaped(Ns_DString *ds, char *in);
-static void      NAppendTclEscaped(Ns_DString *ds, char *in, int n);
-static Ns_Set   *TagToSet(char *sTag);
-static char     *ReadToken(char *in, Ns_DString *tagPtr);
-static char     *BalancedEndTag(char *in, RegTag *rtPtr);
-static RegTag   *GetRegTag(NsServer *servPtr, char *tag);
+static void AppendChunk(Ns_DString *dsPtr, char *s, char *e, int type);
+static void Parse(NsServer *servPtr, Ns_DString *dsPtr, char *p);
+static Tag   *GetRegTag(NsServer *servPtr, char *tag);
 static int	 RegisterCmd(ClientData arg, Tcl_Interp *interp,
 		    int argc, char **argv, int isproc);
 
@@ -124,7 +103,7 @@ RegisterCmd(ClientData arg, Tcl_Interp *interp, int argc,
     char           *tag, *endtag, *string;
     Tcl_HashEntry  *hPtr;
     int             new;
-    RegTag         *rtPtr;
+    Tag         *tagPtr;
     
     if (argc != 4 && argc != 3) {
 	Tcl_AppendResult(interp, "wrong # args: should be \"",
@@ -138,12 +117,12 @@ RegisterCmd(ClientData arg, Tcl_Interp *interp, int argc,
     Ns_MutexLock(&servPtr->adp.lock);
     hPtr = Tcl_CreateHashEntry(&servPtr->adp.tags, tag, &new);
     if (new) {
-    	rtPtr = ns_malloc(sizeof(RegTag));
-    	rtPtr->tag = ns_strdup(tag);
-    	rtPtr->endtag = endtag ? ns_strdup(endtag) : NULL;
-    	rtPtr->string = ns_strdup(string);
-    	rtPtr->isproc = isproc;
-    	Tcl_SetHashValue(hPtr, (void *) rtPtr);
+    	tagPtr = ns_malloc(sizeof(Tag));
+    	tagPtr->tag = ns_strdup(tag);
+    	tagPtr->endtag = endtag ? ns_strdup(endtag) : NULL;
+    	tagPtr->string = ns_strdup(string);
+    	tagPtr->isproc = isproc;
+    	Tcl_SetHashValue(hPtr, (void *) tagPtr);
     }
     Ns_MutexUnlock(&servPtr->adp.lock);
     if (!new) {
@@ -160,10 +139,10 @@ RegisterCmd(ClientData arg, Tcl_Interp *interp, int argc,
  *
  * NsAdpParse --
  *
- *	Takes an ADP as input and forms a chunky ADP as output.
+ *	Takes an ADP as input and appends chunky ADP as output.
  *
  * Results:
- *	A chunked ADP is put in outPtr.
+ *	None.
  *
  * Side effects:
  *	None.
@@ -172,651 +151,45 @@ RegisterCmd(ClientData arg, Tcl_Interp *interp, int argc,
  */
 
 void
-NsAdpParse(NsServer *servPtr, Ns_DString *outPtr, char *in)
+NsAdpParse(NsServer *servPtr, Ns_DString *dsPtr, char *utf)
 {
-    char       *top, *oldtop, *end;
-    Ns_DString  tag;
-    Ns_Set     *params;
-    RegTag     *rtPtr;
-    
+    char *s, *e;
+
     /*
-     * Tags we care about:
-     * <%
-     * <script
-     * <regtag
+     * Scan for <% ... %> sequences which take precedence over
+     * other tags.
      */
 
-    Ns_DStringInit(&tag);
-    oldtop = top = in;
-    while ((top = ReadToken(top, &tag)) != NULL) {
+    while ((s = strstr(utf, "<%")) && (e = strstr(s, "%>"))) {
 	/*
-	 * top points at the character after the tag.
-	 * tag is a dstring containg either one tag or a bunch of text.
-	 * oldtop points at where tag starts in the original string.
-	 *
-	 * <script language=tcl runat=server> ns_puts hi
-	 * ^                                 ^
-	 * oldtop                            top
-	 *
-	 * tag="<script language=tcl runat=server>"
+	 * Parse text preceeding the script.
 	 */
-	
-	if (strncmp(tag.string, "<%", 2) == 0) {
-	    /*
-	     * Find %> tag and add script if there, otherwise spit out
-	     * a warning and add as text.
-	     */
-	    end = strstr(top, "%>");
-	    if (end == NULL) {
-		Ns_Log(Warning, "adpfancy: unterminated script");
-		AddTextChunk(outPtr, oldtop, strlen(oldtop));
-		break;
-	    } else {
-		StartScript(outPtr);
-		if (tag.string[2] == '=') {
-		    NAppendChunk(outPtr, "ns_puts -nonewline ",
- 				  sizeof("ns_puts -nonewline ")-1);
-		}
-		NAppendChunk(outPtr, top, end-top);
-		EndChunk(outPtr);
-		top = end + 2;
-	    }
-	} else if (strncasecmp(tag.string, "<script", 7) == 0) {
-	    char *lang, *runat, *stream;
-	    /*
-	     * Get the paramters to the tag and then add the
-	     * script chunk if appropriate, otherwise it's just
-	     * text
-	     */
-	    
-	    params = TagToSet(tag.string);
-	    lang = Ns_SetIGet(params, "language");
-	    stream = Ns_SetIGet(params, "stream");
-	    runat = Ns_SetIGet(params, "runat");
-	    if (runat != NULL &&
-		strcasecmp(runat, "server") == 0 &&
-		(lang == NULL || strcasecmp(lang, "tcl") == 0)) {
 
-		/*
-		 * This is a server-side script chunk!
-		 * If there is an end tag, add it as a script, else
-		 * spit out a warning and add as text.
-		 */
-		
-		end = Ns_StrNStr(top, "</script>");
-		if (end == NULL) {
-		    Ns_Log(Warning, "adpfancy: unterminated script");
-		    AddTextChunk(outPtr, oldtop, strlen(oldtop));
-                    Ns_SetFree(params);
-		    break;
-		} else {
-		    StartScript(outPtr);
-		    if (stream != NULL && strcasecmp(stream, "on") == 0) {
-			AppendChunk(outPtr, "ns_adp_stream\n");
-		    }
-		    NAppendChunk(outPtr, top, end-top);
-		    EndChunk(outPtr);
-		    top = end + 9;
-		}
-	    } else {
-		/*
-		 * Not a server-side script, so add as text.
-		 */
-		
-		AddTextChunk(outPtr, tag.string, tag.length);
-	    }
-            Ns_SetFree(params);
-	} else if (tag.string[0] == '<'
-	    && (rtPtr = GetRegTag(servPtr, tag.string + 1)) != NULL) {
-
-	    /*
-	     * It is a registered tag. In this case, we generate
-	     * a bolus of tcl code that will call it.
-	     */
-
-	    int         i;
-	    char       *end = NULL;
-
-	    params = TagToSet(tag.string);
-
-	    /*
-	     * If it requires an endtag then ensure that there
-	     * is one. If not, warn and spew text.
-	     */
-	    
-	    if (rtPtr->endtag &&
-		((end = BalancedEndTag(top, rtPtr)) == NULL)) {
-
-		Ns_Log(Warning, "adpfancy: unterminated registered tag '%s'",
-		       rtPtr->tag);
-		AddTextChunk(outPtr, oldtop, strlen(oldtop));
-                Ns_SetFree(params);
-		break;
-	    }
-
-	    /*
-	     * Write Tcl code to put all the parameters into a set, then
-	     * call the proc with that set (and the input, if any).
-	     */
-	    
-	    StartScript(outPtr);
-	    AppendChunk(outPtr, "set _ns_tempset [ns_set create \"\"]\n");
-	    for (i=0; i < Ns_SetSize(params); i++) {
-		AppendChunk(outPtr, "ns_set put $_ns_tempset \"");
-		AppendTclEscaped(outPtr, Ns_SetKey(params, i));
-		AppendChunk(outPtr, "\" \"");
-		AppendTclEscaped(outPtr, Ns_SetValue(params, i));
-	        AppendChunk(outPtr, "\"\n");
-	    }
-	    AppendChunk(outPtr, "ns_puts -nonewline [");
-	    if (rtPtr->isproc) {
-		/*
-		 * This uses the old-style registered procedure
-		 */
-		AppendChunk(outPtr, rtPtr->string);
-	    } else {
-		/*
-		 * This uses the new and improved registered ADP.
-		 */
-		AppendChunk(outPtr, "ns_adp_eval \"");
-		AppendTclEscaped(outPtr, rtPtr->string);
-		AppendChunk(outPtr, "\" ");
-	    }
-	    AppendChunk(outPtr, " ");
-
-	    /*
-	     * Backwards compatibility is broken here because a conn is
-	     * never passed
-	     */
-	    if (end != NULL) {
-		/*
-		 * This takes an endtag, so pass it content (the text between
-		 * the start and end tags).
-		 */
-		AppendChunk(outPtr, "\"");
-		NAppendTclEscaped(outPtr, top, end-top-1);
-		AppendChunk(outPtr, "\" ");
-	    }
-	    AppendChunk(outPtr, "$_ns_tempset]\n");
-	    EndChunk(outPtr);
-
-	    /*
-	     * Advance top past the end of the close tag
-	     * (if there is no closetag, top should already be
-	     * properly advanced thanks get ReadToken)
-	     */
-	    if (end != NULL) {
-		while (*end != '\0' && *end != '>') {
-		    end++;
-		}
-		if (*end == '>') {
-		    end++;
-		}
-		top = end;
-	    }
-            Ns_SetFree(params);
+	*s = '\0';
+	Parse(servPtr, dsPtr, utf);
+	*s = '<';
+	if (s[2] != '=') {
+	    AppendChunk(dsPtr, s + 2, e, 's');
 	} else {
-	    /*
-	     * It's just a chunk of text.
-	     */
-
-	    AddTextChunk(outPtr, tag.string, tag.length);
+	    AppendChunk(dsPtr, s + 3, e, 'S');
 	}
-	Ns_DStringTrunc(&tag, 0);
-
-	oldtop = top;
-    }
-    Ns_DStringFree(&tag);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * StartScript --
- *
- *	Start a chunk which is a script.
- *
- * Results:
- *	The passed-in dstring has a chunk header appended to it.
- *
- * Side effects:
- *	None.
- *
- *----------------------------------------------------------------------
- */
-
-static void
-StartScript(Ns_DString *dsPtr)
-{
-    Ns_DStringNAppend(dsPtr, "s", 1);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * StartText --
- *
- *	Start a chunk which is text.
- *
- * Results:
- *	The passed-in dstring has a chunk header appended to it.
- *
- * Side effects:
- *	None.
- *
- *----------------------------------------------------------------------
- */
-
-static void
-StartText(Ns_DString *dsPtr)
-{
-    Ns_DStringNAppend(dsPtr, "t", 1);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NAppendChunk --
- *
- *	Append a string of length N to the chunk.
- *
- * Results:
- *	The passed-in dstring has a chunk appended to it.
- *
- * Side effects:
- *	None.
- *
- *----------------------------------------------------------------------
- */
-
-static void
-NAppendChunk(Ns_DString *dsPtr, char *text, int length)
-{
-    Ns_DStringNAppend(dsPtr, text, length);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * AppendChunk --
- *
- *	Append a string to the chunk.
- *
- * Results:
- *	The passed-in dstring has a chunk appended to it.
- *
- * Side effects:
- *	None.
- *
- *----------------------------------------------------------------------
- */
-
-static void
-AppendChunk(Ns_DString *dsPtr, char *text)
-{
-    Ns_DStringAppend(dsPtr, text);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * EndChunk --
- *
- *	End a chunk
- *
- * Results:
- *	The passed-in dstring has a null appended to it.
- *
- * Side effects:
- *	None.
- *
- *----------------------------------------------------------------------
- */
-
-static void
-EndChunk(Ns_DString *dsPtr)
-{
-    Ns_DStringNAppend(dsPtr, "", 1);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * AddTextChunk --
- *
- *	Given a string of HTML, convert it into a text chunk suitable
- *      for caching.
- *
- * Results:
- *	The passed-in dstring has a chunk appended to it.
- *
- * Side effects:
- *	None.
- *
- *----------------------------------------------------------------------
- */
-
-static void
-AddTextChunk(Ns_DString *dsPtr, char *text, int length)
-{
-    StartText(dsPtr);
-    NAppendChunk(dsPtr, text, length);
-    EndChunk(dsPtr);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * AppendTclEscaped --
- *
- *	Append a string to a dstring after escaping it for Tcl so that
- *      it is suitable for putting inside "...". The translations are:
- *	" -> \"
- *      $ -> \$
- *      \ -> \\
- *      [ -> \[
- *
- * Results:
- *	The dstring will have stuff appended to it that is tcl-safe.
- *
- * Side effects:
- *	None.
- *
- *----------------------------------------------------------------------
- */
-
-static void
-AppendTclEscaped(Ns_DString *ds, char *in)
-{
-    while (*in) {
-	if (*in == '"'  ||
-	    *in == '$'  ||
-	    *in == '\\' ||
-	    *in == '[') {
-	    Ns_DStringAppend(ds, "\\");
-	}
-	Ns_DStringNAppend(ds, in, 1);
-	in++;
-    }
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NAppendTclEscaped --
- *
- *      Same as AppendTclEscaped, but only do up to N bytes.
- *
- * Results:
- *	See AppendTclEscaped.
- *
- * Side effects:
- *	None.
- *
- *----------------------------------------------------------------------
- */
-
-static void
-NAppendTclEscaped(Ns_DString *ds, char *in, int n)
-{
-    while (*in && (n-- > 0)) {
-	if (*in == '"'  ||
-	    *in == '$'  ||
-	    *in == '\\' ||
-	    *in == '[') {
-
-	    Ns_DStringAppend(ds, "\\");
-	}
-	Ns_DStringNAppend(ds, in, 1);
-	in++;
-    }
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * TagToSet --
- *
- *	Given a tag such as <script runat=server language=tcl> make
- *	an ns_set containing runat=server, language=tcl.
- *
- * Results:
- *	The above described set.
- *
- * Side effects:
- *	An Ns_Set is allocated.
- *
- *      NOTE: ALWAYS DO Ns_SetFree() THE RESULT OF THIS FUNCTION!
- *
- *----------------------------------------------------------------------
- */
-
-static Ns_Set *
-TagToSet(char *sTag)
-{
-    char *p, c;
-    Ns_Set *set;
-
-    /* Skip the opening '>' */
-    p = ++sTag;
-    /* Get the tag name */
-    while (isspace(UCHAR(*sTag)) == 0 &&
-	*sTag != '\0' &&
-	*sTag != '>') {
-
-	sTag++;
-    }
-    c = *sTag;
-    *sTag = '\0';
-    set = Ns_SetCreate(p);
-    *sTag = c;
-    /* Handle the attribute = value pairs */
-    do {
-	/* Skip blanks */
-	while (*sTag != '\0' && isspace(UCHAR(*sTag))) {
-	    sTag++;
-	}
-	if (*sTag == '>') {
-	    break;
-	}
-	/* Get attr name */
-	p = sTag;
-	while (*sTag != '\0' &&
-	    isspace(UCHAR(*sTag)) == 0 &&
-	    *sTag != '=' && *sTag != '>') {
-
-	    sTag++;
-	}
-	c = *sTag;
-	*sTag = '\0';
-	Ns_SetPut(set, p, NULL);
-	*sTag = c;
-	/* Skip blanks */
-	while (*sTag != '\0' && isspace(UCHAR(*sTag))) {
-	    sTag++;
-	}
-	if (*sTag == '=') {
-	    /* get attr value */
-	    sTag++;
-	    /* Skip blanks */
-	    while (*sTag != '\0' && isspace(UCHAR(*sTag))) {
-		sTag++;
-	    }
-	    if (*sTag == '"') {
-		/* get attr value in double quotes */
-		sTag++;
-		p = sTag;
-		while (*sTag != '\0' && *sTag != '"') {
-		    sTag++;
-		}
-		c = *sTag;
-		*sTag = '\0';
-		set->fields[set->size -1].value = ns_strcopy(p);
-		*sTag = c;
-		if (*sTag == '"') {
-		    sTag++;
-		}
-	    } else {
-		/* get attr value bounded by whitespace or end of tag */
-		p = sTag;
-		while (*sTag != '\0' &&
-		    isspace(UCHAR(*sTag)) == 0 &&
-		    *sTag != '>') {
-
-		    sTag++;
-		}
-		c = *sTag;
-		*sTag = '\0';
-		set->fields[set->size -1].value = ns_strcopy(p);
-		*sTag = c;
-	    }
-      } else {
-	  set->fields[set->size-1].value = 
-	    ns_strcopy(set->fields[set->size-1].name);
-	}
-    } while (*sTag != '\0' && *sTag != '>');
-
-    return set;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * ReadToken --
- *
- *	Read the passed-in dstring until a token is found and return it
- *	in a dstring.
- *
- * Results:
- *	NULL on failure (including EOF), or a pointer to the next char
- *      in the input stream.
- *
- * Side effects:
- *	None.
- *
- *----------------------------------------------------------------------
- */
-
-static char *
-ReadToken(char *in, Ns_DString *tagPtr)
-{
-    char c;
-    int quoting = 0;
-    
-    if ((c = *in++) == '\0') {
-	return NULL;
+	utf = e + 2;
     }
 
-    Ns_DStringNAppend(tagPtr, &c, 1);
-    /* Starting to read a tag */
-    if (c == '<') {
-	if ((c = *in++) == '\0') {
-	    in--;
-	    goto done;
-	}
+    /*
+     * Parse the remaining text.
+     */
 
-	Ns_DStringNAppend(tagPtr, &c, 1);
-	if (c == '%') {
-	    if ((c = *in++) == '\0') {
-		in--;
-		goto done;
-	    }
-	    if (c == '=') {
-		Ns_DStringNAppend(tagPtr, &c, 1);
-		goto done;
-	    } else {
-		in--;
-		goto done;
-	    }
-	} else {
-	    /* 4/19/00: [moe] Removed code which ignores HTML Comments
-
-	    if (c == '!') {
-		if ((c = *in++) == '\0') {
-		    in--;
-		    goto done;
-		}
-		Ns_DStringNAppend(tagPtr, &c, 1);
-		if (c == '-') {
-		    if ((c = *in++) == '\0') {
-			goto done;
-		    }
-		    Ns_DStringNAppend(tagPtr, &c, 1);
-		    if (c == '-') {
-			goto done;
-		    }
-		}
-	    }
-
-	    */
-
-	    while (c != '>' && (c = *in++) != '\0') {
-	      if (c == '<') {
-		    in--;
-		    goto done;
-		}
-		Ns_DStringNAppend(tagPtr, &c, 1);
-	    }
-	    if (c == '\0') {
-		in--;
-	    }
-	    goto done;
-	}
-    } else if (c == '%') {
-	if ((c = *in++) == '\0') {
-	    in--;
-	    goto done;
-	}
-	Ns_DStringNAppend(tagPtr, &c, 1);
-	if (c == '>') {
-	    goto done;
-	}
-	while ((c = *in++) != '\0') {
-	    if ((c == '<') || (c == '%')) {
-		in--;
-		break;
-	    }
-	    Ns_DStringNAppend(tagPtr, &c, 1);
-	}
-	if (c == '\0') {
-	    in--;
-	}
-    } else {
-	while ((c = *in++) != '\0') {
-	    if (c == '<' || c == '%') {
-		in--;
-		break;
-	    }
-	    Ns_DStringNAppend(tagPtr, &c, 1);
-	}
-	if (c == '\0') {
-	    in--;
-	}
-    }
-
- done:
-    return in;
+    Parse(servPtr, dsPtr, utf);;
 }
 
 
 /*
  *----------------------------------------------------------------------
  *
- * GetRegTag --
+ * FindRegTag --
  *
- *	Looks up in The Hash Table the passed-in regtag and returns the
- *	regtag struct where available. The passed in tag should look like:
- *      "tag a=b c=d>" or "tag>"
+ *	Return the Tag structure for the given tag.
  *
  * Results:
  *	Either a pointer to the requested regtag or null if none exists.
@@ -827,91 +200,398 @@ ReadToken(char *in, Ns_DString *tagPtr)
  *----------------------------------------------------------------------
  */
 
-static RegTag *
-GetRegTag(NsServer *servPtr, char *tag)
+static Tag *
+FindRegTag(NsServer *servPtr, char *tag)
 {
-    char          *end, temp;
     Tcl_HashEntry *hPtr;
     
-    /*
-     * Locate the end of the tag
-     */
-
-    end = tag;
-    while (*end != '\0'
-	&& *end != '>'
-	&& !isspace(UCHAR(*end))) {
-	end++;
-    }
-    if (*end == '\0') {
-	return NULL;
-    }
-
-    /*
-     * Find the tag.  Note it's safe to
-     * return the tag after releaseing
-     * the lock because (currently) there
-     * is no way to unregister a tag.
-     */
-
-    temp = *end;
-    *end = '\0';
     Ns_MutexLock(&servPtr->adp.lock);
     hPtr = Tcl_FindHashEntry(&servPtr->adp.tags, tag);
     Ns_MutexUnlock(&servPtr->adp.lock);
-    *end = temp;
     if (hPtr == NULL) {
 	return NULL;
     }
     return Tcl_GetHashValue(hPtr) ;
 }
 
-static char * 
-BalancedEndTag(char *in, RegTag *rtPtr)
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * AppendChunk --
+ *
+ *	Add a text or script chunk to the output buffer.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+AppendChunk(Ns_DString *dsPtr, char *s, char *e, int type)
 {
-
-  int tag_depth = 1;
-  int taglen, endlen;
-
-  taglen = strlen(rtPtr->tag);
-  endlen = strlen(rtPtr->endtag);
-
-  while (tag_depth) {
-
-    /*  
-     * Scan ahead for a '<'
-     */
-
-    for ( ; *in && *in != '<'; ++in ) ;
-    if (*in == '\0') return NULL;
-
-    /* skip '<' */
-    ++in;
-
-    /*
-     * The current parser seems to allow white space between < and the tag
-     */
-
-    for ( ; *in && isspace(UCHAR(*in)); ++in ) ;
-    if (*in == '\0') return NULL;
-
-    /*  
-     * If the next word matches the close tag, then decrement tag_depth
-     */
-
-    if (! strncasecmp(in, rtPtr->endtag, endlen)) {
-      tag_depth--;
+    if (s < e) {
+	Ns_DStringNAppend(dsPtr, type == 't' ? "t" : "s", 1);
+	if (type == 'S') {
+	    Ns_DStringAppend(dsPtr, "ns_puts -nonewline ");
+	}
+	Ns_DStringNAppend(dsPtr, s, e-s);
+	Ns_DStringNAppend(dsPtr, "", 1);
     }
-
-    /*  
-     * else if the next word matches the open tag, then increment tag_depth
-     */
-
-    else if (! strncasecmp(in, rtPtr->tag, taglen)) {
-      tag_depth++;
-    }
-  }
-
-  return in;
 }
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * GetTag --
+ *
+ *	Copy tag name in lowercase to given dstring.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	Start of att=val pairs, if any, are set is aPtr if not null.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+GetTag(Tcl_DString *dsPtr, char *s, char *e, char **aPtr)
+{
+    char *t;
+
+    ++s;
+    while (s < e && isspace(UCHAR(*s))) {
+	++s;
+    }
+    t = s;
+    while (s < e  && !isspace(UCHAR(*s))) {
+	++s;
+    }
+    Tcl_DStringTrunc(dsPtr, 0);
+    Tcl_DStringAppend(dsPtr, t, s - t);
+    if (aPtr != NULL) {
+	while (s < e && isspace(UCHAR(*s))) {
+	    ++s;
+	}
+	*aPtr = s;
+    }
+    dsPtr->length = Tcl_UtfToLower(dsPtr->string);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * ParseAtts --
+ *
+ *	Parse tag attributes, either looking for known <script>
+ *	pairs or copying cleaned up pairs to given dstring.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	Flags in given servPtr are updated and/or data copied to given
+ *	dstring.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+ParseAtts(char *s, char *e, int *servPtr, Tcl_DString *attsPtr)
+{
+    char    *vs, *ve, *as, *ae, end, vsave, asave;
+    
+    if (servPtr != NULL) {
+	*servPtr = 0;
+    }
+    while (s < e) {
+	/*
+	 * Trim attribute name.
+	 */
+
+	while (s < e && isspace(UCHAR(*s))) {
+	    ++s;
+	}
+	as = s;
+	while (s < e && !isspace(UCHAR(*s)) && *s != '=') {
+	    ++s;
+	}
+	ae = s;
+	while (s < e && isspace(UCHAR(*s))) {
+	    ++s;
+	}
+
+	if (*s++ != '=') {
+	    /*
+	     * Use attribute name as value.
+	     */
+
+	    vs = as;
+	} else {
+	    /*
+	     * Trim spaces and/or quotes from value.
+	     */
+
+	    while (s < e && isspace(UCHAR(*s))) {
+		++s;
+	    }
+	    vs = s;
+	    while (s < e && !isspace(UCHAR(*s))) {
+		++s;
+	    }
+	    ve = s;
+	    if (*vs == '=') {
+		end = '=';
+	    } else if (*vs == '\'') {
+		end = '\'';
+	    } else {
+		end = 0;
+	    }
+	    if (end != 0 && ve > vs && ve[-1] == end) {
+		++vs;
+		--ve;
+	    }
+	    vsave = *ve;
+	    *ve = '\0';
+	}
+	asave = *ae;
+	*ae = '\0';
+
+	/*
+	 * Append attributes or scan for special <script> pairs.
+	 */
+
+	if (attsPtr != NULL) {
+	    Tcl_DStringAppendElement(attsPtr, as);
+	    Tcl_DStringAppendElement(attsPtr, vs);
+	}
+	if (servPtr != NULL && vs != as) {
+	    if (STRIEQ(as, "runat") && STRIEQ(vs, "server")) {
+		*servPtr |= SERV_RUNAT;
+	    } else if (STRIEQ(as, "language") && !STRIEQ(vs, "tcl")) {
+		*servPtr |= SERV_NOTTCL;
+	    } else if (STRIEQ(as, "stream") && STRIEQ(vs, "on")) {
+		*servPtr |= SERV_STREAM;
+	    }
+	}
+
+	/*
+	 * Restore strings.
+	 */
+
+	*ae = asave;
+	if (vs != as) {
+	    *ve = vsave;
+	}
+    }
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * IsServer --
+ *
+ *	Parse attributes for known <script> attributes.
+ *
+ * Results:
+ *	1 if attributes indicate valid server-side script, 0 otherwise.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+IsServer(char *tag, char *as, char *ae, int *streamPtr)
+{
+    int serv;
+
+    if (as < ae && STREQ(tag, "script")) {
+	ParseAtts(as, ae, &serv, NULL);
+	if ((serv & SERV_RUNAT) && !(serv & SERV_NOTTCL)) {
+	    *streamPtr = (serv & SERV_STREAM);
+	    return 1;
+	}
+    }
+    return 0;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * AppendTag --
+ *
+ *	Append tag script chunk..
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+AppendTag(Ns_DString *dsPtr, Tag *tagPtr, char *as, char *ae, char *se)
+{
+    Tcl_DString script;
+    char save;
+
+    Tcl_DStringInit(&script);
+    Tcl_DStringAppend(&script, "ns_puts -nonewline [", -1);
+    if (!tagPtr->isproc) {
+	Tcl_DStringAppend(&script, "ns_adp_eval", -1);
+    }
+    Tcl_DStringAppendElement(&script, tagPtr->string);
+    if (se > ae) {
+	save = *se;
+	*se = '\0';
+	Tcl_DStringAppendElement(&script, ae + 1);
+	*se = save;
+    }
+    Tcl_DStringAppend(&script, " [ns_set create", -1);
+    Tcl_DStringAppendElement(&script, tagPtr->tag);
+    ParseAtts(as, ae, NULL, &script);
+    Tcl_DStringAppend(&script, "]]", 2);
+    AppendChunk(dsPtr, script.string, script.string+script.length, 's');
+    Tcl_DStringFree(&script);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Parse --
+ *
+ *	Parse UTF text for <script> and/or registered tags.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	Chunks will be appended to the given dsPtr.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+Parse(NsServer *servPtr, Ns_DString *dsPtr, char *utf)
+{
+    Tag            *tagPtr;
+    char           *ss, *se, *s, *e, *a, *as, *ae, *t;
+    int             level, state, stream, streamdone;
+    Tcl_DString     tag;
+
+    Tcl_DStringInit(&tag);
+    t = utf;
+    streamdone = 0;
+    state = 0;
+    while ((s = strchr(utf, '<')) && (e = strchr(s, '>'))) {
+	/*
+	 * Process the tag depending on the current state.
+	 */
+
+	switch (state) {
+	case 0:
+	    /*
+	     * Look for possible <script> or <tag>.
+	     */
+
+	    GetTag(&tag, s, e, &a);
+	    if (IsServer(tag.string, a, e, &stream)) {
+		/*
+		 * Record start of script.
+		 */
+
+		ss = s;
+		se = e + 1;
+		state = 1;
+	    } else {
+		tagPtr = FindRegTag(servPtr, tag.string);
+		if (tagPtr) {
+		    if (tagPtr->endtag == NULL) {
+			/*
+			 * Output simple no-end registered tag.
+			 */
+
+			AppendChunk(dsPtr, t, s, 't');
+			t = e + 1;
+			AppendTag(dsPtr, tagPtr, a, e, NULL);
+		    } else {
+			/*
+			 * Record start of registered tag.
+			 */
+
+			ss = s;
+			as = a;
+			ae = e;
+			level = 1;
+			state = 2;
+		    }
+		}
+	    }
+	    break;
+
+	case 1:
+	    GetTag(&tag, s, e, NULL);
+	    if (STREQ(tag.string, "/script")) {
+		/*
+		 * Output end of script.
+		 */
+
+		AppendChunk(dsPtr, t, ss, 't');
+		t = e + 1;
+		if (stream && !streamdone) {
+		    AppendChunk(dsPtr, "ns_adp_stream", NULL, 's');
+		    streamdone = 1;
+		}
+		AppendChunk(dsPtr, se, s, 's');
+		state = 0;
+	    }
+	    break;
+
+	case 2:
+	    GetTag(&tag, s, e, NULL);
+	    if (STRIEQ(tag.string, tagPtr->tag)) {
+		/*
+		 * Increment register tag nesting level.
+		 */
+
+		++level;
+	    } else if (STRIEQ(tag.string, tagPtr->endtag)) {
+		--level;
+		if (level == 0) {
+		    /*
+		     * Dump out registered tag.
+		     */
+
+		    AppendChunk(dsPtr, t, ss, 't');
+		    t = e + 1;
+		    AppendTag(dsPtr, tagPtr, as, ae, s);
+		    state = 0;
+		}
+	    }
+	    break;
+	}
+	utf = e + 1;
+    }
+
+    /*
+     * Append the remaining text chunk.
+     */
+
+    AppendChunk(dsPtr, t, t + strlen(t), 't');
+    Tcl_DStringFree(&tag);
+}
