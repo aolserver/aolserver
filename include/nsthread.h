@@ -32,7 +32,7 @@
  *
  *	Core threading and system headers.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/nsthread.h,v 1.5 2000/10/03 17:56:17 jgdavidson Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/nsthread.h,v 1.6 2000/10/13 00:08:13 jgdavidson Exp $
  */
 
 #ifndef NSTHREAD_H
@@ -271,6 +271,13 @@ NS_EXTERN void Ns_CsEnter(Ns_Cs *csPtr);
 NS_EXTERN void Ns_CsLeave(Ns_Cs *csPtr);
 
 /*
+ * fork.c:
+ */
+
+NS_EXTERN int ns_fork(void);
+NS_EXTERN int Ns_Fork(void);
+
+/*
  * master.c:
  */
 
@@ -443,5 +450,6 @@ NS_EXTERN int nsThreadMutexMeter;	/* Meter mutex trylock fails. */
 #define Ns_Calloc ns_calloc
 #define Ns_StrDup ns_strdup
 #define Ns_StrCopy ns_strcopy
+#define Ns_Fork ns_fork
 
 #endif /* NSTHREAD_H */

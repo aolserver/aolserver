@@ -33,7 +33,7 @@
  *      All the public types and function declarations for the core
  *	AOLserver.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.6 2000/10/12 17:25:11 jgdavidson Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.7 2000/10/13 00:08:13 jgdavidson Exp $
  */
 
 #ifndef NS_H
@@ -719,7 +719,6 @@ NS_EXTERN int Ns_ExecArgblk(char *exec, char *dir, int fdin, int fdout,
 			 char *args, Ns_Set *env);
 NS_EXTERN int Ns_ExecArgv(char *exec, char *dir, int fdin, int fdout, char **argv,
 		       Ns_Set *env);
-NS_EXTERN int Ns_Fork(void);
 NS_EXTERN int Ns_WaitProcess(int pid);
 NS_EXTERN int Ns_WaitForProcess(int pid, int *statusPtr);
 
