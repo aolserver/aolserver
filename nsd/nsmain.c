@@ -33,7 +33,7 @@
  *	AOLserver Ns_Main() startup routine.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.17 2000/10/17 20:12:03 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.18 2000/10/22 20:47:18 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -111,20 +111,13 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
     int		   kill = 0;
     int		   debug = 0;
     char	  *root = NULL;
+    char	  *garg = NULL;
+    char	  *uarg = NULL;
     char	  *bindargs = NULL;
     char	  *bindfile = NULL;
     struct rlimit  rl;
 #endif
     static int	   mode = 0;
-
-    /*
-     * Set up logging defaults (for Ns_Log at startup time).
-     */
-
-    nsconf.log.dev       = NS_FALSE;
-    nsconf.log.debug     = NS_FALSE;
-    nsconf.log.expanded  = NS_FALSE;
-    nsconf.log.maxback   = 10;
 
     /*
      * When run as a Win32 service, Ns_Main will be re-entered
@@ -138,6 +131,15 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
     	goto contservice;
     }
 #endif
+
+    /*
+     * Set up logging defaults (for Ns_Log at startup time).
+     */
+
+    nsconf.log.dev       = NS_FALSE;
+    nsconf.log.debug     = NS_FALSE;
+    nsconf.log.expanded  = NS_FALSE;
+    nsconf.log.maxback   = 10;
 
     /*
      * AOLserver requires file descriptor 0 be open on /dev/null to
@@ -169,60 +171,10 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 	close(fd);
     }
 
-    Ns_ThreadSetName("-main-");
-
-#ifndef WIN32
-
     /*
-     * AOLserver uses select() extensively so adjust the open file
-     * limit to be no greater than FD_SETSIZE on Unix.  It's possible
-     * you could define FD_SETSIZE to a larger value and recompile but
-     * this has not been verified.  Note also that on some platforms
-     * (e.g., Solaris, SGI o32) you're still left with the hardcoded
-     * limit of 255  open streams due to the definition of the FILE
-     * structure with an unsigned char member for the file descriptor.
-     * Note this limit must be set now to ensure it's inherited by
-     * all future threads on certain platforms such as SGI and Linux.
+     * Parse the command line arguments.
      */
 
-    if (getrlimit(RLIMIT_NOFILE, &rl) != 0) {
-	Ns_Log(Warning, "nsmain: getrlimit(RLIMIT_NOFILE) failed: '%s'",
-	       strerror(errno));
-    } else {
-	if (rl.rlim_max > FD_SETSIZE) {
-	    rl.rlim_max = FD_SETSIZE;
-	}
-	if (rl.rlim_cur != rl.rlim_max) {
-    	    rl.rlim_cur = rl.rlim_max;
-    	    if (setrlimit(RLIMIT_NOFILE, &rl) != 0) {
-	        Ns_Log(Warning, "nsmain: "
-		       "setrlimit(RLIMIT_NOFILE, %d) failed: '%s'",
-		       rl.rlim_max, strerror(errno));
-	    } 
-	}
-    }
-
-#endif
-
-    /*
-     * Set defaults and then parse the command line arguments.
-     */
-
-    nsconf.argv0 = argv[0];
-    nsconf.name = NSD_NAME;
-    nsconf.version = NSD_VERSION;
-    time(&nsconf.boot_t);
-    nsconf.pid = getpid();
-    nsconf.home = getcwd(cwd, sizeof(cwd));
-    if (gethostname(nsconf.hostname, sizeof(nsconf.hostname)) != 0) {
-        strcpy(nsconf.hostname, "localhost");
-    }
-    Ns_DStringInit(&addr);
-    if (Ns_GetAddrByHost(&addr, nsconf.hostname)) {
-    	strcpy(nsconf.address, addr.string);
-    }
-    Ns_DStringFree(&addr);
-    
 #ifdef WIN32
 #define POPTS	"IRS"
 #else
@@ -293,23 +245,10 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 	    debug = 1;
             break;
 	case 'g':
-	    gid = Ns_GetGid(optarg);
-	    if (gid < 0) {
-		gid = atoi(optarg);
-		if (gid == 0) {
-		    Ns_Fatal("nsmain: invalid group '%s'", optarg);
-	    	}
-	    }
+	    garg = optarg;
 	    break;
 	case 'u':
-	    uid = Ns_GetUid(optarg);
-	    gid = Ns_GetUserGid(optarg);
-	    if (uid < 0) {
-		uid = atoi(optarg);
-	    }
-	    if (uid == 0) {
-		Ns_Fatal("nsmain: invalid user '%s'", optarg);
-	    }
+	    uarg = optarg;
 	    break;
 #endif
 	case ':':
@@ -336,13 +275,88 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
     }
 
     /*
+     * Now that zippy malloc may have been set, it's safe to call
+     * some API's to initialize various info useful during config eval.
+     */
+
+    Ns_ThreadSetName("-main-");
+
+    nsconf.argv0 = argv[0];
+    nsconf.name = NSD_NAME;
+    nsconf.version = NSD_VERSION;
+    time(&nsconf.boot_t);
+    nsconf.pid = getpid();
+    nsconf.home = getcwd(cwd, sizeof(cwd));
+    if (gethostname(nsconf.hostname, sizeof(nsconf.hostname)) != 0) {
+        strcpy(nsconf.hostname, "localhost");
+    }
+    Ns_DStringInit(&addr);
+    if (Ns_GetAddrByHost(&addr, nsconf.hostname)) {
+    	strcpy(nsconf.address, addr.string);
+    }
+    Ns_DStringFree(&addr);
+
+    /*
      * Find the absolute config pathname and read the config data.
      */
 
     nsconf.config = FindConfig(nsconf.config);
     config = NsConfigRead(nsconf.config);
 
-#ifndef WIN32    
+#ifndef WIN32
+
+    /*
+     * Verify the uid/gid args.
+     */
+
+    if (garg != NULL) {
+	gid = Ns_GetGid(optarg);
+	if (gid < 0) {
+	    gid = atoi(garg);
+	    if (gid == 0) {
+		Ns_Fatal("nsmain: invalid group '%s'", garg);
+	    }
+	}
+    }
+    if (uarg != NULL) {
+	uid = Ns_GetUid(uarg);
+	gid = Ns_GetUserGid(uarg);
+	if (uid < 0) {
+	    uid = atoi(uarg);
+	}
+	if (uid == 0) {
+	    Ns_Fatal("nsmain: invalid user '%s'", uarg);
+	}
+    }
+
+    /*
+     * AOLserver uses select() extensively so adjust the open file
+     * limit to be no greater than FD_SETSIZE on Unix.  It's possible
+     * you could define FD_SETSIZE to a larger value and recompile but
+     * this has not been verified.  Note also that on some platforms
+     * (e.g., Solaris, SGI o32) you're still left with the hardcoded
+     * limit of 255  open streams due to the definition of the FILE
+     * structure with an unsigned char member for the file descriptor.
+     * Note this limit must be set now to ensure it's inherited by
+     * all future threads on certain platforms such as SGI and Linux.
+     */
+
+    if (getrlimit(RLIMIT_NOFILE, &rl) != 0) {
+	Ns_Log(Warning, "nsmain: getrlimit(RLIMIT_NOFILE) failed: '%s'",
+	       strerror(errno));
+    } else {
+	if (rl.rlim_max > FD_SETSIZE) {
+	    rl.rlim_max = FD_SETSIZE;
+	}
+	if (rl.rlim_cur != rl.rlim_max) {
+    	    rl.rlim_cur = rl.rlim_max;
+    	    if (setrlimit(RLIMIT_NOFILE, &rl) != 0) {
+	        Ns_Log(Warning, "nsmain: "
+		       "setrlimit(RLIMIT_NOFILE, %d) failed: '%s'",
+		       rl.rlim_max, strerror(errno));
+	    } 
+	}
+    }
 
     /*
      * On Unix, parse non-Tcl style config files in case the
