@@ -1,3 +1,8 @@
+2003-05-19  Mark Page <mpagenva@aol.com>
+
+	* nsd/tclinit.c: suppress byte-compile for interp init scripts
+        * nsd/tclthread.c: fix fmr.
+
 2003-05-16  Zoran Vasiljevic <zoran@archiware.com>
 
 	* nsdb/dbinit.c: fixed hash table initialization in IncrCount
