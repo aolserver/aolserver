@@ -27,17 +27,17 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/Makefile,v 1.46 2004/06/29 21:38:14 seryakov Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/Makefile,v 1.47 2004/06/29 22:04:15 dossy Exp $
 #
 
 NSBUILD=1
 include include/Makefile.global
 
-dirs   = nsthread nsd nssock nsssl nscgi nscp nslog nsperm nsdb nsext nspd nscache nssha1 nspostgres
+dirs   = nsthread nsd nssock nsssl nscgi nscp nslog nsperm nsdb nsext nspd
 
 all: 
 	@for i in $(dirs); do \
-		( cd $$i && $(MAKE) all NSBUILD=1) || exit 1; \
+		( cd $$i && $(MAKE) all) || exit 1; \
 	done
 
 install: install-binaries install-doc
