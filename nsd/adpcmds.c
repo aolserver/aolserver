@@ -33,7 +33,7 @@
  *	ADP commands.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpcmds.c,v 1.16 2004/10/27 15:45:36 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpcmds.c,v 1.17 2005/01/15 23:52:56 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -41,8 +41,99 @@ static int ReturnObjCmd(NsInterp *itPtr, int objc, Tcl_Obj **objv,
 			int exception);
 static int EvalObjCmd(NsInterp *itPtr, int objc, Tcl_Obj **objv,
 		      int safe);
-static int IsValidAdpContext(NsInterp *itPtr);
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsTclAdpCtlObjCmd --
+ *
+ *	ADP processing control.
+ *
+ * Results:
+ *	A standard Tcl result.
+ *
+ * Side effects:
+ *	Depends on subcommand.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+NsTclAdpCtlObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
+		   Tcl_Obj **objv)
+{
+    NsInterp *itPtr = arg;
+    static CONST char *opts[] = {
+	 "bufsize", "nocache", "trace", "gzip", NULL
+    };
+    enum {
+	 CBufSizeIdx, CNoCacheIdx, CTraceIdx, CGzipIdx
+    };
+    int opt, flag, old, new;
+
+    if (objc < 2) {
+	Tcl_WrongNumArgs(interp, 1, objv, "option ?arg ...?");
+        return TCL_ERROR;
+    }
+    if (Tcl_GetIndexFromObj(interp, objv[1], opts, "option", 0,
+			    &opt) != TCL_OK) {
+	return TCL_ERROR;
+    }
+
+    switch (opt) {
+    case CBufSizeIdx:
+	if (objc != 2 && objc !=3 ) {
+	    Tcl_WrongNumArgs(interp, 2, objv, "?size?");
+            return TCL_ERROR;
+	}
+	old = itPtr->adp.bufsize;
+	if (objc == 3) {
+	    if (Tcl_GetIntFromObj(interp, objv[2], &new) != TCL_OK) {
+	    	return TCL_ERROR;
+	    }
+	    if (new < 0) {
+		new = 0;
+	    }
+	    itPtr->adp.bufsize = new;
+	}
+	Tcl_SetIntObj(Tcl_GetObjResult(interp), old);
+	break;
+	
+    case CNoCacheIdx:
+    case CTraceIdx:
+    case CGzipIdx:
+	if (objc != 2 && objc !=3 ) {
+	    Tcl_WrongNumArgs(interp, 2, objv, "?bool?");
+            return TCL_ERROR;
+	}
+    	switch (opt) {
+	case CTraceIdx:
+	    flag = ADP_TRACE;
+	    break;
+	case CNoCacheIdx:
+	    flag = ADP_TRACE;
+	    break;
+	case CGzipIdx:
+	    flag = ADP_GZIP;
+	    break;
+	}
+	old = (itPtr->adp.flags & flag);
+	if (objc == 3) {
+	    if (Tcl_GetBooleanFromObj(interp, objv[2], &new) != TCL_OK) {
+	    	return TCL_ERROR;
+	    }
+	    if (new) {
+		itPtr->adp.flags |= flag;
+	    } else {
+		itPtr->adp.flags &= ~flag;
+	    }
+	}
+	Tcl_SetBooleanObj(Tcl_GetObjResult(interp), old);
+	break;
+    }
+    return TCL_OK;
+}
 
 
 /*
@@ -109,6 +200,7 @@ NsTclAdpIncludeObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
 		      Tcl_Obj **objv)
 {
     NsInterp *itPtr = arg;
+    Tcl_DString *dsPtr;
     int i, skip, cache;
     Ns_Time *ttlPtr, ttl;
     char *file;
@@ -154,12 +246,14 @@ badargs:
      */
 
     if (!cache && itPtr->adp.refresh > 0) {
-    	Tcl_DStringAppend(itPtr->adp.outputPtr, "<% ns_adp_include", -1);
+	if (NsAdpGetBuf(itPtr, &dsPtr) != TCL_OK) {
+	    return TCL_ERROR;
+	}
+    	Tcl_DStringAppend(dsPtr, "<% ns_adp_include", -1);
     	for (i = 0; i < objc; ++i) {
-	    Tcl_DStringAppendElement(itPtr->adp.outputPtr,
-					Tcl_GetString(objv[i]));
+	    Tcl_DStringAppendElement(dsPtr, Tcl_GetString(objv[i]));
     	}
-    	Tcl_DStringAppend(itPtr->adp.outputPtr, "%>", -1);
+    	Tcl_DStringAppend(dsPtr, "%>", 2);
 	return TCL_OK;
     }
 
@@ -193,9 +287,7 @@ NsTclAdpParseObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
     char       *resvarname = NULL;
     char       *cwd = NULL;
     NsInterp   *itPtr = (NsInterp *)arg;
-    Tcl_DString tds;
-    bool        lcl_bufs = NS_FALSE;
-    int         ret_status;
+    int         result;
     
     if (objc < 2) {
 badargs:
@@ -239,28 +331,15 @@ badargs:
      * Check the adp field in the nsInterp, and construct any support
      * Also, set the cwd.
      */
-    if (itPtr->adp.typePtr == NULL) {
-        Tcl_DStringInit(&tds);
-        itPtr->adp.typePtr = &tds;
-        lcl_bufs = NS_TRUE;
-    }
     if (cwd != NULL) {
         itPtr->adp.cwd = cwd;
     }
-
     if (isfile) {
-        ret_status = NsAdpSource(arg, objc, objv, resvarname);
+        result = NsAdpSource(arg, objc, objv, resvarname);
     } else {
-        ret_status = NsAdpEval(arg, objc, objv, safe, resvarname);
+        result = NsAdpEval(arg, objc, objv, safe, resvarname);
     }
-
-    if (lcl_bufs) {
-        itPtr->adp.responsePtr = NULL;
-        itPtr->adp.typePtr = NULL;
-        Tcl_DStringFree(&tds);
-    }
-
-    return ret_status;
+    return result;
 }
 
 
@@ -294,19 +373,12 @@ NsTclAdpAppendObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
 	Tcl_WrongNumArgs(interp, 1, objv, "string ?string ...?");
 	return TCL_ERROR;
     }
-
-    if (!IsValidAdpContext(itPtr)) {
-	Tcl_AppendResult(interp, 
-                         "This function cannot be used outside of an ADP",
-                         NULL );
-	return TCL_ERROR;
-    }
-
     for (i = 1; i < objc; ++i) {
 	s = Tcl_GetStringFromObj(objv[i], &len);
-	Ns_DStringNAppend(itPtr->adp.outputPtr, s, len);
+	if (NsAdpAppend(itPtr, s, len) != TCL_OK) {
+	    return TCL_ERROR;
+	}
     }
-    NsAdpFlush(itPtr);
     return TCL_OK;
 }
 
@@ -330,20 +402,13 @@ NsTclAdpPutsObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
 	    return TCL_ERROR;
 	}
     }
-
-    if (!IsValidAdpContext(itPtr)) {
-	Tcl_AppendResult(interp, 
-                         "This function cannot be used outside of an ADP",
-                         NULL );
+    s = Tcl_GetStringFromObj(objv[objc-1], &len);
+    if (NsAdpAppend(itPtr, s, len) != TCL_OK) {
 	return TCL_ERROR;
     }
-
-    s = Tcl_GetStringFromObj(objv[objc-1], &len);
-    Ns_DStringNAppend(itPtr->adp.outputPtr, s, len);
-    if (objc == 2) {
-	Ns_DStringNAppend(itPtr->adp.outputPtr, "\n", 1);
+    if (objc == 2 && NsAdpAppend(itPtr, "\n", 1) != TCL_OK) {
+	return TCL_ERROR;
     }
-    NsAdpFlush(itPtr);
     return TCL_OK;
 }
 
@@ -461,20 +526,16 @@ NsTclAdpTellObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
 		   Tcl_Obj **objv)
 {
     NsInterp *itPtr = arg;
+    Tcl_DString *dsPtr;
 
     if (objc != 1) {
 	Tcl_WrongNumArgs(interp, 1, objv, NULL);
 	return TCL_ERROR;
     }
-
-    if (!IsValidAdpContext(itPtr)) {
-	Tcl_AppendResult(interp, 
-                         "This function cannot be used outside of an ADP",
-                         NULL );
+    if (NsAdpGetBuf(itPtr, &dsPtr) != TCL_OK) {
 	return TCL_ERROR;
     }
-
-    Tcl_SetObjResult(interp, Tcl_NewIntObj(itPtr->adp.outputPtr->length));
+    Tcl_SetObjResult(interp, Tcl_NewIntObj(dsPtr->length));
     return TCL_OK;
 }
 
@@ -501,6 +562,7 @@ NsTclAdpTruncObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
 		    Tcl_Obj **objv)
 {
     NsInterp *itPtr = arg;
+    Tcl_DString *dsPtr;
     int length;
 
     if (objc != 1 && objc != 2) {
@@ -519,15 +581,10 @@ NsTclAdpTruncObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
 	    return TCL_ERROR;
 	}
     }
-
-    if (!IsValidAdpContext(itPtr)) {
-	Tcl_AppendResult(interp, 
-                         "This function cannot be used outside of an ADP",
-                         NULL );
+    if (NsAdpGetBuf(itPtr, &dsPtr) != TCL_OK) {
 	return TCL_ERROR;
     }
-
-    Ns_DStringTrunc(itPtr->adp.outputPtr, length);
+    Ns_DStringTrunc(dsPtr, length);
     return TCL_OK;
 }
 
@@ -554,20 +611,16 @@ NsTclAdpDumpObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
 		   Tcl_Obj **objv)
 {
     NsInterp *itPtr = arg;
+    Tcl_DString *dsPtr;
 
     if (objc != 1) {
 	Tcl_WrongNumArgs(interp, 1, objv, NULL);
 	return TCL_ERROR;
     }
-
-    if (!IsValidAdpContext(itPtr)) {
-	Tcl_AppendResult(interp, 
-                         "This function cannot be used outside of an ADP",
-                         NULL );
+    if (NsAdpGetBuf(itPtr, &dsPtr) != TCL_OK) {
 	return TCL_ERROR;
     }
-
-    Tcl_SetResult(interp, itPtr->adp.outputPtr->string, TCL_VOLATILE);
+    Tcl_SetResult(interp, dsPtr->string, TCL_VOLATILE);
     return TCL_OK;
 }
 
@@ -632,14 +685,6 @@ NsTclAdpArgvObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
 	Tcl_WrongNumArgs(interp, 1, objv, "?index?");
 	return TCL_ERROR;
     }
-
-    if (!IsValidAdpContext(itPtr)) {
-	Tcl_AppendResult(interp, 
-                         "This function cannot be used outside of an ADP",
-                         NULL );
-	return TCL_ERROR;
-    }
-
     if (objc == 1) {
 	Tcl_SetListObj(Tcl_GetObjResult(interp), itPtr->adp.objc,
 		       itPtr->adp.objv);
@@ -683,14 +728,6 @@ NsTclAdpBindArgsObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
 	Tcl_WrongNumArgs(interp, 1, objv, "varName ?varName ...?");
 	return TCL_ERROR;
     }
-
-    if (!IsValidAdpContext(itPtr)) {
-	Tcl_AppendResult(interp, 
-                         "This function cannot be used outside of an ADP",
-                         NULL );
-	return TCL_ERROR;
-    }
-
     if (objc != itPtr->adp.objc) {
 	Tcl_AppendResult(interp, "invalid #variables", NULL);
 	return TCL_ERROR;
@@ -770,16 +807,60 @@ NsTclAdpExceptionObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
 /*
  *----------------------------------------------------------------------
  *
- * NsTclAdpStreamObjCmd --
+ * NsTclAdpFlushObjCmd, NsTclAdpCloseObjCmd  --
  *
- *	Process the Tcl ns_adp_stream commands to enable streaming
- *  	output mode.
+ *	Flush or close the current ADP output.
  *
  * Results:
  *	A standard Tcl result.
  *
  * Side effects:
  *	Output will flush to client immediately.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+AdpFlushObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
+		     Tcl_Obj **objv, int stream)
+{
+    NsInterp *itPtr = arg;
+
+    if (objc != 1) {
+	Tcl_WrongNumArgs(interp, 1, objv, NULL);
+	return TCL_ERROR;
+    }
+    return NsAdpFlush(itPtr, stream); 
+}
+ 
+int
+NsTclAdpFlushObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
+		     Tcl_Obj **objv)
+{
+    return AdpFlushObjCmd(arg, interp, objc, objv, 1);
+}
+
+int
+NsTclAdpCloseObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
+		     Tcl_Obj **objv)
+{
+    return AdpFlushObjCmd(arg, interp, objc, objv, 0);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsTclAdpStreamObjCmd --
+ *
+ *	Set ADP buffer size to 0, forcing all content to be sent to the
+ *	client immediately on each append.
+ *
+ * Results:
+ *	A standard Tcl result.
+ *
+ * Side effects:
+ *	See NsTclAdpFlushObjCmd.
  *
  *----------------------------------------------------------------------
  */
@@ -794,8 +875,8 @@ NsTclAdpStreamObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
 	Tcl_WrongNumArgs(interp, 1, objv, NULL);
 	return TCL_ERROR;
     }
-    NsAdpStream(itPtr);
-    return TCL_OK;
+    itPtr->adp.bufsize = 0;
+    return NsTclAdpFlushObjCmd(arg, interp, objc, objv);
 }
 
 
@@ -863,41 +944,17 @@ NsTclAdpMimeTypeObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
 		       Tcl_Obj **objv)
 {
     NsInterp *itPtr = arg;
+    Ns_Conn *conn = itPtr->conn;
     
     if (objc != 1 && objc != 2) {
 	Tcl_WrongNumArgs(interp, 1, objv, "?mimetype?");
         return TCL_ERROR;
     }
-    if (itPtr->adp.typePtr != NULL) {
+    if (conn != NULL) {
 	if (objc == 2) {
-	    NsAdpSetMimeType(itPtr, Tcl_GetString(objv[1]));
+	    Ns_ConnSetType(conn, Tcl_GetString(objv[1]));
 	}
-	Tcl_SetResult(interp, itPtr->adp.typePtr->string, TCL_VOLATILE);
+	Tcl_SetResult(interp, Ns_ConnGetType(conn), TCL_VOLATILE);
     }
     return TCL_OK;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * IsValidAdpContext --
- *
- *      Evaluate the given NsInterp structure, and determine whether
- *      it has been properly setup for use by ns_adp_puts and family.
- *
- * Results:
- *      1 if valid adp context, 0 if not.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-static int 
-IsValidAdpContext(NsInterp *itPtr)
-{
-
-    return (itPtr->adp.outputPtr != NULL);
 }
