@@ -34,8 +34,8 @@ include $(NSHOME)/include/Makefile.global
 #   nssolid     -- Solid driver (requires Solid library)
 #
 
-MODULES   = nssock nscgi nscp nslog nsperm nsext nspd nsftp
-#MODULES  = nspostgres nssybpd nssolid nsunix nsvhr
+MODULES   = nssock nscgi nscp nslog nsperm nsext nspd nsftp nsvhr
+#MODULES  = nspostgres nssybpd nssolid nsunix
 
 
 #

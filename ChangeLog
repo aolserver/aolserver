@@ -1,3 +1,14 @@
+2000-08-14  Kriston J. Rehberg  <Kriston@AOL.NET>
+
+	* Makefile: nsvhr resurrected and enjoys our full support.
+
+	* nsexample/Makefile: The include at the bottom wasn't using
+	NSHOME.
+
+2000-08-14  Jim Davidson
+
+	* Tcl 8.x library upgraded to tcl8.3.2.
+
 2000-08-11  Kriston J. Rehberg  <Kriston@AOL.NET>
 
 	* nsvhr/nsvhr.c: Always add "Connection: close" to the request
