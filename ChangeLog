@@ -1,3 +1,12 @@
+2003-05-30  Mark Page <mpagenva@aol.com>
+
+	* nsd/tclthread.c: fix problem in ns_thread begindetached api.
+        This code was failing to create the new thread as detached.
+        Also corrected for the Ns_TclDetachedThread C api.  As a
+        result of this change, non-detached threads will return their
+        TclEval result to Ns_ThreadExit, making it available to a
+        thread join.
+
 2003-05-28  Mark Page  <mpagenva@aol.com>
 
 	* TAG aolserver_v4_r0_beta_8
