@@ -34,7 +34,7 @@
  *	Support for the slave bind/listen process.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/binder.c,v 1.6 2000/10/07 20:01:57 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/binder.c,v 1.7 2000/10/07 20:24:00 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -67,7 +67,6 @@ typedef struct CMsg {
 static int Listen(struct sockaddr_in *saPtr, int backlog);
 static void Binder(void);
 static void PreBind(char *line);
-static int GetAddr(struct sockaddr_in *saPtr, char *addr, int port);
 
 /*
  * Static variables in this file
@@ -367,7 +366,7 @@ NsStopBinder(void)
 	saPtr = (struct sockaddr_in *) Tcl_GetHashKey(&preBound, hPtr);
 	addr = ns_inet_ntoa(saPtr->sin_addr);
 	port = htons(saPtr->sin_port);
-	Ns_Log(Warning, "binder: closed unused: %s:%d = %d", addr, port, sock);
+	Ns_Log(Warning, "prebind: closed unused: %s:%d = %d", addr, port, sock);
 	close(sock);
 	hPtr = Tcl_NextHashEntry(&search);
     }
@@ -562,7 +561,7 @@ PreBind(char *line)
 	}
 	if (port == 0) {
 	    err = "invalid port";
-	} else if (!GetAddr(&sa, baddr, port)) {
+	} else if (Ns_GetSockAddr(&sa, baddr, port) != NS_OK) {
 	    err = "invalid address";
 	} else {
 	    hPtr = Tcl_CreateHashEntry(&preBound, (char *) &sa, &new);
@@ -583,56 +582,8 @@ PreBind(char *line)
 	    *p++ = ',';
 	}
 	if (err != NULL) {
-	    /* NB: Don't use Ns_Log as now, server not fully initialized. */
-	    fprintf(stderr, "prebind: invalid entry \"%s\": %s\n", ent, err);
+	    Ns_Log(Error, "prebind: invalid entry \"%s\": %s\n", ent, err);
 	}
 	ent = p;
     } while (ent != NULL);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * GetAddr --
- *
- *	Local version of Ns_GetSockAddr which avoids any calls to
- *	NS API's which may initialize the thread interface before
- *	the server can setuid().
- *
- * Results:
- *	1 or 0 if address could be created.
- *
- * Side effects:
- *	Sets address in given sockaddr_in structure, possibly after
- *	a lookup through the DNS.
- *
- *----------------------------------------------------------------------
- */
-
-static int
-GetAddr(struct sockaddr_in *saPtr, char *host, int port)
-{
-    struct hostent *he;
-    struct in_addr ia;
-
-    if (host == NULL) {
-        ia.s_addr = htonl(INADDR_ANY);
-    } else {
-        ia.s_addr = inet_addr(host);
-        if (ia.s_addr == INADDR_NONE) {
-	    he = gethostbyname(host);
-    	    if (he != NULL && he->h_addr != NULL) {
-        	ia.s_addr = ((struct in_addr *) he->h_addr)->s_addr;
-	    }
-	}
-    }
-    if (ia.s_addr == INADDR_NONE) {
-	return 0;
-    }
-    memset(saPtr, 0, sizeof(struct sockaddr_in));
-    saPtr->sin_family = AF_INET;
-    saPtr->sin_addr = ia;
-    saPtr->sin_port = htons((unsigned short) port);
-    return 1;
 }

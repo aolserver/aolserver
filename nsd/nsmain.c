@@ -33,7 +33,7 @@
  *	AOLserver Ns_Main() startup routine.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.8 2000/10/07 20:01:57 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.9 2000/10/07 20:24:00 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -122,6 +122,8 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
     /*
      * Set up logging defaults (for Ns_Log at startup time).
      */
+
+    Ns_ThreadSetName("-main-");
     nsconf.log.dev       = NS_FALSE;
     nsconf.log.debug     = NS_FALSE;
     nsconf.log.expanded  = NS_FALSE;
@@ -446,7 +448,6 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
      * Initialize Tcl and eval the config file.
      */
 
-    Ns_ThreadSetName("-main-");
     nsconf.nsd = NsTclFindExecutable(argv[0]);
     if (nsconf.configfmt == 't') {
     	NsConfigEval(config);
