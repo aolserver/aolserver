@@ -5,7 +5,17 @@
 	along with dynamic libraries and modules.  Also, fixed
 	bug setting -install_name on OS/X.
 
-	* nsd/Makefile:  Use of updated Makefile.module.
+	* nsd/Makefile:  Use of updated Makefile.module and include osxcompat.o
+	on OS/X.
+
+	* nsd/nsd.h:
+	* nsd/osxcompat.h:
+	* nsd/osxcompat.c:  Compat functions moved from ../nsosx.
+
+	* nsosx/README (removed):
+	* nsosx/Makefile (removed):
+	* nsosx/nsosx.c (removed):  Tcl no longer requires any compat functions,
+	remainder moved into nsd. 
 
 	Otherwise, minor tweaks throughout to silence compiler warnings.
 
