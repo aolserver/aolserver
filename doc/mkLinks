@@ -772,6 +772,7 @@ if test -r Ns_ConnHeaders.3; then
     rm -f Ns_ConnCondSetHeaders.3 Ns_ConnCondSetHeaders.3.* 
     rm -f Ns_ConnConstructHeaders.3 Ns_ConnConstructHeaders.3.* 
     rm -f Ns_ConnFlushHeaders.3 Ns_ConnFlushHeaders.3.* 
+    rm -f Ns_ConnGetStatus.3 Ns_ConnGetStatus.3.* 
     rm -f Ns_ConnGetType.3 Ns_ConnGetType.3.* 
     rm -f Ns_ConnPrintfHeader.3 Ns_ConnPrintfHeader.3.* 
     rm -f Ns_ConnQueueHeaders.3 Ns_ConnQueueHeaders.3.* 
@@ -780,11 +781,13 @@ if test -r Ns_ConnHeaders.3; then
     rm -f Ns_ConnSetLastModifiedHeader.3 Ns_ConnSetLastModifiedHeader.3.* 
     rm -f Ns_ConnSetLengthHeader.3 Ns_ConnSetLengthHeader.3.* 
     rm -f Ns_ConnSetRequiredHeaders.3 Ns_ConnSetRequiredHeaders.3.* 
+    rm -f Ns_ConnSetStatus.3 Ns_ConnSetStatus.3.* 
     rm -f Ns_ConnSetType.3 Ns_ConnSetType.3.* 
     rm -f Ns_ConnSetTypeHeader.3 Ns_ConnSetTypeHeader.3.* 
     ln $S Ns_ConnHeaders.3$Z Ns_ConnCondSetHeaders.3$Z 
     ln $S Ns_ConnHeaders.3$Z Ns_ConnConstructHeaders.3$Z 
     ln $S Ns_ConnHeaders.3$Z Ns_ConnFlushHeaders.3$Z 
+    ln $S Ns_ConnHeaders.3$Z Ns_ConnGetStatus.3$Z 
     ln $S Ns_ConnHeaders.3$Z Ns_ConnGetType.3$Z 
     ln $S Ns_ConnHeaders.3$Z Ns_ConnPrintfHeader.3$Z 
     ln $S Ns_ConnHeaders.3$Z Ns_ConnQueueHeaders.3$Z 
@@ -793,7 +796,8 @@ if test -r Ns_ConnHeaders.3; then
     ln $S Ns_ConnHeaders.3$Z Ns_ConnSetLastModifiedHeader.3$Z 
     ln $S Ns_ConnHeaders.3$Z Ns_ConnSetLengthHeader.3$Z 
     ln $S Ns_ConnHeaders.3$Z Ns_ConnSetRequiredHeaders.3$Z 
-    ln $S Ns_ConnHeaders.3$Z Ns_ConnSetType.2$Z 
+    ln $S Ns_ConnHeaders.3$Z Ns_ConnSetStatus.3$Z 
+    ln $S Ns_ConnHeaders.3$Z Ns_ConnSetType.3$Z 
     ln $S Ns_ConnHeaders.3$Z Ns_ConnSetTypeHeader.3$Z 
 fi
 if test -r Ns_ConnRead.3; then
