@@ -28,7 +28,7 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/init.tcl,v 1.15 2003/01/28 19:21:35 shmooved Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/init.tcl,v 1.16 2003/02/25 15:34:14 shmooved Exp $
 #
 
 #
@@ -320,7 +320,8 @@ proc _ns_sourcefiles {shared private} {
 
 proc _ns_sourcefile {file} {
     if {[catch {source $file} err]} {
-        ns_log error "tcl: source $file failed: $err"
+        global errorInfo errorCode
+        ns_log error "tcl: source $file failed: $err\n$errorCode\n$errorInfo"
     }
 }
 
