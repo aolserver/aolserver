@@ -57,9 +57,6 @@
 
 	* nsd/adp.c: Tls entry for ADP parser is self-initializing.
 	
-	* include/Makefile.global: Solaris build rule now uses gcc for
-	linking and `uname -m`.
-
 2001-04-26  Kris Rehberg  <Kriston@aol.com>
 
 	* AOLserver 3.4pre1 released.  The ChangeLog will be updated in
