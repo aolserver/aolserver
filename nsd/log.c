@@ -34,7 +34,7 @@
  *	Manage the server log file.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/log.c,v 1.24 2003/04/23 18:53:16 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/log.c,v 1.25 2004/06/08 19:28:15 rcrittenden0569 Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -72,6 +72,8 @@ static void   LogEnd(Cache *cachePtr);
 
 static Ns_Tls tls;
 static Ns_Mutex lock;
+static Ns_LogFlushProc    *flushProcPtr;
+static Ns_LogProc         *nslogProcPtr;
 
 
 /*
@@ -95,6 +97,8 @@ NsInitLog(void)
 {
     Ns_MutexSetName(&lock, "ns:log");
     Ns_TlsAlloc(&tls, LogFreeCache);
+    flushProcPtr = NULL;
+    nslogProcPtr = NULL;
 }
 
 
@@ -176,7 +180,18 @@ Ns_Log(Ns_LogSeverity severity, char *fmt, ...)
     va_list ap;
 
     va_start(ap, fmt);
-    Log(severity, fmt, ap);
+    if (nslogProcPtr == NULL) {
+	Log(severity, fmt, ap);
+    } else {
+	Cache *cachePtr;
+
+	cachePtr = LogGetCache();
+	(*nslogProcPtr)(&cachePtr->buffer, severity, fmt, ap);
+	++cachePtr->count;
+	if (!cachePtr->hold) {
+	    LogFlush(cachePtr);
+	}
+    }
     va_end(ap);
 }
 
@@ -622,7 +637,11 @@ LogFlush(Cache *cachePtr)
     Ns_DString *dsPtr = &cachePtr->buffer;
 
     Ns_MutexLock(&lock);
-    (void) write(2, dsPtr->string, (size_t)dsPtr->length);
+    if (flushProcPtr == NULL) {
+	(void) write(2, dsPtr->string, (size_t)dsPtr->length);
+    } else {
+	 (*flushProcPtr)(dsPtr->string, (size_t)dsPtr->length);
+    }
     Ns_MutexUnlock(&lock);
     Ns_DStringFree(dsPtr);
     cachePtr->count = 0;
@@ -813,4 +832,65 @@ LogFreeCache(void *arg)
     LogFlush(cachePtr);
     Ns_DStringFree(&cachePtr->buffer);
     ns_free(cachePtr);
+}
+
+      
+/*
+ *----------------------------------------------------------------------
+ *      
+ * Ns_SetLogFlushProc --
+ * 
+ *	Set the proc to call when writing the log. You probably want
+ *	to have a Ns_RegisterAtShutdown() call too so you can
+ *	close/finish up whatever special logging you are doing.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */ 
+
+void
+Ns_SetLogFlushProc(Ns_LogFlushProc *procPtr)
+{
+    flushProcPtr = procPtr;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_SetNsLogProc --
+ *
+ *	Set the proc to call when adding a log entry.
+ *
+ *	There are 2 ways to use this override:
+ *
+ *	1. In conjunction with the Ns_SetLogFlushProc() to use the
+ *	   existing AOLserver buffering and writing system. So when a
+ *	   log message is added it is inserted into the log cache and
+ *	   flushed later through your log flush override. To use this
+ *	   write any logging data to the Ns_DString that is passed into
+ *	   the Ns_Log proc.
+ *	2. Without calling Ns_SetLogFlushProc() and handle all buffering
+ *	   and writing directly. LogFlush() will be called as normal but
+ *	   is a no-op because nothing will have been added. Do not write
+ *	   into the Ns_DString passed into the Ns_Log proc in this case.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+ 
+void
+Ns_SetNsLogProc(Ns_LogProc *procPtr)
+{
+    nslogProcPtr = procPtr;
 }
