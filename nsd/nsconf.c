@@ -34,7 +34,7 @@
  *	Various core configuration.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsconf.c,v 1.16 2001/03/26 15:32:26 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsconf.c,v 1.17 2001/03/28 00:26:35 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #include "nsconf.h"
@@ -94,7 +94,6 @@ NsConfInit(void)
      */
      
     nsconf.log.expanded = GetBool("logexpanded", LOG_EXPANDED_BOOL);
-    nsconf.log.dev      = GetBool("dev", LOG_DEV_BOOL);
     nsconf.log.debug    = GetBool("debug", LOG_DEBUG_BOOL);
     nsconf.log.maxback  = GetInt("maxbackup", LOG_MAXBACK_INT);
 

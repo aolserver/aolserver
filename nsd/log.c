@@ -34,7 +34,7 @@
  *	Manage the server log file.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/log.c,v 1.7 2000/12/19 00:47:01 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/log.c,v 1.8 2001/03/28 00:26:35 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -136,9 +136,6 @@ ns_serverLog(Ns_LogSeverity severity, char *fmt, va_list *vaPtr)
 {
     
     if (severity == Debug && nsconf.log.debug == 0) {
-	return;
-    }
-    if (severity == Dev && nsconf.log.dev == 0) {
 	return;
     }
     Log(severity, fmt, vaPtr);
@@ -422,9 +419,6 @@ Log(Ns_LogSeverity severity, char *fmt, va_list *argsPtr)
 	case Debug:
 	    severityStr = "Debug";
 	    break;
-    	case Dev: 
-	    severityStr = "Dev";
-	    break;
 	default:
 	    severityStr = "<Unknown>";
 	    break;
@@ -545,8 +539,6 @@ GetSeverity(Tcl_Interp *interp, char *severityStr,
 	*severityPtr = Notice;
     } else if (STRIEQ(severityStr, "debug")) {
 	*severityPtr = Debug;
-    } else if (STRIEQ(severityStr, "dev")) {
-	*severityPtr = Dev;
     } else {
         Tcl_AppendResult(interp, "unknown severity \"",
                          severityStr, "\":  should be one of: ",

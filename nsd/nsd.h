@@ -101,8 +101,6 @@
 #define ADP_ABORT    2
 #define ADP_RETURN   4
 
-#define Dev         (Debug+1)
-
 /*
  * Typedef definitions.
  */
@@ -138,7 +136,6 @@ struct _nsconf {
     } state;
     
     struct {
-	bool dev;
 	bool debug;
 	bool expanded;
 	int  maxback;
@@ -344,6 +341,7 @@ typedef struct Job {
 typedef struct NsServer {
 
     char    	    	   *server;
+    Ns_LocationProc 	   *locationProc;
     
     /* 
      * The following struct maintains various server options.
@@ -733,44 +731,17 @@ extern void NsGetCallbacks(Tcl_DString *dsPtr);
 extern void NsGetSockCallbacks(Tcl_DString *dsPtr);
 extern void NsGetScheduled(Tcl_DString *dsPtr);
 
-
-/*
- * Config file routines.
- */
-
-extern char *NsConfigRead(char *file);
-extern void  NsConfigFree(char *buf);
-extern void  NsConfigEval(char *script);
-extern void  NsConfigParse(char *file, char *config);
-extern void  NsConfigParseAux();  /* AuxConfigDir */
-extern void  NsConfInit(void);
-
-
 /*
  * Initialization routines.
  */
 
 #ifdef WIN32
-extern void NsInitTls(void);
 extern int NsConnectService(Ns_ServerInitProc *initProc);
 extern int NsInstallService(char *server);
 extern int NsRemoveService(char *server);
 #endif
 
-extern void NsInitBinder(char *args, char *file);
-extern void NsForkBinder(void);
-extern void NsStopBinder(void);
-
 extern void NsClsCleanup(Conn *connPtr);
-
-extern void NsInitMimeTypes(void);
-extern void NsLogOpen(void);
-extern void NsDbInitPools(void);
-
-extern void NsInitServer(Ns_ServerInitProc *proc, char *server);
-extern void NsDbInitServer(char *server);
-extern void NsTclInitServer(char *server);
-extern void NsLoadModules(char *server);
 extern void NsTclAddCmds(NsInterp *itPtr, Tcl_Interp *interp);
 
 extern void NsEnableDNSCache(int timeout, int maxentries);
@@ -779,13 +750,9 @@ extern void NsCreatePidFile(char *server);
 extern void NsRemovePidFile(char *server);
 extern int  NsGetLastPid(char *server);
 extern void NsKillPid(int pid);
-extern void NsBlockSignals(int debug);
-extern void NsHandleSignals(void);
 extern void NsRestoreSignals(void);
 extern void NsSendSignal(int sig);
-extern void NsShutdown(int timeout);
 
-extern void NsStartServers(void);
 extern void NsStopServers(Ns_Time *toPtr);
 extern void NsStartServer(NsServer *servPtr);
 extern void NsStopServer(NsServer *servPtr);
@@ -795,10 +762,6 @@ extern void NsStartDrivers(char *server);
 extern void NsWaitServerWarmup(Ns_Time *);
 extern void NsWaitSockIdle(Ns_Time *);
 extern void NsWaitSchedIdle(Ns_Time *);
-
-extern void NsStopDrivers(void);
-extern void NsStartKeepAlive(void);
-extern void NsStopKeepAlive(void);
 
 extern void NsStartSchedShutdown(void);
 extern void NsWaitSchedShutdown(Ns_Time *toPtr);
