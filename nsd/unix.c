@@ -34,7 +34,7 @@
  *	Unix specific routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/unix.c,v 1.15 2002/09/16 19:44:13 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/unix.c,v 1.16 2004/02/26 19:37:39 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #include <pwd.h>
@@ -368,7 +368,7 @@ Ns_GetUid(char *user)
     if (pw == NULL) {
         retcode = -1;
     } else {
-        retcode = pw->pw_uid;
+        retcode = (unsigned) pw->pw_uid;
     }
     Ns_MutexUnlock(&lock);
     return retcode;
