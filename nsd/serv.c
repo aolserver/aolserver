@@ -33,7 +33,7 @@
  *	Routines for the core server connection threads.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/serv.c,v 1.7 2000/09/05 20:02:50 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/serv.c,v 1.8 2000/09/28 23:57:53 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -491,8 +491,8 @@ NsConnArgProc(Tcl_DString *dsPtr, void *arg)
 {
     Conn *connPtr;
     
-    connPtr = *((Conn **) arg);
-    if (connPtr != NULL) {
+    if (arg != NULL) {
+	connPtr = *((Conn **) arg);
     	AppendConn(dsPtr, connPtr, "running", time(NULL));
     } else {
     	Tcl_DStringAppendElement(dsPtr, "");

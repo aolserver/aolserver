@@ -1,3 +1,9 @@
+2000-09-28  Kriston J. Rehberg  <Kriston@AOL.NET>
+
+	* nsd/serv.c (NsConnArgProc): Race condition when threads exit
+	while [ns_info threads] is run; arg can be NULL.  Seen mostly by
+	nstelemetry.adp.
+
 2000-09-05  Kriston J. Rehberg  <Kriston@AOL.NET>
 
 	*** AOLserver 3.1 Released *** 
