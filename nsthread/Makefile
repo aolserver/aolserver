@@ -27,13 +27,17 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Attic/Makefile.build,v 1.1.2.1 2002/09/23 23:06:47 jgdavidson Exp $
-
-#
-# Makefile.build --
-#
-#	Makefile for building AOLserver distribution.
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/Makefile,v 1.3.2.2 2002/09/23 23:06:47 jgdavidson Exp $
 #
 
-NSBUILD=1
-include ../include/Makefile.module
+LIB     = nsthread
+HDRS	= thread.h
+LIBINIT	= NsthreadsInit
+PGM	= nsthreadtest
+PGMOBJS	= nsthreadtest.o
+LIBOBJS = \
+	cond.o error.o master.o memory.o mutex.o cslock.o	\
+	rwlock.o reentrant.o sema.o thread.o tls.o signal.o	\
+	compat.o time.o fork.o
+
+include ../include/Makefile.build

@@ -27,13 +27,11 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Attic/Makefile.build,v 1.1.2.1 2002/09/23 23:06:47 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsext/Makefile,v 1.2.10.1 2002/09/23 23:06:47 jgdavidson Exp $
 
-#
-# Makefile.build --
-#
-#	Makefile for building AOLserver distribution.
-#
-
-NSBUILD=1
-include ../include/Makefile.module
+LIB	= nsext
+LIBOBJS	= nsextmsg.o
+MOD	= nsext.so
+OBJS	= nsext.o
+HDRS	= ../include/nsextmsg.h
+include ../include/Makefile.build

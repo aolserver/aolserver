@@ -27,13 +27,9 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Attic/Makefile.build,v 1.1.2.1 2002/09/23 23:06:47 jgdavidson Exp $
-
-#
-# Makefile.build --
-#
-#	Makefile for building AOLserver distribution.
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nspd/Makefile,v 1.4.10.1 2002/09/23 23:06:47 jgdavidson Exp $
 #
 
-NSBUILD=1
-include ../include/Makefile.module
+ALIB	 =  nspd
+ALIBOBJS =  listen.o log.o main.o 
+include  ../include/Makefile.build

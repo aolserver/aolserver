@@ -1,4 +1,3 @@
-#
 # The contents of this file are subject to the AOLserver Public License
 # Version 1.1 (the "License"); you may not use this file except in
 # compliance with the License. You may obtain a copy of the License at
@@ -27,13 +26,38 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Attic/Makefile.build,v 1.1.2.1 2002/09/23 23:06:47 jgdavidson Exp $
-
-#
-# Makefile.build --
-#
-#	Makefile for building AOLserver distribution.
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Makefile,v 1.11.2.2.2.2 2002/09/23 23:06:47 jgdavidson Exp $
 #
 
-NSBUILD=1
-include ../include/Makefile.module
+INIT	= init.tcl
+LIB     = nsd
+PGM	= nsd
+PGMOBJS	= main.o
+HDRS	= nsd.h
+
+LOBJS = \
+        adp.o adpfancy.o auth.o binder.o cache.o callbacks.o config.o \
+        conn.o crypt.o dbdrv.o dbinit.o dbtcl.o dbutil.o dns.o drv.o \
+        dstring.o exec.o fastpath.o fd.o filter.o httptime.o htuu.o \
+        id.o index.o keepalive.o lisp.o listen.o log.o main.o \
+        mimetypes.o modload.o nsconf.o nsmain.o \
+        nsthread.o op.o pathname.o pidfile.o proc.o \
+        quotehtml.o random.o request.o return.o rollfile.o sched.o \
+        serv.o set.o sock.o sockcallback.o str.o \
+        tclcmds.o tclconf.o tclenv.o tclfile.o tclinit.o tclmisc.o \
+        tclop.o tclresp.o tclsched.o tclset.o tclsock.o tclstats.o \
+        tclxkeylist.o tclthread.o tclvar.o unix.o url.o \
+        urlencode.o urlopen.o urlspace.o tclstub8x.o
+
+LIBOBJS=$(LOBJS) stamp.o
+
+include ../include/Makefile.build
+
+stamp.o: $(LOBJS)
+	$(CC) -c -o stamp.o stamp.c
+
+tclstub8x.o: tclnsshare.cpp tclinvoke.cpp tclstubs.cpp
+
+install-init:
+	$(RM) $(INSTBIN)/$(INIT)
+	$(CP) $(INIT) $(INSTBIN)/

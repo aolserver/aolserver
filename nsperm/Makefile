@@ -27,13 +27,24 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Attic/Makefile.build,v 1.1.2.1 2002/09/23 23:06:47 jgdavidson Exp $
-
-#
-# Makefile.build --
-#
-#	Makefile for building AOLserver distribution.
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsperm/Makefile,v 1.2.10.2 2002/09/23 23:06:47 jgdavidson Exp $
 #
 
-NSBUILD=1
-include ../include/Makefile.module
+MOD      =  nsperm.so
+OBJS     =  nsperm.o
+MODINST	 =  cpfiles
+
+include ../include/Makefile.build
+
+moddir	 = nsperm
+moddat	 = $(INSTSRVMOD)/$(moddir)
+modtcl	 = $(INSTTCL)/$(moddir)
+
+cpfiles:
+	$(MKDIR) $(modtcl)
+	$(INSTALL_DATA) init.tcl $(modtcl)/
+	$(INSTALL_DATA) compat.tcl $(modtcl)/
+	$(MKDIR) $(moddat)
+	for f in passwd group hosts.allow hosts.deny perms; do \
+		test -f $(moddat)/$$f || $(INSTALL_DATA) $$f $(moddat)/; \
+	done
