@@ -9,6 +9,10 @@
         example. Fixed bug that was adding an extra slash to 
         directory listings in _ns_dirlist. SF bug 682077.
 
+        * nsd/tclimg.c: (bug fix) Fixed ns_jpegsize command for
+        images which contained a DHT. Removed AppendDims command
+        which has been replaced with AppendObjDims. SF bug 685055.
+
 2003-02-07  Elizabeth Thomas <eathomas93@aol.com>
 
         * TAG aolserver_v4_r0_beta_2
