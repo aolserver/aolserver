@@ -1,5 +1,18 @@
 2000-10-16  Kriston J. Rehberg  <Kriston@AOL.NET>
 
+	* tcl/init.tcl:  Initialize errorCode and errorInfo like tclsh
+	does.  From ArsDigita.
+
+	* nsd/nsd.h, nsd/tclcmds.c, nsd/tclvar.c: nsv_names Tcl command
+	lists names of nsv's in memory.
+
+	* tcl8.3.2: The complete Tcl 8.x distributions are now included.
+	They aren't installed with AOLserver's "gmake install", but you
+	can install them manually if you want to use them for the i18n
+	encodings and stuff like that.  It will install into the
+	"lib/tcl8.3" directory of the binary distribution with AOLserver
+	3.3 and later.
+
 	* nsd/nsmain.c (Ns_Main): Had to move Ns_ThreadSetName below the
 	stdin/stdout/stderr reassignment to fix a fd problem with running
 	nsd on Irix in "installed" or "daemon" mode that would prevent the

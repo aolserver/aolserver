@@ -28,14 +28,21 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/init.tcl,v 1.3 2000/08/02 23:38:25 kriston Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/init.tcl,v 1.4 2000/10/16 23:27:41 kriston Exp $
 #
 
 #
 # init.tcl --
 #
-#	The AOLserver looks for init.tcl before sourcing
-#	all other files in order.  This script does nothing
-#	at the moment.
+#	AOLserver looks for init.tcl before sourcing all other files
+#	in directory order.
 #
 
+#
+# Initialize errorCode and errorInfo like tclsh does.
+#
+global errorCode errorInfo 
+set errorCode "" 
+set errorInfo "" 
+ 
+ 
