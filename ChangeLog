@@ -1,6 +1,13 @@
+2003-01-24  Elizabeth Thomas <eathomas93@aol.com>
+
+	*Makefile.global.in,README - add $(PURIFY) variable back from 3.4 to facilitate 
+        easy purify compile 
+
+        *configure - make gcc the default value for $CC (instead of cc)
+
 2003-01-23  Elizabeth Thomas <eathomas93@aol.com>
 
-	Tagged first 4.0 beta: aolserver_v4_r0_beta_1
+	* Tagged first 4.0 beta: aolserver_v4_r0_beta_1
 
 2003-01-19  Nathan Folkman <shmooved@aol.com>
 
