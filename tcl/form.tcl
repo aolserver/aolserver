@@ -28,7 +28,7 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/form.tcl,v 1.3.10.1 2002/10/28 23:16:08 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/form.tcl,v 1.3.10.2 2003/05/28 18:22:00 mpagenva Exp $
 #
 
 #
@@ -93,13 +93,18 @@ proc ns_querygetall {key {def_result ""}} {
         for {set i 0} {$i < $size} {incr i} {
             set k [ns_set key $form $i]
             if {[string tolower $k] == $lkey} {
-                lappend result [ns_set value $form $i]
+                if {[string length [ns_set value $form $i]]} {
+                    lappend result [ns_set value $form $i]
+                }
             }
-         }
-     } else {
-         set result $def_result
-     }
-     return $result
+        }
+        if {[string length $result] == 0} {
+            set result $def_result
+        }
+    } else {
+        set result $def_result
+    }
+    return $result
 }
 
 
