@@ -33,7 +33,7 @@
  *	ADP string and file eval.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.6 2001/03/27 16:45:04 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.7 2001/04/02 19:39:57 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -588,42 +588,43 @@ PopFrame(NsInterp *itPtr, Frame *framePtr)
 static int
 ParseFile(NsInterp *itPtr, char *file, size_t size, Ns_DString *dsPtr)
 {
-    Tcl_HashEntry *hPtr;
     Tcl_Interp *interp = itPtr->interp;
-    Tcl_Obj *objPtr;
-    Tcl_Channel chan;
-    char *ext, *enc;
-    int status;
+    Tcl_Encoding encoding;
+    Tcl_DString ds;
+    char *page, *buf;
+    int fd, n;
     
-    enc = NULL;
-    ext = strrchr(file, '.');
-    if (ext != NULL) {
-	hPtr = Tcl_FindHashEntry(&itPtr->servPtr->adp.encodings, ext+1);
-	if (hPtr != NULL) {
-	    enc = Tcl_GetHashValue(hPtr);
-	}
-    }
-    status = TCL_ERROR;
-    chan = Tcl_OpenFileChannel(interp, file, "r", 0);
-    if (chan == NULL) {
+    /*
+     * Read the file in on big binary chunk.
+     */
+
+    fd = open(file, O_RDONLY|O_BINARY);
+    if (fd < 0) {
 	Tcl_AppendResult(interp, "could not open \"",
 	    file, "\": ", Tcl_PosixError(interp), NULL);
-    } else {
-	if (enc == NULL || Tcl_SetChannelOption(interp, chan, "-encoding", enc) == TCL_OK) {
-	    objPtr = Tcl_NewObj();
-	    Tcl_IncrRefCount(objPtr);
-	    if (Tcl_ReadChars(chan, objPtr, -1, 0) < 0) {
-	    	Tcl_AppendResult(interp, "read() of \"", file,
-	    		"\" failed: ", Tcl_PosixError(interp), NULL);
-	    } else {
-	    	NsAdpParse(itPtr->servPtr, dsPtr, Tcl_GetString(objPtr));
-	    	status = TCL_OK;
-	    }
-	    Tcl_DecrRefCount(objPtr);
-	}
-	Tcl_Close(NULL, chan);
+	return TCL_ERROR;
     }
-    return status;
+    buf = ns_malloc(size+1);
+    n = read(fd, buf, size);
+    if (n < 0) {
+	Tcl_AppendResult(interp, "read() of \"", file,
+	    	"\" failed: ", Tcl_PosixError(interp), NULL);
+    } else {
+	buf[n] = '\0';
+	Tcl_DStringInit(&ds);
+	encoding = Ns_GetFileEncoding(file);
+	if (encoding == NULL) {
+	    page = buf;
+	} else {
+	    Tcl_ExternalToUtfDString(encoding, buf, n, &ds);
+	    page = ds.string;
+	}
+	NsAdpParse(itPtr->servPtr, dsPtr, page);
+	Tcl_DStringFree(&ds);
+    }
+    ns_free(buf);
+    close(fd);
+    return TCL_OK;
 }
 
 
