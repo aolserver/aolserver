@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Makefile.global,v 1.39 2001/05/29 23:12:52 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Makefile.global,v 1.40 2001/05/29 23:58:27 jgdavidson Exp $
 #
 
 #
@@ -144,8 +144,7 @@ NSD_LIB		= -L$(NSD_DIR) -l$(NSD)
 
 RFLAG		= -rpath
 RPATH		= $(RFLAG) $(INSTLIB) 
-LIBS	     	= $(RPATH) -lm
-MAINLIBS	= $(NSTCL_LIB) $(NSTHREAD_LIB) $(NSD_LIB) $(LIBS)
+LIBS	     	= -lm
 
 #
 # Figure the OS and architecture.
