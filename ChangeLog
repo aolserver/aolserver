@@ -1,3 +1,8 @@
+2003-05-28  Nathan Folkman <shmooved@aol.com>
+
+    * nslog/nslog.c: (bug fix): Fixed bug where TLS was not correctly
+    allocated at startup.
+
 2003-04-10  Nathan Folkman <shmooved@aol.com>
 
     * TAG: aolserver_v35_b8
