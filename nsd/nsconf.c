@@ -27,46 +27,38 @@
  * version of this file under either the License or the GPL.
  */
 
-
 /* 
  * nsconf.c --
  *
  *	Various core configuration.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsconf.c,v 1.17 2001/03/28 00:26:35 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsconf.c,v 1.18 2001/04/02 19:38:26 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #include "nsconf.h"
 
-#define NS_CONFIG_PARAMETERS "ns/parameters"
-#define NS_CONFIG_THREADS "ns/threads"
-
+static int GetInt(char *key, int def);
+static int GetBool(char *key, int def);
 struct _nsconf nsconf;
 
-static int
-GetInt(char *key, int def)
-{
-    int i;
-
-    if (!Ns_ConfigGetInt(NS_CONFIG_PARAMETERS, key, &i) || i < 0) {
-	i = def;
-    }
-    return i;
-}
-
-
-static bool
-GetBool(char *key, int def)
-{
-    int i;
-
-    if (!Ns_ConfigGetBool(NS_CONFIG_PARAMETERS, key, &i)) {
-	i = def;
-    }
-    return i;
-}
-
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsConfInit --
+ *
+ *	Initialize various elements of the nsconf structure now that
+ *	the config script has been evaluated.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	Various, depending on config.
+ *
+ *----------------------------------------------------------------------
+ */
 
 void
 NsConfInit(void)
@@ -155,3 +147,45 @@ NsConfInit(void)
     
     Ns_DStringFree(&ds);
 }
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * GetInt, GetBool --
+ *
+ *	Helper routines for getting int or bool config values, using
+ *	default values if necessary.
+ *
+ * Results:
+ *	Int value of 1/0 bool.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+GetInt(char *key, int def)
+{
+    int i;
+
+    if (!Ns_ConfigGetInt(NS_CONFIG_PARAMETERS, key, &i) || i < 0) {
+	i = def;
+    }
+    return i;
+}
+
+static bool
+GetBool(char *key, int def)
+{
+    int i;
+
+    if (!Ns_ConfigGetBool(NS_CONFIG_PARAMETERS, key, &i)) {
+	i = def;
+    }
+    return i;
+}
+
+
