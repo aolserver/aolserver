@@ -33,7 +33,7 @@
  *	ADP parser.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpparse.c,v 1.9 2002/09/28 19:23:00 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpparse.c,v 1.10 2002/11/02 18:05:57 jcollins Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -362,9 +362,19 @@ ParseAtts(char *s, char *e, int *servPtr, Tcl_DString *attsPtr, int atts)
 	    break;
 	}
 	as = s;
-	while (s < e && !isspace(UCHAR(*s)) && *s != '=') {
-	    ++s;
-	}
+
+        if (*s != '\'' && *s != '"') {
+            while (s < e && !isspace(UCHAR(*s)) && *s != '=') {
+                ++s;
+            }
+        } else {
+            ++s;
+            while (s < e && *s != *as) {
+                ++s;
+            }
+            ++s;
+        }
+
 	ae = s;
 	while (s < e && isspace(UCHAR(*s))) {
 	    ++s;
@@ -384,9 +394,19 @@ ParseAtts(char *s, char *e, int *servPtr, Tcl_DString *attsPtr, int atts)
 		++s;
 	    } while (s < e && isspace(UCHAR(*s)));
 	    vs = s;
-	    while (s < e && !isspace(UCHAR(*s))) {
-		++s;
-	    }
+
+            if (*s != '\'' && *s != '"') {
+                while (s < e && !isspace(UCHAR(*s))) {
+                    ++s;
+                }
+            } else {
+                ++s;
+                while (s < e && *s != *vs) {
+                    ++s;
+                }
+                ++s;
+            }
+            
 	    ve = s;
 	    end = *vs;
 	    if (end != '=' && end != '\'' && end != '"') {

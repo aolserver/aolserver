@@ -1,3 +1,8 @@
+2002-11-01  Jeremy Collins <jcollins@phpsource.net>
+
+        * nsd/adpparse.c: Fixed a small bug in ParseAtts.  It failed
+        to properly parse attribute values with spaces in them.
+
 2002-10-29  Jim Davidson <jgdavidson@aol.com>
 
 	* sample-config.tcl:  Updated with examples for connection
