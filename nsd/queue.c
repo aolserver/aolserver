@@ -34,7 +34,7 @@
  *	and service threads.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/queue.c,v 1.13 2002/08/26 02:05:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/queue.c,v 1.14 2002/09/21 17:55:45 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -660,10 +660,7 @@ ConnRun(Conn *connPtr)
 
     NsRunCleanups(conn);
     NsClsCleanup(connPtr);
-    if (connPtr->interp != NULL) {
-        Ns_TclDeAllocateInterp(connPtr->interp);
-	connPtr->interp = NULL;
-    }
+    Ns_FreeConnInterp(conn);
     if (connPtr->authUser != NULL) {
 	ns_free(connPtr->authUser);
 	connPtr->authUser = connPtr->authPasswd = NULL;

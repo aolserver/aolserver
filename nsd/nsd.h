@@ -605,11 +605,11 @@ typedef struct NsServer {
 
 typedef struct NsInterp {
 
+    struct NsInterp	  *nextPtr;
     Tcl_Interp		  *interp;
     NsServer  	    	  *servPtr;
     int		   	   delete;
     int			   epoch;
-    Tcl_HashEntry	  *hPtr;
 
     /*
      * The following pointer maintains the first in
