@@ -1,3 +1,16 @@
+2000-10-20  Kriston J. Rehberg  <Kriston@AOL.NET>
+
+	*** AOLserver 3.2 RELEASED ***
+
+2000-10-20  Jim Davidson
+
+	* win/tclWinSock.c: Fixed deadlock in sockets init code.
+
+	* nsd/nswin32.c: Fixed service install code to allow long
+	pathnames with spaces.
+	Added/use ns_pipe which set's close-on-exec like ns_sockpair.
+	
+
 2000-10-17  Kriston J. Rehberg  <Kriston@AOL.NET>
 
 	* nssock/sock.cpp: extra padding on Server Busy message to defeat
