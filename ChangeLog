@@ -1,3 +1,7 @@
+2003-03-10  Scott S. Goodwin  <scott@scottg.net>
+
+    * nscgi/nscgi.c: (bug) SERVER_NAME is now set correctly.
+
 2003-03-05  Nathan Folkman <shmooved@aol.com>
 
         * TAG: aolserver_v35_b6 
