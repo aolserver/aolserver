@@ -1,4 +1,11 @@
+
 2000-08-17  Jim Davidson
+
+	* nsd/dbtcl: Removed unused variables in GetCsvCmd.
+	
+	* nsd/adp.c: Fixed bug of not truncating output buffer when an
+	error was thrown during an ns_adp_parse.  Fix suggested by Rob
+	Mayoff.
 
 	* tcl7.6 and tcl8.2.3: Switched to blocking Tcl_WaitPid to avoid
 	zombies as suggested by Rob Mayoff.
