@@ -57,7 +57,7 @@
  * ns_param   "ParserName" "utf8"
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/adp.c,v 1.10 2000/08/25 23:43:36 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/adp.c,v 1.11 2000/08/28 13:12:13 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -112,7 +112,6 @@ static void SetMimeType(AdpData *adPtr, char *mimeType);
  * Static global variables
  */
 
-static Ns_Tls            adKey;
 static Ns_AdpParserProc *defParserProc = NULL;
 static Tcl_HashTable     extensionsTable;
 static Tcl_HashTable     parsersTable;
@@ -182,7 +181,6 @@ NsAdpInit(void)
      * Initialize the ADP core.
      */
 
-    Ns_TlsAlloc(&adKey, DelAdpData);
     if (nsconf.adp.cache && !nsconf.adp.threadcache) {
         sharedCachePtr = Ns_CacheCreateSz("adp", CACHE_KEYS,
 	    	    	    	    	  nsconf.adp.cachesize, ns_free);
@@ -312,15 +310,22 @@ AdpData *
 NsAdpGetData(void)
 {
     AdpData *adPtr;
+    static Ns_Tls tls;
 
-    adPtr = (AdpData *) Ns_TlsGet(&adKey);
+    if (tls == NULL) {
+	Ns_MasterLock();
+	if (tls == NULL) {
+	    Ns_TlsAlloc(&tls, DelAdpData);
+	}
+	Ns_MasterUnlock();
+    }
+    adPtr = (AdpData *) Ns_TlsGet(&tls);
     if (adPtr == NULL) {
 	adPtr = ns_calloc(1, sizeof(AdpData));
         adPtr->mimeType = NULL;
 	Ns_DStringInit(&adPtr->output);
-	Ns_TlsSet(&adKey, adPtr);
+	Ns_TlsSet(&tls, adPtr);
     }
-
     return adPtr;
 }
 
