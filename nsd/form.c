@@ -33,7 +33,7 @@
  *      Routines for dealing with HTML FORM's.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/form.c,v 1.15 2003/11/16 15:04:13 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/form.c,v 1.16 2005/01/15 23:59:54 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -69,7 +69,12 @@ Ns_ConnGetQuery(Ns_Conn *conn)
     Tcl_DString	    bound;
     char	   *s, *e, *form, *formend;
     
+    if (connPtr->query != NULL
+	    && connPtr->queryEncoding != connPtr->urlEncoding) {
+	Ns_ConnClearQuery(conn);
+    }
     if (connPtr->query == NULL) {
+	connPtr->queryEncoding = connPtr->urlEncoding;
 	connPtr->query = Ns_SetCreate(NULL);
 	if (!STREQ(connPtr->request->method, "POST")) {
 	    form = connPtr->request->query;
@@ -128,13 +133,13 @@ Ns_ConnClearQuery(Ns_Conn *conn)
     Tcl_HashSearch search;
     FormFile	  *filePtr;
 
-    if ((conn == NULL) ||
-        (connPtr->query == NULL)) {
+    if (conn == NULL || connPtr->query == NULL) {
         return;
     }
     
     Ns_SetFree(connPtr->query);
     connPtr->query = NULL;
+    connPtr->queryEncoding = NULL;
 
     hPtr = Tcl_FirstHashEntry(&connPtr->files, &search);
     while (hPtr != NULL) {
