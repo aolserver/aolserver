@@ -80,7 +80,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tcljob.c,v 1.24 2003/10/21 18:24:59 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tcljob.c,v 1.25 2003/11/03 02:08:58 pmoosman Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -638,16 +638,15 @@ NsTclJobObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
              */
 
             /*
-             * The following is a sanity check to ensure that the no
-             * other process removed this job's entry.
+             * The following is a sanity check that ensures no other
+             * process removed this job's entry.
              */
-            hPtr = Tcl_FindHashEntry(&queuePtr->jobs, jobId);
-            assert(hPtr != NULL);
-            assert(jobPtr == Tcl_GetHashValue(hPtr));
-
-            if (hPtr != NULL) {
-                Tcl_DeleteHashEntry(hPtr);
+            if (((hPtr = Tcl_FindHashEntry(&queuePtr->jobs, jobId)) == NULL) ||
+                (jobPtr == Tcl_GetHashValue(hPtr))) {
+                Tcl_SetResult(interp, "Internal ns_job error.", TCL_STATIC);
             }
+
+            Tcl_DeleteHashEntry(hPtr);
             ReleaseQueue(queuePtr, 0);
 
             Tcl_DStringResult(interp, &jobPtr->results);
@@ -1105,7 +1104,7 @@ JobThread(void *arg)
         
         Ns_MutexLock(&tp.queuelock);
             
-        assert(LookupQueue(NULL, jobPtr->queueId, &queuePtr, 1) == TCL_OK);
+        LookupQueue(NULL, jobPtr->queueId, &queuePtr, 1);
 
         --(queuePtr->nRunning);
         jobPtr->state = JOB_DONE;
@@ -1163,7 +1162,7 @@ getNextJob(void)
 
     while ((!done) && (jobPtr != NULL)) {
 
-        assert(LookupQueue(NULL, jobPtr->queueId, &queuePtr, 1) == TCL_OK);
+        LookupQueue(NULL, jobPtr->queueId, &queuePtr, 1);
 
         /*
          * Check if the job is not cancel and 
