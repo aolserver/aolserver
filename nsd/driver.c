@@ -34,7 +34,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.9 2002/08/26 02:05:13 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.10 2002/09/28 19:23:24 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -267,6 +267,54 @@ Ns_DriverInit(char *server, char *module, char *name,
     firstDrvPtr = drvPtr;
     ++maxfds;
     return NS_OK;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_RegisterDriver --
+ *
+ *	Register a set of communications driver procs (no longer
+ *	supported).
+ *
+ * Results:
+ *	NULL.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void *
+Ns_RegisterDriver(char *server, char *label, void *procs, void *drvData)
+{
+    Ns_Log(Error, "driver: loadable drivers no longer supported");
+    return NULL;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_GetDriverContext --
+ *
+ *	Return the driver's context (no longer supported)
+ *
+ * Results:
+ *	NULL. 
+ *
+ * Side effects:
+ *	None 
+ *
+ *----------------------------------------------------------------------
+ */
+
+void *
+Ns_GetDriverContext(Ns_Driver drv)
+{
+    return NULL;
 }
 
 
