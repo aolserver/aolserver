@@ -34,7 +34,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.35 2004/08/18 00:13:52 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.36 2004/08/20 23:31:37 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -61,12 +61,21 @@ enum {
     SOCK_QUEWAIT,
     SOCK_RUNWAIT,
     SOCK_CLOSEWAIT,
-    SOCK_PENDING,
-    SOCK_READY,
     SOCK_RUNNING,
     SOCK_DROPPED,
     SOCK_TIMEOUT,
     SOCK_OVERFLOW
+};
+
+char *states[] = {
+	"readwait",
+	"quewait",
+	"runwait",
+	"closewait",
+	"running",
+	"dropped",
+	"timeout",
+	"overflow"
 };
 
 /*
@@ -77,6 +86,9 @@ enum {
 #define DRIVER_STOPPED     2
 #define DRIVER_SHUTDOWN    4
 #define DRIVER_FAILED      8
+#define DRIVER_QUERY	  16
+
+#define MAX_POLL	  60
 
 /*
  * The following structure defines a Host header to server mappings.
@@ -121,7 +133,8 @@ static void TriggerDriver(Driver *drvPtr);
 static Sock *SockAccept(SOCKET lsock, Driver *drvPtr);
 static void SockClose(Driver *drvPtr, Sock *sockPtr);
 static int SockRead(Driver *drvPtr, Sock *sockPtr);
-static int Poll(Driver *drvPtr, SOCKET sock, int events, Ns_Time *timeoutPtr);
+static int Poll(Driver *drvPtr, SOCKET sock, int events,
+		Ns_Time **minTimeoutPtrPtr, Ns_Time *timeoutPtr);
 static int SetupConn(Conn *connPtr);
 static Conn *AllocConn(Driver *drvPtr, Sock *sockPtr);
 static void FreeConn(Driver *drvPtr, Conn *connPtr);
@@ -142,7 +155,6 @@ static Conn *firstConnPtr;  /* Conn free list. */
 static Ns_Mutex connlock;   /* Lock around Conn free list. */
 static Tcl_HashTable hosts; /* Host header to server table. */
 static ServerMap *defMapPtr;	/* Default server when not found in table. */
-static Ns_Time maxtimeout = { INT_MAX, LONG_MAX };
 
 
 /*
@@ -304,6 +316,8 @@ Ns_DriverInit(char *server, char *module, Ns_DriverInitData *init)
     if (ns_sockpair(drvPtr->trigger) != 0) {
 	Ns_Fatal("ns_sockpair() failed: %s", ns_sockstrerror(ns_sockerrno));
     }
+    Ns_DStringVarAppend(&ds, server, "/", module, NULL);
+    drvPtr->fullname = Ns_DStringExport(&ds);
     drvPtr->server = server;
     drvPtr->module = module;
     drvPtr->name = init->name;
@@ -582,7 +596,6 @@ Ns_QueueWait(Ns_Conn *conn, SOCKET sock, Ns_QueueWaitProc *proc,
     queWaitPtr->timeout = *timePtr;
 }
 
-
 
 /*
  *----------------------------------------------------------------------
@@ -700,6 +713,72 @@ NsWaitDriversShutdown(Ns_Time *toPtr)
     }
 }
 
+int
+NsTclDriverObjCmd(ClientData dummy, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
+{
+    Tcl_DString ds;
+    Driver *drvPtr;
+    char *fullname;
+    static CONST char *opts[] = {
+        "list", "query", NULL
+    };
+    enum {
+        DListIdx, DQueryIdx
+    } opt;
+
+    if (objc < 2) {
+        Tcl_WrongNumArgs(interp, 1, objv, "option ?args?");
+        return TCL_ERROR;
+    }
+    if (Tcl_GetIndexFromObj(interp, objv[1], opts, "option", 1,
+                (int *) &opt) != TCL_OK) {
+        return TCL_ERROR;
+    }
+
+    switch (opt) {
+    case DListIdx:
+	drvPtr = firstDrvPtr;
+	while (drvPtr != NULL) {
+	    Tcl_AppendElement(interp, drvPtr->fullname);
+	    drvPtr = drvPtr->nextPtr;
+	}
+	break;
+
+    case DQueryIdx:
+        if (objc != 3) {
+            Tcl_WrongNumArgs(interp, 2, objv, "driver");
+            return TCL_ERROR;
+	}
+	fullname = Tcl_GetString(objv[2]);
+	drvPtr = firstDrvPtr;
+	while (drvPtr != NULL) {
+	    if (STREQ(fullname, drvPtr->fullname)) {
+		break;
+	    }
+	    drvPtr = drvPtr->nextPtr;
+	}
+	if (drvPtr == NULL) {
+	    Tcl_AppendResult(interp, "no such driver: ", fullname, NULL);
+	    return TCL_ERROR;
+	}
+	Tcl_DStringInit(&ds);
+    	Ns_MutexLock(&drvPtr->lock);
+    	while (drvPtr->flags & DRIVER_QUERY) {
+	    Ns_CondWait(&drvPtr->cond, &drvPtr->lock);
+    	}
+    	drvPtr->queryPtr = &ds;
+    	drvPtr->flags |= DRIVER_QUERY;
+    	TriggerDriver(drvPtr);
+    	while (drvPtr->flags & DRIVER_QUERY) {
+	    Ns_CondWait(&drvPtr->cond, &drvPtr->lock);
+    	}
+    	Ns_MutexUnlock(&drvPtr->lock);
+	Tcl_DStringResult(interp, &ds);
+	break;
+    }
+    return TCL_OK;
+}
+	
 
 /* 
  *----------------------------------------------------------------------
@@ -840,11 +919,22 @@ DriverThread(void *arg)
     Conn *connPtr, *nextConnPtr, *freeConnPtr;
     Limits *limitsPtr;
     char drain[1024];
-    Ns_Time *nowPtr, diff;
+    Ns_Time *nowPtr, *timeoutPtr, diff;
     Sock *waitPtr = NULL;	/* Sock's waiting for I/O events. */
     Sock *readSockPtr = NULL;	/* Sock's to send to reader threads. */
     Sock *runSockPtr = NULL;	/* Sock's ready for pre-queue callbacks. */
     Sock *queSockPtr = NULL;    /* Sock's ready to queue. */
+    struct {
+	unsigned int spins;
+	unsigned int accepts;
+	unsigned int reads;
+	unsigned int queued;
+	unsigned int timeout;
+	unsigned int overflow;
+	unsigned int dropped;
+    } stats = {
+	0, 0, 0, 0, 0, 0, 0
+    };
 
     ThreadName(drvPtr, "driver");
     
@@ -910,16 +1000,18 @@ DriverThread(void *arg)
 	 */
 
 	sockPtr = waitPtr;
-        drvPtr->timeout = maxtimeout;
+	timeoutPtr = NULL;
         while (sockPtr != NULL) {
-            sockPtr->pidx = Poll(drvPtr, sockPtr->sock, POLLIN,
-                    		 &sockPtr->timeout);
-            if (sockPtr->state == SOCK_QUEWAIT) {
+            if (sockPtr->state != SOCK_QUEWAIT) {
+            	sockPtr->pidx = Poll(drvPtr, sockPtr->sock, POLLIN,
+                    		     &timeoutPtr, &sockPtr->timeout);
+	    } else {
+            	sockPtr->pidx = Poll(drvPtr, sockPtr->sock, POLLIN, NULL, NULL);
                 queWaitPtr = sockPtr->connPtr->queWaitPtr;
                 while (queWaitPtr != NULL) {
                     queWaitPtr->pidx = Poll(drvPtr, queWaitPtr->sock,
                             		    queWaitPtr->events,
-					    &queWaitPtr->timeout);
+					    &timeoutPtr, &queWaitPtr->timeout);
                     queWaitPtr = queWaitPtr->nextPtr;
                 }
 	    }
@@ -930,10 +1022,10 @@ DriverThread(void *arg)
 	 * Calculate the final timeout in ms.
 	 */
 
-        if (Ns_DiffTime(&drvPtr->timeout, nowPtr, &diff) <= 0)  {
-            pollto = 0;
-        } else if (diff.sec > 214783) { /* NB: Avoid overflow. */
+	if (timeoutPtr == NULL) {
             pollto = -1;
+	} else if (Ns_DiffTime(timeoutPtr, nowPtr, &diff) <= 0)  {
+            pollto = 0;
         } else {
             pollto = diff.sec * 1000 + diff.usec / 1000;
 	}
@@ -959,6 +1051,7 @@ DriverThread(void *arg)
          * Update the time for this spin.
          */
 
+	++stats.spins;
         Ns_GetTime(nowPtr);
 
 	/*
@@ -985,9 +1078,11 @@ DriverThread(void *arg)
         while ((connPtr = freeConnPtr) != NULL) {
             freeConnPtr = connPtr->nextPtr;
             limitsPtr = connPtr->limitsPtr;
-            Ns_MutexLock(&limitsPtr->lock);
-            --limitsPtr->nrunning;
-            Ns_MutexUnlock(&limitsPtr->lock);
+	    if (limitsPtr != NULL) {
+            	Ns_MutexLock(&limitsPtr->lock);
+            	--limitsPtr->nrunning;
+            	Ns_MutexUnlock(&limitsPtr->lock);
+	    }
             FreeConn(drvPtr, connPtr);
         }
 
@@ -1060,6 +1155,7 @@ DriverThread(void *arg)
                         SockPush(sockPtr, &readSockPtr);
 		    } else {
                         /* Read directly. */
+			++stats.reads;
 		    	switch (SockRead(drvPtr, sockPtr)) {
                         case STATUS_READY:
                             /* Ready for pre-queue callbacks. */
@@ -1146,8 +1242,7 @@ DriverThread(void *arg)
             sockPtr->connPtr->times.ready = drvPtr->now;
             switch (RunPreQueues(sockPtr->connPtr)) {
             case STATUS_PENDING:
-                /* NB: Sock timeout now longest que wait. */
-                sockPtr->timeout = maxtimeout;
+                /* NB: Sock timeout ignored during que wait. */
                 sockPtr->state = SOCK_QUEWAIT;
                 SockPush(sockPtr, &waitPtr);
                 break;
@@ -1188,20 +1283,24 @@ DriverThread(void *arg)
 	    if (sockPtr->state == SOCK_RUNWAIT) {
 		--limitsPtr->nwaiting;
                 if (drvPtr->pfds[sockPtr->pidx].revents & POLLIN) {
+		    ++stats.dropped;
 		    sockPtr->state = SOCK_DROPPED;
 		    goto dropped;
 		}
 	    }
-            ++limitsPtr->nrunning;
             if (limitsPtr->nrunning < limitsPtr->maxrun) {
+            	++limitsPtr->nrunning;
                 sockPtr->state = SOCK_RUNNING;
 	    } else if (Ns_DiffTime(&sockPtr->timeout, nowPtr, NULL) <= 0) {
+		++limitsPtr->ntimeout;
+		++stats.timeout;
 		sockPtr->state = SOCK_TIMEOUT;
 	    } else if (limitsPtr->nwaiting < limitsPtr->maxwait) {
-                --limitsPtr->nrunning;
 		++limitsPtr->nwaiting;
 		sockPtr->state = SOCK_RUNWAIT;
 	    } else {
+		++limitsPtr->noverflow;
+		++stats.overflow;
 		sockPtr->state = SOCK_OVERFLOW;
 	    }
 dropped:
@@ -1221,6 +1320,7 @@ dropped:
 		/* FALLTHROUGH */
 
 	    case SOCK_OVERFLOW:
+		connPtr->limitsPtr = NULL;
 		connPtr->flags |= NS_CONN_OVERFLOW;
                 connPtr->responseStatus = 503;
 		/* FALLTHROUGH */
@@ -1229,6 +1329,7 @@ dropped:
 	    	/* NB: Sock no longer responsible for Conn. */
 	    	sockPtr->connPtr = NULL;
 	    	NsQueueConn(connPtr);
+		++stats.queued;
 		break;
 
 	    default:
@@ -1244,7 +1345,47 @@ dropped:
 
   	if (!stop && (drvPtr->pfds[1].revents & POLLIN)
                 && ((sockPtr = SockAccept(lsock, drvPtr)) != NULL)) {
-	    SockWait(sockPtr, &drvPtr->now, drvPtr->recvwait, &waitPtr);
+	    SockWait(sockPtr, nowPtr, drvPtr->recvwait, &waitPtr);
+	    ++stats.accepts;
+	}
+
+	/*
+	 * Copy current driver details if requested.
+	 */
+
+	if (flags & DRIVER_QUERY) {
+	    Ns_MutexLock(&drvPtr->lock);
+	    Tcl_DStringAppendElement(drvPtr->queryPtr, "stats");
+	    Tcl_DStringStartSublist(drvPtr->queryPtr);
+	    Ns_DStringPrintf(drvPtr->queryPtr,
+		"time %ld:%ld "
+		"spins %ld accepts %u queued %u reads %u "
+		"dropped %u overflow %d timeout %d",
+	    	drvPtr->now.sec, drvPtr->now.usec,
+		stats.spins, stats.accepts, stats.queued, stats.reads,
+		stats.dropped, stats.overflow, stats.timeout);
+	    Tcl_DStringEndSublist(drvPtr->queryPtr);
+	    Tcl_DStringAppendElement(drvPtr->queryPtr, "socks");
+	    sockPtr = waitPtr;
+	    Tcl_DStringStartSublist(drvPtr->queryPtr);
+	    while (sockPtr != NULL) {
+	    	Tcl_DStringStartSublist(drvPtr->queryPtr);
+		Ns_DStringPrintf(drvPtr->queryPtr,
+		    "id %u sock %d state %s idx %d events %d revents %d "
+		    "accept %ld:%ld timeout %ld:%ld",
+		    sockPtr->id, sockPtr->sock, states[sockPtr->state], sockPtr->pidx,
+		    drvPtr->pfds[sockPtr->pidx].events, 
+		    drvPtr->pfds[sockPtr->pidx].revents, 
+		    sockPtr->acceptTime.sec, sockPtr->acceptTime.usec,
+		    sockPtr->timeout.sec, sockPtr->timeout.usec);
+	    	NsAppendConn(drvPtr->queryPtr, nowPtr, sockPtr->connPtr, "i/o");
+	    	Tcl_DStringEndSublist(drvPtr->queryPtr);
+		sockPtr = sockPtr->nextPtr;
+	    }
+	    Tcl_DStringEndSublist(drvPtr->queryPtr);
+	    drvPtr->flags &= ~DRIVER_QUERY;
+	    Ns_CondBroadcast(&drvPtr->cond);
+	    Ns_MutexUnlock(&drvPtr->lock);
 	}
     }
 
@@ -1287,7 +1428,8 @@ stopped:
  */
 
 static int
-Poll(Driver *drvPtr, SOCKET sock, int events, Ns_Time *toPtr)
+Poll(Driver *drvPtr, SOCKET sock, int events, Ns_Time **minTimeoutPtrPtr,
+	Ns_Time *timeoutPtr)
 {
     int idx;
 
@@ -1314,10 +1456,10 @@ Poll(Driver *drvPtr, SOCKET sock, int events, Ns_Time *toPtr)
      * Check for new minimum timeout.
      */
 
-    if (Ns_DiffTime(toPtr, &drvPtr->timeout, NULL) < 0) {
-        drvPtr->timeout = *toPtr;
+    if (timeoutPtr != NULL && (*minTimeoutPtrPtr == NULL
+		|| Ns_DiffTime(timeoutPtr, *minTimeoutPtrPtr, NULL) < 0)) {
+	*minTimeoutPtrPtr = timeoutPtr;
     }
-
     return idx;
 }
 
@@ -1408,6 +1550,7 @@ SockAccept(SOCKET lsock, Driver *drvPtr)
     if (sockPtr->sock == INVALID_SOCKET) {
 	return NULL;
     }
+    sockPtr->id = drvPtr->nextid++;
     sockPtr->drvPtr = drvPtr;
     sockPtr->state = SOCK_READWAIT;
     sockPtr->arg = NULL;
@@ -1621,7 +1764,7 @@ SockRead(Driver *drvPtr, Sock *sockPtr)
              */
 
             connPtr->flags |= NS_CONN_READHDRS;
-            if (!SetupConn(connPtr)) {
+            if (connPtr->request == NULL || !SetupConn(connPtr)) {
                 return STATUS_ERROR;
             }
         } else if (connPtr->request == NULL) {
@@ -1700,8 +1843,7 @@ RunQueWaits(Driver *drvPtr, Sock *sockPtr)
     QueWait *queWaitPtr, *nextPtr;
     int revents, why, dropped;
 
-    if ((drvPtr->pfds[sockPtr->pidx].revents & POLLIN)
-	    || Ns_DiffTime(&sockPtr->timeout, &drvPtr->now, NULL) <= 0) {
+    if (drvPtr->pfds[sockPtr->pidx].revents & POLLIN) {
 	dropped = 1;
     } else {
 	dropped = 0;

@@ -33,7 +33,7 @@
  * 	Connect Tcl command names to the functions that implement them
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.41 2004/08/16 20:27:46 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.42 2004/08/20 23:31:37 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -189,6 +189,7 @@ extern Tcl_CmdProc
     NsTclConfigCmd,
     NsTclConfigSectionCmd,
     NsTclConfigSectionsCmd,
+    NsTclDriverObjCmd,
     NsTclEncodingForCharsetCmd,
     NsTclEnvCmd,
     NsTclEnvCmd,
@@ -243,6 +244,7 @@ static Cmd cmds[] = {
     {"ns_modulepath", NULL, NsTclModulePathObjCmd},
     {"ns_limits", NULL, NsTclLimitsObjCmd},
     {"ns_pools", NULL, NsTclPoolsObjCmd},
+    {"ns_driver", NULL, NsTclDriverObjCmd},
 
     /*
      * log.c

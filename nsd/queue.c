@@ -34,7 +34,7 @@
  *	and service threads.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/queue.c,v 1.27 2004/08/10 17:48:27 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/queue.c,v 1.28 2004/08/20 23:31:38 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -54,9 +54,7 @@ typedef struct ConnThreadData {
  */
 
 static void ConnRun(Conn *connPtr);	/* Connection run routine. */
-static void AppendConn(Tcl_DString *dsPtr, Conn *connPtr, char *state);
-static void AppendConnList(Tcl_DString *dsPtr, Conn *firstPtr,
-    	char *state);
+static void AppendConnList(Tcl_DString *dsPtr, Conn *firstPtr, char *state);
 
 /*
  * Static variables defined in this file.
@@ -165,6 +163,7 @@ NsQueueConn(Conn *connPtr)
 
     connPtr->flags |= NS_CONN_RUNNING;
     Ns_MutexLock(&poolPtr->lock);
+    ++poolPtr->threads.queued;
     if (poolPtr->queue.wait.firstPtr == NULL) {
         poolPtr->queue.wait.firstPtr = connPtr;
     } else {
@@ -309,7 +308,7 @@ NsTclServerObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
  *	None.
  *
  * Side effects:
- *	See AppendConn.
+ *	See NsAppendConn.
  *
  *----------------------------------------------------------------------
  */
@@ -324,7 +323,7 @@ NsConnArgProc(Tcl_DString *dsPtr, void *arg)
      */
 
     if (arg != NULL) {
-        AppendConn(dsPtr, dataPtr->connPtr, "running");
+        NsAppendConn(dsPtr, dataPtr->connPtr, NULL, "running");
     } else {
     	Tcl_DStringAppendElement(dsPtr, "");
     }
@@ -599,7 +598,7 @@ NsCreateConnThread(Pool *poolPtr)
 /*
  *----------------------------------------------------------------------
  *
- * AppendConn --
+ * NsAppendConn --
  *
  *	Append connection data to a dstring.
  *
@@ -612,19 +611,25 @@ NsCreateConnThread(Pool *poolPtr)
  *----------------------------------------------------------------------
  */
 
-static void
-AppendConn(Tcl_DString *dsPtr, Conn *connPtr, char *state)
+void
+NsAppendConn(Tcl_DString *dsPtr, Ns_Time *nowPtr, Conn *connPtr, char *state)
 {
     char buf[100];
     char  *p;
     Ns_Time now, diff;
+
+    if (nowPtr == NULL) {
+	Ns_GetTime(&now);
+	nowPtr = &now;
+    }
 
     Tcl_DStringStartSublist(dsPtr);
 
     /*
      * An annoying race condition can be lethal here.
      */
-    if ( connPtr != NULL ) {
+
+    if (connPtr != NULL) {
 	sprintf(buf, "%d", connPtr->id);
 	Tcl_DStringAppendElement(dsPtr, buf);
 	Tcl_DStringAppendElement(dsPtr, Ns_ConnPeer((Ns_Conn *) connPtr));
@@ -643,8 +648,7 @@ AppendConn(Tcl_DString *dsPtr, Conn *connPtr, char *state)
 	p = (connPtr->request && connPtr->request->url) ?
 	    connPtr->request->url : "?";
 	Tcl_DStringAppendElement(dsPtr, strncpy(buf, p, sizeof(buf)));
-	Ns_GetTime(&now);
-	Ns_DiffTime(&now, &connPtr->times.queue, &diff);
+	Ns_DiffTime(nowPtr, &connPtr->times.queue, &diff);
 	sprintf(buf, "%ld.%ld", diff.sec, diff.usec);
 	Tcl_DStringAppendElement(dsPtr, buf);
 	sprintf(buf, "%d", connPtr->nContentSent);
@@ -673,8 +677,11 @@ AppendConn(Tcl_DString *dsPtr, Conn *connPtr, char *state)
 static void
 AppendConnList(Tcl_DString *dsPtr, Conn *firstPtr, char *state)
 {
+    Ns_Time now;
+
+    Ns_GetTime(&now);
     while (firstPtr != NULL) {
-	AppendConn(dsPtr, firstPtr, state);
+	NsAppendConn(dsPtr, &now, firstPtr, state);
 	firstPtr = firstPtr->nextPtr;
     }
 }

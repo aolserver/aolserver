@@ -286,7 +286,8 @@ typedef struct Driver {
     void	*arg;		    /* Driver callback data. */
     char	*server;	    /* Virtual server name. */
     char	*module;	    /* Driver module. */
-    char        *name;		    /* Driver name. */
+    char	*fullname;	    /* Full name, i.e., server/module. */
+    char        *name;		    /* Driver name, e.g., "nssock". */
     char        *location;	    /* Location, e.g, "http://foo:9090" */
     char        *address;	    /* Address in location. */
     int     	 sendwait;	    /* send() I/O timeout. */
@@ -317,6 +318,7 @@ typedef struct Driver {
     int     	 nactive;	    /* Number of active Sock's. */
 
     struct Sock *freeSockPtr;       /* Sock free list. */
+    unsigned int nextid;	    /* Next sock unique id. */
 
     int		 maxreaders;	    /* Max reader threads. */
     Ns_Thread   *readers;	    /* Array of reader Ns_Thread's. */
@@ -338,11 +340,11 @@ typedef struct Driver {
     Ns_Cond 	 cond;
     Ns_Time 	 now;		    /* Current time updated each spin. */
     Ns_Thread	 thread;
+    Tcl_DString *queryPtr;	    /* Buffer to copy driver query data. */
 
     struct pollfd *pfds;
     int          nfds;
     int          maxfds;
-    Ns_Time      timeout;
 
     struct QueWait *freeQueWaitPtr;
     
@@ -371,6 +373,7 @@ typedef struct Sock {
     struct Sock *nextPtr;
     struct Conn *connPtr;
     struct sockaddr_in sa;
+    unsigned int id;
     int		 state;
     int		 pidx;		    /* poll() index. */
     Ns_Time      acceptTime;
@@ -396,11 +399,14 @@ typedef struct FormFile {
 typedef struct Limits {
     Ns_Mutex        lock;
     char           *name;
-    int             maxrun;
-    int             maxwait;
-    int             nrunning;
-    int             nwaiting;
-    int             maxupload;
+    unsigned int    maxrun;
+    unsigned int    maxwait;
+    unsigned int    nrunning;
+    unsigned int    nwaiting;
+    unsigned int    ndropped;
+    unsigned int    noverflow;
+    unsigned int    ntimeout;
+    size_t	    maxupload;
     int             timeout;
 } Limits;
 
@@ -543,6 +549,7 @@ typedef struct Pool {
 	int 	    	    idle;
 	int 	    	    timeout;
 	int		    maxconns;
+    	unsigned int	    queued;
     } threads;
 
 } Pool;
@@ -830,6 +837,8 @@ extern void NsInitUrlSpace(void);
 extern void NsInitRequests(void);
 
 extern void NsQueueConn(Conn *connPtr);
+extern void NsAppendConn(Tcl_DString *bufPtr, Ns_Time *now, Conn *connPtr,
+			 char *state);
 extern int  NsSockSend(Sock *sockPtr, struct iovec *bufs, int nbufs);
 extern void NsSockClose(Sock *sockPtr, int keep);
 extern void NsFreeConn(Conn *connPtr);
