@@ -1,3 +1,16 @@
+2003-05-14  Zoran Vasiljevic <zoran@archiware.com>
+
+	* nsd/tclthread.c: fixed NsTclCondObjCmd to be compatible
+	to the 3.x pendant in way it threats the optional timeout
+	argument. The 3.x reverted to indefinite (i.e. non-timewait) 
+	condvar waits when the optional "timeout" argument was given
+        as zero.
+	The 4.x version just exited with NS_TIMEOUT (= 0) in such 
+ 	cases breaking Tcl scripts written for 3.x.
+        The corrective measure is to check the passed timeout value
+	and if == 0, revert to non-timewait condition waits as the
+	3.x does (did).
+	
 2003-05-13  Mark Page  <mpagenva@aol.com>
 
 	* TAG aolserver_v4_r0_beta_6
