@@ -33,7 +33,7 @@
  * 	Connect Tcl command names to the functions that implement them
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.12 2001/03/19 15:43:04 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.13 2001/03/23 18:31:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -180,7 +180,6 @@ extern Tcl_CmdProc
     NsTclEnvCmd,
     NsTclAdpEvalCmd,
     NsTclAdpIncludeCmd,
-    NsTclAdpPutsCmd,
     NsTclAdpDirCmd,
     NsTclAdpReturnCmd,
     NsTclAdpBreakCmd,
