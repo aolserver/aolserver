@@ -33,19 +33,11 @@
  *	Routines for managing NsServer structures.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.7 2001/03/28 00:26:20 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.8 2001/04/02 19:35:06 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
-static Tcl_HashTable table;
-
-/*
- * Various external init routines.
- */
-
-extern void NsTclInitServer(char *server);
-extern void NsDbInitServer(char *server);
-extern void NsLoadModules(char *server);
+static Tcl_HashTable servers;
 
 
 /*
@@ -69,7 +61,7 @@ NsGetServer(char *server)
 {
     Tcl_HashEntry *hPtr;
 
-    hPtr = Tcl_FindHashEntry(&table, server);
+    hPtr = Tcl_FindHashEntry(&servers, server);
     return (hPtr ? Tcl_GetHashValue(hPtr) : NULL);
 }
 
@@ -97,7 +89,7 @@ NsStartServers(void)
     Tcl_HashEntry *hPtr;
     Tcl_HashSearch search;
 
-    hPtr = Tcl_FirstHashEntry(&table, &search);
+    hPtr = Tcl_FirstHashEntry(&servers, &search);
     while (hPtr != NULL) {
 	servPtr = Tcl_GetHashValue(hPtr);
 	NsStartServer(servPtr);
@@ -129,14 +121,14 @@ NsStopServers(Ns_Time *toPtr)
     Tcl_HashEntry *hPtr;
     Tcl_HashSearch search;
 
-    hPtr = Tcl_FirstHashEntry(&table, &search);
+    hPtr = Tcl_FirstHashEntry(&servers, &search);
     while (hPtr != NULL) {
 	servPtr = Tcl_GetHashValue(hPtr);
 	NsStopServer(servPtr);
 	NsTclStopJobs(servPtr);
 	hPtr = Tcl_NextHashEntry(&search);
     }
-    hPtr = Tcl_FirstHashEntry(&table, &search);
+    hPtr = Tcl_FirstHashEntry(&servers, &search);
     while (hPtr != NULL) {
 	servPtr = Tcl_GetHashValue(hPtr);
 	NsWaitServer(servPtr, toPtr);
@@ -177,11 +169,11 @@ NsInitServer(Ns_ServerInitProc *initProc, char *server)
     int i, n, maxconns, status;
 
     if (!initialized) {
-	Tcl_InitHashTable(&table, TCL_STRING_KEYS);
+	Tcl_InitHashTable(&servers, TCL_STRING_KEYS);
     	Tcl_DStringInit(&nsconf.servers);   
 	initialized = 1;
     }
-    hPtr = Tcl_CreateHashEntry(&table, server, &n);
+    hPtr = Tcl_CreateHashEntry(&servers, server, &n);
     if (!n) {
 	Ns_Log(Error, "duplicate server: %s", server);
 	return;
@@ -497,42 +489,14 @@ NsInitServer(Ns_ServerInitProc *initProc, char *server)
     }
 
     /*
-     * Initialize the encodings table.
+     * Initialize the database, call any custom init proc, load
+     * modules, and initialize Tcl.  The order is significant.
      */
-
-    Tcl_InitHashTable(&servPtr->adp.encodings, TCL_STRING_KEYS);
-    path = Ns_ConfigPath(server, NULL, "adp", "encodings", NULL);
-    set = Ns_ConfigGetSection(path);
-    for (i = 0; set != NULL && i < Ns_SetSize(set); ++i) {
-	key = Ns_SetKey(set, i);
-	hPtr = Tcl_CreateHashEntry(&servPtr->adp.encodings, key, &n);
-	if (!n) {
-	    Ns_Log(Warning, "adp: duplicate extension: %s", key);
-	}
-	Tcl_SetHashValue(hPtr, Ns_SetValue(set, i));
-    }
-
 
     NsDbInitServer(server);
-
-    /*
-     * Call custom init, if any.
-     */
-
     if (initProc != NULL && (*initProc)(server) != NS_OK) {
 	Ns_Fatal("nsmain: Ns_ServerInitProc failed");
     }
-
-    /*
-     * Load modules.
-     */
-
     NsLoadModules(server);
-
-    /*
-     * Initialize Tcl.
-     */
-
     NsTclInitServer(server);
-
 }

@@ -102,6 +102,14 @@
 #define ADP_RETURN   4
 
 /*
+ * The following is the default text/html content type
+ * sent to the browsers.  The charset is also used for
+ * both input (url query) and output encodings.
+ */
+
+#define NSD_TEXTHTML    "text/html; charset=iso-8859-1"
+
+/*
  * Typedef definitions.
  */
 
@@ -246,15 +254,18 @@ typedef struct Conn {
     Driver      *drvPtr;
     void        *drvData;
     Ns_Set      *query;
+    char	*form;
     char	*peer;
     char	 peerBuf[32];
     Tcl_Interp  *interp;
+    Tcl_Encoding encoding;
     int          nContent;
     int          nContentSent;
     int          responseStatus;
     int          responseLength;
     int          recursionCount;
     int		 keepAlive;
+    Ns_DString   content;
     void	*cls[NS_CONN_MAXCLS];
 } Conn;
 
@@ -470,7 +481,6 @@ typedef struct NsServer {
 	int 	    	    cachesize;
 	Ns_Cache    	   *cache;
 	Tcl_HashTable	    tags;
-	Tcl_HashTable	    encodings;
 	Ns_Mutex	    lock;
     } adp;
     
@@ -618,16 +628,14 @@ typedef struct NsInterp {
 	char             **argv;
 	char		  *file;
 	char              *cwd;
-	char		  *mimetype;
-	char		  *charset;
 	int                errorLevel;
 	int                debugLevel;
 	int                debugInit;
 	char              *debugFile;
 	Ns_Cache	  *cache;
-	Tcl_Encoding	   encoding;
 	Tcl_DString	  *outputPtr;
 	Tcl_DString	  *responsePtr;
+	Tcl_DString	  *typePtr;
     } adp;
     
     /*
@@ -731,49 +739,63 @@ extern void NsGetCallbacks(Tcl_DString *dsPtr);
 extern void NsGetSockCallbacks(Tcl_DString *dsPtr);
 extern void NsGetScheduled(Tcl_DString *dsPtr);
 
-/*
- * Initialization routines.
- */
-
 #ifdef WIN32
 extern int NsConnectService(Ns_ServerInitProc *initProc);
-extern int NsInstallService(char *server);
-extern int NsRemoveService(char *server);
+extern int NsInstallService(char *service);
+extern int NsRemoveService(char *service);
 #endif
 
-extern void NsClsCleanup(Conn *connPtr);
-extern void NsTclAddCmds(NsInterp *itPtr, Tcl_Interp *interp);
+extern void NsCreatePidFile(char *service);
+extern void NsRemovePidFile(char *service);
+extern int  NsGetLastPid(char *service);
 
+extern void NsLogOpen(void);
+extern void NsConfInit(void);
+extern void NsInitMimeTypes(void);
+extern void NsInitEncodings(void);
+extern void NsDbInitPools(void);
+extern void NsRunPreStartupProcs(void);
+extern void NsStartServers(void);
+extern void NsStartKeepAlive(void);
+extern void NsForkBinder(void);
+extern void NsStopBinder(void);
+extern void NsBlockSignals(int debug);
+extern void NsHandleSignals(void);
+extern void NsStopDrivers(void);
+extern void NsStopKeepAlive(void);
+extern void NsInitBinder(char *bindargs, char *bindfile);
+extern void NsInitServer(Ns_ServerInitProc *proc, char *server);
+extern char *NsConfigRead(char *file);
+extern void NsConfigEval(char *config, int argc, char **argv, int optind);
 extern void NsEnableDNSCache(int timeout, int maxentries);
-
-extern void NsCreatePidFile(char *server);
-extern void NsRemovePidFile(char *server);
-extern int  NsGetLastPid(char *server);
 extern void NsKillPid(int pid);
-extern void NsRestoreSignals(void);
-extern void NsSendSignal(int sig);
-
 extern void NsStopServers(Ns_Time *toPtr);
 extern void NsStartServer(NsServer *servPtr);
 extern void NsStopServer(NsServer *servPtr);
 extern void NsWaitServer(NsServer *servPtr, Ns_Time *toPtr);
-
 extern void NsStartDrivers(char *server);
 extern void NsWaitServerWarmup(Ns_Time *);
 extern void NsWaitSockIdle(Ns_Time *);
 extern void NsWaitSchedIdle(Ns_Time *);
-
 extern void NsStartSchedShutdown(void);
 extern void NsWaitSchedShutdown(Ns_Time *toPtr);
-
 extern void NsStartSockShutdown(void); 
 extern void NsWaitSockShutdown(Ns_Time *toPtr);
-
 extern void NsStartShutdownProcs(void);
 extern void NsWaitShutdownProcs(Ns_Time *toPtr);
 
 extern void NsTclStopJobs(NsServer *servPtr);
 extern void NsTclWaitJobs(NsServer *servPtr, Ns_Time *toPtr);
+
+extern void NsTclInitServer(char *server);
+extern void NsDbInitServer(char *server);
+extern void NsLoadModules(char *server);
+
+extern void NsClsCleanup(Conn *connPtr);
+extern void NsTclAddCmds(NsInterp *itPtr, Tcl_Interp *interp);
+
+extern void NsRestoreSignals(void);
+extern void NsSendSignal(int sig);
 
 /*
  * ADP routines.
@@ -853,4 +875,3 @@ extern int 	  NsKeepAlive(Ns_Conn *connPtr);
 extern int NsConnRunProxyRequest(Ns_Conn *conn);
 
 #endif
-
