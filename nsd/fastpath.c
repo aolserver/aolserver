@@ -34,7 +34,7 @@
  *      Get page possibly from a file cache.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/fastpath.c,v 1.11 2001/11/05 20:23:19 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/fastpath.c,v 1.12 2001/12/18 22:33:39 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #if defined(MACOSX) && defined(panic)
@@ -50,16 +50,6 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
 #undef MAP_FAILED 
 #endif
 #define MAP_FAILED ((void *) (-1))
-
-/*
- * The following structure defines the key to indentify a 
- * in the file cache.
- */
-
-typedef struct {
-    dev_t dev;
-    ino_t ino;
-} Key;
 
 /*
  * The following structure defines the contents of a file
@@ -106,8 +96,7 @@ NsFastpathCache(char *server, int size)
     char buf[100];
 
     sprintf(buf, "nsfp:%s", server);
-    return Ns_CacheCreateSz("ns:fastpath", sizeof(Key)/sizeof(int),
-	size, FreeEntry);
+    return Ns_CacheCreateSz("ns:fastpath", FILE_KEYS, size, FreeEntry);
 }
 
 
@@ -477,7 +466,7 @@ FastReturn(NsServer *servPtr, Ns_Conn *conn, int status,
     File	   *filePtr;
     char	   *key, *map;
     Ns_Entry	   *entPtr;
-    Key ukey;
+    FileKey	    ukey;
 
     /*
      * Determine the mime type if not given.
