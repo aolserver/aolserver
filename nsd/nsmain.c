@@ -33,7 +33,7 @@
  *	AOLserver Ns_Main() startup routine.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.22.2.3.2.3 2002/12/03 23:13:02 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.22.2.3.2.4 2003/04/04 15:11:31 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #include "nsconf.h"
@@ -461,6 +461,19 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 #endif
 
     /*
+     * Pre-Establish any specified 'server' information into the
+     * config structures, so that they are available for use
+     * from config scripts and on.
+     * Note that a server value may not have been specified
+     * from the cmd line, and that's ok; this will just be
+     * establishing these values to null in that case, and we will
+     * later establish the config structures from what gets
+     * discovered from the config.
+     */
+
+    nsconf.server = nsServer = server;
+
+    /*
      * Initialize Tcl and eval the config file.
      */
 
@@ -488,8 +501,12 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 		     NS_CONFIG_SERVERS " in config file");
 	}
 	server = Ns_SetKey(set, 0);
+
+        /*
+         * Now, load in the discovered server info.
+         */
+        nsconf.server = nsServer = server;
     }
-    nsconf.server = nsServer = server;
 
     /*
      * Verify and change to the home directory.
