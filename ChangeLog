@@ -1,3 +1,8 @@
+2004-09-21  Dossy Shiobara <dossy@panoptic.com>
+
+	* aclocal.m4 (1.4): Make detection of gethostby{addr,name}_r more
+	  robust.  Closes SF Bug #1032231.
+
 2004-09-20  Dossy Shiobara <dossy@panoptic.com>
 
 	* nsd/: nsmain.c (1.58), nsd.h (1.91), unix.c (1.18): Need to set
