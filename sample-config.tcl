@@ -1,15 +1,48 @@
-
-# $Header: /Users/dossy/Desktop/cvs/aolserver/Attic/sample-config.tcl,v 1.2 2002/06/12 22:41:22 jgdavidson Exp $
+#
+# The contents of this file are subject to the AOLserver Public License
+# Version 1.1 (the "License"); you may not use this file except in
+# compliance with the License. You may obtain a copy of the License at
+# http://aolserver.com/.
+#
+# Software distributed under the License is distributed on an "AS IS"
+# basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+# the License for the specific language governing rights and limitations
+# under the License.
+#
+# The Original Code is AOLserver Code and related documentation
+# distributed by AOL.
+# 
+# The Initial Developer of the Original Code is America Online,
+# Inc. Portions created by AOL are Copyright (C) 1999 America Online,
+# Inc. All Rights Reserved.
+#
+# Alternatively, the contents of this file may be used under the terms
+# of the GNU General Public License (the "GPL"), in which case the
+# provisions of GPL are applicable instead of those above.  If you wish
+# to allow use of your version of this file only under the terms of the
+# GPL and not to allow others to use your version of this file under the
+# License, indicate your decision by deleting the provisions above and
+# replace them with the notice and other provisions required by the GPL.
+# If you do not delete the provisions above, a recipient may use your
+# version of this file under either the License or the GPL.
+# 
+#
+# $Header: /Users/dossy/Desktop/cvs/aolserver/Attic/sample-config.tcl,v 1.3 2002/10/30 00:41:42 jgdavidson Exp $
+#
 
 #
-# sample-config.tcl --  The AOLserver Startup Script
+# sample-config.tcl --  Example config script.
 #
-#      This is a Tcl script that is sourced when AOLserver starts up.
-#      A detailed reference is in "doc/config.txt".
+#       This script is an AOLserver configuration script with
+#	several example sections.  To use:
 #
-
-ns_log notice "config.tcl: starting to read config file..."
-
+#	% cp sample-config.tcl myconfig.tcl
+#	% vi myconfig.tcl		(edit as needed)
+#	% bin/nsd -ft myconfig.tcl	(test in foreground)
+#	% bin/nsd -t myconfig.tcl	(run in background)
+#	% gdb bin/nsd
+#	(gdb) run -fdt myconfig.tcl	(run in debugger)
+#
 
 #
 # Set some Tcl variables that are commonly used throughout this file.
@@ -51,7 +84,6 @@ set nscp_user ""
 ns_section "ns/parameters"
 ns_param   home            $homedir
 ns_param   debug           false
-
 
 #
 # Thread library (nsthread) parameters
@@ -215,4 +247,54 @@ if { $nscp_user != "" } {
     ns_log warning "config.tcl: nscp not loaded -- user/password is not set."
 }
 
-ns_log notice "config.tcl: finished reading config file."
+
+
+#
+# Example: Host headers based virtual servers.
+#
+# To enable:
+#
+# 1. Load comm driver(s) globally.
+# 2. Configure drivers as in a virtual server.
+# 3. Add a "servers" section to map virtual servers to Host headers.
+#
+#ns_section ns/modules
+#ns_section nssock nssock.so
+#
+#ns_section ns/module/nssock
+#ns_param   port            $httpport
+#ns_param   hostname        $hostname
+#ns_param   address         $address
+# 
+#ns_section ns/module/nssock/servers
+#ns_param server1 $hostname:$httpport
+#
+
+
+#
+# Example:  Multiple connection thread pools.
+#
+# To enable:
+# 
+# 1. Define one or more thread pools.
+# 2. Configure pools as with the default server pool.
+# 3. Map method/URL combinations to the pools
+# 
+# All unmapped method/URL's will go to the default server pool.
+# 
+#ns_section ns/server/server1/pools
+#ns_section slow "Slow requests here."
+#ns_section fast "Fast requests here." 
+#
+#ns_section ns/server/server1/pool/slow
+#ns_param map {POST /slowupload.adp}
+#ns_param maxconnections  100       ;# Max connections to put on queue
+#ns_param maxdropped      0         ;# Shut down if dropping too many conns
+#ns_param maxthreads      20        ;# Tune this to scale your server
+#ns_param minthreads      0         ;# Tune this to scale your server
+#ns_param threadtimeout   120       ;# Idle threads die at this rate
+#
+#ns_section ns/server/server1/pool/fast
+#ns_param map {GET /faststuff.adp}
+#ns_param maxthreads 10
+# 
