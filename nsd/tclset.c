@@ -33,7 +33,7 @@
  *	Implements the tcl ns_set commands 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclset.c,v 1.12 2002/07/08 02:51:34 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclset.c,v 1.13 2002/10/14 23:21:08 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -56,6 +56,7 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
  * Local functions defined in this file
  */
 
+static int NoServer(Tcl_Interp *interp);
 static int BadArgs(Tcl_Interp *interp, char **argv, char *args);
 static int LookupSet(NsInterp *itPtr, char *id, int delete, Ns_Set **setPtr);
 static int LookupObjSet(NsInterp *itPtr, Tcl_Obj *idPtr, int delete,
@@ -239,6 +240,9 @@ NsTclSetCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 	    tablePtr = &itPtr->sets;
     	    locked = 0;
 	} else if (STREQ(argv[2], "-shared")) {
+	    if (itPtr->servPtr == NULL) {
+		return NoServer(interp);
+	    }
 	    tablePtr = &itPtr->servPtr->sets.table;
 	    locked = 1;
 	    Ns_MutexLock(&itPtr->servPtr->sets.lock);
@@ -728,6 +732,9 @@ NsTclSetObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 	    tablePtr = &itPtr->sets;
     	    locked = 0;
 	} else if (STREQ(Tcl_GetString(objv[2]), "-shared")) {
+	    if (itPtr->servPtr == NULL) {
+		return NoServer(interp);
+	    }
 	    tablePtr = &itPtr->servPtr->sets.table;
 	    locked = 1;
 	    Ns_MutexLock(&itPtr->servPtr->sets.lock);
@@ -1124,6 +1131,9 @@ EnterSet(NsInterp *itPtr, Ns_Set *set, int flags)
 	 * Lock the global mutex and use the shared sets.
 	 */
 	
+	if (itPtr->servPtr == NULL) {
+	    return NoServer(itPtr->interp);
+	}
 	if (flags & NS_TCL_SET_DYNAMIC) {
 	    type = SET_SHARED_DYNAMIC;
 	} else {
@@ -1214,6 +1224,9 @@ LookupSet(NsInterp *itPtr, char *id, int delete, Ns_Set **setPtr)
     
     set = NULL;
     if (IS_SHARED(id)) {
+	if (itPtr->servPtr == NULL) {
+	    return NoServer(itPtr->interp);
+	}
     	tablePtr = &itPtr->servPtr->sets.table;
         Ns_MutexLock(&itPtr->servPtr->sets.lock);
     } else {
@@ -1260,5 +1273,12 @@ BadArgs(Tcl_Interp *interp, char **argv, char *args)
     Tcl_AppendResult(interp, "wrong # of args: should be \"",
         argv[0], " ", argv[1], " ", args, "\"", NULL);
 
+    return TCL_ERROR;
+}
+
+static int
+NoServer(Tcl_Interp *interp)
+{
+    Tcl_SetResult(interp, "no server for shared sets", TCL_STATIC);
     return TCL_ERROR;
 }
