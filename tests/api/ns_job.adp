@@ -3,7 +3,7 @@
 <%
 
 set maxThreads 5
-set queueName test_queue_0
+set queueId test_queue_0
 
 
 # ------------------------------------------------------------------------------
@@ -71,10 +71,10 @@ ns_eval proc fooLong {value} {
 # ------------------------------------------------------------------------------
 # Check if the specified queue exists.
 #
-proc queueExists {queueName} {
+proc queueExists {queueId} {
 
     set queues [ns_job queues]
-    if {[lsearch -exact $queues $queueName] == -1} {
+    if {[lsearch -exact $queues $queueId] == -1} {
         return [false]
     }
     return [true]
@@ -83,16 +83,16 @@ proc queueExists {queueName} {
 # ------------------------------------------------------------------------------
 # Create the thread pool queue. Also test the create failure cases.
 #
-proc createQueue {queueName} {
+proc createQueue {queueId} {
 
     global maxThreads
 
-    if {[queueExists $queueName]} {
+    if {[queueExists $queueId]} {
         #
         # Trying to create a queue again should throw an error.
         #
         if {[catch {
-            ns_job create $queueName $maxThreads
+            ns_job create -desc "Unit Test Queue \#1" $queueId $maxThreads
             outputMsg "Failure: Create queue should have thrown an erorr.<br>"
             return [rc.failure]
         } err]} {
@@ -100,10 +100,10 @@ proc createQueue {queueName} {
         }
     } else {
         outputMsg "Creating thread pool queue with max thread: $maxThreads ...<br>"
-        ns_job create $queueName $maxThreads
+        ns_job create -desc "Unit Test Queue \#1" $queueId $maxThreads
         outputMsg "Done creating thread pool queue.<br><br>"
 
-        if {![queueExists $queueName]} {
+        if {![queueExists $queueId]} {
             outputMsg "Failure: Failed to create queue.<br>"
             return [rc.failure]
         }
@@ -113,99 +113,49 @@ proc createQueue {queueName} {
 
 
 # ------------------------------------------------------------------------------
-# Unit Test #1
+# Watch queue jobs progress.
 #
-proc ns_job_unit_test_1 {testNum} {
+proc watchQueue {queueId jobList} {
 
-    global queueName
-
-    set count 10
-
-    outputMsg "<br>Running test # $testNum.<br><br>"
-
-    #
-    # Enqueue jobs
-    #
-    outputMsg "Enqueuing jobs ...<br>"
-    if {[catch {
-        for {set i 0} {$i < $count} {incr i} {
-            lappend job_list [ns_job queue $queueName "foo $i"]
-        }
-    } err]} {
-	global errorInfo
-	set savedInfo $errorInfo
-	outputMsg "Failed to enqueue jobs. Error Info: $errorInfo"
-        return [rc.failure]
-    }
-    outputMsg "Done enqueuing jobs.<br><br>"
-    
-    #
-    # Wait for each job to complete.
-    #
-    outputMsg "Wait for each job to complete ...<br><br><blockquote>"
-    if {[catch {
-        foreach job_id $job_list {
-            outputMsg "Job Id: $job_id &nbsp;&nbsp; Job Result: [ns_job wait $queueName $job_id]<br>"
-        }
-    } err]} {
-        global errorInfo
-        set savedInfo $errorInfo
-        outputMsg "Failed to wait on job. Error Info: $errorInfo"
-        return [rc.failure]
-    }
-    outputMsg "</blockquote><br>Done removing the jobs.<br><br>"
-    outputMsg "<br>Test # $testNum Complete.<br>"
-
-    return [rc.success]
-}
-
-
-# ------------------------------------------------------------------------------
-# Unit Test #2
-#
-proc ns_job_unit_test_2 {testNum} {
-
-    global queueName
-
-    outputMsg "<br>Running test # $testNum.<br><br>"
-    #
-    # Enqueue jobs
-    #
-    outputMsg "Enqueuing jobs ...<br>"
-    if {[catch {
-        for {set i 0} {$i < 10} {incr i} {
-            lappend job_list [ns_job queue $queueName "foo $i"]
-        }
-    } err]} {
-	global errorInfo
-	set savedInfo $errorInfo
-	outputMsg "Failed to enqueue jobs. Error Info: $errorInfo"
-        return [rc.failure]
-    }
-    outputMsg "Done enqueuing jobs.<br><br>"
-    
-    #
-    # Watch jobs progress.
-    #
-    outputMsg "Watch jobs progress ...<br><br>"
+    outputMsg "Watch $queueId jobs progress ...<br><br>"
     set done 0
     while {$done == 0} {
         set done 1
 
-        outputMsg "
+
+        if {[catch {
+            set first [true]
+            foreach job [ns_job job_list $queueId] {
+                array set jobArr $job
+
+                if {$first} {
+                    outputMsg "
 <br>
 <table border=1>
 <tr>
-  <th>ID</th><th>State</th><th>Type</th><th>Request</th><th>Script</th><th>Results</th><th>TIME</th>
+  <th>ID</th>
+  <th>State</th>
+  <th>Type</th>
+  <th>Request</th>
+  <th>Script</th>
+  <th>Results</th>
+  <th>TIME</th>
+  <th>START_TIME</th>
 </tr>
 "
+                    set first [false]
+                }
 
-        if {[catch {
-            foreach job [ns_job job_list $queueName] {
-                array set jobArr $job
                 outputMsg "
 <tr>
-  <td>$jobArr(ID)</td><td>$jobArr(STATE)</td><td>$jobArr(TYPE)</td><td>$jobArr(REQ)</td><td>$jobArr(SCRIPT)</td><td>$jobArr(RESULTS)</td><td>$jobArr(TIME)</td>
+  <td>$jobArr(ID)</td>
+  <td>$jobArr(STATE)</td>
+  <td>$jobArr(TYPE)</td>
+  <td>$jobArr(REQ)</td>
+  <td>$jobArr(SCRIPT)</td>
+  <td>$jobArr(RESULTS)</td>
+  <td align=\"right\">$jobArr(TIME) ms</td>
+  <td>$jobArr(START_TIME)</td>
 </tr>
 "
                 #
@@ -229,13 +179,77 @@ proc ns_job_unit_test_2 {testNum} {
 "
     }
 
-    #
-    # Remove the jobs from the queue.
-    #
-    outputMsg "<br>The Jobs have completed. Remove the from the queue ...<br><br>"
+    return [rc.success]
+}
+
+# ------------------------------------------------------------------------------
+# Enqueue jobs
+#
+proc enqueueJobs {queueId jobListVar {detached 0}} {
+
+    upvar $jobListVar jobList
+    set jobList [list]
+
+    outputMsg "Enqueuing jobs ...<br>"
     if {[catch {
-        foreach job_id $job_list {
-            outputMsg "Job Id: $job_id   Job Result: [ns_job wait $queueName $job_id]<br>"
+        for {set i 0} {$i < 10} {incr i} {
+            if {$detached} {
+                lappend jobList [ns_job queue -detached $queueId "foo $i"]
+            } else {
+                lappend jobList [ns_job queue $queueId "foo $i"]
+            }
+        }
+    } err]} {
+	global errorInfo
+	set savedInfo $errorInfo
+	outputMsg "Failed to enqueue jobs. Error Info: $errorInfo"
+        return [rc.failure]
+    }
+    outputMsg "Done enqueuing jobs.<br><br>"
+
+    return [rc.success]
+}
+
+
+
+# ------------------------------------------------------------------------------
+# Enqueue jobs
+#
+proc enqueueLongJobs {queueId jobListVar {detached 0}} {
+
+    upvar $jobListVar jobList
+    set jobList [list]
+
+    outputMsg "Enqueuing jobs ...<br>"
+    if {[catch {
+        for {set i 0} {$i < 10} {incr i} {
+            if {$detached} {
+                lappend jobList [ns_job queue -detached $queueId "fooLong $i"]
+            } else {
+                lappend jobList [ns_job queue $queueId "fooLong $i"]
+            }
+        }
+    } err]} {
+	global errorInfo
+	set savedInfo $errorInfo
+	outputMsg "Failed to enqueue jobs. Error Info: $errorInfo"
+        return [rc.failure]
+    }
+    outputMsg "Done enqueuing jobs.<br><br>"
+
+    return [rc.success]
+}
+
+
+# ------------------------------------------------------------------------------
+# Wait for each job.
+#
+proc waitForEachJob {queueId jobList} {
+
+    outputMsg "Wait for each job to complete ...<br><br><blockquote>"
+    if {[catch {
+        foreach jobId $jobList {
+            outputMsg "Job Id: $jobId &nbsp;&nbsp; Job Result: [ns_job wait $queueId $jobId]<br>"
         }
     } err]} {
         global errorInfo
@@ -243,7 +257,93 @@ proc ns_job_unit_test_2 {testNum} {
         outputMsg "Failed to wait on job. Error Info: $errorInfo"
         return [rc.failure]
     }
-    outputMsg "<br>Done removing the jobs.<br><br>"
+    outputMsg "</blockquote><br>Done removing the jobs.<br><br>"
+
+    return [rc.success]
+}
+
+
+# ------------------------------------------------------------------------------
+# Cancel jobs.
+#
+proc cancelJobs {queueId jobList} {
+
+    outputMsg "Cancelling all the jobs...<br>"
+    foreach jobId $jobList {
+        if {[catch {
+            ns_job cancel $queueId $jobId
+        } err]} {
+            global errorInfo
+            set savedInfo $errorInfo
+            outputMsg "Failed to cancel a job. Job ID: $jobId  errorInfo: $errorInfo<br>"
+            return [rc.failure]
+        }
+    }
+    outputMsg "Done cancelling all the jobs.<br><br>"
+
+    return [rc.success]
+}
+
+
+# ------------------------------------------------------------------------------
+# Unit Test #1
+#
+proc ns_job_unit_test_1 {testNum} {
+
+    global queueId
+
+    set count 10
+
+    outputMsg "<br>Running test # $testNum.<br><br>"
+
+    #
+    # Enqueue jobs
+    #
+    if {[enqueueJobs $queueId jobList] != [rc.success]} {
+        return [rc.failure]
+    }
+    
+    #
+    # Wait for each job to complete.
+    #
+    if {[waitForEachJob $queueId $jobList]} {
+        return [rc.failure]
+    }
+
+    outputMsg "<br>Test # $testNum Complete.<br>"
+
+    return [rc.success]
+}
+
+
+# ------------------------------------------------------------------------------
+# Unit Test #2
+#
+proc ns_job_unit_test_2 {testNum} {
+
+    global queueId
+
+    outputMsg "<br>Running test # $testNum.<br><br>"
+
+    #
+    # Enqueue jobs
+    #
+    if {[enqueueJobs $queueId jobList] != [rc.success]} {
+        return [rc.failure]
+    }
+    
+    #
+    # Watch jobs progress.
+    #
+    watchQueue $queueId $jobList
+
+    #
+    # Remove the jobs from the queue.
+    #
+    if {[waitForEachJob $queueId $jobList]} {
+        return [rc.failure]
+    }
+
     outputMsg "<br>Test # $testNum Complete.<br>"
     
     return [rc.success]
@@ -255,33 +355,27 @@ proc ns_job_unit_test_2 {testNum} {
 #
 proc ns_job_unit_test_3 {testNum} {
 
-    global queueName
+    global queueId
 
     outputMsg "<br>Running test # $testNum.<br><br>"
+
     #
     # Enqueue jobs
     #
-    outputMsg "Enqueuing jobs ...<br>"
-    if {[catch {
-        for {set i 0} {$i < 10} {incr i} {
-            lappend job_list [ns_job queue $queueName "foo $i"]
-        }
-    } err]} {
-	global errorInfo
-	set savedInfo $errorInfo
-	outputMsg "Failed to enqueue jobs. Error Info: $errorInfo"
+    if {[enqueueJobs $queueId jobList] != [rc.success]} {
         return [rc.failure]
     }
-    outputMsg "Done enqueuing jobs.<br><br>"
     
     #
     # Wait for any job to complete.
     #
     outputMsg "Wait for any job to complete...<br>"
     if {[catch {
-        ns_job wait_any $queueName
+        ns_job wait_any $queueId
 
     } err]} {
+        global errorInfo
+        set savedInfo $errorInfo
         outputMsg "wait_any failed. Error Info: $errorInfo"
         return [rc.failure]
     }
@@ -289,28 +383,21 @@ proc ns_job_unit_test_3 {testNum} {
 
     #
     # Remove the jobs from the queue.
-    #
-    outputMsg "<br>Remove all the jobs from the queue ...<br><br>"
-    if {[catch {
-        foreach job_id $job_list {
-            outputMsg "Job Id: $job_id   Job Result: [ns_job wait $queueName $job_id]<br>"
-        }
-    } err]} {
-        global errorInfo
-        set savedInfo $errorInfo
-        outputMsg "Failed to wait on job. Error Info: $errorInfo<br>"
+    # 
+    if {[waitForEachJob $queueId $jobList]} {
         return [rc.failure]
     }
-    outputMsg "<br>Done removing all the jobs.<br><br>"
 
     #
     # Wait for any job to complete.
     #
     outputMsg "Wait again for any job (this should not hang) ...<br>"
     if {[catch {
-        ns_job wait_any $queueName
+        ns_job wait_any $queueId
 
     } err]} {
+        global errorInfo
+        set savedInfo $errorInfo
         outputMsg "wait_any failed. Error Info: $errorInfo"
         return [rc.failure]
     }
@@ -326,77 +413,27 @@ proc ns_job_unit_test_3 {testNum} {
 #
 proc ns_job_unit_test_4 {testNum} {
 
-    global queueName
+    global queueId
 
     outputMsg "<br>Running test # $testNum.<br><br>"
     #
     # Enqueue jobs
     #
-    outputMsg "Enqueuing detached jobs ...<br>"
-    if {[catch {
-        for {set i 0} {$i < 10} {incr i} {
-            lappend job_list [ns_job queue -detached $queueName "foo $i"]
-        }
-    } err]} {
-	global errorInfo
-	set savedInfo $errorInfo
-	outputMsg "Failed to enqueue jobs. Error Info: $errorInfo<br>"
+    if {[enqueueJobs $queueId jobList [true]] != [rc.success]} {
         return [rc.failure]
     }
-    outputMsg "Done enqueuing detached jobs.<br><br>"
-    
+
     #
     # Watch jobs progress.
     #
-    outputMsg "Watch jobs progress ...<br><br>"
-    set done 0
-    while {$done == 0} {
-        set done 1
-
-        outputMsg "
-<br>
-<table border=1>
-<tr>
-  <th>ID</th><th>State</th><th>Type</th><th>Request</th><th>Script</th><th>Results</th><th>TIME</th>
-</tr>
-"
-
-        if {[catch {
-            foreach job [ns_job job_list $queueName] {
-                array set jobArr $job
-                outputMsg "
-<tr>
-  <td>$jobArr(ID)</td><td>$jobArr(STATE)</td><td>$jobArr(TYPE)</td><td>$jobArr(REQ)</td><td>$jobArr(SCRIPT)</td><td>$jobArr(RESULTS)</td><td>$jobArr(TIME)</td>
-</tr>
-"
-                #
-                # Keep watching if any jobs are queued or running.
-                #
-                if {($jobArr(STATE) == "JOB_SCHEDULED") ||
-                    ($jobArr(STATE) == "JOB_RUNNING") } {
-                    set done 0
-                }   
-            }
-        } err]} {
-            global errorInfo
-            set savedInfo $errorInfo
-            outputMsg "Failed to get job list info. Error Info: $errorInfo"
-            return [rc.failure]
-        }
-
-        outputMsg "
-</table>
-<br>
-"
-
-    }
+    watchQueue $queueId $jobList
 
     #
     # Test wait
     #
-    foreach job_id $job_list {
+    foreach jobId $jobList {
         if {[catch {
-            ns_job wait $queueName $job_id
+            ns_job wait $queueId $jobId
             outputMsg "Failure: Wait should not be allowed for detached jobs.<br>"
             return [rc.failure]
         } err]} {
@@ -414,33 +451,26 @@ proc ns_job_unit_test_4 {testNum} {
 #
 proc ns_job_unit_test_5 {testNum} {
 
-    global queueName
+    global queueId
 
     outputMsg "<br>Running test # $testNum.<br><br>"
     #
     # Enqueue jobs
     #
-    outputMsg "Enqueuing jobs ...<br>"
-    if {[catch {
-        for {set i 0} {$i < 10} {incr i} {
-            lappend job_list [ns_job queue $queueName "foo $i"]
-        }
-    } err]} {
-	global errorInfo
-	set savedInfo $errorInfo
-	outputMsg "Failed to enqueue jobs. Error Info: $errorInfo<br>"
+    if {[enqueueJobs $queueId jobList] != [rc.success]} {
         return [rc.failure]
     }
-    outputMsg "Done enqueuing jobs.<br><br>"
     
     #
     # Wait for any job to complete.
     #
     outputMsg "Wait for any job to complete...<br>"
     if {[catch {
-        ns_job wait_any $queueName
+        ns_job wait_any $queueId
 
     } err]} {
+        global errorInfo
+        set savedInfo $errorInfo
         outputMsg "wait_any failed. Error Info: $errorInfo"
         return [rc.failure]
     }
@@ -450,23 +480,16 @@ proc ns_job_unit_test_5 {testNum} {
     #
     # Cancel all the jobs
     #
-    outputMsg "Cancelling all the jobs...<br>"
-    foreach job_id $job_list {
-        if {[catch {
-            ns_job cancel $queueName $job_id
-        } err]} {
-            outputMsg "Failed to cancel a job.<br>"
-            return [rc.failure]
-        }
+    if {[cancelJobs $queueId $jobList] != [rc.success]} {
+        return [rc.failure]
     }
-    outputMsg "Done cancelling all the jobs.<br><br>"
 
     #
     # Test wait
     #
-    foreach job_id $job_list {
+    foreach jobId $jobList {
         if {[catch {
-            ns_job wait $queueName $job_id
+            ns_job wait $queueId $jobId
             outputMsg "Failure: Wait should not be allowed for cancelled jobs.<br>"
             return [rc.failure]
         } err]} {
@@ -474,51 +497,10 @@ proc ns_job_unit_test_5 {testNum} {
         }
     }
 
-
     #
     # Watch jobs progress.
     #
-    outputMsg "Watch jobs progress ...<br><br>"
-    set done 0
-    while {($done == 0) && [llength [ns_job job_list $queueName]] } {
-        set done 1
-
-        outputMsg "
-<br>
-<table border=1>
-<tr>
-  <th>ID</th><th>State</th><th>Type</th><th>Request</th><th>Script</th><th>Results</th><th>TIME</th>
-</tr>
-"
-        if {[catch {
-            foreach job [ns_job job_list $queueName] {
-                array set jobArr $job
-                outputMsg "
-<tr>
-  <td>$jobArr(ID)</td><td>$jobArr(STATE)</td><td>$jobArr(TYPE)</td><td>$jobArr(REQ)</td><td>$jobArr(SCRIPT)</td><td>$jobArr(RESULTS)</td><td>$jobArr(TIME)</td>
-</tr>
-"
-                #
-                # Keep watching if any jobs are queued or running.
-                #
-                if {($jobArr(STATE) == "JOB_SCHEDULED") ||
-                    ($jobArr(STATE) == "JOB_RUNNING") } {
-                    set done 0
-                }   
-            }
-        } err]} {
-            global errorInfo
-            set savedInfo $errorInfo
-            outputMsg "Failed to get job list info. Error Info: $errorInfo"
-            return [rc.failure]
-        }
-
-        outputMsg "
-</table>
-<br>
-"
-    }
-
+    watchQueue $queueId $jobList
 
     outputMsg "<br>Test # $testNum Complete.<br>"
     return [rc.success]
@@ -530,32 +512,23 @@ proc ns_job_unit_test_5 {testNum} {
 #
 proc ns_job_unit_test_6 {testNum} {
 
-    global queueName
+    global queueId
 
     outputMsg "<br>Running test # $testNum.<br><br>"
 
     #
     # Enqueue jobs
     #
-    outputMsg "Enqueuing jobs ...<br>"
-    if {[catch {
-        for {set i 0} {$i < 10} {incr i} {
-            lappend job_list [ns_job queue $queueName "fooLong $i"]
-        }
-    } err]} {
-	global errorInfo
-	set savedInfo $errorInfo
-	outputMsg "Failed to enqueue jobs. Error Info: $errorInfo<br>"
+    if {[enqueueLongJobs $queueId jobList] != [rc.success]} {
         return [rc.failure]
     }
-    outputMsg "Done enqueuing jobs.<br><br>"
     
     #
     # Wait for any job to complete.
     #
     outputMsg "Wait for any job to complete...<br>"
     if {[catch {
-        ns_job wait_any -timeout 0 10 $queueName
+        ns_job wait_any -timeout 0 10 $queueId
         outputMsg "Failed to timeout call."
         return [rc.failure]
     } err]} {
@@ -565,46 +538,29 @@ proc ns_job_unit_test_6 {testNum} {
     }
     outputMsg "Done waiting for any job to complete.<br><br>"
 
-
     #
     # Cancel all the jobs
     #
-    outputMsg "Cancelling all the jobs...<br>"
-    foreach job_id $job_list {
-        if {[catch {
-            ns_job cancel $queueName $job_id
-        } err]} {
-            outputMsg "Failed to cancel a job.<br>"
-            return [rc.failure]
-        }
+    if {[cancelJobs $queueId $jobList] != [rc.success]} {
+        return [rc.failure]
     }
-    outputMsg "Done cancelling all the jobs.<br><br>"
 
 
     #
     # Enqueue jobs
     #
     outputMsg "Enqueuing jobs ...<br>"
-    set job_list [list]
-    if {[catch {
-        for {set i 0} {$i < 10} {incr i} {
-            lappend job_list [ns_job queue $queueName "fooLong $i"]
-        }
-    } err]} {
-	global errorInfo
-	set savedInfo $errorInfo
-	outputMsg "Failed to enqueue jobs. Error Info: $errorInfo<br>"
+    set jobList [list]
+    if {[enqueueLongJobs $queueId jobList] != [rc.success]} {
         return [rc.failure]
     }
-    outputMsg "Done enqueuing jobs.<br><br>"
-
 
     #
     # Test wait
     #
-    foreach job_id $job_list {
+    foreach jobId $jobList {
         if {[catch {
-            ns_job wait -timeout 0 10 $queueName $job_id
+            ns_job wait -timeout 0 10 $queueId $jobId
             outputMsg "Failed to timeout call."
             return [rc.failure]
         } err]} {
@@ -615,18 +571,63 @@ proc ns_job_unit_test_6 {testNum} {
     #
     # Cancel all the jobs
     #
-    outputMsg "Cancelling all the jobs...<br>"
-    foreach job_id $job_list {
-        if {[catch {
-            ns_job cancel $queueName $job_id
-        } err]} {
-            global errorInfo
-            set savedInfo $errorInfo
-            outputMsg "Failed to cancel a job. Error Info: $errorInfo<br>"
-            return [rc.failure]
-        }
+    if {[cancelJobs $queueId $jobList] != [rc.success]} {
+        return [rc.failure]
     }
-    outputMsg "Done cancelling all the jobs.<br><br>"
+
+    outputMsg "<br>Test # $testNum Complete.<br>"
+    return [rc.success]
+}
+
+
+
+# ------------------------------------------------------------------------------
+# Unit Test #7
+#
+proc ns_job_unit_test_7 {testNum} {
+
+    global queueId
+
+    outputMsg "<br>Running test # $testNum.<br><br>"
+
+    set queueId_1 [ns_job genID]
+    set queueId_1_return [ns_job create -description "queueId_1" $queueId_1]
+
+    
+    displayQueues
+
+    set queueId_2 [ns_job genID]
+    set queueId_2_return [ns_job create -description "queueId_2" $queueId_2]
+
+    #
+    # Enqueue jobs
+    #
+    if {[enqueueJobs $queueId_1 jobList] != [rc.success]} {
+        return [rc.failure]
+    }
+
+    #
+    # Wait for each job to complete.
+    #
+    if {[waitForEachJob $queueId_1_return $jobList]} {
+        return [rc.failure]
+    }
+
+
+    #
+    # Enqueue jobs
+    #
+    if {[enqueueJobs $queueId_2_return jobList] != [rc.success]} {
+        return [rc.failure]
+    }
+
+    #
+    # Wait for each job to complete.
+    #
+    if {[waitForEachJob $queueId_2_return $jobList]} {
+        return [rc.failure]
+    }
+
 
     outputMsg "<br>Test # $testNum Complete.<br>"
     return [rc.success]
@@ -673,6 +674,7 @@ Select a test to run:<br>
 <li><a href=ns_job.adp?testSelected=4>Test \#4 - Detached</a>
 <li><a href=ns_job.adp?testSelected=5>Test \#5 - Cancel</a>
 <li><a href=ns_job.adp?testSelected=6>Test \#6 - Timeout</a>
+<li><a href=ns_job.adp?testSelected=7>Test \#6 - Generate Queue ID</a>
 <li><a href=ns_job.adp>Menu Only</a>
 </ul>
 <br>
@@ -699,7 +701,12 @@ proc displayQueues {} {
 <br>
 <table border=1>
 <tr>
-  <th>Name</th><th>MAX Threads</th><th>Number Threads</th><th>Number Idle</th><th>Request</th>
+  <th>Name</th>
+  <th>Desc</th>
+  <th>MAX Threads</th>
+  <th>Number Threads</th>
+  <th>Number Idle</th>
+  <th>Request</th>
 </tr>
 "
 
@@ -708,7 +715,12 @@ proc displayQueues {} {
         
         outputMsg "
 <tr>
-  <td>$queueArr(NAME)</td><td>$queueArr(MAX_THREADS)</td><td>$queueArr(NUM_THREADS)</td><td>$queueArr(NUM_IDLE)</td><td>$queueArr(REQ)</td>
+  <td>$queueArr(NAME)</td>
+  <td>$queueArr(DESC)</td>
+  <td>$queueArr(MAX_THREADS)</td>
+  <td>$queueArr(NUM_THREADS)</td>
+  <td>$queueArr(NUM_IDLE)</td>
+  <td>$queueArr(REQ)</td>
 </tr>
 "
     }
@@ -729,7 +741,7 @@ proc displayQueues {} {
 
 displayMenu
 
-if {[createQueue $queueName] == [rc.failure]} {
+if {[createQueue $queueId] == [rc.failure]} {
     outputMsg "Failed to create queue"
     return [rc.failure]
 }
@@ -770,6 +782,11 @@ switch -glob -- $testNum {
     }
     6 {
         if {[ns_job_unit_test_6 $testNum] != [rc.success]} {
+            outputMsg "<br>Test $testNum failed!<br>"
+        }
+    }
+    7 {
+        if {[ns_job_unit_test_7 $testNum] != [rc.success]} {
             outputMsg "<br>Test $testNum failed!<br>"
         }
     }
