@@ -1,0 +1,135 @@
+
+'\"
+'\" The contents of this file are subject to the AOLserver Public License
+'\" Version 1.1 (the "License"); you may not use this file except in
+'\" compliance with the License. You may obtain a copy of the License at
+'\" http://aolserver.com/.
+'\"
+'\" Software distributed under the License is distributed on an "AS IS"
+'\" basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+'\" the License for the specific language governing rights and limitations
+'\" under the License.
+'\"
+'\" The Original Code is AOLserver Code and related documentation
+'\" distributed by AOL.
+'\" 
+'\" The Initial Developer of the Original Code is America Online,
+'\" Inc. Portions created by AOL are Copyright (C) 1999 America Online,
+'\" Inc. All Rights Reserved.
+'\"
+'\" Alternatively, the contents of this file may be used under the terms
+'\" of the GNU General Public License (the "GPL"), in which case the
+'\" provisions of GPL are applicable instead of those above.  If you wish
+'\" to allow use of your version of this file only under the terms of the
+'\" GPL and not to allow others to use your version of this file under the
+'\" License, indicate your decision by deleting the provisions above and
+'\" replace them with the notice and other provisions required by the GPL.
+'\" If you do not delete the provisions above, a recipient may use your
+'\" version of this file under either the License or the GPL.
+'\" 
+'\"
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_guesstype.n,v 1.3 2002/11/05 21:25:04 webdanb Exp $
+'\"
+'\" 
+.so man.macros
+
+.TH ns_guesstype n 4.0 AOLserver "AOLserver Built-In Commands"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+ns_guesstype \- commands
+.SH SYNOPSIS
+\fBns_guesstype \fIfilename
+.BE
+
+.SH DESCRIPTION
+.PP
+This command guesses and returns the MIME type of filename, based on the file extention.  It has an extensive set of default mappings.  You can also add your own mappings in the "ns/server/servername/mimetype" section of the config file.
+
+.SH MIMETYPES
+.PP
+The following extentions and mimetypes are the default maps.
+
+    .adp text/html
+    .ai application/postscript
+    .aif audio/aiff
+    .aifc audio/aiff
+    .aiff audio/aiff
+    .ani application/x-navi-animation
+    .art image/x-art
+    .au audio/basic
+    .avi video/x-msvideo
+    .bin application/x-macbinary
+    .bmp image/bmp
+    .css text/css
+    .csv application/csv
+    .dci text/html
+    .dcr application/x-director
+    .dir application/x-director
+    .dp application/commonground
+    .dxr application/x-director
+    .elm text/plain
+    .eml text/plain
+    .exe application/octet-stream
+    .gbt text/plain
+    .gif image/gif
+    .gz application/x-compressed
+    .hqx application/mac-binhex40
+    .htm text/html
+    .html text/html
+    .jfif image/jpeg
+    .jpe image/jpeg
+    .jpg image/jpeg
+    .jpeg image/jpeg
+    .js application/x-javascript
+    .ls application/x-javascript
+    .map application/x-navimap
+    .mid audio/x-midi
+    .midi audio/x-midi
+    .mocha application/x-javascript
+    .mov video/quicktime
+    .mpe video/mpeg
+    .mpeg video/mpeg
+    .mpg video/mpeg
+    .nvd application/x-navidoc
+    .nvm application/x-navimap
+    .pbm image/x-portable-bitmap
+    .pdf application/pdf
+    .pgm image/x-portable-graymap
+    .pic image/pict
+    .pict image/pict
+    .pnm image/x-portable-anymap
+    .png image/png
+    .ps application/postscript
+    .qt video/quicktime
+    .ra audio/x-pn-realaudio
+    .ram audio/x-pn-realaudio
+    .ras image/x-cmu-raster
+    .rgb image/x-rgb
+    .rtf application/rtf
+    .sht text/html
+    .shtml text/html
+    .sit application/x-stuffit
+    .snd audio/basic
+    .sql application/x-sql
+    .stl application/x-navistyle
+    .tar application/x-tar
+    .tcl text/plain
+    .text text/plain
+    .tgz application/x-compressed
+    .tif image/tiff
+    .tiff image/tiff
+    .txt text/plain
+    .xbm image/x-xbitmap
+    .xpm image/x-xpixmap
+    .vrml x-world/x-vrml
+    .wav audio/x-wav
+    .wrl x-world/x-vrml
+    .z application/x-compressed
+    .zip application/x-zip-compressed
+
+.SH "SEE ALSO"
+nsd(1), info(n), ns_return(n)
+
+.SH KEYWORDS
+mime

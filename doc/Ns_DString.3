@@ -1,0 +1,333 @@
+
+'\"
+'\" The contents of this file are subject to the AOLserver Public License
+'\" Version 1.1 (the "License"); you may not use this file except in
+'\" compliance with the License. You may obtain a copy of the License at
+'\" http://aolserver.com/.
+'\"
+'\" Software distributed under the License is distributed on an "AS IS"
+'\" basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+'\" the License for the specific language governing rights and limitations
+'\" under the License.
+'\"
+'\" The Original Code is AOLserver Code and related documentation
+'\" distributed by AOL.
+'\" 
+'\" The Initial Developer of the Original Code is America Online,
+'\" Inc. Portions created by AOL are Copyright (C) 1999 America Online,
+'\" Inc. All Rights Reserved.
+'\"
+'\" Alternatively, the contents of this file may be used under the terms
+'\" of the GNU General Public License (the "GPL"), in which case the
+'\" provisions of GPL are applicable instead of those above.  If you wish
+'\" to allow use of your version of this file only under the terms of the
+'\" GPL and not to allow others to use your version of this file under the
+'\" License, indicate your decision by deleting the provisions above and
+'\" replace them with the notice and other provisions required by the GPL.
+'\" If you do not delete the provisions above, a recipient may use your
+'\" version of this file under either the License or the GPL.
+'\" 
+'\"
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_DString.3,v 1.5 2003/04/10 22:00:37 shmooved Exp $
+'\"
+'\" 
+.so man.macros
+
+.TH Ns_DString 3 4.0 AOLserver "AOLserver Library Procedures"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+Ns_DStringAppend, Ns_DStringAppendArg, Ns_DStringAppendElement, Ns_DStringExport, Ns_DStringFree, Ns_DStringInit, Ns_DStringLength, Ns_DStringNAppend, Ns_DStringPop, Ns_DStringPrintf, Ns_DStringPush, Ns_DStringSetLength, Ns_DStringTrunc, Ns_DStringValue, Ns_DStringVarAppend \- library procedures
+.SH SYNOPSIS
+.nf
+\fB#include "ns.h"\fR
+.sp
+char *
+\fBNs_DStringAppend\fR(\fINs_DString *dsPtr, char *string\fR)
+.sp
+char *
+\fBNs_DStringAppendArg\fR(\fINs_DString *dsPtr, char *string\fR)
+.sp
+char *
+\fBNs_DStringAppendElement\fR(\fINs_DString *dsPtr, char *string\fR)
+.sp
+char *
+\fBNs_DStringExport\fR(\fINs_DString *dsPtr\fR)
+.sp
+void
+\fBNs_DStringFree\fR(\fINs_DString *dsPtr\fR)
+.sp
+void
+\fBNs_DStringInit\fR(\fINs_DString *dsPtr\fR)
+.sp
+int
+\fBNs_DStringLength\fR(\fINs_DString *dsPtr\fR)
+.sp
+char *
+\fBNs_DStringNAppend\fR(\fINs_DString *dsPtr, char *string, int length\fR)
+.sp
+Ns_DString *
+\fBNs_DStringPop\fR(\fIvoid\fR)
+.sp
+char *
+\fBNs_DStringPrintf\fR(\fINs_DString *dsPtr, char *fmt,...\fR)
+.sp
+void
+\fBNs_DStringPush\fR(\fINs_DString *dsPtr\fR)
+.sp
+void
+\fBNs_DStringSetLength\fR(\fINs_DString *dsPtr, int length\fR)
+.sp
+void
+\fBNs_DStringTrunc\fR(\fINs_DString *dsPtr, int length\fR)
+.sp
+char *
+\fBNs_DStringValue\fR(\fINs_DString *dsPtr\fR)
+.sp
+char *
+\fBNs_DStringVarAppend\fR(\fINs_DString *dsPtr, ...\fR)
+.BE
+
+.SH DESCRIPTION
+.PP
+These functions create, manipulate and destroy
+Ns_DStrings. Ns_DStrings are structures that store strings and
+information about the string length. These dynamic strings grow as
+need to fit the strings placed in them or appended to them. If the
+Ns_DString plus the appended string are larger than the size of
+original string within the Ns_DString, for example, the Ns_DString
+will be automatically extended by allocating more memory to it.
+.PP
+Many functions return string pointers that point directly to the
+string within an Ns_DString structure. You must not free these
+returned string pointers with Ns_Free or any other freeing function,
+but must instead use Ns_DStringFree to free memory associated with the
+Ns_DString.
+.TP
+\fBNs_DStringAppend\fR(\fIdsPtr, string\fR)
+
+Append the specified string plus a terminating null character to the
+end of the Ns_DString. Returns the string associated with the
+current Ns_DString.
+
+The Ns_DString ds of the following code would contain "foo\0" and
+have a length of 3:
+
+.CS
+Ns_DString ds;
+Ns_DStringInit(&ds);
+Ns_DStringAppend(&ds, "foo");
+/* do something with the dstring */
+printf("%s\n", ds.string);
+/* finished with dstring */
+Ns_DStringFree(&ds);
+
+.CE
+.TP
+\fBNs_DStringAppendArg\fR(\fIdsPtr, string\fR)
+
+Append the specified argument plus a terminating null character to the
+end of the Ns_DString. It is useful for making strings like
+"foo\0bar\0baz\0". The string pointer associated with the current
+Ns_DString is returned.
+.TP
+\fBNs_DStringAppendElement\fR(\fIdsPtr, string\fR)
+
+Append a list element to the current value of a dynamic string. The
+string argument is reformatted as a list element and added to the
+current value of the Ns_DString.  The return value is a pointer to the
+dynamic string's new value.
+.TP
+\fBNs_DStringExport\fR(\fIdsPtr\fR)
+
+Returns the current Ns_DString string and leaves the Ns_DString in the
+initialized state. In this case, the string returned needs to be freed
+eventually with \fBNs_Free\fR because the string pointer returned is
+not a part of the Ns_DString any longer.
+
+.CS
+Ns_DString ds;
+char *stringdest;
+Ns_DStringInit(&ds);
+Ns_DStringAppend(&ds, "foo");
+stringdest = Ns_DStringExport(&ds);
+/* do something with .stringdest. */
+Ns_Free(stringdest);
+.CE
+.TP
+\fBNs_DStringFree\fR(\fIdsPtr\fR)
+
+Free any allocated memory used by an Ns_DString.
+.TP
+\fBNs_DStringInit\fR(\fIdsPtr\fR)
+
+Initialize an Ns_DString. Before using an Ns_DString, you must
+initialize it with Ns_DStringInit. Storage for an Ns_DString is often
+on the stack in the calling function. The example below shows a
+typical usage.
+
+.CS
+int MyFunctions(int a, int b)
+{
+    Ns_DString ds;
+    Ns_DStringInit(&ds);
+    /*
+     * ds is now initialized and ready to
+     * pass to another function
+     */
+    ...
+}
+.CE
+.TP
+\fBNs_DStringLength\fR(\fIdsPtr\fR)
+
+Return the current length of the string value that is contained within
+an Ns_DString.
+
+.CS
+Ns_DString ds;
+Ns_DStringInit(&ds);
+Ns_DStringAppend(&ds, "<html></html>");
+printf("len=%d\n", Ns_DStringLength(&ds));
+/* finished with dstring */
+Ns_DStringFree(&ds); 
+.CE
+.TP
+\fBNs_DStringNAppend\fR(\fIdsPtr, string, length\fR)
+
+Append n-characters of string to Ns_DString dsPtr. The function appends
+a string up to the specified number of characters, plus a terminating
+null character. Unlike the Tcl_DStringAppend function, which only
+works with string data, the AOLserver Ns_DStringNAppend function can
+append binary data.  Returns the string associated with the current
+Ns_DString.
+
+.CS
+The resulting Ns_DString in this example, ds would
+contain "foo\0" and have a length of 3:
+
+Ns_DString ds;
+Ns_DStringInit(&ds);
+Ns_DStringNAppend(&ds, "fooasdf", 3);
+printf("%s\n", ds.string);
+Ns_DStringFree(&ds); /* finished with dstring */
+
+If you need a null-terminated list of null-terminated
+strings, such as "foo\0bar\0\0", you would add one to
+the length of the appended strings to get the extra
+terminating null character. For example:
+
+Ns_DString ds;
+Ns_DStringInit(&ds);
+Ns_DStringNAppend(&ds, "foo", 4);
+Ns_DStringNAppend(&ds, "bar", 4);
+.CE
+.TP
+\fBNs_DStringPop\fR(\fIvoid\fR)
+
+Pop an Ns_DString from the per-thread cache, allocating the space for
+the Ns_DString if necessary.  This will initialize Thread Local
+Storage (TLS) and configure parameters on first use. TLS is a means of
+storing data associated with a particular thread within the thread's
+context, so that it is always available to that thread. A pointer to
+the initialized Ns_DString is returned.
+.TP
+\fBNs_DStringPrintf\fR(\fIdsPtr, fmt, ...\fR)
+
+Append a formatted string to an Ns_DString. The Ns_DStringPrintf
+function appends a string that has been created by calling the sprintf
+function with the given format and optional arguments. This function
+currently uses a fixed length buffer of 1024 characters to sprintf()
+the data before appending to the Ns_DString.
+
+.CS
+Ns_DString ds;
+
+Ns_DStringInit(&ds);
+Ns_DStringPrintf(&ds, "/path%d", getpid());
+/* do something with dstring */
+printf ("%s\n", ds.string);
+/* finished with dstring */
+Ns_DStringFree(&ds);
+.CE
+.TP
+\fBNs_DStringPush\fR(\fIdsPtr\fR)
+
+Push an Ns_DString onto the per-thread cache. The Ns_DString will be
+free'd if the maximum number of entries or the maximum size parameters
+have been exceeded. The contents held by the Ns_DString are destroyed.
+
+This is a performance function. Creating Ns_DStrings is a more expensive
+operation than cleaning out an already-existing Ns_DString and storing
+it for later use by the same thread.
+.TP
+\fBNs_DStringSetLength\fR(\fIdsPtr, length\fR)
+
+The length of dsPtr is changed to length and a null byte is
+stored at that position in the string.  If length is larger
+than the space allocated for dsPtr, then a panic occurs.
+.TP
+\fBNs_DStringTrunc\fR(\fIdsPtr, length\fR)
+
+Truncate an Ns_DString. The Ns_DStringTrunc function truncates an
+Ns_DString to the given length. Unlike Ns_DStringFree, which truncates
+the Ns_DString to length 0 and frees any memory that may have been
+allocated on the heap, Ns_DStringTrunc allows you to truncate the
+string to any length. It maintains any memory allocated on the
+heap. This function is useful in a loop where the Ns_DString is likely
+to overflow the static space each time through. Using Ns_DStringTrunc
+instead of Ns_DStringFree will avoid having the Ns_DString call malloc
+to obtain the addition space in each iteration. You will need to call
+Ns_DStringFree eventually to free any space that may have been
+allocated for the Ns_DString.
+
+.CS
+Ns_DString ds;
+int i;
+Ns_DStringInit(&ds);
+
+for (i=0; i < 50; i++) {
+    Ns_DStringPrintf(&ds, "%s%d", "aBigString", i);
+    /* do something with the dstring constructed above */
+    Ns_DStringTrunc(&ds, 0);
+}
+.CE
+.TP
+\fBNs_DStringValue\fR(\fIdsPtr\fR)
+
+Return the current value of an Ns_DString. The Ns_DStringValue macro
+returns a pointer to the current value of an Ns_DString.  This may be
+a pointer to the Ns_DString.s static space or to a string allocated on
+the heap if the static space has overflowed. It is not safe to use the
+value returned by this macro after an intervening call to
+Ns_DStringAppend because the Ns_DString string could overflow to or
+move within the heap.
+
+.CS
+Ns_DString ds;
+Ns_DStringInit(&ds);
+Ns_DStringAppend(&ds, "foo");
+/* do something with the dstring */
+printf ("%s\n", Ns_DStringValue(&ds));
+Ns_DStringFree(&ds);
+.CE
+.TP
+\fBNs_DStringVarAppend\fR(\fIdsPtr, ...\fR)
+
+Append a variable number of strings to an Ns_DString. The
+Ns_DStringVarAppend function appends a variable number of strings to
+an Ns_DString. The list must end with NULL.
+
+.CS
+Ns_DString ds;
+Ns_DStringInit(&ds);
+Ns_DStringVarAppend(&ds, "foo", "bar", NULL);
+/* do something with the dstring */
+printf ("%s\n", ds.string);
+Ns_DStringFree(&ds);
+.CE
+.SH "SEE ALSO"
+nsd(1), info(n)
+
+.SH KEYWORDS
+

@@ -1,0 +1,71 @@
+
+'\"
+'\" The contents of this file are subject to the AOLserver Public License
+'\" Version 1.1 (the "License"); you may not use this file except in
+'\" compliance with the License. You may obtain a copy of the License at
+'\" http://aolserver.com/.
+'\"
+'\" Software distributed under the License is distributed on an "AS IS"
+'\" basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+'\" the License for the specific language governing rights and limitations
+'\" under the License.
+'\"
+'\" The Original Code is AOLserver Code and related documentation
+'\" distributed by AOL.
+'\" 
+'\" The Initial Developer of the Original Code is America Online,
+'\" Inc. Portions created by AOL are Copyright (C) 1999 America Online,
+'\" Inc. All Rights Reserved.
+'\"
+'\" Alternatively, the contents of this file may be used under the terms
+'\" of the GNU General Public License (the "GPL"), in which case the
+'\" provisions of GPL are applicable instead of those above.  If you wish
+'\" to allow use of your version of this file only under the terms of the
+'\" GPL and not to allow others to use your version of this file under the
+'\" License, indicate your decision by deleting the provisions above and
+'\" replace them with the notice and other provisions required by the GPL.
+'\" If you do not delete the provisions above, a recipient may use your
+'\" version of this file under either the License or the GPL.
+'\" 
+'\"
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_html.n,v 1.4 2003/04/10 22:01:15 shmooved Exp $
+'\"
+'\" 
+.so man.macros
+
+.TH ns_html n 4.0 AOLserver "AOLserver Built-In Commands"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+ns_hrefs, ns_quotehtml, ns_striphtml \- commands
+.SH SYNOPSIS
+\fBns_hrefs \fIhtml\fR
+.sp
+\fBns_quotehtml \fIhtml\fR
+.sp
+\fBns_striphtml \fIhtml\fR
+.BE
+
+.SH DESCRIPTION
+.PP
+\fBns_hrefs\fR returns a list of all the URLs that the \fIhtml\fR has
+<A> links to.  There is currently no provision for normalizing any
+relative URL with a specified <BASE> URL.  Also, for a URL to be
+returned the HREF attribute must come before any other attributes
+(such as TITLE, STYLE, etc.) within the opening <A> tag.
+
+.PP
+\fBns_quotehtml\fR substitutes all instances of "<", ">", and "&"
+within \fIhtml\fR with their respective HTML entities ("&lt;",
+"&gt;", and "&amp;" respectively).  This command is useful
+if you want to include \fIhtml\fR in another page as plain text.
+
+.PP
+\fBns_striphtml\fR returns a new string that is \fIhtml\fR with
+all the HTML tags removed.  HTML entities are left untouched.
+
+.SH "SEE ALSO"
+nsd(1)
+
+.SH KEYWORDS
+

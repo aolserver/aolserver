@@ -1,0 +1,114 @@
+
+'\"
+'\" The contents of this file are subject to the AOLserver Public License
+'\" Version 1.1 (the "License"); you may not use this file except in
+'\" compliance with the License. You may obtain a copy of the License at
+'\" http://aolserver.com/.
+'\"
+'\" Software distributed under the License is distributed on an "AS IS"
+'\" basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+'\" the License for the specific language governing rights and limitations
+'\" under the License.
+'\"
+'\" The Original Code is AOLserver Code and related documentation
+'\" distributed by AOL.
+'\" 
+'\" The Initial Developer of the Original Code is America Online,
+'\" Inc. Portions created by AOL are Copyright (C) 1999 America Online,
+'\" Inc. All Rights Reserved.
+'\"
+'\" Alternatively, the contents of this file may be used under the terms
+'\" of the GNU General Public License (the "GPL"), in which case the
+'\" provisions of GPL are applicable instead of those above.  If you wish
+'\" to allow use of your version of this file only under the terms of the
+'\" GPL and not to allow others to use your version of this file under the
+'\" License, indicate your decision by deleting the provisions above and
+'\" replace them with the notice and other provisions required by the GPL.
+'\" If you do not delete the provisions above, a recipient may use your
+'\" version of this file under either the License or the GPL.
+'\" 
+'\"
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_crypt.n,v 1.4 2003/04/10 22:01:13 shmooved Exp $
+'\"
+'\" 
+.so man.macros
+
+.TH ns_crypt n 4.0 AOLserver "AOLserver Built-In Commands"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+ns_crypt \- commands
+.SH SYNOPSIS
+\fBns_crypt \fIkey \fIsalt
+.BE
+
+.SH DESCRIPTION
+.PP
+ns_crypt encrypted the 
+.I key, 
+also known as the 
+.I password,
+using the 
+.I salt 
+and returns the result.  It uses the same algorithm as the unix crypt command.
+.PP
+The result from ns_crypt is a 13-character string.  The first two 
+characters correspond to the salt, and the remaining eleven characters
+correspond to the 
+.I password 
+encrypted with the specified 
+.I salt.
+.PP
+The
+.I password
+is a string (typically that of a password to be used for 
+nscp and/or nsperm authentication).
+.PP
+.I salt 
+should be two characters, typically from the set [a-zA-Z0-9./].
+If the empty string is specified as the 
+.I salt 
+then ns_crypt returns the empty string.  If a string longer than two 
+characters is specified for the 
+.I salt 
+it is truncated to two characters.  If a one character
+.I salt 
+is provided the output will appear to have a two-character
+\fIsalt (the single character repeated), however, the encrypted value
+.B does not 
+correspond to the same 
+.I password 
+being encrypted
+with the equivalent two character 
+.I salt.  
+(As a result sticking with a two character salt is highly recommended.)
+.PP
+Input to ns_crypt 
+.B is
+case-sensitive.
+
+.SH EXAMPLES
+  
+ nscp> ns_crypt aolserver ns
+ ns0WvClsyIL4A
+
+ nscp> ns_crypt aolserver NS
+ NSDQ1dPM.409Q 
+
+ nscp> ns_crypt aolserver tcl
+ tcAbgtlzbEhVc
+
+ nscp> ns_crypt aolserver tc
+ tcAbgtlzbEhVc
+
+ nscp> ns_crypt aolserver ..
+ ..7TNvXHLxJ9Y
+
+ nscp> ns_crypt aolserver .
+ ..fwmBaZuzrRs
+
+.SH "SEE ALSO"
+nsd(1), info(n), nscp, nsperm, crypt(3)
+
+.SH KEYWORDS
+

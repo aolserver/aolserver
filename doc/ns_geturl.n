@@ -1,0 +1,79 @@
+
+'\"
+'\" The contents of this file are subject to the AOLserver Public License
+'\" Version 1.1 (the "License"); you may not use this file except in
+'\" compliance with the License. You may obtain a copy of the License at
+'\" http://aolserver.com/.
+'\"
+'\" Software distributed under the License is distributed on an "AS IS"
+'\" basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+'\" the License for the specific language governing rights and limitations
+'\" under the License.
+'\"
+'\" The Original Code is AOLserver Code and related documentation
+'\" distributed by AOL.
+'\" 
+'\" The Initial Developer of the Original Code is America Online,
+'\" Inc. Portions created by AOL are Copyright (C) 1999 America Online,
+'\" Inc. All Rights Reserved.
+'\"
+'\" Alternatively, the contents of this file may be used under the terms
+'\" of the GNU General Public License (the "GPL"), in which case the
+'\" provisions of GPL are applicable instead of those above.  If you wish
+'\" to allow use of your version of this file only under the terms of the
+'\" GPL and not to allow others to use your version of this file under the
+'\" License, indicate your decision by deleting the provisions above and
+'\" replace them with the notice and other provisions required by the GPL.
+'\" If you do not delete the provisions above, a recipient may use your
+'\" version of this file under either the License or the GPL.
+'\" 
+'\"
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_geturl.n,v 1.4 2003/04/10 22:01:15 shmooved Exp $
+'\"
+'\" 
+.so man.macros
+
+.TH ns_geturl n 4.0 AOLserver "AOLserver Built-In Commands"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+ns_geturl \- commands
+.SH SYNOPSIS
+\fBns_geturl \fIURL \fR?\fIheadersSetId\fR?
+.BE
+
+.SH DESCRIPTION
+.PP
+This command retrieves the contents of the specified URL. The URL must be a remote http server, or a file relative to the pageroot (begins with /).  It does not handle a relative request or follow redirects.  The headerSetId option is a variable containing an ns_set Id (not expanded with a $) used to store the remote server headers (see example).  ns_geturl only support HTTP version 1.0.
+
+.SH EXAMPLES
+
+.CS
+set page [ns_geturl "www.aolserver.com"]
+ns_return 200 text/html $page
+.CE
+
+This fetches the contents of www.aolserver.com and returns that page to the client.
+
+.CS
+set headers [ns_set new]
+set page [ns_geturl "www.aolserver.com" headers]
+for {set i 0} {$i < [ns_set size $headers]} {incr i} {
+   ns_puts "Key: [ns_set key $headers $i]"
+   ns_puts "Value: [ns_set value $headers $i]"
+}
+.CE
+
+This time, a blank headerset is passed to ns_geturl so we can retrieve the headers of the remote page, which we print out to the client.
+
+.CS
+set file [ns_geturl "/foo/bar.html"]
+ns_return 200 text/html $file
+.CE
+
+This example fetches the /foo/bar.html file relative to the pageroot and returns it to the client.
+.SH "SEE ALSO"
+nsd(1), info(n), ns_set(n), ns_httpget(n)
+
+.SH KEYWORDS
+

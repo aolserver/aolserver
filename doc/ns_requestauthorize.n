@@ -1,0 +1,88 @@
+
+'\"
+'\" The contents of this file are subject to the AOLserver Public License
+'\" Version 1.1 (the "License"); you may not use this file except in
+'\" compliance with the License. You may obtain a copy of the License at
+'\" http://aolserver.com/.
+'\"
+'\" Software distributed under the License is distributed on an "AS IS"
+'\" basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+'\" the License for the specific language governing rights and limitations
+'\" under the License.
+'\"
+'\" The Original Code is AOLserver Code and related documentation
+'\" distributed by AOL.
+'\" 
+'\" The Initial Developer of the Original Code is America Online,
+'\" Inc. Portions created by AOL are Copyright (C) 1999 America Online,
+'\" Inc. All Rights Reserved.
+'\"
+'\" Alternatively, the contents of this file may be used under the terms
+'\" of the GNU General Public License (the "GPL"), in which case the
+'\" provisions of GPL are applicable instead of those above.  If you wish
+'\" to allow use of your version of this file only under the terms of the
+'\" GPL and not to allow others to use your version of this file under the
+'\" License, indicate your decision by deleting the provisions above and
+'\" replace them with the notice and other provisions required by the GPL.
+'\" If you do not delete the provisions above, a recipient may use your
+'\" version of this file under either the License or the GPL.
+'\" 
+'\"
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_requestauthorize.n,v 1.4 2003/04/10 22:01:21 shmooved Exp $
+'\"
+'\" 
+.so man.macros
+
+.TH ns_requestauthorize n 4.0 AOLserver "AOLserver Built-In Commands"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+ns_requestauthorize \- commands
+.SH SYNOPSIS
+\fBns_requestauthorize \fIoption \fR?\fIarg arg ...\fR?
+.BE
+
+.SH DESCRIPTION
+.PP
+.sp
+
+.SS
+\fBns_requestauthorize\fR \fImethod\fR \fIURL\fR \fIauthuser\fR \fIauthpassword\fR \fI?ipaddr?\fR 
+
+Ask the server to check permissions using nsperm. 
+This function does the same permission check that the AOLserver does before serving a URL. If the nsperm module is loaded, the algorithm is as follows. 
+.IP \fB1.\fR 3 
+If the authuser is "nsadmin", the password is correct, and the IP address of the client is allowed nsadmin access, then access is authorized.
+.IP \fB2.\fR 3
+Find the relevant permission record. If an exact match for the method and URL combination is not found, the end of the URL is pared down until a match is found. For example, if there is no match for `/products/cereals/raisin_bran.html,' then the server looks for a permission record for the URL `/products/cereals.' If that permission record is specified as "Exact URL match is NOT required", then that permission record is used.
+.TP
+
+By default, the server comes with a row that says GET on `/' is open to the world. If no relevant permission record is found, access is denied (forbidden). 
+.IP \fB1.\fR 3 
+If the authuser is in the "Allow Users" list, access is permitted. If the authuser is a member of a group in the "Allow Groups" list and not in the "Deny Users" list, access is permitted.
+.IP \fB2.\fR 3 
+If the host is in the "Hosts to allow" list, access is permitted. If the host is in the "Hosts to deny" list, access is denied.
+.IP \fB3.\fR 3 
+If the request does not come in with authorization data, access is denied.
+.IP \fB4.\fR 3 
+The user and password are verified. If there is no password specified in the database, any password is accepted.
+.IP \fB5.\fR 3 
+Otherwise, access is denied.
+.SS
+Return Values:
+The following values can be returned by ns_requestauthorize. 
+.IP \fBOK\fR 11
+The user has permission to execute this URL and method.
+.IP \fBDENIED\fR 11
+The user does not have permission to execute this URL and method.
+.IP \fBFORBIDDEN\fR 11
+There is no possible user/password/IP Address combination that would give authorization.
+.IP \fBERROR\fR 11
+There was an error. 
+
+
+.SH "SEE ALSO"
+ns_passwordcheck, ns_crypt
+
+.SH KEYWORDS
+

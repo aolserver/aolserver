@@ -1,0 +1,167 @@
+
+'\"
+'\" The contents of this file are subject to the AOLserver Public License
+'\" Version 1.1 (the "License"); you may not use this file except in
+'\" compliance with the License. You may obtain a copy of the License at
+'\" http://aolserver.com/.
+'\"
+'\" Software distributed under the License is distributed on an "AS IS"
+'\" basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+'\" the License for the specific language governing rights and limitations
+'\" under the License.
+'\"
+'\" The Original Code is AOLserver Code and related documentation
+'\" distributed by AOL.
+'\" 
+'\" The Initial Developer of the Original Code is America Online,
+'\" Inc. Portions created by AOL are Copyright (C) 1999 America Online,
+'\" Inc. All Rights Reserved.
+'\"
+'\" Alternatively, the contents of this file may be used under the terms
+'\" of the GNU General Public License (the "GPL"), in which case the
+'\" provisions of GPL are applicable instead of those above.  If you wish
+'\" to allow use of your version of this file only under the terms of the
+'\" GPL and not to allow others to use your version of this file under the
+'\" License, indicate your decision by deleting the provisions above and
+'\" replace them with the notice and other provisions required by the GPL.
+'\" If you do not delete the provisions above, a recipient may use your
+'\" version of this file under either the License or the GPL.
+'\" 
+'\"
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_String.3,v 1.5 2003/04/10 22:00:59 shmooved Exp $
+'\"
+'\" 
+.so man.macros
+
+.TH Ns_String 3 4.0 AOLserver "AOLserver Library Procedures"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+Ns_Match, Ns_NextWord, Ns_StrCaseFind, Ns_StrCopy, Ns_StrDup, Ns_StrNStr, Ns_StrToLower, Ns_StrToUpper, Ns_StrTrim, Ns_StrTrimLeft, Ns_StrTrimRight, Ns_StringPrint, ns_strcopy, ns_strdup \- library procedures
+.SH SYNOPSIS
+.nf
+\fB#include "ns.h"\fR
+.sp
+char *
+\fBNs_Match\fR(\fIchar *a, char *b\fR)
+.sp
+char *
+\fBNs_NextWord\fR(\fIchar *line\fR)
+.sp
+char *
+\fBNs_StrCaseFind\fR(\fIchar *s1, char *s2\fR)
+.sp
+char *
+\fBNs_StrCopy\fR(\fIchar *str\fR)
+\fBns_strcopy\fR(\fIchar *str\fR)
+.sp
+char *
+\fBNs_StrDup\fR(\fIchar *str\fR)
+\fBns_strdup\fR(\fIchar *str\fR)
+.sp
+char *
+\fBNs_StrNStr\fR(\fIchar *pattern, char *expression\fR)
+.sp
+char *
+\fBNs_StrToLower\fR(\fIchar *string\fR)
+.sp
+char *
+\fBNs_StrToUpper\fR(\fIchar *string\fR)
+.sp
+char *
+\fBNs_StrTrim\fR(\fIchar *string\fR)
+.sp
+char *
+\fBNs_StrTrimLeft\fR(\fIchar *string\fR)
+.sp
+char *
+\fBNs_StrTrimRight\fR(\fIchar *string\fR)
+.sp
+void
+\fBNs_StringPrint\fR(\fIchar *string\fR)
+.BE
+
+.SH DESCRIPTION
+.TP
+\fBNs_Match\fR(\fIa, b\fR)
+
+Compare the beginnings of two strings, case insensitively. 
+The comparison stops when
+the end of the shorter string is reached.
+Return NULL if no match, b if match. 
+.TP
+\fBNs_NextWord\fR(\fIline\fR)
+
+Return a pointer to first character of the next word in a 
+string; words are separated by white space. 
+The returned pointer points into the original string.
+For example, Ns_NextWord("abc def") returns a pointer to the 'd' in that string.
+.TP
+\fBNs_StrCaseFind\fR(\fIs1, s2\fR)
+
+Locate the first occurrence of substring s2 within string s1 
+in a case-insensitive manner. The terminating '\0' 
+characters are not compared. Returns a pointer that points into s1.
+Uses strstr(3) to do its work.
+.TP
+\fBNs_StrCopy\fR(\fIstr\fR)
+\fBns_strcopy\fR(\fIstr\fR)
+
+Copy a string or NULL value using Ns_Malloc.
+The Ns_StrCopy function is identical to the
+Ns_StrDup function but allows for the
+string parameter to be NULL, in which case
+Ns_StrCopy does nothing and returns
+NULL.
+
+.TP
+\fBNs_StrDup\fR(\fIstr\fR)
+\fBns_strdup\fR(\fIstr\fR)
+
+Copy a string using Ns_Malloc. The Ns_StrDup function
+calls Ns_Malloc to allocate enough memory to make a copy
+of the given string.
+.TP
+\fBNs_StrNStr\fR(\fIpattern, expression\fR)
+
+Search through pattern for expression, case insensitively. Return
+a pointer that points to where the match begins within pattern, or
+NULL if expression is not contained in pattern.
+.TP
+\fBNs_StrToLower\fR(\fIstring\fR)
+
+Convert string to lowercase. Returns pointer to original
+string. Original string will be modified.
+.TP
+\fBNs_StrToUpper\fR(\fIstring\fR)
+
+Convert string to uppercase. Returns pointer to original
+string. Original string will be modified.
+.TP
+\fBNs_StrTrim\fR(\fIstring\fR)
+
+Trim leading and trailing white space from string. A pointer to the trimmed
+string will be returned, which will be in the original string. Do not lose your
+original pointer to the string if you later need to free it.
+.TP
+\fBNs_StrTrimLeft\fR(\fIstring\fR)
+
+Trim leading white space from string. A pointer to the trimmed
+string will be returned, which will be in the original string. Do not lose your
+original pointer to the string if you later need to free it.
+.TP
+\fBNs_StrTrimRight\fR(\fIstring\fR)
+
+Trim trailing white space from string. The original string pointer will be returned,
+but the string will have been modified: a '\0's will have been placed right after the last
+non-whitespace character of the string.
+.TP
+\fBNs_StringPrint\fR(\fIstring\fR)
+
+Print a string to stdout.
+
+.SH "SEE ALSO"
+nsd(1), info(n)
+
+.SH KEYWORDS
+

@@ -1,0 +1,67 @@
+
+'\"
+'\" The contents of this file are subject to the AOLserver Public License
+'\" Version 1.1 (the "License"); you may not use this file except in
+'\" compliance with the License. You may obtain a copy of the License at
+'\" http://aolserver.com/.
+'\"
+'\" Software distributed under the License is distributed on an "AS IS"
+'\" basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+'\" the License for the specific language governing rights and limitations
+'\" under the License.
+'\"
+'\" The Original Code is AOLserver Code and related documentation
+'\" distributed by AOL.
+'\" 
+'\" The Initial Developer of the Original Code is America Online,
+'\" Inc. Portions created by AOL are Copyright (C) 1999 America Online,
+'\" Inc. All Rights Reserved.
+'\"
+'\" Alternatively, the contents of this file may be used under the terms
+'\" of the GNU General Public License (the "GPL"), in which case the
+'\" provisions of GPL are applicable instead of those above.  If you wish
+'\" to allow use of your version of this file only under the terms of the
+'\" GPL and not to allow others to use your version of this file under the
+'\" License, indicate your decision by deleting the provisions above and
+'\" replace them with the notice and other provisions required by the GPL.
+'\" If you do not delete the provisions above, a recipient may use your
+'\" version of this file under either the License or the GPL.
+'\" 
+'\"
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_urlencode.n,v 1.3 2003/04/10 16:16:09 shmooved Exp $
+'\"
+'\" 
+.so man.macros
+
+.TH ns_urlencode n 4.0 AOLserver "AOLserver Built-In Commands"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+ns_urlencode \- commands
+.SH SYNOPSIS
+.sp
+\fBns_urlencode \fIdata \fI
+.BE
+
+.SH DESCRIPTION
+.PP
+Encodes data according to the encoding defined in RFC #1738, Uniform Resource
+Locators. 
+
+ns_urlencode encodes all non-alphanumeric characters in data. The encoding for a character is a "%" followed by the two-character hexadecimal representation for the character. 
+
+urlencoding the string: 
+   http://www.aolserver.com/redirect.adp?url=http://www.aol.com&t=1,2,3 
+yields the string: 
+   http%3a%2f%2fwww%2eaolserver%2ecom%2fredirect%2eadp%3furl%3dhttp%3a%2f%2fwww%2eaol%2ecom%26t%3d1%2c2%2c3
+
+.SH EXAMPLES
+.PP
+ns_urlencode: 
+    set link [ns_urlencode http://www.aolserver.com/redirect.adp?url=http://www.aol.com&t=1,2,3]
+    ns_adp_puts "<a href=[ns_urlencode $link]>click</a>"
+
+.SH "SEE ALSO"
+ns_urldecode(n)
+
+.SH KEYWORDS

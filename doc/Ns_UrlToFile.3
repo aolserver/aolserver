@@ -1,0 +1,141 @@
+
+'\"
+'\" The contents of this file are subject to the AOLserver Public License
+'\" Version 1.1 (the "License"); you may not use this file except in
+'\" compliance with the License. You may obtain a copy of the License at
+'\" http://aolserver.com/.
+'\"
+'\" Software distributed under the License is distributed on an "AS IS"
+'\" basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+'\" the License for the specific language governing rights and limitations
+'\" under the License.
+'\"
+'\" The Original Code is AOLserver Code and related documentation
+'\" distributed by AOL.
+'\" 
+'\" The Initial Developer of the Original Code is America Online,
+'\" Inc. Portions created by AOL are Copyright (C) 1999 America Online,
+'\" Inc. All Rights Reserved.
+'\"
+'\" Alternatively, the contents of this file may be used under the terms
+'\" of the GNU General Public License (the "GPL"), in which case the
+'\" provisions of GPL are applicable instead of those above.  If you wish
+'\" to allow use of your version of this file only under the terms of the
+'\" GPL and not to allow others to use your version of this file under the
+'\" License, indicate your decision by deleting the provisions above and
+'\" replace them with the notice and other provisions required by the GPL.
+'\" If you do not delete the provisions above, a recipient may use your
+'\" version of this file under either the License or the GPL.
+'\" 
+'\"
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_UrlToFile.3,v 1.4 2003/04/10 22:01:08 shmooved Exp $
+'\"
+'\" 
+.so man.macros
+
+.TH Ns_UrlToFile 3 4.0 AOLserver "AOLserver Library Procedures"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+Ns_SetUrlToFileProc, Ns_UrlIsDir, Ns_UrlIsFile, Ns_UrlToFile \- URL to file mapping procedures
+.SH SYNOPSIS
+.nf
+\fB#include "ns.h"\fR
+.sp
+void
+\fBNs_SetUrlToFileProc\fR(\fIchar *server, Ns_UrlToFileProc *procPtr\fR)
+.sp
+int
+\fBNs_UrlIsDir\fR(\fIchar *server, char *url\fR)
+.sp
+int
+\fBNs_UrlIsFile\fR(\fIchar *server, char *url\fR)
+.sp
+int
+\fBNs_UrlToFile\fR(\fINs_DString *dsPtr, char *server, char *url\fR)
+.BE
+
+.SH DESCRIPTION
+.PP
+These functions map URL paths to real files and directories. They are
+normally used to determine whether a given URL has a corresponding
+file or directory and to return the real filesystem path that
+corresponds to the URL.
+.TP
+\fBNs_SetUrlToFileProc\fR(\fIserver, procPtr\fR)
+
+Set a pointer to a custom routine to use in place of \fBNs_UrlToFile\fR. 
+.TP
+\fBNs_UrlIsDir\fR(\fIserver, url\fR)
+
+Construct a directory name by appending the URL to the current
+AOLserver pages directory for the specified server. Return NS_TRUE if
+the directory exists; NS_FALSE otherwise.
+.TP
+\fBNs_UrlIsFile\fR(\fIserver, url\fR)
+
+Construct a file name by appending the URL to the current AOLserver
+pages directory for the specified server. Return NS_TRUE if the file
+exists and is a regular file; NS_FALSE otherwise.
+
+Example:
+
+.CS
+/* IsFile - Simple request to determine if an URL is a file. */
+int
+IsFile(Ns_Conn *conn, void *ctx)
+{
+    int isfile;
+    char *server;
+
+    server = Ns_ConnServer(conn);
+    isfile = Ns_UrlIsFile(server, conn->request->url);
+    if (isfile) {
+        Ns_ConnReturnNotice(conn, 200, "File", NULL);
+    } else {
+        Ns_ConnReturnNotice(conn, 200, "Not a File", NULL);
+    }
+    return NS_OK;
+}
+.CE
+.TP
+\fBNs_UrlToFile\fR(\fIdsPtr, server, url\fR)
+
+The Ns_UrlToFile function writes the full path name of the file
+corresponding to the given URL. The result is appended to the
+Ns_DString. The function does not check that the file exists or is
+readable by the AOLserver process. This function returns a status of
+NS_OK or NS_ERROR.
+
+Normally this prepends the pageroot to the URL path. If you have
+created your own custom routine and used \fBNs_SetUrlToFileProc\fR to
+point to it, your routine is called instead. This could be used to
+create, for example, a module that takes the given URL and maps it to
+a file in a different way than the default \fBNs_UrlToFile\fR routine.
+
+Example:
+
+.CS
+/* A simple page fetch request function. */
+int
+SimpleFetch(Ns_Conn *conn, void *ctx)
+{
+    Ns_DString ds;
+    FILE fp;
+    char *server;
+    Ns_DStringInit(&ds);
+
+    server = Ns_ConnServer(conn);
+    Ns_UrlToFile(&ds, server, conn->request->url);
+    fp = fopen(ds.string, "r");
+    Ns_ConnSendOpenFp(conn, fp, -1);
+    fclose(fp);
+    Ns_DStringFree(&ds);
+    return NS_OK;
+}
+.CE
+.SH "SEE ALSO"
+nsd(1), info(n)
+
+.SH KEYWORDS
+

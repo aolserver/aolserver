@@ -1,0 +1,168 @@
+
+'\"
+'\" The contents of this file are subject to the AOLserver Public License
+'\" Version 1.1 (the "License"); you may not use this file except in
+'\" compliance with the License. You may obtain a copy of the License at
+'\" http://aolserver.com/.
+'\"
+'\" Software distributed under the License is distributed on an "AS IS"
+'\" basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+'\" the License for the specific language governing rights and limitations
+'\" under the License.
+'\"
+'\" The Original Code is AOLserver Code and related documentation
+'\" distributed by AOL.
+'\" 
+'\" The Initial Developer of the Original Code is America Online,
+'\" Inc. Portions created by AOL are Copyright (C) 1999 America Online,
+'\" Inc. All Rights Reserved.
+'\"
+'\" Alternatively, the contents of this file may be used under the terms
+'\" of the GNU General Public License (the "GPL"), in which case the
+'\" provisions of GPL are applicable instead of those above.  If you wish
+'\" to allow use of your version of this file only under the terms of the
+'\" GPL and not to allow others to use your version of this file under the
+'\" License, indicate your decision by deleting the provisions above and
+'\" replace them with the notice and other provisions required by the GPL.
+'\" If you do not delete the provisions above, a recipient may use your
+'\" version of this file under either the License or the GPL.
+'\" 
+'\"
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_return.n,v 1.3 2003/04/10 16:16:07 shmooved Exp $
+'\"
+'\" 
+.so man.macros
+
+.TH ns_return n 4.0 AOLserver "AOLserver Built-In Commands"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+ns_connsendfp, ns_respond, ns_return, ns_returnadminnotice, ns_returnbadrequest, ns_returnerror, ns_returnfile, ns_returnforbidden, ns_returnfp, ns_returnnotfound, ns_returnnotice, ns_returnredirect, ns_returnunauthorized, ns_write \- commands
+.SH SYNOPSIS
+\fBns_connsendfp\fR \fIfp len\fR
+.sp
+\fBns_respond 
+.sp
+\fBns_return\fR \fIstatus type string\fR
+.sp
+\fBns_returnadminnotice\fR \fIstatus msg\fR ?longmsg?
+.sp
+\fBns_returnbadrequest\fR \fIreason\fR
+.sp
+\fBns_returnerror\fR \fIstatus msg\fR
+.sp
+\fBns_returnfile\fR \fIstatus type filename\fR
+.sp
+\fBns_returnforbidden\fR
+.sp
+\fBns_returnfp\fR \fIstatus type fileid len\fR
+.sp
+\fBns_returnnotfound\fR
+.sp
+\fBns_returnnotice\fR \fIstatus msg\fR ?longmsg?
+.sp
+\fBns_returnredirect\fR \fIlocation\fR
+.sp
+\fBns_returnunauthorized 
+.sp
+\fBns_write\fR \fIstring\fR
+.BE
+
+.SH DESCRIPTION
+.PP
+These procedures provide a simple interface for returning information to the client. They build HTTP/1.0 headers and send the appropriate data out the socket to the client. The script does not end at the time ns_return* is invoked so you can continue processing data after the client has gotten the data and closed the socket.
+.PP
+type should be a MIME type (see ns_guesstype manual page for a list).
+status is a three-digit number fitting the pattern below:
+.DS
+1xx Informational - Not used, but reserved for future use.
+2xx Success - The action was successfully received, understood, and accepted.
+3xx Redirection - Further action must be taken in order to complete the request.
+4xx Client Error - The request contains bad syntax or cannot be fulfilled.
+5xx Server Error - The server failed to fulfill an apparently valid request. 
+.DE
+Some common status values and their meanings are:
+.DS
+201 Created
+202 Accepted
+203 Provisional Information
+204 No Content
+300 Multiple Choices
+301 Moved Permanently
+302 Moved Temporarily
+303 Method
+304 Not Modified
+401 Unauthorized
+402 Payment Required
+403 Forbidden
+404 Not Found
+405 Method Not Allowed
+406 None Acceptable
+407 Proxy Authentication Required
+408 Request Time-out
+409 Conflict
+410 Gone
+501 Not Implemented
+502 Bad Gateway
+503 Service Unavailable
+504 Gateway Time-out
+.DE
+\fBns_connsendfp\fR
+.RS
+This function writes len bytes of the specified channel or file to the conn.
+.RE
+\fBns_return\fR
+.RS
+Sends back both the headers and the string. 
+.RE
+\fBns_returnadminnotice\fR
+.RS
+Wraps the text msg and longmsg in some html, appends a line with a link to "mailto:serveradministrator" based on the virtual server parameter "WebMaster". 
+.RE
+\fBns_returnbadrequest\fR
+.RS
+Returns a 400 status code and a formatted HTML message containing the reason text. 
+.RE
+\fBns_returnerror\fR
+.RS
+Wraps the text msg in some html and returns that to the client.
+.RE
+\fBns_returnfile\fR
+.RS
+Sends back the headers and the contents of the file.
+.RE
+\fBns_returnforbidden\fR
+.RS
+Returns a 403 status code.
+.RE
+\fBns_returnfp\fR
+.RS
+First sends the appropriate headers.  Next, it writes out the contents of file from the current file position until the end of the file. 
+.RE
+\fBns_returnnotfound\fR
+.RS
+Returns a 404 status code.
+.RE
+\fBns_returnnotice\fR
+.RS
+Wraps teh text msg and longmsg in some html and returns that to the client.
+.RE
+\fBns_returnredirect\fR
+.RS
+Returns a redirect to the passed in location
+.RE
+\fBns_returnunauthorized\fR
+.RS
+Returns a 401 status code
+.RE
+\fBns_write\fR
+.RS
+Writes the string out the connection. You can use it instead of the ns_return or ns_respond functions to build HTTP responses. AOLserver will not include the usual headers on the output data. The script does not end at the time ns_write* is invoked so you can continue processing data after the client has gotten the data and closed the socket.
+.RE
+.PP
+.SH "SEE ALSO"
+.sp
+ns_respond(n), ns_writefp(n)
+
+.SH KEYWORDS
+.sp

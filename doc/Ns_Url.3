@@ -1,0 +1,89 @@
+
+'\"
+'\" The contents of this file are subject to the AOLserver Public License
+'\" Version 1.1 (the "License"); you may not use this file except in
+'\" compliance with the License. You may obtain a copy of the License at
+'\" http://aolserver.com/.
+'\"
+'\" Software distributed under the License is distributed on an "AS IS"
+'\" basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+'\" the License for the specific language governing rights and limitations
+'\" under the License.
+'\"
+'\" The Original Code is AOLserver Code and related documentation
+'\" distributed by AOL.
+'\" 
+'\" The Initial Developer of the Original Code is America Online,
+'\" Inc. Portions created by AOL are Copyright (C) 1999 America Online,
+'\" Inc. All Rights Reserved.
+'\"
+'\" Alternatively, the contents of this file may be used under the terms
+'\" of the GNU General Public License (the "GPL"), in which case the
+'\" provisions of GPL are applicable instead of those above.  If you wish
+'\" to allow use of your version of this file only under the terms of the
+'\" GPL and not to allow others to use your version of this file under the
+'\" License, indicate your decision by deleting the provisions above and
+'\" replace them with the notice and other provisions required by the GPL.
+'\" If you do not delete the provisions above, a recipient may use your
+'\" version of this file under either the License or the GPL.
+'\" 
+'\"
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_Url.3,v 1.4 2003/04/10 22:01:07 shmooved Exp $
+'\"
+'\" 
+.so man.macros
+
+.TH Ns_Url 3 4.0 AOLserver "AOLserver Library Procedures"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+Ns_AbsoluteUrl, Ns_ParseUrl, Ns_RelativeUrl, Ns_SkipUrl \- URL manipulation routines
+.SH SYNOPSIS
+.nf
+\fB#include "ns.h"\fR
+.sp
+int
+\fBNs_AbsoluteUrl\fR(\fINs_DString *pds, char *url, char *baseurl\fR)
+.sp
+int
+\fBNs_ParseUrl\fR(\fIchar *url, char **pprotocol, char **phost,
+            char **pport, char **ppath, char **ptail\fR)
+.sp
+char *
+\fBNs_RelativeUrl\fR(\fIchar *url, char *location\fR)
+.sp
+char *
+\fBNs_SkipUrl\fR(\fINs_Request *request, int n\fR)
+.BE
+
+.SH DESCRIPTION
+.TP
+\fBNs_AbsoluteUrl\fR(\fIpds, url, baseurl\fR)
+
+Construct an URL based on baseurl but with as many parts of 
+the incomplete url as possible. Return NS_OK or NS_ERROR.
+.TP
+\fBNs_ParseUrl\fR(\fIurl, pprotocol, phost, pport, ppath, ptail\fR)
+
+Parse a URL into its component parts. Pointers to the protocol, 
+host, port, path, and "tail" (last path element) will be set 
+by reference in the passed-in pointers. The passed-in url will
+be modified.
+.TP
+\fBNs_RelativeUrl\fR(\fIurl, location\fR)
+
+If the url passed in is for this server, then the initial 
+part of the URL is stripped off. e.g., on a server whose 
+location is http://www.foo.com, Ns_RelativeUrl of 
+"http://www.foo.com/hello" will return "/hello". 
+Returns a pointer to the beginning of the relative url in the 
+passed-in url, or NULL if error. Will set errno on error.
+.TP
+\fBNs_SkipUrl\fR(\fIrequest, n\fR)
+
+Return a pointer n elements into the request's url.
+.SH "SEE ALSO"
+nsd(1), info(n)
+
+.SH KEYWORDS
+

@@ -1,0 +1,112 @@
+
+'\"
+'\" The contents of this file are subject to the AOLserver Public License
+'\" Version 1.1 (the "License"); you may not use this file except in
+'\" compliance with the License. You may obtain a copy of the License at
+'\" http://aolserver.com/.
+'\"
+'\" Software distributed under the License is distributed on an "AS IS"
+'\" basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+'\" the License for the specific language governing rights and limitations
+'\" under the License.
+'\"
+'\" The Original Code is AOLserver Code and related documentation
+'\" distributed by AOL.
+'\" 
+'\" The Initial Developer of the Original Code is America Online,
+'\" Inc. Portions created by AOL are Copyright (C) 1999 America Online,
+'\" Inc. All Rights Reserved.
+'\"
+'\" Alternatively, the contents of this file may be used under the terms
+'\" of the GNU General Public License (the "GPL"), in which case the
+'\" provisions of GPL are applicable instead of those above.  If you wish
+'\" to allow use of your version of this file only under the terms of the
+'\" GPL and not to allow others to use your version of this file under the
+'\" License, indicate your decision by deleting the provisions above and
+'\" replace them with the notice and other provisions required by the GPL.
+'\" If you do not delete the provisions above, a recipient may use your
+'\" version of this file under either the License or the GPL.
+'\" 
+'\"
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_Auth.3,v 1.5 2003/04/10 22:00:30 shmooved Exp $
+'\"
+'\" 
+.so man.macros
+
+.TH Ns_Auth 3 4.0 AOLserver "AOLserver Library Procedures"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+Ns_AuthorizeRequest, Ns_AuthorizeUser, Ns_SetRequestAuthorizeProc, Ns_SetUserAuthorizeProc \- URL level HTTP authorization support
+.SH SYNOPSIS
+.nf
+\fB#include "ns.h"\fR
+.sp
+int
+\fBNs_AuthorizeRequest\fR(\fIchar *server, char *method, char *url,
+        char *user, char *passwd, char *peer\fR)
+.sp
+int
+\fBNs_AuthorizeUser\fR(\fIchar *user, char *passwd\fR)
+.sp
+void
+\fBNs_SetRequestAuthorizeProc\fR(\fIchar *server, Ns_RequestAuthorizeProc *procPtr\fR)
+.sp
+void
+\fBNs_SetUserAuthorizeProc\fR(\fINs_UserAuthorizeProc *procPtr\fR)
+.BE
+
+.SH DESCRIPTION
+.PP
+These functions provide a means to create and use your own
+authorization mechanisms. They are used by the nsperm module to
+provide authentication and authorization of users to specific URLs.
+.PP
+You can define your own authorization functions. For example, you
+might create functions that will authorize a user by their SSL client
+certificate and if that fails, then attempt to authorize the user by
+username and password.
+.TP
+\fBNs_AuthorizeRequest\fR(\fIserver, method, url,
+        user, passwd, peer\fR)
+
+Used to call the function registered by \fBNs_SetRequestAuthorizeProc \fRto
+authorize a user's access to the given method and URL. Possible return
+values are:
+.IP "" 7
+NS_OK - The user's access is authorized
+.IP
+NS_UNAUTHORIZED - Access is not public for this method or URL and
+either the user and password were not verified or the
+user does not have permission.
+.IP
+NS_FORBIDDEN - There is no possible user/password combination that
+would give authorization.
+.IP
+NS_ERROR - The authentication function could not perform the
+permission check.
+
+.TP
+\fBNs_AuthorizeUser\fR(\fIuser, passwd\fR)
+
+Checks that the cleartext password is correct for the specified
+user. Returns NS_OK if it matches or NS_ERROR if it does not match or
+if no authorization procedure is registered.
+
+.TP
+\fBNs_SetRequestAuthorizeProc\fR(\fIserver, procPtr\fR)
+
+Register the URL request authorization function. This function is
+called by \fBNs_AuthorizeRequest\fR and should return one of the four values
+give above for \fBNs_AuthorizeRequest\fR.
+.TP
+\fBNs_SetUserAuthorizeProc\fR(\fIprocPtr\fR)
+
+Register the user authorization function. This function is called by
+\fBNs_AuthorizeUser\fR and should return either NS_OK or NS_ERROR.
+
+.SH "SEE ALSO"
+nsd(1), info(n)
+
+.SH KEYWORDS
+

@@ -1,0 +1,583 @@
+
+'\"
+'\" The contents of this file are subject to the AOLserver Public License
+'\" Version 1.1 (the "License"); you may not use this file except in
+'\" compliance with the License. You may obtain a copy of the License at
+'\" http://aolserver.com/.
+'\"
+'\" Software distributed under the License is distributed on an "AS IS"
+'\" basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+'\" the License for the specific language governing rights and limitations
+'\" under the License.
+'\"
+'\" The Original Code is AOLserver Code and related documentation
+'\" distributed by AOL.
+'\" 
+'\" The Initial Developer of the Original Code is America Online,
+'\" Inc. Portions created by AOL are Copyright (C) 1999 America Online,
+'\" Inc. All Rights Reserved.
+'\"
+'\" Alternatively, the contents of this file may be used under the terms
+'\" of the GNU General Public License (the "GPL"), in which case the
+'\" provisions of GPL are applicable instead of those above.  If you wish
+'\" to allow use of your version of this file only under the terms of the
+'\" GPL and not to allow others to use your version of this file under the
+'\" License, indicate your decision by deleting the provisions above and
+'\" replace them with the notice and other provisions required by the GPL.
+'\" If you do not delete the provisions above, a recipient may use your
+'\" version of this file under either the License or the GPL.
+'\" 
+'\"
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_adp.n,v 1.4 2003/04/10 22:01:09 shmooved Exp $
+'\"
+'\" 
+.so man.macros
+
+.TH ns_adp n 4.0 AOLserver "AOLserver Built-In Commands"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+ns_adp_abort, ns_adp_argc, ns_adp_argv, ns_adp_bind_args, ns_adp_break, ns_adp_debug, ns_adp_dir, ns_adp_dump, ns_adp_eval, ns_adp_exception, ns_adp_mimetype, ns_adp_parse, ns_adp_puts, ns_adp_registeradp, ns_adp_registertag, ns_adp_return, ns_adp_stream, ns_adp_tell, ns_adp_trunc, ns_puts, ns_register_adptag \- AOLserver Dynamic Page (ADP) commands
+.SH SYNOPSIS
+\fBns_adp_abort \fR?\fIreturn_value\fR?
+.sp
+\fBns_adp_argc\fR
+.sp
+\fBns_adp_argv \fR?\fIindex\fR?
+.sp
+\fBns_adp_bind_args \fIvar1\fR ?\fIvar2...\fR?
+.sp
+\fBns_adp_break\fR ?\fIreturn_value\fR?
+.sp
+\fBns_adp_debug\fR ?\fIprocs\fR? ?\fIhost\fR? ?\fIport\fR?
+.sp
+\fBns_adp_dir
+.sp
+\fBns_adp_dump
+.sp
+\fBns_adp_eval\fR ?\fI-parser parser\fR? \fIpage\fR ?\fIarg ...\fR?
+.sp
+\fBns_adp_exception ?\fIstate\fR?
+.sp
+\fBns_adp_include\fR \fIfilename\fR ?\fIarg...\fR?
+.sp
+\fBns_adp_mimetype\fR ?\fImimetype\fR?
+.sp
+\fBns_adp_parse ?\fIsource-option\fR? ?\fIscope-option\fR? \fIadp\fR ?\fIarg ...\fR?
+.sp
+\fBns_adp_puts\fR ?\fI-nonewline\fR? \fIstring\fR
+.sp
+\fBns_adp_registeradp\fR \fItag\fR ?\fIendtag\fR? \fIadpstring\fR
+.sp
+\fBns_adp_registertag\fR \fItag\fR ?\fIendtag\fR? \fIadpstring\fR
+.sp
+\fBns_adp_return\fR ?\fIreturn_value\fR?
+.sp
+\fBns_adp_stream
+.sp
+\fBns_adp_tell
+.sp
+\fBns_adp_trunc
+.sp
+\fBns_puts\fR ?\fI-nonewline\fR? \fIstring\fR
+.sp
+\fBns_register_adptag\fR \fItag\fR ?\fIendtag\fR? \fIproc\fR
+.BE
+
+.SH DESCRIPTION
+.PP
+AOLserver Dynamic Pages, or ADPs, are a server-side environment for
+generating and delivering dynamic content by combining HTML and Tcl
+scripts.
+.PP
+An AOLserver is configured to recognize certain filenames as indicating an ADP
+using the mapping parameter of the server's adp configuration section.  When
+the AOLserver receives a request for a file indicated by the mapping, it reads,
+parses and executes the file, resulting in output consisting of the static
+content from the file combined with the scripted content of the file.
+A programmer can use a number of functions to interact with the ADP execution
+environment, and to obtain information about the environment:
+.TP
+\fbns_adp_abort\fR ?\fIreturn_value\fR?
+
+This function aborts processing of the ADP file and any pending
+output up to that point is deleted. (By contrast, \fBns_adp_break\fR
+will send pending output.) However, if a streaming script
+was processed before \fBns_adp_abort\fR was called, the data will already
+have been output. Also, if any functions that cause output (such as
+\fBns_return\fR or \fBns_write\fR) were called before \fBns_adp_abort\fR,
+their output will already have been output also.
+
+\fBns_adp_abort\fR closes the connection without returning an empty HTML page.
+Every \fBns_return\fIxxx\fR call in an ADP should be followed with a call to
+\fBns_adp_abort\fR.
+
+The \fIreturn_value\fR, if specified, becomes the return value of the ADP.
+
+Note that this function returns all the way up the call stack.
+For example, assuming a page setup like the following:
+.RS
+.CS
+a.adp includes
+.CS
+b.adp includes
+.CS
+c.adp calls
+.CS
+\fBns_adp_abort\fR
+.CE
+.CE
+other code in b.adp
+.CE
+other code in a.adp
+.CE
+Then no code in \fIb.adp\fR or \fIa.adp\fR after the includes will be
+executed. You can get around this in one of two ways:
+.RS
+* You can execute these calls in \fIa.adp\fR and \fIb.adp\fR, respectively:
+.CS
+catch {ns_adp_include b.adp} retval
+catch {ns_adp_include c.adp} retval
+.CE
+* Or, you can execute this call in \fIc.adp\fR:
+.CS
+ns_adp_return $retval
+.CE
+.RE
+The \fBns_adp_return\fR function returns up only one level, while both
+\fBns_adp_return\fR and \fBns_adp_abort\fR return all the way up the
+call stack.
+
+\fBns_adp_abort\fR has no return value.
+.RE
+.TP
+\fBns_adp_argc\fR
+
+Returns as an integer value the number of arguments passed to the ADP.
+The number of arguments includes the name of the ADP itself,
+which can be fetched with \fBns_adp_argv 0\fR.
+.TP
+\fBns_adp_argv \fR\fIindex\fR
+
+This function returns the value of the argument corresponding to the
+argument number specified in index. If \fIindex\fR is 0, the filename of
+the ADP is returned. Only the values 0 through the number of arguments
+minus one (obtained with \fBns_adp_argc\fR) are valid for index.
+.TP
+\fBns_adp_bind_args \fIvar1\fR ?\fIvar2...\fR?
+
+This function copies the arguments from the current ADP frame to the
+local variable names specified in var1, var2, etc. You must bind the
+same number of arguments in the \fBns_adp_bind_args\fR function that were
+passed into the ADP. Attempting to bind any other number of arguments
+results in an error.
+
+\fBns_adp_bind_args\fR has no return value.
+.TP
+\fBns_adp_break\fR ?\fIreturn_value\fR?
+
+This function aborts processing of the ADP file and sends any pending
+output (from \fBns_adp_puts\fR or static HTML) up to the point where
+it was called to the browser. (By contrast, \fBns_adp_abort\fR deletes
+pending output.) Nothing is output or executed after it
+is called.
+
+The \fIreturn_value\fR, if specified, becomes the return value of the ADP.
+
+Note that this function returns all the way up the call stack.
+For example, assuming a page setup like the following:
+.RS
+.CS
+a.adp includes
+.CS
+b.adp includes
+.CS
+c.adp calls
+.CS
+\fBns_adp_break\fR
+.CE
+.CE
+other code in b.adp
+.CE
+other code in a.adp
+.CE
+Then no code in \fIb.adp\fR or \fIa.adp\fR after the includes will be
+executed. You can get around this in one of two ways:
+.RS
+* You can execute these calls in \fIa.adp\fR and \fIb.adp\fR, respectively:
+.CS
+catch {ns_adp_include b.adp} retval
+catch {ns_adp_include c.adp} retval
+.CE
+* Or, you can execute this call in \fIc.adp\fR:
+.CS
+ns_adp_return $retval
+.CE
+.RE
+The \fBns_adp_return\fR function returns up only one level, while both
+\fBns_adp_return\fR and \fBns_adp_abort\fR return all the way up the
+call stack.
+
+\fBns_adp_break\fR has no return value.
+.RE
+.TP
+\fBns_adp_debug\fR ?\fIprocs\fR? ?\fIhost\fR? ?\fIport\fR?
+
+This function connects to the TclPro debugger, if it is not already
+connected. It essentially runs the TclPro command:
+.RS
+.CS
+debuginit "procs" "host" "port"
+.CE
+.RE
+.TP
+\fBns_adp_dir
+
+This function returns the directory in which the ADP currently being
+processed resides. It is an error to call this function outside
+of ADP processing.
+.TP
+\fBns_adp_dump
+
+This function returns the text of the ADP output buffer as its result.
+.TP
+\fBns_adp_eval\fR ?\fI-parser parser\fR? \fIpage\fR ?\fIarg ...\fR?
+
+This function evaluates the ADP specified by \fIpage\fR and returns the
+output as the result. If any arguments are specified, they will be
+passed to the ADP.
+
+If the \fI-parser\fR switch is specified, the ADP is evaluated using the
+specified parser. You can specify one of the pre-defined parsers,
+"adp" or "fancy", or an alternate parser that you have registered with the
+\fBNs_AdpRegisterParser\fR C API function. By default, the parser specified
+by the DefaultParser parameter is used. If no DefaultParser is
+specified, the "adp" parser is used. 
+.TP
+\fBns_adp_exception ?\fIstate\fR?
+
+This function is used to examine the current ADP exception state.
+The function returns 0 if the exception state is \fBok\fR and 1 otherwise.
+
+If the optional \fIstate\fR argument is passed, a variable with that
+name will be set for the caller, and will contain the exception state
+with one of the following possible values:
+.RS
+.IP \fBok\fR 10
+ADP was evaluated successfully
+.IP \fBoverflow\fR 10
+Stack overflow occurred. This might happen, for example, if there was
+a recursive call to \fBns_adp_include\fR.
+.IP \fBabort\fR 10
+An attempt to debug failed or \fBns_adp_abort\fR was called.
+.IP \fBbreak\fR 10
+\fBns_adp_break\fR was called
+.IP \fBunknown\fR 10
+Unrecognized exception status. This should not occur.
+.RE
+.TP
+\fBns_adp_include\fR \fIfilename\fR ?\fIarg...\fR?
+
+This functions parses the specified file as an ADP and inserts it
+into the page as if it were an argument to \fBns_adp_puts\fR.
+Note that the ADP streaming cannot be turned on from within an
+ADP executed with the \fBns_adp_include\fR command. Tcl commands in
+the ADP will be evaluated locally.
+
+The \fIfilename\fR is the file containing the ADP to be parsed.
+This function uses the directory where the ADP resides to resolve
+any relative file names.
+
+You can pass optional arguments (\fIarg...\fR) to the ADP.
+The arguments can be accessed within the ADP using the
+\fBns_adp_argc\fR, \fBns_adp_argv\fR, and \fBns_adp_bind_args\fR functions.
+
+If this call is a nested ADP evaluation (where one ADP calls another),
+an error will be returned if the maximum number of nested
+ADP evaluations, 256, has been exceeded.
+
+This call can only be used from an ADP. Use \fBns_adp_parse\fR to
+parse ADPs from outside the context of an ADP.
+.TP
+\fBns_adp_mimetype\fR ?\fImimetype\fR?
+
+Sets or fetches the ADP mime type.  With no arguments, \fBns_adp_mimetype\fR
+returns the MIME type for the ADP context.  The MIME type is used in the HTTP
+response when AOLserver returns a normal ADP request,
+and defaults to \fBtext/html\fR.  If the optional \fImimetype\fR argument
+is supplied, the context's MIME type is set to that value.
+.TP
+\fBns_adp_parse ?\fIsource-option\fR? ?\fIscope-option\fR? \fIadp\fR ?\fIarg ...\fR?
+
+This function processes the specified ADP file or string and
+returns the result as a string. If you need to process a second
+ADP from inside an ADP, it is usually better to use \fBns_adp_include\fR,
+because that function resolves relative pathnames passed to it.
+Also note that \fBns_adp_parse\fR will ignore any directives to turn
+on streaming. Tcl_Eval is used to evaluate the Tcl commands in the ADP.
+
+The \fIsource-option\fR can be one of the following values:
+.RS
+.IP \fB-string\fR 10
+The \fIadp\fR argument must be a string containing ADP syntax to be parsed.
+Although the \fB<% ... %>\fR syntax is allowed in the string, if you
+have this embedded in an ADP, you have to be careful in constructing
+the string that you do not prematurely terminate an enclosing script.
+.IP \fB-file\fR 10
+The \fIadp\fR argument must be the absolute name of a file containing an ADP.
+.RE
+.RS
+The \fIsource-option\fR defaults to \fB-string\fR if none is specified.
+
+The \fIscope-option\fR can be one of the following values:
+.RS
+.IP \fB-global\fR 10
+This option is deprecated, and will cause an error to be thrown.
+.IP \fB-local\fR 10
+This option is deprecated, and will be ignored.
+.RE
+
+You can pass optional arguments (\fIarg ...\fR) to the ADP. The
+arguments can be accessed within the ADP using the
+\fBns_adp_argc\fR, \fBns_adp_argv\fR, and \fBns_adp_bind_args\fR functions.
+
+If this call is a nested ADP evaluation (where one ADP calls another),
+an error will be returned if the maximum number of nested ADP evaluations,
+256, has been exceeded.
+.RE
+.TP
+\fBns_adp_puts\fR ?\fI-nonewline\fR? \fIstring\fR
+
+This function outputs the specified \fIstring\fR to the page.  Unless
+the optional \fI-nonewline\fR argument is used, a newline will be appended
+to the page after the string.  Note that the argument to ns_adp_puts is a single
+string; the following will work:
+.RS
+.CS
+ns_adp_puts "Hello, there"
+.CE
+but the following will throw an error:
+.CS
+ns_adp_puts Hello, there.
+.CE
+.RE
+.TP
+\fBns_adp_registeradp\fR \fItag\fR ?\fIendtag\fR? \fIadpstring\fR
+
+This function registers an ADP fragment that will be invoked when the
+specified tag is encountered while parsing an ADP.  The \fItag\fR argument
+specifies the tag that will trigger invocation of the ADP fragment,
+which is specified by the \fIadpstring\fR argument.
+
+If the optional \fIendtag\fR argument is specified, then invocation of the
+fragment will be delayed until the \fIendtag\fR tag is encountered, and the
+fragment will be invoked with the content enclosed by the \fItag\fR and
+\fIendtag\fR passed as an argument. Note that the enclosed content is not
+parsed by the ADP parser; if necessary, the ADP fragment may need to
+call \fBns_adp_parse\fR on the content.
+
+If the \fIendtag\fR argument is specified, then the ADP fragment will be
+invoked with two arguments: the first will be the enclosed content, and the
+second will be the name of an ns_set with any tag attributes specified in
+the content.  If no \fIendtag\fR argument is specified, the ADP fragment
+will only be passed the name of the ns_set.  The arguments may be retrieved
+using \fBns_adp_bindargs\fR or \fBns_adp_argc\fR and \fBns_adp_argv\fR.
+
+When the ADP fragment is invoked, its result is inserted in the output instead
+of the tag (or, if the \fIendtag\fR was specified, in place of the tag,
+end tag, and the enclosed content).
+
+This function, \fBns_adp_registeradp\fR, differs from \fBns_register_adptag\fR
+in that this function registers an ADP fragment to be invoked upon encountering
+the tags during parsing, while \fBns_register_adptag\fR registers a Tcl
+procedure.
+
+Note: This function cannot be called after the server has started.
+It must be called in a Tcl script in a virtual server's Tcl directory
+so that it can be initialized at server startup time.
+
+\fBns_adp_registeradp\fR does not have a return value.
+
+Note: Care must be taken when using this function from inside an ADP,
+because the \fIadpstring\fR is likely to contain script delimiters
+(\fB<% ... %>\fR) which will prematurely terminate script fragments.
+It is probably easier to restrict use of this function to .tcl files.
+
+Example:
+
+.RS
+.CS
+ns_adp_registertag printdate {
+	The current date is: <%=[ns_httptime [ns_time]]%>
+}
+.CE
+In your HTML, you simply include a tag called "<printdate>".
+
+One use of \fBns_adp_registeradp\fB is in handling XML documents.
+.RE
+.TP
+\fBns_adp_registertag\fR \fItag\fR ?\fIendtag\fR? \fIadpstring\fR
+
+This function is a deprecated synonym for \fBns_adp_registeradp\fR.
+.TP
+\fBns_adp_return\fR ?\fIreturn_value\fR?
+
+This function halts processing of the current ADP and sends any
+pending output (from ns_adp_puts or static HTML) up to the point
+where it was called to the browser. Nothing in the current ADP
+is output or executed after it is called.
+
+The \fIreturn_value\fR, if specified, becomes the return value of the ADP.
+
+Note that this function returns only one level up the call stack.  By contrast,
+\fBns_adp_abort\fR and \fBns_adp_break\fR will return all the way up the
+call stack.  \fBns_adp_return\fR is typically used from an ADP included by
+another ADP, to stop processing of the inner ADP while allowing the
+calling ADP to continue.
+.TP
+\fBns_adp_stream
+
+This function begins streaming mode for the ADP. All data currently in
+the ADP output buffer is flushed and any subsequent data will be
+output directly to the conn.
+
+Streaming is only available using the "Fancy" ADP parser. See the
+Administration Guide for more information on how to enable and use
+the "Fancy" parser.
+
+Streaming does not work through proxies. The user will be forced to
+wait on a blank screen until your script finishes its work and
+closes the connection. In general, streaming is a very bad user
+interface concept and should never be used. 
+.TP
+\fBns_adp_tell
+
+This function returns the total number of bytes already built by
+your script. This is helpful if you want to guess the Content-Length
+of the page your script is putting together.
+
+This function is a wonderful way to throttle pages that can get too
+large for the client to handle due to modem speeds and other factors. 
+.TP
+\fBns_adp_trunc
+
+This function clears the ADP output buffer. To have the contents of the
+ADP output buffer sent to the conn, use \fBns_adp_stream\fR instead.
+
+This function is useful to return errors to the client without making
+the user experience a half-built and broken page, a phenomenon that
+testers will sometime call "blank pages" or "white pages".
+.TP
+\fBns_puts\fR ?\fI-nonewline\fR? \fIstring\fR
+
+This function is a deprecated synonym for \fBns_adp_puts\fR.
+.TP
+\fBns_register_adptag\fR \fItag\fR ?\fIendtag\fR? \fIproc\fR
+
+This function registers a Tcl procedure that will be invoked when the
+specified tag is encountered while parsing an ADP.  The \fItag\fR argument
+specifies the tag that will trigger invocation of the Tcl procedure,
+which is specified by the \fIprocfR argument.
+
+If the optional \fIendtag\fR argument is specified, then invocation of the
+procedure will be delayed until the \fIendtag\fR tag is encountered, and the
+procedure will be invoked with the content enclosed by the \fItag\fR and
+\fIendtag\fR passed as an argument.
+Note that the enclosed content is not parsed by the ADP parser; if necessary,
+the Tcl procedure may need to call \fBns_adp_parse\fR on the content.
+
+If the \fIendtag\fR argument is specified, then the Tcl procedure will be
+invoked with two arguments: the first will be the enclosed content, and the
+second will be the name of an ns_set with any tag attributes specified in
+the content.  If no \fIendtag\fR argument is specified, the Tcl procedure
+will only be passed the name of the ns_set.
+
+When the Tcl procedure is invoked, its result is inserted in the output instead
+of the tag (or, if the \fIendtag\fR was specified, in place of the tag,
+end tag, and the enclosed content).
+
+This function, \fBns_register_adptag\fR, differs from \fBns_adp_registeradp\fR
+in that this function registers Tcl procedure to be invoked upon encountering
+the tags during parsing, while \fBns_adp_registeradp\fR registers an ADP
+fragment.
+
+Note: This function cannot be called after the server has started.
+It must be called in a Tcl script in a virtual server's Tcl directory
+so that it can be initialized at server startup time.
+
+\fBns_register_adptag\fR does not have a return value.
+
+The following is a simple way of handling conditional content in ADPs:
+
+.RS
+.CS
+proc remember {input tagset} {
+	global _adp_memory
+	set tagname [ns_set iget $tagset name]
+	if {[string match "" $tagname]} {
+		set _adp_memory($tagname) $input
+		return ""
+	} else {
+		return $input
+	}
+}
+proc recall {name} {
+	global _adp_memory
+	if {[info exists _adp_memory($name)]} {
+		set parsecommand [list ns_adp_parse -string]
+		lappend parsecommand $_adp_memory($name)
+		ns_puts -nonewline [uplevel $parsecommand]
+	} else {
+		ns_log Error "[ns_adp_argv 0]: Unable to recall \"$name\""
+	}
+}
+.CE
+
+If the preceding Tcl has been executed (perhaps during server startup),
+then the following ADP fragment displays the results of a database query in
+a table, or shows "No rows in result." if there are no rows:
+
+.CS
+<%
+	set rows {}
+	set db [ns_db gethandle]
+	ns_db exec "select somecolumn from sometable"
+	set row [ns_db bindargs $db]
+	while {[ns_db getrow $db $row] > 0} {
+		lappend rows [ns_set get $row "somecolumn"]
+	}
+	ns_db releasehandle $db
+%>
+<remember name="hasrows_header">
+<table>
+</remember>
+<remember name="hasrows_rows">
+<tr>
+	<td><%=$column%></td>
+</tr>
+</remember>
+<remember name="hasrows_footer">
+</table>
+</remember>
+No rows in result.
+<remember name="norows">
+<%
+	if {[llength $rows] > 0} {
+		recall "hasrows_header"
+		foreach row $rows {
+			set column $row
+			recall "hasrows_rows"
+		}
+		recall "hasrows_footer"
+	} else {
+		recall "norows"
+	}
+%>
+.CE
+.RE
+
+.SH "SEE ALSO"
+nsd(1), info(n)
+
+.SH KEYWORDS
+

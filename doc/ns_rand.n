@@ -1,0 +1,76 @@
+
+'\"
+'\" The contents of this file are subject to the AOLserver Public License
+'\" Version 1.1 (the "License"); you may not use this file except in
+'\" compliance with the License. You may obtain a copy of the License at
+'\" http://aolserver.com/.
+'\"
+'\" Software distributed under the License is distributed on an "AS IS"
+'\" basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+'\" the License for the specific language governing rights and limitations
+'\" under the License.
+'\"
+'\" The Original Code is AOLserver Code and related documentation
+'\" distributed by AOL.
+'\" 
+'\" The Initial Developer of the Original Code is America Online,
+'\" Inc. Portions created by AOL are Copyright (C) 1999 America Online,
+'\" Inc. All Rights Reserved.
+'\"
+'\" Alternatively, the contents of this file may be used under the terms
+'\" of the GNU General Public License (the "GPL"), in which case the
+'\" provisions of GPL are applicable instead of those above.  If you wish
+'\" to allow use of your version of this file only under the terms of the
+'\" GPL and not to allow others to use your version of this file under the
+'\" License, indicate your decision by deleting the provisions above and
+'\" replace them with the notice and other provisions required by the GPL.
+'\" If you do not delete the provisions above, a recipient may use your
+'\" version of this file under either the License or the GPL.
+'\" 
+'\"
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_rand.n,v 1.4 2003/04/10 22:01:21 shmooved Exp $
+'\"
+'\" 
+.so man.macros
+
+.TH ns_rand n 4.0 AOLserver "AOLserver Built-In Commands"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+ns_rand \- commands
+.SH SYNOPSIS
+\fBns_rand \fR?\fImax\fR?
+.BE
+
+.SH DESCRIPTION
+.PP
+ns_rand generates a cryptographically-secure random number.  If 
+.I max
+is not specified, the random number is a floating-point value
+.I n
+such that
+.I 0.0 <= n < 1.0.
+.PP
+If
+.I max
+is specified, it must be a positive integer between 0 and 2147483647.
+The return value is an integer value such that
+.I 0 <= n <= (max - 1).
+.PP
+Internally ns_rand is implemented with the drand48(3) and lrand48(3)
+standard library functions.  An internal random seed is generated
+the first time ns_rand is called after the server starts.
+
+.SH EXAMPLES
+
+ nscp> ns_rand
+ 0.39938485692
+
+ nscp> ns_rand 10
+ 7
+
+.SH "SEE ALSO"
+nsd(1), info(n), drand48(3), lrand48(3)
+
+.SH KEYWORDS
+

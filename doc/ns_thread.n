@@ -1,0 +1,134 @@
+
+'\"
+'\" The contents of this file are subject to the AOLserver Public License
+'\" Version 1.1 (the "License"); you may not use this file except in
+'\" compliance with the License. You may obtain a copy of the License at
+'\" http://aolserver.com/.
+'\"
+'\" Software distributed under the License is distributed on an "AS IS"
+'\" basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+'\" the License for the specific language governing rights and limitations
+'\" under the License.
+'\"
+'\" The Original Code is AOLserver Code and related documentation
+'\" distributed by AOL.
+'\" 
+'\" The Initial Developer of the Original Code is America Online,
+'\" Inc. Portions created by AOL are Copyright (C) 1999 America Online,
+'\" Inc. All Rights Reserved.
+'\"
+'\" Alternatively, the contents of this file may be used under the terms
+'\" of the GNU General Public License (the "GPL"), in which case the
+'\" provisions of GPL are applicable instead of those above.  If you wish
+'\" to allow use of your version of this file only under the terms of the
+'\" GPL and not to allow others to use your version of this file under the
+'\" License, indicate your decision by deleting the provisions above and
+'\" replace them with the notice and other provisions required by the GPL.
+'\" If you do not delete the provisions above, a recipient may use your
+'\" version of this file under either the License or the GPL.
+'\" 
+'\"
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_thread.n,v 1.3 2003/04/10 16:16:09 shmooved Exp $
+'\"
+'\" 
+.so man.macros
+
+.TH ns_thread n 4.0 AOLserver "AOLserver Built-In Commands"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+ns_thread \- commands
+.SH SYNOPSIS
+\fBns_thread begin\fR \fIscript\fR
+.PP
+\fBns_thread begindetached\fR \fIscript\fR
+.PP
+\fBns_thread get\fR
+.PP
+\fBns_thread getid
+.PP
+\fBns_thread wait \fItid\fR
+.PP
+\fBns_thread yield
+.BE
+
+.SH DESCRIPTION
+.PP
+ns_thread begin:
+.RS
+begins a new thread which evaluates the specified script and then exits. It returns a thread ID that must eventually be passed to ns_thread wait. (Failing to call ns_thread wait will eventually result in no new threads being created.) 
+.RE
+
+ns_thread begindetached:
+.RS
+begins a detached thread that doesn't have to be (and can't be) waited for. 
+.RE
+
+ns_thread get:
+.RS 
+gets the thread ID of the current thread. The result is a thread ID that can be passed to ns_thread wait and may look something like "tid532". 
+.RE
+
+ns_thread getid:
+.RS
+gets the thread integer number for the current thread. The result is a small integer used for identifying threads is a human-readable way, such as "1" or "1120", for example. 
+.RE
+
+ns_thread wait:
+.RS
+waits for the specified thread to exit. The tid argument is a thread ID returned by ns_thread begin or ns_thread get. 
+.RE
+
+ns_thread yield:
+.RS
+causes the current thread to yield. 
+.RE
+.SH EXAMPLES
+.PP
+
+This example is similar to the example under the ns_sockselect function of connecting to the 10 servers and waiting to service them with the ns_sockselect command. In this case, though, each connection gets it's own thread. 
+
+
+# This is the procedure which is evaluated for each thread and
+# handles a single connection to host number $i
+
+proc getpage {i} {
+    global pages
+    # new thread will start here - first connect to host
+    set host [format "www%2d.foo.com" $i]
+    set fds [ns_sockopen $host 80
+    set r [lindex $fds 0]
+    set w [lindex $fds 1]
+    # next, send request
+    puts $w "GET /index.htm HTTP/1.0\r\n\r"
+    flush $w
+    # then read page
+    set pages($i) [read $r]
+    # and close sockets
+    close $w
+    close $r
+    # thread goes away here and other threads waiting
+    # on ns_thread wait will wakeup
+}
+
+# Here's the loop which creates the threads which run getpage.
+for {set i 1} {$i < 9} {incr i} {
+    set tids($i) [ns_thread begin "getpage $i"]
+}
+
+# wait for the threads to exit and then process the pages
+for {set i 1} {$i < 9} {incr i} {
+    ns_thread wait $tids($i)
+    # output page
+    ... process the page in $pages($i) put there by other thread ...
+}
+
+
+Note that the code here is much simpler to follow than the ns_sockselect example; that's the benefit of multithreaded programming. However, it uses more resources as threads need to be created and initialized. This can be a problem if you plan to create many threads. 
+
+.SH "SEE ALSO"
+.PP
+
+.SH KEYWORDS
+threads
+

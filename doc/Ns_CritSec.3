@@ -1,0 +1,130 @@
+
+'\"
+'\" The contents of this file are subject to the AOLserver Public License
+'\" Version 1.1 (the "License"); you may not use this file except in
+'\" compliance with the License. You may obtain a copy of the License at
+'\" http://aolserver.com/.
+'\"
+'\" Software distributed under the License is distributed on an "AS IS"
+'\" basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+'\" the License for the specific language governing rights and limitations
+'\" under the License.
+'\"
+'\" The Original Code is AOLserver Code and related documentation
+'\" distributed by AOL.
+'\" 
+'\" The Initial Developer of the Original Code is America Online,
+'\" Inc. Portions created by AOL are Copyright (C) 1999 America Online,
+'\" Inc. All Rights Reserved.
+'\"
+'\" Alternatively, the contents of this file may be used under the terms
+'\" of the GNU General Public License (the "GPL"), in which case the
+'\" provisions of GPL are applicable instead of those above.  If you wish
+'\" to allow use of your version of this file only under the terms of the
+'\" GPL and not to allow others to use your version of this file under the
+'\" License, indicate your decision by deleting the provisions above and
+'\" replace them with the notice and other provisions required by the GPL.
+'\" If you do not delete the provisions above, a recipient may use your
+'\" version of this file under either the License or the GPL.
+'\" 
+'\"
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_CritSec.3,v 1.5 2003/04/10 22:00:37 shmooved Exp $
+'\"
+'\" 
+.so man.macros
+
+.TH Ns_CritSec 3 4.0 AOLserver "AOLserver Library Procedures"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+, Ns_CsDestroy, Ns_CsEnter, Ns_CsInit, Ns_CsLeave \- Manage and use critical section locks
+.SH SYNOPSIS
+.nf
+\fB#include "ns.h"\fR
+.sp
+void
+\fBNs_CsDestroy\fR(\fINs_Cs *csPtr\fR)
+.sp
+void
+\fBNs_CsEnter\fR(\fINs_Cs *csPtr\fR)
+.sp
+void
+\fBNs_CsInit\fR(\fINs_Cs *csPtr\fR)
+.sp
+void
+\fBNs_CsLeave\fR(\fINs_Cs *csPtr\fR)
+.BE
+
+.SH DESCRIPTION
+.PP
+Critical section locks are used to prevent more than one thread from
+executing a specific section of code at one time. They are implemented
+as "objects", which simply means that memory is allocated to hold the
+lock state. They can also be called "sychronization objects".
+.PP
+While a thread is executing a critical section of code, all other
+threads that want to execute that same section of code must wait until
+the lock surrounding that critical section has been released.
+.PP
+This is crucial to prevent race conditions which could put the server
+into an unknown state. For example, if a section of code frees a
+pointer and then decrements a counter that stores how many pointers
+exist, it is possible that the counter value and the actual number of
+pointers may be different. If another section of the server relies on
+this counter and reads it when the pointer has been freed, but the
+counter has not yet been decremented, it could crash the server or put
+it into an unknown state.
+.PP
+Critical section locks should be used sparingly as they will adversely
+impact the performance of the server or module. They essentially cause
+the section of code they enclose into behaving in a single-threaded
+manner. If a critical section executes slowly or blocks, other threads
+that must execute that section of code will begin to block as well
+until the critical section lock is released.
+.PP
+You will normally want to wrap sections of code that are used to both
+read and write values, create and destroy pointers and structures or
+otherwise look at or modify data in the system. Use the same named
+lock for both read and write operations on the same data.
+.PP
+Threads that are waiting for a critical section lock to be released do
+not have to poll the lock. The critical section lock functions use
+thread condition functions to signal when a lock is released.
+.TP
+\fBNs_CsDestroy\fR(\fIcsPtr\fR)
+
+Destroy a critical section object.  Note that you would almost never
+need to call this function as synchronization objects are typically
+created at startup and exist until the server exits.
+
+The underlying objects in the critical section are destroyed and the
+critical section memory returned to the heap.
+.TP
+\fBNs_CsEnter\fR(\fIcsPtr\fR)
+
+Lock a critical section object, initializing it first if needed.  If
+the critical section is in use by another thread, the calling thread
+will block until it is no longer so.
+
+Note that critical sections are recursive and must be exited the same
+number of times as they were entered.
+.TP
+\fBNs_CsInit\fR(\fIcsPtr\fR)
+
+Initialize a critical section object. Memory will be allocated to hold
+the object's state.
+
+.TP
+\fBNs_CsLeave\fR(\fIcsPtr\fR)
+
+Unlock a critical section once. A count of threads waiting to enter
+the critical section is kept, and a condition is signaled if this is
+the final unlock of the critical section so that other threads may
+enter the critical section.
+.SH "SEE ALSO"
+nsd(1), info(n), Ns_MasterLock(3), Ns_MasterUnlock(3),
+Ns_CondDestroy(3), Ns_CondSignal(3), Ns_CondWait(3), Ns_MutexLock(3),
+Ns_MutexUnlock(3)
+
+.SH KEYWORDS
+

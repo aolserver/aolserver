@@ -1,0 +1,180 @@
+
+'\"
+'\" The contents of this file are subject to the AOLserver Public License
+'\" Version 1.1 (the "License"); you may not use this file except in
+'\" compliance with the License. You may obtain a copy of the License at
+'\" http://aolserver.com/.
+'\"
+'\" Software distributed under the License is distributed on an "AS IS"
+'\" basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+'\" the License for the specific language governing rights and limitations
+'\" under the License.
+'\"
+'\" The Original Code is AOLserver Code and related documentation
+'\" distributed by AOL.
+'\" 
+'\" The Initial Developer of the Original Code is America Online,
+'\" Inc. Portions created by AOL are Copyright (C) 1999 America Online,
+'\" Inc. All Rights Reserved.
+'\"
+'\" Alternatively, the contents of this file may be used under the terms
+'\" of the GNU General Public License (the "GPL"), in which case the
+'\" provisions of GPL are applicable instead of those above.  If you wish
+'\" to allow use of your version of this file only under the terms of the
+'\" GPL and not to allow others to use your version of this file under the
+'\" License, indicate your decision by deleting the provisions above and
+'\" replace them with the notice and other provisions required by the GPL.
+'\" If you do not delete the provisions above, a recipient may use your
+'\" version of this file under either the License or the GPL.
+'\" 
+'\"
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_UrlSpecific.3,v 1.4 2003/04/10 22:01:07 shmooved Exp $
+'\"
+'\" 
+.so man.macros
+
+.TH Ns_UrlSpecific 3 4.0 AOLserver "AOLserver Library Procedures"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+Ns_UrlSpecificAlloc, Ns_UrlSpecificDestroy, Ns_UrlSpecificGet, Ns_UrlSpecificGetExact, Ns_UrlSpecificGetFast, Ns_UrlSpecificSet \- Store and retrieve URL-specific data
+.SH SYNOPSIS
+.nf
+\fB#include "ns.h"\fR
+.sp
+int
+\fBNs_UrlSpecificAlloc\fR(\fIvoid\fR)
+.sp
+void *
+\fBNs_UrlSpecificDestroy\fR(\fIchar *server, char *method, char *url,
+    int id, int flags\fR)
+.sp
+void *
+\fBNs_UrlSpecificGet\fR(\fIchar *server, char *method, char *url, 
+    int id\fR)
+.sp
+void *
+\fBNs_UrlSpecificGetExact\fR(\fIchar *server, char *method, char *url, 
+    int id, int flags\fR)
+.sp
+void *
+\fBNs_UrlSpecificGetFast\fR(\fIchar *server, char *method, char *url, 
+    int id\fR)
+.sp
+void
+\fBNs_UrlSpecificSet\fR(\fIchar *server, char *method, char *url, 
+    int id, void *data, int flags, void (*deletefunc) (void *)\fR)
+.BE
+
+.SH DESCRIPTION
+.PP
+These functions allow you to store URL-specific data in memory for later
+retrieval. They are used when registering procedures for example.
+.TP
+\fBNs_UrlSpecificAlloc\fR(\fI\fR)
+
+Return a unique ID used to identify a unique virtual URL-space that is then
+used with the Ns_UrlSpecific storage functions. You should only call this
+function at server startup, and not after. Here is an example:
+
+.CS
+static int myId;
+
+void
+Init(void)
+{
+    /* Allocate the id once at startup. */
+    myId = Ns_UrlSpecificAlloc();
+}
+
+void
+Store(char *server, char *method, char *url, char *data)
+{
+    Ns_UrlSpecificSet(server, method, url, myId,
+    data, 0, NULL);
+}
+
+char *
+Fetch(char *server, char *method, char *url)
+{
+    char *data;
+
+    data = Ns_UrlSpecificGet(server, method, url, myId);
+    return (char *) data;
+}
+.CE
+.TP
+\fBNs_UrlSpecificDestroy\fR(\fIserver, method, url, id, flags\fR)
+
+The Ns_UrlSpecificDestroy function deletes URL-specific data previously stored
+with Ns_UrlSpecificSet with the same method/URL combination and the same
+inheritance setting.
+
+An id of -1 matches all ids. For example, Ns_UrlSpecificDestroy("myserver",
+"GET", "/", -1, NS_OP_RECURSE) removes all data for the method GET for server
+"myserver".
+
+The flags argument can be:
+.IP "" 7 
+NS_OP_NODELETE - If set, the deletefunc specified in Ns_UrlSpeciciSet is run.
+.IP
+NS_OP_RECURSE - If set, then data for all URLs more specific than the passed-in
+URL are also destroyed. 
+.IP
+NS_OP_NOINHERIT - If set, data that was stored with this flag in
+Ns_UrlSpecificSet will be deleted.  If not set, the data stored without this
+flag will be deleted.
+.TP
+\fBNs_UrlSpecificGet\fR(\fIserver, method, url, id\fR)
+
+The Ns_UrlSpecificGet function retrieves the best match that it can find for in
+the URL subspace identified by id that the passed-in URL matches. For instance,
+suppose you had previously registered a handle/method/url/id
+combination of {myserver, GET, /, 1} and {myserver, GET, /inventory, 1}. The
+following call would match the data registered at {myserver, GET, /inventory,
+1}: 
+
+.CS
+Ns_UrlSpecificGet("myserver", "GET", "/inventory/RJ45", 1)
+.CE
+.TP
+\fBNs_UrlSpecificGetExact\fR(\fIserver, method, url, id, flags\fR)
+
+Retrieves stored data for the exact method/URL/id combination specified that
+was stored with the same inheritance setting.
+
+If the flags argument is set to NS_OP_NOINHERIT,  the data stored with
+NS_OP_NOINHERIT will be retrieved.  If the flags argument is set to 0, the data
+stored without NS_OP_NOINHERIT will be retrieved.
+.TP
+\fBNs_UrlSpecificGetFast\fR(\fIserver, method, url, id\fR)
+
+Same as Ns_UrlSpecificGet but does not support wildcards, making it much
+faster.
+.TP
+\fBNs_UrlSpecificSet\fR(\fIserver, method, url, id, data, flags, deletefunc\fR)
+
+The Ns_UrlSpecificSet function stores data in memory, allowing subsequent retrieval
+using handle, method, url, id, and inheritance flag.
+
+The flags argument can be NS_OP_NOINHERIT or NS_OP_NODELETE. You can
+store two sets of data based on the same handle, method, url, and id combination-- one
+set with inheritance on and one set with inheritance off. If the NS_OP_NOINHERIT
+flag is set, the data is stored based on the exact URL. If NS_OP_NOINHERIT is
+omitted, the data is stored based on the specified URL and any URL below it. In this
+case, Ns_UrlSpecificGetExact will match to the closest URL when retrieving the data.
+
+The deletefunc argument is called with data as an argument when this
+handle/url/method/id combination is re-registered or deleted, or when this server shuts
+down. unless NS_OP_NODELETE is set.
+
+Normally, calling Ns_UrlSpecificSet on a handle/url/method/id combination which
+already has an operation registered for it causes the previous operation's delete
+procedure to be called. You can override this behavior by adding the
+NS_OP_NODELETE flag.
+
+.SH "SEE ALSO"
+nsd(1), info(n)
+
+.SH KEYWORDS
+

@@ -1,0 +1,130 @@
+
+'\"
+'\" The contents of this file are subject to the AOLserver Public License
+'\" Version 1.1 (the "License"); you may not use this file except in
+'\" compliance with the License. You may obtain a copy of the License at
+'\" http://aolserver.com/.
+'\"
+'\" Software distributed under the License is distributed on an "AS IS"
+'\" basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+'\" the License for the specific language governing rights and limitations
+'\" under the License.
+'\"
+'\" The Original Code is AOLserver Code and related documentation
+'\" distributed by AOL.
+'\" 
+'\" The Initial Developer of the Original Code is America Online,
+'\" Inc. Portions created by AOL are Copyright (C) 1999 America Online,
+'\" Inc. All Rights Reserved.
+'\"
+'\" Alternatively, the contents of this file may be used under the terms
+'\" of the GNU General Public License (the "GPL"), in which case the
+'\" provisions of GPL are applicable instead of those above.  If you wish
+'\" to allow use of your version of this file only under the terms of the
+'\" GPL and not to allow others to use your version of this file under the
+'\" License, indicate your decision by deleting the provisions above and
+'\" replace them with the notice and other provisions required by the GPL.
+'\" If you do not delete the provisions above, a recipient may use your
+'\" version of this file under either the License or the GPL.
+'\" 
+'\"
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_Thread2.3,v 1.5 2003/04/10 22:01:03 shmooved Exp $
+'\"
+'\" 
+.so man.macros
+
+.TH Ns_Thread2 3 4.0 AOLserver "AOLserver Library Procedures"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+Ns_AbsTimedWaitForEvent, Ns_AllocThreadLocalStorage, Ns_BeginDetachedThread, Ns_BeginThread, Ns_BroadcastEvent, Ns_DestroyCriticalSection, Ns_DestroyEvent, Ns_DestroyMutex, Ns_DestroyRWLock, Ns_DestroySemaphore, Ns_EnterCriticalSection, Ns_ExitThread, Ns_GetThread, Ns_GetThreadId, Ns_GetThreadLocalStorage, Ns_GetThreadServer, Ns_InitializeCriticalSection, Ns_InitializeEvent, Ns_InitializeMutex, Ns_InitializeRWLock, Ns_InitializeSemaphore, Ns_LeaveCriticalSection, Ns_LockMutex, Ns_ReadLockRWLock, Ns_ReadUnlockRWLock, Ns_ReleaseSemaphore, Ns_SetEvent, Ns_SetThreadLocalStorage, Ns_SetThreadServer, Ns_TimedWaitForEvent, Ns_UTimedWaitForEvent, Ns_UnlockMutex, Ns_WaitForEvent, Ns_WaitForSemaphore, Ns_WaitForThread, Ns_WaitThread, Ns_WriteLockRWLock, Ns_WriteUnlockRWLock \- library procedures
+.SH SYNOPSIS
+.nf
+\fB#include "ns.h"\fR
+.sp
+\fBNs_AbsTimedWaitForEvent\fR(\fIarg, arg\fR)
+.sp
+\fBNs_AllocThreadLocalStorage\fR(\fIarg, arg\fR)
+.sp
+\fBNs_BeginDetachedThread\fR(\fIarg, arg\fR)
+.sp
+\fBNs_BeginThread\fR(\fIarg, arg\fR)
+.sp
+\fBNs_BroadcastEvent\fR(\fIarg, arg\fR)
+.sp
+\fBNs_DestroyCriticalSection\fR(\fIarg, arg\fR)
+.sp
+\fBNs_DestroyEvent\fR(\fIarg, arg\fR)
+.sp
+\fBNs_DestroyMutex\fR(\fIarg, arg\fR)
+.sp
+\fBNs_DestroyRWLock\fR(\fIarg, arg\fR)
+.sp
+\fBNs_DestroySemaphore\fR(\fIarg, arg\fR)
+.sp
+\fBNs_EnterCriticalSection\fR(\fIarg, arg\fR)
+.sp
+\fBNs_ExitThread\fR(\fIarg, arg\fR)
+.sp
+\fBNs_GetThread\fR(\fIarg, arg\fR)
+.sp
+\fBNs_GetThreadId\fR(\fIarg, arg\fR)
+.sp
+\fBNs_GetThreadLocalStorage\fR(\fIarg, arg\fR)
+.sp
+\fBNs_GetThreadServer\fR(\fIarg, arg\fR)
+.sp
+\fBNs_InitializeCriticalSection\fR(\fIarg, arg\fR)
+.sp
+\fBNs_InitializeEvent\fR(\fIarg, arg\fR)
+.sp
+\fBNs_InitializeMutex\fR(\fIarg, arg\fR)
+.sp
+\fBNs_InitializeRWLock\fR(\fIarg, arg\fR)
+.sp
+\fBNs_InitializeSemaphore\fR(\fIarg, arg\fR)
+.sp
+\fBNs_LeaveCriticalSection\fR(\fIarg, arg\fR)
+.sp
+\fBNs_LockMutex\fR(\fIarg, arg\fR)
+.sp
+\fBNs_ReadLockRWLock\fR(\fIarg, arg\fR)
+.sp
+\fBNs_ReadUnlockRWLock\fR(\fIarg, arg\fR)
+.sp
+\fBNs_ReleaseSemaphore\fR(\fIarg, arg\fR)
+.sp
+\fBNs_SetEvent\fR(\fIarg, arg\fR)
+.sp
+\fBNs_SetThreadLocalStorage\fR(\fIarg, arg\fR)
+.sp
+\fBNs_SetThreadServer\fR(\fIarg, arg\fR)
+.sp
+\fBNs_TimedWaitForEvent\fR(\fIarg, arg\fR)
+.sp
+\fBNs_UTimedWaitForEvent\fR(\fIarg, arg\fR)
+.sp
+\fBNs_UnlockMutex\fR(\fIarg, arg\fR)
+.sp
+\fBNs_WaitForEvent\fR(\fIarg, arg\fR)
+.sp
+\fBNs_WaitForSemaphore\fR(\fIarg, arg\fR)
+.sp
+\fBNs_WaitForThread\fR(\fIarg, arg\fR)
+.sp
+\fBNs_WaitThread\fR(\fIarg, arg\fR)
+.sp
+\fBNs_WriteLockRWLock\fR(\fIarg, arg\fR)
+.sp
+\fBNs_WriteUnlockRWLock\fR(\fIarg, arg\fR)
+.BE
+
+.SH DESCRIPTION
+.PP
+These functions ...
+
+.SH "SEE ALSO"
+nsd(1), info(n)
+
+.SH KEYWORDS
+

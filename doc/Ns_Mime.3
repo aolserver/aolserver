@@ -1,0 +1,92 @@
+
+'\"
+'\" The contents of this file are subject to the AOLserver Public License
+'\" Version 1.1 (the "License"); you may not use this file except in
+'\" compliance with the License. You may obtain a copy of the License at
+'\" http://aolserver.com/.
+'\"
+'\" Software distributed under the License is distributed on an "AS IS"
+'\" basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+'\" the License for the specific language governing rights and limitations
+'\" under the License.
+'\"
+'\" The Original Code is AOLserver Code and related documentation
+'\" distributed by AOL.
+'\" 
+'\" The Initial Developer of the Original Code is America Online,
+'\" Inc. Portions created by AOL are Copyright (C) 1999 America Online,
+'\" Inc. All Rights Reserved.
+'\"
+'\" Alternatively, the contents of this file may be used under the terms
+'\" of the GNU General Public License (the "GPL"), in which case the
+'\" provisions of GPL are applicable instead of those above.  If you wish
+'\" to allow use of your version of this file only under the terms of the
+'\" GPL and not to allow others to use your version of this file under the
+'\" License, indicate your decision by deleting the provisions above and
+'\" replace them with the notice and other provisions required by the GPL.
+'\" If you do not delete the provisions above, a recipient may use your
+'\" version of this file under either the License or the GPL.
+'\" 
+'\"
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_Mime.3,v 1.5 2003/04/10 22:00:46 shmooved Exp $
+'\"
+'\" 
+.so man.macros
+
+.TH Ns_Mime 3 4.0 AOLserver "AOLserver Library Procedures"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+Ns_GetMimeType \- Return the MIME type of a file
+.SH SYNOPSIS
+.nf
+\fB#include "ns.h"\fR
+.sp
+char *
+\fBNs_GetMimeType\fR(\fIchar *file\fR)
+.BE
+
+.SH DESCRIPTION
+.TP
+\fBNs_GetMimeType\fR(\fIfile\fR)
+
+The \fBNs_GetMimeType\fR function uses the extension of \fIfile\fR and
+looks up the associated MIME type stored internally in the
+server. Case is ignored. The return value is of the form "text/html".
+
+AOLserver has a set of predefined file extension to MIME type
+associations. You can add to these associations by defining file
+extension to MIME type associations in the server configuration file
+in the ns/mimetypes section. If you define a file extension that
+already exists in the server, that file extension and MIME type
+association will be replaced with yours.
+
+If no MIME type association exists for a particular file extension, or
+there is no file extension, the default and noextension MIME types are
+returned, respectively. These default to "*/*" but can be set in the
+server configuration file.
+
+Here is an example ns/mimetypes section from the server configuration file:
+
+.CS
+ns_section "ns/mimetypes"
+ns_param   ".doc"          "application/msword"
+ns_param   ".ppt"          "application/vnd.ms-powerpoint"
+ns_param   ".xls"          "application/vnd.ms-excel"
+ns_param   ".cab"          "application/mscabinet"
+ns_param   ".frl"          "application/x-perfpro"
+ns_param   ".max"          "application/vviewer"
+ns_param   ".mif"          "application/x-mif"
+ns_param   ".frz"          "application/x-dffill"
+ns_param   ".asvg"         "image/svg-xml"
+ns_param   ".asvgz"        "image/svg-xml"
+ns_param   ".svg"          "image/svg-xml"
+ns_param   ".svgz"         "image/svg-xml"
+ns_param   default         "*/*"
+ns_param   noextension     "*/*"
+.CE
+
+.SH "SEE ALSO"
+nsd(1), info(n)
+
+.SH KEYWORDS

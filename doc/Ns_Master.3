@@ -1,0 +1,89 @@
+
+'\"
+'\" The contents of this file are subject to the AOLserver Public License
+'\" Version 1.1 (the "License"); you may not use this file except in
+'\" compliance with the License. You may obtain a copy of the License at
+'\" http://aolserver.com/.
+'\"
+'\" Software distributed under the License is distributed on an "AS IS"
+'\" basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+'\" the License for the specific language governing rights and limitations
+'\" under the License.
+'\"
+'\" The Original Code is AOLserver Code and related documentation
+'\" distributed by AOL.
+'\" 
+'\" The Initial Developer of the Original Code is America Online,
+'\" Inc. Portions created by AOL are Copyright (C) 1999 America Online,
+'\" Inc. All Rights Reserved.
+'\"
+'\" Alternatively, the contents of this file may be used under the terms
+'\" of the GNU General Public License (the "GPL"), in which case the
+'\" provisions of GPL are applicable instead of those above.  If you wish
+'\" to allow use of your version of this file only under the terms of the
+'\" GPL and not to allow others to use your version of this file under the
+'\" License, indicate your decision by deleting the provisions above and
+'\" replace them with the notice and other provisions required by the GPL.
+'\" If you do not delete the provisions above, a recipient may use your
+'\" version of this file under either the License or the GPL.
+'\" 
+'\"
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_Master.3,v 1.5 2003/04/10 22:00:45 shmooved Exp $
+'\"
+'\" 
+.so man.macros
+
+.TH Ns_Master 3 4.0 AOLserver "AOLserver Library Procedures"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+Ns_MasterLock, Ns_MasterUnlock \- Enter and leave the single master critical section lock
+.SH SYNOPSIS
+.nf
+\fB#include "ns.h"\fR
+.sp
+void
+\fBNs_MasterLock\fR(\fIvoid\fR)
+.sp
+void
+\fBNs_MasterUnlock\fR(\fIvoid\fR)
+.BE
+
+.SH DESCRIPTION
+.PP
+The single master critical section lock is used throughout the core
+server to protect portions of code from being run by more than one
+thread at a time. These are convenience functions which actually make
+calls to \fBNs_CsEnter\fR and \fBNs_CsLeave\fR to perform the locking
+and unlocking function.
+
+You should not use these functions in your modules. To protect
+critical sections in your modules you should create and initialize
+your own named locks, then wrap your critical sections with calls to
+\fBNs_CsEnter\fR and \fBNs_CsLeave\fR.
+
+.TP
+\fBNs_MasterLock\fR()
+
+Enter the single master lock. The thread that holds this lock is
+guaranteed exclusive access to the section of code that follows the
+call to \fBNs_MasterLock\fR. Other threads that attempt to enter the
+master critical section while another thread owns the master lock will
+block until the owning thread releases the master lock.
+
+Be extremely careful with code you place within the master critical
+section. If the thread that owns the master lock blocks for any reason
+while in the master critical section, other threads that need to enter
+that section of code will block until the master lock is released.
+.TP
+\fBNs_MasterUnlock\fR()
+
+Leave the single master critical section. The thread that owns the
+lock must release it after the critical section of code has completed
+so that other threads may execute the critical section code.
+
+.SH "SEE ALSO"
+nsd(1), info(n), Ns_CsEnter(3), Ns_CsLeave(3)
+
+.SH KEYWORDS
+

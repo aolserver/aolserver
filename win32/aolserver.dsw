@@ -1,0 +1,560 @@
+Microsoft Developer Studio Workspace File, Format Version 6.00
+# WARNING: DO NOT EDIT OR DELETE THIS WORKSPACE FILE!
+
+###############################################################################
+
+Project: "cgitest"=.\cgitest\cgitest.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name nscgi
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "grpall"=.\group\grpall.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name grpopenacs
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name nsencrypt
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name nsexample
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name nsexpat
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name nsimage
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name nsmysql
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name nsodbc
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name nspasswd
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name nsprofile
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name nsreturnz
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name nsrewrite
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name nstcldom
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name nsvhr
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "grpcore"=.\group\grpcore.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name cgitest
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name main
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name nscgi
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name nscp
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name nsd
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name nsdb
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name nslog
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name nsperm
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name nssock
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name nsthread
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name threadtest
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "grpopenacs"=.\group\grpopenacs.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name grpcore
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name nscache
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name nsoracle
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name nspostgres
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name nssha1
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name nsxml
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "main"=.\main\main.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name nsd
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "nscache"=..\..\nscache\nscache.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name nsd
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "nscgi"=.\nscgi\nscgi.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name nsd
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "nscp"=.\nscp\nscp.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name nsd
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "nsd"=.\nsd\nsd.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name nsthread
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "nsdb"=.\nsdb\nsdb.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name nsd
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "nsencrypt"=..\..\nsencrypt\nsencrypt.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name nsd
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "nsexample"=..\..\nsexample\nsexample.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name nsd
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "nsexpat"=..\..\nsexpat\nsexpat.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name nsd
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "nsimage"=..\..\nsimage\nsimage.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name nsd
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "nslog"=.\nslog\nslog.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name nsd
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "nsmysql"=..\..\nsmysql\nsmysql.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name nsdb
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "nsodbc"=..\..\nsodbc\nsodbc.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name nsdb
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "nsoracle"=..\..\nsoracle\nsoracle.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name nsdb
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "nspasswd"=..\..\nspasswd\nspasswd.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name nsd
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "nsperm"=.\nsperm\nsperm.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name nsd
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "nspostgres"=..\..\nspostgres\nspostgres.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name nsdb
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "nsprofile"=..\..\nsprofile\nsprofile.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name nsd
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "nsreturnz"=..\..\nsreturnz\nsreturnz.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name nsd
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "nsrewrite"=..\..\nsrewrite\nsrewrite.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name nsd
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "nssha1"=..\..\nssha1\nssha1.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name nsd
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "nssock"=.\nssock\nssock.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name nsd
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "nstcldom"=..\..\nstcldom\nstcldom.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name nsd
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "nsthread"=.\nsthread\nsthread.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+}}}
+
+###############################################################################
+
+Project: "nsvhr"=..\..\nsvhr\nsvhr.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name nsd
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "nsxml"=..\..\nsxml\nsxml.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name nsd
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "threadtest"=.\threadtest\threadtest.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name nsthread
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Global:
+
+Package=<5>
+{{{
+}}}
+
+Package=<3>
+{{{
+}}}
+
+###############################################################################
+

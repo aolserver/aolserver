@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/tests/new/http-test-config.tcl,v 1.1 2004/08/25 20:58:31 dossy Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/Attic/sample-config.tcl,v 1.11.2.2 2004/08/11 19:40:59 dossy Exp $
 #
 
 #
@@ -64,11 +64,9 @@ set bindir                 [file dirname [ns_info nsd]]
 set pageroot               ${homedir}/servers/${servername}/pages
 set directoryfile          index.adp,index.html,index.htm,index.xhtml,index.xht
 
-set shlibext               [info sharedlibextension]
-
 # nsssl: Only loads if keyfile.pem and certfile.pem exist.
-#set sslmodule              nsssl${shlibext}  ;# Domestic 128-bit/1024-bit SSL.
-set sslmodule              nsssle${shlibext} ;# Exportable 40-bit/512-bit SSL.
+#set sslmodule              nsssl.so  ;# Domestic 128-bit/1024-bit SSL.
+set sslmodule              nsssle.so ;# Exportable 40-bit/512-bit SSL.
 set sslkeyfile   ${homedir}/servers/${servername}/modules/nsssl/keyfile.pem
 set sslcertfile  ${homedir}/servers/${servername}/modules/nsssl/certfile.pem
 
@@ -85,12 +83,12 @@ ns_param   debug           false
 #ns_param HackContentType false       ;# automatic adjustment of response
                                        # content-type header to include charset
                                        # This defaults to True.
-ns_param  OutputCharset  iso-8859-1    ;# Default output charset.  When none specified,
+ns_param  OutputCharset  iso8859-1    ;# Default output charset.  When none specified,
                                        # no character encoding of output is performed.
-ns_param  URLCharset     iso-8859-1    ;# Default Charset for Url Encode/Decode.
+ns_param  URLCharset     iso8859-1    ;# Default Charset for Url Encode/Decode.
                                        # When none specified, no character set encoding
                                        # is performed.
-#ns_param  PreferredCharsets { utf-8 iso-8859-1 } ;# This parameter supports output
+#ns_param  PreferredCharsets { utf-8 iso8859-1 } ;# This parameter supports output
                                        # encoding arbitration.
 
 #
@@ -213,6 +211,16 @@ ns_param   port            $httpport
 ns_param   hostname        $hostname
 ns_param   address         $address
 
+                                         # Socket driver logging controls.
+                                         # Default is no logging.
+#ns_param   readtimeoutlogging    true  ;# Timed-out waiting for complete
+                                         # request.
+#ns_param   serverrejectlogging   true  ;# Unable to match request to a virtual
+                                         # server.
+#ns_param   sockerrorlogging      true  ;# Malformed request, or would exceed
+                                         # request limits.
+#ns_param   sockshuterrorlogging  true  ;# Error while attempting to shutdown
+                                         # a socket during connection close.
 
 #
 # Socket driver module (HTTPS) -- nsssl
@@ -226,6 +234,16 @@ ns_param   address         $address
 ns_param   keyfile         $sslkeyfile
 ns_param   certfile        $sslcertfile
 
+                                         # Socket driver logging controls.
+                                         # Default is no logging.
+#ns_param   readtimeoutlogging    true  ;# Timed-out waiting for complete
+                                         # request.
+#ns_param   serverrejectlogging   true  ;# Unable to match request to a virtual
+                                         # server.
+#ns_param   sockerrorlogging      true  ;# Malformed request, or would exceed
+                                         # request limits.
+#ns_param   sockshuterrorlogging  true  ;# Error while attempting to shutdown
+                                         # a socket during connection close.
 
 # Fast Path --
 #
@@ -299,7 +317,7 @@ ns_param   certfile        $sslcertfile
 #    The configuration example below adds the user "nsadmin" with a 
 #    password of "x".
 #
-# 4. Make sure the nscp module is loaded in the modules section.
+# 4. Make sure the nscp.so module is loaded in the modules section.
 #
 #ns_section "ns/server/${servername}/module/nscp"
 #    ns_param address 127.0.0.1        
@@ -311,7 +329,7 @@ ns_param   certfile        $sslcertfile
 #    ns_param user "nsadmin:t2GqvvaiIUbF2:"
 #
 #ns_section "ns/server/${servername}/modules"
-#    ns_param nscp ${bindir}/nscp${shlibext}
+#    ns_param nscp ${bindir}/nscp.so
 #
 
 #
@@ -340,19 +358,19 @@ ns_section "ns/server/${servername}/module/nscgi"
 #
 
 ns_section "ns/server/${servername}/modules"
-    ns_param nssock ${bindir}/nssock${shlibext}
-    #ns_param nslog ${bindir}/nslog${shlibext}
-    #ns_param nscgi ${bindir}/nscgi${shlibext}
-    #ns_param nsperm ${bindir}/nsperm${shlibext}
+    ns_param nssock ${bindir}/nssock.so
+    ns_param nslog ${bindir}/nslog.so
+    #ns_param nscgi ${bindir}/nscgi.so
+    #ns_param nsperm ${bindir}/nsperm.so
 
 #
 # nsssl: Only loads if sslcertfile and sslkeyfile exist (see above).
 #
-#if { [file exists $sslcertfile] && [file exists $sslkeyfile] } {
-#    ns_param nsssl ${bindir}/${sslmodule}
-#} else {
-#    ns_log warning "config.tcl: nsssl not loaded -- key/cert files do not exist."
-#}
+if { [file exists $sslcertfile] && [file exists $sslkeyfile] } {
+    ns_param nsssl ${bindir}/${sslmodule}
+} else {
+    ns_log warning "config.tcl: nsssl not loaded -- key/cert files do not exist."
+}
 
 #
 # Example: Host headers based virtual servers.
@@ -366,7 +384,7 @@ ns_section "ns/server/${servername}/modules"
 #    virtual server.
 #
 #ns_section "ns/modules"
-#    ns_param   nssock          ${bindir}/nssock${shlibext}
+#    ns_param   nssock          ${bindir}/nssock.so
 #
 #ns_section "ns/module/nssock"
 #    ns_param   port            $httpport

@@ -1,0 +1,198 @@
+'\"
+'\" The contents of this file are subject to the AOLserver Public License
+'\" Version 1.1 (the "License"); you may not use this file except in
+'\" compliance with the License. You may obtain a copy of the License at
+'\" http://aolserver.com/.
+'\"
+'\" Software distributed under the License is distributed on an "AS IS"
+'\" basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+'\" the License for the specific language governing rights and limitations
+'\" under the License.
+'\"
+'\" The Original Code is AOLserver Code and related documentation
+'\" distributed by AOL.
+'\" 
+'\" The Initial Developer of the Original Code is America Online,
+'\" Inc. Portions created by AOL are Copyright (C) 1999 America Online,
+'\" Inc. All Rights Reserved.
+'\"
+'\" Alternatively, the contents of this file may be used under the terms
+'\" of the GNU General Public License (the "GPL"), in which case the
+'\" provisions of GPL are applicable instead of those above.  If you wish
+'\" to allow use of your version of this file only under the terms of the
+'\" GPL and not to allow others to use your version of this file under the
+'\" License, indicate your decision by deleting the provisions above and
+'\" replace them with the notice and other provisions required by the GPL.
+'\" If you do not delete the provisions above, a recipient may use your
+'\" version of this file under either the License or the GPL.
+'\" 
+'\"
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_sock.n,v 1.4 2003/04/10 22:01:22 shmooved Exp $
+'\"
+'\" 
+.so man.macros
+
+.TH ns_sock n 4.0 AOLserver "AOLserver Built-In Commands"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+ns_sockaccept, ns_sockblocking, ns_sockcallback, ns_sockcheck, ns_socketpair, ns_socklisten, ns_socklistencallback, ns_socknonblocking, ns_socknread, ns_sockopen, ns_sockselect \- Network socket commands
+.SH SYNOPSIS
+\fBns_sockaccept \fIsockid\fR
+.sp
+\fBns_sockblocking \fIsockid\fR
+.sp
+\fBns_sockcallback \fIsockid script when\fR
+.sp
+\fBns_sockcheck \fIfileid\fR
+.sp
+\fBns_socketpair\fR
+.sp
+\fBns_socklisten \fIaddress port\fR
+.sp
+\fBns_socklistencallback \fIaddress port script\fR
+.sp
+\fBns_socknonblocking \fIsockid\fR
+.sp
+\fBns_socknread \fIsockid\fR
+.sp
+\fBns_sockopen \fR?\fI-nonblock\fR | \fI-timeout seconds\fR? \fIhost port\fR
+.sp
+\fBns_sockselect \fR?\fI-timeout \fIseconds\fR? \fIrfds wfds efds\fR
+.BE
+
+.SH DESCRIPTION
+.PP
+Performs one of several network socket operations, providing a means to 
+manipulate and use sockets directly within AOLserver. 
+.TP
+\fBns_sockaccept \fIsockid\fR
+
+Accepts a new connection on the socket specified by \fIsockid\fR and
+returns a list containing the read and write file descriptors for the
+socket, respectively.
+
+The file descriptors can be used with Tcl's \fBputs\fR, \fBgets\fR,
+\fBread\fR or any other Tcl socket manipulation commands.
+
+\fBns_sockaccept\fR does not create a socket for you. It is normally
+used in conjunction with \fBns_sockcallback\fR, \fBns_socklisten\fR,
+and \fBns_socklistencallback\fR.
+
+You can use \fBns_sockcheck\fR to see if the socket is valid before
+using \fBns_sockaccept\fR on it.
+.TP
+\fBns_sockblocking \fIsockid\fR
+
+Sets the socket specified by \fIsockid\fR to blocking mode. In
+blocking mode, an operation on a socket must complete before the
+command can return. This can cause your process or thread to block
+forever if the operation does not complete. If that happens in an ADP,
+the page may never complete until the socket is interrupted, closed or
+a TCP timeout occurs.
+.TP
+\fBns_sockcallback \fIsockid script when\fR
+
+Registers a socket callback script that will be run when a connection
+is made to the socket specified by \fIsockid\fR.
+
+The socket must already exist. You can create a socket using
+\fBns_socklisten\fR.
+
+The \fIscript\fR should accept \fIsockid\fR and \fIwhen\fR as its
+first two arguments.
+
+The \fIscript\fR is responsible for doing an \fBns_sockaccept\fR on
+\fIsockid\fR prior to reading from and writing to the socket.
+
+If the same \fIscript\fR will handle all \fIwhen\fR values, you must
+still register the script four separate times, once for each type of
+\fIwhen\fR value.
+
+The \fIwhen\fR value is passed to \fIscript\fR when \fIscript\fR is invoked.
+The \fIwhen\fR value is one of:
+.IP "" 10
+\fIr\fR - the socket is readable
+.IP
+\fIw\fR - the socket is writeable
+.IP
+\fIe\fR - the socket has an exceptional condition
+.IP
+\fIx\fR - the server is shutting down
+.TP
+\fBns_sockcheck \fIfileid\fR
+
+Uses recv() or send() calls to check if a socket is still connected. The
+\fIfileid\fR is the read or write file id returned by \fBns_sockopen\fR.
+
+This function is useful if you used the \fI-nonblock\fR option with
+\fBns_sockopen\fR after calling \fBns_sockselect\fR.
+.TP
+\fBns_socketpair\fR
+Creates a pair of connected sockets and returns a list of file ids: the
+first one for reads and the second one for writes.
+.TP
+\fBns_socklisten \fIaddress port\fR
+Creates a new socket and listens for connections at the
+specified \fIaddress\fR and \fIport\fR. An asterisk (*) can be used as
+the \fIaddress\fR argument to specify all addresses.
+
+The socket id is returned.
+
+You must use \fBns_sockaccept\fR to accept connections on the socket.
+.TP
+\fBns_socklistencallback \fIaddress port script\fR
+
+Creates a new socket and listens for connections at the
+specified \fIaddress\fR and \fIport\fR. An asterisk (*) can be used as
+the \fIaddress\fR argument to specify all addresses.
+
+Runs \fIscript\fR when a new connection is received. The \fIscript\fR
+must use \fBns_sockaccept\fR on the
+.TP
+\fBns_socknonblocking \fIsockid\fR
+
+Sets the socket specified by \fIsockid\fR to nonblocking.
+.TP
+\fBns_socknread \fIsockid\fR
+
+Returns the number of bytes waiting to be read from the socket
+specified by \fIsockid\fR.
+.TP
+\fBns_sockopen \fR?\fI-nonblock\fR | \fI-timeout seconds\fR? \fIhost port\fR
+
+Uses the socket(), bind() and connect() calls to connect to the
+remote \fIhost\fR on the specified \fIport\fR. \fBns_sockopen\fR returns a
+list containing the read and write fileids, respectively.
+
+The \fI-nonblock\fR option causes \fBns_sockopen\fR to return immediately,
+while the connect is still in progress by the operating system. Use
+\fBns_sockcheck\fR with the write fileid to see if the connect has
+completed before attempting to read from or write to the socket.
+
+The \fI-timeout\fR option specifies how long to wait for the connect to 
+be made in \fIseconds\fR before timing out.
+.TP
+\fBns_sockselect\fR ?\fI-timeout \fIseconds\fR? \fIrfds wfds efds\fR
+
+Uses a call to select() to determine which fileids are readable, writable or
+have exceptional conditions. \fBns_sockselect\fR returns a list of three lists:
+readable fileids, writable fileids, and the fileids with exceptions.
+
+The \fI-timeout\fR option specifies how many \fIseconds\fR to wait 
+for \fBns_sockselect\fR before timing out.
+
+The \fIrfds\fR, \fIwfds\fR and \fIefds\fR arguments are lists of readable fileids,
+writeable fileids, and fileids with exceptions, respectively.
+
+.PP
+Be careful using these socket commands in an ADP or a
+procedure called by an
+ADP. If a socket command hangs, the page may not finish being served to the
+user until the TCP connection times out, typically several minutes later.
+
+.SH "SEE ALSO"
+nsd(1), info(n)
+
+.SH KEYWORDS
+

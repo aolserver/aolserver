@@ -1,0 +1,98 @@
+
+'\"
+'\" The contents of this file are subject to the AOLserver Public License
+'\" Version 1.1 (the "License"); you may not use this file except in
+'\" compliance with the License. You may obtain a copy of the License at
+'\" http://aolserver.com/.
+'\"
+'\" Software distributed under the License is distributed on an "AS IS"
+'\" basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+'\" the License for the specific language governing rights and limitations
+'\" under the License.
+'\"
+'\" The Original Code is AOLserver Code and related documentation
+'\" distributed by AOL.
+'\" 
+'\" The Initial Developer of the Original Code is America Online,
+'\" Inc. Portions created by AOL are Copyright (C) 1999 America Online,
+'\" Inc. All Rights Reserved.
+'\"
+'\" Alternatively, the contents of this file may be used under the terms
+'\" of the GNU General Public License (the "GPL"), in which case the
+'\" provisions of GPL are applicable instead of those above.  If you wish
+'\" to allow use of your version of this file only under the terms of the
+'\" GPL and not to allow others to use your version of this file under the
+'\" License, indicate your decision by deleting the provisions above and
+'\" replace them with the notice and other provisions required by the GPL.
+'\" If you do not delete the provisions above, a recipient may use your
+'\" version of this file under either the License or the GPL.
+'\" 
+'\"
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_Adp.3,v 1.5 2003/04/10 22:00:27 shmooved Exp $
+'\"
+'\" 
+.so man.macros
+
+.TH Ns_Adp 3 4.0 AOLserver "AOLserver Library Procedures"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+Ns_AdpRegisterParser, Ns_AdpRequest \- Create and use ADP parsers
+.SH SYNOPSIS
+.nf
+\fB#include "ns.h"\fR
+.sp
+int
+\fBNs_AdpRegisterParser\fR(\fIchar *extension, Ns_AdpParserProc *newParserProc\fR)
+.sp
+int
+\fBNs_AdpRequest\fR(\fIarg, arg\fR)
+.BE
+
+.SH DESCRIPTION
+.PP
+These functions register new ADP parsers and run ADP requests.
+.TP
+\fBNs_AdpRegisterParser\fR(\fIextension, newParserProc\fR)
+
+Registers a new, named ADP parser procedure with the name given in
+\fIextension\fR. You can tie a file extension to a particular named
+parser in the \fBnsd.tcl\fR file. The \fInewParserProc\fR will be
+called when an ADP with the associated file extension needs to be
+parsed. If a file extension is registered as an ADP in the
+\fBnsd.tcl\fR but no parser is associated with that file extension,
+the default ADP parser is used.
+
+The \fInewParserProc\fR must accept two arguments:
+
+typedef void (Ns_AdpParserProc)(Ns_DString *out, char *in);
+
+The ADP input is pointed to by \fIin\fR. Your parser must process the
+content of \fIin\fR and append the parsed output to \fIout\fR.
+
+The output should be formatted as a series of concatenated "chunks". A chunk is a
+string of the format:
+
+<type character><string><null>
+
+where <type character> = 't' or 's'. A 't' means what follows is HTML and should be
+returned directly to the browser. An 's' means what follows is Tcl and should be
+evaluated.
+
+After the last chunk there should be an extra <null> character. For example, the "adp"
+parser will take a page like this:
+
+This is a test page<%ns_puts hi%>The end<%ns_puts bye%>
+
+And create this output:
+
+"tThis is a test page\\0sns_puts hi\\0tThe end\\0sns_puts bye\\0\\0"
+.TP
+\fBNs_AdpRequest\fR(\fIconn\fR, \fIfile\fR)
+
+Parse and evaluate an ADP file.
+.SH "SEE ALSO"
+nsd(1), info(n)
+
+.SH KEYWORDS
+

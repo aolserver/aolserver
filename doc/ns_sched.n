@@ -1,0 +1,197 @@
+'\"
+'\" The contents of this file are subject to the AOLserver Public License
+'\" Version 1.1 (the "License"); you may not use this file except in
+'\" compliance with the License. You may obtain a copy of the License at
+'\" http://aolserver.com/.
+'\"
+'\" Software distributed under the License is distributed on an "AS IS"
+'\" basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+'\" the License for the specific language governing rights and limitations
+'\" under the License.
+'\"
+'\" The Original Code is AOLserver Code and related documentation
+'\" distributed by AOL.
+'\" 
+'\" The Initial Developer of the Original Code is America Online,
+'\" Inc. Portions created by AOL are Copyright (C) 1999 America Online,
+'\" Inc. All Rights Reserved.
+'\"
+'\" Alternatively, the contents of this file may be used under the terms
+'\" of the GNU General Public License (the "GPL"), in which case the
+'\" provisions of GPL are applicable instead of those above.  If you wish
+'\" to allow use of your version of this file only under the terms of the
+'\" GPL and not to allow others to use your version of this file under the
+'\" License, indicate your decision by deleting the provisions above and
+'\" replace them with the notice and other provisions required by the GPL.
+'\" If you do not delete the provisions above, a recipient may use your
+'\" version of this file under either the License or the GPL.
+'\" 
+'\"
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_sched.n,v 1.3 2003/04/10 16:16:08 shmooved Exp $
+'\"
+'\" 
+.so man.macros
+
+.TH ns_sched n 4.0 AOLserver "AOLserver Built-In Commands"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+ns_after, ns_cancel, ns_pause, ns_resume, ns_schedule_daily, ns_schedule_proc, ns_schedule_weekly, ns_unschedule_proc \- commands
+.SH SYNOPSIS
+\fBns_after\fR \fIseconds {script | procname ?args?}\fR
+.sp
+\fBns_cancel\fR \fIid\fR
+.sp
+\fBns_pause\fR \fIid\fR
+.sp
+\fBns_resume\fR \fIid\fR
+.sp
+\fBns_schedule_daily\fR ?-thread? ?-once? \fIhour minute {script | procname ?args?}\fR
+.sp
+\fBns_schedule_proc\fR ?-thread? ?-once? \fIinterval {script | procname ?args?}\fR
+.sp
+\fBns_schedule_weekly\fR ?-thread? ?-once? \fIday hour minute {script | procname ?args?}\fR
+.sp
+\fBns_unschedule_proc\fR \fIid\fR
+.BE
+
+.SH DESCRIPTION
+.PP
+\fBns_after\fR
+.RS
+run the specified script or procedure  after the specified number of seconds
+.sp
+ns_after returns an id which can be used with the ns_pause, ns_cancel and ns_resume apis.
+.RE
+.PP
+\fBns_cancel\fR
+.RS
+stops the scheduled running of the id returned by an ns_after 
+.sp
+returns 1 if unscheduled 0 if the script of procedure couldn't be unscheduled
+.RE
+.PP
+\fBns_pause\fR
+.RS
+pauses the scheduled running of the id returned by an ns_after 
+.sp
+returns 1 if paused, 0 if the script of procedure couldn't be paused
+.RE
+.PP
+\fBns_resume\fR
+.RS
+resumes the scheduled running of the id returned by an ns_after 
+.sp
+returns 1 if resumed, 0 if the script of procedure couldn't be resumed
+.RE
+.PP
+\fBns_schedule_daily\fR
+.RS
+ns_schedule_daily runs the specified Tcl script or procedure (procname) once a day at the time specified by hour and minute. The hour can be from 0 to 23, and the minute can be from 0 to 59.
+.sp
+Specify -thread if you want a thread created to run the procedure. This will allow the scheduler to continue with other scheduled procedures. Specifying -thread is appropriate in situations where the script will not return immediately, such as when the script performs network activity.
+.sp
+Specify -once if you want the script to run only one time. The default is that the script will be re-scheduled after each time it is run.
+.sp
+ns_schedule_daily returns an id number for the scheduled procedure that is needed to stop the scheduled procedure with ns_unschedule_proc. 
+.sp
+.RE
+.PP
+\fBns_schedule_proc\fR
+.RS
+ns_schedule_proc runs the specified Tcl script or procedure (procname) at an interval specified by interval. The interval is the number of seconds between runs of the script.
+.sp
+Specify -thread if you want a thread created to run the procedure. This will allow the scheduler to continue with other scheduled procedures. Specifying -thread is appropriate in situations where the script will not return immediately, such as when the script performs network activity.
+.sp
+Specify -once if you want the script to run only one time. The default is that the script will be re-scheduled after each time it is run.
+.sp
+ns_schedule_proc returns an id number for the scheduled procedure that is needed to stop the scheduled procedure with ns_unschedule_proc. 
+.sp
+.RE
+\fBns_schedule_weekly\fR
+.RS
+ns_schedule_weekly runs the specified Tcl script or procedure (procname) once a week on the day specified by day and the time specified by hour and minute. The day can be from 0 to 6, where 0 represents Sunday. The hour can be from 0 to 23, and the minute can be from 0 to 59.
+.sp
+Specify -thread if you want a thread created to run the procedure. This will allow the scheduler to continue with other scheduled procedures. Specifying -thread is appropriate in situations where the script will not return immediately, such as when the script performs network activity.
+.sp
+Specify -once if you want the script to run only one time. The default is that the script will be re-scheduled after each time it is run.
+.sp
+ns_schedule_weekly returns an id number for the scheduled procedure that is needed to stop the scheduled procedure with ns_unschedule_proc. 
+.RE
+.PP
+\fBns_unschedule_proc\fR \fIid\fR
+.RS
+ns_unschedule_proc stops a scheduled procedure from executing anymore. The scheduled procedure to be stopped is identified by its id, which was returned by the ns_schedule* function that was used to schedule the procedure.
+.RE
+.PP
+.SH EXAMPLES
+\fBns_after ns_cancel ns_pause ns_resume\fR
+.RS
+This example illustrates a web interface used to manage jobs. Depending on the action provided a job can be created, cancelled, paused or resumed.
+.sp
+.DS
+set action [ns_queryget action]
+set job [ns_queryget job]
+switch $action {
+    create {
+        set job [ns_after 10 [ns_queryget script]]
+        ns_puts "Job created with id: $job"
+    }
+    cancel {
+        if {[ns_cancel $job]} {
+            ns_puts "Job $job cancelled"
+        } else {
+            ns_puts "Job $job not cancelled"
+        }
+    }
+    pause {
+        if {[ns_pause $job]} {
+            ns_puts "Job $job paused"
+        } else {
+            ns_puts "Job $job not paused
+        }
+    }
+    resume {
+        if {[ns_resume $job]} {
+            ns_puts "Job $job resumed"
+        } else {
+            ns_puts "Job $job couldn't be resumed"
+        }
+    }
+    default {
+        ns_puts "Invalid action $action"
+    }
+}
+.DE
+.RE
+.PP
+\fBns_schedule_daily\fR
+.RS
+This example defines a script called rolllog that uses ns_accesslog to roll the access log to a file with an extension containing the current date. The ns_schedule_daily function is used to execute the rolllog script on a daily basis.
+.sp
+.DS
+# Script to roll and rcp log file to host "grinder"
+proc rolllog {} {
+    set suffix [ns_strftime "%y-%m-%d"]
+    set new [ns_accesslog file].$suffix
+    ns_accesslog roll $new
+    exec rcp $new grinder:/logs/[file tail $new]
+}
+# Schedule "rolllog" to run at 3:30 am each morning
+ns_schedule_daily -thread 3 30 rolllog
+.DE
+.RE
+.PP
+\fBns_schedule_proc\fR
+.DS
+proc dosomething blah {
+    ns_log Notice "proc with arg '$blah'"
+}
+ns_schedule_proc 10 dosomething $arg1
+.DE
+.PP
+
+.SH "SEE ALSO"
+.PP
+.SH KEYWORDS
+schedule pause resume unschedule cancel after
