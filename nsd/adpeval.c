@@ -33,7 +33,7 @@
  *	ADP string and file eval.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.1 2001/03/12 22:06:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.2 2001/03/16 22:57:36 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -567,29 +567,40 @@ PopFrame(NsInterp *itPtr, Frame *framePtr, int move)
 static int
 ParseFile(NsInterp *itPtr, char *file, size_t size, Ns_DString *dsPtr)
 {
+    Tcl_HashEntry *hPtr;
     Tcl_Interp *interp = itPtr->interp;
-    int fd, status;
-    size_t n;
-    char *p;
+    Tcl_Obj *objPtr;
+    Tcl_Channel chan;
+    char *ext, *enc;
+    int status;
     
+    enc = NULL;
+    ext = strrchr(file, '.');
+    if (ext != NULL) {
+	hPtr = Tcl_FindHashEntry(&itPtr->servPtr->adp.encodings, ext+1);
+	if (hPtr != NULL) {
+	    enc = Tcl_GetHashValue(hPtr);
+	}
+    }
     status = TCL_ERROR;
-    fd = open(file, O_RDONLY|O_BINARY);
-    if (fd < 0) {
+    chan = Tcl_OpenFileChannel(interp, file, "r", 0);
+    if (chan == NULL) {
 	Tcl_AppendResult(interp, "could not open \"",
 	    file, "\": ", Tcl_PosixError(interp), NULL);
     } else {
-	p = ns_malloc(size + 1);
-	n = read(fd, p, size);
-	close(fd);
-	if (n < 0) {
-	    Tcl_AppendResult(interp, "read() of \"", file,
-	    	"\" failed: ", Tcl_PosixError(interp), NULL);
-	} else {
-	    p[n] = '\0';
-	    NsAdpParse(itPtr->servPtr, dsPtr, p);
-	    status = TCL_OK;
+	if (enc == NULL || Tcl_SetChannelOption(interp, chan, "-encoding", enc) == TCL_OK) {
+	    objPtr = Tcl_NewObj();
+	    Tcl_IncrRefCount(objPtr);
+	    if (Tcl_ReadChars(chan, objPtr, -1, 0) < 0) {
+	    	Tcl_AppendResult(interp, "read() of \"", file,
+	    		"\" failed: ", Tcl_PosixError(interp), NULL);
+	    } else {
+	    	NsAdpParse(itPtr->servPtr, dsPtr, Tcl_GetString(objPtr));
+	    	status = TCL_OK;
+	    }
+	    Tcl_DecrRefCount(objPtr);
 	}
-	ns_free(p);
+	Tcl_Close(NULL, chan);
     }
     return status;
 }

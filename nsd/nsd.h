@@ -481,6 +481,7 @@ typedef struct NsServer {
 	int 	    	    cachesize;
 	Ns_Cache    	   *cache;
 	Tcl_HashTable	    tags;
+	Tcl_HashTable	    encodings;
 	Ns_Mutex	    lock;
     } adp;
     

@@ -33,7 +33,7 @@
  *	Routines for managing NsServer structures.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.3 2001/03/14 01:11:28 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.4 2001/03/16 22:57:36 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -486,6 +486,23 @@ NsInitServer(Ns_ServerInitProc *initProc, char *server)
 	    Ns_Log(Notice, "adp[%s]: mapped %s", server, map);
 	}
     }
+
+    /*
+     * Initialize the encodings table.
+     */
+
+    Tcl_InitHashTable(&servPtr->adp.encodings, TCL_STRING_KEYS);
+    path = Ns_ConfigPath(server, NULL, "adp", "encodings", NULL);
+    set = Ns_ConfigGetSection(path);
+    for (i = 0; set != NULL && i < Ns_SetSize(set); ++i) {
+	key = Ns_SetKey(set, i);
+	hPtr = Tcl_CreateHashEntry(&servPtr->adp.encodings, key, &n);
+	if (!n) {
+	    Ns_Log(Warning, "adp: duplicate extension: %s", key);
+	}
+	Tcl_SetHashValue(hPtr, Ns_SetValue(set, i));
+    }
+
 
     NsDbInitServer(server);
 
