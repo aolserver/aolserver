@@ -2,6 +2,9 @@
 
 	*** AOLserver 3.4.2 RELEASED ***
 
+	* Makefile: install rule depends on "all" rule for the benefit of
+	Macintosh OS 10.
+
         * nsd/nsd.h: version and label to 3.4.2.
 
 	* nsd/tclnsshare.cpp, nsd/tclmisc.c: Fix for 3.4 ns_share problem
