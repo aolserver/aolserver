@@ -63,6 +63,13 @@ int
 Ns_ModuleInit(char *server, char *module)
 {
     Ns_DriverInitData init;
+    char *path;
+    int async;
+
+    path = Ns_ConfigGetPath(server, module, NULL);
+    if (!Ns_ConfigGetBool(path, "async", &async)) {
+	async = 1;
+    }
 
     /*
      * Initialize the driver with the async option so that the driver thread
@@ -73,7 +80,7 @@ Ns_ModuleInit(char *server, char *module)
     init.version = NS_DRIVER_VERSION_1;
     init.name = "nssock";
     init.proc = SockProc;
-    init.opts = NS_DRIVER_ASYNC;
+    init.opts = (async ? NS_DRIVER_ASYNC : 0);
     init.arg = NULL;
     init.path = NULL;
 
