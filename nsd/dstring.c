@@ -35,7 +35,7 @@
  *	with Tcl_DString's.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/dstring.c,v 1.11 2001/03/23 23:17:57 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/dstring.c,v 1.12 2001/03/26 15:32:05 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -163,82 +163,9 @@ Ns_DStringPrintf(Ns_DString *dsPtr, char *fmt,...)
 
 /*
  *----------------------------------------------------------------------
- * Ns_DStringPop --
- *
- *	Pop a DString from the per-thread cache, allocating one
- *  	if necessary.
- *
- * Results:
- *	Pointer to initialized DString.
- *
- * Side effects:
- *      Will initialize TLS and config parameters on first use.
- *
- *----------------------------------------------------------------------
- */
-
-Ns_DString *
-Ns_DStringPop(void)
-{
-    NsTls *tlsPtr = NsGetTls();
-    Ns_DString *dsPtr;
-
-    if (tlsPtr->dstring.firstPtr == NULL) {
-	dsPtr = ns_malloc(sizeof(Ns_DString));
-	Ns_DStringInit(dsPtr);
-    } else {
-	dsPtr = tlsPtr->dstring.firstPtr;
-	tlsPtr->dstring.firstPtr = *((Ns_DString **) dsPtr->staticSpace);
-    	dsPtr->staticSpace[0] = 0;
-	--tlsPtr->dstring.ncached;
-    }
-    return dsPtr;
-}
-
-
-/*
- *----------------------------------------------------------------------
- * Ns_DStringPush --
- *
- *	Push a DString back on the per-thread cache.
- *
- * Results:
- *	None.
- *
- * Side effects:
- *      DString may be free'ed if the max entries and/or size has been
- *  	exceeded.
- *
- *----------------------------------------------------------------------
- */
-
-void
-Ns_DStringPush(Ns_DString *dsPtr)
-{
-    NsTls *tlsPtr = NsGetTls();
-
-    if (tlsPtr->dstring.ncached >= nsconf.dstring.maxentries) {
-	Ns_DStringFree(dsPtr);
-	ns_free(dsPtr);
-    } else {
-	if (dsPtr->spaceAvl > nsconf.dstring.maxsize) {
-	    Ns_DStringFree(dsPtr);
-	} else {
-    	    Ns_DStringTrunc(dsPtr, 0);
-	}
-	*((Ns_DString **) dsPtr->staticSpace) = tlsPtr->dstring.firstPtr;
-	tlsPtr->dstring.firstPtr = dsPtr;
-	++tlsPtr->dstring.ncached;
-    }
-}
-
-
-/*
- *----------------------------------------------------------------------
  * Compatibility routines --
  *
  *	Wrappers for old Ns_DString functions.
- *	memory.
  *
  * Results:
  *      See Tcl_DString routine.

@@ -34,7 +34,7 @@
  *	Various core configuration.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsconf.c,v 1.15 2001/03/14 15:02:37 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsconf.c,v 1.16 2001/03/26 15:32:26 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #include "nsconf.h"
@@ -129,12 +129,6 @@ NsConfInit(void)
 	    NsEnableDNSCache(i * 60, max);
 	}
     }
-
-    /*
-     * dstring.c
-     */
-    nsconf.dstring.maxentries = GetInt("dstringcachemaxentries", DSTRING_MAXENTRIES_INT);
-    nsconf.dstring.maxsize    = GetInt("dstringcachemaxsize", DSTRING_MAXSIZE_INT);
 
     /*
      * exec.c

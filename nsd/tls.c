@@ -33,7 +33,7 @@
  *	Routines for managing the NsTls structure.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/tls.c,v 1.1 2001/03/12 22:06:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/tls.c,v 1.2 2001/03/26 15:32:05 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -71,8 +71,6 @@ NsGetTls(void)
 	tlsPtr = ns_malloc(sizeof(NsTls));
 	Tcl_InitHashTable(&tlsPtr->db.owned, TCL_STRING_KEYS);
 	Tcl_InitHashTable(&tlsPtr->tcl.interps, TCL_STRING_KEYS);
-	tlsPtr->dstring.firstPtr = NULL;
-	tlsPtr->dstring.ncached = 0;
 	Ns_TlsSet(&tls, tlsPtr);
     }
     return tlsPtr;
@@ -101,7 +99,6 @@ FreeTls(void *arg)
     Tcl_HashEntry *hPtr;
     Tcl_HashSearch search;
     Tcl_Interp *interp;
-    Ns_DString *dsPtr;
     NsTls *tlsPtr = arg;
 
     hPtr = Tcl_FirstHashEntry(&tlsPtr->tcl.interps, &search);
@@ -111,11 +108,6 @@ FreeTls(void *arg)
 	hPtr = Tcl_NextHashEntry(&search);
     }
     Tcl_DeleteHashTable(&tlsPtr->tcl.interps);
-    while ((dsPtr = tlsPtr->dstring.firstPtr) != NULL) {
-	tlsPtr->dstring.firstPtr = *((Ns_DString **) &dsPtr->staticSpace);
-	Ns_DStringFree(dsPtr);
-	ns_free(dsPtr);
-    }
     Tcl_DeleteHashTable(&tlsPtr->db.owned);
     ns_free(tlsPtr);
     Tcl_FinalizeThread();
