@@ -107,19 +107,11 @@ SOURCE=..\..\thread\error.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\thread\master.c
-# End Source File
-# Begin Source File
-
 SOURCE=..\..\thread\memory.c
 # End Source File
 # Begin Source File
 
 SOURCE=..\..\thread\mutex.c
-# End Source File
-# Begin Source File
-
-SOURCE=..\..\thread\oldpools.c
 # End Source File
 # Begin Source File
 
