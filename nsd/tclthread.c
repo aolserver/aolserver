@@ -34,7 +34,7 @@
  *	Tcl wrappers around all thread objects 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclthread.c,v 1.15 2002/09/28 20:55:13 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclthread.c,v 1.16 2002/10/14 23:21:19 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #ifdef NS_NOCOMPAT
 #undef NS_NOCOMPAT
@@ -57,6 +57,46 @@ static int GetArgs(Tcl_Interp *interp, int objc, Tcl_Obj **objv,
 	CONST char *opts[], int type, int create, int *optPtr, void **addrPtr);
 static void CreateTclThread(NsInterp *itPtr, char *script, int detached,
 			    Ns_Thread *thrPtr);
+
+/*
+ * The following define the address Tcl_Obj type.
+ */
+
+static int  SetAddrFromAny(Tcl_Interp *interp, Tcl_Obj *objPtr);
+static void UpdateStringOfAddr(Tcl_Obj *objPtr);
+static void SetAddrInternalRep(Tcl_Obj *objPtr, int type, void *addr);
+static int GetAddrFromObj(Tcl_Interp *interp, Tcl_Obj *objPtr, int type, void **addrPtr);
+
+static Tcl_ObjType addrType = {
+    "ns:addr",
+    (Tcl_FreeInternalRepProc *) NULL,
+    (Tcl_DupInternalRepProc *) NULL,
+    UpdateStringOfAddr,
+    SetAddrFromAny
+};
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsTclInitAddrType --
+ *
+ *	Initialize the Tcl address object type.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+NsTclInitAddrType(void)
+{
+    Tcl_RegisterObjType(&addrType);
+}
 
 
 /*
@@ -943,9 +983,13 @@ CreateTclThread(NsInterp *itPtr, char *script, int detached, Ns_Thread *thrPtr)
     ThreadArg *argPtr;
 
     argPtr = ns_malloc(sizeof(ThreadArg) + strlen(script));
-    argPtr->server = (itPtr ? itPtr->servPtr->server : NULL);
     argPtr->detached = detached;
     strcpy(argPtr->script, script);
+    if (itPtr != NULL && itPtr->servPtr != NULL) {
+    	argPtr->server = itPtr->servPtr->server;
+    } else {
+    	argPtr->server = NULL;
+    }
     Ns_ThreadCreate(NsTclThread, argPtr, 0, thrPtr);
 }
 
@@ -1016,6 +1060,7 @@ static int
 GetArgs(Tcl_Interp *interp, int objc, Tcl_Obj **objv, CONST char *opts[],
 	 int type, int create, int *optPtr, void **addrPtr)
 {
+    Tcl_Obj *objPtr;
     int   opt;
     void *addr;
 
@@ -1029,17 +1074,155 @@ GetArgs(Tcl_Interp *interp, int objc, Tcl_Obj **objv, CONST char *opts[],
     }
     if (opt == create) {
 	addr = ns_malloc(sizeof(void *));
-        SetAddr(interp, type, addr);
+	objPtr = Tcl_GetObjResult(interp);
+	SetAddrInternalRep(objPtr, type, addr);
     } else {
         if (objc < 3) {
 	    Tcl_WrongNumArgs(interp, 2, objv, "object");
             return 0;
 	}
-    	if (GetAddr(interp, type, Tcl_GetString(objv[2]), &addr) != TCL_OK) {
+    	if (GetAddrFromObj(interp, objv[2], type, &addr) != TCL_OK) {
 	    return 0;
 	}
     }
     *addrPtr = addr;
     *optPtr = opt;
     return 1;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * GetAddrFromObj --
+ *
+ *	Return the internal pointer of an address Tcl_Obj.
+ *
+ * Results:
+ *	TCL_OK or TCL_ERROR if not a valid Ns_Time.
+ *
+ * Side effects:
+ *	Object is set to id type if necessary.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+GetAddrFromObj(Tcl_Interp *interp, Tcl_Obj *objPtr, int type, void **addrPtr)
+{
+    if (Tcl_ConvertToType(interp, objPtr, &addrType) != TCL_OK) {
+	return TCL_ERROR;
+    }
+    if ((int) objPtr->internalRep.twoPtrValue.ptr1 != type) {
+	Tcl_AppendResult(interp, "incorrect type: ", Tcl_GetString(objPtr), NULL);
+	return TCL_ERROR;
+    }
+    *addrPtr = objPtr->internalRep.twoPtrValue.ptr2;
+    return TCL_OK;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * UpdateStringOfAddr --
+ *
+ *	Update the string representation for an address object.
+ *	Note: This procedure does not free an existing old string rep
+ *	so storage will be lost if this has not already been done. 
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	The object's string is set to a valid string that results from
+ *	the Ns_Time-to-string conversion.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+UpdateStringOfAddr(objPtr)
+    register Tcl_Obj *objPtr;	/* Int object whose string rep to update. */
+{
+    int type = (int) objPtr->internalRep.twoPtrValue.ptr1;
+    void *addr = objPtr->internalRep.twoPtrValue.ptr2;
+    char buf[40];
+    size_t len;
+
+    len = sprintf(buf, "%cid%p", type, addr);
+    objPtr->bytes = ckalloc(len + 1);
+    strcpy(objPtr->bytes, buf);
+    objPtr->length = len;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * SetAddrFromAny --
+ *
+ *	Attempt to generate an address internal form for the Tcl object.
+ *
+ * Results:
+ *	The return value is a standard object Tcl result. If an error occurs
+ *	during conversion, an error message is left in the interpreter's
+ *	result unless "interp" is NULL.
+ *
+ * Side effects:
+ *	If no error occurs, an int is stored as "objPtr"s internal
+ *	representation. 
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+SetAddrFromAny(Tcl_Interp *interp, Tcl_Obj *objPtr)
+{
+    void *addr;
+    int type;
+    register char *id, *p;
+
+    p = id = Tcl_GetString(objPtr);
+    type = *p++;
+    if (type == '\0' || *p++ != 'i' || *p++ != 'd'
+	|| sscanf(p, "%p", &addr) != 1 || addr == NULL) {
+	Tcl_AppendResult(interp, "invalid thread object id \"",
+	    id, "\"", NULL);
+	return TCL_ERROR;
+    }
+    SetAddrInternalRep(objPtr, type, addr);
+    return TCL_OK;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * SetAddrInternalRep --
+ *
+ *	Set the internal address, freeing a previous internal rep if
+ *	necessary.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	Object will be an addr type.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+SetAddrInternalRep(Tcl_Obj *objPtr, int type, void *addr)
+{
+    Tcl_ObjType *typePtr = objPtr->typePtr;
+
+    if (typePtr != NULL && typePtr->freeIntRepProc != NULL) {
+	(*typePtr->freeIntRepProc)(objPtr);
+    }
+    objPtr->typePtr = &addrType;
+    objPtr->internalRep.twoPtrValue.ptr1 = (void *) type;
+    objPtr->internalRep.twoPtrValue.ptr2 = addr;
+    Tcl_InvalidateStringRep(objPtr);
 }
