@@ -6,6 +6,28 @@
 	Tcl_GetIndexFromObj.  This should improve performance as well as
 	the readability of the code.
 
+	* nsd/auth.c:
+	* nsd/form.c:
+	* nsd/httptime.c:
+	* nsd/log.c:
+	* nsd/mimetypes.c:
+	* nsd/nsmain.c:
+	* nsd/pathname.c:
+	* nsd/random.c:
+	* nsd/tclatclose.c:
+	* nsd/tclfile.c:
+	* nsd/tclhttp.c:
+	* nsd/tclimg.c:
+	* nsd/tclinit.c:
+	* nsd/tclmisc.c:
+	* nsd/tclrequest.c:
+	* nsd/tclresp.c:
+	* nsd/tclsock.c:
+	* nsd/tclthread.c:
+	* nsd/urlencode.c:
+	* nsd/urlopen.c: Cleaned up the way we were setting the result
+	on tcl errors.
+
 2002-06-12  Jim Davidson <jgdavidson@aol.com>
 	
 	* include/nsthread.h:
