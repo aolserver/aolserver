@@ -34,7 +34,7 @@
  *	Functions that return data to a browser. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.13 2001/03/23 17:04:34 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.14 2001/03/23 18:33:57 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -215,15 +215,18 @@ int
 Ns_ConnFlushHeaders(Ns_Conn *conn, int status)
 {
     Conn *connPtr = (Conn *) conn;
-    Ns_DString *dsPtr = &connPtr->response;
+    Ns_DString *dsPtr;
     status = NS_OK;
 
-    connPtr->responseStatus = status;
-    if (!(conn->flags & NS_CONN_SKIPHDRS)) {
-	Ns_ConnConstructHeaders(conn, dsPtr);
-	status = Ns_WriteConn(conn, dsPtr->string, dsPtr->length);
+    if (!(conn->flags & NS_CONN_SENTHDRS)) {
+    	dsPtr = &connPtr->response;
+    	connPtr->responseStatus = status;
+    	if (!(conn->flags & NS_CONN_SKIPHDRS)) {
+	    Ns_ConnConstructHeaders(conn, dsPtr);
+	    status = Ns_WriteConn(conn, dsPtr->string, dsPtr->length);
+    	}
+    	conn->flags |= NS_CONN_SENTHDRS;
     }
-    conn->flags |= NS_CONN_SENTHDRS;
     return status;
 }
 
