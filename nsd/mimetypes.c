@@ -34,7 +34,7 @@
  *	Defines standard default mime types. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/mimetypes.c,v 1.10 2003/01/18 19:24:20 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/mimetypes.c,v 1.11 2003/08/08 14:52:17 elizthom Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #define TYPE_DEFAULT "*/*"
@@ -143,6 +143,10 @@ static struct exttype {
     { ".txt",   "text/plain" },
     { ".xbm",   "image/x-xbitmap" },
     { ".xpm",   "image/x-xpixmap" },
+    { ".xht",   "application/xhtml+xml"},
+    { ".xhtml", "application/xhtml+xml"},
+    { ".xml",   "text/xml"},
+    { ".xsl",   "text/xml"},
     { ".vrml",  "x-world/x-vrml" },
     { ".wav",   "audio/x-wav" },
     { ".wrl",   "x-world/x-vrml" },

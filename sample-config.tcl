@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/Attic/sample-config.tcl,v 1.10 2003/08/05 19:56:05 elizthom Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/Attic/sample-config.tcl,v 1.11 2003/08/08 14:52:17 elizthom Exp $
 #
 
 #
@@ -62,7 +62,7 @@ set homedir                [file dirname [ns_info config]]
 set bindir                 [file dirname [ns_info nsd]]
 
 set pageroot               ${homedir}/servers/${servername}/pages
-set directoryfile          index.adp,index.html,index.htm
+set directoryfile          index.adp,index.html,index.htm,index.xhtml,index.xht
 
 # nsssl: Only loads if keyfile.pem and certfile.pem exist.
 #set sslmodule              nsssl.so  ;# Domestic 128-bit/1024-bit SSL.
