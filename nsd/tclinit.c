@@ -34,7 +34,7 @@
  *	Initialization routines for Tcl.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.4 2000/08/17 06:09:49 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.5 2000/08/28 13:13:28 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -162,7 +162,6 @@ static int QueueInit(Tcl_Interp *interp, char *script);
  * Static variables defined in this file
  */
 
-static Ns_Tls      tdTls;
 static TclTrace   *firstAtCreatePtr;
 static TclTrace   *firstAtCleanupPtr;
 static TclTrace   *firstAtDeletePtr;
@@ -542,7 +541,6 @@ NsTclInit(void)
      */
 
     Ns_DStringInit(&modlist);
-    Ns_TlsAlloc(&tdTls, FreeData);
     Ns_MutexSetName2(&lock, "ns", "tclinterp");
 
     /*
@@ -782,13 +780,21 @@ TclData *
 NsTclGetData(Tcl_Interp *ignored)
 {
     TclData *tdPtr;
+    static Ns_Tls tls;
 
-    tdPtr = (TclData *) Ns_TlsGet(&tdTls);
+    if (tls == NULL) {
+	Ns_MasterLock();
+	if (tls == NULL) {
+	    Ns_TlsAlloc(&tls, FreeData);
+	}
+	Ns_MasterUnlock();
+    }
+    tdPtr = (TclData *) Ns_TlsGet(&tls);
     if (tdPtr == NULL) {
     	tdPtr = ns_calloc(sizeof(TclData), 1);
     	Tcl_InitHashTable(&tdPtr->sets, TCL_STRING_KEYS);
     	Tcl_InitHashTable(&tdPtr->dbs, TCL_STRING_KEYS);
-    	Ns_TlsSet(&tdTls, tdPtr);
+    	Ns_TlsSet(&tls, tdPtr);
     }
     return tdPtr;
 }
