@@ -1,5 +1,10 @@
 2004-08-13  Dossy Shiobara <dossy@panoptic.com>
 
+	* Makefile (1.49): The CVS/ directory was getting included in
+	  install-tests-new target, oops.
+
+2004-08-13  Dossy Shiobara <dossy@panoptic.com>
+
 	* win32/: nscgi/nscgi.dsp (1.6), nscp/nscp.dsp (1.6), nsd/nsd.dsp
 	  (1.15), nsdb/nsdb.dsp (1.2), nslog/nslog.dsp (1.6),
 	  nsperm/nsperm.dsp (1.6), nssock/nssock.dsp (1.9),
