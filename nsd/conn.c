@@ -34,7 +34,7 @@
  *      Manage the Ns_Conn structure
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.26 2002/08/26 02:05:13 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.27 2002/09/28 19:23:11 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -329,6 +329,32 @@ Ns_ConnPeerPort(Ns_Conn *conn)
     Conn           *connPtr = (Conn *) conn;
 
     return connPtr->reqPtr->port;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ * Ns_SetConnLocationProc --
+ *
+ *      Set pointer to custom routine that acts like Ns_ConnLocation();
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+Ns_SetConnLocationProc(Ns_LocationProc *procPtr)
+{
+    NsServer *servPtr = NsGetInitServer();
+
+    if (servPtr != NULL) {
+	servPtr->locationProc = procPtr;
+    }
 }
 
 
