@@ -34,7 +34,7 @@
  *	Tcl wrappers around all thread objects 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclthread.c,v 1.11 2002/06/19 10:24:54 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclthread.c,v 1.12 2002/07/05 23:17:19 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #ifdef NS_NOCOMPAT
 #undef NS_NOCOMPAT
@@ -135,17 +135,27 @@ int
 NsTclMutexObjCmd(ClientData data, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 {
     Ns_Mutex *lockPtr;
+    static CONST char *cmds[] = {
+	"create", "destroy", "lock", "unlock", NULL
+    };
+    enum {
+	MCreateIdx, MDestroyIdx, MLockIdx, MUnlockIdx
+    };
+    int idx;
 
     if (objc < 2) {
         Tcl_WrongNumArgs(interp, 1, objv, "command ...");
         return TCL_ERROR;
     }
-    if (STREQ(Tcl_GetString(objv[1]), "create")) {
+    if (Tcl_GetIndexFromObj(interp, objv[1], cmds, "cmd", 0, &idx) != TCL_OK) {
+	return TCL_ERROR;
+    }
+    if (idx == MCreateIdx) {
         lockPtr = ns_malloc(sizeof(Ns_Mutex));
-	    Ns_MutexInit(lockPtr);
-	    if (objc > 2) {
-		Ns_MutexSetName(lockPtr, Tcl_GetString(objv[2]));
-	    }
+	Ns_MutexInit(lockPtr);
+	if (objc > 2) {
+	    Ns_MutexSetName(lockPtr, Tcl_GetString(objv[2]));
+	}
         SetObj(interp, 'm', lockPtr);
     } else {
         if (objc != 3) {
@@ -155,20 +165,18 @@ NsTclMutexObjCmd(ClientData data, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 			  (void **) &lockPtr) != TCL_OK) {
             return TCL_ERROR;
         }
-        if (STREQ(Tcl_GetString(objv[1]), "lock")) {
-	    	Ns_MutexLock(lockPtr);
-        } else if (STREQ(Tcl_GetString(objv[1]), "unlock")) {
-	    	Ns_MutexUnlock(lockPtr);
-        } else if (STREQ(Tcl_GetString(objv[1]), "destroy")) {
-	    	Ns_MutexDestroy(lockPtr);
+	switch (idx) {
+	case MLockIdx:
+	    Ns_MutexLock(lockPtr);
+	    break;
+	case MUnlockIdx:
+	    Ns_MutexUnlock(lockPtr);
+	    break;
+	case MDestroyIdx:
+	    Ns_MutexDestroy(lockPtr);
             ns_free(lockPtr);
-        } else {
-	    Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "unknown command \"",
-		    Tcl_GetString(objv[1]), 
-		    "\": should be create, destroy, lock or unlock",
-		    NULL);
-	    return TCL_ERROR;
-        }
+	    break;
+	}
     }
     return TCL_OK;
 }
