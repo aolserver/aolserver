@@ -1,3 +1,12 @@
+2003-09-19  Mark Page  <mpagenva@aol.com>
+
+        * nsd/adprequest.c:
+          nsd/adpeval.c: Fix error where 
+          xxx.adp --> ns_adp_parse --> ns_adp_include --> ns_adp_puts results in
+          the puts text going directly into the final result buffer, rather then
+          to the intermediate buffer to be returned by ns_adp_parse to the xxx.adp
+          page code.
+
 2003-09-12  Mark Page  <mpagenva@aol.com>
 
 	* TAG aolserver_v4_r0_beta_14
