@@ -33,7 +33,7 @@
  *      Routines for dealing with HTML FORM's.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/form.c,v 1.4 2001/04/23 21:13:30 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/form.c,v 1.5 2001/05/10 08:58:26 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -277,7 +277,7 @@ GetBoundary(Tcl_DString *dsPtr, Ns_Conn *conn)
 	&& (bs = Ns_StrCaseFind(type, "boundary=")) != NULL) {
 	bs += 9;
 	be = bs;
-	while (*be && !isspace(*be)) {
+	while (*be && !isspace(UCHAR(*be))) {
 	    ++be;
 	}
 	Tcl_DStringAppend(dsPtr, "--", 2);
@@ -294,7 +294,7 @@ AttEnd(char **sPtr, char **ePtr)
 
     s = *sPtr;
     e = s;
-    while (*e && !isspace(*e)) {
+    while (*e && !isspace(UCHAR(*e))) {
 	++e;
     }
     if (e > s && e[-1] == ';') {
