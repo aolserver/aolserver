@@ -1,3 +1,8 @@
+2004-11-05  Dossy Shiobara <dossy@panoptic.com>
+
+	* nsd/sockcallback.c (1.12.2.3): Dereferencing cbPtr->nextPtr is
+	  dangerous since cbPtr could have been freed.
+
 2004-09-30  tag aolserver_v40_r9_b2
 
 2004-09-30  Dossy Shiobara <dossy@panoptic.com>
