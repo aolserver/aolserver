@@ -33,9 +33,13 @@
  *	Permissions
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsperm/nsperm.c,v 1.5 2001/03/12 22:01:39 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsperm/nsperm.c,v 1.6 2001/03/12 22:23:43 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
+
+#ifndef INADDR_NONE
+#define INADDR_NONE (-1)
+#endif
 
 /*
  * For AOLserver
