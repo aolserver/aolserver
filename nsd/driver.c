@@ -34,7 +34,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.27 2004/07/30 14:03:06 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.28 2004/08/10 17:49:28 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -60,6 +60,9 @@ enum {
     SOCK_PENDING,
     SOCK_READY,
     SOCK_RUNNING,
+    SOCK_DROPPED,
+    SOCK_TIMEOUT,
+    SOCK_OVERFLOW
 };
 
 /*
@@ -123,6 +126,7 @@ static int RunQueWaits(Driver *drvPtr, Sock *sockPtr);
 static void ThreadName(Driver *drvPtr, char *name);
 static void SockWait(Sock *sockPtr, Ns_Time *nowPtr, int timeout,
 			  Sock **listPtrPtr);
+static void AppendConn(Driver *drvPtr, Conn *connPtr);
 #define SockPush(s, sp)		((s)->nextPtr = *(sp), *(sp) = (s))
 
 /*
@@ -789,23 +793,6 @@ NsFreeConn(Conn *connPtr)
     TriggerDriver(drvPtr);
 }
 
-
-static void
-DelinkConn(Driver *drvPtr, Conn *connPtr)
-{
-    if (connPtr->prevPtr != NULL) {
-       connPtr->prevPtr->nextPtr = connPtr->nextPtr;
-    } else {
-       drvPtr->firstConnPtr = connPtr->nextPtr;
-    }
-    if (connPtr->nextPtr != NULL) {
-       connPtr->nextPtr->prevPtr = connPtr->prevPtr;
-    } else {
-       drvPtr->lastConnPtr = NULL;
-    }
-    connPtr->prevPtr = connPtr->nextPtr = NULL;
-}
-
 
 /*
  *----------------------------------------------------------------------
@@ -833,17 +820,18 @@ DriverThread(void *arg)
 {
     SOCKET lsock;
     Driver *drvPtr = (Driver *) arg;
-    int n, pollto, flags;
+    int n, pollto, flags, id;
     Sock *sockPtr, *closePtr, *nextPtr;
     QueWait *queWaitPtr;
     Conn *connPtr, *nextConnPtr, *freeConnPtr;
     Limits *limitsPtr;
-    char drain[1024];
+    char drain[1024], *msg, *limit;
     Ns_Time diff;
     Sock *waitPtr = NULL;	/* Sock's waiting for I/O events. */
-    Sock *readSockPtr = NULL;  /* Sock's to send to reader threads. */
-    Sock *runSockPtr = NULL;   /* Sock's ready for pre-queue callbacks. */
+    Sock *readSockPtr = NULL;	/* Sock's to send to reader threads. */
+    Sock *runSockPtr = NULL;	/* Sock's ready for pre-queue callbacks. */
     Sock *queSockPtr = NULL;    /* Sock's ready to queue. */
+    Sock *errSockPtr = NULL;	/* Sock's requiring error processing. */
 
     ThreadName(drvPtr, "driver");
     
@@ -910,18 +898,23 @@ DriverThread(void *arg)
         drvPtr->timeout = maxtimeout;
         while (sockPtr != NULL) {
             sockPtr->pidx = Poll(drvPtr, sockPtr->sock, POLLIN,
-                    &sockPtr->timeout);
-            if (sockPtr->connPtr != NULL) {
+                    		 &sockPtr->timeout);
+            if (sockPtr->state == SOCK_QUEWAIT) {
                 queWaitPtr = sockPtr->connPtr->queWaitPtr;
                 while (queWaitPtr != NULL) {
                     queWaitPtr->pidx = Poll(drvPtr, queWaitPtr->sock,
-                            queWaitPtr->events,
-                            &queWaitPtr->timeout);
+                            		    queWaitPtr->events,
+					    &queWaitPtr->timeout);
                     queWaitPtr = queWaitPtr->nextPtr;
                 }
 	    }
             sockPtr = sockPtr->nextPtr;
         }
+
+	/*
+	 * Calculate the final timeout in ms.
+	 */
+
         if (Ns_DiffTime(&drvPtr->timeout, &drvPtr->now, &diff) <= 0)  {
             pollto = 0;
         } else if (diff.sec > 214783) { /* NB: Avoid overflow. */
@@ -1046,13 +1039,16 @@ DriverThread(void *arg)
             case SOCK_RUNWAIT:
                 /*
                  * Handle connections blocked from running due to
-                 * resource limits.
+                 * resource limits.  Note these connections are
+		 * also held on the drvPtr->firstConnPtr list and
+		 * will be placed on waitPtr below if necessary.
                  */
 
                 if (drvPtr->pfds[sockPtr->pidx].revents & POLLIN) {
-                    /* Client dropped waiting for processing. */
-                    DelinkConn(drvPtr, sockPtr->connPtr);
-                    SockClose(drvPtr, sockPtr);
+		    sockPtr->state = SOCK_DROPPED;
+		} else if (Ns_DiffTime(&sockPtr->timeout, &drvPtr->now,
+                                NULL) <= 0) {
+		    sockPtr->state = SOCK_TIMEOUT;
                 }
                 break;
                     
@@ -1087,7 +1083,7 @@ DriverThread(void *arg)
                 ++n;
             }
             while (n > drvPtr->idlereaders
-                    && drvPtr->nreaders < drvPtr->maxreaders) {
+                   && drvPtr->nreaders < drvPtr->maxreaders) {
                 Ns_ThreadCreate(ReaderThread, drvPtr, 0,
                         &drvPtr->readers[drvPtr->nreaders]);
                 ++drvPtr->nreaders;
@@ -1165,62 +1161,86 @@ DriverThread(void *arg)
             connPtr = sockPtr->connPtr; 
             sockPtr->timeout = drvPtr->now;
             Ns_IncrTime(&sockPtr->timeout, connPtr->limitsPtr->timeout, 0);
-            connPtr->prevPtr = drvPtr->lastConnPtr;
-            if (drvPtr->firstConnPtr == NULL) {
-                drvPtr->firstConnPtr = connPtr;
-            } else {
-                drvPtr->lastConnPtr->nextPtr = connPtr;
-            }
-            drvPtr->lastConnPtr = connPtr;
-            connPtr->nextPtr = NULL;
+	    AppendConn(drvPtr, connPtr);
 	}
 
 	/*
          * Attempt to queue any waiting connections.
 	 */
 
-        connPtr = drvPtr->firstConnPtr; 
+	connPtr = drvPtr->firstConnPtr;
+	drvPtr->firstConnPtr = drvPtr->lastConnPtr = NULL;
         while (connPtr != NULL) {
+	    nextConnPtr = connPtr->nextPtr;
             sockPtr = connPtr->sockPtr;
             limitsPtr = connPtr->limitsPtr;
             Ns_MutexLock(&limitsPtr->lock);
+	    if (sockPtr->state == SOCK_RUNWAIT) {
+		--limitsPtr->nwaiting;
+	    }
             if (limitsPtr->nrunning < limitsPtr->maxrun) {
-                if (sockPtr->state == SOCK_RUNWAIT) {
-                    --limitsPtr->nwaiting;
-                }
                 ++limitsPtr->nrunning;
                 sockPtr->state = SOCK_RUNNING;
-            } else if (sockPtr->state != SOCK_RUNWAIT) {
-                if (limitsPtr->nwaiting < limitsPtr->maxwait) {
-                    ++limitsPtr->nwaiting;
-                    sockPtr->state = SOCK_RUNWAIT;
-                } else {
-                    Ns_Log(Warning, "%s: dropping connection, "
-                            "limit %s maxwait %u reached", drvPtr->name,
-                            limitsPtr->name, limitsPtr->maxwait);
-                    connPtr->responseStatus = 503;
-                    ++limitsPtr->nrunning;
-                    sockPtr->state = SOCK_RUNNING;
-                }
-            }
+	    } else if (limitsPtr->nwaiting < limitsPtr->maxwait) {
+		++limitsPtr->nwaiting;
+		sockPtr->state = SOCK_RUNWAIT;
+	    } else {
+		sockPtr->state = SOCK_OVERFLOW;
+	    }
             Ns_MutexUnlock(&limitsPtr->lock);
-            if (sockPtr->state != SOCK_RUNNING) {
-                connPtr = connPtr->nextPtr;
-            } else {
-                if (connPtr == drvPtr->firstConnPtr) {
-                    drvPtr->firstConnPtr = connPtr->nextPtr;
-                } else {
-                    connPtr->prevPtr->nextPtr = connPtr->nextPtr;
-                }
-                if (connPtr == drvPtr->lastConnPtr) {
-                    drvPtr->lastConnPtr = connPtr->prevPtr;
-                } else {
-                    connPtr->nextPtr->prevPtr = connPtr->prevPtr;
-                }
-                nextConnPtr = connPtr->nextPtr;
-                NsQueueConn(connPtr);
-                connPtr = nextConnPtr;
-            }
+	    switch (sockPtr->state) {
+	    case SOCK_RUNNING:
+		SockPush(sockPtr, &queSockPtr);
+		break;
+
+	    case SOCK_RUNWAIT:
+		AppendConn(drvPtr, connPtr);
+		SockPush(sockPtr, &waitPtr);
+		break;
+
+	    case SOCK_OVERFLOW:
+		SockPush(sockPtr, &errSockPtr);
+		break;
+
+	    default:
+		Ns_Fatal("impossible state");
+		break;
+	    }
+	    connPtr = nextConnPtr;
+	}
+
+	/*
+	 * Handle connections which require error processing.
+	 */
+
+	while ((sockPtr = errSockPtr) != NULL) {
+	    errSockPtr = sockPtr->nextPtr;
+	    connPtr = sockPtr->connPtr;
+	    id = connPtr->id;
+	    limit = connPtr->limitsPtr->name;
+	    if (sockPtr->state == SOCK_DROPPED) {
+		msg = "dropped";
+                SockClose(drvPtr, sockPtr);
+	    } else {
+	    	if (sockPtr->state == SOCK_OVERFLOW) {
+		    msg = "overflow";
+		    connPtr->flags |= NS_CONN_OVERFLOW;
+		} else {
+		    msg = "timeout";
+		}
+		connPtr->flags |= NS_CONN_TIMEOUT;
+		SockPush(sockPtr, &queSockPtr);
+	    }
+	    Ns_Log(Warning, "%s: %s %s: %d", drvPtr->name, msg, limit, id);
+	}
+
+	/*
+	 * Queue connections.
+	 */
+
+	while ((sockPtr = queSockPtr) != NULL) {
+	    queSockPtr = sockPtr->nextPtr;
+	    NsQueueConn(sockPtr->connPtr);
 	}
 
 	/*
@@ -1329,6 +1349,35 @@ SockWait(Sock *sockPtr, Ns_Time *nowPtr, int timeout, Sock **listPtrPtr)
     sockPtr->timeout = *nowPtr;
     Ns_IncrTime(&sockPtr->timeout, timeout, 0);
     SockPush(sockPtr, listPtrPtr);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * AppendConn --
+ *
+ *	Append a connection to the waiting list.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+AppendConn(Driver *drvPtr, Conn *connPtr)
+{
+    if ((connPtr->prevPtr = drvPtr->lastConnPtr) == NULL) {
+	drvPtr->firstConnPtr = connPtr;
+    } else {
+	connPtr->prevPtr->nextPtr = connPtr;
+    }
+    drvPtr->lastConnPtr = connPtr;
+    connPtr->nextPtr = NULL;
 }
 
 
