@@ -1,0 +1,115 @@
+
+$Header: /Users/dossy/Desktop/cvs/aolserver/win32/Attic/README,v 1.1.1.1.12.2 2002/11/10 15:23:19 jgdavidson Exp $
+
+
+AOLserver Win32 Port
+--------------------
+
+This directory is for building AOLserver on Win32.  The server appears
+to run on Intel Windows XP (other Windows versions have not been tested).
+Included is a top-level Workspace for Visual C++ which references individual
+Projects in the subdirectories.  All the project file pathnames are relative
+to the diretory in which the project resides, e.g., nsd/nsd.dsp will expect
+to compile ../../nsd/nsmain.c for output in nsd/Debug.  Directories include:
+
+nsthread:	Thread library.
+nsd:		Core AOLserver DLL.
+main:		AOLserver nsd.exe program.
+cgitest:	Simple .exe CGI test program.
+threadtest:	Thread library test program.
+nscp:
+nscgi:
+nslog:
+nsperm:
+nssock:		Various modules.
+test:		Simple AOLserver directory for testing.
+
+Other modules (e.g., nsssl) have not yet been ported/tested.
+
+Building
+--------
+
+To build, you will first need to build and install a threads-enabled Tcl84
+or newer distribution.  The project files above assume you installed Tcl
+into the the c:\aolserver directory.  If you change this you'll have to
+fiddle around with the various project settings to set the your install
+path.  I have Visual C++ 6.0 installed with the required environment
+variables set so the following worked for me to build and install both
+debug and release versions:
+
+(extract Tcl source into tcl8.4 directory)
+cd tcl8.4/win
+nmake -f makefile.vc OPTS=threads,symbols,msvcrt INSTALLDIR=c:/aolserver \
+	 MSVCDIR=dummy
+nmake -f makefile.vc OPTS=threads,symbols,msvcrt INSTALLDIR=c:/aolserver \
+	MSVCDIR=dummy install
+nmake -f makefile.vc OPTS=threads,msvcrt INSTALLDIR=c:/aolserver \
+	MSVCDIR=dummy
+nmake -f makefile.vc OPTS=threads,symbols,msvcrt INSTALLDIR=c:/aolserver 
+	MSVCDIR=dummy install-binaries
+
+
+With Tcl installed, simply open the aolserver.dsw project workspace file,
+select the "main" project (which depends on all other projects), select
+release or debug build, and select "Rebuild All".  A post-build step in
+the main project will copy resulting .exe and .dll's including the correct
+libtcl84t.dll from the c:/aolserver directory to the the Debug or Release
+subdirectory of this directory.
+
+
+Testing
+-------
+
+The test directory contains a simple AOLserver install directory and 
+config usable for testing.  It assumes a debug or release build has
+been completed as described above.  To use try:
+
+	cd test
+	../debug/nsd -ft nsd.tcl
+
+or:
+
+	../release/nsd -ft nsd.tcl
+
+Note the default address selected by the nssock module to listen for
+connections.  Point your browser to that address/port and you should
+get a testing page where you can enter Tcl commands and execute the 
+test CGI among other fun stuff.
+
+
+Installing
+----------
+
+To install, create an AOLserver installation directory as you would do
+on Unix and copy the binaries from Debug or Release to the bin
+subdirectory.  You may then run the server in a DOS window as on Unix:
+
+	bin/nsd -f -t nsd.tcl
+
+On NT, you can also install as an NT service with:
+
+	bin/nsd -I -f nsd.tcl
+
+Then start/stop the server with the Services control panel.  To remove
+an installed server use:
+
+	bin/nsd -R -f nsd.tcl
+
+
+General Notes
+-------------
+
+The Win32 port is very much a port from Unix, e.g., it does not use
+fancy WSA socket calls and relies on the libc library to be very much
+like Unix.  Pathnames are almost always translated explicitly to
+forward slash and it's very unlikely fancy UNC style names (e.g.,
+\\host\file) will ever work.  Some NT semantics may still cause
+problems, e.g., you probably cannot roll the server log file as files
+cannot be renamed while open on NT.  The server attempts to writes logs
+in "text" format (i.e., \r\n) but most other files are assumed binary
+which is normally fine.  The Tcl library is compiled as "nstcl.dll" to
+ensure nsd.exe uses it instead of a thread unsafe tcl83.dll which may
+be loaded because you're playing around with the Tk widget demo.
+
+
+Enjoy!
