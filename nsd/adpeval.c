@@ -33,7 +33,7 @@
  *	ADP string and file eval.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.25 2003/06/26 17:01:40 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.26 2003/07/18 13:47:33 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -829,7 +829,13 @@ AdpEval(NsInterp *itPtr, AdpCode *codePtr, Tcl_Obj **objs)
     for (i = 0; itPtr->adp.exception == ADP_OK && i < codePtr->nblocks; ++i) {
 	len = codePtr->len[i];
 	if (len > 0) {
-	    Ns_DStringNAppend(itPtr->adp.outputPtr, ptr, len);
+            /*
+             * outputPtr can have been cleared on previous iterations through
+             * this loop.  Need to check it before trying to use it.
+             */
+            if( itPtr->adp.outputPtr != NULL ) {
+                Ns_DStringNAppend(itPtr->adp.outputPtr, ptr, len);
+            }
 	} else {
 	    len = -len;
 	    if (itPtr->adp.debugLevel > 0) {
