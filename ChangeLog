@@ -1,3 +1,12 @@
+2003-02-05  Elizabeth Thomas <eathomas93@aol.com>
+
+        * nsext/nsext.c: Fixed LocalProxy to move Ns_CloseOnExec
+        calls after the file descriptors have been opened
+
+        * nsd/nsd.h: Bump label/version to aolserver_v35_b5
+
+        * Create tag aolserver_v35_b5
+
 2003-02-01  Nathan Folkman <shmooved@aol.com>
 
         * nsd/tclmisc.c: Fixed Ns_ThreadList to include connection 
