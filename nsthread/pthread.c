@@ -351,14 +351,13 @@ NsCreateThread(void *arg, long stacksize, Ns_Thread *resultPtr)
  *
  * Ns_ThreadExit --
  *
- *	Terminate a thread.  Note the use of _endthreadex instead of
- *	ExitThread which, as above, is corrent.
+ *	Terminate a thread.
  *
  * Results:
  *	None.
  *
  * Side effects:
- *	Thread will clean itself up via the DllMain thread detach code.
+ *	Cleanup will be handled by the pthread call to CleanupTls.
  *
  *----------------------------------------------------------------------
  */
@@ -756,7 +755,7 @@ CleanupTls(void *arg)
     void **slots = arg;
 
     /*
-     * Restore the current slots durin cleanup so handlers can access
+     * Restore the current slots during cleanup so handlers can access
      * TLS in other slots.
      */
 
