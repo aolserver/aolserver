@@ -53,7 +53,7 @@
  *
  */
 
-static const char *RCSID = "@(#): $Header: /Users/dossy/Desktop/cvs/aolserver/nsssl/x509.c,v 1.1 2001/04/23 21:06:01 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#): $Header: /Users/dossy/Desktop/cvs/aolserver/nsssl/x509.c,v 1.2 2001/04/24 19:43:26 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 
 #include "ns.h"
@@ -63,30 +63,16 @@ static const char *RCSID = "@(#): $Header: /Users/dossy/Desktop/cvs/aolserver/ns
 
 #include <ctype.h>
 
-static int
-nsX509Initialized = NS_FALSE;
-
-static B_ALGORITHM_OBJ
-asciiDecoder = (B_ALGORITHM_OBJ) NULL_PTR;
-
-static Ns_CriticalSection
-nsAsciiDecoderCS;
-
+static int nsX509Initialized = NS_FALSE;
+static B_ALGORITHM_OBJ asciiDecoder = (B_ALGORITHM_OBJ) NULL_PTR;
+static Ns_Cs nsAsciiDecoderCS;
 
 /*
  * Private function prototypes.
  */
-static void
-X509Cleanup(void *ignore);
 
-static int
-X509Initialize(void);
-
-
-/*
- * Exported functions
- */
-
+static void X509Cleanup(void *ignore);
+static int X509Initialize(void);
 
 
 /* 
@@ -322,7 +308,7 @@ GetBerFromPEM(char *filename, char *section, int *length)
     if (X509Initialize() != NS_OK) {
         return NULL;
     }
-    Ns_EnterCriticalSection(&nsAsciiDecoderCS);
+    Ns_CsEnter(&nsAsciiDecoderCS);
 
     chunk = NULL;
     do {
@@ -420,7 +406,7 @@ GetBerFromPEM(char *filename, char *section, int *length)
         *length += updateLength;
     } while (0);
     
-    Ns_LeaveCriticalSection(&nsAsciiDecoderCS);
+    Ns_CsLeave(&nsAsciiDecoderCS);
     
     if (fp != NULL) {
         fclose(fp);
@@ -1248,9 +1234,6 @@ X509Initialize(void)
     if (nsX509Initialized != NS_TRUE) {
         int             status = NS_ERROR;
 
-        if (Ns_InitializeCriticalSection(&nsAsciiDecoderCS) != NS_OK) {
-            return NS_ERROR;
-        }
         do {
             if (B_CreateAlgorithmObject(&asciiDecoder) != 0) {
                 break;
@@ -1300,5 +1283,5 @@ X509Cleanup(void *ignore)
 {
     B_DestroyAlgorithmObject(&asciiDecoder);
     nsX509Initialized = NS_FALSE;
-    Ns_DestroyCriticalSection(&nsAsciiDecoderCS);
+    Ns_CsDestroy(&nsAsciiDecoderCS);
 }
