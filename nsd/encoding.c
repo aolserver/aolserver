@@ -34,7 +34,7 @@
  *	Defines standard default charset to encoding mappings.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/encoding.c,v 1.3 2001/03/20 23:31:12 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/encoding.c,v 1.4 2001/03/23 18:33:23 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -63,7 +63,7 @@ static void AddEncoding(char *charset, char *enc);
  * Static variables defined in this file.
  */
 
-static Tcl_HashTable    encodingTable;;
+static Tcl_HashTable    encodingTable;
 static Ns_Mutex lock;
 static Ns_Cond cond;
 
