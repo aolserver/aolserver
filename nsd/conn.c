@@ -34,7 +34,7 @@
  *      Manage the Ns_Conn structure
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.4 2000/08/17 06:09:49 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.5 2000/08/28 13:10:33 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -1400,8 +1400,11 @@ NsTclConnCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
                          argv[0], " cmd ", NULL);
         return TCL_ERROR;
     }
-
     connPtr = (Conn *) Ns_GetConn();
+    if (STREQ(argv[1], "isconnected")) {
+	Tcl_SetResult(interp, (connPtr == NULL) ? "0" : "1", TCL_STATIC);
+	return TCL_OK;
+    }
     if (connPtr == NULL) {
         Tcl_AppendResult(interp, "no current connection", NULL);
         return TCL_ERROR;
@@ -1482,14 +1485,12 @@ NsTclConnCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
             Tcl_SetResult(interp, "could not close connection", TCL_STATIC);
             return TCL_ERROR;
         }
-    } else if (STREQ(argv[1], "isconnected")) {
-	Tcl_SetResult(interp, (connPtr == NULL) ? "0" : "1", TCL_STATIC);
-	return TCL_OK;
     } else {
         Tcl_AppendResult(interp, "unknown command \"", argv[1],
 			 "\":  should be "
                          "authpassword, "
                          "authuser, "
+                         "close, "
                          "content, "
                          "contentlength, "
                          "driver, "
@@ -1497,6 +1498,7 @@ NsTclConnCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
                          "form, "
                          "headers, "
                          "host, "
+                         "isconnected, "
                          "location, "
                          "method, "
                          "outputheaders, "
@@ -1512,8 +1514,6 @@ NsTclConnCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
                          "status, "
                          "urlc, "
                          "urlv, "
-                         "close, "
-                         "isconnected, "
                          "or version", NULL);
         return TCL_ERROR;
     }

@@ -33,7 +33,7 @@
  *	Routines for the core server connection threads.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/serv.c,v 1.5 2000/08/17 06:09:49 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/serv.c,v 1.6 2000/08/28 13:10:33 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -60,19 +60,6 @@ static Conn *connBufPtr;
 
 static unsigned int nextConnId;
 
-typedef struct Stats {
-    unsigned int nconns;
-    Ns_Time waitTime;
-    Ns_Time openTime;
-    Ns_Time closedTime;
-} Stats;
-
-static Stats globalStats;
-static Ns_Cache *statsCache;
-static void IncrStats(Stats *, Ns_Time *wPtr, Ns_Time *oPtr, Ns_Time *cPtr);
-static char *SprintfStats(Stats *statsPtr, char *buf);
-static Tcl_CmdProc UrlStats;
-
 /*
  * The current number of connections waiting for service.
  */
@@ -93,19 +80,37 @@ static int idleThreads;
 static int shutdownPending;
 static Ns_Thread lastThread;
 static Ns_Tls conntls;
-static Ns_Tls buftls;
 static Ns_Mutex lock;	/* Lock around access to the above lists. */
 static Ns_Cond cond;	/* Condition to signal connection threads when
 			 * new connections arrive or shutdown. */
 
 /*
+ * The following structure, cache, and functions are used to
+ * maintain URL timing stats.
+ */
+
+typedef struct Stats {
+    unsigned int nconns;
+    Ns_Time waitTime;
+    Ns_Time openTime;
+    Ns_Time closedTime;
+} Stats;
+
+static Stats globalStats;
+static Ns_Cache *statsCache;
+static void IncrStats(Stats *, Ns_Time *wPtr, Ns_Time *oPtr, Ns_Time *cPtr);
+static char *SprintfStats(Stats *statsPtr, char *buf);
+static int UrlStats(Tcl_Interp *interp, char *pattern);
+
+/*
  * Local functions defined in this file
  */
 
+static Ns_Tls *GetConnTls(void);
 static void ConnRun(Conn *connPtr);	/* Connection run routine. */
 static void ParseAuth(Conn *connPtr, char *auth);
 static void CreateConnThread(void);
-static void JoinThread(Ns_Thread *threadPtr);
+static void JoinConnThread(Ns_Thread *threadPtr);
 static void AppendConn(Tcl_DString *dsPtr, Conn *connPtr,
 	char *state, time_t now);
 static void AppendConnList(Tcl_DString *dsPtr, Conn *firstPtr,
@@ -206,6 +211,68 @@ Ns_QueueConn(void *drvPtr, void *drvData)
 /*
  *----------------------------------------------------------------------
  *
+ * Ns_GetConn, Ns_SetConn --
+ *
+ *	Get/Set the current connection for this thread.
+ *
+ * Results:
+ *	Pointer to Ns_Conn or NULL if no active connection.
+ *
+ * Side effects:
+ *	None.
+ *
+ *--------------------------------------------------------------------
+ */
+
+Ns_Conn *
+Ns_GetConn(void)
+{
+    return Ns_TlsGet(GetConnTls());
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsGetBuf --
+ *
+ *	Return a big buffer suitable for I/O.
+ *
+ * Results:
+ *	Pointer to TLS allocated buffer.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+NsGetBuf(char **bufPtr, int *sizePtr)
+{
+    char *buf;
+    static Ns_Tls tls;
+
+    if (tls == NULL) {
+	Ns_MasterLock();
+	if (tls == NULL) {
+	    Ns_TlsAlloc(&tls, ns_free);
+	}
+	Ns_MasterUnlock();
+    }
+    buf = Ns_TlsGet(&tls);
+    if (buf == NULL) {
+	buf = ns_malloc(nsconf.bufsize);
+	Ns_TlsSet(&tls, buf);
+    } 
+    *bufPtr = buf;
+    *sizePtr = nsconf.bufsize;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  * NsTclServerCmd --
  *
  *	Implement the ns_server Tcl command to return simple statistics
@@ -224,8 +291,7 @@ int
 NsTclServerCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 {
     char buf[100];
-    int  status = TCL_OK;
-    Tcl_DString     ds;
+    int  status;
 
     if (argc < 2) {
         Tcl_AppendResult(interp, "wrong # args: should be \"",
@@ -233,8 +299,9 @@ NsTclServerCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
         return TCL_ERROR;
     }
     if (STREQ(argv[1], "urlstats")) {
-	return UrlStats(dummy, interp, argc, argv);
+	return UrlStats(interp, argv[2]);
     }
+    status = TCL_OK;
     Ns_MutexLock(&lock);
     if (STREQ(argv[1], "waiting")) {
         sprintf(interp->result, "%d", waitingConns);
@@ -258,6 +325,8 @@ NsTclServerCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
     } else if (STREQ(argv[1], "active") ||
     	       STREQ(argv[1], "queued") ||
 	       STREQ(argv[1], "all")) {
+        Tcl_DString     ds;
+
     	Tcl_DStringInit(&ds);
     	if (argv[1][0] == 'a') {
 	    AppendConnList(&ds, firstActiveConnPtr, "running");
@@ -307,9 +376,6 @@ NsStartServer(void)
     if (nsconf.serv.stats & STATS_PERURL) {
 	statsCache = Ns_CacheCreateSz("urlstats", TCL_STRING_KEYS, nsconf.serv.maxurlstats, ns_free);
     }
-
-    Ns_TlsAlloc(&conntls, NULL);
-    Ns_TlsAlloc(&buftls, ns_free);
 
     /*
      * Pre-allocate all available connection structures to avoid having
@@ -397,7 +463,7 @@ NsStopServer(Ns_Time *toPtr)
     } else {
 	Ns_Log(Notice, "serv: connection threads stopped");
 	if (joinThread != NULL) {
-	    JoinThread(&joinThread);
+	    JoinConnThread(&joinThread);
 	}
 	ns_free(connBufPtr);
     }
@@ -528,9 +594,9 @@ NsConnThread(void *arg)
 	}
 	connPtr->headers = headers;
 	connPtr->outputheaders = outputheaders;
-	Ns_TlsSet(&conntls, connPtr);
+	Ns_TlsSet(GetConnTls(), connPtr);
 	ConnRun(connPtr);
-	Ns_TlsSet(&conntls, NULL);
+        Ns_TlsSet(GetConnTls(), connPtr);
 	if (nsconf.serv.stats) {
 	    Ns_GetTime(&now);
 	    Ns_DiffTime(&connPtr->tstart, &connPtr->tqueue, &ewait);
@@ -623,7 +689,7 @@ NsConnThread(void *arg)
     Ns_SetFree(headers);
     Ns_SetFree(outputheaders);
     if (joinThread != NULL) {
-	JoinThread(&joinThread);
+	JoinConnThread(&joinThread);
     }
     Ns_Log(Debug, "serv: exiting: %s", p);
     Ns_ThreadExit(connPtrPtr);
@@ -846,7 +912,7 @@ CreateConnThread(void)
 /*
  *----------------------------------------------------------------------
  *
- * JoinThread --
+ * JoinConnThread --
  *
  *	Join a connection thread, freeing the threads connPtrPtr.
  *
@@ -860,14 +926,13 @@ CreateConnThread(void)
  */
 
 static void
-JoinThread(Ns_Thread *threadPtr)
+JoinConnThread(Ns_Thread *threadPtr)
 {
     Conn **connPtrPtr;
 
     Ns_ThreadJoin(threadPtr, (void **) &connPtrPtr);
     ns_free(connPtrPtr);
 }
-
 
 
 /*
@@ -952,56 +1017,50 @@ AppendConnList(Tcl_DString *dsPtr, Conn *firstPtr, char *state)
 /*
  *----------------------------------------------------------------------
  *
- * Ns_GetConn --
+ * GetConnTls --
  *
- *	Return the current connection for this thread (if any).
+ *	Return Ns_Tls for the current connection.
  *
  * Results:
- *	Pointer to Ns_Conn or NULL if no active connection.
+ *	Pointer to statis Ns_Tls.
  *
  * Side effects:
- *	None.
+ *	Tls is initialized on first call.
  *
  *----------------------------------------------------------------------
  */
 
-Ns_Conn *
-Ns_GetConn(void)
+static Ns_Tls *
+GetConnTls(void)
 {
-    return (Ns_Conn *) Ns_TlsGet(&conntls);
+    static Ns_Tls tls;
+
+    if (tls == NULL) {
+	Ns_MasterLock();
+	if (tls == NULL) {
+	    Ns_TlsAlloc(&tls, NULL);
+	}
+	Ns_MasterUnlock();
+    }
+    return &tls;
 }
 
 
 /*
  *----------------------------------------------------------------------
  *
- * NsGetBuf --
+ * IncrStats --
  *
- *	Return a big buffer suitable for I/O.
+ *	Increment a stats structure with latest timing data.
  *
  * Results:
- *	Pointer to TLS allocated buffer.
+ *	None.
  *
  * Side effects:
  *	None.
  *
  *----------------------------------------------------------------------
  */
-
-void
-NsGetBuf(char **bufPtr, int *sizePtr)
-{
-    char *buf;
-
-    buf = Ns_TlsGet(&buftls);
-    if (buf == NULL) {
-	buf = ns_malloc(nsconf.bufsize);
-	Ns_TlsSet(&buftls, buf);
-    } 
-    *bufPtr = buf;
-    *sizePtr = nsconf.bufsize;
-}
-
 
 static void
 IncrStats(Stats *statsPtr, Ns_Time *wPtr, Ns_Time *oPtr, Ns_Time *cPtr)
@@ -1012,6 +1071,22 @@ IncrStats(Stats *statsPtr, Ns_Time *wPtr, Ns_Time *oPtr, Ns_Time *cPtr)
     Ns_IncrTime(&statsPtr->closedTime, cPtr->sec, cPtr->usec);
 }
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * UrlStats --
+ *
+ *	Helper function to format URL stats for NsTclServerCmd.
+ *
+ * Results:
+ *	TCL_OK.
+ *
+ * Side effects:
+ *	Builds up stats results in interp.
+ *
+ *----------------------------------------------------------------------
+ */
 
 static char *
 SprintfStats(Stats *statsPtr, char *buf)
@@ -1024,21 +1099,14 @@ SprintfStats(Stats *statsPtr, char *buf)
     return buf;
 }
 
-
 static int
-UrlStats(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
+UrlStats(Tcl_Interp *interp, char *pattern)
 {
     Ns_CacheSearch search;
     Ns_Entry *entry;
     Tcl_DString ds;
-    char *url, *pattern, buf[100];
+    char *url, buf[100];
 
-    if (argc != 2 && argc != 3) {
-	Tcl_AppendResult(interp, "wrong # args: should be \"",
-	    argv[0], " ", argv[1], " ?pattern?\"", NULL);
-	return TCL_ERROR;
-    }
-    pattern = argv[2];
     if (statsCache != NULL) {
 	Tcl_DStringInit(&ds);
 	Ns_CacheLock(statsCache);
