@@ -65,7 +65,7 @@
  *	the server core and close client connections.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nssock/Attic/sock.cpp,v 1.4 2000/11/03 00:19:42 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nssock/Attic/sock.cpp,v 1.5 2000/11/03 00:36:55 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 
@@ -260,7 +260,7 @@ Ns_ModuleInit(char *server, char *name)
 #else
     n = 128;
 #endif
-    Ns_Log(Notice, "%s: initialized with %d-bit encryption", module, n);
+    Ns_Log(Notice, "%s: initialized with %d-bit encryption", name, n);
 #endif 
     
     /*
@@ -1112,7 +1112,7 @@ SockWrite(void *arg, void *vbuf, int len)
     int	    nwrote;
 
 #ifdef SSL 
-    nwrote = NsSSLSend(connPtr->cssl, vbuf, towrite); 
+    nwrote = NsSSLSend(connPtr->cssl, vbuf, len); 
 #else
     int     n;
     char   *buf;
