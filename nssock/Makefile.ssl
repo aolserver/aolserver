@@ -1,0 +1,25 @@
+
+NSHOME   =  ..
+
+#
+# Module name
+#
+ifeq ($(SSL_DOMESTIC),1)
+  MOD    =  nsssl.so
+  CFLAGS =  $(BSAFE_VERSION) -I$(BSAFE)/include
+else
+  MOD    =  nsssle.so
+  CFLAGS =  -DSSL_EXPORT=1 $(BSAFE_VERSION) -I$(BSAFE)/include
+endif
+MODLIBS   =  $(BSAFE)/lib/libbsafe.a
+MODDIR    =  nsssl
+HDRS      =  ssl.h ssltcl.h x509.h
+
+#
+# Objects to build
+#
+OBJS      =  nsssl.o ssl.o ssltcl.o t_stdlib.o x509.o
+
+include  $(NSHOME)/include/Makefile.module
+
+nsssl.o: sock.cpp

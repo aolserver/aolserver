@@ -34,13 +34,13 @@
  */
 
 /* 
- * nssock.c --
+ * sock.cpp --
  *
  *	Routines for the nssock and nsssl socket drivers.
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nssock/Attic/sock.c,v 1.6 2000/09/29 13:42:39 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nssock/Attic/sock.cpp,v 1.1 2000/10/12 21:01:06 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 
