@@ -34,7 +34,7 @@
  *      Manage the Ns_Conn structure
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.38 2003/08/05 19:56:05 elizthom Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.39 2003/11/16 15:04:13 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -179,7 +179,7 @@ Ns_ConnContent(Ns_Conn *conn)
 {
     Conn *connPtr = (Conn *) conn;
 
-    return connPtr->reqPtr->content;
+    return connPtr->content;
 }
 
 
@@ -305,7 +305,7 @@ Ns_ConnPeer(Ns_Conn *conn)
 {
     Conn           *connPtr = (Conn *) conn;
 
-    return connPtr->reqPtr->peer;
+    return connPtr->peer;
 }
 
 
@@ -330,7 +330,7 @@ Ns_ConnPeerPort(Ns_Conn *conn)
 {
     Conn           *connPtr = (Conn *) conn;
 
-    return connPtr->reqPtr->port;
+    return connPtr->port;
 }
 
 
@@ -565,7 +565,7 @@ Ns_ConnStartTime(Ns_Conn *conn)
 {
     Conn *connPtr = (Conn *) conn;
 
-    return &connPtr->startTime;
+    return &connPtr->times.queue;
 }
 
 
@@ -1030,7 +1030,7 @@ NsTclConnObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 		GetChan(interp, Tcl_GetString(objv[4]), &chan) != TCL_OK) {
 		return TCL_ERROR;
 	    }
-	    if (Tcl_Write(chan, connPtr->reqPtr->content + off, len) != len) {
+	    if (Tcl_Write(chan, connPtr->content + off, len) != len) {
 		Tcl_AppendResult(interp, "could not write ", Tcl_GetString(objv[3]), " bytes to ",
 		    Tcl_GetString(objv[4]), ": ", Tcl_PosixError(interp), NULL);
 		return TCL_ERROR;
@@ -1118,7 +1118,7 @@ NsTclConnObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 	    break;
 
 	case CStartIdx:
-	    Ns_TclSetTimeObj(result, &connPtr->startTime);
+	    Ns_TclSetTimeObj(result, &connPtr->times.queue);
 	    break;
 
 	case CCloseIdx:
@@ -1338,11 +1338,11 @@ GetIndices(Tcl_Interp *interp, Conn *connPtr, Tcl_Obj **objv, int *offPtr, int *
 	Tcl_GetIntFromObj(interp, objv[1], &len) != TCL_OK) {
 	return TCL_ERROR;
     }
-    if (off < 0 || off > connPtr->reqPtr->length) {
+    if (off < 0 || off > connPtr->contentLength) {
 	Tcl_AppendResult(interp, "invalid offset: ", Tcl_GetString(objv[0]), NULL);
 	return TCL_ERROR;
     }
-    if (len < 0 || len > (connPtr->reqPtr->length - off)) {
+    if (len < 0 || len > (connPtr->contentLength - off)) {
 	Tcl_AppendResult(interp, "invalid length: ", Tcl_GetString(objv[1]), NULL);
 	return TCL_ERROR;
     }

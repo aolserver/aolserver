@@ -34,7 +34,7 @@
  *      Handle connection I/O.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/connio.c,v 1.12 2003/03/07 18:08:17 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/connio.c,v 1.13 2003/11/16 15:04:13 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #define IOBUFSZ 2048
@@ -94,6 +94,7 @@ Ns_ConnClose(Ns_Conn *conn)
     int		      keep;
     
     if (connPtr->sockPtr != NULL) {
+	Ns_GetTime(&connPtr->times.close);
 	keep = (conn->flags & NS_CONN_KEEPALIVE) ? 1 : 0;
 	NsSockClose(connPtr->sockPtr, keep);
 	connPtr->sockPtr = NULL;
@@ -143,9 +144,9 @@ Ns_ConnSend(Ns_Conn *conn, struct iovec *bufs, int nbufs)
 
     towrite = 0;
     n = 0;
-    if (connPtr->queued.length > 0) {
-	sbufs[n].iov_base = connPtr->queued.string;
-	sbufs[n].iov_len = connPtr->queued.length;
+    if (connPtr->obuf.length > 0) {
+	sbufs[n].iov_base = connPtr->obuf.string;
+	sbufs[n].iov_len = connPtr->obuf.length;
 	towrite += sbufs[n].iov_len;
 	++n;
     }
@@ -183,15 +184,15 @@ Ns_ConnSend(Ns_Conn *conn, struct iovec *bufs, int nbufs)
     }
     if (nwrote > 0) {
         connPtr->nContentSent += nwrote;
-	if (connPtr->queued.length > 0) {
-	    n = connPtr->queued.length - nwrote;
+	if (connPtr->obuf.length > 0) {
+	    n = connPtr->obuf.length - nwrote;
 	    if (n <= 0) {
-		nwrote -= connPtr->queued.length;
-		Tcl_DStringTrunc(&connPtr->queued, 0);
+		nwrote -= connPtr->obuf.length;
+		Tcl_DStringTrunc(&connPtr->obuf, 0);
 	    } else {
-		memmove(connPtr->queued.string,
-		    connPtr->queued.string + nwrote, (size_t)n);
-		Tcl_DStringTrunc(&connPtr->queued, n);
+		memmove(connPtr->obuf.string,
+		    connPtr->obuf.string + nwrote, (size_t)n);
+		Tcl_DStringTrunc(&connPtr->obuf, n);
 		nwrote = 0;
 	    }
 	}
@@ -448,13 +449,12 @@ int
 Ns_ConnFlushContent(Ns_Conn *conn)
 {
     Conn *connPtr = (Conn *) conn;
-    Request *reqPtr = connPtr->reqPtr;
 
     if (connPtr->sockPtr == NULL) {
 	return -1;
     }
-    reqPtr->next  += reqPtr->avail;
-    reqPtr->avail  = 0;
+    connPtr->next  += connPtr->avail;
+    connPtr->avail  = 0;
     return NS_OK;
 }
 
@@ -516,17 +516,16 @@ int
 Ns_ConnRead(Ns_Conn *conn, void *vbuf, int toread)
 {
     Conn *connPtr = (Conn *) conn;
-    Request *reqPtr = connPtr->reqPtr;
 
     if (connPtr->sockPtr == NULL) {
 	return -1;
     }
-    if (toread > reqPtr->avail) {
-	toread = reqPtr->avail;
+    if (toread > connPtr->avail) {
+	toread = connPtr->avail;
     }
-    memcpy(vbuf, reqPtr->next, (size_t)toread);
-    reqPtr->next  += toread;
-    reqPtr->avail -= toread;
+    memcpy(vbuf, connPtr->next, (size_t)toread);
+    connPtr->next  += toread;
+    connPtr->avail -= toread;
     return toread;
 }
 
@@ -551,14 +550,13 @@ int
 Ns_ConnReadLine(Ns_Conn *conn, Ns_DString *dsPtr, int *nreadPtr)
 {
     Conn	   *connPtr = (Conn *) conn;
-    Request	   *reqPtr = connPtr->reqPtr;
     NsServer	   *servPtr = connPtr->servPtr;
     char           *eol;
     int             nread, ncopy;
 
     if (connPtr->sockPtr == NULL
-	|| (eol = strchr(reqPtr->next, '\n')) == NULL
-	|| (nread = (eol - reqPtr->next)) > servPtr->limits.maxline) {
+	|| (eol = strchr(connPtr->next, '\n')) == NULL
+	|| (nread = (eol - connPtr->next)) > servPtr->limits.maxline) {
 	return NS_ERROR;
     }
     ncopy = nread;
@@ -569,9 +567,9 @@ Ns_ConnReadLine(Ns_Conn *conn, Ns_DString *dsPtr, int *nreadPtr)
     if (ncopy > 0 && eol[-1] == '\r') {
 	--ncopy;
     }
-    Ns_DStringNAppend(dsPtr, reqPtr->next, ncopy);
-    reqPtr->next  += nread;
-    reqPtr->avail -= nread;
+    Ns_DStringNAppend(dsPtr, connPtr->next, ncopy);
+    connPtr->next  += nread;
+    connPtr->avail -= nread;
     return NS_ERROR;
 }
 
@@ -647,15 +645,14 @@ int
 Ns_ConnCopyToDString(Ns_Conn *conn, size_t tocopy, Ns_DString *dsPtr)
 {
     Conn *connPtr = (Conn *) conn;
-    Request *reqPtr = connPtr->reqPtr;
     int ncopy = (int) tocopy;
 
-    if (connPtr->sockPtr == NULL || reqPtr->avail < ncopy) {
+    if (connPtr->sockPtr == NULL || connPtr->avail < ncopy) {
 	return NS_ERROR;
     }
-    Ns_DStringNAppend(dsPtr, reqPtr->next, ncopy);
-    reqPtr->next  += ncopy;
-    reqPtr->avail -= ncopy;
+    Ns_DStringNAppend(dsPtr, connPtr->next, ncopy);
+    connPtr->next  += ncopy;
+    connPtr->avail -= ncopy;
     return NS_OK;
 }
 
@@ -715,30 +712,29 @@ static int
 ConnCopy(Ns_Conn *conn, size_t tocopy, Tcl_Channel chan, FILE *fp, int fd)
 {
     Conn       *connPtr = (Conn *) conn;
-    Request    *reqPtr = connPtr->reqPtr;
     int		nwrote;
     int		ncopy = (int) tocopy;
 
-    if (connPtr->sockPtr == NULL || reqPtr->avail < ncopy) {
+    if (connPtr->sockPtr == NULL || connPtr->avail < ncopy) {
 	return NS_ERROR;
     }
     while (ncopy > 0) {
 	if (chan != NULL) {
-	    nwrote = Tcl_Write(chan, reqPtr->next, ncopy);
+	    nwrote = Tcl_Write(chan, connPtr->next, ncopy);
     	} else if (fp != NULL) {
-            nwrote = fwrite(reqPtr->next, 1, (size_t)ncopy, fp);
+            nwrote = fwrite(connPtr->next, 1, (size_t)ncopy, fp);
             if (ferror(fp)) {
 		nwrote = -1;
 	    }
 	} else {
-	    nwrote = write(fd, reqPtr->next, (size_t)ncopy);
+	    nwrote = write(fd, connPtr->next, (size_t)ncopy);
 	}
 	if (nwrote < 0) {
 	    return NS_ERROR;
 	}
 	ncopy -= nwrote;
-	reqPtr->next  += nwrote;
-	reqPtr->avail -= nwrote;
+	connPtr->next  += nwrote;
+	connPtr->avail -= nwrote;
     }
     return NS_OK;
 }

@@ -34,7 +34,7 @@
  *	and service threads.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/queue.c,v 1.23 2003/06/06 18:34:03 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/queue.c,v 1.24 2003/11/16 15:04:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -54,7 +54,6 @@ typedef struct {
  */
 
 static void ConnRun(Conn *connPtr);	/* Connection run routine. */
-static void ParseAuth(Conn *connPtr, char *auth);
 static void CreateConnThread(ConnPool *poolPtr);
 static void JoinConnThread(Ns_Thread *threadPtr);
 static void AppendConn(Tcl_DString *dsPtr, Conn *connPtr, char *state);
@@ -184,7 +183,7 @@ NsMapPool(ConnPool *poolPtr, char *map)
  *	Append a connection to the run queue.
  *
  * Results:
- *	1 if queued, 0 otherwise.
+ *	None.
  *
  * Side effects:
  *	Conneciton will run shortly.
@@ -192,69 +191,53 @@ NsMapPool(ConnPool *poolPtr, char *map)
  *----------------------------------------------------------------------
  */
 
-int
-NsQueueConn(Sock *sockPtr, Ns_Time *nowPtr)
+void
+NsQueueConn(Conn *connPtr)
 {
-    NsServer *servPtr = sockPtr->servPtr;
+    NsServer *servPtr = connPtr->servPtr;
     ConnPool *poolPtr = NULL;
-    Conn *connPtr = NULL;
     int create = 0;
 
     /*
      * Select server connection pool.
      */
 
-    if (sockPtr->reqPtr != NULL) {
-	poolPtr = Ns_UrlSpecificGet(servPtr->server,
-			sockPtr->reqPtr->request->method,
-			sockPtr->reqPtr->request->url, poolid);
+    if (connPtr->request != NULL) {
+	poolPtr = Ns_UrlSpecificGet(connPtr->server, connPtr->request->method,
+				    connPtr->request->url, poolid);
     }
     if (poolPtr == NULL) {
 	poolPtr = servPtr->pools.defaultPtr;
     }
 
    /*
-    * Queue connection if a free Conn is available.
+    * Queue connection.
     */
 
     Ns_MutexLock(&servPtr->pools.lock);
-    if (!servPtr->pools.shutdown) {
-	connPtr = poolPtr->queue.freePtr;
-	if (connPtr != NULL) {
-	    poolPtr->queue.freePtr = connPtr->nextPtr;
-	    connPtr->startTime = *nowPtr;
-	    connPtr->id = servPtr->pools.nextconnid++;
-	    connPtr->sockPtr = sockPtr;
-	    connPtr->drvPtr = sockPtr->drvPtr;
-	    connPtr->servPtr = servPtr;
-	    connPtr->server = servPtr->server;
-	    connPtr->location = sockPtr->location;
-	    if (poolPtr->queue.wait.firstPtr == NULL) {
-		poolPtr->queue.wait.firstPtr = connPtr;
-	    } else {
-		poolPtr->queue.wait.lastPtr->nextPtr = connPtr;
-	    }
-	    poolPtr->queue.wait.lastPtr = connPtr;
-	    connPtr->nextPtr = NULL;
-	    if (poolPtr->threads.idle == 0
-		    && poolPtr->threads.current < poolPtr->threads.max) {
-		++poolPtr->threads.idle;
-		++poolPtr->threads.current;
-		create = 1;
-	    }
-	    ++poolPtr->queue.wait.num;
-	}
+#if 0
+    connPtr->id = servPtr->pools.nextconnid++;
+#endif
+    if (poolPtr->queue.wait.firstPtr == NULL) {
+        poolPtr->queue.wait.firstPtr = connPtr;
+    } else {
+        poolPtr->queue.wait.lastPtr->nextPtr = connPtr;
     }
+    poolPtr->queue.wait.lastPtr = connPtr;
+    connPtr->nextPtr = NULL;
+    if (poolPtr->threads.idle == 0
+            && poolPtr->threads.current < poolPtr->threads.max) {
+        ++poolPtr->threads.idle;
+        ++poolPtr->threads.current;
+        create = 1;
+    }
+    ++poolPtr->queue.wait.num;
     Ns_MutexUnlock(&servPtr->pools.lock);
-    if (connPtr == NULL) {
-	return 0;
-    }
     if (create) {
     	CreateConnThread(poolPtr);
     } else {
 	Ns_CondSignal(&poolPtr->queue.cond);
     }
-    return 1;
 }
 
 
@@ -521,8 +504,8 @@ NsConnThread(void *arg)
     Ns_Time          wait, *timePtr;
     unsigned int     id;
     Ns_DString	     ds;
-    int              status, cpt, ncons;
-    char            *p, *path;
+    int              status, ncons, ready;
+    char            *msg;
     Ns_Thread	     joinThread;
     
     /*
@@ -541,28 +524,15 @@ NsConnThread(void *arg)
     Ns_DStringPrintf(&ds, ":%d", id);
     Ns_ThreadSetName(ds.string);
     Ns_DStringFree(&ds);
-
-    /*
-     * See how many connections this thread should run.
-     * Setting this parameter to > 0 will cause the
-     * thread to graceously exit, after processing that
-     * many requests, thus initiating kind-of Tcl-level
-     * garbage collection.
-     */
-
-    path = Ns_ConfigGetPath(servPtr->server, NULL, NULL);
-    if (!Ns_ConfigGetInt(path, "connsperthread", &cpt)) {
-        cpt = 0; /* == unlimited # of connections */
-    }
-
-    ncons = cpt;
-
+    ncons = poolPtr->threads.maxconns;
+    msg = "exceeded max connections per thread";
+    
     /*
      * Start handling connections.
      */
 
     Ns_MutexLock(&servPtr->pools.lock);
-    while (cpt == 0 || ncons > 0) {
+    while (poolPtr->threads.maxconns <= 0 || ncons-- > 0) {
 
 	/*
 	 * Wait for a connection to arrive, exiting if one doesn't
@@ -584,11 +554,12 @@ NsConnThread(void *arg)
 	    status = Ns_CondTimedWait(&poolPtr->queue.cond, &servPtr->pools.lock, timePtr);
 	}
 	if (poolPtr->queue.wait.firstPtr == NULL) {
+	    msg = "timeout waiting for connection";
 	    break;
 	}
 
 	/*
-	 * Pull the first connection of the waiting list.
+	 * Pull the first connection off the waiting list.
 	 */
 
     	connPtr = poolPtr->queue.wait.firstPtr;
@@ -608,19 +579,20 @@ NsConnThread(void *arg)
 	poolPtr->threads.idle--;
 	poolPtr->queue.wait.num--;
 	argPtr->connPtr = connPtr;
-    	Ns_MutexUnlock(&servPtr->pools.lock);
 
 	/*
 	 * Run the connection.
 	 */
 
-	ConnRun(connPtr);
+    	Ns_MutexUnlock(&servPtr->pools.lock);
+	Ns_GetTime(&connPtr->times.run);
+        ConnRun(connPtr);
+	Ns_MutexLock(&servPtr->pools.lock);
 
 	/*
 	 * Remove from the active list and push on the free list.
 	 */
 
-	Ns_MutexLock(&servPtr->pools.lock);
 	argPtr->connPtr = NULL;
 	if (connPtr->prevPtr != NULL) {
 	    connPtr->prevPtr->nextPtr = connPtr->nextPtr;
@@ -633,21 +605,19 @@ NsConnThread(void *arg)
 	    poolPtr->queue.active.lastPtr = connPtr->prevPtr;
 	}
 	poolPtr->threads.idle++;
-	connPtr->prevPtr = NULL;
-	connPtr->nextPtr = poolPtr->queue.freePtr;
-	poolPtr->queue.freePtr = connPtr;
-	if (connPtr->nextPtr == NULL) {
-	    /*
-	     * If this thread just free'd up the busy server,
-	     * run the ready procs to signal other subsystems.
-	     */
-	    Ns_MutexUnlock(&servPtr->pools.lock);
+	ready = 0; /* NB: Need a new way to detect "ready again". */
+	
+	/*
+	 * Free the connection and run at ready procs if the server
+	 * can handled new connections.
+	 */
+	 
+	Ns_MutexUnlock(&servPtr->pools.lock);
+        NsFreeConn(connPtr);
+	if (ready) {
 	    NsRunAtReadyProcs();
-	    Ns_MutexLock(&servPtr->pools.lock);
 	}
-	if (cpt && --ncons <= 0) {
-	    break; /* Served given # of connections in this thread */
-    	}
+	Ns_MutexLock(&servPtr->pools.lock);
     }
     poolPtr->threads.idle--;
     poolPtr->threads.current--;
@@ -655,10 +625,9 @@ NsConnThread(void *arg)
     	Ns_CondBroadcast(&poolPtr->queue.cond);
     }
     if (servPtr->pools.shutdown) {
-	p = "shutdown pending";
-    } else {
-	p = "no waiting connections";
+	msg = "shutdown pending";
     }
+    Ns_Log(Notice, "exiting: %s", msg);
     joinThread = servPtr->pools.joinThread;
     Ns_ThreadSelf(&servPtr->pools.joinThread);
     Ns_MutexUnlock(&servPtr->pools.lock);
@@ -691,37 +660,12 @@ ConnRun(Conn *connPtr)
 {
     Ns_Conn 	  *conn = (Ns_Conn *) connPtr;
     NsServer	  *servPtr = connPtr->servPtr;
-    Tcl_HashEntry *hPtr;
-    Tcl_HashSearch search;
-    FormFile	  *filePtr;
     int            i, status;
-    char	  *auth;
 	
     /*
-     * Re-initialize and run the connection.
+     * Initialize the conn.
      */
-
-    connPtr->reqPtr = NsGetRequest(connPtr->sockPtr);
-    if (connPtr->reqPtr == NULL) {
-	return;
-    }
-    connPtr->contentLength = connPtr->reqPtr->length;
-    connPtr->headers = connPtr->reqPtr->headers;
-    connPtr->request = connPtr->reqPtr->request;
-    connPtr->flags = 0;
-    connPtr->nContentSent = 0;
-    connPtr->responseStatus = 0;
-    connPtr->responseLength = 0;
-    connPtr->recursionCount = 0;
-    connPtr->encoding = servPtr->encoding.outputEncoding;
-    connPtr->urlEncoding = servPtr->encoding.urlEncoding;
-    Tcl_DStringInit(&connPtr->queued);
-    Tcl_InitHashTable(&connPtr->files, TCL_STRING_KEYS);
-    sprintf(connPtr->idstr, "cns%d", connPtr->id);
-    connPtr->outputheaders = Ns_SetCreate(NULL);
-    if (connPtr->request->version < 1.0) {
-	conn->flags |= NS_CONN_SKIPHDRS;
-    }
+     
     if (servPtr->opts.hdrcase != Preserve) {
 	for (i = 0; i < Ns_SetSize(connPtr->headers); ++i) {
     	    if (servPtr->opts.hdrcase == ToLower) {
@@ -730,13 +674,6 @@ ConnRun(Conn *connPtr)
 		Ns_StrToUpper(Ns_SetKey(connPtr->headers, i));
 	    }
 	}
-    }
-    auth = Ns_SetIGet(connPtr->headers, "authorization");
-    if (auth != NULL) {
-	ParseAuth(connPtr, auth);
-    }
-    if (conn->request->method && STREQ(conn->request->method, "HEAD")) {
-	conn->flags |= NS_CONN_SKIPBODY;
     }
 
     /*
@@ -750,7 +687,7 @@ ConnRun(Conn *connPtr)
 	if (status == NS_OK) {
 	    status = Ns_AuthorizeRequest(servPtr->server,
 			connPtr->request->method, connPtr->request->url, 
-			connPtr->authUser, connPtr->authPasswd, connPtr->reqPtr->peer);
+			connPtr->authUser, connPtr->authPasswd, connPtr->peer);
 	    switch (status) {
 	    case NS_OK:
 		status = NsRunFilters(conn, NS_FILTER_POST_AUTH);
@@ -799,79 +736,7 @@ ConnRun(Conn *connPtr)
      */
 
     NsRunCleanups(conn);
-    NsClsCleanup(connPtr);
     Ns_FreeConnInterp(conn);
-    if (connPtr->authUser != NULL) {
-	ns_free(connPtr->authUser);
-	connPtr->authUser = connPtr->authPasswd = NULL;
-    }
-    if (connPtr->query != NULL) {
-	Ns_SetFree(connPtr->query);
-	connPtr->query = NULL;
-    }
-    hPtr = Tcl_FirstHashEntry(&connPtr->files, &search);
-    while (hPtr != NULL) {
-	filePtr = Tcl_GetHashValue(hPtr);
-	Ns_SetFree(filePtr->hdrs);
-	ns_free(filePtr);
-	hPtr = Tcl_NextHashEntry(&search);
-    }
-    Tcl_DeleteHashTable(&connPtr->files);
-    Tcl_DStringFree(&connPtr->queued);
-    Ns_SetFree(connPtr->outputheaders);
-    connPtr->outputheaders = NULL;
-    NsFreeRequest(connPtr->reqPtr);
-    connPtr->reqPtr = NULL;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * ParseAuth --
- *
- *	Parse an HTTP authorization string.
- *
- * Results:
- *	None.
- *
- * Side effects:
- *	May set the authPasswd and authUser connection pointers.
- *
- *----------------------------------------------------------------------
- */
-
-static void
-ParseAuth(Conn *connPtr, char *auth)
-{
-    register char *p, *q;
-    int            n;
-    char    	   save;
-    
-    p = auth;
-    while (*p != '\0' && !isspace(UCHAR(*p))) {
-        ++p;
-    }
-    if (*p != '\0') {
-    	save = *p;
-	*p = '\0';
-        if (STRIEQ(auth, "Basic")) {
-    	    q = p + 1;
-            while (*q != '\0' && isspace(UCHAR(*q))) {
-                ++q;
-            }
-	    n = strlen(q) + 3;
-	    connPtr->authUser = ns_malloc((size_t) n);
-            n = Ns_HtuuDecode(q, (unsigned char *) connPtr->authUser, n);
-            connPtr->authUser[n] = '\0';
-            q = strchr(connPtr->authUser, ':');
-            if (q != NULL) {
-                *q++ = '\0';
-                connPtr->authPasswd = q;
-            }
-        }
-	*p = save;
-    }
 }
 
 
@@ -978,7 +843,7 @@ AppendConn(Tcl_DString *dsPtr, Conn *connPtr, char *state)
 	    connPtr->request->url : "?";
 	Tcl_DStringAppendElement(dsPtr, strncpy(buf, p, sizeof(buf)));
 	Ns_GetTime(&now);
-	Ns_DiffTime(&now, &connPtr->startTime, &diff);
+	Ns_DiffTime(&now, &connPtr->times.queue, &diff);
 	sprintf(buf, "%ld.%ld", diff.sec, diff.usec);
 	Tcl_DStringAppendElement(dsPtr, buf);
 	sprintf(buf, "%d", connPtr->nContentSent);
