@@ -31,7 +31,7 @@
 #include "nsthread.h"
 #undef Ns_ThreadMalloc
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/test.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/test.c,v 1.4 2000/08/28 22:51:06 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 static Ns_Mutex block;
 static Ns_Mutex mlock;
@@ -297,6 +297,11 @@ main(int argc, char *argv[])
     nsThreadMutexMeter = 1;
     Ns_ThreadSetName("-main-");
     nsMemPools = 1;
+{
+char *p = ns_malloc(2);
+p[1] = 'd';
+ns_free(p);
+}
     if (argv[1] != NULL && argv[1][0] == 'm') {
 	i = atoi(argv[1] + 1);
 	if (i > 0) {

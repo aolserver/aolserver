@@ -33,12 +33,12 @@
  *
  *	Internal nsthread definitions.
  *
+ * RCS: $Id: thread.h,v 1.4 2000/08/28 22:51:06 jgdavidson Exp $
+ *
  */
 
 #ifndef THREAD_H
 #define THREAD_H
-
-static const char *RCSID_THREAD_H = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/thread.h,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__;
 
 #include "nsthread.h"
 
