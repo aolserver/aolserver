@@ -66,10 +66,11 @@ ifeq (HP-UXB.11.00, $(shell uname -s)$(shell uname -r))
     PLATFORM=hp11
     # CC=cc
     # CFLAGS+=-Ae +DAportable +z
-    # LDSO=$(LD) -b
+    LDSO=$(LD) -b
+    NSDLIBS=-lm
     CFLAGS+=-D__hp11 -pipe -fPIC -Wall -Wno-unused
     LDFLAGS=-Wl,-E
-    LIBS+=-lpthread 
+    LIBS+=-lpthread
     CFLAGS+=-DUSE_DLSHL=1
 endif
 
@@ -85,7 +86,7 @@ ifeq (HP-UXB.10.20, $(shell uname -s)$(shell uname -r))
     PLATFORM=hp10
     # CC=cc
     # CFLAGS+=-Ae +DAportable +z
-    # LDSO=$(LD) -b
+    LDSO=$(LD) -b
     NSDLIBS=-lm
     CFLAGS+=-D__hp10 -pipe -fPIC -Wall -Wno-unused
     LDFLAGS=-Wl,-E
