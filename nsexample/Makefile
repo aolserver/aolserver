@@ -1,5 +1,5 @@
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsexample/Attic/Makefile,v 1.3 2000/05/02 22:21:33 kriston Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsexample/Attic/Makefile,v 1.4 2000/05/02 22:35:25 kriston Exp $
 #
 # nsexample --
 #
@@ -26,7 +26,7 @@ MOD      =  nsexample.so
 OBJS     =  nsexample.o
 
 #
-# Header files
+# Header files in THIS directory
 #
 HDRS     =  
 
