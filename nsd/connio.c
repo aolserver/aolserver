@@ -34,7 +34,7 @@
  *      Handle connection I/O.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/connio.c,v 1.3 2001/04/26 18:41:49 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/connio.c,v 1.4 2001/04/26 18:46:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #define IOBUFSZ 2048
@@ -127,7 +127,7 @@ Ns_ConnSend(Ns_Conn *conn, Ns_Buf *bufs, int nbufs)
 	++n;
     }
     for (i = 0; i < nbufs && n < 16; ++i) {
-	if (bufs[i].len > 0 && bufs[i].buf != NULL) {
+	if (bufs[i].ns_len > 0 && bufs[i].ns_buf != NULL) {
 	    sbufs[n].ns_buf = bufs[i].ns_buf;
 	    sbufs[n].ns_len = bufs[i].ns_len;
 	    towrite += bufs[i].ns_len;
@@ -147,7 +147,7 @@ Ns_ConnSend(Ns_Conn *conn, Ns_Buf *bufs, int nbufs)
 	if (towrite > 0) {
 	    for (i = 0; i < nbufs && n > 0; ++i) {
 		if (n > (int) bufs[i].ns_len) {
-		    n -= bufs[i].len;
+		    n -= bufs[i].ns_len;
 		    bufs[i].ns_buf = NULL;
 		    bufs[i].ns_len = 0;
 		} else {
