@@ -35,7 +35,7 @@
  *	Pool memory is used as an optimization.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/request.c,v 1.8 2004/10/26 19:53:39 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/request.c,v 1.9 2005/01/15 23:55:53 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -496,6 +496,22 @@ Ns_ParseHeader(Ns_Set *set, char *line, Ns_HeaderCaseDisposition disp)
     return NS_OK;
 }
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsAppendRequest --
+ *
+ *	Utility function to append string of given request.
+
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	None
+ *
+ *----------------------------------------------------------------------
+ */
 
 void
 NsAppendRequest(Tcl_DString *dsPtr, Ns_Request *request)
