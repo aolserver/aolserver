@@ -27,7 +27,7 @@
  * version of this file under either the License or the GPL.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sched.c,v 1.12 2003/03/07 18:08:35 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sched.c,v 1.14 2003/03/10 16:02:05 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
 
 /*
  * sched.c --
@@ -748,6 +748,8 @@ SchedThread(void *ignored)
     time_t          now;
     Ns_Time         timeout;
     int		    elapsed;
+    Ns_Thread      *joinThreads;
+    int             nJoinThreads;
 
     Ns_WaitForStartup();
     Ns_ThreadSetName("-sched-");
@@ -846,8 +848,17 @@ SchedThread(void *ignored)
     if (nThreads > 0) {
     	Ns_Log(Notice, "sched: waiting for event threads...");
 	Ns_CondBroadcast(&eventcond);
-	while (--nThreads >= 0) {
-	    Ns_ThreadJoin(&eventThreads[nThreads], NULL);
+	while (nThreads > 0) {
+            joinThreads = eventThreads;
+            nJoinThreads = nThreads;
+            eventThreads = NULL;
+            nThreads = 0;
+            Ns_MutexUnlock(&lock);
+            while (--nJoinThreads >= 0 ) {
+                Ns_ThreadJoin(&joinThreads[nJoinThreads], NULL);
+            }
+            ns_free(joinThreads);
+            Ns_MutexLock(&lock);
 	}
     }
     Ns_MutexUnlock(&lock);
