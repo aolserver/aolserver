@@ -29,13 +29,9 @@ include $(NSHOME)/include/Makefile.global
 #
 #   nsext       -- External database driver module
 #   nspd        -- Archive library for building an external driver
-#   nspostgres  -- Postgres driver (requires Postgres library)
-#   nssybpd     -- Sybase driver (requires Sybase library and nspd)
-#   nssolid     -- Solid driver (requires Solid library)
 #
 
-MODULES   =  nssock nscgi nscp nslog nsperm nsext nspd \
-             nsftp nsunix nsvhr nspostgres nssybpd nssolid
+MODULES   =  nssock nscgi nscp nslog nsperm nsext nspd nsunix nsvhr
 
 #
 # AOLserver main executable statically-links the thread and tcl libraries.
