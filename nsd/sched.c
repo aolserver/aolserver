@@ -27,7 +27,7 @@
  * version of this file under either the License or the GPL.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sched.c,v 1.6 2000/11/09 01:50:48 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sched.c,v 1.7 2001/11/05 20:23:43 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 /*
  * sched.c --
@@ -96,7 +96,6 @@ static Ns_Thread lastEventThread;
 static Event   *firstFreeEventPtr;
 static int      nfreeEvents;
 static int	neventThreads;
-static int	idle;
 
 /*
  * Macro to exchange two events in the heap, used in QueueEvent() and
@@ -444,43 +443,6 @@ Ns_Resume(int id)
 /*
  *----------------------------------------------------------------------
  *
- * NsWaitSchedIdle --
- *
- *	Wait for sched thread to appear idle.
- *
- * Results:
- *	None.
- *
- * Side effects:
- *	May timeout waiting for sched idle.
- *
- *----------------------------------------------------------------------
- */
-
-void
-NsWaitSchedIdle(Ns_Time *toPtr)
-{
-    int status = NS_OK;
-    
-    Ns_MutexLock(&lock);
-    if (running && !idle) {
-    	Ns_Log(Notice, "sched: waiting for idle");
-    	while (running && status == NS_OK && !idle) {
-	    status = Ns_CondTimedWait(&cond, &lock, toPtr);
-    	}
-    }
-    Ns_MutexUnlock(&lock);
-    if (status != NS_OK) {
-	Ns_Log(Warning, "sched: timeout waiting for sched idle!");
-    } else {
-	Ns_Log(Notice, "sched: idle");
-    }
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
  * NsStartSchedShutdown, NsWaitSchedShutdown --
  *
  *	Inititiate and then wait for sched shutdown.
@@ -813,16 +775,6 @@ SchedThread(void *ignored)
 	    	ePtr->lastend = now;
 		QueueEvent(ePtr, &now);
 	    }
-	}
-
-	/*
-	 * Signal sched now appears idle after processing
-	 * the list once.
-	 */
-
-	if (!idle && queue[1]->nextqueue > now) {
-	    idle = 1;
-	    Ns_CondBroadcast(&cond);
 	}
 
 	/*
