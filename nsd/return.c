@@ -34,7 +34,7 @@
  *	Functions that return data to a browser. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.43 2005/01/17 14:03:44 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.44 2005/03/25 00:36:42 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -47,7 +47,7 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
 static int ReturnRedirect(Ns_Conn *conn, int status, int *resultPtr);
 static int ReturnOpen(Ns_Conn *conn, int status, char *type, Tcl_Channel chan,
 		      FILE *fp, int fd, int len);
-static int ReturnCharData(Ns_Conn *conn, int status, char *data, int len,
+static int ReturnData(Ns_Conn *conn, int status, char *data, int len,
                           char *type, int sendRaw);
 static int HdrEq(Ns_Set *hdrs, char *key, char *value);
 
@@ -187,7 +187,7 @@ Ns_ConnConstructHeaders(Ns_Conn *conn, Ns_DString *dsPtr)
      */
 
     connPtr = (Conn *) conn;
-    status = connPtr->responseStatus;
+    status = Ns_ConnGetStatus(conn);
     if (HdrEq(conn->outputheaders, "transfer-encoding", "chunked")) {
 	minor = 1;
     } else {
@@ -229,10 +229,10 @@ Ns_ConnConstructHeaders(Ns_Conn *conn, Ns_DString *dsPtr)
 	    nsconf.keepalive.enabled &&
 	    connPtr->headers != NULL &&
 	    connPtr->request != NULL &&
-	    ((connPtr->responseStatus == 200 &&
+	    ((status == 200 &&
 	    (lengthHdr != NULL &&
 	    (connPtr->responseLength == length)) || (minor > 0)) ||
-	    connPtr->responseStatus == 304) &&
+	    status == 304) &&
 	    STREQ(connPtr->request->method, "GET") &&
 	    HdrEq(conn->headers, "connection", "keep-alive")) {
 	    Ns_ConnSetKeepAliveFlag(conn, NS_TRUE);
@@ -281,7 +281,7 @@ Ns_ConnQueueHeaders(Ns_Conn *conn, int status)
     Conn *connPtr = (Conn *) conn;
 
     if (!(conn->flags & NS_CONN_SENTHDRS)) {
-    	connPtr->responseStatus = status;
+	Ns_ConnSetStatus(conn, status);
     	if (!(conn->flags & NS_CONN_SKIPHDRS)) {
 	    Ns_ConnConstructHeaders(conn, &connPtr->obuf);
 	    connPtr->nContentSent -= connPtr->obuf.length;
@@ -407,9 +407,10 @@ Ns_ConnReplaceHeaders(Ns_Conn *conn, Ns_Set *newheaders)
  */
 
 void
-Ns_ConnSetRequiredHeaders(Ns_Conn *conn, char *type, int length)
+Ns_ConnSetRequiredHeaders(Ns_Conn *conn, char *newtype, int length)
 {
     Conn *connPtr = (Conn *) conn;
+    char *type;
     Ns_DString ds;
 
     /*
@@ -437,11 +438,16 @@ Ns_ConnSetRequiredHeaders(Ns_Conn *conn, char *type, int length)
      * that a valid length is required for connection keep-alive.
      */
 
-    if (type != NULL) {
-    	Ns_ConnSetTypeHeader(conn, type);
+    type = Ns_ConnGetType(conn);
+    if (type != newtype) {
+	Ns_ConnSetType(conn, newtype);
+	type = Ns_ConnGetType(conn);
+    }
+    if (type) {
+	Ns_ConnSetTypeHeader(conn, type);
     }
     if (length >= 0) {
-       Ns_ConnSetLengthHeader(conn, length);
+	Ns_ConnSetLengthHeader(conn, length);
     }
     Ns_DStringFree(&ds);
 }
@@ -591,13 +597,15 @@ Ns_ConnPrintfHeader(Ns_Conn *conn, char *fmt,...)
  *
  * Ns_ConnResetReturn --
  *
- *	Deprecated 
+ *	Reset the connection, clearing any queued headers, so a
+ *	basic result may be sent.
  *
  * Results:
- *	NS_OK 
+ *	NS_OK if connection could be cleared, NS_ERROR if data has
+ *	already been sent.
  *
  * Side effects:
- *	None. 
+ *	Will truncate queued headers.
  *
  *----------------------------------------------------------------------
  */
@@ -605,6 +613,19 @@ Ns_ConnPrintfHeader(Ns_Conn *conn, char *fmt,...)
 int
 Ns_ConnResetReturn(Ns_Conn *conn)
 {
+    Conn *connPtr = (Conn *) conn;
+
+    if (connPtr->nContentSent) {
+	return NS_ERROR;
+    }
+
+    /*
+     * Clear queued headers and reset status and type.
+     */
+
+    Ns_DStringFree(&connPtr->obuf);
+    Ns_ConnSetType(conn, NULL);
+    Ns_ConnSetStatus(conn, 0);
     return NS_OK;
 }
 
@@ -719,7 +740,7 @@ Ns_ConnReturnNotice(Ns_Conn *conn, int status, char *title, char *notice)
 int
 Ns_ConnReturnData(Ns_Conn *conn, int status, char *data, int len, char *type)
 {
-   return ReturnCharData(conn, status, data, len, type, 1);
+   return ReturnData(conn, status, data, len, type, 1);
 }
 
 
@@ -742,14 +763,14 @@ Ns_ConnReturnData(Ns_Conn *conn, int status, char *data, int len, char *type)
 int
 Ns_ConnReturnCharData(Ns_Conn *conn, int status, char *data, int len, char *type)
 {
-   return ReturnCharData(conn, status, data, len, type, 0);
+   return ReturnData(conn, status, data, len, type, 0);
 }
 
 
 /*
  *----------------------------------------------------------------------
  *
- * ReturnCharData --
+ * ReturnData --
  *
  *	Sets required headers, dumps them, and then writes your data. 
  *      If raw is true, disable character encoding.
@@ -764,7 +785,7 @@ Ns_ConnReturnCharData(Ns_Conn *conn, int status, char *data, int len, char *type
  */
 
 static int
-ReturnCharData(Ns_Conn *conn, int status, char *data, int len, char *type, int raw)
+ReturnData(Ns_Conn *conn, int status, char *data, int len, char *type, int raw)
 {
     Ns_ConnSetStatus(conn, status);
     Ns_ConnSetType(conn, type);
