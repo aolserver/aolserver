@@ -28,7 +28,7 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/init.tcl,v 1.13 2003/01/23 18:29:53 shmooved Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/init.tcl,v 1.14 2003/01/27 22:28:45 shmooved Exp $
 #
 
 #
@@ -88,14 +88,21 @@ proc ns_module {key {val ""}} {
 #
 
 proc ns_eval {args} {
-    if {[catch {uplevel $args} result]} {
-        ns_markfordelete; # dump this interp to avoid proc pollution.
-        return -code error $result
+    set len [llength $args]
+    if {$len == 0} {
+        return
+    } elseif {$len == 1} {
+        set args [lindex $args 0]
     }
-    _ns_savenamespaces; # save this interp's namespaces for others.
-    return $result
+    if {[set code [catch {uplevel 1 $args} result]]} {
+        # dump this interp to avoid proc pollution
+        ns_markfordelete
+        return -code $code $result
+    }
+    # save this interp's namespaces for others
+    _ns_savenamespaces
+    return -code $code $result
 }
-
 
 #
 # ns_adp_include --
