@@ -4,7 +4,7 @@
 	Tcl_DeleteInterp.
 
 	* nsthread/nsthreadtest.c:
-	* nsd/init.c:
+	* nsd/info.c:
 	* nsd/nsmain.c:
 	* include/Makefile.module.in:
 	* configure:

@@ -33,7 +33,7 @@
  *	Ns_Info* API and ns_info command support.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/info.c,v 1.15 2003/05/24 15:26:58 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/info.c,v 1.16 2003/06/02 14:51:33 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -566,7 +566,7 @@ NsTclInfoObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 	break;
 
     case IPoolsIdx:
-#if !defined(_WIN32) && defined(USE_THREAD_ALLOC)
+#if !defined(_WIN32) && defined(USE_THREAD_ALLOC) && (STATIC_BUILD == 0)
 	Tcl_GetMemoryInfo(&ds); /* As of Tcl8.4.1 this is not exported. */
 	Tcl_DStringResult(interp, &ds);
 #endif
