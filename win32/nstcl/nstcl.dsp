@@ -92,6 +92,10 @@ LINK32=link.exe
 # PROP Default_Filter "cpp;c;cxx;rc;def;r;odl;idl;hpj;bat"
 # Begin Source File
 
+SOURCE=..\..\tcl8.3.2\generic\nsthreads.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\tcl8.3.2\generic\regcomp.c
 # End Source File
 # Begin Source File

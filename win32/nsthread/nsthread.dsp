@@ -135,10 +135,6 @@ SOURCE=..\..\thread\sema.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\thread\tcl8x.c
-# End Source File
-# Begin Source File
-
 SOURCE=..\..\thread\thread.c
 # End Source File
 # Begin Source File
