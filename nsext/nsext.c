@@ -109,7 +109,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsext/nsext.c,v 1.9 2002/06/06 00:00:39 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsext/nsext.c,v 1.10 2003/02/05 14:28:42 elizthom Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsdb.h"
 #include "nsextmsg.h"
@@ -2451,13 +2451,6 @@ LocalProxy(NsExtConn * nsConn)
 
     status = NS_ERROR;
 
-    /*
-     * Set CloseOnExec to avoid stuck-open connections.
-     */
-    Ns_CloseOnExec(in[0]);
-    Ns_CloseOnExec(in[1]);
-    Ns_CloseOnExec(out[0]);
-    Ns_CloseOnExec(out[1]);
 
     if (ns_pipe(in) < 0) {
         Ns_Log(Error, "nsext: failed to create input socket pipes");
@@ -2467,6 +2460,13 @@ LocalProxy(NsExtConn * nsConn)
 	    close(in[1]);
             Ns_Log(Error, "nsext: failed to create output socket pipes");
         } else {
+            /*
+             * Set CloseOnExec to avoid stuck-open connections.
+             */
+            Ns_CloseOnExec(in[0]);
+            Ns_CloseOnExec(in[1]);
+            Ns_CloseOnExec(out[0]);
+            Ns_CloseOnExec(out[1]);
             argv[0] = nsConn->ctx->path;
             argv[1] = NULL;
             pid = Ns_ExecArgv(nsConn->ctx->path, NULL, out[0], in[1], argv,
