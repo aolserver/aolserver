@@ -28,18 +28,19 @@
  */
 
 /* 
- * tclNsThread.cpp --
+ * tcl8x.c --
  *
  *	This file implements the nsthread-based thread support for
- *	Tcl 8.x
+ *	Tcl 8.x.
  *
  * Copyright (c) 1999 AOL, Inc.
  *
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * SCCS:  @(#) tclNsThread.c 1.18 98/02/19 14:24:12
  */
+
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/tcl8x.c,v 1.7.2.1 2001/03/14 19:05:32 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "thread.h"
 #define USE_TCL8X
@@ -48,16 +49,15 @@
 
 /*
  * The following structure and TLS key define a per-thread
- * cache of Tcl_Obj's.  This is used to both to avoid
- * lock contention and memory overhead with direct allocation.
+ * cache of Tcl_Obj's.  This is used to both avoid lock
+ * contention and reduce memory overhead associated with
+ * normal block padding when using direct allocation.
  */
  
 typedef struct List {
     Tcl_Obj *firstPtr;
     int nobjs;
 } List;
-
-static Ns_Tls tls;
 
 /*
  * The following define the number of Tcl_Obj's to allocate/move
@@ -94,11 +94,10 @@ typedef struct ThreadArg {
 static Ns_ThreadProc TclNsThread;
 
 /*
- * These macros are for critical sections within this file.
+ * The following TLS cleanup is for Tcl thread data blocks.
  */
-
-#define MASTER_LOCK	Ns_MasterLock()
-#define MASTER_UNLOCK	Ns_MasterUnlock()
+ 
+static Ns_TlsCleanup FreeDataBlock;
 
 
 /*
@@ -261,10 +260,9 @@ Tcl_GetCurrentThread()
  *
  * TclpInitLock
  *
- *	This procedure is used to grab a lock that serializes initialization
- *	and finalization of Tcl.  On some platforms this may also initialize
- *	the mutex used to serialize creation of more mutexes and thread
- *	local storage keys.
+ *	This procedure is used to grab a lock that serializes
+ *	initialization and finalization of Tcl.  With nsthreads,
+ *	the single recursive Ns_MasterLock is used. 
  *
  * Results:
  *	None.
@@ -278,7 +276,7 @@ Tcl_GetCurrentThread()
 NS_EXPORT void
 TclpInitLock()
 {
-    MASTER_LOCK;
+    Ns_MasterLock();
 }
 
 
@@ -302,7 +300,7 @@ TclpInitLock()
 NS_EXPORT void
 TclpInitUnlock()
 {
-    MASTER_UNLOCK;
+    Ns_MasterUnlock();
 }
 
 /*
@@ -311,12 +309,7 @@ TclpInitUnlock()
  * TclpMasterLock
  *
  *	This procedure is used to grab a lock that serializes creation
- *	and finalization of serialization objects.  This interface is
- *	only needed in finalization; it is hidden during
- *	creation of the objects.
- *
- *	This lock must be different than the initLock because the
- *	initLock is held during creation of syncronization objects.
+ *	and finalization of serialization objects.
  *
  * Results:
  *	None.
@@ -330,7 +323,7 @@ TclpInitUnlock()
 NS_EXPORT void
 TclpMasterLock()
 {
-    MASTER_LOCK;
+    Ns_MasterLock();
 }
 
 
@@ -354,7 +347,7 @@ TclpMasterLock()
 NS_EXPORT void
 TclpMasterUnlock()
 {
-    MASTER_UNLOCK;
+    Ns_MasterUnlock();
 }
 
 
@@ -365,7 +358,7 @@ TclpMasterUnlock()
  *
  *	This procedure returns a pointer to a statically initialized
  *	mutex for use by the memory allocator.  The alloctor must
- *	use this lock, because all other locks are allocated...
+ *	use this lock, because all other locks are allocated.
  *
  * Results:
  *	A pointer to a mutex that is suitable for passing to
@@ -381,7 +374,7 @@ NS_EXPORT Tcl_Mutex *
 Tcl_GetAllocMutex()
 {
     static Ns_Mutex allocLock;
-    return (Tcl_Mutex *)&allocLock;
+    return (Tcl_Mutex *) &allocLock;
 }
 
 
@@ -413,7 +406,7 @@ Tcl_MutexLock(mutexPtr)
     Ns_Mutex *nsmutexPtr = (Ns_Mutex *) mutexPtr;
 
     if (*nsmutexPtr == NULL) {
-	MASTER_LOCK;
+	Ns_MasterLock();
 	if (*nsmutexPtr == NULL) {
 	    static int next;
 	    char buf[20];
@@ -422,7 +415,7 @@ Tcl_MutexLock(mutexPtr)
 	    Ns_MutexInit(nsmutexPtr);
 	    Ns_MutexSetName(nsmutexPtr, buf);
 	}
-	MASTER_UNLOCK;
+	Ns_MasterUnlock();
     }
     Ns_MutexLock(nsmutexPtr);
 }
@@ -486,21 +479,15 @@ TclpFinalizeMutex(mutexPtr)
  * TclpThreadDataKeyInit --
  *
  *	This procedure initializes a thread specific data block key.
- *	Each thread has table of pointers to thread specific data.
- *	all threads agree on which table entry is used by each module.
- *	this is remembered in a "data key", that is just an index into
- *	this table.  To allow self initialization, the interface
- *	passes a pointer to this key and the first thread to use
- *	the key fills in the pointer to the key.  The key should be
- *	a process-wide static.
+ *	In Tcl, a thread data block is thread local storage allocated
+ *	with TclpAlloc.
  *
  * Results:
  *	None.
  *
  * Side effects:
- *	Will allocate memory the first time this process calls for
- *	this key.  In this case it modifies its argument
- *	to hold the pointer to information about the key.
+ *	Per-thread data blocks will be deallocated at thread exit with
+ *	FreeDataBlock.
  *
  *----------------------------------------------------------------------
  */
@@ -509,15 +496,13 @@ NS_EXPORT void
 TclpThreadDataKeyInit(keyPtr)
     Tcl_ThreadDataKey *keyPtr;	/* Identifier for the data chunk */
 {
-    Ns_Tls *pkeyPtr;
+    Ns_Tls *tlsPtr = (Ns_Tls *) keyPtr;
 
-    MASTER_LOCK;
-    if (*keyPtr == NULL) {
-	pkeyPtr = (Ns_Tls *)NsAlloc(sizeof(Ns_Tls));
-	Ns_TlsAlloc(pkeyPtr, NULL);
-	*keyPtr = (Tcl_ThreadDataKey)pkeyPtr;
+    Ns_MasterLock();
+    if (*tlsPtr == NULL) {
+	Ns_TlsAlloc(tlsPtr, FreeDataBlock);
     }
-    MASTER_UNLOCK;
+    Ns_MasterUnlock();
 }
 
 /*
@@ -525,7 +510,7 @@ TclpThreadDataKeyInit(keyPtr)
  *
  * TclpThreadDataKeyGet --
  *
- *	This procedure returns a pointer to a block of thread local storage.
+ *	This procedure returns a pointer to a thread data block.
  *
  * Results:
  *	A thread-specific pointer to the data structure, or NULL
@@ -541,12 +526,10 @@ NS_EXPORT VOID *
 TclpThreadDataKeyGet(keyPtr)
     Tcl_ThreadDataKey *keyPtr;	/* Identifier for the data chunk */
 {
-    Ns_Tls *pkeyPtr = *(Ns_Tls **)keyPtr;
-    if (pkeyPtr == NULL) {
+    if (*keyPtr == NULL) {
 	return NULL;
-    } else {
-	return (VOID *)Ns_TlsGet(pkeyPtr);
     }
+    return (VOID *) Ns_TlsGet((Ns_Tls *) keyPtr);
 }
 
 
@@ -555,7 +538,7 @@ TclpThreadDataKeyGet(keyPtr)
  *
  * TclpThreadDataKeySet --
  *
- *	This procedure sets the pointer to a block of thread local storage.
+ *	This procedure sets the pointer to a thread data block.
  *
  * Results:
  *	None.
@@ -572,8 +555,7 @@ TclpThreadDataKeySet(keyPtr, data)
     Tcl_ThreadDataKey *keyPtr;	/* Identifier for the data chunk */
     VOID *data;			/* Thread local storage */
 {
-    Ns_Tls *pkeyPtr = *(Ns_Tls **)keyPtr;
-    Ns_TlsSet(pkeyPtr, data);
+    Ns_TlsSet((Ns_Tls *) keyPtr, data);
 }
 
 /*
@@ -581,14 +563,16 @@ TclpThreadDataKeySet(keyPtr, data)
  *
  * TclpFinalizeThreadData --
  *
- *	This procedure cleans up the thread-local storage.  This is
- *	called once for each thread.
+ *	In nsthread's, this routine is not called because there is no
+ *	call to TclRememberThreadDataKey in TclpThreadDataKeyInit.
+ *	Instead, the blocks are deallocated by the FreeDataBlock
+ *	callback in the Ns_Tls interface.
  *
  * Results:
  *	None.
  *
  * Side effects:
- *	Frees up all thread local storage.
+ *	None.
  *
  *----------------------------------------------------------------------
  */
@@ -597,17 +581,7 @@ NS_EXPORT void
 TclpFinalizeThreadData(keyPtr)
     Tcl_ThreadDataKey *keyPtr;
 {
-    VOID *result;
-    Ns_Tls *pkeyPtr;
-
-    if (*keyPtr != NULL) {
-	pkeyPtr = *(Ns_Tls **)keyPtr;
-	result = (VOID *)Ns_TlsGet(pkeyPtr);
-	if (result != NULL) {
-	    NsFree((char *)result);
-	    Ns_TlsSet(pkeyPtr, (void *)NULL);
-	}
-    }
+    return;
 }
 
 /*
@@ -615,17 +589,14 @@ TclpFinalizeThreadData(keyPtr)
  *
  * TclpFinalizeThreadDataKey --
  *
- *	This procedure is invoked to clean up one key.  This is a
- *	process-wide storage identifier.  The thread finalization code
- *	cleans up the thread local storage itself.
- *
- *	This assumes the master lock is held.
+ *	In nsthreads, this procedure is never called because there
+ *	is no call to TclRememberThreadDataKey in TclpThreadDataKeyInit.
  *
  * Results:
  *	None.
  *
  * Side effects:
- *	The key is deallocated.
+ *	None.
  *
  *----------------------------------------------------------------------
  */
@@ -634,12 +605,7 @@ NS_EXPORT void
 TclpFinalizeThreadDataKey(keyPtr)
     Tcl_ThreadDataKey *keyPtr;
 {
-    Ns_Tls *pkeyPtr;
-    if (*keyPtr != NULL) {
-	pkeyPtr = *(Ns_Tls **)keyPtr;
-	NsFree((char *)pkeyPtr);
-	*keyPtr = NULL;
-    }
+    return;
 }
 
 
@@ -746,7 +712,7 @@ TclpFinalizeCondition(condPtr)
  *
  * TclpAlloc --
  *
- *	Wraps malloc. 
+ *	Wraps ns_malloc. 
  *
  * Results:
  *	See ns_malloc 
@@ -769,7 +735,7 @@ TclpAlloc(unsigned int nbytes)
  *
  * TclpFree --
  *
- *	Wraps free. 
+ *	Wraps ns_free. 
  *
  * Results:
  *	See ns_free 
@@ -792,7 +758,7 @@ TclpFree(char *cp)
  *
  * TclpRealloc --
  *
- *	Wraps realloc. 
+ *	Wraps ns_realloc. 
  *
  * Results:
  *	See ns_realloc 
@@ -807,6 +773,29 @@ NS_EXPORT char *
 TclpRealloc(char *cp, unsigned int nbytes)
 {
     return ns_realloc(cp, nbytes);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * FreeDataBlock --
+ *
+ *	Ns_Tls cleanup callback to free thread data blocks.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+FreeDataBlock(void *arg)
+{
+    TclpFree((char *) arg);
 }
 
 
@@ -998,15 +987,18 @@ FreeList(void *arg)
 static List *
 GetList(void)
 {
+    static volatile int initialized = 0;
+    static Ns_Tls tls;
     List *listPtr;
 
-    if (tls == NULL) {
-    	MASTER_LOCK;
-	if (tls == NULL) {
+    if (!initialized) {
+    	Ns_MasterLock();
+	if (!initialized) {
 	    Ns_TlsAlloc(&tls, FreeList);
+	    initialized = 1;
 	}
 	Ns_MutexSetName2(&lock, "nsthread", "tclobjs");
-    	MASTER_UNLOCK;
+    	Ns_MasterUnlock();
     }
     listPtr = Ns_TlsGet(&tls);
     if (listPtr == NULL) {
