@@ -1,3 +1,7 @@
+2004-06-23  Rob Crittenden <rcrittenden0569@aol.com>
+
+	* nsd/log.c: ns_log now logs to a custom logger as well.
+
 2004-06-14 20:41  Dossy Shiobara <dossy@panoptic.com>
 
 	* nsd/return.c: unnecessary test for data != NULL actually caused
