@@ -28,7 +28,7 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/http.tcl,v 1.11 2001/08/30 01:52:39 scottg Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/http.tcl,v 1.12 2002/02/08 07:56:16 hobbs Exp $
 #
 
 # http.tcl -
@@ -57,7 +57,7 @@ proc ns_httpopen {method url {rqset ""} {timeout 30} {pdata ""}} {
     # Determine if url is local; prepend site address if so
     #
 
-    if [string match /* $url] {
+    if {[string match /* $url]} {
         set host "http://[ns_config ns/server/[ns_info server]/module/nssock hostname]"
         set port [ns_config ns/server/[ns_info server]/module/nssock port]             
         if { $port != 80 } {
@@ -70,7 +70,7 @@ proc ns_httpopen {method url {rqset ""} {timeout 30} {pdata ""}} {
     # Verify that the URL is an HTTP url.
     #
     
-    if ![string match http://* $url] {
+    if {![string match http://* $url]} {
 	return -code error "Invalid url \"$url\": "\
 		"ns_httpopen only supports HTTP"
     }
@@ -83,7 +83,7 @@ proc ns_httpopen {method url {rqset ""} {timeout 30} {pdata ""}} {
     set hp [split [lindex $url 2] :]
     set host [lindex $hp 0]
     set port [lindex $hp 1]
-    if [string match $port ""] {
+    if {[string match $port ""]} {
 	set port 80
     }
     set uri /[join [lrange $url 3 end] /]
@@ -95,7 +95,7 @@ proc ns_httpopen {method url {rqset ""} {timeout 30} {pdata ""}} {
     set fds [ns_sockopen -nonblock $host $port]
     set rfd [lindex $fds 0]
     set wfd [lindex $fds 1]
-    if [catch {
+    if {[catch {
 	#
 	# First write the request, then the headers if they exist.
 	#
@@ -153,14 +153,14 @@ proc ns_httpopen {method url {rqset ""} {timeout 30} {pdata ""}} {
 	#
 	
 	set rpset [ns_set new [_ns_http_gets $timeout $rfd]]
-	while 1 {
+	while {1} {
 	    set line [_ns_http_gets $timeout $rfd]
-	    if ![string length $line] {
+	    if {![string length $line]} {
 		break
 	    }
 	    ns_parseheader $rpset $line
 	}
-    } errMsg] {
+    } errMsg]} {
 	#
 	# Something went wrong during the request, so return an error.
 	#
@@ -168,7 +168,7 @@ proc ns_httpopen {method url {rqset ""} {timeout 30} {pdata ""}} {
 	global errorInfo
 	close $wfd
 	close $rfd
-	if [info exists rpset] {
+	if {[info exists rpset]} {
 	    ns_set free $rpset
 	}
 	return -code error -errorinfo $errorInfo $errMsg
@@ -241,7 +241,7 @@ proc ns_httppost {url {rqset ""} {qsset ""} {type ""} {timeout 30}} {
     set headers [lindex $http 2]
 
     set length [ns_set iget $headers content-length]
-    if [string match "" $length] {
+    if {[string match "" $length]} {
 	set length -1
     }
     set err [catch {
@@ -249,10 +249,10 @@ proc ns_httppost {url {rqset ""} {qsset ""} {type ""} {timeout 30}} {
 	# Read the content.
 	#
 	
-	while 1 {
+	while {1} {
 	    set buf [_ns_http_read $timeout $rfd $length]
 	    append page $buf
-	    if [string match "" $buf] {
+	    if {[string match "" $buf]} {
 		break
 	    }
 	    if {$length > 0} {
@@ -266,7 +266,7 @@ proc ns_httppost {url {rqset ""} {qsset ""} {type ""} {timeout 30}} {
 
     ns_set free $headers
     close $rfd
-    if $err {
+    if {$err} {
 	global errorInfo
 	return -code error -errorinfo $errorInfo $errMsg
     }
@@ -315,7 +315,7 @@ proc ns_httpget {url {timeout 30} {depth 0} {rqset ""}} {
 		set hp [split [lindex $url2 2] :]
 		set host [lindex $hp 0]
 		set port [lindex $hp 1]
-		if [string match $port ""] {
+		if {[string match $port ""]} {
                     set port 80
                 }
 		regexp "^(.*)://" $url match method
@@ -327,7 +327,7 @@ proc ns_httpget {url {timeout 30} {depth 0} {rqset ""}} {
     }
     
     set length [ns_set iget $headers content-length]
-    if [string match "" $length] {
+    if {[string match "" $length]} {
 	set length -1
     }
     set err [catch {
@@ -335,10 +335,10 @@ proc ns_httpget {url {timeout 30} {depth 0} {rqset ""}} {
 	# Read the content.
 	#
 	
-	while 1 {
+	while {1} {
 	    set buf [_ns_http_read $timeout $rfd $length]
 	    append page $buf
-	    if [string match "" $buf] {
+	    if {[string match "" $buf]} {
 		break
 	    }
 	    if {$length > 0} {
@@ -352,7 +352,7 @@ proc ns_httpget {url {timeout 30} {depth 0} {rqset ""}} {
 
     ns_set free $headers
     close $rfd
-    if $err {
+    if {$err} {
 	global errorInfo
 	return -code error -errorinfo $errorInfo $errMsg
     }
@@ -376,9 +376,9 @@ proc ns_httpget {url {timeout 30} {depth 0} {rqset ""}} {
 
 proc _ns_http_readable {timeout sock} {
     set nread [ns_socknread $sock]
-    if !$nread {
+    if {!$nread} {
 	set sel [ns_sockselect -timeout $timeout $sock {} {}]
-	if [string match "" [lindex $sel 0]] {
+	if {[string match "" [lindex $sel 0]]} {
 	    return -code error "ns_sockreadwait: Timeout waiting for remote"
 	}
 	set nread [ns_socknread $sock]
@@ -423,7 +423,7 @@ proc _ns_http_gets {timeout sock} {
     set done 0
     while {!$done} {
 	set nline [_ns_http_readable $timeout $sock]
-	if !$nline {set done 1}
+	if {!$nline} {set done 1}
 	while {!$done && $nline > 0} {
 	    set char [read $sock 1]
 	    if {$char == "\n"} {set done 1}

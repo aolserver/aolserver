@@ -28,7 +28,7 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/debug.tcl,v 1.3 2000/08/02 23:38:25 kriston Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/debug.tcl,v 1.4 2002/02/08 07:56:16 hobbs Exp $
 #
 
 #
@@ -88,36 +88,36 @@
 #
 
 proc ns_adp_debuginit {procs host port} {
-        if ![string length $host] {
-                set host [ns_conn peeraddr]
-        }
-        if ![string length $port] {
-		# NB: Should match that in prodebug.tcl.
-                set port 2576
-        }
-        if [string length $procs] {
-                set procsfile [ns_tmpnam]
-                set fp [open $procsfile w]
-                foreach p [info procs $procs] {
-                        if [string match *debug* $p] continue
-                        set args {}
-                        foreach a [info args $p] {
-                                if [info default $p $a def] {
-                                        lappend args [list $a $def]
-                                } else {
-                                        lappend args $a
-                                }
-                        }
-                        puts $fp [list proc $p $args [info body $p]]
-                }
-                close $fp
-        }
-        if ![debugger_init $host $port] {
-            return -code error \
+    if {![string length $host]} {
+	set host [ns_conn peeraddr]
+    }
+    if {![string length $port]} {
+	# NB: Should match that in prodebug.tcl.
+	set port 2576
+    }
+    if {[string length $procs]} {
+	set procsfile [ns_tmpnam]
+	set fp [open $procsfile w]
+	foreach p [info procs $procs] {
+	    if {[string match *debug* $p]} continue
+	    set args {}
+	    foreach a [info args $p] {
+		if {[info default $p $a def]} {
+		    lappend args [list $a $def]
+		} else {
+		    lappend args $a
+		}
+	    }
+	    puts $fp [list proc $p $args [info body $p]]
+	}
+	close $fp
+    }
+    if {![debugger_init $host $port]} {
+	return -code error \
                 "debugger_init: could not connect to $host:$port"
-        }
-        if [string length $procs] {
-                DbgNub_sourceCmd $procsfile
-                ns_unlink $procsfile
-        }
+    }
+    if {[string length $procs]} {
+	DbgNub_sourceCmd $procsfile
+	ns_unlink $procsfile
+    }
 }

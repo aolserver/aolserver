@@ -28,7 +28,7 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/util.tcl,v 1.3 2000/08/02 23:38:25 kriston Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/util.tcl,v 1.4 2002/02/08 07:56:16 hobbs Exp $
 #
 
 #
@@ -64,13 +64,13 @@ proc ns_findset {sets name} {
 
 # getformdata - make sure an HTML FORM was sent with the request.
 proc getformdata {conn formVar} {
-	upvar $formVar form
-	set form [ns_conn form $conn]
-	if [string match "" $form] {
-		ns_returnbadrequest $conn "Missing HTML FORM data"
-		return 0
-	}
-	return 1
+    upvar $formVar form
+    set form [ns_conn form $conn]
+    if {[string match "" $form]} {
+	ns_returnbadrequest $conn "Missing HTML FORM data"
+	return 0
+    }
+    return 1
 }
 
 proc ns_paren {val} {
@@ -90,7 +90,7 @@ proc issmallint {value} {
 }
 
 proc ns_issmallint {value} {
-    return [expr [regexp {^[0-9]+$} $value] && [string length $value] <= 6]
+    return [expr {[regexp {^[0-9]+$} $value] && [string length $value] <= 6}]
 }
 
 ## Special thanks to Brian Tivol at Hearst New Media Center and MIT
@@ -193,7 +193,7 @@ proc ns_formvalueput {htmlpiece dataname datavalue} {
 
 			regexp {^([^<]*)(.*)} $htmlpiece m txt htmlpiece
 
-			if [string match "" $value] {
+			if {[string match "" $value]} {
 			    set value [string trim $txt]
 			}
 
@@ -322,7 +322,7 @@ proc ns_htmlselect args {
     set len [llength $values]
     set lvpairs {}
     for {set i 0} {$i < $len} {incr i} {
-	if [string match "" $labels] {
+	if {[string match "" $labels]} {
 	    set label [lindex $values $i]
 	} else {
 	    set label [lindex $labels $i]
@@ -330,7 +330,7 @@ proc ns_htmlselect args {
 	regsub -all "\"" $label "" label
 	lappend lvpairs [list  $label [lindex $values $i]]
     }
-    if $sort {
+    if {$sort} {
 	set lvpairs [lsort -command _ns_paircmp -increasing $lvpairs]
     }
     foreach lvpair $lvpairs {
@@ -358,16 +358,16 @@ proc _ns_fillinmailtemplate {templatebody row} {
 
 proc ns_setexpires args {
     # skip over the optional connId parameter: just use the last arg
-    set secondsarg [expr [llength $args] - 1]
+    set secondsarg [expr {[llength $args] - 1}]
 
     ns_set update [ns_conn outputheaders] Expires \
-	    [ns_httptime [expr [lindex $args $secondsarg] + [ns_time]]]
+	    [ns_httptime [expr {[lindex $args $secondsarg] + [ns_time]}]]
 }
 
 
 proc ns_browsermatch args {
     # skip over the optional connId parameter: just use the last arg
-    set globarg [expr [llength $args] - 1]
+    set globarg [expr {[llength $args] - 1}]
 
     return [string match [lindex $args $globarg]  \
 	    [ns_set iget [ns_conn headers] user-agent]]

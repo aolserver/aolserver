@@ -28,7 +28,7 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/sendmail.tcl,v 1.3 2000/08/02 23:38:25 kriston Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/sendmail.tcl,v 1.4 2002/02/08 07:56:16 hobbs Exp $
 #
 
 #
@@ -47,16 +47,16 @@ proc _ns_smtp_send {wfp string timeout} {
 
 
 proc _ns_smtp_recv {rfp check timeout} {
-    while (1) {
+    while {1} {
 	if {[lindex [ns_sockselect -timeout $timeout $rfp {} {}] 0] == ""} {
 	    error "Timeout reading from SMTP host"
 	}
 	set line [gets $rfp]
 	set code [string range $line 0 2]
-	if ![string match $check $code] {
+	if {![string match $check $code]} {
 	    error "Expected a $check status line; got:\n$line"
 	}
-	if ![string match "-" [string range $line 3 3]] {
+	if {![string match "-" [string range $line 3 3]]} {
 	    break;
 	}
     }
@@ -81,38 +81,38 @@ proc ns_sendmail { to from subject body {extraheaders {}} {bcc {}} } {
     
     ## Get smtp server into, if none then use localhost
     set smtp [ns_config ns/parameters smtphost]
-    if [string match "" $smtp] {
+    if {[string match "" $smtp]} {
 	set smtp [ns_config ns/parameters mailhost]
     }
-    if [string match "" $smtp] {
+    if {[string match "" $smtp]} {
 	set smtp localhost
     }
     set timeout [ns_config ns/parameters smtptimeout]
-    if [string match "" $timeout] {
+    if {[string match "" $timeout]} {
 	set timeout 60
     }
     set smtpport [ns_config ns/parameters smtpport]
-    if [string match "" $smtpport] {
+    if {[string match "" $smtpport]} {
 	set smtpport 25
     }
 
     ## Extract "from" email address
-    if [regexp {.*<(.*)>} $from ig address] {
+    if {[regexp {.*<(.*)>} $from ig address]} {
 	set from $address
     }
     
     set tolist [list]
     foreach toaddr $tolist_in {
-	if [regexp {.*<(.*)>} $toaddr ig address] {
+	if {[regexp {.*<(.*)>} $toaddr ig address]} {
 	    set toaddr $address
 	}
 	lappend tolist "[string trim $toaddr]"
     }
     
     set bcclist [list]
-    if ![string match "" $bcclist_in] {
+    if {![string match "" $bcclist_in]} {
 	foreach bccaddr $bcclist_in {
-	    if [regexp {.*<(.*)>} $bccaddr ig address] {
+	    if {[regexp {.*<(.*)>} $bccaddr ig address]} {
 		set bccaddr $address
 	    }
 	    lappend bcclist "[string trim $bccaddr]"
@@ -135,7 +135,7 @@ proc _ns_sendmail {smtp smtpport timeout tolist bcclist \
     set msg "To: $rfcto\nFrom: $from\nSubject: $subject\nDate: [ns_httptime [ns_time]]"
     
     ## Insert extra headers, if any (not for BCC)
-    if ![string match "" $extraheaders] {
+    if {![string match "" $extraheaders]} {
 	set size [ns_set size $extraheaders]
 	for {set i 0} {$i < $size} {incr i} {
 	    append msg "\n[ns_set key $extraheaders $i]: [ns_set value $extraheaders $i]"
@@ -147,7 +147,7 @@ proc _ns_sendmail {smtp smtpport timeout tolist bcclist \
     
     ## Terminate body with a solitary period
     foreach line [split $msg "\n"] { 
-	if [string match . $line] {
+	if {[string match . $line]} {
 	    append data .
 	}
 	append data $line

@@ -28,7 +28,7 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/fastpath.tcl,v 1.5 2000/10/17 17:33:35 kriston Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/fastpath.tcl,v 1.6 2002/02/08 07:56:16 hobbs Exp $
 #
 
 #
@@ -54,7 +54,7 @@ nsv_set _ns_fastpath aolpress [ns_config -bool $path enableaolpress 0]
 # will deny access to all these publishing methods.
 #
 
-if [nsv_get _ns_fastpath aolpress] {
+if {[nsv_get _ns_fastpath aolpress]} {
     ns_register_proc PUT / _ns_publish _ns_put
     ns_register_proc DELETE / _ns_publish _ns_delete
     ns_register_proc BROWSE / _ns_publish _ns_browse
@@ -113,19 +113,19 @@ proc _ns_dirlist {} {
 
     if {[nsv_get _ns_fastpath toppage] && [_ns_ismw $dir]} {
 	set nvd [_ns_getnvd $dir]
-	if [_ns_isaolpress] {
+	if {[_ns_isaolpress]} {
 	    return [ns_returnfile 200 application/x-navidoc $file]
 	}
 	set fp [open $nvd]
 	while {[gets $fp line] >= 0} {
-	    if [string match Pages:* $line] {
+	    if {[string match Pages:* $line]} {
 		break
 	    }
 	}
 	gets $fp line
 	close $fp
 	set file [lindex [split $line \"] 1]
-	if [file exists $dir/$file] { 
+	if {[file exists $dir/$file]} { 
 	    return [ns_returnredirect $file]
 	}
     }
@@ -154,7 +154,7 @@ proc _ns_dirlist {} {
     
     set prefix "${location}${url}/"
     set up "<a href=..>..</a>"
-    if $simple {
+    if {$simple} {
 	append list "
 <pre>
 $up
@@ -175,18 +175,18 @@ $up
 	
 	set link "<a href=\"${prefix}${tail}\">${tail}</a>"
 
-	if $simple {
+	if {$simple} {
 	    append list $link\n
 	} else {
 	    
-	    if [catch {
+	    if {[catch {
 		file stat $f stat
-	    } errMsg ] {
+	    } errMsg ]} {
 		append list "
 <tr align=left><td>$link</td><td>N/A</td><td>N/A</td></tr>\n
 "
 	    } else {
-		set size [expr $stat(size) / 1000 + 1]K
+		set size [expr {$stat(size) / 1000 + 1}]K
 		set mtime $stat(mtime)
 		set time [clock format $mtime -format "%d-%h-%Y %H:%M"]
 		append list "
@@ -195,7 +195,7 @@ $up
 	    }
 	}
     }
-    if $simple {
+    if {$simple} {
 	append list "</pre>"
     } else {
 	append list "</table>"
@@ -236,7 +236,7 @@ proc _ns_browse {} {
     set files ""
     foreach f [glob -nocomplain $dir/*] {
 	set tail [file tail $f]
-	if [file isdir $f] {
+	if {[file isdir $f]} {
 	    set type "application/x-navidir"
 	} else {    
 	    set type [ns_guesstype $tail]
@@ -256,11 +256,11 @@ proc _ns_browse {} {
 proc _ns_mkdir {} {
     set url [ns_conn url]
     set dir [ns_url2file $url]
-    if [file exists $dir] {
+    if {[file exists $dir]} {
 	return [ns_returnbadrequest "File Exists"]
     }
 
-    if [catch {ns_mkdir $dir} err] {
+    if {[catch {ns_mkdir $dir} err]} {
 	ns_log error "fastpath: mkdir $dir failed: $err"
 	ns_returnbadrequest "Could not create directory"
     }
@@ -293,29 +293,29 @@ proc _ns_options {} {
 proc _ns_delete {} {
     set url [ns_conn url]
     set file [ns_url2file $url]
-    if ![file exists $file] {
+    if {![file exists $file]} {
 	return [ns_returnbadrequest "No Such File"]
     }
-    if [catch {
-	if ![file isdir $file] {
+    if {[catch {
+	if {![file isdir $file]} {
 	    _ns_remove $file
 	} else {
 	    set dir $file
-	    if [_ns_ismw $dir] {
+	    if {[_ns_ismw $dir]} {
 		set nvd [_ns_getnvd $dir]
 		set tail [file tail $nvd]
 		set files($tail) 1
 		set pages 0
 		set fp [open $nvd]
 		while {[gets $fp line] >= 0} {
-		    if [string match Pages:* $line] {
+		    if {[string match Pages:* $line]} {
 			set pages 1
 			break
 		    }
 		}
-		if $pages {
+		if {$pages} {
 		    while {[gets $fp line] >= 0} {
-			if ![regexp {^"} $line] break
+			if {![string match "\"*" $line]} break
 			set file [lindex [split $line \"] 1]
 			set files($file) 0
 		    }
@@ -323,20 +323,20 @@ proc _ns_delete {} {
 		close $fp
 		foreach file [glob -nocomplain $dir/*] {
 		    set tail [file tail $file]
-		    if ![info exists files($tail)] {
+		    if {![info exists files($tail)]} {
 			return [ns_returnbadrequest "Directory not empty"]
 		    }
 		    set files($tail) 1
 		}
 		foreach tail [array names files] {
-		    if $files($tail) {
+		    if {$files($tail)} {
 			_ns_remove $dir/$tail
 		    }
 		}
 	    }
 	    ns_rmdir $dir
 	}
-    } err] {
+    } err]} {
 	ns_log error "fastpath: delete $file failed: $err"
 	ns_returnbadrequest "Could not delete file"
     }
@@ -371,15 +371,15 @@ proc _ns_put {} {
     if {$create && $exists} {
 	return [ns_returnerror 500 "Already Exists"]
     }
-    if $exists {
+    if {$exists} {
 	set isdir [file isdir $file]
-	if $isdir {
+	if {$isdir} {
 	    set ismw [_ns_ismw $file]
 	}
     }
     if {$type == "application/x-naviwad"} {
-	if $exists {
-	    if !$ismw {
+	if {$exists} {
+	    if {!$ismw} {
 		return [ns_returnerror 500 "not miniweb"]
 	    }
 	}
@@ -388,15 +388,15 @@ proc _ns_put {} {
 	return [ns_returnerror 500 "File is a directory"]
     }
 
-    if [catch {
-	if $ismw {
+    if {[catch {
+	if {$ismw} {
 
 	    #
 	    # Create MiniWeb directory if necessary.
 	    #
 
 	    set dir $file
-	    if !$exists {
+	    if {!$exists} {
 		ns_mkdir $dir
 	    }
 
@@ -417,7 +417,7 @@ proc _ns_put {} {
 	    seek $fp 0
 	    while {[gets $fp line] >= 0} {
 		set line [string trim $line]
-		if ![string length $line] {
+		if {![string length $line]} {
 		    if {![info exists length] ||
 			![info exists name]} {
 			close $fp
@@ -459,7 +459,7 @@ proc _ns_put {} {
 	    close $fp
 	    ns_rename $tmp $file
 	}
-    } err] {
+    } err]} {
 	ns_log error "put: save $url failed: $err"
 	return [ns_returnerror 500 "Save failed"]
     }

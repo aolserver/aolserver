@@ -1,5 +1,5 @@
 
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsmain/Attic/sample-config.tcl,v 1.1 2001/12/05 20:58:16 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsmain/Attic/sample-config.tcl,v 1.2 2002/02/08 07:56:16 hobbs Exp $
 
 #
 # sample-config.tcl --  The AOLserver Startup Script
@@ -218,7 +218,7 @@ if { [file exists $sslcertfile] && [file exists $sslkeyfile] } {
 #
 if { $nscp_user != "" } {
 
-    if ![string match "127.0.0.1" $nscp_addr] {
+    if {![string match "127.0.0.1" $nscp_addr]} {
 	# Anything but 127.0.0.1 is not recommended.
 	ns_log warning "config.tcl: nscp listening on ${nscp_addr}:${nscp_port}"
     }

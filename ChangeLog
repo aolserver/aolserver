@@ -1,3 +1,17 @@
+2002-02-07  Jeff Hobbs  <jeffh@ActiveState.com>
+
+	* nsmain/init.tcl:
+	* nsmain/sample-config.tcl:
+	* nsssl/keygen.tcl:
+	* tcl/debug.tcl:
+	* tcl/fastpath.tcl:
+	* tcl/file.tcl:
+	* tcl/form.tcl:
+	* tcl/http.tcl:
+	* tcl/nsdb.tcl:
+	* tcl/sendmail.tcl:
+	* tcl/util.tcl: code cleanup to brace exprs and fix indentation
+
 2001-12-20  Scott S. Goodwin  <scott@scottg.net>
 
 	* include/Makefile.library: Changed RFLAG to RPATH, and took out

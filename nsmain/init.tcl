@@ -28,7 +28,7 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsmain/Attic/init.tcl,v 1.1 2001/12/05 20:58:16 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsmain/Attic/init.tcl,v 1.2 2002/02/08 07:56:16 hobbs Exp $
 #
 
 #
@@ -62,7 +62,7 @@ proc ns_module {key {val ""}} {
 	    if {$val != ""} {
 		set _module($key) $val
 	    }
-	    if [info exists _module($key)] {
+	    if {[info exists _module($key)]} {
 		set val $_module($key)
 	    }
 	}
@@ -85,9 +85,13 @@ proc ns_module {key {val ""}} {
 #	state of the procs for other interps
 #	to sync with on their next ns_cleanup.
 #
+#	If this ever gets moved to a namespace, the eval will need
+#	to be modified to ensure that the procs aren't defined in
+#	that namespace.
+#
 
 proc ns_eval script {
-    if [catch {eval $script}] {
+    if {[catch {eval $script}]} {
 	#
 	# If the script failed, just dump this
 	# interp to avoid proc pollution.
@@ -113,7 +117,7 @@ proc ns_eval script {
 #
 
 proc ns_cleanup {} {
-    if [catch {
+    if {[catch {
 	_ns_unsetglobals
 	# NB: Must be before _ns_closechannels.
 	ns_chan cleanup
@@ -122,7 +126,7 @@ proc ns_cleanup {} {
 	ns_db cleanup
 	ns_http cleanup
 	_ns_updatenamespaces
-    }] {
+    }]} {
 	global errorInfo
 
 	#
@@ -153,7 +157,7 @@ proc _ns_unsetglobals {} {
 	    }
 	    default {
 	    	upvar #0 $g gv
-           	if [info exists gv] {
+           	if {[info exists gv]} {
                	    unset gv
 		}
            }
@@ -186,7 +190,7 @@ proc _ns_closechannels {} {
 proc _ns_updatenamespaces {} {
     global _ns
 
-    if ![info exists _ns(epoch)] {
+    if {![info exists _ns(epoch)]} {
 	set _ns(epoch) 0
     }
     if {$_ns(epoch) == [nsv_get _ns epoch]} {
@@ -349,7 +353,7 @@ proc _ns_sourcefiles {shared private} {
 #
 
 proc _ns_sourcefile file {
-    if [catch {source $file} err] {
+    if {[catch {source $file} err]} {
 	ns_log error "tcl: source $file failed: $err"
     }
 }
@@ -387,8 +391,8 @@ proc _ns_getscript n {
 		v -
 		script continue
 		default {
-		    ::if [info exists ${n}::$v] {
-			::if [array exists $v] {
+		    ::if {[info exists ${n}::$v]} {
+			::if {[array exists $v]} {
 			    ::append script [::list variable $v]\n
 			    ::append script [::list array set $v [array get $v]]\n
 			} else {
@@ -401,7 +405,7 @@ proc _ns_getscript n {
 	::foreach p [::info procs] {
 	    ::set args ""
 	    ::foreach a [::info args $p] {
-		if [::info default $p $a def] {
+		if {[::info default $p $a def]} {
 		    ::set a [::list $a $def]
 		}
 		::lappend args $a
@@ -417,7 +421,7 @@ proc _ns_getscript n {
 
 
 
-if [nsv_exists _ns lock] {
+if {[nsv_exists _ns lock]} {
     _ns_updatenamespaces
 } else {
     nsv_set _ns lock [ns_mutex create]

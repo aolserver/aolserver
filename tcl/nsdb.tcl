@@ -28,7 +28,7 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/nsdb.tcl,v 1.3 2000/08/02 23:38:25 kriston Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/nsdb.tcl,v 1.4 2002/02/08 07:56:16 hobbs Exp $
 #
 
 #
@@ -49,7 +49,7 @@ nsv_set _nsdb months [list January February March April May June \
 #
 
 proc ns_dbquotename {name} {
-    if [regexp " " $name] {
+    if {[string match "* *" $name]} {
 	return "\"$name\""
     } else {
 	return $name
@@ -67,7 +67,7 @@ proc ns_dbquotename {name} {
 #		into 2 single quotes). 
 
 proc ns_dbquotevalue {value {type text}} {
-    if [string match $value ""] {
+    if {[string match "" $value]} {
 	return "NULL"
     }
     if {$type == "decimal" \
@@ -97,8 +97,8 @@ proc ns_localsqltimestamp {} {
     set time [ns_localtime]
 
     return [format "%04d-%02d-%02d %02d:%02d:%02d" \
-	    [expr [ns_parsetime year $time] + 1900] \
-	    [expr [ns_parsetime mon $time] + 1] \
+	    [expr {[ns_parsetime year $time] + 1900}] \
+	    [expr {[ns_parsetime mon $time] + 1}] \
 	    [ns_parsetime mday $time] \
 	    [ns_parsetime hour $time] \
 	    [ns_parsetime min $time] \
@@ -115,7 +115,7 @@ proc ns_parsesqldate {opt sqldate} {
     scan $sqldate "%04d-%02d-%02d" year month day
 
     switch $opt {
-	month {return [lindex [nsv_get _nsdb months] [expr $month - 1]]}
+	month {return [lindex [nsv_get _nsdb months] [expr {$month - 1}]]}
 	day {return $day}
 	year {return $year}
 	default {error "Unknown option \"$opt\": should be year, month or day"}
@@ -232,7 +232,7 @@ proc ns_buildsqldate {month day year} {
     }
 
     if {![ns_issmallint $month]} {
-	set month [expr [lsearch [nsv_get _nsdb months] $month] + 1]
+	set month [expr {[lsearch [nsv_get _nsdb months] $month] + 1}]
     }
 
     if {[string match "" $month] \
@@ -280,7 +280,7 @@ proc ns_writecsv {datafp db table {header 1}} {
 
     set row [ns_db select $db "select * from [ns_dbquotename $table]"]
     set rowsize [ns_set size $row]
-    if $header {
+    if {$header} {
 	regsub -all "\"" [ns_set key $row 0] "\"\"" value
 	puts -nonewline $datafp "\"$value\""
 	for {set i 1} {$i < $rowsize} {incr i} {
