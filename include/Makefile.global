@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Makefile.global,v 1.56 2002/06/10 22:33:45 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Makefile.global,v 1.57 2002/06/11 21:48:38 jgdavidson Exp $
 #
 
 #
@@ -57,7 +57,7 @@ MKDIR        =   /bin/mkdir -p
 RM           =   /bin/rm -f
 CP           =   /bin/cp -fp
 AR	     =   /usr/bin/ar
-RANLIB	     =   /usr/bin/true
+RANLIB	     =   /bin/true
 
 ifeq (1,$(NSDEBUG))
     CCOPT     	= -g
