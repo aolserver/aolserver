@@ -35,7 +35,7 @@
  *  	Tcl commands.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscp/nscp.c,v 1.18 2003/01/17 21:29:49 shmooved Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscp/nscp.c,v 1.19 2003/01/17 22:33:36 shmooved Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 
@@ -61,6 +61,7 @@ static Ns_ThreadProc EvalThread;
  
 typedef struct Sess {
     Mod *modPtr;
+    char *user;
     int id;
     int sock;
     struct sockaddr_in sa;
@@ -313,16 +314,12 @@ EvalThread(void *arg)
     Tcl_DStringInit(&unameDS);
     sprintf(buf, "-nscp:%d-", sessPtr->id);
     Ns_ThreadSetName(buf);
-    Ns_Log(Notice, "nscp: connect: %s", ns_inet_ntoa(sessPtr->sa.sin_addr));
+    Ns_Log(Notice, "nscp: %s connected", ns_inet_ntoa(sessPtr->sa.sin_addr));
     if (!Login(sessPtr, &unameDS)) {
 	goto done;
     }
 
-    /*
-     * Now, update the thread name to include username info.
-     */
-    sprintf(buf, "-nscp:%s:%d-", Tcl_DStringValue(&unameDS), sessPtr->id);
-    Ns_ThreadSetName(buf);
+    sessPtr->user = Tcl_DStringValue(&unameDS);
 
     /*
      * Loop until the remote shuts down, evaluating complete
@@ -361,7 +358,7 @@ retry:
 	}
 
         if (sessPtr->modPtr->commandLogging) {
-            Ns_Log(Notice, "nscp:%d %s", ncmd, ds.string);
+            Ns_Log(Notice, "nscp: %s %d: %s", sessPtr->user, ncmd, ds.string);
         }
 
 	if (Tcl_RecordAndEval(interp, ds.string, 0) != TCL_OK) {
@@ -377,7 +374,7 @@ retry:
 	}
 
         if (sessPtr->modPtr->commandLogging) {
-            Ns_Log(Notice, "nscp:%d done", ncmd);
+            Ns_Log(Notice, "nscp: %s %d: done", sessPtr->user, ncmd);
         }
     }
 done:
@@ -386,7 +383,7 @@ done:
     if (interp != NULL) {
     	Ns_TclDeAllocateInterp(interp);
     }
-    Ns_Log(Notice, "nscp: disconnect: %s", ns_inet_ntoa(sessPtr->sa.sin_addr));
+    Ns_Log(Notice, "nscp: %s disconnected", ns_inet_ntoa(sessPtr->sa.sin_addr));
     close(sessPtr->sock);
     ns_free(sessPtr);
 }
@@ -536,7 +533,7 @@ Login(Sess *sessPtr, Tcl_DString *unameDSPtr)
 	}
     }
     if (ok) {
-	Ns_Log(Notice, "nscp: logged in: '%s'", user);
+	Ns_Log(Notice, "nscp: %s logged in", user);
         Tcl_DStringAppend(unameDSPtr, user, -1);
 	sprintf(msg, "\nWelcome to %s running at %s (pid %d)\n"
 		"%s/%s (%s) for %s built on %s\nCVS Tag: %s\n",
