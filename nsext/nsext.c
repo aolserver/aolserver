@@ -109,9 +109,9 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsext/nsext.c,v 1.6 2002/02/24 01:31:10 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsext/nsext.c,v 1.7 2002/05/15 21:14:30 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
-#include "ns.h"
+#include "nsdb.h"
 #include "nsextmsg.h"
 #include <ctype.h>
 
@@ -322,6 +322,7 @@ Ns_DbDriverInit(char *hDriver, char *configPath)
 
     if (initialized == NS_FALSE) {
         Ns_MutexInit(&muCtx);
+        Ns_MutexSetName(&muCtx, "nsext");
         Tcl_InitHashTable(&htCtx, TCL_STRING_KEYS);
         Ns_RegisterShutdown(ExtCleanup, NULL);
         initialized = NS_TRUE;
