@@ -1,3 +1,9 @@
+2003-04-04  Scott S. Goodwin  <scott@scottg.net>
+
+    * nscgi/nscgi.c: (bug) Ns_DStringInit called in CgiExec was destroying the
+      linked list used to maintain the list of dstrings in use by the module,
+      resulting in a memory leak for every cgi script run.
+
 2003-04-04  Mark Page  <mpagenva@aol.com>
 
 	* nsd/nsmain.c (Ns_Main): (bug) Set nsconf.server and nsServer
