@@ -1,3 +1,9 @@
+2004-11-20  Dossy Shiobara <dossy@panoptic.com>
+
+	* nsd/tclsched.c (1.6): Option parsing needed to be more careful,
+	  leading to segfaults when a bad command like [ns_schedule_proc
+	  -thread -only] is executed.  Closes SF Bug #1068836.
+
 2004-11-19  Dossy Shiobara <dossy@panoptic.com>
 
 	* configure (1.24), configure.in (1.19): autoconf now detects if
