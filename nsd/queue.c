@@ -34,7 +34,7 @@
  *	and service threads.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/queue.c,v 1.26 2004/07/30 12:38:47 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/queue.c,v 1.27 2004/08/10 17:48:27 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -156,15 +156,8 @@ Ns_GetConn(void)
 void
 NsQueueConn(Conn *connPtr)
 {
-    Pool *poolPtr;
+    Pool *poolPtr = NsGetPool(connPtr);
     int create = 0;
-
-    /*
-     * Determine the pool.
-     */
-
-    poolPtr = NsGetPool(connPtr->server, connPtr->request->method,
-            connPtr->request->url);
 
     /*
      * Queue connection.

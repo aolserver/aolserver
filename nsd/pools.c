@@ -33,7 +33,7 @@
  *  Routines for the managing the connection thread pools.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/pools.c,v 1.3 2004/07/30 16:07:18 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/pools.c,v 1.4 2004/08/10 17:48:27 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -54,6 +54,7 @@ static int GetPool(Tcl_Interp *interp, Tcl_Obj *objPtr, Pool **poolPtrPtr);
 
 static int            poolid;
 static Pool           defpool;
+static Pool	     *timeoutPoolPtr;
 static Tcl_HashTable  pools;
 
 
@@ -90,11 +91,16 @@ NsInitPools(void)
 }
 
 Pool *
-NsGetPool(char *server, char *method, char *url)
+NsGetPool(Conn *connPtr)
 {
     Pool *poolPtr;
 
-    poolPtr = Ns_UrlSpecificGet(server, method, url, poolid);
+    if (connPtr->flags & NS_CONN_TIMEOUT) {
+	poolPtr = timeoutPoolPtr;
+    } else {
+    	poolPtr = Ns_UrlSpecificGet(connPtr->server, connPtr->request->method,
+				    connPtr->request->url, poolid);
+    }
     if (poolPtr == NULL) {
         poolPtr = &defpool;
     }
@@ -224,10 +230,10 @@ NsTclPoolsObjCmd(ClientData data, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
     char *pool, *pattern;
     int i, val, new;
     static CONST char *opts[] = {
-        "get", "set", "list", "register", NULL
+        "get", "set", "list", "register", "timeout", NULL
     };
     enum {
-        PGetIdx, PSetIdx, PListIdx, PRegisterIdx
+        PGetIdx, PSetIdx, PListIdx, PRegisterIdx, PTimeoutIdx
     } opt;
     static CONST char *cfgs[] = {
         "-maxthreads", "-minthreads", "-maxconns", "-timeout", NULL
@@ -337,7 +343,18 @@ NsTclPoolsObjCmd(ClientData data, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
                 Tcl_GetString(objv[5]), poolid, poolPtr, 0, NULL);
         break;
 
+    case PTimeoutIdx:
+        if (objc != 2 && objc !=3) {
+            Tcl_WrongNumArgs(interp, 2, objv, "?pool?");
+            return TCL_ERROR;
+        }
+	if (objc == 3 && GetPool(interp, objv[2], &timeoutPoolPtr) != TCL_OK) {
+            return TCL_ERROR;
+        }
+	Tcl_SetResult(interp, timeoutPoolPtr->name, TCL_VOLATILE);
+	break;
     }
+
     return TCL_OK;
 }
 

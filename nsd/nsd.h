@@ -826,7 +826,6 @@ extern void NsInitUrlSpace(void);
 extern void NsInitRequests(void);
 
 extern void NsQueueConn(Conn *connPtr);
-extern void NsMapPool(Pool *poolPtr, char *map);
 extern int  NsSockSend(Sock *sockPtr, struct iovec *bufs, int nbufs);
 extern void NsSockClose(Sock *sockPtr, int keep);
 extern void NsFreeConn(Conn *connPtr);
@@ -925,7 +924,7 @@ extern void NsSendSignal(int sig);
  */
 
 extern Limits *NsGetLimits(char *server, char *method, char *url);
-extern Pool *NsGetPool(char *server, char *method, char *url);
+extern Pool *NsGetPool(Conn *connPtr);
 
 /*
  * ADP routines.
