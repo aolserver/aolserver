@@ -28,6 +28,11 @@
 	nsv-based namespace copy/update mechanism.  The init.tcl
 	is now called only at startup.
 
+	* conn.c:
+	* driver.c:
+	* queue.c:
+	* nsd.h:  Connection times and timeouts now maintained with
+	Ns_Time-based microsecond resolution.
 
 2002-07-14  Jim Davidson <jgdavidson@aol.com>
 
