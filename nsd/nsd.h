@@ -331,6 +331,17 @@ typedef struct Sock {
 } Sock;
 
 /*
+ * The following structure maintains data from an
+ * updated form file.
+ */
+
+typedef struct FormFile {
+    Ns_Set *hdrs;
+    off_t   off;
+    off_t   len;
+} FormFile;
+
+/*
  * The following structure maintains state for a connection
  * being processed.
  */
@@ -369,19 +380,80 @@ typedef struct Conn {
     int          responseLength;
     int          recursionCount;
     Ns_Set      *query;
-    Tcl_DString  files;
+    Tcl_HashTable files;
     Tcl_DString	 queued;
     void	*cls[NS_CONN_MAXCLS];
 } Conn;
+
+/*
+ * The following structure maintains a connection thread pool.
+ */
+
+typedef struct ConnPool {
+    char 	    *pool;
+    struct ConnPool *nextPtr;
+    struct NsServer *servPtr;
+
+    /*
+     * The following struct maintains the active and waiting connection
+     * queues, the free conn list, the next conn id, and the number
+     * of waiting connects.
+     */
+
+    struct {
+    	Conn	    	   *freePtr;
+	struct {
+	    int     	    num;
+    	    Conn    	   *firstPtr;
+    	    Conn    	   *lastPtr;
+	} wait;
+	struct {
+    	    Conn    	   *firstPtr;
+	    Conn    	   *lastPtr;
+	} active;
+	Ns_Cond     	    cond;
+    } queue;
+
+    /*
+     * The following struct maintins the state of the threads.  Min and max
+     * threads are determined at startup and then NsQueueConn ensures the
+     * current number of threads remains within that range with individual
+     * threads waiting no more than the timeout for a connection to
+     * arrive.  The number of idle threads is maintained for the benefit of
+     * the ns_server command. 
+     */
+
+    struct {
+	unsigned int	    nextid;
+	int 	    	    min;
+	int 	    	    max;
+    	int 	    	    current;
+	int 	    	    idle;
+	int 	    	    timeout;
+    } threads;
+
+} ConnPool;
 
 /*
  * The following structure is allocated for each virtual server.
  */
 
 typedef struct NsServer {
-
     char    	    	   *server;
     Ns_LocationProc 	   *locationProc;
+
+    /*
+     * The following struct maintains the connection pool(s).
+     */
+
+    struct {
+	Ns_Mutex    	    lock;
+	int		    nextconnid;
+	bool		    shutdown;
+    	ConnPool	   *firstPtr;
+    	ConnPool	   *defaultPtr;
+	Ns_Thread   	    joinThread;
+    } pools;
     
     /* 
      * The following struct maintains various server options.
@@ -407,50 +479,6 @@ typedef struct NsServer {
 	int	    	    sendfdmin;
     	int 	    	    errorminsize;
     } limits;
-
-    /*
-     * The following struct maintains the active and waiting connection
-     * queues, the free conn list, the next conn id, and the number
-     * of waiting connects.  If yield is set, Ns_QueueConn will yield
-     * after adding a conn to the waiting list.
-     */
-
-    struct {
-    	int 	    	    yield;
-	unsigned int	    nextid;
-    	Conn	    	   *freePtr;
-	struct {
-	    int     	    num;
-    	    Conn    	   *firstPtr;
-    	    Conn    	   *lastPtr;
-	} wait;
-	struct {
-    	    Conn    	   *firstPtr;
-	    Conn    	   *lastPtr;
-	} active;
-	Ns_Mutex    	    lock;
-	Ns_Cond     	    cond;
-	bool	    	    shutdown;
-    } queue;
-
-    /*
-     * The following struct maintins the state of the threads.  Min and max
-     * threads are determined at startup and then Ns_QueueConn ensure the
-     * current number of threads remains within that range with individual
-     * threads waiting no more than the timeout for a connection to
-     * arrive.  The number of idle threads is maintained for the benefit of
-     * the ns_server command. 
-     */
-
-    struct {
-	unsigned int	    nextid;
-	int 	    	    min;
-	int 	    	    max;
-    	int 	    	    current;
-	int 	    	    idle;
-	int 	    	    timeout;
-	Ns_Thread   	    last;
-    } threads;
 
     struct {
 	char	    	   *pageroot;
@@ -687,6 +715,8 @@ extern void NsInitUrlSpace(void);
 extern void NsInitRequests(void);
 
 extern int NsQueueConn(Sock *sockPtr, Ns_Time *nowPtr);
+extern void NsMapPool(ConnPool *poolPtr, char *map);
+extern void NsMapServer(NsServer *servPtr, char *server);
 extern int NsSockSend(Sock *sockPtr, struct iovec *bufs, int nbufs);
 extern void NsSockClose(Sock *sockPtr, int keep);
 
