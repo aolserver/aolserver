@@ -97,11 +97,11 @@ ns_adp_puts "\
         <tr><td>Bytes Free:</td><td>$tfree</td></tr>
         <tr><td>Bytes Allocated:</td><td>$talloc</td></tr>
         <tr><td>Bytes Wasted:</td><td>$ov</td></tr>
-        <tr><td>Bbyte Overhead:</td><td>${op}%</td></tr>
+        <tr><td>Byte Overhead:</td><td>${op}%</td></tr>
         <tr><td>Mutex Locks:</td><td>$tlocks</td></tr>
         <tr><td>Mutex Lock Waits:</td><td>$twaits</td></tr>
-        <tr><td>Lock Wait Ratio:</td><td>{$wr}%</td></tr>
-        <tr><td>Gets/Puts:</td><td>${tops}%</td></tr>
+        <tr><td>Lock Wait Ratio:</td><td>${wr}%</td></tr>
+        <tr><td>Gets/Puts:</td><td>${tops}</td></tr>
         <tr><td>Lock Avoidance:</td><td>${av}%</td></tr>
     </table>
     </td>
