@@ -28,12 +28,12 @@
  */
 
 /* 
- * osxcompat.cpp --
+ * osxcompat.c --
  *
  *	Routines missing from OS/X required by AOLserver.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/Attic/osxcompat.c,v 1.2 2002/08/10 17:22:21 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/Attic/osxcompat.c,v 1.3 2002/09/11 03:06:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "thread.h"
 
@@ -117,7 +117,7 @@ poll (fds, nfds, timeout)
  return ready;
 }
 
-#ifdef NEED_OSXCOMPAT
+#ifndef HAVE_SIGWAIT
 
 static pthread_mutex_t rdlock = PTHREAD_MUTEX_INITIALIZER;
 

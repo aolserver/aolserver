@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/configure.in,v 1.1 2002/09/10 23:40:04 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/configure.in,v 1.2 2002/09/11 03:06:14 jgdavidson Exp $
 #
 
 #
@@ -74,7 +74,7 @@ AC_SUBST(TCL_DEFS)
 # Additional AOLserver checks.
 #
 
-AC_CHECK_FUNCS(timegm)
+AC_CHECK_FUNCS(timegm sigwait _NSGetEnviron)
 
 #
 # Create Makefile.global.

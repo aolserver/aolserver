@@ -34,7 +34,7 @@
  *	Implement the "ns_env" command.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclenv.c,v 1.10 2002/09/10 23:25:49 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclenv.c,v 1.11 2002/09/11 03:06:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include	"nsd.h"
 
@@ -259,8 +259,8 @@ GetEnviron(void)
 {
    char **envp;
 
-#ifdef HAVE_NSGETENVIRON
-    envp = NsGetEnviron();
+#ifdef HAVE__NSGETENVIRON
+    envp = _NSGetEnviron();
 #else
     extern char **environ;
 

@@ -35,7 +35,7 @@
  *	by HTSUtils.c from CERN. See also RFC 1123.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/httptime.c,v 1.7 2002/07/08 02:50:37 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/httptime.c,v 1.8 2002/09/11 03:06:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -127,13 +127,6 @@ Ns_ParseHttpTime(char *str)
     char      *s;
     struct tm  tm;
     time_t     t;
-#ifndef HAVE_TIMEGM
-    time_t     toff;
-#ifdef NO_TIMEZONE
-    struct timeval tv;
-    struct timezone tz;
-#endif
-#endif
 
     if (str == NULL) {
         return 0;
@@ -249,13 +242,7 @@ Ns_ParseHttpTime(char *str)
 #ifdef HAVE_TIMEGM
     t = timegm(&tm);
 #else
-#ifdef NO_TIMEZONE
-    gettimeofday (&tv, &tz);
-    toff = tz.tz_minuteswest * 60;
-#else
-    toff = timezone;
-#endif
-    t = mktime(&tm) - toff;
+    t = mktime(&tm) - timezone;
 #endif
     return t;
 }
