@@ -34,7 +34,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.28 2004/08/10 17:49:28 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.29 2004/08/11 00:26:59 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -1121,9 +1121,12 @@ DriverThread(void *arg)
         while ((connPtr = freeConnPtr) != NULL) {
             freeConnPtr = connPtr->nextPtr;
             limitsPtr = connPtr->limitsPtr;
-            Ns_MutexLock(&limitsPtr->lock);
-            --limitsPtr->nrunning;
-            Ns_MutexUnlock(&limitsPtr->lock);
+            if (!(connPtr->flags & NS_CONN_OVERFLOW)
+                    && !(connPtr->flags & NS_CONN_TIMEOUT)) {
+                Ns_MutexLock(&limitsPtr->lock);
+                --limitsPtr->nrunning;
+                Ns_MutexUnlock(&limitsPtr->lock);
+            }
             FreeConn(drvPtr, connPtr);
         }
 
@@ -1227,8 +1230,9 @@ DriverThread(void *arg)
 		    connPtr->flags |= NS_CONN_OVERFLOW;
 		} else {
 		    msg = "timeout";
+                    connPtr->flags |= NS_CONN_TIMEOUT;
 		}
-		connPtr->flags |= NS_CONN_TIMEOUT;
+                connPtr->responseStatus = 503;
 		SockPush(sockPtr, &queSockPtr);
 	    }
 	    Ns_Log(Warning, "%s: %s %s: %d", drvPtr->name, msg, limit, id);
@@ -1471,7 +1475,10 @@ SockClose(Driver *drvPtr, Sock *sockPtr)
      */
      
     if (sockPtr->connPtr != NULL) {
-        FreeConn(drvPtr, sockPtr->connPtr);
+        /*
+         * Calling FreeConn() here seems to trash the server.
+         */
+        // FreeConn(drvPtr, sockPtr->connPtr);
 	sockPtr->connPtr = NULL;
     }
     ns_sockclose(sockPtr->sock);
