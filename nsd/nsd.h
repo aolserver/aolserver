@@ -45,21 +45,8 @@
 #ifndef __APPLE__
   #include <poll.h>
 #else
-  struct pollfd {
-    int fd;
-    short events;
-    short revents;
-  };
-  #define POLLIN 1
-  #define POLLOUT 2
-  #define POLLPRI 3
-  extern int poll(struct pollfd *, unsigned long, int);
-  extern char *ctime_r(const time_t *, char *);
-  extern char *asctime_r(const struct tm *, char *);
-  extern struct tm *localtime_r(const time_t *, struct tm *);
-  extern struct tm *gmtime_r(const time_t *, struct tm *);
-  extern int readdir_r(DIR *, struct dirent *, struct dirent **);
-  extern char *strtok_r(char *, const char *, char **);
+  #include "../nsosx/nsosx.h"
+  #undef panic
 #endif
 #ifdef __hp
   #define seteuid(i)     setresuid((-1),(i),(-1))
@@ -581,7 +568,7 @@ typedef struct NsServer {
 	Ns_Cond	    	    pagecond;
 	Ns_Mutex	    pagelock;
 	Tcl_HashTable	    pages;
-	Ns_Mutex	    taglock;
+	Ns_RWLock	    taglock;
 	Tcl_HashTable	    tags;
     } adp;
     
@@ -843,15 +830,15 @@ extern void NsSendSignal(int sig);
  */
 
 extern Ns_Cache *NsAdpCache(char *server, int size);
-extern void NsAdpParse(AdpParse *parsePtr, NsServer *servPtr, char *utf);
 extern void NsAdpSetMimeType(NsInterp *itPtr, char *type);
 extern void NsAdpSetCharSet(NsInterp *itPtr, char *charset);
 extern void NsAdpFlush(NsInterp *itPtr);
 extern void NsAdpStream(NsInterp *itPtr);
 extern int NsAdpDebug(NsInterp *itPtr, char *host, char *port, char *procs);
-extern int NsAdpEval(NsInterp *itPtr, char *script, int argc, char **argv);
 extern int NsAdpSource(NsInterp *itPtr, char *file, int argc, char **argv);
 extern int NsAdpInclude(NsInterp *itPtr, char *file, int argc, char **argv);
+extern int NsAdpEval(NsInterp *itPtr, char *script, int argc, char **argv, int safe);
+extern void NsAdpParse(AdpParse *parsePtr, NsServer *servPtr, char *utf, int safe);
 
 /*
  * Tcl support routines.
