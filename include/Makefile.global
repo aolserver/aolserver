@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Makefile.global,v 1.44 2001/12/05 20:59:27 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Makefile.global,v 1.45 2001/12/11 23:47:35 jgdavidson Exp $
 #
 
 #
@@ -37,15 +37,9 @@
 #	by other makefiles.
 #
 
-ifndef AOLSERVER
-    AOLSERVER=/usr/local/aolserver
-endif
-ifndef NSDEBUG
-    NSDEBUG=1
-endif
-ifndef NSGCC
-    NSGCC=1
-endif
+AOLSERVER ?= /usr/local/aolserver
+NSDEBUG	  ?= 1
+NSGCC	  ?= 1
 
 #
 # Current Tcl version.
