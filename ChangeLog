@@ -1,9 +1,142 @@
-2000-12-12  Kriston J. Rehberg  <Kriston@AOL.NET>
+
+2000-12-12  Jim Davidson
+
+	* nssock/sock.cpp: Fixed multiple-load problems, added sndbuf,
+	rcvbuf, sendwait, and recvwait options. Added configurable backlog
+	via Ns_SockListenEx. Fixed compile bugs for ssl. Restructured the
+	socket module to wait in server busy situations instead of sending
+	the server busy message.  Also, moved the graceful close burden to
+	the SockThread from the connection thread.
+
+	* thread/win32.cpp: Moved WinThread allocation to DllMain,
+	eliminating GetWinThread function. Also, disabled thread cleanup
+	for final thread to avoid any TLS cleanup callbacks attempting to
+	invoke code in unloaded libraries like Tcl. Removed call to
+	NsInitThread no longer needed. Switched to rolling condition
+	broadcast wakeup as in the sproc code.  More fixes for new Thread
+	context model.
+	
+	* thread/tls.c: Changed NsLock API's to return 1/0 instead of
+	NS_OK/NS_TIMEOUT and more use of Ns_MasterLock to keep things
+	simple.
+
+	* thread/thread.c: Changed thread enum to return Ns_Thread, not
+	Ns_Thread pointer which didn't make much sense.  Updated "ns_info
+	pools" command to reflect change. Fixed bugs with Ns_ThreadEnum
+	and pool counters. Update of the Ns_Pool API to support more stats
+	gathering available via new Ns_PoolStats API. Remove Thread->etime
+	and NsPool API's. Moved sprintf of default thread name from
+	NsThreadMain to NsInitThread under protection of threads
+	lock. Added comment for NsInitThread. More fixes for new Thread
+	context model. Updated sproc.cpp code for new Thread management
+	and removed the wait for thread startup which shouldn't be
+	needed.
+
+	* thread/test.c: Cleaned up code a bit to quiet compiler.  Better
+	test for PTHREAD_TEST.  Fixed undefined var bug for sproc.  Added
+	some comments, a native pthread test, and a recursive stack
+	checker.
+
+	* thread/tcl8x.c: Added Tcl_JoinThread for benefit of Tcl8.4.
+
+	* thread/sproc.cpp: Changed NsLock API's to return 1/0 instead of
+	NS_OK/NS_TIMEOUT and more use of Ns_MasterLock to keep things
+	simple. Fixed some comment bugs, update thrPtr->tid after
+	fork. Added call the NsInitThread. Updated sproc.cpp code for new
+	Thread management and removed the wait for thread startup which
+	shouldn't be needed.
+
+	* thread/pthread.cpp: Changed NsLock API's to return 1/0 instead
+	of NS_OK/NS_TIMEOUT and more use of Ns_MasterLock to keep things
+	simple. Fixed bug of not setting the tid correctly. Added call the
+	NsInitThread.
+
+	* thread/pool.c: Added Ns_PoolEnum to get at pool stats as with
+	mutexes and threads, removing the old Ns_PoolStats API's and
+	updating the "ns_info pools" command. Fixed bugs with
+	Ns_ThreadEnum and pool counters. Update of the Ns_Pool API to
+	support more stats gathering available via new Ns_PoolStats
+	API. Removed <mutex.h> for sgi which shouldn't have been
+	there. Removed the sbrk() code for now, was crashing SGI
+	(probably not thread safe). Use sbrk() on Unix instead of malloc
+	to avoid any malloc overhead or contention. Reduced the zippy
+	allocator page size to 16k from 64k. 
+
+	* thread/pool.c, thread.c, sproc.cpp: Re-structured management of
+	the Thread context to better support threads created without
+	Ns_ThreadCreate (e.g., Java VM threads).
+	
+	* thread/mutex.c: Changed NsLock API's to return 1/0 instead of
+	NS_OK/NS_TIMEOUT and more use of Ns_MasterLock to keep things
+	simple.
+
+	* thread/cs.c, memory.c, mutex.c, pool.c, pthread.cpp,
+	reentrant.c, rwlock.c, sema.c, sproc.cpp, tcl8x.c, test.c,
+	thread.c, win32.cpp: Restructured the thread interfaces, moving
+	the master lock to the platform interface code, integrating the
+	zippy allocator with Ns_Pool/Ns_ThreadAlloc and use of a new
+	simple direct allocator for all thread objects.
+
+	* win32/nsthread/nsthread.dsp: Removed master.c and oldpools.c.
+
+	* nsd/unix.c: Made ns_eval command disabled by default to avoid
+	using SIGUSR2.
+
+	* nsd/tclthread.c: Changed SETOBJ macro to SetObj function which
+	no longer sprintf's directly into interp->result.
+
+	* nsd/tclmisc.c: Added Ns_PoolEnum to get at pool stats as with
+	mutexes and threads, removing the old Ns_PoolStats API's and
+	updating the "ns_info pools" command. Changed thread enum to
+	return Ns_Thread, not Ns_Thread pointer which didn't make much
+	sense.  Updated "ns_info pools" command to reflect change.  Added
+	more info for "ns_info pools".  Added "ns_info pools" command to
+	dump memory pool stats.
+	
+	* nsd/tclinit.c: Added nsconf.quiet and nsconf.startuptimeout.
+	Made ns_eval command disabled by default to avoid using SIGUSR2.
+	Added nsConfQuiet flag to quiet down the startup messages with the
+	-q flag.
+
+	* nsd/sock.c: Added Ns_SockListenEx.
+
+	* nsd/serv.c: Ensured the conn thread name was set first. Added
+	Ns_RegisterAtReady callbacks for indicating server no longer busy.
+
+	* nsd/sched.c, nsmain.c, serv.c, sockcallback.c: Added code to
+	wait for conn thread, sock callback, and sched idle at startup to
+	help alleviate code start problems.
+
+	* nsd/nsmain.c: Shuffled initialization to ensure command line
+	args are read before calling any Ns API's, ensuring zippy malloc
+	can be set if needed.
+
+	* nsd/nsconf.c: Added nsconf.quiet and nsconf.startuptimeout.
+	Made ns_eval command disabled by default to avoid using SIGUSR2.
+
+	* nsd/dstring.c: Remove unused vars.  Uses ns_realloc to grow
+	strings and maintains dstring stack in the staticSpace instead of
+	the *addr pointer for compatibility with Tcl dstrings.
+
+	* nsd/callbacks.c: Added Ns_RegisterAtReady callbacks for
+	indicating server no longer busy.
+
+	* nsd/binder.c: Added Ns_SockListenEx.
+
+2000-12-12  Kriston J. Rehberg  <kriston@aol.com>
+	
+	* nsvhr/nsvhr.c (VHRProc): Matches hostnames regardless of case.
+
+	* nssock: Supports Rainbow CryptoSwift SSL accelerators
+	(compile-time option; requires the Swift SDK from
+	http://www.rainbow.com/).
 
 	* nsd/nsmain.c (Ns_Main): Changed order of some config default
-	initialization.
-
-2000-10-20  Kriston J. Rehberg  <Kriston@AOL.NET>
+	initialization.  Config options cleaned up a lot.  Usage message
+	very less glib.  SUNWspro dumped core on usage message due to
+	nsconf.argv0 quigglyness.
+	
+2000-10-20  Kriston J. Rehberg  <kriston@aol.com>
 
 	*** AOLserver 3.2 RELEASED ***
 
@@ -16,7 +149,7 @@
 	Added/use ns_pipe which set's close-on-exec like ns_sockpair.
 	
 
-2000-10-17  Kriston J. Rehberg  <Kriston@AOL.NET>
+2000-10-17  Kriston J. Rehberg  <kriston@aol.com>
 
 	* nssock/sock.cpp: extra padding on Server Busy message to defeat
 	MSIE friendly error messages.
@@ -65,7 +198,7 @@
 	
 	* nsd/adp.c: Sundry ArsDigita changes.
 
-2000-10-16  Kriston J. Rehberg  <Kriston@AOL.NET>
+2000-10-16  Kriston J. Rehberg  <kriston@aol.com>
 
 	* tcl/init.tcl:  Initialize errorCode and errorInfo like tclsh
 	does.  From ArsDigita.
@@ -86,7 +219,7 @@
 	server from starting up.  Sigh.
 	(Ns_Main): Took out little note about -k|-K being deprecated.
 
-2000-10-13  Kriston J. Rehberg  <Kriston@AOL.NET>
+2000-10-13  Kriston J. Rehberg  <kriston@aol.com>
 
 	* nsd/nsmain.c (Ns_Main): gid of the specified user is set even if
 	it's not specified.
@@ -136,7 +269,7 @@
 	112 bytes each time a file descriptor is closed.  Thanks to Rob
 	Mayoff for finding this and proposing a solution.
 
-2000-10-09  Kriston J. Rehberg  <Kriston@AOL.NET>
+2000-10-09  Kriston J. Rehberg  <kriston@aol.com>
 
 	* sample-config.tcl: nsd.tcl is now sample-config.tcl so that
 	existing users can look at the new reference configuration.
@@ -189,7 +322,7 @@
 	* thread/pthread.cpp: Stopped using pthread_once as it appears to
 	require a lock.
 	
-2000-10-04  Kriston J. Rehberg  <Kriston@AOL.NET>
+2000-10-04  Kriston J. Rehberg  <kriston@aol.com>
 
 	* win32/nsssl/nsssl.dsp: nsssl project for win32.
 
@@ -201,7 +334,7 @@
 	* nssock/ssltcl.c: Changed name of ReadFile adn WriteFile to avoid
 	Win32 naming conflicts.
 	
-2000-09-28  Kriston J. Rehberg  <Kriston@AOL.NET>
+2000-09-28  Kriston J. Rehberg  <kriston@aol.com>
 
 	* scripts/tests/nstelemetry.adp: added "Expires: now" header to
 	ensure it gets run each time it's visitted.
@@ -219,7 +352,7 @@
 	in a big performance boost and system load reduction.  Special
 	thanks to Zachary Girouard <zakk@aol.net>.
 
-2000-09-05  Kriston J. Rehberg  <Kriston@AOL.NET>
+2000-09-05  Kriston J. Rehberg  <kriston@aol.com>
 
 	*** AOLserver 3.1 Released *** 
 
@@ -287,7 +420,7 @@
 	though it can be enabled by setting "echopassword" in the nscp
 	module section of nsd.tcl.
 	
-2000-08-21  Kriston J. Rehberg  <Kriston@AOL.NET>
+2000-08-21  Kriston J. Rehberg  <kriston@aol.com>
 
 	* nscp/nscp.c: Makes some attempt to recognize and handle telnet
 	IAC codes like CTRL-C and CTRL-D to force a logout.  This
@@ -296,7 +429,7 @@
 	completely disabled because the client is too chatty with its IAC
 	codes.
 
-2000-08-20  Kriston J. Rehberg  <Kriston@AOL.NET>
+2000-08-20  Kriston J. Rehberg  <kriston@aol.com>
 
 	* nsftp, nspostgres, nssolid, nssybpd moved to $TOP level.
 
@@ -316,7 +449,7 @@
 	ns_info threads.  Also, moved read of firstPtr in Ns_ThreadEnum
 	inside lock.
 	
-2000-08-17  Kriston J. Rehberg  <Kriston@AOL.NET>
+2000-08-17  Kriston J. Rehberg  <kriston@aol.com>
 	
 	* nssock/sock.c (SockThread): warning sent to log when Server Busy
 	is returned.
@@ -331,7 +464,7 @@
 	* Irix now builds as -o32 using the native compiler by default.
 	See Makefile.global on how to change.
 
-2000-08-15  Kriston J. Rehberg  <Kriston@AOL.NET>
+2000-08-15  Kriston J. Rehberg  <kriston@aol.com>
 
 	* include/Makefile.global (INSTLOG): should have pointed to
 	$(INST)/lib, not $(INST)/modules/lib.
@@ -357,7 +490,7 @@
 	intelligenly-administered system.  New rule for libnspd.a.
 	
 	
-2000-08-14  Kriston J. Rehberg  <Kriston@AOL.NET>
+2000-08-14  Kriston J. Rehberg  <kriston@aol.com>
 
 	* Makefile: nsvhr has been resurrected and enjoys our full
 	support.
@@ -372,7 +505,7 @@
 	* thread/pool.c: A spiffy range-checker added to the Zippy (-z)
 	memory allocator.
 
-2000-08-11  Kriston J. Rehberg  <Kriston@AOL.NET>
+2000-08-11  Kriston J. Rehberg  <kriston@aol.com>
 
 	* nsvhr/nsvhr.c: Always add "Connection: close" to the request
 	line to satisfy HTTP 1.1 RFC -- this would break MSIE in HTTP 1.1
@@ -383,7 +516,7 @@
 	special thanks to Wanda G. at AOL for adding a CNAME in DNS so
 	quickly.
 
-2000-08-09  Kriston J. Rehberg  <Kriston@AOL.NET>
+2000-08-09  Kriston J. Rehberg  <kriston@aol.com>
 
 	* nsd/serv.c: A whole lot less chatty about conns starting and
 	exiting.  If you want to see them, turn on the Debug flag.
@@ -434,7 +567,7 @@
 	Makefile and take out all the "SSL=1" text. The files changed were
 	nssock/Makefile and nssock/t_stdlib.c.
 
-2000-08-02  Kriston J. Rehberg  <Kriston@AOL.NET>
+2000-08-02  Kriston J. Rehberg  <kriston@aol.com>
 
 	* Build process is a little more rule-oriented.  The cleaning
 	rules "distclean" and "clobber" were removed.  The Tcl libraries
@@ -458,7 +591,7 @@
 	* nsd/tclmisc.c (NsTclInfoCmd): ns_info pid added to return the
 	process id.
 
-2000-08-01  Kriston J. Rehberg  <Kriston@AOL.NET>
+2000-08-01  Kriston J. Rehberg  <kriston@aol.com>
 
 	* nsd/adp.c (Ns_AdpRequest): The enableexpire option was putting
 	an Expires header even if it already existed.
@@ -487,7 +620,7 @@
 	for Red Hat on SPARC architectures.  Contributed by Mike Chan
 	<snotty@linux.com>
 
-2000-07-13  Kriston J. Rehberg  <Kriston@AOL.NET>
+2000-07-13  Kriston J. Rehberg  <kriston@aol.com>
 
 	* scripts/nsd.tcl: nssslmodule names the nsssl/nsssle binary's
 	filename.  nscp_port tells nscp what port to listen.
@@ -498,11 +631,11 @@
 	
 	* nsssl2: directory removed; nsssl is in the nssock directory now.
 
-2000-05-09  Kriston J. Rehberg  <Kriston@AOL.COM>
+2000-05-09  Kriston J. Rehberg  <kriston@aol.com>
 
 	* Re-added doc directory which has had the online docs removed.
 
-2000-05-02  Kriston J. Rehberg  <Kriston@AOL.COM>
+2000-05-02  Kriston J. Rehberg  <kriston@aol.com>
 
 	* Makefile, include/Makefile.global, include/Makefile.module,
 	nsexample/Makefile: Now uses NSHOME variable to locate AOLserver.
@@ -515,11 +648,11 @@
 	* nsftp module added.  Contributed by Eric O'Laughlen
 	<erico@aol.net>.
 
-2000-04-12  Kriston J. Rehberg  <Kriston@AOL.COM>
+2000-04-12  Kriston J. Rehberg  <kriston@aol.com>
 
 	*** AOLserver 3.0 FINAL Released ***
 	
-2000-04-12  Kriston J. Rehberg  <Kriston@AOL.COM>
+2000-04-12  Kriston J. Rehberg  <kriston@aol.com>
 
 	* tcl8.3.0/win/tclWinSock.c: In Win32 only, Tcl 8.3.0 deadlocked
 	when opening a socket.  This affected anything that used
@@ -554,24 +687,24 @@
 	know how I would have figured this one out.  Also pass empty
 	strings to database proxy if parameters are not specified.
 
-2000-04-10  Kriston J. Rehberg  <Kriston@AOL.COM>
+2000-04-10  Kriston J. Rehberg  <kriston@aol.com>
 
 	* nsext/nsext.c (DbProxyGetString): Uses its own version of
 	DbProxyTimedIO that grants a nearly 8x performance increase to
 	external database drivers.  Many thanks to Shai Bentov
 	<shai@netscape.com>.
 
-2000-04-07  Kriston J. Rehberg  <Kriston@AOL.COM>
+2000-04-07  Kriston J. Rehberg  <kriston@aol.com>
 
 	*** AOLserver 3.0rc2 Released ***
 	
-2000-04-07  Kriston J. Rehberg  <Kriston@AOL.COM>
+2000-04-07  Kriston J. Rehberg  <kriston@aol.com>
 
 	* nssolid/nssolid.c,Makefile: changed name to nssolid.c and
 	removed solid.h.  At the same time, I can't find the SOLID
 	database product this uses anywhere at http://www.solidtech.com/.
 
-2000-04-06  Kriston J. Rehberg  <Kriston@AOL.COM>
+2000-04-06  Kriston J. Rehberg  <kriston@aol.com>
 
 	* nsext/nsext.c (AllDigits): casted argument to unsigned char per
 	"isdigit" man page.
@@ -585,7 +718,7 @@
 	* nsd/nsmain.c (Ns_InfoAddress): new command [ns_info address] to
 	return primary IP address of the machine running AOLserver.
 
-2000-04-05  Kriston J. Rehberg  <Kriston@AOL.COM>
+2000-04-05  Kriston J. Rehberg  <kriston@aol.com>
 
 	* Makefile (all): "make clobber" lets you clean out everything
 	without destroying the CVS directories.
@@ -594,7 +727,7 @@
 	Solaris may inappropriately return ETIME to pthread_cond_wait.
 	(Ns_CondTimedWait): same problem
 
-2000-04-03  Kriston J. Rehberg  <Kriston@AOL.COM>
+2000-04-03  Kriston J. Rehberg  <kriston@aol.com>
 
 	* scripts/tests/adp/: More confidence tests added.
 
