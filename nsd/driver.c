@@ -28,42 +28,55 @@
  */
 
 /* 
- * sockdrv.c --
+ * driver.c --
  *
- *	Internal socket driver.
+ *	Connection I/O for loadable socket drivers.
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.8 2001/11/06 01:12:36 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.9 2002/08/26 02:05:13 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
+
+/*
+ * Defines for SockRead return code.
+ */
 
 #define SOCK_READY		0
 #define SOCK_MORE		1
 #define SOCK_ERROR		(-1)
 
 /*
- * Static functions and variables defined in this file.
+ * Static functions defined in this file.
  */
 
-static Ns_ThreadProc DriversThread;
+static Ns_ThreadProc DriverThread;
 static Sock *SockAccept(Driver *drvPtr);
 static void SockRelease(Sock *sockPtr);
 static void SockTrigger(void);
 static Driver *firstDrvPtr; /* First in list of all drivers. */
 static Sock *firstClosePtr; /* First conn ready for graceful close. */
 static int SockRead(Sock *sockPtr);
+static void SockPoll(Sock *sockPtr, Ns_Time *timeoutPtr);
+static void SockTimeout(Sock *sockPtr, Ns_Time *nowPtr, int timeout);
 
-static Request *firstReqPtr;
-static Ns_Mutex reqLock;
-static Sock *firstSockPtr;
+/*
+ * Static variables defined in this file.
+ */
+
+static Request *firstReqPtr;/* Free list of request structures. */
+static Ns_Mutex reqLock;    /* Lock around request free list. */
+static Sock *firstSockPtr;  /* Free list of Sock structures. */
 static int shutdownPending; /* Flag to indicate shutdown. */
 static int stopped = 1;	    /* Flag to indicate running. */
 static int nactive;	    /* Active sockets. */
-static Ns_Thread driverThread;/* Running DriversThread. */
-static int trigPipe[2];     /* Trigger to wakeup DriversThread. */
+static Ns_Thread driverThread;/* Running DriverThread. */
+static int trigPipe[2];     /* Trigger to wakeup DriverThread. */
 static Ns_Mutex lock;	    /* Lock around close list and shutdown flag. */
 static Ns_Cond cond;	    /* Cond for stopped flag. */
+static int nfds;	    /* Number of Sock to poll(). */
+static int maxfds;	    /* Max pollfd's in pfds. */ 
+static struct pollfd *pfds; /* Array of pollfds to poll(). */
 
 
 /*
@@ -71,10 +84,10 @@ static Ns_Cond cond;	    /* Cond for stopped flag. */
  *
  * Ns_DriverInit --
  *
- *	Initialize a driver from the given config section.
+ *	Initialize a driver.
  *
  * Results:
- *	NS_OK if initialized ok, NS_ERROR otherwise.
+ *	NS_OK if initialized, NS_ERROR if config or other error.
  *
  * Side effects:
  *	Listen socket will be opened later in NsStartDrivers.
@@ -83,8 +96,8 @@ static Ns_Cond cond;	    /* Cond for stopped flag. */
  */
 
 int
-Ns_DriverInit(char *server, char *module, char *name,Ns_DriverProc *proc,
-	      void *arg, int opts)
+Ns_DriverInit(char *server, char *module, char *name,
+	      Ns_DriverProc *proc, void *arg, int opts)
 {
     char *path,*address, *host, *bindaddr, *defproto;
     int n, sockwait, defport;
@@ -124,7 +137,7 @@ Ns_DriverInit(char *server, char *module, char *name,Ns_DriverProc *proc,
 	 * appear to be fully qualified, attempt a reverse lookup on the
 	 * address which often returns the fully qualified name.
 	 *
-	 * NB: This is a common, but sloppy configuration for a Unix
+	 * NB: This is a common but sloppy configuration for a Unix
 	 * network.
 	 */
 
@@ -138,15 +151,12 @@ Ns_DriverInit(char *server, char *module, char *name,Ns_DriverProc *proc,
 	 */
 
         if (he == NULL || he->h_name == NULL) {
-            Ns_Log(Error, "%s: "
-		   "failed to resolve '%s': %s", module,
+            Ns_Log(Error, "%s: could not resolve %s: %s", module,
 		   host ? host : Ns_InfoHostname(), strerror(errno));
 	    return NS_ERROR;
 	}
         if (*(he->h_addr_list) == NULL) {
-            Ns_Log(Error, "%s: failed to get address: "
-		   "null address list in (derived) host entry for '%s'",
-		   module, he->h_name);
+            Ns_Log(Error, "%s: no addresses for %s", module, he->h_name);
 	    return NS_ERROR;
 	}
         memcpy(&ia.s_addr, *(he->h_addr_list), sizeof(ia.s_addr));
@@ -163,7 +173,7 @@ Ns_DriverInit(char *server, char *module, char *name,Ns_DriverProc *proc,
     }
 
     /*
-     * If the hostname was not specified and not determined by the loookups
+     * If the hostname was not specified and not determined by the lookup
      * above, set it to the specified or derived IP address string.
      */
 
@@ -184,8 +194,7 @@ Ns_DriverInit(char *server, char *module, char *name,Ns_DriverProc *proc,
     }
 
     /*
-     * Allocate a new driver instance, initialize the SSL context,
-     * and set configurable parameters.
+     * Allocate a new driver instance and set configurable parameters.
      */
 
     drvPtr = ns_calloc(1, sizeof(Driver));
@@ -196,37 +205,41 @@ Ns_DriverInit(char *server, char *module, char *name,Ns_DriverProc *proc,
     drvPtr->opts = opts;
     drvPtr->servPtr = servPtr;
     if (!Ns_ConfigGetInt(path, "bufsize", &n) || n < 1) { 
-        n = 16000; 
+        n = 16000; 	/* ~16k */
     }
     drvPtr->bufsize = n;
     if (!Ns_ConfigGetInt(path, "rcvbuf", &n)) {
-	n = 0;		/* NB: Use OS default. */
+	n = 0;		/* Use OS default. */
     }
     drvPtr->rcvbuf = n;
     if (!Ns_ConfigGetInt(path, "sndbuf", &n)) {
-	n = 0;		/* NB: Use OS default. */
+	n = 0;		/* Use OS default. */
     }
     drvPtr->sndbuf = n;
     if (!Ns_ConfigGetInt(path, "socktimeout", &n) || n < 1) {
-	n = 30;		/* NB: 30 seconds. */
+	n = 30;		/* 30 seconds. */
     }
     sockwait = n;
     if (!Ns_ConfigGetInt(path, "sendwait", &n) || n < 1) {
-	n = sockwait; /* NB: Old socktimeout. */
+	n = sockwait; /* Use previous socktimeout option. */
     }
     drvPtr->sendwait = n;
     if (!Ns_ConfigGetInt(path, "recvwait", &n) || n < 1) {
-	n = sockwait; /* NB: Old socktimeout. */
+	n = sockwait; /* Use previous socktimeout option. */
     }
     drvPtr->recvwait = n;
     if (!Ns_ConfigGetInt(path, "closewait", &n) || n < 0) {
-	n = 2;		/* NB: 2 seconds */
+	n = 2;		/* 2 seconds */
     }
     drvPtr->closewait = n;
     if (!Ns_ConfigGetInt(path, "keepwait", &n) || n < 0) {
-	n = 30;		/* NB: 30 seconds */
+	n = 30;		/* 30 seconds */
     }
     drvPtr->keepwait = n;
+    if (!Ns_ConfigGetInt(path, "backlog", &n) || n < 1) {
+	n = 5;		/* 5 pending connections. */
+    }
+    drvPtr->backlog = n;
 
     /*
      * Determine the port and then set the HTTP location string either
@@ -238,9 +251,6 @@ Ns_DriverInit(char *server, char *module, char *name,Ns_DriverProc *proc,
     drvPtr->address = ns_strdup(address);
     if (!Ns_ConfigGetInt(path, "port", &drvPtr->port)) {
 	drvPtr->port = defport;
-    }
-    if (!Ns_ConfigGetInt(path, "backlog", &drvPtr->backlog)) {
-	drvPtr->backlog = 5;
     }
     drvPtr->location = Ns_ConfigGetValue(path, "location");
     if (drvPtr->location != NULL) {
@@ -255,6 +265,7 @@ Ns_DriverInit(char *server, char *module, char *name,Ns_DriverProc *proc,
     }
     drvPtr->nextPtr = firstDrvPtr;
     firstDrvPtr = drvPtr;
+    ++maxfds;
     return NS_OK;
 }
 
@@ -264,13 +275,13 @@ Ns_DriverInit(char *server, char *module, char *name,Ns_DriverProc *proc,
  *
  * NsStartDrivers --
  *
- *	Listen on driver instance address/port and start DriversThread.
+ *	Listen on all driver address/ports and start the DriverThread.
  *
  * Results:
  *	None.
  *
  * Side effects:
- *	See DriversThread.
+ *	See DriverThread.
  *
  *----------------------------------------------------------------------
  */
@@ -293,9 +304,9 @@ NsStartDrivers(void)
 		drvPtr->name, drvPtr->address, drvPtr->port,
 		strerror(errno));
 	} else {
+    	    Ns_SockSetNonBlocking(drvPtr->sock);
     	    Ns_Log(Notice, "%s: listening on %s:%d",
 		drvPtr->name, drvPtr->address, drvPtr->port);
-    	    Ns_SockSetNonBlocking(drvPtr->sock);
 	}
 	drvPtr = drvPtr->nextPtr;
     }
@@ -307,7 +318,7 @@ NsStartDrivers(void)
     if (ns_sockpair(trigPipe) != 0) {
 	Ns_Fatal("driver: ns_sockpair() failed: %s", strerror(errno));
     }
-    Ns_ThreadCreate(DriversThread, NULL, 0, &driverThread);
+    Ns_ThreadCreate(DriverThread, NULL, 0, &driverThread);
 }
 
 
@@ -316,13 +327,13 @@ NsStartDrivers(void)
  *
  * NsStopDrivers --
  *
- *	Trigger the DriversThread to begin shutdown.
+ *	Trigger the DriverThread to begin shutdown.
  *
  * Results:
  *	None.
  *
  * Side effects:
- *	DriversThread will close listen sockets and then exit after all
+ *	DriverThread will close listen sockets and then exit after all
  *	outstanding connections are complete and closed.
  *
  *----------------------------------------------------------------------
@@ -346,14 +357,14 @@ NsStopDrivers(void)
  *
  * NsWaitDriversShutdown --
  *
- *	Wait for exit of DriversThread.  This callback is invoke later by
+ *	Wait for exit of DriverThread.  This callback is invoke later by
  *	the timed shutdown thread.
  *
  * Results:
  *	None.
  *
  * Side effects:
- *	Driver thread is join and trigger pipe closed.
+ *	Driver thread is joined and trigger pipe closed.
  *
  *----------------------------------------------------------------------
  */
@@ -369,7 +380,7 @@ NsWaitDriversShutdown(Ns_Time *toPtr)
     }
     Ns_MutexUnlock(&lock);
     if (status != NS_OK) {
-	Ns_Log(Warning, "%s: timeout waiting for shutdown");
+	Ns_Log(Warning, "driver: timeout waiting for shutdown");
     } else {
 	Ns_Log(Notice, "driver: shutdown complete");
 	Ns_ThreadJoin(&driverThread, NULL);
@@ -417,6 +428,7 @@ NsGetRequest(Sock *sockPtr)
 	}
     }
     reqPtr = sockPtr->reqPtr;
+    /* NB: Sock no longer responsible for freeing request. */
     sockPtr->reqPtr = NULL;
     return reqPtr;
 }
@@ -443,10 +455,10 @@ NsGetRequest(Sock *sockPtr)
 void
 NsFreeRequest(Request *reqPtr)
 {
-    Tcl_DStringSetLength(&reqPtr->buffer, 0);
     reqPtr->next = reqPtr->content = NULL;
     reqPtr->length = reqPtr->avail = 0;
     reqPtr->coff = reqPtr->woff = reqPtr->roff = 0;
+    Tcl_DStringFree(&reqPtr->buffer);
     Ns_SetTrunc(reqPtr->headers, 0);
     Ns_FreeRequest(reqPtr->request);
     reqPtr->request = NULL;
@@ -487,7 +499,7 @@ NsSockSend(Sock *sockPtr, struct iovec *bufs, int nbufs)
  *
  * NsSockClose --
  *
- *	Return a connction to the DriversThread for closing or keepalive.
+ *	Return a connction to the DriverThread for closing or keepalive.
  *
  * Results:
  *	None.
@@ -528,7 +540,7 @@ NsSockClose(Sock *sockPtr, int keep)
 /*
  *----------------------------------------------------------------------
  *
- * DriversThread --
+ * DriverThread --
  *
  *	Main listening socket driver thread.
  *
@@ -544,30 +556,8 @@ NsSockClose(Sock *sockPtr, int keep)
  *----------------------------------------------------------------------
  */
 
-static time_t now;
-static time_t timeout;
-static int nfds;
-static int maxfds;
-static struct pollfd *pfds;
-
-static inline void
-SockPoll(Sock *sockPtr)
-{
-    if (nfds >= maxfds) {
-	maxfds += 100;
-	pfds = ns_realloc(pfds, maxfds * sizeof(struct pollfd));
-    }
-    pfds[nfds].fd = sockPtr->sock;
-    pfds[nfds].events = POLLIN;
-    pfds[nfds].revents = 0;
-    sockPtr->pidx = nfds++;
-    if (timeout > sockPtr->timeout) {
-	timeout = sockPtr->timeout;
-    }
-}
-
 static void
-DriversThread(void *ignored)
+DriverThread(void *ignored)
 {
     char c;
     int n, stopping, pollto;
@@ -575,6 +565,7 @@ DriversThread(void *ignored)
     Driver *activeDrvPtr;
     Driver *drvPtr, *nextDrvPtr, *idleDrvPtr, *acceptDrvPtr;
     char drain[1024];
+    Ns_Time timeout, now, diff;
     
     Ns_ThreadSetName("-driver-");
     Ns_Log(Notice, "starting");
@@ -605,9 +596,9 @@ DriversThread(void *ignored)
 
     Ns_Log(Notice, "driver: accepting connections");
     closePtr = waitPtr = readPtr = NULL;
-    time(&now);
+    Ns_GetTime(&now);
     stopping = 0;
-    maxfds = 1000;
+    maxfds += 100;
     pfds = ns_malloc(sizeof(struct pollfd) * maxfds);
     pfds[0].fd = trigPipe[0];
     pfds[0].events = POLLIN;
@@ -638,19 +629,20 @@ DriversThread(void *ignored)
 	if (readPtr == NULL && closePtr == NULL) {
 	    pollto = -1;
 	} else {
-	    timeout = INT_MAX;
+	    timeout.sec = INT_MAX;
+	    timeout.usec = LONG_MAX;
 	    sockPtr = readPtr;
 	    while (sockPtr != NULL) {
-		SockPoll(sockPtr);
+		SockPoll(sockPtr, &timeout);
 		sockPtr = sockPtr->nextPtr;
 	    }
 	    sockPtr = closePtr;
 	    while (sockPtr != NULL) {
-		SockPoll(sockPtr);
+		SockPoll(sockPtr, &timeout);
 		sockPtr = sockPtr->nextPtr;
 	    }
-	    if (timeout > now) {
-		pollto = (timeout - now) * 1000;
+	    if (Ns_DiffTime(&timeout, &now, &diff) > 0)  {
+		pollto = diff.sec * 1000 + diff.usec / 1000;
 	    } else {
 		pollto = 0;
 	    }
@@ -676,7 +668,7 @@ DriversThread(void *ignored)
 	 * closing sockets.
 	 */
 
-	time(&now);
+	Ns_GetTime(&now);
 	if (closePtr != NULL) {
 	    sockPtr = closePtr;
 	    closePtr = NULL;
@@ -688,7 +680,7 @@ DriversThread(void *ignored)
 			sockPtr->timeout = now;
 		    }
 		}
-		if (sockPtr->timeout <= now) {
+		if (Ns_DiffTime(&sockPtr->timeout, &now, &diff) <= 0) {
 		    SockRelease(sockPtr);
 		} else {
 		    sockPtr->nextPtr = closePtr;
@@ -707,7 +699,7 @@ DriversThread(void *ignored)
 	while (sockPtr != NULL) {
 	    nextPtr = sockPtr->nextPtr;
 	    if (!(pfds[sockPtr->pidx].revents & POLLIN)) {
-		if (sockPtr->timeout <= now || (stopping && sockPtr->keep)) {
+		if (Ns_DiffTime(&sockPtr->timeout, &now, &diff) <= 0) {
 		    SockRelease(sockPtr);
 		} else {
 		    sockPtr->nextPtr = readPtr;
@@ -731,12 +723,12 @@ DriversThread(void *ignored)
 
 		switch (n) {
 		case SOCK_MORE:
-		    sockPtr->timeout = now + sockPtr->drvPtr->recvwait;
+		    SockTimeout(sockPtr, &now, sockPtr->drvPtr->recvwait);
 		    sockPtr->nextPtr = readPtr;
 		    readPtr = sockPtr;
 		    break;
 		case SOCK_READY:
-		    if (!NsQueueConn(sockPtr, now)) {
+		    if (!NsQueueConn(sockPtr, &now)) {
 			sockPtr->nextPtr = waitPtr;
 			waitPtr = sockPtr;
 		    }
@@ -764,7 +756,7 @@ DriversThread(void *ignored)
 	    }
 	    while (sockPtr != NULL) {
 		nextPtr = sockPtr->nextPtr;
-		if (!NsQueueConn(sockPtr, now)) {
+		if (!NsQueueConn(sockPtr, &now)) {
 		    sockPtr->nextPtr = waitPtr;
 		    waitPtr = sockPtr;
 		}
@@ -802,7 +794,7 @@ DriversThread(void *ignored)
 		     * Put the socket on the read-ahead list.
 		     */
 
-		    sockPtr->timeout = now + drvPtr->recvwait;
+		    SockTimeout(sockPtr, &now, sockPtr->drvPtr->recvwait);
 		    sockPtr->nextPtr = readPtr;
 		    readPtr = sockPtr;
 		}
@@ -847,16 +839,16 @@ DriversThread(void *ignored)
 	while (sockPtr != NULL) {
 	    nextPtr = sockPtr->nextPtr;
 	    if (sockPtr->keep) {
-		sockPtr->timeout = now + sockPtr->drvPtr->keepwait;
+		SockTimeout(sockPtr, &now, sockPtr->drvPtr->keepwait);
 		sockPtr->nextPtr = readPtr;
 		readPtr = sockPtr;
 	    } else {
 		if (shutdown(sockPtr->sock, 1) != 0) {
 		    SockRelease(sockPtr);
 		} else {
+		    SockTimeout(sockPtr, &now, sockPtr->drvPtr->closewait);
 		    sockPtr->nextPtr = closePtr;
 		    closePtr = sockPtr;
-		    sockPtr->timeout = now + sockPtr->drvPtr->closewait;
 		}
 	    }
 	    sockPtr = nextPtr;
@@ -888,6 +880,61 @@ DriversThread(void *ignored)
 /*
  *----------------------------------------------------------------------
  *
+ * SockPoll --
+ *
+ *	Arrange for given Sock to be monitored. 
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	Sock fd will be monitored for readability on next spin of
+ *	DriverThread.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+SockPoll(Sock *sockPtr, Ns_Time *timeoutPtr)
+{
+    /*
+     * Grow the pfds array if necessary.
+     */
+
+    if (nfds >= maxfds) {
+	maxfds += 100;
+	pfds = ns_realloc(pfds, maxfds * sizeof(struct pollfd));
+    }
+
+    /*
+     * Set the next pollfd struct with this socket.
+     */
+
+    pfds[nfds].fd = sockPtr->sock;
+    pfds[nfds].events = POLLIN;
+    pfds[nfds].revents = 0;
+    sockPtr->pidx = nfds++;
+
+    /* 
+     * Check for new minimum timeout.
+     */
+
+    if (Ns_DiffTime(&sockPtr->timeout, timeoutPtr, NULL) < 0) {
+    	*timeoutPtr = sockPtr->timeout;
+    }
+}
+
+static void
+SockTimeout(Sock *sockPtr, Ns_Time *nowPtr, int timeout)
+{
+    sockPtr->timeout = *nowPtr;
+    Ns_IncrTime(&sockPtr->timeout, timeout, 0);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  * SockAccept --
  *
  *	Accept and initialize a new Sock.
@@ -907,8 +954,6 @@ SockAccept(Driver *drvPtr)
     Sock *sockPtr;
     int slen;
 
-    slen = sizeof(struct sockaddr_in);
-
     /*
      * Allocate and/or initialize a connection structure.
      */
@@ -925,10 +970,12 @@ SockAccept(Driver *drvPtr)
      * Accept the new connection.
      */
 
+    slen = sizeof(struct sockaddr_in);
     sockPtr->drvPtr = drvPtr;
     sockPtr->keep = 0;
     sockPtr->arg = NULL;
-    sockPtr->sock = Ns_SockAccept(drvPtr->sock, (struct sockaddr *) &sockPtr->sa, &slen);
+    sockPtr->sock = Ns_SockAccept(drvPtr->sock,
+				  (struct sockaddr *) &sockPtr->sa, &slen);
     if (sockPtr->sock == -1) {
 	/* 
 	 * Accept failed - return the Sock to the free list.
@@ -959,7 +1006,6 @@ SockAccept(Driver *drvPtr)
 	setsockopt(sockPtr->sock, SOL_SOCKET, SO_RCVBUF,
 	    (char *) &drvPtr->rcvbuf, sizeof(drvPtr->rcvbuf));
     }
-
     ++nactive;
     return sockPtr;
 }
@@ -1017,8 +1063,7 @@ static void
 SockTrigger(void)
 {
     if (send(trigPipe[1], "", 1, 0) != 1) {
-	Ns_Fatal("driver: trigger send() failed: %s",
-	    strerror(errno));
+	Ns_Fatal("driver: trigger send() failed: %s", strerror(errno));
     }
 }
 
@@ -1162,7 +1207,8 @@ SockRead(Sock *sockPtr)
 
 		    return SOCK_ERROR;
 		}
-	    } else if (Ns_ParseHeader(reqPtr->headers, s, servPtr->opts.hdrcase) != NS_OK) {
+	    } else if (Ns_ParseHeader(reqPtr->headers, s,
+				      servPtr->opts.hdrcase) != NS_OK) {
 		/*
 		 * Invalid header.
 		 */

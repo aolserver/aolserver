@@ -34,7 +34,7 @@
  *      Manage the Ns_Conn structure
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.25 2002/07/23 15:04:39 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.26 2002/08/26 02:05:13 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -898,7 +898,7 @@ NsTclConnObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 	    break;
 
 	case CStartIdx:
-	    Tcl_SetLongObj(result, connPtr->startTime);
+	    Ns_TclSetTimeObj(result, &connPtr->startTime);
 	    break;
 
 	case CCloseIdx:
@@ -1125,7 +1125,7 @@ NsTclConnCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 	Tcl_SetResult(interp, buf, TCL_VOLATILE);
 
     } else if (STREQ(argv[1], "start")) {
-	sprintf(buf, "%d", (int) connPtr->startTime);
+	sprintf(buf, "%d", connPtr->startTime.sec);
 	Tcl_SetResult(interp, buf, TCL_VOLATILE);
 
     } else if (STREQ(argv[1], "close")) {

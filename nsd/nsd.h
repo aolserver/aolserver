@@ -320,7 +320,7 @@ typedef struct Sock {
     struct sockaddr_in sa;
     int		 keep;
     int		 pidx;		    /* poll() index. */
-    time_t	 timeout;
+    Ns_Time	 timeout;
     Request	*reqPtr;
 
 } Sock;
@@ -356,7 +356,7 @@ typedef struct Conn {
     struct Request *reqPtr;
     int          id;
     char	 idstr[16];
-    time_t	 startTime;
+    Ns_Time	 startTime;
     Tcl_Interp  *interp;
     Tcl_Encoding encoding;
     int          nContentSent;
@@ -698,7 +698,7 @@ extern void NsInitTcl(void);
 extern void NsInitUrlSpace(void);
 extern void NsInitRequests(void);
 
-extern int NsQueueConn(Sock *sockPtr, time_t now);
+extern int NsQueueConn(Sock *sockPtr, Ns_Time *nowPtr);
 extern int NsSockSend(Sock *sockPtr, struct iovec *bufs, int nbufs);
 extern void NsSockClose(Sock *sockPtr, int keep);
 
