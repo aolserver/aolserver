@@ -27,35 +27,15 @@
  * version of this file under either the License or the GPL.
  */
 
-
-/*
- * EXPORT NOTICE 
- * 
- * This source code is subject to the U.S. Export Administration
- * Regulations and other U.S. law, and may not be exported or
- * re-exported to certain countries (currently Afghanistan
- * (Taliban-controlled areas), Cuba, Iran, Iraq, Libya, North Korea,
- * Serbia (except Kosovo), Sudan and Syria) or to persons or entities
- * prohibited from receiving U.S. exports (including Denied Parties,
- * Specially Designated Nationals, and entities on the Bureau of
- * Export Administration Entity List).
+/* 
+ * nssock.c --
+ *
+ *	Stub to include sock.cpp for nssock.
+ *
  */
 
-
-#ifndef SSLTCL_H
-#define SSLTCL_H
-
-extern int
-Nsssl_InitCommands(Tcl_Interp *interp);
-
-extern int
-Nsssle_Init(Tcl_Interp *interp);
-
-extern int
-Nsssl_Init(Tcl_Interp *interp);
-
-extern int
-NsSSLInterpInit(Tcl_Interp *interp, void *ignored);
-
-
+#ifdef SSL
+#undef SSL
 #endif
+
+#include "../nsssl/sock.cpp"
