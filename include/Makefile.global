@@ -265,7 +265,7 @@ endif
 #
 # Set the names of the Tcl libraries
 #
-TCL_DIR=tcl8.3.2
+TCL_DIR=tcl8.3.3
 TCL_LIB=libtcl8.3g.a
 LIBTCL=$(NSHOME)/$(TCL_DIR)/unix/$(TCL_LIB)
 
