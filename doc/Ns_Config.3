@@ -1,0 +1,120 @@
+'\"
+'\" The contents of this file are subject to the AOLserver Public License
+'\" Version 1.1 (the "License"); you may not use this file except in
+'\" compliance with the License. You may obtain a copy of the License at
+'\" http://aolserver.com/.
+'\"
+'\" Software distributed under the License is distributed on an "AS IS"
+'\" basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+'\" the License for the specific language governing rights and limitations
+'\" under the License.
+'\"
+'\" The Original Code is AOLserver Code and related documentation
+'\" distributed by AOL.
+'\" 
+'\" The Initial Developer of the Original Code is America Online,
+'\" Inc. Portions created by AOL are Copyright (C) 1999 America Online,
+'\" Inc. All Rights Reserved.
+'\"
+'\" Alternatively, the contents of this file may be used under the terms
+'\" of the GNU General Public License (the "GPL"), in which case the
+'\" provisions of GPL are applicable instead of those above.  If you wish
+'\" to allow use of your version of this file only under the terms of the
+'\" GPL and not to allow others to use your version of this file under the
+'\" License, indicate your decision by deleting the provisions above and
+'\" replace them with the notice and other provisions required by the GPL.
+'\" If you do not delete the provisions above, a recipient may use your
+'\" version of this file under either the License or the GPL.
+'\" 
+'\"
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_Config.3,v 1.1.2.2 2002/12/04 19:51:00 scottg Exp $
+'\"
+'\" 
+.so man.macros
+
+.TH Ns_Config 3 3.5 AOLserver "AOLserver Library Procedures"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+Ns_ConfigGetBool, Ns_ConfigGetInt, Ns_ConfigGetInt64, Ns_ConfigGetPath, Ns_ConfigGetSection, Ns_ConfigGetSections, Ns_ConfigGetValue, Ns_ConfigGetValueExact \- library procedures
+.SH SYNOPSIS
+.nf
+\fB#include "ns.h"\fR
+.sp
+\fBNs_ConfigGetBool\fR(\fIchar *section, char *key, int *valuePtr\fR)
+.sp
+\fBNs_ConfigGetInt\fR(\fIchar *section, char *key, int *valuePtr\fR)
+.sp
+\fBNs_ConfigGetInt64\fR(\fIchar *section, char *key, INT64 *valuePtr\fR)
+.sp
+\fBNs_ConfigGetPath\fR(\fIchar *server, char *module, ...\fR)
+.sp
+\fBNs_ConfigGetSection\fR(\fIchar *section\fR)
+.sp
+\fBNs_ConfigGetSections\fR(\fIvoid\fR)
+.sp
+\fBNs_ConfigGetValue\fR(\fIchar *section, char *key\fR)
+.sp
+\fBNs_ConfigGetValueExact\fR(\fIchar *section, char *key\fR)
+.BE
+.SH DESCRIPTION
+.PP
+These functions allow you to extract information from the server 
+config files. 
+.TP
+\fBNs_ConfigGetBool\fR(\fIchar *section, char *key, int *valuePtr\fR)
+
+Examines key in section and returns NS_TRUE for values 1, y, yes, 
+on, t, or true, case insensitive, and sets valuePtr to 1.
+Returns NS_FALSE for values 0, n, no, off, f, false, case 
+insensitive, and sets valuePtr to 0.
+.TP
+\fBNs_ConfigGetInt\fR(\fIchar *section, char *key, int *valuePtr\fR)
+
+Examines key in section and attempts to convert to an integer value. 
+On success, returns NS_TRUE, otherwise NS_FALSE. The value of the integer
+is placed into valuePtr.
+
+.TP
+\fBNs_ConfigGetInt64\fR(\fIchar *section, char *key, INT64 *valuePtr\fR)
+
+Like Ns_ConfigGetInt, but with INT64 data instead of system-native int types.
+This function isn't available on WIN32.
+
+.TP
+\fBNs_ConfigGetPath\fR(\fIchar *server, char *module, ...\fR)
+
+Get the full name of a config file section if it exists. Returns a pointer 
+to to an ASCIIZ string of the full path name, or NULL if that path is not 
+in the config file.
+
+.TP
+\fBNs_ConfigGetSection\fR(\fIchar *section\fR)
+
+Returns an Ns_Set of the section's parameters, or NULL if the section
+does not exist.
+
+.TP
+\fBNs_ConfigGetSections\fR(\fIvoid\fR)
+
+Returns a pointer to an array of pointers to Ns_Sets, one for 
+each config section. The result is a malloc'ed copy of the config 
+sections.
+
+.TP
+\fBNs_ConfigGetValue\fR(\fIchar *section, char *key\fR)
+
+Returns a pointer to the value of the key in section, or NULL
+if the key doesn't exist.
+
+.TP
+\fBNs_ConfigGetValueExact\fR(\fIchar *section, char *key\fR)
+
+Case sensitive equivalent of Ns_ConfigGetValue. 
+
+
+.SH "SEE ALSO"
+nsd(1), info(n)
+
+.SH KEYWORDS
+
