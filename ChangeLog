@@ -1,3 +1,11 @@
+2003-10-09  Mark Page  <mpagenva@aol.com>
+
+        * TAG aolserver_v4_r0_beta_18
+	
+2003-10-09  Elizabeth Thomas <eathomas93@aol.com>
+
+        * nsd/init.tcl: Fix syntax error in check for null proc.
+
 2003-10-08  Mark Page  <mpagenva@aol.com>
 
         * TAG aolserver_v4_r0_beta_17
