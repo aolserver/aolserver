@@ -28,7 +28,7 @@
  */
 
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/exec.c,v 1.4 2000/08/17 06:09:49 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/exec.c,v 1.5 2000/10/13 00:23:38 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -427,7 +427,7 @@ Ns_ExecArgv(char *exec, char *dir, int fdin, int fdout,
     if (fdout < 0) {
 	fdout = 1;
     }
-    pid = Ns_Fork();
+    pid = ns_fork();
     if (pid < 0) {
         Ns_Log(Error, "exec: failed to fork '%s': '%s'", exec, strerror(errno));
         close(pipeError[0]);
