@@ -34,7 +34,7 @@
  *	Functions that return data to a browser. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.42 2005/01/15 23:56:24 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.43 2005/01/17 14:03:44 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -719,7 +719,7 @@ Ns_ConnReturnNotice(Ns_Conn *conn, int status, char *title, char *notice)
 int
 Ns_ConnReturnData(Ns_Conn *conn, int status, char *data, int len, char *type)
 {
-   return ReturnCharData(conn, status, data, len, type, NS_TRUE);
+   return ReturnCharData(conn, status, data, len, type, 1);
 }
 
 
@@ -742,7 +742,7 @@ Ns_ConnReturnData(Ns_Conn *conn, int status, char *data, int len, char *type)
 int
 Ns_ConnReturnCharData(Ns_Conn *conn, int status, char *data, int len, char *type)
 {
-   return ReturnCharData(conn, status, data, len, type, NS_FALSE);
+   return ReturnCharData(conn, status, data, len, type, 0);
 }
 
 
@@ -752,80 +752,26 @@ Ns_ConnReturnCharData(Ns_Conn *conn, int status, char *data, int len, char *type
  * ReturnCharData --
  *
  *	Sets required headers, dumps them, and then writes your data. 
- *      If sendRaw is false, then translate the data from utf-8 to the
- *      correct character encoding if appropriate.
+ *      If raw is true, disable character encoding.
  *
  * Results:
  *	NS_OK/NS_ERROR
  *
  * Side effects:
- *	May set numerous headers, will close connection. 
+ *	See Ns_ConnFlush.
  *
  *----------------------------------------------------------------------
  */
 
 static int
-ReturnCharData(Ns_Conn *conn, int status, char *data, int len, char *type,
-               int sendRaw)
+ReturnCharData(Ns_Conn *conn, int status, char *data, int len, char *type, int raw)
 {
-    int          result;
-    Conn        *connPtr;
-    Tcl_DString  ds;
-    Tcl_Encoding enc;
-    Tcl_DString  type_ds;
-    int          new_type = NS_FALSE;
-
-    connPtr = (Conn *)conn;
-
-    /* Make sure we know what output encoding (if any) to use. */
-    if (!sendRaw ) {
-
-        NsComputeEncodingFromType(type, &enc, &new_type, &type_ds);
-        if (new_type) {
-            type = Tcl_DStringValue(&type_ds);
-        }
-        if (enc != NULL) {
-            connPtr->encoding = enc;
-        } else if (connPtr->encoding == NULL) {
-            sendRaw = NS_TRUE;
-        }
+    Ns_ConnSetStatus(conn, status);
+    Ns_ConnSetType(conn, type);
+    if (raw) {
+	Ns_ConnSetEncoding(conn, NULL);
     }
-
-    if (!sendRaw) {
-
-        Tcl_UtfToExternalDString(connPtr->encoding, data, len, &ds);
-
-	data = Tcl_DStringValue(&ds);
-	len = Tcl_DStringLength(&ds);
-
-    } else {
-
-	/* Send data unmodified. */
-	if (len == -1) {
-	    len = data ? strlen(data) : 0;
-	}
-
-    }
-
-    Ns_ConnSetRequiredHeaders(conn, type, len);
-    Ns_ConnQueueHeaders(conn, status);
-    if (conn->flags & NS_CONN_SKIPBODY) {
-        data = NULL;
-        len = 0;
-    }
-    result = Ns_WriteConn(conn, data, len);
-    if (result == NS_OK) {
-        result = Ns_ConnClose(conn);
-    }
-
-    if (!sendRaw && (connPtr->encoding != NULL)) {
-        Tcl_DStringFree(&ds);
-    }
-    if (new_type) {
-        Tcl_DStringFree(&type_ds);
-    }
-
-    return result;
+    return Ns_ConnFlush(conn, data, len, 0);
 }
 
 
