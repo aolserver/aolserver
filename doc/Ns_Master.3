@@ -28,7 +28,7 @@
 '\" version of this file under either the License or the GPL.
 '\" 
 '\"
-'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_Master.3,v 1.1.2.2 2002/12/05 14:52:20 scottg Exp $
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_Master.3,v 1.1.2.3 2002/12/05 18:08:04 scottg Exp $
 '\"
 '\" 
 .so man.macros
@@ -61,7 +61,7 @@ your own named locks, then wrap your critical sections with calls to
 \fBNs_CsEnter\fR and \fBNs_CsLeave\fR.
 
 .TP
-\fBNs_MasterLock\fR(\fIvoid\fR)
+\fBNs_MasterLock\fR()
 
 Enter the single master lock. The thread that holds this lock is
 guaranteed exclusive access to the section of code that follows the
@@ -74,7 +74,7 @@ section. If the thread that owns the master lock blocks for any reason
 while in the master critical section, other threads that need to enter
 that section of code will block until the master lock is released.
 .TP
-\fBNs_MasterUnlock\fR(\fIvoid\fR)
+\fBNs_MasterUnlock\fR()
 
 Leave the single master critical section. The thread that owns the
 lock must release it after the critical section of code has completed

@@ -28,7 +28,7 @@
 '\" version of this file under either the License or the GPL.
 '\" 
 '\"
-'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_Adp.3,v 1.1.2.2 2002/12/03 18:48:02 scottg Exp $
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_Adp.3,v 1.1.2.3 2002/12/05 18:07:57 scottg Exp $
 '\"
 '\" 
 .so man.macros
@@ -51,7 +51,7 @@ Ns_AdpRegisterParser, Ns_AdpRequest \- Create and use ADP parsers
 .PP
 These functions register new ADP parsers and run ADP requests.
 .TP
-\fBNs_AdpRegisterParser\fR(\fIchar *extension, Ns_AdpParserProc *newParserProc\fR)
+\fBNs_AdpRegisterParser\fR(\fIextension, newParserProc\fR)
 
 Registers a new, named ADP parser procedure with the name given in
 \fIextension\fR. You can tie a file extension to a particular named
@@ -86,7 +86,7 @@ And create this output:
 
 "tThis is a test page\\0sns_puts hi\\0tThe end\\0sns_puts bye\\0\\0"
 .TP
-\fBNs_AdpRequest\fR(\fINs_Conn *conn\fR, \fIchar *file\fR)
+\fBNs_AdpRequest\fR(\fIconn\fR, \fIfile\fR)
 
 Parse and evaluate an ADP file.
 .SH "SEE ALSO"

@@ -28,7 +28,7 @@
 '\" version of this file under either the License or the GPL.
 '\" 
 '\"
-'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_ThreadAlloc.3,v 1.1.2.2 2002/12/04 20:20:43 scottg Exp $
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_ThreadAlloc.3,v 1.1.2.3 2002/12/05 18:08:09 scottg Exp $
 '\"
 '\" 
 .so man.macros
@@ -64,35 +64,35 @@ Ns_ThreadAlloc, Ns_ThreadCalloc, Ns_ThreadFree, Ns_ThreadMalloc, Ns_ThreadPool, 
 These functions are deprecated and are actually wrappers around other functions. You should use the other functions directly.
 
 .TP
-\fBNs_ThreadAlloc\fR(\fIsize_t size\fR)
+\fBNs_ThreadAlloc\fR(\fIsize\fR)
 
 A wrapper for Ns_ThreadMalloc.
 .TP
-\fBNs_ThreadCalloc\fR(\fIsize_t nelem, size_t elsize\fR)
+\fBNs_ThreadCalloc\fR(\fInelem, elsize\fR)
 
 A wrapper for ns_calloc.
 .TP
-\fBNs_ThreadFree\fR(\fIvoid *ptr\fR)
+\fBNs_ThreadFree\fR(\fIptr\fR)
 
 A wrapper for ns_free.
 .TP
-\fBNs_ThreadMalloc\fR(\fIsize_t size\fR)
+\fBNs_ThreadMalloc\fR(\fIsize\fR)
 
 A wrapper for ns_malloc.
 .TP
-\fBNs_ThreadPool\fR(\fIvoid\fR)
+\fBNs_ThreadPool\fR()
 
 Deprecated. Always returns a -1.
 .TP
-\fBNs_ThreadRealloc\fR(\fIvoid *ptr, size_t size\fR)
+\fBNs_ThreadRealloc\fR(\fIptr, size\fR)
 
 A wrapper for ns_realloc.
 .TP
-\fBNs_ThreadStrCopy\fR(\fIchar *str\fR)
+\fBNs_ThreadStrCopy\fR(\fIstr\fR)
 
 A wrapper for ns_strcopy.
 .TP
-\fBNs_ThreadStrDup\fR(\fIchar *str\fR)
+\fBNs_ThreadStrDup\fR(\fIstr\fR)
 
 A wrapper for ns_strdup.
 .SH "SEE ALSO"

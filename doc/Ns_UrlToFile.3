@@ -28,7 +28,7 @@
 '\" version of this file under either the License or the GPL.
 '\" 
 '\"
-'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_UrlToFile.3,v 1.1.2.2 2002/12/05 17:25:08 scottg Exp $
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_UrlToFile.3,v 1.1.2.3 2002/12/05 18:08:10 scottg Exp $
 '\"
 '\" 
 .so man.macros
@@ -58,17 +58,17 @@ normally used to determine whether a given URL has a corresponding
 file or directory and to return the real filesystem path that
 corresponds to the URL.
 .TP
-\fBNs_SetUrlToFileProc\fR(\fIchar *server, Ns_UrlToFileProc *procPtr\fR)
+\fBNs_SetUrlToFileProc\fR(\fIserver, procPtr\fR)
 
 Set a pointer to a custom routine to use in place of \fBNs_UrlToFile\fR. 
 .TP
-\fBNs_UrlIsDir\fR(\fIchar *server, char *url\fR)
+\fBNs_UrlIsDir\fR(\fIserver, url\fR)
 
 Construct a directory name by appending the URL to the current
 AOLserver pages directory for the specified server. Return NS_TRUE if
 the directory exists; NS_FALSE otherwise.
 .TP
-\fBNs_UrlIsFile\fR(\fIchar *server, char *url\fR)
+\fBNs_UrlIsFile\fR(\fIserver, url\fR)
 
 Construct a file name by appending the URL to the current AOLserver
 pages directory for the specified server. Return NS_TRUE if the file
@@ -95,7 +95,7 @@ IsFile(Ns_Conn *conn, void *ctx)
 }
 .CE
 .TP
-\fBNs_UrlToFile\fR(\fINs_DString *dsPtr, char *server, char *url\fR)
+\fBNs_UrlToFile\fR(\fIdsPtr, server, url\fR)
 
 The Ns_UrlToFile function writes the full path name of the file
 corresponding to the given URL. The result is appended to the

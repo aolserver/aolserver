@@ -27,7 +27,7 @@
 '\" version of this file under either the License or the GPL.
 '\" 
 '\"
-'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_Config.3,v 1.1.2.3 2002/12/04 19:56:53 scottg Exp $
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_Config.3,v 1.1.2.4 2002/12/05 18:08:00 scottg Exp $
 '\"
 '\" 
 .so man.macros
@@ -62,46 +62,46 @@ Ns_ConfigGetBool, Ns_ConfigGetInt, Ns_ConfigGetInt64, Ns_ConfigGetPath, Ns_Confi
 These functions allow you to extract information from the server 
 config files. 
 .TP
-\fBNs_ConfigGetBool\fR(\fIchar *section, char *key, int *valuePtr\fR)
+\fBNs_ConfigGetBool\fR(\fIsection, key, valuePtr\fR)
 
 Examines key in section and returns NS_TRUE for values 1, y, yes, on,
 t, or true, case insensitive, and sets valuePtr to 1.  Returns
 NS_FALSE for values 0, n, no, off, f, false, case insensitive, and
 sets valuePtr to 0.
 .TP
-\fBNs_ConfigGetInt\fR(\fIchar *section, char *key, int *valuePtr\fR)
+\fBNs_ConfigGetInt\fR(\fIsection, key, valuePtr\fR)
 
 Examines key in section and attempts to convert to an integer value.
 On success, returns NS_TRUE, otherwise NS_FALSE. The value of the
 integer is placed into valuePtr.
 .TP
-\fBNs_ConfigGetInt64\fR(\fIchar *section, char *key, INT64 *valuePtr\fR)
+\fBNs_ConfigGetInt64\fR(\fIsection, key, valuePtr\fR)
 
 Like Ns_ConfigGetInt, but with INT64 data instead of system-native int
 types.  This function isn't available on WIN32.
 .TP
-\fBNs_ConfigGetPath\fR(\fIchar *server, char *module, ...\fR)
+\fBNs_ConfigGetPath\fR(\fIserver, module, ...\fR)
 
 Get the full name of a config file section if it exists. Returns a
 pointer to to an ASCIIZ string of the full path name, or NULL if that
 path is not in the config file.
 .TP
-\fBNs_ConfigGetSection\fR(\fIchar *section\fR)
+\fBNs_ConfigGetSection\fR(\fIsection\fR)
 
 Returns an Ns_Set of the section's parameters, or NULL if the section
 does not exist.
 .TP
-\fBNs_ConfigGetSections\fR(\fIvoid\fR)
+\fBNs_ConfigGetSections\fR()
 
 Returns a pointer to an array of pointers to Ns_Sets, one for each
 config section. The result is a malloc'ed copy of the config sections.
 .TP
-\fBNs_ConfigGetValue\fR(\fIchar *section, char *key\fR)
+\fBNs_ConfigGetValue\fR(\fIsection, key\fR)
 
 Returns a pointer to the value of the key in section, or NULL if the
 key doesn't exist.
 .TP
-\fBNs_ConfigGetValueExact\fR(\fIchar *section, char *key\fR)
+\fBNs_ConfigGetValueExact\fR(\fIsection, key\fR)
 
 Case sensitive equivalent of Ns_ConfigGetValue. 
 .SH "SEE ALSO"

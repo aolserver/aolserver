@@ -28,7 +28,7 @@
 '\" version of this file under either the License or the GPL.
 '\" 
 '\"
-'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_Mime.3,v 1.1.2.2 2002/12/05 15:45:26 scottg Exp $
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_Mime.3,v 1.1.2.3 2002/12/05 18:08:05 scottg Exp $
 '\"
 '\" 
 .so man.macros
@@ -46,7 +46,9 @@ Ns_GetMimeType \- Return the MIME type of a file
 .BE
 
 .SH DESCRIPTION
-.PP
+.TP
+\fBNs_GetMimeType\fR(\fIfile\fR)
+
 The \fBNs_GetMimeType\fR function uses the extension of \fIfile\fR and
 looks up the associated MIME type stored internally in the
 server. Case is ignored. The return value is of the form "text/html".

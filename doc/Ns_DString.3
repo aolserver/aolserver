@@ -1,0 +1,148 @@
+
+'\"
+'\" The contents of this file are subject to the AOLserver Public License
+'\" Version 1.1 (the "License"); you may not use this file except in
+'\" compliance with the License. You may obtain a copy of the License at
+'\" http://aolserver.com/.
+'\"
+'\" Software distributed under the License is distributed on an "AS IS"
+'\" basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+'\" the License for the specific language governing rights and limitations
+'\" under the License.
+'\"
+'\" The Original Code is AOLserver Code and related documentation
+'\" distributed by AOL.
+'\" 
+'\" The Initial Developer of the Original Code is America Online,
+'\" Inc. Portions created by AOL are Copyright (C) 1999 America Online,
+'\" Inc. All Rights Reserved.
+'\"
+'\" Alternatively, the contents of this file may be used under the terms
+'\" of the GNU General Public License (the "GPL"), in which case the
+'\" provisions of GPL are applicable instead of those above.  If you wish
+'\" to allow use of your version of this file only under the terms of the
+'\" GPL and not to allow others to use your version of this file under the
+'\" License, indicate your decision by deleting the provisions above and
+'\" replace them with the notice and other provisions required by the GPL.
+'\" If you do not delete the provisions above, a recipient may use your
+'\" version of this file under either the License or the GPL.
+'\" 
+'\"
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_DString.3,v 1.1.2.2 2002/12/05 18:08:01 scottg Exp $
+'\"
+'\" 
+.so man.macros
+
+.TH Ns_DString 3 3.5 AOLserver "AOLserver Library Procedures"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+Ns_DStringAppend, Ns_DStringAppendArg, Ns_DStringAppendElement, Ns_DStringExport, Ns_DStringFree, Ns_DStringInit, Ns_DStringLength, Ns_DStringNAppend, Ns_DStringPop, Ns_DStringPrintf, Ns_DStringPush, Ns_DStringSetLength, Ns_DStringTrunc, Ns_DStringValue, Ns_DStringVarAppend \- library procedures
+.SH SYNOPSIS
+.nf
+\fB#include "ns.h"\fR
+.sp
+\fBNs_DStringAppend\fR(\fINs_DString *dsPtr, char *string\fR)
+.sp
+\fBNs_DStringAppendArg\fR(\fINs_DString *dsPtr, char *string\fR)
+.sp
+\fBNs_DStringAppendElement\fR(\fINs_DString *dsPtr, char *string\fR)
+.sp
+\fBNs_DStringExport\fR(\fINs_DString *dsPtr\fR)
+.sp
+\fBNs_DStringFree\fR(\fINs_DString *dsPtr\fR)
+.sp
+\fBNs_DStringInit\fR(\fINs_DString *dsPtr\fR)
+.sp
+\fBNs_DStringLength\fR(\fINs_DString *dsPtr\fR)
+.sp
+\fBNs_DStringNAppend\fR(\fINs_DString *dsPtr, char *string, int length\fR)
+.sp
+\fBNs_DStringPop\fR(\fIvoid\fR)
+.sp
+\fBNs_DStringPrintf\fR(\fINs_DString *dsPtr, char *fmt,...\fR)
+.sp
+\fBNs_DStringPush\fR(\fINs_DString *dsPtr\fR)
+.sp
+\fBNs_DStringSetLength\fR(\fINs_DString *dsPtr, int length\fR)
+.sp
+\fBNs_DStringTrunc\fR(\fINs_DString *dsPtr, int length\fR)
+.sp
+\fBNs_DStringValue\fR(\fINs_DString *dsPtr\fR)
+.sp
+\fBNs_DStringVarAppend\fR(\fINs_DString *dsPtr, ...\fR)
+.BE
+
+.SH DESCRIPTION
+.PP
+These functions ...
+
+
+.TP
+\fBNs_DStringAppend\fR(\fIdsPtr, string\fR)
+
+
+.TP
+\fBNs_DStringAppendArg\fR(\fIdsPtr, string\fR)
+
+
+.TP
+\fBNs_DStringAppendElement\fR(\fIdsPtr, string\fR)
+
+
+.TP
+\fBNs_DStringExport\fR(\fIdsPtr\fR)
+
+
+.TP
+\fBNs_DStringFree\fR(\fIdsPtr\fR)
+
+
+.TP
+\fBNs_DStringInit\fR(\fIdsPtr\fR)
+
+
+.TP
+\fBNs_DStringLength\fR(\fIdsPtr\fR)
+
+
+.TP
+\fBNs_DStringNAppend\fR(\fIdsPtr, string, length\fR)
+
+
+.TP
+\fBNs_DStringPop\fR(\fIvoid\fR)
+
+
+.TP
+\fBNs_DStringPrintf\fR(\fIdsPtr, fmt, ...\fR)
+
+
+.TP
+\fBNs_DStringPush\fR(\fIdsPtr\fR)
+
+
+.TP
+\fBNs_DStringSetLength\fR(\fIdsPtr, length\fR)
+
+
+.TP
+\fBNs_DStringTrunc\fR(\fIdsPtr, length\fR)
+
+
+.TP
+\fBNs_DStringValue\fR(\fIdsPtr\fR)
+
+
+.TP
+\fBNs_DStringVarAppend\fR(\fIdsPtr, ...\fR)
+
+
+
+
+
+.SH "SEE ALSO"
+nsd(1), info(n)
+
+.SH KEYWORDS
+

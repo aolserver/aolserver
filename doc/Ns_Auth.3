@@ -28,7 +28,7 @@
 '\" version of this file under either the License or the GPL.
 '\" 
 '\"
-'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_Auth.3,v 1.1.2.2 2002/12/03 20:40:29 scottg Exp $
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_Auth.3,v 1.1.2.3 2002/12/05 18:07:59 scottg Exp $
 '\"
 '\" 
 .so man.macros
@@ -63,8 +63,8 @@ might create functions that will authorize a user by their SSL client
 certificate and if that fails, then attempt to authorize the user by
 username and password.
 .TP
-\fBNs_AuthorizeRequest\fR(\fIchar *server, char *method, char *url,
-        char *user, char *passwd, char *peer\fR)
+\fBNs_AuthorizeRequest\fR(\fIserver, method, url,
+        user, passwd, peer\fR)
 
 Used to call the function registered by \fBNs_SetRequestAuthorizeProc \fRto
 authorize a user's access to the given method and URL. Possible return
@@ -83,20 +83,20 @@ NS_ERROR - The authentication function could not perform the
 permission check.
 
 .TP
-\fBNs_AuthorizeUser\fR(\fIchar *user, char *passwd\fR)
+\fBNs_AuthorizeUser\fR(\fIuser, passwd\fR)
 
 Checks that the cleartext password is correct for the specified
 user. Returns NS_OK if it matches or NS_ERROR if it does not match or
 if no authorization procedure is registered.
 
 .TP
-\fBNs_SetRequestAuthorizeProc\fR(\fIchar *server, Ns_RequestAuthorizeProc *procPtr\fR)
+\fBNs_SetRequestAuthorizeProc\fR(\fIserver, procPtr\fR)
 
 Register the URL request authorization function. This function is
 called by \fBNs_AuthorizeRequest\fR and should return one of the four values
 give above for \fBNs_AuthorizeRequest\fR.
 .TP
-\fBNs_SetUserAuthorizeProc\fR(\fINs_UserAuthorizeProc *procPtr\fR)
+\fBNs_SetUserAuthorizeProc\fR(\fIprocPtr\fR)
 
 Register the user authorization function. This function is called by
 \fBNs_AuthorizeUser\fR and should return either NS_OK or NS_ERROR.

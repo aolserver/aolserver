@@ -28,7 +28,7 @@
 '\" version of this file under either the License or the GPL.
 '\" 
 '\"
-'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_CritSec.3,v 1.1.2.3 2002/12/05 17:25:07 scottg Exp $
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_CritSec.3,v 1.1.2.4 2002/12/05 18:08:01 scottg Exp $
 '\"
 '\" 
 .so man.macros
@@ -87,7 +87,7 @@ Threads that are waiting for a critical section lock to be released do
 not have to poll the lock. The critical section lock functions use
 thread condition functions to signal when a lock is released.
 .TP
-\fBNs_CsDestroy\fR(\fINs_Cs *csPtr\fR)
+\fBNs_CsDestroy\fR(\fIcsPtr\fR)
 
 Destroy a critical section object.  Note that you would almost never
 need to call this function as synchronization objects are typically
@@ -96,7 +96,7 @@ created at startup and exist until the server exits.
 The underlying objects in the critical section are destroyed and the
 critical section memory returned to the heap.
 .TP
-\fBNs_CsEnter\fR(\fINs_Cs *csPtr\fR)
+\fBNs_CsEnter\fR(\fIcsPtr\fR)
 
 Lock a critical section object, initializing it first if needed.  If
 the critical section is in use by another thread, the calling thread
@@ -105,13 +105,13 @@ will block until it is no longer so.
 Note that critical sections are recursive and must be exited the same
 number of times as they were entered.
 .TP
-\fBNs_CsInit\fR(\fINs_Cs *csPtr\fR)
+\fBNs_CsInit\fR(\fIcsPtr\fR)
 
 Initialize a critical section object. Memory will be allocated to hold
 the object's state.
 
 .TP
-\fBNs_CsLeave\fR(\fINs_Cs *csPtr\fR)
+\fBNs_CsLeave\fR(\fIcsPtr\fR)
 
 Unlock a critical section once. A count of threads waiting to enter
 the critical section is kept, and a condition is signaled if this is

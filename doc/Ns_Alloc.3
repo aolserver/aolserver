@@ -28,7 +28,7 @@
 '\" version of this file under either the License or the GPL.
 '\" 
 '\"
-'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_Alloc.3,v 1.1.2.2 2002/12/03 19:58:12 scottg Exp $
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_Alloc.3,v 1.1.2.3 2002/12/05 18:07:58 scottg Exp $
 '\"
 '\" 
 .so man.macros
@@ -76,13 +76,13 @@ undefined behavior.
 The lowercase and mixed-case versions are identical; the lowercase
 versions are preferred.
 .TP
-\fBns_calloc\fR(\fIsize_t num, size_t esize\fR)
+\fBns_calloc\fR(\fInum, esize\fR)
 
 Allocates a block of memory that is \fInum\fR * \fIesize\fR large,
 zeros it, and returns a pointer to the beginning of the memory
 block or NULL if the operation fails.
 .TP
-\fBns_free\fR(\fIvoid *ptr\fR)
+\fBns_free\fR(\fIptr\fR)
 
 ns_free() frees the memory space pointed to by ptr. This pointer must
 have been created with a previous call to ns_malloc(), ns_calloc() or
@@ -91,14 +91,14 @@ ns_realloc().
 If ptr
 is NULL, no operation is performed. ns_free() returns no value.
 .TP
-\fBns_malloc\fR(\fIsize_t size\fR)
+\fBns_malloc\fR(\fIsize\fR)
 
 ns_malloc() allocates size bytes and returns a pointer to the
 allocated memory.  The memory is not cleared. The value returned is a
 pointer to the allocated memory or NULL if the request fails. The
 memory must be freed by ns_free.
 .TP
-\fBns_realloc\fR(\fIvoid *ptr, size_t size\fR)
+\fBns_realloc\fR(\fIptr, size\fR)
 
 \fBns_realloc\fR changes the size of the memory block pointed to by
 \fIptr\fR to \fIsize\fR bytes.  The contents will be unchanged to the
