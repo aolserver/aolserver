@@ -1,11 +1,79 @@
+2000-09-05  Kriston J. Rehberg  <Kriston@AOL.NET>
+
+	*** AOLserver 3.1 Released *** 
+
+2000-09-05  (various: Jerry Asher, Jim Davidson, "Dossy," Curtis Galloway,
+	Scott S. Goodwin, Rob Mayoff, Kriston J. Rehberg)
+
+	* thread/win32.cpp: Sets thread stack size as on other platforms.
+
+	* thread/thread.c: NULL out thread arg at exit to avoid
+	Ns_ThreadEnum checking arg info for possibly deallocated context
+	as seen in ns_info threads.  Also, moved read of firstPtr in
+	Ns_ThreadEnum inside lock.  Added Ns_ThreadCreate2 in thread.c
+	needed for upgrade to Tcl 8.3.1 in tcl8x.c
+	
+	* thread/pthread.cpp: ETIME bug work around not causes wakeup in
+	Ns_CondWait and Ns_CondTimeWait instead of waiting again.  This is
+	more conservative and should avoid problems some have had with
+	threads missing wakeup.
+
+	* thread/pool.c: Added a simple 1-byte range check to -z
+	allocator.
+
+	* thread/Makefile: Added dependency for osthread.o to Makefile.
+
+	* tcl/namespace.tcl: Added namespace export to init script.
+
+	* nsvhr/nsvhr.c: Switched to Ns_WriteConn in TimedSockDump to
+	ensure all data was sent.
+
+	* nssock(nsssl): SSL module includes a fake 40-bit/512-bit
+	export-grade SSL keyfile.pem and certfile.pem for immediate use on
+	installation.  Adjusted for use with BSAFE 4 and 5.
+
+	* nspd: Library now installed to binary distribution.
+
+	* nsd/tclsock.c: Fixed crash bug in error message in ns_socknread.
+
+	* nsd/tclcmds.c: Added ns_adp_registertag command as documented.
+	
+	* nsd/serv.c: Added missing break for unauthorized case in
+	ConnRun.
+
+	* nsd/random.c: Fixed deadlock between Ns_DRand/Ns_GenSeeds.
+	
+	* nsd/nsmain.c: Fixed some message formatting problems.
+
+	* nsd/mimetypes.c: Added .png type, "image/png".
+	
+	* nsd/dbtcl.c: Removed unused variables in GetCsvCmd.  Use a
+	dstring to create the column list instead of incrementally setting
+	the output variable with Tcl_SetVar.  This was necessary to avoid
+	conflicting definitions of the needed TCL_ flags between 7.6 and
+	8.x.
+
+	* nsd/dbinit.c: MOdified current per-thread handle count to use a
+	single TLS slot instead of a slot per pool.
+	
+	* nsd/tclinit.c,adp.c,conn.c: The use of thread-local storage
+	(Tls) is now self-initializing in the conn, ADP, Tcl, etc.  This
+	allows ns_conn commands to be used outside a connection thread as
+	well as other uses of Tls where it may not be ready for use.
+
+	* nscp/nscp.c: Password non-echo code confuses Win32 and some free
+	Unix telnet clients so it has been disabled by default for now,
+	though it can be enabled by setting "echopassword" in the nscp
+	module section of nsd.tcl.
+	
 2000-08-21  Kriston J. Rehberg  <Kriston@AOL.NET>
 
-	* nscp/nscp.c: password is no longer echoed back to the client.
-	Makes some attempt to recognize and handle telnet IAC codes like
-	CTRL-C and CTRL-D to force a logout.  This implementation of the
-	telnet protocol is dirt-cheap, so only standard Unix telnet is
-	supported.  On Win32, IAC handling is completely disabled because
-	the client is too chatty with its IAC codes.
+	* nscp/nscp.c: Makes some attempt to recognize and handle telnet
+	IAC codes like CTRL-C and CTRL-D to force a logout.  This
+	implementation of the telnet protocol is dirt-cheap, so only
+	standard Unix telnet is supported.  On Win32, IAC handling is
+	completely disabled because the client is too chatty with its IAC
+	codes.
 
 2000-08-20  Kriston J. Rehberg  <Kriston@AOL.NET>
 
