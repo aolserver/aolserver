@@ -34,7 +34,7 @@
  *	Tcl commands that let you do TCP sockets. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclsock.c,v 1.7 2001/03/14 02:30:39 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclsock.c,v 1.8 2001/11/05 20:23:11 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -63,21 +63,15 @@ typedef struct ListenCallback {
  */
 
 static int GetSet(Tcl_Interp *interp, char *flist, int write, fd_set ** ppset,
-		  fd_set * pset, SOCKET *maxPtr);
+		  fd_set * pset, int *maxPtr);
 static void AppendReadyFiles(Tcl_Interp *interp, fd_set * pset, int write,
 			     char *flist, Tcl_DString *pds);
-static int EnterSock(Tcl_Interp *interp, SOCKET sock);
-static int EnterDup(Tcl_Interp *interp, SOCKET sock);
-static int EnterDupedSocks(Tcl_Interp *interp, SOCKET sock);
+static int EnterSock(Tcl_Interp *interp, int sock);
+static int EnterDup(Tcl_Interp *interp, int sock);
+static int EnterDupedSocks(Tcl_Interp *interp, int sock);
 static int SockSetBlocking(char *value, Tcl_Interp *interp, int argc,
 			   char **argv);
 static Ns_SockProc SockListenCallback;
-
-#ifdef WIN32
-#define SockError(i)	NsWin32ErrMsg(GetLastError())
-#else
-#define SockError(i)	Tcl_PosixError((i))
-#endif
 
 
 /*
@@ -209,7 +203,7 @@ NsTclSockNReadCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 {
     int         nread;
     Tcl_Channel	chan;
-    SOCKET      sock;
+    int      sock;
     char	buf[20];
 
     if (argc != 2) {
@@ -222,9 +216,9 @@ NsTclSockNReadCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 	    (int *) &sock) != TCL_OK) {
 	return TCL_ERROR;
     }
-    if (ns_sockioctl(sock, FIONREAD, &nread) != 0) {
-        Tcl_AppendResult(interp, "ns_sockioctl failed: ", 
-			 SockError(interp), NULL);
+    if (ioctl(sock, FIONREAD, &nread) != 0) {
+        Tcl_AppendResult(interp, "ioctl failed: ", 
+			 Tcl_PosixError(interp), NULL);
         return TCL_ERROR;
     }
     nread += Tcl_InputBuffered(chan);
@@ -254,7 +248,7 @@ int
 NsTclSockListenCmd(ClientData dummy, Tcl_Interp *interp, int argc,
 		    char **argv)
 {
-    SOCKET  sock;
+    int  sock;
     char   *addr;
     int     port;
 
@@ -271,7 +265,7 @@ NsTclSockListenCmd(ClientData dummy, Tcl_Interp *interp, int argc,
         return TCL_ERROR;
     }
     sock = Ns_SockListen(addr, port);
-    if (sock == INVALID_SOCKET) {
+    if (sock == -1) {
         Tcl_AppendResult(interp, "could not listen on \"",
             argv[1], ":", argv[2], "\"", NULL);
         return TCL_ERROR;
@@ -300,7 +294,7 @@ int
 NsTclSockAcceptCmd(ClientData dummy, Tcl_Interp *interp, int argc,
 		    char **argv)
 {
-    SOCKET sock;
+    int sock;
 
     if (argc != 2) {
         Tcl_AppendResult(interp, "wrong # of args: should be \"",
@@ -311,9 +305,9 @@ NsTclSockAcceptCmd(ClientData dummy, Tcl_Interp *interp, int argc,
         return TCL_ERROR;
     }
     sock = Ns_SockAccept(sock, NULL, 0);
-    if (sock == INVALID_SOCKET) {
+    if (sock == -1) {
         Tcl_AppendResult(interp, "accept failed: ",
-			 SockError(interp), NULL);
+			 Tcl_PosixError(interp), NULL);
         return TCL_ERROR;
     }
     return EnterDupedSocks(interp, sock);
@@ -339,7 +333,7 @@ NsTclSockAcceptCmd(ClientData dummy, Tcl_Interp *interp, int argc,
 int
 NsTclSockCheckCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 {
-    SOCKET sock;
+    int sock;
 
     if (argc != 2) {
         Tcl_AppendResult(interp, "wrong # of args: should be \"",
@@ -377,7 +371,7 @@ NsTclSockCheckCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 int
 NsTclSockOpenCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 {
-    SOCKET sock;
+    int sock;
     int port;
     int timeout;
     int first;
@@ -394,7 +388,7 @@ NsTclSockOpenCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
     if (argc == 4) {
 
 	/*
-	 * ns_sockopen -nonblock host port
+	 * open -nonblock host port
 	 */
 	
         if (!STREQ(argv[1], "-nonblock") && !STREQ(argv[1], "-async")) {
@@ -410,7 +404,7 @@ NsTclSockOpenCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
     } else if (argc == 5) {
 
 	/*
-	 * ns_sockopen -timeout seconds host port
+	 * open -timeout seconds host port
 	 */
 
         if (!STREQ(argv[1], "-timeout")) {
@@ -440,7 +434,7 @@ NsTclSockOpenCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
     } else {
         sock = Ns_SockTimedConnect(argv[first], port, timeout);
     }
-    if (sock == INVALID_SOCKET) {
+    if (sock == -1) {
         Tcl_AppendResult(interp, "could not connect to \"",
             argv[first], ":", argv[first + 1], "\"", NULL);
         return TCL_ERROR;
@@ -455,7 +449,7 @@ NsTclSockOpenCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
  *
  * NsTclSelectCmd --
  *
- *	Imlements ns_sockselect: basically a tcl version of
+ *	Imlements select: basically a tcl version of
  *	select(2).
  *
  * Results:
@@ -471,7 +465,7 @@ int
 NsTclSelectCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 {
     fd_set          rset, wset, eset, *rPtr, *wPtr, *ePtr;
-    SOCKET	    maxfd;
+    int	    maxfd;
     int             i, status, arg;
     Tcl_Channel	    chan;
     struct timeval  tv, *tvPtr;
@@ -568,11 +562,11 @@ NsTclSelectCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 	
     	do {
 	    i = select(maxfd + 1, rPtr, wPtr, ePtr, tvPtr);
-	} while (i < 0 && ns_sockerrno == EINTR);
+	} while (i < 0 && errno == EINTR);
 
     	if (i == -1) {
 	    Tcl_AppendResult(interp, "select failed: ",
-			     SockError(interp), NULL);
+			     Tcl_PosixError(interp), NULL);
     	} else {
 	    if (i == 0) {
 		/*
@@ -625,17 +619,17 @@ done:
 int
 NsTclSocketPairCmd(ClientData dummy,Tcl_Interp *interp, int argc, char **argv)
 {
-    SOCKET  socks[2];
+    int  socks[2];
     char     buf[20];
     int      result;
 
     if (ns_sockpair(socks) != 0) {
         Tcl_AppendResult(interp, "ns_sockpair failed:  ", 
-			 SockError(interp), NULL);
+			 Tcl_PosixError(interp), NULL);
         return TCL_ERROR;
     }
     if (EnterSock(interp, socks[1]) != TCL_OK) {
-	ns_sockclose(socks[0]);
+	close(socks[0]);
 	return TCL_ERROR;
     }
     strcpy(buf, interp->result);
@@ -676,7 +670,7 @@ int
 NsTclSockCallbackCmd(ClientData arg, Tcl_Interp *interp, int argc,
 		      char **argv)
 {
-    SOCKET  sock;
+    int  sock;
     int     when;
     char   *s;
     Callback *cbPtr;
@@ -723,7 +717,7 @@ NsTclSockCallbackCmd(ClientData arg, Tcl_Interp *interp, int argc,
      * thread safe.
      */
 
-    sock = ns_sockdup(sock);
+    sock = dup(sock);
     cbPtr = ns_malloc(sizeof(Callback) + strlen(argv[2]));
     cbPtr->server = itPtr->servPtr->server;
     cbPtr->chan = NULL;
@@ -732,7 +726,7 @@ NsTclSockCallbackCmd(ClientData arg, Tcl_Interp *interp, int argc,
     if (Ns_SockCallback(sock, NsTclSockProc, cbPtr,
     	    	    	when | NS_SOCK_EXIT) != NS_OK) {
         interp->result = "could not register callback";
-	ns_sockclose(sock);
+	close(sock);
         ns_free(cbPtr);
         return TCL_ERROR;
     }
@@ -848,7 +842,7 @@ AppendReadyFiles(Tcl_Interp *interp, fd_set *setPtr, int write, char *flist,
 {
     int           fargc;
     char        **fargv;
-    SOCKET        sock;
+    int        sock;
     Tcl_DString   ds;
 
     Tcl_DStringInit(&ds);
@@ -893,9 +887,9 @@ AppendReadyFiles(Tcl_Interp *interp, fd_set *setPtr, int write, char *flist,
 
 static int
 GetSet(Tcl_Interp *interp, char *flist, int write, fd_set **setPtrPtr,
-       fd_set *setPtr, SOCKET *maxPtr)
+       fd_set *setPtr, int *maxPtr)
 {
-    SOCKET sock;
+    int sock;
     int    fargc;
     char **fargv;
     int    status;
@@ -959,14 +953,14 @@ GetSet(Tcl_Interp *interp, char *flist, int write, fd_set **setPtrPtr,
  */
 
 static int
-EnterSock(Tcl_Interp *interp, SOCKET sock)
+EnterSock(Tcl_Interp *interp, int sock)
 {
     Tcl_Channel chan;
 
     chan = Tcl_MakeTcpClientChannel((ClientData) sock);
     if (chan == NULL) {
 	Tcl_AppendResult(interp, "could not open socket", NULL);
-        ns_sockclose(sock);
+        close(sock);
         return TCL_ERROR;
     }
     Tcl_SetChannelOption(interp, chan, "-translation", "binary");
@@ -976,19 +970,19 @@ EnterSock(Tcl_Interp *interp, SOCKET sock)
 }
 
 static int
-EnterDup(Tcl_Interp *interp, SOCKET sock)
+EnterDup(Tcl_Interp *interp, int sock)
 {
-    sock = ns_sockdup(sock);
-    if (sock == INVALID_SOCKET) {
+    sock = dup(sock);
+    if (sock == -1) {
         Tcl_AppendResult(interp, "could not dup socket: ", 
-			 ns_sockstrerror(ns_sockerrno), NULL);
+			 strerror(errno), NULL);
         return TCL_ERROR;
     }
     return EnterSock(interp, sock);
 }
 
 static int
-EnterDupedSocks(Tcl_Interp *interp, SOCKET sock)
+EnterDupedSocks(Tcl_Interp *interp, int sock)
 {
     Tcl_DString ds;
 
@@ -1012,7 +1006,7 @@ EnterDupedSocks(Tcl_Interp *interp, SOCKET sock)
  * NsTclSockProc --
  *
  *	This is the C wrapper callback that is registered from 
- *	ns_sockcallback. 
+ *	callback. 
  *
  * Results:
  *	NS_TRUE or NS_FALSE on error 
@@ -1024,7 +1018,7 @@ EnterDupedSocks(Tcl_Interp *interp, SOCKET sock)
  */
 
 int
-NsTclSockProc(SOCKET sock, void *arg, int why)
+NsTclSockProc(int sock, void *arg, int why)
 {
     Tcl_Interp  *interp;
     Tcl_DString  script;
@@ -1079,7 +1073,7 @@ fail:
 	if (cbPtr->chan != NULL) {
 	    Tcl_UnregisterChannel(NULL, cbPtr->chan);
 	} else {
-	    ns_sockclose(sock);
+	    close(sock);
 	}
         ns_free(cbPtr);
 	return NS_FALSE;
@@ -1094,7 +1088,7 @@ fail:
  * SockListenCallback --
  *
  *	This is the C wrapper callback that is registered from 
- *	ns_socklistencallback. 
+ *	listencallback. 
  *
  * Results:
  *	NS_TRUE or NS_FALSE on error 
@@ -1106,7 +1100,7 @@ fail:
  */
 
 static int
-SockListenCallback(SOCKET sock, void *arg, int why)
+SockListenCallback(int sock, void *arg, int why)
 {
     ListenCallback *lcbPtr = arg;
     Tcl_Interp  *interp;

@@ -33,7 +33,7 @@
  *	Support for the ns_http command.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclhttp.c,v 1.5 2001/05/19 21:37:03 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclhttp.c,v 1.6 2001/11/05 20:23:11 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -51,7 +51,7 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
 #define REQ_ANY		(0xff)
 
 typedef struct {
-    SOCKET sock;
+    int sock;
     int state;
     char *next;
     int len;
@@ -65,7 +65,7 @@ typedef struct {
 static Ns_SockProc HttpSend;
 static Ns_SockProc HttpRecv;
 static Ns_SockProc HttpCancel;
-static int HttpDone(SOCKET sock, Http *httpPtr, int state);
+static int HttpDone(int sock, Http *httpPtr, int state);
 static Http *HttpOpen(char *url, Ns_Set *hdrs);
 static void HttpClose(Http *httpPtr, int nb);
 static int HttpAbort(Http *httpPtr);
@@ -241,7 +241,7 @@ Http *
 HttpOpen(char *url, Ns_Set *hdrs)
 {
     Http *httpPtr = NULL;
-    SOCKET sock;
+    int sock;
     char *host, *file, *port;
     int i;
 
@@ -264,7 +264,7 @@ HttpOpen(char *url, Ns_Set *hdrs)
     if (port != NULL) {
 	*port = ':';
     }
-    if (sock != INVALID_SOCKET) {
+    if (sock != -1) {
     	httpPtr = ns_malloc(sizeof(Http));
 	httpPtr->state = REQ_SEND;
 	httpPtr->sock = sock;
@@ -371,16 +371,16 @@ HttpClose(Http *httpPtr, int nb)
 {
     Tcl_DStringFree(&httpPtr->ds);
     if (nb) {
-	ns_socknbclose(httpPtr->sock);
+	close(httpPtr->sock);
     } else {
-	ns_sockclose(httpPtr->sock);
+	close(httpPtr->sock);
     }
     ns_free(httpPtr);
 }
 
 
 static int
-HttpSend(SOCKET sock, void *arg, int why)
+HttpSend(int sock, void *arg, int why)
 {
     Http *httpPtr = arg;
     int n;
@@ -405,7 +405,7 @@ HttpSend(SOCKET sock, void *arg, int why)
 
 
 static int
-HttpRecv(SOCKET sock, void *arg, int why)
+HttpRecv(int sock, void *arg, int why)
 {
     Http *httpPtr = arg;
     char buf[1024];
@@ -427,7 +427,7 @@ HttpRecv(SOCKET sock, void *arg, int why)
 
 
 static int
-HttpCancel(SOCKET sock, void *arg, int why)
+HttpCancel(int sock, void *arg, int why)
 {
     Http *httpPtr = arg;
 
@@ -436,7 +436,7 @@ HttpCancel(SOCKET sock, void *arg, int why)
 
 
 static int
-HttpDone(SOCKET sock, Http *httpPtr, int state)
+HttpDone(int sock, Http *httpPtr, int state)
 {
     Ns_MutexLock(&lock);
     httpPtr->state = state;

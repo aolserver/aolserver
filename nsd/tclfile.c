@@ -34,14 +34,10 @@
  *	Tcl commands that do stuff to the filesystem. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclfile.c,v 1.8 2001/03/14 01:10:49 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclfile.c,v 1.9 2001/11/05 20:23:11 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
-#ifdef WIN32
-#include <sys/utime.h>
-#else
 #include <utime.h>
-#endif
 
 
 /*
@@ -88,7 +84,7 @@ Ns_TclGetOpenChannel(Tcl_Interp *interp, char *chanId, int write,
  * Ns_TclGetOpenFd --
  *
  *	Return an open Unix file descriptor for the given channel.
- *	This routine is used by the AOLserver ns_sock* routines
+ *	This routine is used by the AOLserver * routines
  *	to provide access to the underlying socket.
  *
  * Results:
@@ -256,12 +252,12 @@ badargs:
     }
 
     emsg = "open";
-    rfd = open(src, O_RDONLY|O_BINARY);
+    rfd = open(src, O_RDONLY);
     if (rfd < 0) {
 	efile = src;
 	goto done;
     }
-    wfd = open(dst, O_WRONLY|O_CREAT|O_TRUNC|O_BINARY, 0644);
+    wfd = open(dst, O_WRONLY|O_CREAT|O_TRUNC, 0644);
     if (wfd < 0) {
 	efile = dst;
 	goto done;
@@ -521,7 +517,7 @@ NsTclMkTempCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
         return TCL_ERROR;
     }
 
-    buffer = Ns_StrDup(argv[1]);
+    buffer = ns_strdup(argv[1]);
     Tcl_SetResult(interp, mktemp(buffer), (Tcl_FreeProc *)ns_free);
     return TCL_OK;
 }

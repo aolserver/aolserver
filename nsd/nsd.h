@@ -31,23 +31,12 @@
 #define NSD_H
 
 #include "ns.h"
+#include <pthread.h>
 #include <assert.h>
-
-#ifdef WIN32
-
-#include <fcntl.h>
-#include <io.h>
-#define STDOUT_FILENO	1
-#define STDERR_FILENO	2
-#define S_ISREG(m)	((m)&_S_IFREG)
-#define S_ISDIR(m)	((m)&_S_IFDIR)
-#include "getopt.h"
-
-#else
-
 #include <sys/resource.h>
 #include <sys/wait.h>
 #include <sys/ioctl.h>
+#include <poll.h>
 #ifdef __sun
 #include <sys/filio.h>
 #endif
@@ -64,22 +53,11 @@
 #include <sys/uio.h>
 #include <sys/sendv.h>
 #endif
-
-#endif	/* WIN32 */
-
 #include <sys/stat.h>
 #include <ctype.h>
 
 #ifndef F_CLOEXEC
 #define F_CLOEXEC 1
-#endif
-
-#ifdef WIN32
-#define NS_SIGTERM  1
-#define NS_SIGHUP   2
-#else
-#define NS_SIGTERM  SIGTERM
-#define NS_SIGHUP   SIGHUP
 #endif
 
 #define UCHAR(c)	((unsigned char) (c))
@@ -89,11 +67,10 @@
  */
 
 #define NSD_NAME             "AOLserver"
-#define NSD_VERSION	     "4.0b1"
+#define NSD_VERSION	     "4.0b2"
 #define NSD_LABEL            "aolserver4_0"
 #define NSD_TAG              "$Name:  $"
 #define NS_CONFIG_PARAMETERS "ns/parameters"
-#define NS_CONFIG_SERVERS    "ns/servers"
 #define NS_CONFIG_THREADS    "ns/threads"
 
 #define ADP_OK       0
@@ -141,8 +118,8 @@ struct _nsconf {
     char            hostname[255];
     char	    address[16];
     int             shutdowntimeout;
-    int		    startuptimeout;
     int             backlog;
+    long	    stacksize;
     Tcl_DString     servers;
 
     /*
@@ -173,11 +150,6 @@ struct _nsconf {
 	int maxentries;
 	int maxsize;
     } dstring;
-
-    struct {
-	bool checkexit;
-	bool vfork;
-    } exec;
 
     struct {
 	bool enabled;
@@ -263,7 +235,8 @@ typedef struct Driver {
     int		 opts;		    /* Driver options. */
     int     	 closewait;	    /* Graceful close timeout. */
     int     	 keepwait;	    /* Keepalive timeout. */
-    SOCKET	 sock;		    /* Listening socket. */
+    int		 sock;		    /* Listening socket. */
+    int		 pidx;		    /* poll() index. */
     char        *bindaddr;	    /* Numerical listen address. */
     int          port;		    /* Port in location. */
     int		 backlog;	    /* listen() backlog. */
@@ -284,7 +257,7 @@ typedef struct Sock {
      */
 
     struct Driver *drvPtr;
-    SOCKET     sock;
+    int	       sock;
     void      *arg;
 
     /*
@@ -294,6 +267,7 @@ typedef struct Sock {
     struct Sock *nextPtr;
     struct sockaddr_in sa;
     int		 keep;
+    int		 pidx;		    /* poll() index. */
     time_t	 timeout;
     Request	*reqPtr;
 
@@ -741,64 +715,13 @@ typedef struct NsInterp {
 
 } NsInterp;
 
-/*
- * The following structure is allocated by NsGetTls
- * for each thread.
- */
-
-typedef struct NsTls {
-    /*
-     * The following struct maintains a table of
-     * allocated db handles to support deadlock
-     * protection.
-     */
-
-    struct {
-	Tcl_HashTable	    owned;
-    } db;
-
-    /*
-     * The following struct maintains a table of
-     * Tcl interps keyed by virtual server.
-     */
-
-    struct {
-	Tcl_HashTable	    interps;
-    } tcl;
-
-    /*
-     * The following struct maintains cached formatted
-     * time buffers.
-     */
-
-    struct {
-	time_t	gtime;
-	time_t	ltime;
-	char	gbuf[100];
-	char	lbuf[100];
-    } tfmt;
-
-    /*
-     * The following struct maintains a buffer
-     * for formatting simple Win32 error messages.
-     */
-
-#ifdef WIN32
-    struct {
-	char		    errmsg[32];
-    } win;
-#endif
-
-} NsTls;
-
 extern int NsQueueConn(Sock *sockPtr, time_t now);
-extern int NsSockSend(Sock *sockPtr, Ns_Buf *bufs, int nbufs);
+extern int NsSockSend(Sock *sockPtr, struct iovec *bufs, int nbufs);
 extern void NsSockClose(Sock *sockPtr, int keep);
 
 extern Request *NsGetRequest(Sock *sockPtr);
 extern void NsFreeRequest(Request *reqPtr);
 
-extern NsTls    *NsGetTls(void);
 extern NsServer *NsGetServer(char *server);
 extern NsInterp *NsGetInterp(Tcl_Interp *interp);
 
@@ -836,15 +759,8 @@ extern void NsGetCallbacks(Tcl_DString *dsPtr);
 extern void NsGetSockCallbacks(Tcl_DString *dsPtr);
 extern void NsGetScheduled(Tcl_DString *dsPtr);
 
-#ifdef WIN32
-extern int NsConnectService(Ns_ServerInitProc *initProc);
-extern int NsInstallService(char *service);
-extern int NsRemoveService(char *service);
-#endif
-
 extern void NsCreatePidFile(char *service);
 extern void NsRemovePidFile(char *service);
-extern int  NsGetLastPid(char *service);
 
 extern void NsLogOpen(void);
 extern void NsConfInit(void);
@@ -860,19 +776,15 @@ extern void NsBlockSignals(int debug);
 extern void NsHandleSignals(void);
 extern void NsStopDrivers(void);
 extern void NsInitBinder(char *bindargs, char *bindfile);
-extern void NsInitServer(Ns_ServerInitProc *proc, char *server);
+extern void NsInitServer(char *server);
 extern char *NsConfigRead(char *file);
 extern void NsConfigEval(char *config, int argc, char **argv, int optind);
 extern void NsEnableDNSCache(int timeout, int maxentries);
-extern void NsKillPid(int pid);
 extern void NsStopServers(Ns_Time *toPtr);
 extern void NsStartServer(NsServer *servPtr);
 extern void NsStopServer(NsServer *servPtr);
 extern void NsWaitServer(NsServer *servPtr, Ns_Time *toPtr);
 extern void NsStartDrivers(void);
-extern void NsWaitServerWarmup(Ns_Time *);
-extern void NsWaitSockIdle(Ns_Time *);
-extern void NsWaitSchedIdle(Ns_Time *);
 extern void NsStartSchedShutdown(void);
 extern void NsWaitSchedShutdown(Ns_Time *toPtr);
 extern void NsStartSockShutdown(void); 

@@ -33,14 +33,14 @@
  *	Make outgoing HTTP requests.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/urlopen.c,v 1.8 2001/03/12 22:06:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/urlopen.c,v 1.9 2001/11/05 20:23:11 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
 #define BUFSIZE 2048
 
 typedef struct Stream {
-    SOCKET	sock;
+    int	sock;
     int		error;
     int		cnt;
     char       *ptr;
@@ -82,7 +82,7 @@ Ns_FetchPage(Ns_DString *dsPtr, char *url, char *server)
 
     Ns_DStringInit(&path);
     Ns_UrlToFile(&path, server, url);
-    fd = open(path.string, O_RDONLY|O_BINARY);
+    fd = open(path.string, O_RDONLY);
     Ns_DStringFree(&path);
     if (fd < 0) {
         return NS_ERROR;
@@ -116,7 +116,7 @@ Ns_FetchPage(Ns_DString *dsPtr, char *url, char *server)
 int
 Ns_FetchURL(Ns_DString *dsPtr, char *url, Ns_Set *headers)
 {
-    SOCKET  	    sock;
+    int  	    sock;
     char    	   *p;
     Ns_DString      ds;
     Stream  	    stream;
@@ -124,7 +124,7 @@ Ns_FetchURL(Ns_DString *dsPtr, char *url, Ns_Set *headers)
     int     	    status, tosend, n;
 
     status = NS_ERROR;    
-    sock = INVALID_SOCKET;
+    sock = -1;
     Ns_DStringInit(&ds);
 
     /*
@@ -142,9 +142,9 @@ Ns_FetchURL(Ns_DString *dsPtr, char *url, Ns_Set *headers)
         request->port = 80;
     }
     sock = Ns_SockConnect(request->host, request->port);    
-    if (sock == INVALID_SOCKET) {
+    if (sock == -1) {
 	Ns_Log(Error, "urlopen: failed to connect to '%s': '%s'",
-	       url, ns_sockstrerror(ns_sockerrno));
+	       url, strerror(errno));
 	goto done;
     }
 
@@ -162,10 +162,10 @@ Ns_FetchURL(Ns_DString *dsPtr, char *url, Ns_Set *headers)
     tosend = ds.length;
     while (tosend > 0) {
         n = send(sock, p, tosend, 0);
-        if (n == SOCKET_ERROR) {
+        if (n == -1) {
             Ns_Log(Error, "urlopen: failed to send data to '%s': '%s'",
-		   url, ns_sockstrerror(ns_sockerrno));
-	    ns_sockclose(sock);
+		   url, strerror(errno));
+	    close(sock);
             goto done;
         }
         tosend -= n;
@@ -217,8 +217,8 @@ Ns_FetchURL(Ns_DString *dsPtr, char *url, Ns_Set *headers)
     if (request != NULL) {
         Ns_FreeRequest(request);
     }
-    if (sock != INVALID_SOCKET) {
-        ns_sockclose(sock);
+    if (sock != -1) {
+        close(sock);
     }
     Ns_DStringFree(&ds);
     return status;

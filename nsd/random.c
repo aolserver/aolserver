@@ -34,16 +34,14 @@
  *	This file implements the "ns_rand" command.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/random.c,v 1.7 2001/03/12 22:06:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/random.c,v 1.8 2001/11/05 20:23:11 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
-#ifndef WIN32
 #ifdef NO_RAND48
 #define HAVE_RANDOM 1
 #else
 #define HAVE_RAND48 1
-#endif
 #endif
 
 /*

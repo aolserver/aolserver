@@ -34,7 +34,7 @@
  *	Load .so files into the server and initialize them. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/modload.c,v 1.6 2001/03/12 22:06:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/modload.c,v 1.7 2001/11/05 20:23:11 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -50,7 +50,7 @@ static NSModule dyld_multiple_symbol_handler(NSSymbol s, NSModule old,
 	NSModule new);
 static void dyld_undefined_symbol_handler(const char *symbolName);
 
-#elif !defined(WIN32)
+#else
 #include <dlfcn.h>
 #ifdef USE_RTLD_LAZY
 #ifdef RTLD_NOW
@@ -289,7 +289,7 @@ NsLoadModules(char *server)
      *
      */
 
-    modules = Ns_ConfigSection(Ns_ConfigPath(server, NULL, "modules", NULL));
+    modules = Ns_ConfigGetSection(Ns_ConfigGetPath(server, NULL, "modules", NULL));
     if (modules != NULL) {
 	/*
 	 * Spin over the modules specified in this subsection
@@ -358,9 +358,7 @@ NsLoadModules(char *server)
 static void *
 DlOpen(char *file)
 {
-#ifdef WIN32
-    return (void *) LoadLibrary(file);
-#elif defined(USE_DLSHL)
+#if defined(USE_DLSHL)
     return (void *) shl_load(file, BIND_VERBOSE|BIND_IMMEDIATE|BIND_RESTRICTED, 0);
 #elif defined(USE_DYLD)
     NSObjectFileImage		image;
@@ -442,9 +440,7 @@ DlSym(void *handle, char *name)
     name = Ns_DStringVarAppend(&ds, "_", name, NULL);
 #endif
 
-#ifdef WIN32
-    symbol =  (void *) GetProcAddress((HMODULE) handle, name);
-#elif defined(USE_DLSHL)
+#if defined(USE_DLSHL)
     symbol = NULL;
     if (shl_findsym((shl_t *) &handle, name, TYPE_UNDEFINED,
 		    &symbol) == -1) {
@@ -482,9 +478,7 @@ DlSym(void *handle, char *name)
 static char *
 DlError(void)
 {
-#ifdef WIN32
-    return NsWin32ErrMsg(GetLastError());
-#elif defined(USE_DLSHL)
+#if defined(USE_DLSHL)
     return strerror(errno);
 #elif defined(USE_DYLD)
     return "Unknown dyld error";
