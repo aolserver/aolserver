@@ -1,0 +1,143 @@
+# Generated automatically from Makefile.module.in by configure.
+#
+# The contents of this file are subject to the AOLserver Public License
+# Version 1.1 (the "License"); you may not use this file except in
+# compliance with the License. You may obtain a copy of the License at
+# http://aolserver.com/.
+#
+# Software distributed under the License is distributed on an "AS IS"
+# basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+# the License for the specific language governing rights and limitations
+# under the License.
+#
+# The Original Code is AOLserver Code and related documentation
+# distributed by AOL.
+# 
+# The Initial Developer of the Original Code is America Online,
+# Inc. Portions created by AOL are Copyright (C) 1999 America Online,
+# Inc. All Rights Reserved.
+#
+# Alternatively, the contents of this file may be used under the terms
+# of the GNU General Public License (the "GPL"), in which case the
+# provisions of GPL are applicable instead of those above.  If you wish
+# to allow use of your version of this file only under the terms of the
+# GPL and not to allow others to use your version of this file under the
+# License, indicate your decision by deleting the provisions above and
+# replace them with the notice and other provisions required by the GPL.
+# If you do not delete the provisions above, a recipient may use your
+# version of this file under either the License or the GPL.
+# 
+#
+# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Attic/Makefile.module.in,v 1.1 2002/09/21 17:09:53 jgdavidson Exp $
+
+#
+# Makefile.module --
+#
+#	Makefile include for AOLserver modules, libraries, and programs.  Variables to set
+#	before including this file include:
+#
+#	AOLSERVER	AOLserver install directory.
+#	MOD		Name of module
+#	MODOBJS		List of module object files (required with MOD)
+#	LIB		Root name of dynamic library (without lib prefix or extension)
+#	LIBOBJS		List of library object files (required with LIB)
+#	PGM		Name of executable program
+#	PGMOBJS		List of program object files (required with PGM)
+#	HDRS		Header files which objects depend on
+#	MODLIBS		Extra module link libraries
+#	LIBLIBS		Extra dynamic library link libraries
+#	PGMLIBS		Extra program link libraries
+#	INSTALL		Extra install directive(s)
+#	CLEAN		Extra clean directive(s)
+#
+#	At least one of PGM, MOD, or LIB must be defined.  For backwards compatibility,
+#	MODOBJS will default to OBJS and MODINST can be used for module install.
+#
+#	See ../nsd/Makefile and ../nsdb/Makefile for examples.
+#	
+
+ifdef MOD
+BUILD	+= $(MOD)
+INSTALL += install-mod
+CLEAN	+= clean-mod
+MODOBJS	?= $(OBJS)
+endif
+
+ifdef LIB
+LIBFILE	=  lib$(LIB)$(LIBEXT)
+BUILD	+= $(LIBFILE)
+INSTALL += install-lib
+CLEAN   += clean-lib
+MODLIBS	+= $(LIBFILE)
+PGMLIBS	+= $(LIBFILE)
+endif
+
+ifdef ALIB
+ALIBFILE = lib$(ALIB).a
+BUILD	+= $(ALIBFILE)
+INSTALL	+= install-alib
+CLEAN	+= clean-alib
+MODLIBS	+= $(ALIBFILE)
+PGMLIBS	+= $(ALIBFILE)
+endif
+
+ifdef PGM
+BUILD	+= $(PGM)
+INSTALL	+= install-pgm
+CLEAN	+= clean-pgm
+endif
+
+ifdef NSBUILD
+    include ../include/Makefile.global
+else
+    include @prefix@/include/Makefile.global
+endif
+
+all build: $(BUILD)
+
+install: $(INSTALL)
+
+clean: $(CLEAN)
+
+$(MOD): $(LIBFILE) $(MODOBJS)
+	$(RM) $(MOD)
+	$(LDSO) $(LDFLAGS) -o $(MOD) $(MODOBJS) $(MODLIBS) $(LIBS) $(LDRPATH)
+
+$(LIBFILE): $(LIBOBJS)
+	$(RM) $(LIBFILE)
+	$(LDLIB) $(LDFLAGS) -o $(LIBFILE) $(LIBOBJS) $(LIBLIBS) $(LIBS) $(LDRPATH)
+
+$(ALIBFILE): $(ALIBOBJS)
+	$(AR) rv $(ALIBFILE) $(ALIBOBJS)
+	$(RANLIB) $(ALIBFILE)
+
+$(PGM): $(PGMOBJS) $(LIBFILE)
+	$(RM) $(PGM)
+	$(CC) $(LDFLAGS) -o $(PGM) $(PGMOBJS) $(PGMLIBS) $(CCLIBS) $(CCRPATH)
+
+$(MODOBJS) $(LIBOBJS) $(PGMOBJS): $(HDRS) $(INCDIR)/ns.h $(INCDIR)/nsthread.h
+
+install-mod: $(MOD) $(MODINST)
+	$(INSTALL_SH) $(MOD) $(INSTBIN)/
+
+install-lib: $(LIBFILE)
+	$(INSTALL_SH) $(LIBFILE) $(INSTLIB)/
+
+install-alib: $(ALIBFILE)
+	$(INSTALL_SH) $(ALIBFILE) $(INSTLIB)/
+	$(RANLIB) $(ALIBFILE)
+
+install-pgm: $(PGM)
+	$(INSTALL_SH) $(PGM) $(INSTBIN)/
+
+clean-mod:
+	$(RM) $(MOD) $(MODOBJS)
+
+clean-lib:
+	$(RM) $(LIBFILE) $(LIBOBJS)
+
+clean-alib:
+	$(RM) $(ALIBFILE) $(ALIBOBJS)
+
+clean-pgm:
+	$(RM) $(PGM) $(PGMOBJS)
