@@ -35,7 +35,7 @@
  *  	Tcl commands.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscp/nscp.c,v 1.7 2000/08/28 14:14:10 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscp/nscp.c,v 1.8 2000/08/28 14:22:23 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 
@@ -125,12 +125,7 @@ Ns_ModuleInit(char *s, char *module)
 	port = 9999;
     }
     if (!Ns_ConfigGetBool(path, "echopassword", &fEchoPw)) {
-#if defined(WIN32) || defined(__linux)
-    	/* NB: Doesn't appear to work on WIN32 and Linux yet. */
     	fEchoPw = 1;
-#else
-	fEchoPw = 0;
-#endif
     }
     lsock = Ns_SockListen(addr, port);
     if (lsock == INVALID_SOCKET) {
