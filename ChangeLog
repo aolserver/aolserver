@@ -1,5 +1,9 @@
 2002-03-20  Kriston Rehberg  <Kriston@aol.com>
 
+	* nsperm/init.tcl (init_nsperm): Patch #423820: Allows one to
+	specify in the tcl configuration file where nsperm files reside.
+	Patched by Hal Heisler (hheisler).
+
 	* nsd/nsmain.c (Ns_Main): Verify the uid/gid args.  Reversed the
 	order so this will actually work.  Patched by Jon Griffin
 	<jon@jongriffin.com> 01/27/2001.

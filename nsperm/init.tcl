@@ -28,7 +28,7 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsperm/init.tcl,v 1.3 2000/08/02 23:38:25 kriston Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsperm/init.tcl,v 1.3.6.1 2002/03/20 16:12:12 kriston Exp $
 #
 
 #
@@ -37,7 +37,9 @@
 #
 
 proc init_nsperm { } {
-    set dir "[ns_info home]/servers/[ns_info server]/modules/nsperm"
+
+    set default "[ns_info home]/servers/[ns_info server]/modules/nsperm"
+    set dir [ns_config "ns/server/[ns_info server]/module/nsperm" nspermdirectory $default]    
 
     #
     # Parse hosts.allow
