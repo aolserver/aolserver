@@ -1,0 +1,59 @@
+
+Tcl8.3.2 for AOLserver
+----------------------
+
+$Header: /Users/dossy/Desktop/cvs/aolserver/doc/Attic/tcl-changes.txt,v 1.1 2000/10/10 18:22:34 kriston Exp $
+
+
+This directory contains a subset of the Tcl8.3.2 files required to build
+the nsd8x AOLserver.  The following directories where removed:
+
+	mac tests tools library doc unix/dltest
+
+
+Otherwise, the files are unchanged except for the following:
+
+
+Makefile:
+
+	New file in this directory which will execute unix/configure
+	with the correct flags and then make libtcl8.3.a with
+	a CFLAGS used to build AOLserver.
+
+generic/tclIO.c:
+
+	Changed channel translation mode to binary by default.
+
+
+generic/tclObj.c:
+generic/tclInt.h:
+
+	Changed the Tcl_Obj allocate and free to called ckalloc/ckfree
+	directly instead of maintaining the object "cache".  The idea
+	is that the AOLserver's -z allocator, utilized by ckalloc/ckfree,
+	is faster than the object cache with required mutex lock.
+
+
+unix/Makefile.in:
+
+	Removed tclUnixThrd.o and tclAlloc.o objects.  The required
+	functions are included in thread/tcl8x.c for compatibility
+	with nsthreads.
+
+unix/tcl.m4:
+unix/configure:
+
+	Commented out the checks for enabling threads and detecting
+	the required libraries.  The library dependencies are taken
+	care of in the standard AOLserver build environment.  Autoconf
+	was used to re-create the configure script with the modified
+	tcl.m4.
+
+unix/tclUnixPort.h:
+
+	Modified the definition of TclpMutex to be a void * instead
+	of a pthead_mutex for compatibility with Ns_Mutex.
+
+
+For comparison, copies of the orginal files before modifications
+are save as ".orig".
