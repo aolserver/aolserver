@@ -1,3 +1,7 @@
+2002-11-02  Jim Davidson <jgdavidson@aol.com>
+
+	* nsd/fastpath.c:  Fixed bug with non-server specific cache names.
+
 2002-11-01  Jeremy Collins <jcollins@phpsource.net>
 
         * nsd/adpparse.c: Fixed a small bug in ParseAtts.  It failed
