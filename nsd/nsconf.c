@@ -33,7 +33,7 @@
  *	Various core configuration.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsconf.c,v 1.28 2002/09/21 18:22:19 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsconf.c,v 1.29 2002/10/14 23:20:33 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #include "nsconf.h"
@@ -66,9 +66,17 @@ NsInitConf(void)
     static char cwd[PATH_MAX];
     extern char *nsBuildDate; /* NB: Declared in stamp.c */
 
+    Ns_ThreadSetName("-main-");
+
+    /*
+     * At library load time the server is considered started. 
+     * Normally it's marked stopped immediately by Ns_Main unless
+     * libnsd is being used for some other, non-server program.
+     */
+     
+    nsconf.state.started = 1;
     Ns_MutexInit(&nsconf.state.lock);
     Ns_MutexSetName(&nsconf.state.lock, "nsd:conf");
-    Ns_ThreadSetName("-main-");
 
     nsconf.build	 = nsBuildDate;
     nsconf.name          = NSD_NAME;
@@ -77,6 +85,7 @@ NsInitConf(void)
     time(&nsconf.boot_t);
     nsconf.pid = getpid();
     nsconf.home = getcwd(cwd, sizeof(cwd));
+    nsconf.tcl.objcmds = 1;
     if (gethostname(nsconf.hostname, sizeof(nsconf.hostname)) != 0) {
         strcpy(nsconf.hostname, "localhost");
     }
