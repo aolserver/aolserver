@@ -1,5 +1,16 @@
 2000-10-17  Kriston J. Rehberg  <Kriston@AOL.NET>
 
+	* tcl/http.tcl (ns_httpopen): Host:port is now sent to remote host
+	if != 80.  Suggested by Jerry Asher.
+
+	* tcl/fastpath.tcl (_ns_dirlist): All kinds of Win32 pathnames
+	should now be working.  Thanks to Eric Klein.
+
+	* nsd/return.c (Ns_ConnReturnNotice): New options "errorminsize",
+	to pad error messages to defeat MSIE friendly errors (fix
+	suggested by ArsDigita) and "noticedetail" to return more detailed
+	information on notice pages.
+
 	* nslog/nslog.c: suppressquery option added to suppress logging of
 	query data.
 

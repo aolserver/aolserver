@@ -223,6 +223,8 @@ struct _nsconf {
 	int threadtimeout;
 	int stats;
 	int maxurlstats;
+	int errorminsize;
+	int noticedetail;
     } serv;
     
 };
