@@ -33,7 +33,7 @@
  *      All the public types and function declarations for the core
  *	AOLserver.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.26 2001/04/26 18:42:31 jgdavidson Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.27 2001/05/02 15:48:30 jgdavidson Exp $
  */
 
 #ifndef NS_H
@@ -103,18 +103,22 @@ typedef void *ClientData;
 #define NS_DRIVER_ASYNC		  1	/* Use async read-ahead. */
 #define NS_DRIVER_SSL		  2	/* Use SSL port, protocol defaults. */
 
-#ifdef WIN32
-typedef __int64 INT64;
+#if defined(WIN32)
 #define NS_INT_64_FORMAT_STRING "%I64d"
-#else
-#ifdef __alpha
+typedef __int64                 ns_int64;
+typedef unsigned __int64        ns_uint64;
+#elif defined(__alpha)
+typedef long                    ns_int64;
+typedef unsigned long           ns_uint64;
 typedef long INT64;
 #define NS_INT_64_FORMAT_STRING "%ld"
 #else
-typedef long long INT64;
+typedef long long               ns_int64
+typedef unsigned long long      ns_uint64
 #define NS_INT_64_FORMAT_STRING "%lld"
 #endif
-#endif
+
+typedef INT64 ns_int64;
 
 /*
  * The following flags define how Ns_Set's
@@ -225,7 +229,8 @@ typedef enum {
     Error,
     Fatal,
     Bug,
-    Debug
+    Debug,
+    Dev
 } Ns_LogSeverity;
 
 /*
@@ -572,7 +577,7 @@ NS_EXTERN void Ns_ClsSet(Ns_Cls *clsPtr, Ns_Conn *conn, void *data);
 NS_EXTERN char *Ns_ConfigGetValue(char *section, char *key);
 NS_EXTERN char *Ns_ConfigGetValueExact(char *section, char *key);
 NS_EXTERN int Ns_ConfigGetInt(char *section, char *key, int *valuePtr);
-NS_EXTERN int Ns_ConfigGetInt64(char *section, char *key, INT64 *valuePtr);
+NS_EXTERN int Ns_ConfigGetInt64(char *section, char *key, ns_int64 *valuePtr);
 NS_EXTERN int Ns_ConfigGetBool(char *section, char *key, int *valuePtr);
 NS_EXTERN char *Ns_ConfigGetPath(char *server, char *module, ...);
 NS_EXTERN Ns_Set **Ns_ConfigGetSections(void);
@@ -712,6 +717,7 @@ NS_EXTERN char **Ns_DStringAppendArgv(Ns_DString *dsPtr);
 NS_EXTERN char *Ns_DStringVarAppend(Ns_DString *dsPtr, ...);
 NS_EXTERN char *Ns_DStringExport(Ns_DString *dsPtr);
 NS_EXTERN char *Ns_DStringPrintf(Ns_DString *dsPtr, char *fmt,...);
+NS_EXTERN char *Ns_DStringVPrintf(Ns_DString *dsPtr, char *fmt, va_list ap);
 NS_EXTERN char *Ns_DStringAppendArg(Ns_DString *dsPtr, char *string);
 NS_EXTERN Ns_DString *Ns_DStringPop(void);
 NS_EXTERN void Ns_DStringPush(Ns_DString *dsPtr);
