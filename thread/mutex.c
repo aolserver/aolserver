@@ -33,7 +33,7 @@
  *	Mutex routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/mutex.c,v 1.4 2000/11/06 17:53:50 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/mutex.c,v 1.5 2000/11/09 00:33:54 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "thread.h"
 
@@ -201,7 +201,7 @@ Ns_MutexLock(Ns_Mutex *mutexPtr)
 	NsLockSet(mPtr->lock);
     } else {
 	thisPtr = NsGetThread();
-    	if (NsLockTry(mPtr->lock) != NS_OK) {
+    	if (!NsLockTry(mPtr->lock)) {
 	    NsLockSet(mPtr->lock);
 	    ++mPtr->nbusy;
     	}
@@ -232,21 +232,22 @@ Ns_MutexTryLock(Ns_Mutex *mutexPtr)
 {
     Mutex *mPtr = GETMUTEX(mutexPtr);
     Thread *thisPtr;
-    int status;
+    int locked;
 
     if (!nsThreadMutexMeter) {
-	status = NsLockTry(mPtr->lock);
+	locked = NsLockTry(mPtr->lock);
     } else {
     	thisPtr = NsGetThread();
-    	status = NsLockTry(mPtr->lock);
-	if (status == NS_OK) {
+    	locked = NsLockTry(mPtr->lock);
+	if (locked) {
 	    mPtr->ownerPtr = thisPtr;
 	}
     }
-    if (status == NS_OK) {
+    if (locked) {
 	++mPtr->nlock;
+	return NS_OK;
     }
-    return status;
+    return NS_TIMEOUT;
 }
 
 

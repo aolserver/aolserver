@@ -84,9 +84,21 @@ typedef struct Sproc {
  */
 
 typedef struct {
-    Ns_Mutex    lock;	    	/* Lock around Cond structure. */
-    Sproc      *waitPtr;	/* First waiting Sproc or NULL. */
+    void   *lock;	/* Lock around Cond structure. */
+    Sproc  *waitPtr;	/* First waiting Sproc or NULL. */
 } Cond;
+
+/*
+ * The following structure defines the single critical section lock.
+ */
+
+struct {
+    void    *lock;	/* Lock around structure. */
+    int      owner;	/* Current owner. */
+    int	     count;	/* Recursive lock depth. */
+    usema_t *sema;	/* Semaphore to wakeup waiters. */
+    int      nwait;	/* # of waiters. */
+} master;
 
 /*
  * The prdaPtrPtr pointer is declared static but is not actually shared by
@@ -105,7 +117,6 @@ typedef struct {
 static Sproc  **prdaPtrPtr = (Sproc **) (&((PRDA)->usr2_prda));
 
 static Sproc   *firstStartPtr;	/* List of sprocs to be started. */
-static Ns_Mutex mgrLock;	/* Lock around mgrCond and sproc lists. */
 static int      mgrPipe[2];	/* Trigger pipe to wakeup manager. */
 static int      mgrPid = -1;	/* Manager pid, -1 until first thread. */
 static int      initPid = -1;	/* Initial thread pid, -1 until first thread. */
@@ -128,18 +139,6 @@ static Sproc   *InitSproc(void);
 static int      shutdownPending;
 
 #define GETSPROC()	(*prdaPtrPtr ? *prdaPtrPtr : InitSproc())
-
-/*
- * The following structure defines the single critical section lock.
- */
-
-struct {
-    ulock_t  lock;	/* Lock around structure. */
-    int      owner;	/* Current owner. */
-    int	     count;	/* Recursive lock depth. */
-    usema_t *sema;	/* Semaphore to wakeup waiters. */
-    int      nwait;	/* # of waiters. */
-} master;
 
 
 /*
@@ -195,29 +194,33 @@ Ns_MasterLock(void)
      */
 
     if (!initialized) {
-    	usptr_t *arena = GetArena();
-
-	master.lock = usnewlock(arena);
-	if (master.lock == NULL) {
-    	    NsThreadFatal("Ns_MasterLock", "usnewlock", errno);
-	}
-	master.sema = usnewsema(arena, 0);
+	master.lock = NsLockAlloc();
+    	usinitlock(master.lock);
+	master.sema = usnewsema(GetArena(), 0);
 	if (master.sema == NULL) {
-    	    NsThreadFatal("Ns_MasterLock", "usnewlock", errno);
+    	    NsThreadFatal("Ns_MasterLock", "usnewsema", errno);
 	}
+	master.count = 0;
+	master.owner = -1;
 	initialized = 1;
     }
 
-    ussetlock(master.lock);
+    /*
+     * Enter the critical section, waiting if necessary.
+     */
+
+    NsLockSet(master.lock);
     while (master.owner != self && master.count > 0) {
 	++master.nwait;
-	usunsetlock(master.lock);
-	uspsema(master.sema);
-	ussetlock(master.lock);
+    	NsLockUnset(master.lock);
+	if (uspsema(master.sema) != 1) {
+    	    NsThreadFatal("Ns_MasterUnlock", "usvsema", errno);
+	}
+    	NsLockSet(master.lock);
     }
     master.owner = self;
     ++master.count;
-    usunsetlock(master.lock);
+    NsLockUnset(master.lock);
 }
 
 
@@ -242,15 +245,21 @@ Ns_MasterUnlock(void)
 {
     int self = getpid();
 
-    ussetlock(master.lock);
+    /*
+     * Leave the critical section, waking up one waiter if necessary.
+     */
+
+    NsLockSet(master.lock);
     if (master.owner == self && --master.count == 0) {
 	master.owner = -1;
 	if (master.nwait > 0) {
 	    --master.nwait;
-	    usvsema(master.sema);
+	    if (usvsema(master.sema) != 0) {
+    	    	NsThreadFatal("Ns_MasterUnlock", "usvsema", errno);
+	    }
 	}
     }
-    usunsetlock(master.lock);
+    NsLockUnset(master.lock);
 }
 
 
@@ -274,11 +283,10 @@ void *
 NsLockAlloc(void)
 {
     ulock_t         lock;
-    usptr_t	   *arena = GetArena();
 
-    lock = usnewlock(arena);
+    lock = usnewlock(GetArena());
     if (lock == NULL) {
-    	NsThreadFatal("Ns_MutexInit", "usnewlock", errno);
+    	NsThreadFatal("NsLockAlloc", "usnewlock", errno);
     }
     usinitlock(lock);
     return lock;
@@ -304,9 +312,7 @@ NsLockAlloc(void)
 void
 NsLockFree(void *lock)
 {
-    usptr_t	   *arena = GetArena();
-
-    usfreelock((ulock_t) lock, arena);
+    usfreelock((ulock_t) lock, GetArena());
 }
 
 
@@ -330,7 +336,7 @@ void
 NsLockSet(void *lock)
 {
     if (ussetlock((ulock_t) lock) == -1) {
-	NsThreadFatal("Ns_MutexLock", "ussetlock", errno);
+	NsThreadFatal("NsLockSet", "ussetlock", errno);
     }
 }
 
@@ -343,7 +349,7 @@ NsLockSet(void *lock)
  *	Try once to set a mutex lock.
  *
  * Results:
- *	NS_OK if locked, NS_TIMEOUT otherwise.
+ *	1 if locked, 0 otherwise.
  *
  * Side effects:
  *  	None.
@@ -358,11 +364,9 @@ NsLockTry(void *lock)
 
     locked = uscsetlock((ulock_t) lock, 1);
     if (locked == -1) {
-    	NsThreadFatal("Ns_MutexTryLock", "uscsetlock", errno);
-    } else if (locked == 0) {
-	return NS_TIMEOUT;
+    	NsThreadFatal("NsLockTry", "uscsetlock", errno);
     }
-    return NS_OK;
+    return locked;
 }
 
 
@@ -386,7 +390,7 @@ void
 NsLockUnset(void *lock)
 {
     if (usunsetlock((ulock_t) lock) != 0) {
-	NsThreadFatal("Ns_MutexUnlock", "usunsetlock", errno);
+	NsThreadFatal("NsLockUnset", "usunsetlock", errno);
     }
 }
 
@@ -413,14 +417,9 @@ void
 Ns_CondInit(Ns_Cond *condPtr)
 {
     Cond          *cPtr;
-    char	   name[32];
-    static unsigned long nextid;
 
-    sprintf(name, "%lu", test_then_add(&nextid, 1));
     cPtr = NsAlloc(sizeof(Cond));
-    Ns_MutexInit(&cPtr->lock);
-    Ns_MutexSetName2(&cPtr->lock, "nsthread:cond", name);
-    cPtr->waitPtr = NULL;
+    cPtr->lock = NsLockAlloc();
     *condPtr = (Ns_Cond) cPtr;
 }
 
@@ -446,10 +445,10 @@ Ns_CondInit(Ns_Cond *condPtr)
 void
 Ns_CondDestroy(Ns_Cond *condPtr)
 {
-    if (*condPtr != NULL) {
-    	Cond *cPtr = (Cond *) *condPtr;
+    Cond *cPtr = (Cond *) *condPtr;
 
-    	Ns_MutexDestroy(&cPtr->lock);
+    if (cPtr != NULL) {
+    	NsLockFree(cPtr->lock);
 	cPtr->waitPtr = NULL;
     	NsFree(cPtr);
     	*condPtr = NULL;
@@ -481,13 +480,13 @@ Ns_CondSignal(Ns_Cond *condPtr)
     Cond         *cPtr = GETCOND(condPtr);
     int		  wakeup;
 
-    Ns_MutexLock(&cPtr->lock);
+    NsLockSet(cPtr->lock);
     sPtr = cPtr->waitPtr;
     if (sPtr != NULL) {
 	cPtr->waitPtr = sPtr->nextWaitPtr;
 	wakeup = GetWakeup(sPtr);
     }
-    Ns_MutexUnlock(&cPtr->lock);
+    NsLockUnset(cPtr->lock);
     if (sPtr != NULL) {
 	SendWakeup(wakeup);
     }
@@ -521,12 +520,11 @@ Ns_CondBroadcast(Ns_Cond *condPtr)
     Cond          *cPtr = GETCOND(condPtr);
     int            wakeup;
 
-    Ns_MutexLock(&cPtr->lock);
-
     /*
      * Mark each thread to wakeup the next thread on the queue.
      */
 
+    NsLockSet(cPtr->lock);
     sPtr = cPtr->waitPtr;
     while (sPtr != NULL) {
 	sPtr->wakeupPtr = sPtr->nextWaitPtr;
@@ -537,7 +535,7 @@ Ns_CondBroadcast(Ns_Cond *condPtr)
 	cPtr->waitPtr = NULL;
 	wakeup = GetWakeup(sPtr);
     }
-    Ns_MutexUnlock(&cPtr->lock);
+    NsLockUnset(cPtr->lock);
     if (sPtr != NULL) {
 	SendWakeup(wakeup);
     }
@@ -612,7 +610,7 @@ Ns_CondTimedWait(Ns_Cond *condPtr, Ns_Mutex *mutexPtr, Ns_Time *timePtr)
 
     sPtr = GETSPROC();
     cPtr = GETCOND(condPtr);
-    Ns_MutexLock(&cPtr->lock);
+    NsLockSet(cPtr->lock);
     waitPtrPtr = &cPtr->waitPtr;
     while (*waitPtrPtr != NULL) {
 	waitPtrPtr = &(*waitPtrPtr)->nextWaitPtr;
@@ -633,7 +631,7 @@ Ns_CondTimedWait(Ns_Cond *condPtr, Ns_Mutex *mutexPtr, Ns_Time *timePtr)
     sPtr->state = SprocCondWait;
     status = NS_OK;
     while (status == NS_OK && sPtr->state == SprocCondWait) {
-        Ns_MutexUnlock(&cPtr->lock);
+        NsLockUnset(cPtr->lock);
         if (timePtr != NULL) {
 	    Ns_GetTime(&now);
 	    Ns_DiffTime(timePtr, &now, &wait);
@@ -658,8 +656,7 @@ Ns_CondTimedWait(Ns_Cond *condPtr, Ns_Mutex *mutexPtr, Ns_Time *timePtr)
 	 */
 
 	CheckHUP();
-
-        Ns_MutexLock(&cPtr->lock);
+    	NsLockSet(cPtr->lock);
     }
 
     /*
@@ -698,7 +695,7 @@ Ns_CondTimedWait(Ns_Cond *condPtr, Ns_Mutex *mutexPtr, Ns_Time *timePtr)
      * Unlock the condition and lock the associated mutex.
      */
     
-    Ns_MutexUnlock(&cPtr->lock);
+    NsLockUnset(cPtr->lock);
 
     /*
      * Signal the next process, if any, now that the lock is
@@ -786,7 +783,6 @@ NsThreadCreate(Thread *thrPtr)
     if (mgrPid < 0) {
     	static Sproc mgrSproc;
 	
-	Ns_MutexSetName2(&mgrLock, "nsthread", "sprocmgr");
 	initPid = getpid();
 	if (pipe(mgrPipe) != 0) {
             NsThreadFatal("NsThreadCreate", "pipe", errno);
@@ -810,13 +806,13 @@ NsThreadCreate(Thread *thrPtr)
     sPtr->thrPtr = thrPtr;
     sPtr->state = SprocRunning;
 
-    Ns_MutexLock(&mgrLock);
+    Ns_MasterLock();
     if (firstStartPtr == NULL) {
 	trigger = 1;
     }
     sPtr->nextRunPtr = firstStartPtr;
     firstStartPtr = sPtr;
-    Ns_MutexUnlock(&mgrLock);
+    Ns_MasterUnlock();
     if (trigger) {
 	MgrTrigger();
     }
@@ -850,10 +846,10 @@ NsThreadExit(void)
     if (sPtr->thrPtr != NULL) {
     	NsCleanupThread(sPtr->thrPtr);
     }
-    Ns_MutexLock(&mgrLock);
+    Ns_MasterLock();
     sPtr->state = SprocExited;
     sPtr->thrPtr = NULL;
-    Ns_MutexUnlock(&mgrLock);
+    Ns_MasterUnlock();
     __exit(0);
 }
 
@@ -1312,14 +1308,14 @@ MgrThread(void *arg)
 
     runPtr = NULL;
     while (read(mgrPipe[0], &c, 1)) {
-    	Ns_MutexLock(&mgrLock);
+    	Ns_MasterLock();
 	if (shutdownPending) {
-	    Ns_MutexUnlock(&mgrLock);
+	    Ns_MasterUnlock();
 	    break;
 	}
 	startPtr = firstStartPtr;
 	firstStartPtr = NULL;
-	Ns_MutexUnlock(&mgrLock);
+	Ns_MasterUnlock();
 
         /*
          * Check for exited threads to be reaped. If the thread died
@@ -1348,12 +1344,12 @@ MgrThread(void *arg)
 	    }
     	    sPtr = *sPtrPtr;
 	    *sPtrPtr = sPtr->nextRunPtr;
-	    Ns_MutexLock(&mgrLock);
+	    Ns_MasterLock();
 	    if (sPtr->state != SprocExited) {
 		NsThreadError("sproc %d called _exit() directly", pid);
 		_exit(1);
 	    }
-	    Ns_MutexUnlock(&mgrLock);
+	    Ns_MasterUnlock();
 	    NsFree(sPtr);
         }
 
@@ -1435,9 +1431,9 @@ exit(int status)
 	} else {
 	    ns_signal(SIGHUP, SIG_IGN);
 	}
-	Ns_MutexLock(&mgrLock);
+	Ns_MasterLock();
 	shutdownPending = 1;
-	Ns_MutexUnlock(&mgrLock);
+	Ns_MasterUnlock();
 	MgrTrigger();
 
 	/*

@@ -325,18 +325,18 @@ int
 NsLockTry(Lock *lock)
 {
     Lock *lockPtr = lock;
-    int locked;
+    int busy;
 
     SPINLOCK(&lockPtr->spinlock);
-    locked = lockPtr->locked;
-    if (!locked) {
+    busy = lockPtr->locked;
+    if (!busy) {
 	lockPtr->locked = 1;
     }
     SPINUNLOCK(&lockPtr->spinlock);
-    if (locked) {
-	return NS_TIMEOUT;
+    if (busy) {
+	return 0;
     }
-    return NS_OK;
+    return 1;
 }
 
 

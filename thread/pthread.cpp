@@ -338,7 +338,7 @@ NsLockSet(void *lock)
  *	Try to set a mutex lock once.
  *
  * Results:
- *	NS_OK if locked, NS_TIMEOUT if lock already held.
+ *	1 if locked, 0 if lock already held.
  *
  * Side effects:
  *	See pthread_mutex_trylock.
@@ -354,11 +354,11 @@ NsLockTry(void *lock)
 
     err = pthread_mutex_trylock(lockPtr);
     if (ERRLOCKBUSY(err)) {
-	return NS_TIMEOUT;
+	return 0;
     } else if (!(ERRLOCKOK(err))) {
     	NsThreadFatal("NsMutexTryLock", "ptread_mutex_trylock", err);
     }
-    return NS_OK;
+    return 1;
 }
 
 
