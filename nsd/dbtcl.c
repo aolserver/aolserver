@@ -34,7 +34,7 @@
  *	Tcl database access routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/dbtcl.c,v 1.9 2001/03/14 01:11:28 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/dbtcl.c,v 1.10 2001/03/14 01:40:36 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -350,7 +350,7 @@ NsTclDbCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 		if (rowPtr == NULL) {
 		    return DbFail(interp, handlePtr, cmd);
 		}
-		Ns_TclEnterSet(interp, rowPtr, NS_TCL_SET_STATIC);
+		Ns_TclEnterSet(interp, rowPtr, NS_TCL_SET_DYNAMIC);
 	    }
 		
 
