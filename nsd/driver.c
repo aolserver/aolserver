@@ -34,7 +34,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.38 2004/08/28 01:07:40 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.39 2004/10/06 18:49:38 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -876,14 +876,14 @@ DriverThread(void *arg)
 {
     SOCKET lsock;
     Driver *drvPtr = (Driver *) arg;
-    int n, pollto, flags, stop, lidx, tidx;
+    int n, flags, stop, lidx, tidx;
     Sock *sockPtr, *closePtr, *nextPtr;
     QueWait *queWaitPtr;
     Conn *connPtr, *nextConnPtr, *freeConnPtr;
     PollData pdata;
     Limits *limitsPtr;
     char drain[1024];
-    Ns_Time now, diff;
+    Ns_Time now;
     Sock *waitPtr = NULL;	/* Sock's waiting for I/O events. */
     Sock *readSockPtr = NULL;	/* Sock's to send to reader threads. */
     Sock *preqSockPtr = NULL;	/* Sock's ready for pre-queue callbacks. */
@@ -925,7 +925,6 @@ DriverThread(void *arg)
     pdata.pfds = NULL;
     pdata.timeoutPtr = NULL;
     stop = (flags & DRIVER_SHUTDOWN);
-    Ns_GetTime(&now);
     while (!stop || drvPtr->nactive) {
 
 	/*
@@ -966,39 +965,16 @@ DriverThread(void *arg)
         }
 
 	/*
-	 * Calculate the final timeout in ms.
-	 */
-
-	if (pdata.timeoutPtr == NULL) {
-            pollto = -1;
-	} else if (Ns_DiffTime(pdata.timeoutPtr, &now, &diff) <= 0)  {
-            pollto = 0;
-        } else {
-            pollto = diff.sec * 1000 + diff.usec / 1000;
-	}
-
-	/*
 	 * Poll, drain the trigger pipe if necessary, and get current time.
 	 */
 
-	do {
-	    n = poll(pdata.pfds, pdata.nfds, pollto);
-        } while (n < 0  && ns_sockerrno == EINTR);
-	if (n < 0) {
-	    Ns_Fatal("driver: poll() failed: %s",
-		     ns_sockstrerror(ns_sockerrno));
-	}
+	++drvPtr->stats.spins;
+	n = NsPoll(pdata.pfds, pdata.nfds, pdata.timeoutPtr);
 	if (PollIn(&pdata, tidx)
 		&& recv(drvPtr->trigger[0], drain, sizeof(drain), 0) <= 0) {
 	    Ns_Fatal("driver: trigger recv() failed: %s",
 		     ns_sockstrerror(ns_sockerrno));
 	}
-
-	/*
-         * Update the time for this spin.
-         */
-
-	++drvPtr->stats.spins;
         Ns_GetTime(&now);
 
 	/*

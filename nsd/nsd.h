@@ -158,6 +158,7 @@ struct _nsconf {
     char	    address[16];
     int             shutdowntimeout;
     int             backlog;
+    int             debug;
 
     /*
      * The following table holds the configured virtual servers.  The
@@ -653,6 +654,7 @@ typedef struct NsServer {
 	char		   *script;
 	int		    length;
 	int		    epoch;
+	bool		    oldhttp;
 	Tcl_Obj		   *modules;
     } tcl;
     
@@ -852,6 +854,7 @@ extern void NsAppendConn(Tcl_DString *bufPtr, Ns_Time *now, Conn *connPtr,
 			 char *state);
 extern int  NsSockSend(Sock *sockPtr, struct iovec *bufs, int nbufs);
 extern void NsSockClose(Sock *sockPtr, int keep);
+extern int  NsPoll(struct pollfd *pfds, int nfds, Ns_Time *timeoutPtr);
 extern void NsFreeConn(Conn *connPtr);
 
 extern NsServer *NsGetServer(char *server);
