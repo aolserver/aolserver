@@ -1,3 +1,9 @@
+2003-10-21  Elizabeth Thomas <eathomas93@aol.com>
+
+	* nsd/init.tcl: Removing lazyproc code from 4.0 to enable it
+        to be declared GM. Solution is being refined and may be added 
+        in later release or add-on module. 
+
 2003-10-14  Paul Moosman <pwmoosman@aol.com>
 
 	* nsd/tcljob.c: Fix to ns_job, where it was attempting to access
