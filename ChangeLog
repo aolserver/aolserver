@@ -1,3 +1,25 @@
+2002-06-19  Jim Davidson <jgdavidson@aol.com>
+
+	* include/ns.h:
+	* nsd/tclinit.c:  Added new Ns_TclCreateInterp() which
+	creates and initializes interps for server and non-server
+	interps (e.g., the config interp).  Interps are now
+	initialized with a call to Tcl_Init() which enables the
+	standard Tcl library procedures (e.g., unknown, http::,
+	etc.).
+
+	* nsd/tclthread.c:
+	* nsd/tclcmds.c:  Thread and cache related commands no
+	longer require a server, exposing them in any interp created
+	with Ns_TclCreateInterp.
+	
+	* nsd/server.c:  NsGetServer handles NULL server.
+
+	In general, the changes above are steps towards making the
+	AOLserver API's more useful outside the context of a server.
+	The idea is to enable use of libnsd for other applications,
+	e.g., shells interps.
+
 2002-06-12  Jeremy Collins <jeremy.collins@phpsource.net>
 
 	* nsd/conn.c:
