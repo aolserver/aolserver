@@ -33,7 +33,7 @@
  *	Routines for managing NsServer structures.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.5 2001/03/23 17:04:34 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.6 2001/03/26 15:34:15 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -216,8 +216,6 @@ NsInitServer(Ns_ServerInitProc *initProc, char *server)
     connBufPtr = ns_calloc(maxconns, sizeof(Conn));
     for (n = 0; n < maxconns - 1; ++n) {
 	connPtr = &connBufPtr[n];
-	Ns_DStringInit(&connPtr->response);
-	Ns_DStringInit(&connPtr->content);
 	connPtr->nextPtr = &connBufPtr[n+1];
     }
     connBufPtr[n].nextPtr = NULL;

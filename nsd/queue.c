@@ -34,7 +34,7 @@
  *	and service threads.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/queue.c,v 1.5 2001/03/23 17:04:34 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/queue.c,v 1.6 2001/03/26 15:34:15 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -443,8 +443,6 @@ NsConnThread(void *arg)
 	sprintf(connPtr->idstr, "cns%d", connPtr->id);
 	connPtr->headers = Ns_SetCreate(NULL);
 	connPtr->outputheaders = Ns_SetCreate(NULL);
-	Ns_DStringTrunc(&connPtr->response, 0);
-	Ns_DStringTrunc(&connPtr->content, 0);
 
 	ConnRun(connPtr);
 
