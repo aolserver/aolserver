@@ -15,7 +15,7 @@ all: $(MOD)
 
 $(MOD): $(OBJS)
 	$(RM) $(MOD)
-	$(LDSO) -o $(MOD) $(OBJS) $(MODLIBS)
+	$(LDSO) -o $(MOD) $(OBJS) $(MODLIBS) $(LIBS)
 
 install: all $(MODINST)
 	$(RM) $(INSTBIN)/$(MOD)
