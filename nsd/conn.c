@@ -34,7 +34,7 @@
  *      Manage the Ns_Conn structure
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.41 2005/01/15 23:54:37 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.42 2005/01/17 14:01:22 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -228,10 +228,23 @@ Ns_ConnServer(Ns_Conn *conn)
 int
 Ns_ConnResponseStatus(Ns_Conn *conn)
 {
+    return Ns_ConnGetStatus(conn);
+}
+
+int
+Ns_ConnGetStatus(Ns_Conn *conn)
+{
     Conn           *connPtr = (Conn *) conn;
 
     return connPtr->responseStatus;
+}
 
+void
+Ns_ConnSetStatus(Ns_Conn *conn, int status)
+{
+    Conn           *connPtr = (Conn *) conn;
+
+    connPtr->responseStatus = status;
 }
 
 
@@ -658,18 +671,17 @@ Ns_ConnGetType(Ns_Conn *conn)
 void
 Ns_ConnSetType(Ns_Conn *conn, char *type)
 {
-    Tcl_Encoding encoding;
     Conn *connPtr = (Conn *) conn;
+    Tcl_Encoding encoding;
+    Ns_DString ds;
 
+    Ns_DStringInit(&ds);
+    encoding = NsGetTypeEncoding(connPtr->servPtr, &type, &ds);
     ns_free(connPtr->type);
     connPtr->type = ns_strcopy(type);
-    if (connPtr->type != NULL) {
-	encoding = Ns_GetTypeEncoding(type);
-	if (encoding != NULL) {
-	    Ns_ConnSetEncoding(conn, encoding);
-	    Ns_ConnSetUrlEncoding(conn, encoding);
-	}
-    }
+    Ns_ConnSetEncoding(conn, encoding);
+    Ns_ConnSetUrlEncoding(conn, encoding);
+    Ns_DStringFree(&ds);
 }
 
 
@@ -1016,8 +1028,8 @@ NsTclConnObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 	    break;
 	
 	case CFormIdx:
-	     /* NB: Ignore any cached form if encoding has changed. */
-	    if (connPtr->queryEncoding != connPtr->urlEncoding) {
+	     /* NB: Ignore any cached form if query is no longer valid. */
+	    if (!NsCheckQuery(conn)) {
 		itPtr->nsconn.flags &= ~CONN_TCLFORM;
 	    }
 	    if (itPtr->nsconn.flags & CONN_TCLFORM) {
