@@ -1,3 +1,19 @@
+2004-08-25  Dossy Shiobara <dossy@panoptic.com>
+
+	* nsd/driver.c (1.37): In the event of a SockRead() error, the
+	  connection is no longer eligible for HTTP Keep-Alive.  Explicitly
+	  set the SOCK_CLOSEWAIT state.
+
+2004-08-25  Dossy Shiobara <dossy@panoptic.com>
+
+	* Makefile (1.51): Add install command to copy over the automated
+	  test config.
+
+2004-08-21  Dossy Shiobara <dossy@panoptic.com>
+
+	* tests/new/all.tcl (1.2): Non-threaded tclsh doesn't even set
+	  ::tcl_platform(threaded) at all.
+
 2004-08-20  Jim Davidson <jgdavidson@aol.com>
 
 	* nsd/op.c: Handled error case requests based on overflow flag instead
@@ -10,7 +26,6 @@
 	* nsd/driver.c: Fixed shutdown bugs and further simplified code.
 	Also, added a query mechanism to peek into the state of a driver
 	via the new ns_driver command.
-
 
 2004-08-20  Dossy Shiobara <dossy@panoptic.com>
 
