@@ -29,8 +29,7 @@ include $(NSHOME)/include/Makefile.global
 #   nsvhr       -- Virtual hosting redirector
 #
 
-MODULES   =  nssock nscgi nscp nslog nsperm nsext nspd
-#MODULES   += nsunix nsvhr
+MODULES   =  nssock nscgi nscp nslog nsperm nsext nsunix nsvhr nspd 
 
 ALLDIRS   = nsd $(MODULES)
 
