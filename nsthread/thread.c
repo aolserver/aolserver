@@ -34,7 +34,7 @@
  *	Routines for creating, exiting, and joining threads.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/thread.c,v 1.1 2002/06/10 22:30:24 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/thread.c,v 1.2 2002/06/11 01:36:41 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "thread.h"
 #include <sched.h>		/* sched_yield() */
@@ -109,7 +109,6 @@ NsthreadsInit(void)
     	NsInitMaster();
     	NsInitReentrant();
     	Ns_TlsAlloc(&key, CleanupThread);
-	printf("nsthread load\n");
     }
 }
 
