@@ -120,6 +120,8 @@ ifneq (,$(findstring SunOS,$(PLAT)))
         else
             CFLAGS+=-xpentium
         endif
+    	LD=/usr/ccs/bin/ld
+    	LDSO=$(LD) -G
     else
         ifneq (,$(findstring sparc,$(PLAT)))
             CFLAGS+=$(GCCOPT) -mcpu=ultrasparc
@@ -128,10 +130,8 @@ ifneq (,$(findstring SunOS,$(PLAT)))
         endif
     endif
 
-    LDSO=$(LD) -G
     NSDLIBS=-lm
     LIBS+=-lsocket -lnsl -ldl -lposix4 -lthread -lresolv -R $(RPATH)
-    LD=/usr/ccs/bin/ld
     AR=/usr/ccs/bin/ar
     CFLAGS+=-D_POSIX_PTHREAD_SEMANTICS=1 -DUSE_PTHREAD_SYSSCOPE=1 \
             -DUSE_PTHREAD_PSHARED=1 -DHAVE_ETIME_BUG=1 \
