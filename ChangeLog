@@ -1,3 +1,11 @@
+2004-09-07  Dossy Shiobara <dossy@panoptic.com>
+
+	* include/ns.h (1.55.2.9): BUMP: 4.0.8
+
+2004-09-07  Dossy Shiobara <dossy@panoptic.com>
+
+	* README (1.4.2.1): Updated for 4.0.8.
+
 2004-09-03  Dossy Shiobara <dossy@panoptic.com>
 
 	* nscgi/nscgi.html (1.1.10.1): Updated nscgi module documentation
