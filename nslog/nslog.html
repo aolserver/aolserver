@@ -1,0 +1,164 @@
+<html>
+<head>
+  <title>nslog</title>
+</head>
+<body bgcolor="#ffffff">
+
+<h2>nslog -- Access logging module</h2>
+
+<p>$Header: /Users/dossy/Desktop/cvs/aolserver/nslog/nslog.html,v 1.1.10.1 2004/09/08 18:39:15 dossy Exp $</p>
+
+<ul>
+  <li><a href="#Theory_of_Operation">Theory of Operation</a></li>
+  <li><a href="#Known_Issues">Known Issues</a></li>
+  <li><a href="#Configuration_Options">Configuration Options</a></li>
+  <li><a href="#Sample_Configuration">Sample Configuration</a></li>
+</ul>
+
+<h3><a name="Theory_of_Operation">Theory of Operation</a></h3>
+
+<p>The nslog module implements Common Log Format access logging.  This
+format can be used by any web analyzer tool.  It optionally supports
+NCSA Combined Log Format, as well as automati log file rolling.  The log
+files are stored in the server/server1/modules/nslog directory by
+default.</p>
+
+<p>See the following page for detailed information about the <a
+href="http://httpd.apache.org/docs/logs.html#common">Common Log
+Format</a>.</p>
+
+<h3><a name="Known_Issues">Known Issues</a></h3>
+
+<p>None at this time.</p>
+
+<h3><a name="Configuration_Options">Configuration Options</a></h3>
+
+<p>The following options are available for configuring the nslog module:</p>
+
+<table border="1">
+  <tr>
+    <th>Option</th>
+    <th>Type</th>
+    <th>Default</th>
+    <th>Description</th>
+  </tr>
+  <tr>
+    <td>extendedheaders</td>
+    <td>string</td>
+    <td>N/A</td>
+    <td>A comma-delimited list of HTTP request headers to log at the end
+      of the logfile entry.  This can be useful for logging headers sent
+      by a custom HTTP client.</td>
+  </tr>
+  <tr>
+    <td>file</td>
+    <td>string</td>
+    <td>access.log</td>
+    <td>The name of the access log file.  It can either be specified as
+      an absolute path including filename, or if specified as a relative
+      pathname, will be relative to the
+      <b>servers/${servername}/modules/nslog</b> directory.</td>
+  </tr>
+  <tr>
+    <td>formattedTime</td>
+    <td>boolean</td>
+    <td>true</td>
+    <td>Whether or not the time column in the logfile entry should be
+      formatted as the human-readable
+      "[day/month/year:hour:minute:second zone]" format or as
+      "[seconds]", the number of seconds since Jan 1 1970 00:00:00 UTC,
+      also known as "unix time".</td>
+  </tr>
+  <tr>
+    <td>logcombined</td>
+    <td>boolean</td>
+    <td>true</td>
+    <td>Log in NSCA Combined Log Format.  Basically, this additionally
+      logs the HTTP "Referer" and "User-Agent" headers.</td>
+  </tr>
+  <tr>
+    <td>logreqtime</td>
+    <td>boolean</td>
+    <td>false</td>
+    <td>Compute the number of seconds and microseconds to service the
+      request, expressed as "sec.usec".</td>
+  </tr>
+  <tr>
+    <td>maxbuffer</td>
+    <td>integer</td>
+    <td>0</td>
+    <td>The number of logfile entries to queue in memory before flushing
+      them to disk.  The default of "0" means no buffering will
+      occur.</td>
+  </tr>
+  <tr>
+    <td>maxbackup</td>
+    <td>integer</td>
+    <td>100</td>
+    <td>Number of backup logfiles to keep when rolling log files.</td>
+  </tr>
+  <tr>
+    <td>rollfmt</td>
+    <td>string</td>
+    <td>N/A</td>
+    <td>The format string to append to the logfile name when rolling the
+      file.  If not specified, a three-digit integer is used,
+      left-padded with zeroes.  The format string is passed to the
+      <code>strftime()</code> function, so should contain appropriate
+      formatting sequences, e.g.
+      <code>"%Y-%m-%d-%H-%M-%S-%Z"</code>.</td>
+  </tr>
+  <tr>
+    <td>rollhour</td>
+    <td>integer</td>
+    <td>0</td>
+    <td>This specifies what hour to schedule the logfile roll.  Valid
+      values are 0-23.</td>
+  </tr>
+  <tr>
+    <td>rolllog</td>
+    <td>boolean</td>
+    <td>true</td>
+    <td>Whether or not the server will automatically roll the log at the
+      specified <b>rollhour</b>.</td>
+  </tr>
+  <tr>
+    <td>rollonsignal</td>
+    <td>boolean</td>
+    <td>false/A</td>
+    <td>Whether or not the server will roll the log file when it
+      receives a SIGHUP signal.</td>
+  </tr>
+  <tr>
+    <td>suppressquery</td>
+    <td>boolean</td>
+    <td>false</td>
+    <td><p>Normally, the entire HTTP request URL is logged.  If this
+      option is turned on, the optional "query" portion of the URL (that
+      which follows the "?" in the URL) is removed and not logged.</p>
+      
+      <p>This may be important to enable if sensitive or
+      user-identifying information is placed in the URL as a query
+      parameter and must not be logged in order to comply with privacy
+      policies, etc.</p></td>
+  </tr>
+</table>
+
+<h3><a name="Sample_Configuration">Sample Configuration</a></h3>
+
+<pre>
+#
+# Access log -- nslog
+#
+ns_section "ns/server/${servername}/module/nslog"
+ns_param   file            "access.log"
+ns_param   formattedtime   true      ;# true=common log format
+ns_param   logcombined     false     ;# true==NCSA combined format
+ns_param   maxbackup       5         ;# Max number to keep around when rolling
+ns_param   rollhour        0         ;# Time to roll log
+ns_param   rolllog         true      ;# Should we roll log?
+ns_param   rollonsignal    true      ;# Roll log on SIGHUP
+</pre>
+
+</body>
+</html>
