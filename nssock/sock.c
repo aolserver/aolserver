@@ -40,7 +40,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nssock/Attic/sock.c,v 1.4 2000/08/17 18:56:35 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nssock/Attic/sock.c,v 1.5 2000/09/25 22:14:58 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 
@@ -741,8 +741,8 @@ SockRead(void *arg, void *vbuf, int toread)
         }
         if (toread > 0) {
             cdPtr->base = cdPtr->buf;
-	    cdPtr->cnt = Ns_SockRecv(cdPtr->sock, cdPtr->buf, toread,
-				     cdPtr->sdPtr->timeout);
+	    cdPtr->cnt = Ns_SockRecv(cdPtr->sock, cdPtr->buf,
+		cdPtr->sdPtr->bufsize, cdPtr->sdPtr->timeout);
 	    if (cdPtr->cnt <= 0) {
 		return -1;
 	    }
