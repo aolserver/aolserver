@@ -27,49 +27,17 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/Makefile,v 1.24 2001/11/05 20:30:26 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/Makefile,v 1.25 2001/11/08 14:31:52 jgdavidson Exp $
 #
 
 #
 # You may set the following variables here, on the make command line,
 # or via shell environment variables.
 #
-
+# AOLSERVER:	AOLserver install directory (/usr/local/aolserver)
+# DEBUG		Build with debug symbols (default: 0, no symbols)
+# GCC		Build with gcc compiler (default: 1, use gcc)
 #
-# Location of AOLserver sources (this directory).
-#
-
-ifndef NSHOME
-    NSHOME	= $(shell pwd)
-endif
-
-#
-# AOLserver installation directory where files are copied and
-# shared libraries and Tcl files are searched for at runtime.
-#
-
-ifndef AOLSERVER
-    AOLSERVER	= /usr/local/aolserver
-endif
-
-#
-# Compile for debugging and with GCC if available.
-#
-
-ifndef NSDEBUG
-    NSDEBUG	= 1
-endif
-ifndef NSGCC
-    NSGCC	= 1
-endif
-
-#
-# Modules to build.
-#
-
-ifndef NSMODS	
-    NSMODS	= nssock nsssl nscgi nscp nslog nsperm nsext nspd 
-endif
 
 
 ##################################################################
@@ -80,39 +48,40 @@ endif
 
 include include/Makefile.global
 
-MAKEFLAGS 	+= NSHOME=$(NSHOME) NSDEBUG=$(NSDEBUG) NSGCC=$(NSGCC)
-DIRS		=  $(NSTCL_ROOT) nsd $(NSMODS)
+MAKEFLAGS 	+= nsbuild=1
+ifdef AOLSERVER
+    MAKEFLAGS	+= AOLSERVER=$(AOLSERVER)
+endif
+ifdef NSDEBUG
+    MAKEFLAGS	+= NSDEBUG=$(NSDEBUG)
+endif
+ifdef NSGCC
+    MAKEFLAGS	+= NSGCC=$(NSGCC)
+endif
+
+dirs = $(tcldir) nsd nssock nsssl nscgi nscp nslog nsperm nsext nspd 
 
 all:
-	@for i in $(DIRS); do \
-		$(ECHO) "building \"$$i\""; \
+	@for i in $(dirs); do \
 		( cd $$i && $(MAKE) all ) || exit 1; \
 	done
 
 install: all
-	$(MKDIR)                    $(INSTBIN)
-	$(MKDIR)                    $(INSTLOG)
-	$(MKDIR)                    $(INSTTCL)
-	$(MKDIR)                    $(INSTLIB)
-	$(MKDIR)                    $(INSTSRVMOD)
-	$(MKDIR)                    $(INSTSRVPAG)
-	$(CP) -r tcl                $(INSTMOD)
-	$(CP) -r include            $(INSTINC)
-	test -f $(INSTSRVPAG)/index.html \
-		|| $(CP) doc/default-home.html $(INSTSRVPAG)/index.html
-	@for i in $(DIRS); do \
-		$(ECHO) "installing \"$$i\""; \
-		( cd $$i && $(MAKE) install) || exit 1; \
+	@for i in $(dirs); do \
+		(cd $$i && $(MAKE) $@) || exit 1; \
 	done
+	$(MKDIR)		$(AOLSERVER)/log
+	$(MKDIR)		$(AOLSERVER)/modules
+	$(CP) -r tcl    	$(AOLSERVER)/modules/
+	$(CP) -r include	$(AOLSERVER)/
 
 install-tests:
 	$(CP) -r tests $(INSTSRVPAG)
 
-clean: 
-	@for i in $(DIRS); do \
-		$(ECHO) "cleaning \"$$i\""; \
-		( cd $$i && $(MAKE) $@) || exit 1; \
+clean:
+	@for i in $(dirs); do \
+		(cd $$i && $(MAKE) $@) || exit 1; \
 	done
 
 distclean: clean
-	(cd $(NSTCL_ROOT); $(MAKE) distclean)
+	(cd $(tcldir); $(MAKE) distclean)

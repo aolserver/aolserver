@@ -27,31 +27,29 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Makefile,v 1.26 2001/11/05 21:10:45 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Makefile,v 1.27 2001/11/08 14:31:53 jgdavidson Exp $
 #
 
-
 include ../include/Makefile.global
-
-LIB	= $(NSD_FILE)
+LIB	= libnsd.so
 MAIN	= nsd
 
 OBJS = \
-	adpcmds.o adpeval.o adpparse.o adprequest.o auth.o binder.o \
-	cache.o callbacks.o cls.o config.o conn.o connio.o crypt.o \
-	dbdrv.o dbinit.o dbtcl.o dbutil.o dns.o driver.o dstring.o \
-	dsprintf.o encoding.o exec.o fastpath.o fd.o filter.o form.o \
-	httptime.o index.o info.o lisp.o listen.o log.o \
-	mimetypes.o modload.o nsconf.o nsmain.o nsthread.o \
-	op.o pathname.o pidfile.o proc.o queue.o quotehtml.o \
-	random.o request.o return.o rollfile.o sched.o server.o \
-	set.o sock.o sockcallback.o str.o tclatclose.o tclcmds.o tclconf.o \
-	tclenv.o tclfile.o tclhttp.o tclimg.o tclinit.o tcljob.o tclmisc.o \
-	tclresp.o tclrequest.o tclsched.o tclset.o tclshare.o tclsock.o \
-	tclobj.o tclthread.o tclvar.o tclxkeylist.o unix.o url.o \
-	urlencode.o urlopen.o urlspace.o uuencode.o stamp.o \
-	compat.o cond.o error.o fork.o locks.o master.o \
-	memory.o reentrant.o sema.o  signal.o thread.o time.o tls.o
+	adpcmds.o adpeval.o adpparse.o adprequest.o auth.o binder.o	\
+	cache.o callbacks.o cls.o compat.o cond.o config.o conn.o	\
+	connio.o crypt.o dbdrv.o dbinit.o dbtcl.o dbutil.o dns.o	\
+	driver.o dsprintf.o dstring.o encoding.o error.o exec.o		\
+	fastpath.o fd.o filter.o fork.o form.o httptime.o index.o	\
+	info.o lisp.o listen.o locks.o log.o master.o memory.o		\
+	mimetypes.o modload.o nsconf.o nsmain.o nsthread.o op.o		\
+	pathname.o pidfile.o proc.o queue.o quotehtml.o random.o	\
+	reentrant.o request.o return.o rollfile.o sched.o sema.o	\
+	server.o set.o signal.o sock.o sockcallback.o stamp.o str.o	\
+	tclatclose.o tclcmds.o tclconf.o tclenv.o tclfile.o tclhttp.o	\
+	tclimg.o tclinit.o tcljob.o tclmisc.o tclobj.o tclrequest.o	\
+	tclresp.o tclsched.o tclset.o tclshare.o tclsock.o tclthread.o	\
+	tclvar.o tclxkeylist.o thread.o time.o tls.o unix.o url.o	\
+	urlencode.o urlopen.o urlspace.o uuencode.o
 
 all: $(MAIN)
 
@@ -62,16 +60,14 @@ $(LIB): $(OBJS)
 	$(LDSO) -o $(LIB) $(OBJS) $(LIBS)
 
 $(MAIN): $(LIB) main.o
-	$(CC) -o $(MAIN) main.o $(NSD_LIB) $(NSTCL_LIB) $(LIBS) $(RPATH)
+	$(CC) -o $(MAIN) main.o $(LIB) $(LIBS) $(RPATH)
 
 install: all
-	$(MKDIR) $(INSTBIN)
-	$(RM) $(INSTBIN)/$(MAIN)
-	$(CP) $(LIB) $(INSTLIB)/
-	$(CP) $(MAIN) $(INSTBIN)/
-	$(CP) init.tcl $(INSTBIN)/
-	$(CP) translate-ini $(INSTBIN)/
-	$(CP) sample-config.tcl $(INST)/
+	$(RM) $(AOLSERVER)/bin/$(MAIN)
+	$(CP) $(MAIN) translate-ini init.tcl $(AOLSERVER)/bin/
+	$(RM) $(AOLSERVER)/lib/$(LIB)
+	$(CP) $(LIB) $(AOLSERVER)/lib/
+	$(CP) sample-config.tcl $(AOLSERVER)/
 
 clean:
 	$(RM) $(MAIN) $(OBJS) $(LIB)

@@ -27,24 +27,30 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl8.3.4/Attic/Makefile,v 1.3 2001/11/05 23:02:19 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl8.3.4/Attic/Makefile,v 1.4 2001/11/08 14:31:53 jgdavidson Exp $
 #
 
 include ../include/Makefile.global
 
-MAKEFILE	=  $(NSTCL_DIR)/Makefile
+CONFIG		=  --enable-threads --prefix=$(AOLSERVER)
+ifeq ($(NSGCC),1)
+    CONFIG	+= --enable-gcc
+endif
+ifeq (1,$(NSDEBUG))
+    CONFIG	+= --enable-symbols
+endif
 
-all: $(MAKEFILE)
-	(cd $(NSTCL_DIR); $(MAKE))
+all: unix/Makefile
+	(cd unix; $(MAKE))
 
-$(MAKEFILE): $(NSTCL_DIR)/Makefile.in $(NSTCL_DIR)/configure
-	(cd $(NSTCL_DIR); ./configure $(NSTCL_CFG))
+unix/Makefile: unix/Makefile.in unix/configure
+	(cd unix; ./configure $(CONFIG))
 
 clean:
-	(cd $(NSTCL_DIR); $(MAKE) -f Makefile.in clean)
+	(cd unix; $(MAKE) -f Makefile.in clean)
 
 distclean:
-	(cd $(NSTCL_DIR); $(MAKE) -f Makefile.in distclean)
+	(cd unix; $(MAKE) -f Makefile.in distclean)
 
 install: all
-	(cd $(NSTCL_DIR); $(MAKE) install)
+	(cd unix; $(MAKE) install)

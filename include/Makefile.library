@@ -8,11 +8,7 @@
 #         for most shared objects.
 #
 
-ifndef NSHOME
-    NSHOME=$(shell pwd)/..
-endif
-
-include $(NSHOME)/include/Makefile.global
+include ../include/Makefile.global
 
 all: $(LIB)
 

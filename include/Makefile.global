@@ -27,27 +27,18 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Makefile.global,v 1.42 2001/11/05 20:29:04 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Makefile.global,v 1.43 2001/11/08 14:31:53 jgdavidson Exp $
 #
 
 #
 # Makefile.global --
 #
-#      This is the common Makefile that contains all variables and
-#      utilities used by AOLserver source code and modules.
+#	Common and platform-specific make variables to be included
+#	by other makefiles.
 #
 
-
-#
-# The following conditional variable updates are for the benefit
-# of typing make in a module subdirectory during development
-#
-
-ifndef NSHOME
-    NSHOME=$(shell pwd)/..
-endif
 ifndef AOLSERVER
-    AOLSERVER=$(NSHOME)/root
+    AOLSERVER=/usr/local/aolserver
 endif
 ifndef NSDEBUG
     NSDEBUG=1
@@ -57,31 +48,25 @@ ifndef NSGCC
 endif
 
 #
-# You should not need to edit anything below.
+# Current Tcl version.
 #
-
-INST         =	 $(AOLSERVER)
-INSTBIN      =   $(INST)/bin
-INSTLIB      =   $(INST)/lib
-INSTINC      =   $(INST)/include
-INSTLOG      =   $(INST)/log
-INSTMOD      =   $(INST)/modules
-INSTTCL      =   $(INSTMOD)/tcl
-INSTSRV      =   $(INST)/servers/server1
-INSTSRVMOD   =   $(INSTSRV)/modules
-INSTSRVPAG   =   $(INSTSRV)/pages
+tclmajor  	= 8
+tclminor  	= 3
+tclpatch  	= .4
 
 #
-# Common build variables.
+# Set common options.
 #
-
+MKDIR        =   /bin/mkdir -p
+RM           =   /bin/rm -f
+CP           =   /bin/cp -fp
 ifeq (1,$(NSDEBUG))
     CCOPT     	= -g
+    tcldbg	= g
 else
     CCOPT    	= -O2
     CFLAGS   	+= -DNDEBUG=1
 endif
-
 ifeq (1,$(NSGCC))
     CC       	=  gcc -pipe
     LDSO     	=  gcc -shared -nostartfiles
@@ -89,120 +74,61 @@ ifeq (1,$(NSGCC))
 else
     CC	     =   $(PURIFY) cc
 endif
-
-CFLAGS       +=  -I$(NSHOME)/include -D_REENTRANT=1 -DTCL_THREADS=1 -DNS_NOCOMPAT=1
-MKDIR        =   /bin/mkdir -p
-RM           =   /bin/rm -f
-CP           =   /bin/cp -fp
-ECHO         =   /bin/echo
-FIND         =   find
-
-#
-# Tcl version config.
-#
-
-NSTCL_MAJOR  	= 8
-NSTCL_MINOR  	= 3
-NSTCL_PATCH  	= .4
-NSTCL_ROOT	= $(NSHOME)/tcl$(NSTCL_MAJOR).$(NSTCL_MINOR)$(NSTCL_PATCH)
-NSTCL_CFG	= --enable-threads --prefix=$(AOLSERVER)
-ifeq (1,$(NSGCC))
-    NSTCL_CFG  	+= --enable-gcc
+tcllib		= tcl$(tclmajor).$(tclminor)$(tcldbg)
+tcldir		= tcl$(tclmajor).$(tclminor)$(tclpatch)
+ifdef nsbuild
+    CFLAGS      += -I../include -I../$(tcldir)/generic
+    LIBS	=  -L../$(tcldir)/unix 
+else
+    CFLAGS      += -I$(AOLSERVER)/include
+    LIBS	=  -L$(AOLSERVER)/lib
 endif
-ifeq (1,$(NSDEBUG))
-    NSTCL_DBG  	=  g
-    NSTCL_CFG  	+= --enable-symbols
-endif
-
-#
-# Directory config.
-#
-
-NSTCL_DIR	= $(NSTCL_ROOT)/unix
-NSD_DIR		= $(NSHOME)/nsd
-
-#
-# Library config.
-#
-
-LIBS	     	= -lm
+CFLAGS          += -D_REENTRANT=1 -DTCL_THREADS=1 
+LIBS		+= -l$(tcllib) -lm
 SOEXT		= so
 RFLAG		= -rpath
-RPATH		= -Wl,$(RFLAG),$(INSTLIB) 
+RPATH		= -Wl,$(RFLAG),$(AOLSERVER)/lib
 
-NSTCL		= tcl$(NSTCL_MAJOR).$(NSTCL_MINOR)$(NSTCL_DBG)
-NSTCL_FILE	= lib$(NSTCL).$(SOEXT)
-NSTCL_LIB	= -L$(NSTCL_DIR) -l$(NSTCL)
+# Install directories
+INSTBIN		= $(AOLSERVER)/bin
+INSTLIB		= $(AOLSERVER)/lib
+INSTMOD		= $(AOLSERVER)/modules
+INSTTCL		= $(AOLSERVER)/modules/tcl
+INSTSRV		= $(AOLSERVER)/servers/server1
+INSTSRVMOD	= $(AOLSERVER)/servers/server1/modules
 
-NSD	 	= nsd
-NSD_FILE	= lib$(NSD).$(SOEXT)
-NSD_LIB		= -L$(NSD_DIR) -l$(NSD)
+# Platform-specific options.
+uname = $(shell uname -a)
 
-#
-# Figure the OS and architecture.
-#
-
-PLATFORM = unknown
-PLAT     = $(shell uname -a)
-
-#
-# HP/UX
-#
-
-ifneq (,$(findstring HP-UX,$(PLAT)))
-    PLATFORM=hp10
-    ifeq (1,$(NSGCC))
-        CFLAGS+=-mpa-risc-1-0
-    else
-        CFLAGS+=-Ae +DAportable +z
-    endif
-    RFLAG=+b
-    SOEXT=sl
-    LDSO=ld -b
-    LIBS+=-ldce -lc_r
-    CFLAGS+=-D__hp10=1 -DHAVE_PTHREAD_D4=1 -DUSE_DLSHL=1 -DNEED_ERRNO=1
-endif
-
-
-#
-# Linux
-#
-
-ifneq (,$(findstring Linux,$(PLAT)))
-    PLATFORM=linux
+# Linux 2.2+
+ifneq (,$(findstring Linux,$(uname)))
     ## We optimize for either i686 or i586 -- they really are very different.
-    ifneq (,$(findstring "i686",$(PLAT)))
+    ifneq (,$(findstring "i686",$(uname)))
         CFLAGS+=-mcpu=i686
     endif
-    ifneq (,$(findstring "i586",$(PLAT)))
+    ifneq (,$(findstring "i586",$(uname)))
         CFLAGS+=-mcpu=i586
     endif
     LIBS+=-ldl -lpthread 
     CFLAGS+=-DUSE_FIONREAD=1 -DHAVE_COND_EINTR=1
 endif
 
-
-#
-# Solaris
-#
-#    Note: Purify works only on Solaris 7 SPARC with SUNWspro or gcc-2.8.1.
-#
-
-ifneq (,$(findstring SunOS,$(PLAT)))
-    PLATFORM=solaris
+# Solaris 2.7+
+ifneq (,$(findstring SunOS,$(uname)))
     ifeq (1,$(NSGCC))
-        ifneq (,$(findstring sparc,$(PLAT)))
+        ifneq (,$(findstring sparc,$(uname)))
             CFLAGS+=-mcpu=ultrasparc
         else
             CFLAGS+=-mcpu=pentium
         endif
     else
+	# Purify only works on Solaris 7 SPARC with SUNWspro or gcc-2.8.1.
         CC=$(PURIFY) /opt/SUNWspro/bin/cc
 	ifneq (1,$(NSDEBUG))
             CCOPT = -xO2
 	endif
         CFLAGS+=-KPIC -erroff=%none
-        ifneq (,$(findstring sparc,$(PLAT)))
+        ifneq (,$(findstring sparc,$(uname)))
             CFLAGS+=-xarch=v8plusa
         else
             CFLAGS+=-xpentium
@@ -217,26 +143,43 @@ ifneq (,$(findstring SunOS,$(PLAT)))
             -DUSE_DUPHIGH=1 -DHAVE_FORK1=1
 endif
 
-#
-# DEC OSF/1, Digital UNIX, Tru64 UNIX
-#
-
-ifneq (,$(findstring OSF1,$(PLAT)))
-    PLATFORM=osf
-    # gcc not verified
-    CC=cc
-    CFLAGS+=-std1 -pthread -DNO__ENVIRON=1
-    LDSO=ld -shared -expect_unresolved '*'
-    LIBS+=-lrt
+# FreeBSD 4.x
+ifneq (,$(findstring FreeBSD,$(uname)))
+    #NSTCL = tcl$(NSTCL_MAJOR)$(NSTCL_MINOR)$(NSTCL_DBG)
+    # Standard uthreads:
+    CC += -pthread
+    # rfork-based LinuxThreads:
+    #CFLAGS += -I/usr/local/include/pthread/linuxthreads
+    #LIBS+= -L/usr/local/lib -llthread -llgcc_r
+    ## FreeBSD doesn't make a distinction among processors in the x86 class.
+    ifneq (,$(findstring i386,$(uname)))
+        CFLAGS+=-mcpu=pentium
+    endif
+    LDSO=ld -Bshareable -x
+    CFLAGS+=-D_THREAD_SAFE=1 -DNO_TIMEZONE=1 -DHAVE_TIMEGM=1 -DNO__ENVIRON=1
 endif
 
 
 #
-# SGI Irix
+# The following platforms are currently unsupported.
 #
 
-ifneq (,$(findstring IRIX,$(PLAT)))
-    PLATFORM=irix
+# HP/UX 11
+ifneq (,$(findstring HP-UX,$(uname)))
+    ifeq (1,$(NSGCC))
+        CFLAGS+=-mpa-risc-1-0
+    else
+        CFLAGS+=-Ae +DAportable +z
+    endif
+    RFLAG=+b
+    SOEXT=sl
+    LDSO=ld -b
+    LIBS+=-ldce -lc_r
+    CFLAGS+=-DUSE_DLSHL=1 -DNEED_ERRNO=1
+endif
+
+# SGI Irix
+ifneq (,$(findstring IRIX,$(uname)))
     ## Purify seems to work on Irix o32 only.
     ifeq (1,$(NSGCC))
         ABI=-n32
@@ -251,36 +194,20 @@ ifneq (,$(findstring IRIX,$(PLAT)))
 
 endif
 
-#
-# FreeBSD
-#
-
-ifneq (,$(findstring FreeBSD,$(PLAT)))
-    #NSTCL = tcl$(NSTCL_MAJOR)$(NSTCL_MINOR)$(NSTCL_DBG)
-    PLATFORM=freebsd
-    # Standard uthreads:
-    CC += -pthread
-    # rfork-based LinuxThreads:
-    #CFLAGS += -I/usr/local/include/pthread/linuxthreads
-    #LIBS+= -L/usr/local/lib -llthread -llgcc_r
-    ## FreeBSD doesn't make a distinction among processors in the x86 class.
-    ifneq (,$(findstring i386,$(PLAT)))
-        CFLAGS+=-mcpu=pentium
-    endif
-    LDSO=ld -Bshareable -x
-    CFLAGS+=-D_THREAD_SAFE=1 -DNO_TIMEZONE=1 -DHAVE_TIMEGM=1 -DNO__ENVIRON=1
+# DEC OSF/1, Digital UNIX, Tru64 UNIX
+ifneq (,$(findstring OSF1,$(uname)))
+    # gcc not verified
+    CC=cc
+    CFLAGS+=-std1 -pthread -DNO__ENVIRON=1
+    LDSO=ld -shared -expect_unresolved '*'
+    LIBS+=-lrt
 endif
 
-
-#
 # OpenBSD
-#
-
-ifneq (,$(findstring OpenBSD,$(PLAT)))
-    PLATFORM=openbsd
+ifneq (,$(findstring OpenBSD,$(uname)))
     CFLAGS+=-pthread
     ## OpenBSD doesn't make a distinction among processors in the x86 class.
-    ifneq (,$(findstring i386,$(PLAT)))
+    ifneq (,$(findstring i386,$(uname)))
         CFLAGS+=-mcpu=pentium
     endif
     CFLAGS+=-DUSE_DLSYMPREFIX=1 -DUSE_RTLD_LAZY=1 \
@@ -288,13 +215,8 @@ ifneq (,$(findstring OpenBSD,$(PLAT)))
 	   -DNO__ENVIRON=1
 endif
 
-
-#
 # SCO Unixware
-#
-
-ifneq (,$(findstring UnixWare,$(PLAT)))
-    PLATFORM=unixware
+ifneq (,$(findstring UnixWare,$(uname)))
     CC=cc
     CFLAGS+=-Kpic -Kthread -D__unixware
     LDSO=ld -G
@@ -302,31 +224,21 @@ ifneq (,$(findstring UnixWare,$(PLAT)))
     CLFAGS+=-DUSE_PTHREAD_SYSSCOPE=1 -DHAVE_SENDV=1
 endif
 
-
-#
 # Mac OS X
-#
-
-ifneq (,$(findstring Rhapsody,$(PLAT)))
-    PLATFORM=osx
+ifneq (,$(findstring Rhapsody,$(uname)))
+    uname=osx
 endif
-ifneq (,$(findstring Darwin,$(PLAT)))
-    PLATFORM=osx
+ifneq (,$(findstring Darwin,$(uname)))
+    uname=osx
 endif
-ifeq (osx,$(PLATFORM))
+ifeq (osx,$(uname))
     CC=cc
+    SOEXT=dylib
     CFLAGS+=-dynamic -traditional-cpp
     LDSO=cc -bundle -undefined suppress
     CFLAGS+=-DUSE_DYLD=1 -DUSE_DLSYMPREFIX=1 \
             -DNO_RAND48=1 -DNO_TIMEZONE=1 -DMACOSX=1
 endif
 
-ifeq (unknown,$(PLATFORM))
-    error unknown platform
-endif
-
-#
-# Add the debug/optimize flags.
-#
-
+# Add the platform-specific debug/optimize flags.
 CFLAGS += $(CCOPT)
