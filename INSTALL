@@ -1,9 +1,0 @@
-
-Installation
-------------
-
-On most Unix platforms, build AOLserver and then type:
-gmake install INST=/opt/aolserver
-
-Refer to the sample-config.tcl for a sample configuration.
-

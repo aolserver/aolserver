@@ -25,22 +25,13 @@
 # replace them with the notice and other provisions required by the GPL.
 # If you do not delete the provisions above, a recipient may use your
 # version of this file under either the License or the GPL.
+# 
 #
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsdb/Makefile,v 1.3 2002/09/21 17:07:36 jgdavidson Exp $
 
-#
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsperm/compat.tcl,v 1.3 2000/08/02 23:38:25 kriston Exp $
-#
-
-#
-# compat.tcl -
-#	Compatibility functions
-#
-
-proc ns_passwordcheck { user password } {
-    set ret [catch {ns_perm checkpass $user $password} err]
-    if {$ret == 0} {
-	return 0
-    } else {
-	return 1
-    }
-}
+LIB	= nsdb
+LIBOBJS	= dbinit.o dbdrv.o dbtcl.o dbutil.o
+MOD	= nsdb.so
+OBJS	= nsdb.o
+HDRS	= db.h
+include ../include/Makefile.build

@@ -27,17 +27,65 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/Makefile,v 1.3.2.1 2002/09/17 23:05:25 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsssl/Makefile,v 1.3 2002/09/21 17:07:36 jgdavidson Exp $
 #
 
-LIB     = nsthread
-HDRS	= thread.h
-LIBINIT	= NsthreadsInit
-PGM	= nsthreadtest
-PGMOBJS	= nsthreadtest.o
-LIBOBJS = \
-	cond.o error.o master.o memory.o mutex.o cslock.o	\
-	rwlock.o reentrant.o sema.o thread.o tls.o signal.o	\
-	compat.o time.o fork.o
 
-include ../include/Makefile.module
+
+ifndef BSAFE
+
+all:
+	@echo "** "
+	@echo "** BSAFE variable not set."
+	@echo "** nsssl will not be built."
+	@echo "** "
+
+install: all
+
+clean:
+
+else
+
+#
+# Module name
+#
+ifeq ($(SSL_DOMESTIC),1)
+  MOD    =  nsssl.so
+  CFLAGS =  $(BSAFE_VERSION) -I$(BSAFE)/include
+else
+  MOD    =  nsssle.so
+  CFLAGS =  -DSSL_EXPORT=1 $(BSAFE_VERSION) -I$(BSAFE)/include
+endif
+MODLIBS  =  -L$(BSAFE)/lib -lbsafe
+MODDIR   =  nsssl
+HDRS     =  ssl.h ssltcl.h x509.h
+
+
+#
+# Rainbow SSL accelerator card support.
+#
+#   Note: Requires position-independent version of libbswift.a.
+#         Requires libswift.so to be somewhere in your system's library path.
+#         Contact Rainbow at http://www.rainbow.com/ for the software.
+#
+ifdef SWIFT
+  CFLAGS  +=-DHAVE_SWIFT=1 -I$(SWIFT)/include
+  MODLIBS +=-L$(SWIFT)/lib -lbswift -lswift
+endif
+
+
+#
+# Objects to build
+#
+OBJS      =  nsssl.o ssl.o ssltcl.o t_stdlib.o x509.o
+MODINST	  =  cppem
+
+include  ../include/Makefile.build
+
+cppem:
+	$(MKDIR) $(INSTMOD)/nsssl
+	$(CP) *.tcl $(INSTMOD)/nsssl
+	$(MKDIR) $(INSTSRVMOD)/nsssl
+	$(CP) *.pem $(INSTSRVMOD)/nsssl
+
+endif
