@@ -34,7 +34,7 @@
  *      Manage the Ns_Conn structure
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.11 2001/03/23 17:04:33 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.12 2001/03/28 00:22:49 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #define IOBUFSZ 2048
@@ -47,8 +47,6 @@ static int ConnSend(Ns_Conn *, int nsend, Tcl_Channel chan,
     	    	    FILE *fp, int fd);
 static int ConnCopy(Ns_Conn *conn, size_t tocopy, Ns_DString *dsPtr,
     	    	    Tcl_Channel chan, FILE *fp, int fd);
-
-static Ns_LocationProc *locationPtr = NULL;
 
 /*
  * Macros for executing connection driver procedures.
@@ -471,7 +469,7 @@ Ns_ConnPeerPort(Ns_Conn *conn)
 
 /*
  *----------------------------------------------------------------------
- * Ns_SetConnLocationProc --
+ * Ns_SetLocationProc --
  *
  *      Set pointer to custom routine that acts like Ns_ConnLocation();
  *
@@ -485,9 +483,13 @@ Ns_ConnPeerPort(Ns_Conn *conn)
  */
 
 void
-Ns_SetConnLocationProc(Ns_LocationProc *procPtr)
+Ns_SetLocationProc(char *server, Ns_LocationProc *procPtr)
 {
-    locationPtr = procPtr;
+    NsServer *servPtr = NsGetServer(server);
+
+    if (servPtr != NULL) {
+    	servPtr->locationProc = procPtr;
+    }
 }
 
 
@@ -512,13 +514,16 @@ char *
 Ns_ConnLocation(Ns_Conn *conn)
 {
     Conn *connPtr = (Conn *) conn;
+    char *location;
 
-    if (locationPtr != NULL) {
-        return (*locationPtr)(conn);
-    } else if (connPtr->drvPtr->locationProc == NULL) {
-	return NULL;
+    if (connPtr->servPtr->locationProc != NULL) {
+        location = (*connPtr->servPtr->locationProc)(conn);
+    } else if (connPtr->drvPtr->locationProc != NULL) {
+	location = (*connPtr->drvPtr->locationProc)(connPtr->drvData);
+    } else {
+	location = NULL;
     }
-    return (*connPtr->drvPtr->locationProc)(connPtr->drvData);
+    return location;
 }
 
 
