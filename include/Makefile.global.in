@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Attic/Makefile.global.in,v 1.15 2003/06/02 17:24:22 vasiljevic Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Attic/Makefile.global.in,v 1.16 2003/06/03 12:08:20 vasiljevic Exp $
 #
 
 #
@@ -116,5 +116,20 @@ ifdef LIBINIT
 	LDLIB	+= -init _$(LIBINIT)
     else
 	CFLAGS	+= -D$(LIBINIT)=_init
+    endif
+endif
+ 
+#
+# For static linking on Darwin, link modules 
+# against server image.
+#
+
+ifneq (,$(findstring Darwin,$(uname)))
+    ifeq ($(STATIC_BUILD), 1)
+        ifdef NSBUILD
+            LDSO += -bundle_loader $(srcdir)/nsd/nsd
+        else
+            LDSO += -bundle_loader $(AOLSERVER)/bin/nsd
+        endif
     endif
 endif
