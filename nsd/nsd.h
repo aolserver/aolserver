@@ -249,31 +249,37 @@ typedef struct FileKey {
  * indicating text to copy and negative values indicating
  * scripts to evaluate.  The text and script chars are
  * packed together without null char separators starting
- * at base.  The len and base data are either stored
- * in an AdpParse structure or copied at the end of
- * a cached Page structure.
+ * at base.  The len data is stored at the end of the
+ * text dstring when parsing is complete.
  */
 
 typedef struct AdpCode {
     int		nblocks;
     int		nscripts;
-    char       *base;
-    int	       *len;
+    union {
+	int         *iPtr;
+	Tcl_DString *dPtr;
+    } len;
+    Tcl_DString text;
 } AdpCode;
 
+#define AdpCodeLen(cp,i)	((cp)->len.iPtr[(i)])
+#define AdpCodeText(cp)		((cp)->text.string)
+#define AdpCodeBlocks(cp)	((cp)->nblocks)
+#define AdpCodeScripts(cp)	((cp)->nscripts)
+
 /*
- * The following structure is used to accumulate the 
- * results of parsing an ADP string.
+ * Various ADP option bits.
  */
 
-typedef struct AdpParse {
-    AdpCode	code;
-    Tcl_DString hdr;
-    Tcl_DString text;
-} AdpParse;
-
-#define ADP_SAFE	1	/* Use Tcl_SafeEval for ADP. */
-#define ADP_SINGLE	2	/* Combine blocks into a single script. */
+#define ADP_SAFE	0x01	/* Use Tcl_SafeEval for ADP. */
+#define ADP_SINGLE	0x02	/* Combine blocks into a single script. */
+#define ADP_DEBUG	0x04	/* Enable debugging. */
+#define ADP_EXPIRE	0x08	/* Send Expires: now header on output. */
+#define ADP_NOCACHE	0x10	/* Disable caching. */
+#define ADP_TRACE	0x20	/* Trace execution. */
+#define ADP_ERROR	0x40	/* Output error. */
+#define ADP_GZIP	0x80	/* Enable gzip compression. */
 
 /*
  * The following structure maitains data for each instance of
@@ -474,11 +480,13 @@ typedef struct Conn {
     Tcl_Interp  *interp;
     Tcl_Encoding encoding;
     Tcl_Encoding urlEncoding;
+    char	*type;
     int          nContentSent;
     int          responseStatus;
     int          responseLength;
     int          recursionCount;
     Ns_Set      *query;
+    Tcl_Encoding queryEncoding;
     Tcl_HashTable files;
 
     /*
@@ -567,6 +575,12 @@ typedef struct Pool {
 
 } Pool;
 
+#define SERV_AOLPRESS		0x0001	/* AOLpress support. */
+#define SERV_CHUNKED		0x0002	/* Output can be chunked. */
+#define SERV_MODSINCE		0x0004	/* Check if-modified-since. */
+#define SERV_NOTICEDETAIL	0x0008	/* Add detail to notice messages. */
+#define SERV_GZIP		0x0010	/* Enable GZIP compression. */
+
 /*
  * The following structure is allocated for each virtual server.
  */
@@ -580,10 +594,9 @@ typedef struct NsServer {
      */
 
     struct {
-	bool	    	    aolpress;
-	bool	    	    flushcontent;
-	bool	    	    modsince;
-	bool 	    	    noticedetail;
+   	int		    flags;
+	size_t 	    	    gzipmin;
+	int		    gziplevel;
     	char 	    	   *realm;
 	Ns_HeaderCaseDisposition hdrcase;
     } opts;
@@ -667,10 +680,9 @@ typedef struct NsServer {
 	int		    flags;
 	char	    	   *errorpage;
 	char	    	   *startpage;
-	bool	    	    enableexpire;
-	bool	    	    enabledebug;
 	char	    	   *debuginit;
 	char	    	   *defaultparser;
+	size_t 	    	    bufsize;
 	size_t 	    	    cachesize;
 	Ns_Cond	    	    pagecond;
 	Ns_Mutex	    pagelock;
@@ -788,13 +800,14 @@ typedef struct NsInterp {
      */
 
     struct {
-	bool               stream;
-	int	           exception;
+	int		   flags;
+	int		   exception;
 	int		   refresh;
 	int                depth;
 	int                objc;
 	Tcl_Obj		 **objv;
 	char              *cwd;
+	size_t		   bufsize;
 	int                errorLevel;
 	int                debugLevel;
 	int                debugInit;
@@ -802,7 +815,6 @@ typedef struct NsInterp {
 	Ns_Cache	  *cache;
 	Tcl_DString	  *outputPtr;
 	Tcl_DString	  *responsePtr;
-	Tcl_DString	  *typePtr;
     } adp;
     
     /*
@@ -852,6 +864,7 @@ extern void NsInitRequests(void);
 
 extern void NsQueueConn(Conn *connPtr);
 extern void NsAppendConn(Tcl_DString *bufPtr, Conn *connPtr, char *state);
+extern void NsAppendRequest(Tcl_DString *dsPtr, Ns_Request *request);
 extern int  NsSockSend(Sock *sockPtr, struct iovec *bufs, int nbufs);
 extern void NsSockClose(Sock *sockPtr, int keep);
 extern int  NsPoll(struct pollfd *pfds, int nfds, Ns_Time *timeoutPtr);
@@ -931,6 +944,8 @@ extern void NsWaitSockShutdown(Ns_Time *toPtr);
 extern void NsStartShutdownProcs(void);
 extern void NsWaitShutdownProcs(Ns_Time *toPtr);
 extern void NsWaitDriversShutdown(Ns_Time *toPtr);
+extern void NsStartQueueShutdown(void);
+extern void NsWaitQueueShutdown(Ns_Time *toPtr);
 
 extern void NsStartJobsShutdown(void);
 extern void NsWaitJobsShutdown(Ns_Time *toPtr);
@@ -960,8 +975,9 @@ extern Pool *NsGetPool(Conn *connPtr);
 extern Ns_Cache *NsAdpCache(char *server, int size);
 extern void NsAdpSetMimeType(NsInterp *itPtr, char *type);
 extern void NsAdpSetCharSet(NsInterp *itPtr, char *charset);
-extern void NsAdpFlush(NsInterp *itPtr);
-extern void NsAdpStream(NsInterp *itPtr);
+extern int NsAdpGetBuf(NsInterp *itPtr, Tcl_DString **dsPtrPtr);
+extern int NsAdpAppend(NsInterp *itPtr, char *buf, int len);
+extern int NsAdpFlush(NsInterp *itPtr, int stream);
 extern int NsAdpDebug(NsInterp *itPtr, char *host, char *port, char *procs);
 extern int NsAdpEval(NsInterp *itPtr, int objc, Tcl_Obj *objv[], int safe,
                      char *resvar);
@@ -969,7 +985,8 @@ extern int NsAdpSource(NsInterp *itPtr, int objc, Tcl_Obj *objv[],
                        char *resvar);
 extern int NsAdpInclude(NsInterp *itPtr, char *file, int objc,
 			Tcl_Obj *objv[], Ns_Time *ttlPtr);
-extern void NsAdpParse(AdpParse *parsePtr, NsServer *servPtr, char *utf, int safe);
+extern void NsAdpParse(AdpCode *codePtr, NsServer *servPtr, char *utf, int safe);
+extern void NsAdpFreeCode(AdpCode *codePtr);
 
 /*
  * Tcl support routines.
