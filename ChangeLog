@@ -3,6 +3,8 @@
 	* nsd/mimetypes.c: 
         * sample_config.tcl: Add support for xhtml mime type. (RFE #563417)
 
+        * TAG aolserver_v4_r0_beta_11
+
 2003-08-06  Elizabeth Thomas <eathomas93@aol.com>
 
 	* nsd/tclset.c: Fix ns_set split argument checking. (#757849)
