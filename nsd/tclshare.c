@@ -88,8 +88,6 @@ static void RegisterShare(NsInterp *itPtr, Tcl_Interp *interp,
  *
  *	This procedure is invoked to process the "ns_share" Tcl command.
  *      It links the variables passed in to values that are shared.
- *	NOTE:  This procedure requires the NsTclShareVar() routine
- *	defined somewhere else.
  *
  * Results:
  *	A standard Tcl result value.
