@@ -1,3 +1,8 @@
+2004-09-03  Dossy Shiobara <dossy@panoptic.com>
+
+	* nscgi/nscgi.html (1.1.10.1): Updated nscgi module documentation
+	  for 4.0.  Closes SF Bug #465907.  Backported from HEAD.
+
 2004-08-25  Dossy Shiobara <dossy@panoptic.com>
 
 	* nsd/queue.c (1.23.2.1): If reqPtr is NULL, close the connection
