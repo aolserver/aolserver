@@ -267,6 +267,9 @@ typedef struct AdpParse {
     Tcl_DString text;
 } AdpParse;
 
+#define ADP_SAFE	1	/* Use Tcl_SafeEval for ADP. */
+#define ADP_SINGLE	2	/* Combine blocks into a single script. */
+
 /*
  * The following structure maitains data for each instance of
  * a driver initialized with Ns_DriverInit.
@@ -641,6 +644,7 @@ typedef struct NsServer {
      */
 
     struct {
+	int		    flags;
 	char	    	   *errorpage;
 	char	    	   *startpage;
 	bool	    	    enableexpire;
