@@ -32,7 +32,7 @@
  *
  *	Core threading and system headers.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/nsthread.h,v 1.20 2002/06/10 22:29:26 jgdavidson Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/nsthread.h,v 1.21 2002/06/12 11:34:14 jgdavidson Exp $
  */
 
 #ifndef NSTHREAD_H
@@ -121,7 +121,7 @@ typedef struct Ns_Time {
 
 typedef void (Ns_ThreadProc) (void *arg);
 typedef void (Ns_TlsCleanup) (void *arg);
-typedef void (Ns_ThreadEnumProc) (Tcl_DString *, void *proc, void *arg);
+typedef void (Ns_ThreadArgProc) (Tcl_DString *, void *proc, void *arg);
 
 /*
  * fork.c:
@@ -158,7 +158,7 @@ NS_EXTERN int  Ns_MutexTryLock(Ns_Mutex *mutexPtr);
 NS_EXTERN void Ns_MutexUnlock(Ns_Mutex *mutexPtr);
 NS_EXTERN void Ns_MutexSetName(Ns_Mutex *mutexPtr, char *name);
 NS_EXTERN void Ns_MutexSetName2(Ns_Mutex *mutexPtr, char *prefix, char *name);
-NS_EXTERN void Ns_MutexEnum(Tcl_DString *dsPtr);
+NS_EXTERN void Ns_MutexList(Tcl_DString *dsPtr);
 
 /*
  * rwlock.c:
@@ -234,8 +234,8 @@ NS_EXTERN int Ns_ThreadId(void);
 NS_EXTERN void Ns_ThreadSelf(Ns_Thread *threadPtr);
 NS_EXTERN char *Ns_ThreadGetName(void);
 NS_EXTERN char *Ns_ThreadGetParent(void);
-NS_EXTERN void Ns_ThreadEnum(Tcl_DString *dsPtr, Ns_ThreadEnumProc *proc);
 NS_EXTERN long Ns_ThreadStackSize(long size);
+NS_EXTERN void Ns_ThreadList(Tcl_DString *dsPtr, Ns_ThreadArgProc *proc);
 
 /*
  * time.c:
