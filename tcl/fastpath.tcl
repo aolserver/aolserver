@@ -28,7 +28,7 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/fastpath.tcl,v 1.7 2003/01/29 01:09:32 shmooved Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/fastpath.tcl,v 1.8 2003/02/25 17:12:35 shmooved Exp $
 #
 
 #
@@ -152,7 +152,7 @@ proc _ns_dirlist {} {
     set hidedot [nsv_get _ns_fastpath hidedot]
     set location [ns_conn location]
     
-    set prefix "${location}${url}/"
+    set prefix "${location}${url}"
     set up "<a href=..>..</a>"
     if {$simple} {
 	append list "
@@ -172,6 +172,9 @@ $up
 	if {$hidedot && [string match .* $tail]} {
 	    continue
 	}
+        if {[file isdirectory $f]} { 
+            append tail "/"
+        }
 	
 	set link "<a href=\"${prefix}${tail}\">${tail}</a>"
 
