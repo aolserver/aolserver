@@ -35,7 +35,7 @@
  *  	Tcl commands.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscp/nscp.c,v 1.14 2001/03/12 22:00:15 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscp/nscp.c,v 1.15 2001/03/16 22:22:02 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 
@@ -302,6 +302,7 @@ EvalThread(void *arg)
      * Initialize the thread and login the user.
      */
      
+    interp = NULL;
     Tcl_DStringInit(&ds);
     sprintf(buf, "-nscp:%d-", sessPtr->id);
     Ns_ThreadSetName(buf);
@@ -345,7 +346,7 @@ retry:
 	if (STREQ(ds.string, "")) {
 	    goto retry; /* Empty command - try again. */
 	}
-	if (Tcl_Eval(interp, ds.string) != TCL_OK) {
+	if (Tcl_RecordAndEval(interp, ds.string, 0) != TCL_OK) {
 	    Ns_TclLogError(interp);
 	}
 	Tcl_AppendResult(interp, "\r\n", NULL);
@@ -359,7 +360,9 @@ retry:
     }
 done:
     Tcl_DStringFree(&ds);
-    Ns_TclDeAllocateInterp(interp);
+    if (interp != NULL) {
+    	Ns_TclDeAllocateInterp(interp);
+    }
     Ns_Log(Notice, "nscp: disconnect: %s", ns_inet_ntoa(sessPtr->sa.sin_addr));
     ns_sockclose(sessPtr->sock);
     ns_free(sessPtr);
