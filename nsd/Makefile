@@ -27,18 +27,16 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Makefile,v 1.34 2002/05/15 20:15:05 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Makefile,v 1.35 2002/06/08 14:46:04 jgdavidson Exp $
 #
 
-NSHOME ?= ..
-buildnsd = 1
-include $(NSHOME)/include/Makefile.global
+INIT	= init.tcl
+INSTALL = install-init
+LIB     = nsd
+PGM	= nsd
+PGMOBJS	= main.o
 
-LIB      =  libnsd.$(LIBEXT)
-NSD	 =  nsd
-INIT	 =  init.tcl
-
-OBJS = \
+LOBJS = \
 	adpcmds.o adpeval.o adpparse.o adprequest.o auth.o binder.o	\
 	cache.o callbacks.o cls.o compat.o cond.o config.o conn.o	\
 	connio.o crypt.o dns.o	\
@@ -55,23 +53,13 @@ OBJS = \
 	tclvar.o tclxkeylist.o thread.o time.o tls.o unix.o url.o	\
 	urlencode.o urlopen.o urlspace.o uuencode.o
 
-all: $(LIB) $(NSD)
+LIBOBJS=$(LOBJS) stamp.o
 
-$(OBJS): nsd.h
+include ../include/Makefile.module
 
-$(LIB): $(OBJS)
-	$(RM) $(LIB) stamp.o
+stamp.o: $(LOBJS)
 	$(CC) -c -o stamp.o stamp.c
-	$(LDLIB) -o $(LIB) $(OBJS) stamp.o $(LIBS) $(RPATH)
 
-$(NSD): $(LIB) main.o
-	$(RM) $(NSD)
-	$(CC) -o $(NSD) main.o $(LIB) $(LIBS) $(RPATH)
-
-install: all
-	$(RM) $(INSTLIB)/$(LIB) $(INSTBIN)/$(NSD) $(INSTBIN)/$(INIT)
-	$(CP) $(LIB) $(INSTLIB)/
-	$(CP) $(NSD) $(INIT) $(INSTBIN)/
-
-clean:
-	$(RM) $(OBJS) $(LIB) $(NSD) main.o
+install-init:
+	$(RM) $(INSTBIN)/$(INIT)
+	$(CP) $(INIT) $(INSTBIN)/
