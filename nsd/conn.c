@@ -34,7 +34,7 @@
  *      Manage the Ns_Conn structure
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.7 2001/01/16 18:14:27 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.7.2.1 2001/03/14 22:22:53 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -1305,7 +1305,7 @@ NsTclParseQueryCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
     Ns_Set *set;
 
     if (argc != 2) {
-	Tcl_AppendResult(interp, argv[0], ": wrong number args: should be \"",
+	Tcl_AppendResult(interp, argv[0], ": wrong # of args: should be \"",
 	    argv[0], " querystring\"", (char *) NULL);
 	return TCL_ERROR;
     }
