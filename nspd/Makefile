@@ -27,22 +27,20 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nspd/Makefile,v 1.6 2002/02/24 01:56:47 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nspd/Makefile,v 1.7 2002/06/05 22:56:30 jgdavidson Exp $
 #
 
 NSHOME ?= ..
 include  $(NSHOME)/include/Makefile.global
 
 LIB	 =  libnspd.a
-OBJS     =  listen.o log.o main.o msg.o
+OBJS     =  listen.o log.o main.o 
 
 all: $(LIB)
 
 $(LIB): $(OBJS)
 	$(AR) rv $(LIB) $(OBJS)
 	$(RANLIB) $(LIB)
-
-msg.o: ../include/nsextmsg.h
 
 install: $(LIB)
 	$(RM) $(INSTLIB)/$(LIB)
