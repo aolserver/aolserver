@@ -33,7 +33,7 @@
  * 	Connect Tcl command names to the functions that implement them
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.23 2002/06/13 00:04:54 jcollins Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.24 2002/06/19 10:25:57 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -392,6 +392,29 @@ static Cmd cmds[] = {
     {"keylset", Tcl_KeylsetCmd, NULL},
 
     /*
+     * cache.c
+     */
+
+    {"ns_cache_flush", NsTclCacheFlushCmd, NULL},
+    {"ns_cache_stats", NsTclCacheStatsCmd, NULL},
+    {"ns_cache_names", NsTclCacheNamesCmd, NULL},
+    {"ns_cache_size", NsTclCacheSizeCmd, NULL},
+    {"ns_cache_keys", NsTclCacheKeysCmd, NULL},
+
+    /*
+     * tclthread.c
+     */
+
+    {"ns_thread", NsTclThreadCmd, NULL},
+    {"ns_mutex", NsTclMutexCmd, NsTclMutexObjCmd},
+    {"ns_cond", NsTclEventCmd, NULL},
+    {"ns_event", NsTclEventCmd, NULL},
+    {"ns_rwlock", NsTclRWLockCmd, NULL},
+    {"ns_sema", NsTclSemaCmd, NULL},
+    {"ns_critsec", NsTclCritSecCmd, NULL},
+
+
+    /*
      * Add more basic Tcl commands here.
      */
 
@@ -500,28 +523,6 @@ static Cmd servCmds[] = {
     {"ns_adp_registeradp", NsTclAdpRegisterAdpCmd, NULL},
     {"ns_adp_registertag", NsTclAdpRegisterAdpCmd, NULL},
     {"ns_adp_registerproc", NsTclAdpRegisterProcCmd, NULL},
-
-    /*
-     * tclthread.c
-     */
-
-    {"ns_thread", NsTclThreadCmd, NULL},
-    {"ns_mutex", NsTclMutexCmd, NsTclMutexObjCmd},
-    {"ns_cond", NsTclEventCmd, NULL},
-    {"ns_event", NsTclEventCmd, NULL},
-    {"ns_rwlock", NsTclRWLockCmd, NULL},
-    {"ns_sema", NsTclSemaCmd, NULL},
-    {"ns_critsec", NsTclCritSecCmd, NULL},
-
-    /*
-     * cache.c
-     */
-
-    {"ns_cache_flush", NsTclCacheFlushCmd, NULL},
-    {"ns_cache_stats", NsTclCacheStatsCmd, NULL},
-    {"ns_cache_names", NsTclCacheNamesCmd, NULL},
-    {"ns_cache_size", NsTclCacheSizeCmd, NULL},
-    {"ns_cache_keys", NsTclCacheKeysCmd, NULL},
 
     /*
      * tclsched.c
