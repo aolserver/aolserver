@@ -32,7 +32,7 @@
  *
  *	Core threading and system headers.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/nsthread.h,v 1.3 2000/08/02 23:38:25 kriston Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/nsthread.h,v 1.4 2000/08/08 20:48:51 jgdavidson Exp $
  */
 
 #ifndef NSTHREAD_H
@@ -389,6 +389,8 @@ NS_EXTERN int ns_signal(int sig, void (*proc)(int));
 
 NS_EXTERN void Ns_ThreadCreate(Ns_ThreadProc *proc, void *arg, long stackSize,
 			    Ns_Thread *resultPtr);
+NS_EXTERN void Ns_ThreadCreate2(Ns_ThreadProc *proc, void *arg, long stackSize,
+			    int flags, Ns_Thread *resultPtr);
 NS_EXTERN void Ns_ThreadExit(void *arg);
 NS_EXTERN void Ns_ThreadJoin(Ns_Thread *threadPtr, void **argPtr);
 NS_EXTERN void Ns_ThreadYield(void);
