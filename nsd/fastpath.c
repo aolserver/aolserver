@@ -34,7 +34,7 @@
  *      Get page possibly from a file cache.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/fastpath.c,v 1.7 2001/01/16 18:14:27 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/fastpath.c,v 1.8 2001/01/16 18:16:01 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #ifndef WIN32
@@ -49,10 +49,6 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
 #undef MAP_FAILED 
 #endif
 #define MAP_FAILED ((void *) (-1))
-
-#define CONFIG_INDEX    "DirectoryFile"
-#define CONFIG_PAGES    "PageRoot"
-#define DEFAULT_PAGES   "pages"
 
 /*
  * The following structure defines the key to indentify a 
@@ -141,7 +137,7 @@ Ns_ConnReturnFile(Ns_Conn *conn, int status, char *type, char *file)
  */
 
 char *
-Ns_PageRoot(char *ignored)
+Ns_PageRoot(char *server)
 {
     return nsconf.fastpath.pageroot;
 }
@@ -192,7 +188,7 @@ Ns_UrlToFile(Ns_DString *dsPtr, char *server, char *url)
     if (url2filePtr != NULL) {
 	status = (*url2filePtr)(dsPtr, server, url);
     } else {
-	Ns_MakePath(dsPtr, nsconf.fastpath.pageroot, url, NULL);
+	Ns_MakePath(dsPtr, Ns_PageRoot(server), url, NULL);
 	status = NS_OK;
     }
     if (status == NS_OK) {
@@ -489,11 +485,10 @@ FastStat(char *file, struct stat *stPtr)
 static int
 FastReturn(Ns_Conn *conn, int status, char *type, char *file, struct stat *stPtr)
 {
-    int             result, fd, new, nread, i;
+    int          result, fd, new, nread;
     File	   *filePtr;
     Key		    key;
     Ns_Entry	   *entPtr;
-    struct stat     st;
 #ifndef WIN32
     char *map;
 #endif
