@@ -33,7 +33,7 @@
  *	ADP connection request support.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adprequest.c,v 1.21 2005/01/17 14:01:10 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adprequest.c,v 1.22 2005/03/25 00:33:19 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -104,7 +104,7 @@ Ns_AdpRequestEx(Ns_Conn *conn, char *file, Ns_Time *ttlPtr)
     Tcl_DString	      rds;
     NsInterp         *itPtr;
     int               result;
-    char             *type, *start;
+    char             *start, *type;
     Ns_Set           *query;
     NsServer	     *servPtr;
     Tcl_Obj	     *objv[2];
@@ -118,39 +118,27 @@ Ns_AdpRequestEx(Ns_Conn *conn, char *file, Ns_Time *ttlPtr)
     }
 
     /*
-     * Get the current connection's interp.
-     */
-
-    interp = Ns_GetConnInterp(conn);
-    itPtr = NsGetInterp(interp);
-    servPtr = itPtr->servPtr;
-
-    /*
-     * Set the response buffer and default size.
-     */
-
-    Tcl_DStringInit(&rds);
-    itPtr->adp.responsePtr = &rds;
-    itPtr->adp.outputPtr = itPtr->adp.responsePtr;
-    itPtr->adp.bufsize = itPtr->servPtr->adp.bufsize;
-
-    /*
-     * Determine the output type.  This will set both the input
-     * and output encodings by default.
+     * Set the output type based on the file type.
      */
 
     type = Ns_GetMimeType(file);
-    if (type == NULL || (strcmp(type, "*/*") == 0)) {
-        type = NSD_TEXTHTML;
+    if (type == NULL || STREQ(type, "*/*")) {
+	type = NSD_TEXTHTML;
     }
     Ns_ConnSetType(conn, type);
 
     /*
-     * Set the old conn variable for backwards compatibility.
+     * Setup the response buffer and default size.
      */
 
-    Tcl_SetVar2(interp, "conn", NULL, connPtr->idstr, TCL_GLOBAL_ONLY);
-    Tcl_ResetResult(interp);
+    Tcl_DStringInit(&rds);
+    servPtr = connPtr->servPtr;
+    interp = Ns_GetConnInterp(conn);
+    itPtr = NsGetInterpData(interp);
+    itPtr->adp.responsePtr = &rds;
+    itPtr->adp.outputPtr = itPtr->adp.responsePtr;
+    itPtr->adp.bufsize = servPtr->adp.bufsize;
+    itPtr->adp.flags = (servPtr->adp.flags & (ADP_GZIP|ADP_TRACE));
 
     /*
      * Enable TclPro debugging if requested.
@@ -161,12 +149,6 @@ Ns_AdpRequestEx(Ns_Conn *conn, char *file, Ns_Time *ttlPtr)
 	(query = Ns_ConnGetQuery(conn)) != NULL) {
 	itPtr->adp.debugFile = Ns_SetIGet(query, "debug");
     }
-
-    /*
-     * Set default ADP flags and buffer size.
-     */
-
-    itPtr->adp.flags = (itPtr->servPtr->adp.flags & (ADP_GZIP|ADP_TRACE));
 
     /*
      * Queue the Expires header if enabled.
