@@ -62,14 +62,7 @@ int Ns_ModuleVersion = 1;
 int
 Ns_ModuleInit(char *server, char *module)
 {
-    Ns_DriverInitData *init;
-
-    init = ns_calloc(1, sizeof(Ns_DriverInitData));
-    if (init == NULL) {
-        Ns_Log(Error, "%s: Memory allocation failure in Ns_ModuleInit",
-                module);
-        return NS_ERROR;
-    }
+    Ns_DriverInitData init;
 
     /*
      * Initialize the driver with the async option so that the driver thread
@@ -77,14 +70,14 @@ Ns_ModuleInit(char *server, char *module)
      * passing to the connection for processing.
      */
 
-    init->version = NS_DRIVER_VERSION_1;
-    init->name = "nssock";
-    init->proc = SockProc;
-    init->opts = NS_DRIVER_ASYNC;
-    init->arg  = NULL;
-    init->path = NULL;
+    init.version = NS_DRIVER_VERSION_1;
+    init.name = "nssock";
+    init.proc = SockProc;
+    init.opts = NS_DRIVER_ASYNC;
+    init.arg = NULL;
+    init.path = NULL;
 
-    return Ns_DriverInit(server, module, init);
+    return Ns_DriverInit(server, module, &init);
 }
 
 

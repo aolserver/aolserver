@@ -34,7 +34,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.16 2003/03/31 19:46:03 scottg Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.17 2003/04/01 01:47:44 scottg Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -144,11 +144,6 @@ Ns_DriverInit(char *server, char *module, Ns_DriverInitData *init)
 
     if (server != NULL && (servPtr = NsGetServer(server)) == NULL) {
 	return NS_ERROR;
-    }
-
-    if (init == NULL) {
-        Ns_Log(Error, "%s: init argument is NULL", module);
-        return NS_ERROR;
     }
 
     if (init->version != NS_DRIVER_VERSION_1) {
