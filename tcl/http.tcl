@@ -28,7 +28,7 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/http.tcl,v 1.9 2001/08/18 01:54:23 scottg Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/http.tcl,v 1.10 2001/08/27 20:16:00 scottg Exp $
 #
 
 # http.tcl -
@@ -181,6 +181,86 @@ proc ns_httpopen {method url {rqset ""} {timeout 30} {pdata ""}} {
     return [list $rfd $wfd $rpset]
 }
 
+#
+# ns_httppost -
+#	Perform a POST request. This wraps ns_httpopen.
+#
+# Results:
+#	The URL content.
+#
+# Side effects:
+#
+
+proc ns_httppost {url {rqset ""} {qsset ""} {timeout 30}} {
+    #
+    # Build the query string to POST with
+    #
+
+    set querystring ""
+    for {set i 0} {$i < [ns_set size $qsset]} {incr i} {
+	set key [ns_set key $qsset $i]
+	set value [ns_set value $qsset $i]
+	set querystring "$querystring&$key=$value"
+    }
+    ns_log notice "QS to send is $querystring"
+    set querystring [ns_urlencode $querystring]
+
+    #
+    # Build the request. Since we're posting, we have to set
+    # content-type and content-length ourselves. We'll add these to
+    # rqset, overwriting if they already existed, which they
+    # shouldn't.
+    #
+
+    if {[string match "" $rqset]} { 
+	set rqset [ns_set new rqset]
+	ns_set put $rqset "Accept" "*/*\r"
+	ns_set put $rqset "User-Agent" "[ns_info name]-Tcl/[ns_info version]\r"
+    }
+    ns_set put $rqset "Content-length" [string length $querystring]
+    ns_set put $rqset "Content-type" "application/x-www-form-urlencoded"
+
+    #
+    # Perform the actual request.
+    #
+    
+    set http [ns_httpopen POST $url $rqset $timeout $querystring]
+    set rfd [lindex $http 0]
+    close [lindex $http 1]
+    set headers [lindex $http 2]
+
+    set length [ns_set iget $headers content-length]
+    if [string match "" $length] {
+	set length -1
+    }
+    set err [catch {
+	#
+	# Read the content.
+	#
+	
+	while 1 {
+	    set buf [_ns_http_read $timeout $rfd $length]
+	    append page $buf
+	    if [string match "" $buf] {
+		break
+	    }
+	    if {$length > 0} {
+		incr length -[string length $buf]
+		if {$length <= 0} {
+		    break
+		}
+	    }
+	}
+    } errMsg]
+
+    ns_set free $headers
+    close $rfd
+    if $err {
+	global errorInfo
+	return -code error -errorinfo $errorInfo $errMsg
+    }
+    return $page
+}
 
 #
 # ns_httpget -
@@ -267,6 +347,7 @@ proc ns_httpget {url {timeout 30} {depth 0} {rqset ""}} {
     }
     return $page
 }
+
 
 # ==========================================================================
 # Local procs

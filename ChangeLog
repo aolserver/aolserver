@@ -1,3 +1,10 @@
+2001-08-27  Soctt S. Goodwin  <scott@scottg.net>
+
+	* https.tcl: added ns_httppost, that is called with url, rqset,
+	qsset and timeout. The qsset is an ns_set with key/values that
+	will be turned into user=scottg&pass=1234, for example, and passed
+	as content in the POST.
+
 2001-08-17  Scott S. Goodwin  <scott@scottg.net>
 
 	* tcl/http.tcl: moved rqset to be the last arg passed to
