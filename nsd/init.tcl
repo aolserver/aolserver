@@ -28,7 +28,7 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/init.tcl,v 1.20 2003/06/18 20:51:18 mpagenva Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/init.tcl,v 1.21 2003/06/25 21:34:09 mpagenva Exp $
 #
 
 #
@@ -103,14 +103,26 @@ proc ns_eval {args} {
     # the ictl environment
     set code [catch {uplevel 1 $args} result]
     if {!$code && [ns_ictl epoch]} {
-	# If the local eval result was ok (code == 0),
-	# and if we are not in interp init processing (epoch != 0),
+        # If the local eval result was ok (code == 0),
+        # and if we are not in interp init processing (epoch != 0),
         # eval the args in a fresh thread to obtain a pristine
         # environment.
-        set tid [ns_thread begin [list _ns_eval $args]]
-        ns_thread join $tid
+        # Note that running the _ns_eval must be serialized for this
+        # server.
+        set lock_id [nsv_get _ns_eval_lock [ns_info server]]
+        ns_mutex lock $lock_id
+
+        set th_code [catch {
+            set tid [ns_thread begin [list _ns_eval $args]]
+            ns_thread join $tid
+        } th_result]
+
+        ns_mutex unlock $lock_id
+        if {$th_code} {
+            return -code $th_code $th_result
+        }
     } elseif {$code == 1} {
-	ns_markfordelete
+        ns_markfordelete
     }
     return -code $code $result
 }
@@ -541,6 +553,24 @@ proc _ns_tclrename { oldName newName } {
     }
 }
 
+
+
+#
+# _ns_initshutdowncb -
+#
+#   This is a ns_atshutdown callback which takes care of
+#   cleanup of pieces that are placed into global structures
+#   at server startup by code in this file.
+#
+
+proc _ns_initshutdowncb {} {
+    if [nsv_exists _ns_eval_lock [ns_info server]] {
+        ns_mutex destroy [nsv_get _ns_eval_lock [ns_info server]]
+        nsv_unset _ns_eval_lock [ns_info server]
+    }
+}
+
+
 #
 # Source the top level Tcl libraries.
 #
@@ -566,6 +596,15 @@ foreach module [ns_ictl getmodules] {
 #
 _rename rename _ns_tclrename
 _rename _rename rename
+
+#
+# Create a mutex for ns_eval's serialization
+#
+if {![nsv_exists _ns_eval_lock [ns_info server]]} {
+    nsv_set _ns_eval_lock [ns_info server] [ns_mutex create]
+    # Make sure that we cleanup after ourselves
+    ns_atshutdown _ns_initshutdowncb
+}
 
 #
 # Save the current namespaces.
