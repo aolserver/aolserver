@@ -1,7 +1,7 @@
-2003-08-20  Rahul Bhargava <rahul032213@aol.com>
+2003-08-19  Rahul Bhargava <rahul032213@aol.com>
 
-        * nsd/return.c:
-	* Updated to support HTTP/1.1 Transfer Chunk Encoding Headers only.
+        * nsd/return.c: Updated to support HTTP/1.1 Transfer Chunk Encoding 
+        Headers only.
 
 2003-08-19  Nathan Folkman <shmooved@aol.com>
 
@@ -29,9 +29,8 @@
 	* nsd/conn.c:
         * nslog/nslog.c:
         * include/ns.h:
-        * sample-config.tcl: 
-        Merge in feature from 3.5 branch (with simpler implementation)
-        for logging of request execution time in access log. 
+        * sample-config.tcl: Merge in feature from 3.5 branch (with simpler 
+        implementation) for logging of request execution time in access log. 
 
         To turn on feature add:   
 
