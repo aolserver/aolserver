@@ -4,7 +4,7 @@ README:  AOLserver
     This is the AOLserver 3.5 source distribution.  AOLserver is
     available at http://aolserver.com, a SourceForge hosted site.
 
-RCS: @(#) $Id: README,v 1.1.4.1.2.1 2002/09/23 23:18:05 jgdavidson Exp $
+RCS: @(#) $Id: README,v 1.1.4.1.2.2 2002/09/24 18:23:47 kriston Exp $
 
 
 Contents
@@ -18,10 +18,10 @@ Contents
 
 1. Introduction
 ---------------
-AOLserver is a multithread web server with flexible and extensible
-C and Tcl API's.  AOLserver is used for several high traffic,
-dynamic web applications and services at America Online among other
-sites.
+
+AOLserver is a multithread web server with flexible and extensible C
+and Tcl API's.  AOLserver is used for several high traffic, dynamic
+web applications and services at America Online among other sites.
 
 AOLserver is maintained, enhanced, and distributed freely by the
 AOLserver community.  The home for AOLserver sources and bug/patch
@@ -36,14 +36,12 @@ AOLserver is a freely available open source package.  See the file
 2. Documentation
 ----------------
 
-Documentation is available on http://aolserver.com/.
-
-In addition, the "doc" subdirectory in this release contains a set
-of Unix-style reference manual entries for AOLserver.  Files with
-extension ".1" are for programs (for example, nsd.1); files with
-extension ".3" are for C library procedures; and files with extension
-".n" describe Tcl commands.  The file "doc/nsd.1" gives a quick
-summary of the AOLserver configuration.  To view any of the man
+Documentation is available in the "doc" subdirectory of this release.
+It contains of Unix-style reference manual entries for AOLserver.
+Files with extension ".1" are for programs (for example, nsd.1); files
+with extension ".3" are for C library procedures; and files with
+extension ".n" describe Tcl commands.  The file "doc/nsd.1" gives a
+quick summary of the AOLserver configuration.  To view any of the man
 pages on Unix, cd to the "doc" directory and invoke your favorite
 variant of troff using the normal -man macros, for example:
 
@@ -54,8 +52,8 @@ Conversion to HTML may be possible with:
 		groff -Thtml -man nsd.1 > nsd.html
 
 If AOLserver has been installed correctly and your "man" program
-supports it, you should be able to access the AOLserver manual
-entries using the normal "man" mechanisms, such as
+supports it, you should be able to access the AOLserver manual entries
+using the normal "man" mechanisms, such as
 
 		man -M /usr/local/aolserver/man nsd
 
@@ -63,9 +61,9 @@ entries using the normal "man" mechanisms, such as
 3. Compiling and installing AOLserver
 -------------------------------------
 
-AOLserver is known to compile and run on FreeBSD, Linux, Solaris,
-and Mac OS/X 10.2.  Ports to other modern platforms such as HP/UX
-should be easy.  To compile and install AOLserver:
+AOLserver is known to compile and run on FreeBSD, Linux, Solaris, and
+Mac OS/X 10.2.  Ports to other modern platforms such as HP/UX should
+be easy.  To compile and install AOLserver:
 
 3a.     Download, configure, build and install Tcl 8.4 or better
 	with threads and shared libraries enabled.  To do so,
@@ -75,13 +73,13 @@ should be easy.  To compile and install AOLserver:
 	(e.g., /usr/local/aolserver) or in some other location.
 	The following should work:
 
-	% gnzip < tcl8.4.0-src.tar.gz | tar xvf -
+	% gunzip < tcl8.4.0-src.tar.gz | tar xvf -
 	% cd tcl8.4.0/unix
 	% ./configure --prefix=/usr/local/aolserver --enable-threads
 	% make install
 	
 3b.     If you don't have GNU make (Linux make is GNU make), install
-	it as AOLserver's makefiles require it.  If your not sure
+	it as AOLserver's makefiles require it.  If you're not sure
 	if you have GNU make, try "make -v" to check.  You can get
 	GNU make at http://www.gnu.org.
 
@@ -93,7 +91,7 @@ should be easy.  To compile and install AOLserver:
 	% ./configure 
 	% make install
 
-	AOLserrver's configure script takes the following options:
+	AOLserver's configure script takes the following options:
 
 	--with-tcl=/usr/local/aolserver/lib
 
