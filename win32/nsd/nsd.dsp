@@ -121,6 +121,10 @@ SOURCE=..\..\nsd\callbacks.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\nsd\cls.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\nsd\config.c
 # End Source File
 # Begin Source File
@@ -318,6 +322,10 @@ SOURCE=..\..\nsd\tclfile.c
 # Begin Source File
 
 SOURCE=..\..\nsd\tclinit.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\nsd\tcljob.c
 # End Source File
 # Begin Source File
 
