@@ -33,7 +33,7 @@
  *	AOLserver Ns_Main() startup routine.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.5 2000/08/17 06:09:49 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.6 2000/08/25 21:21:00 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -313,7 +313,7 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
         printf("AOLserver version %s\n", NSD_VERSION); 
 	printf("   Platform:        %s\n", Ns_InfoPlatform());
 	printf("   Built:           %s\n", Ns_InfoBuildDate());
-	printf("   Tcl version      %s\n", nsTclVersion);
+	printf("   Tcl version:     %s\n", nsTclVersion);
 	printf("   Thread library:  %s\n", NsThreadLibName());
         return 0;
     } else if (nsconf.config == NULL) {
@@ -1228,19 +1228,18 @@ UsageError(char *msg)
     fprintf(stderr,
 	"\nUsage:\n\n"
 	""
-	"%s [-h] [-s server] [-z] " UOPTS "{-i|-f|-V" SOPTS "} {-c|-t} <config>\n\n"
+	"    %s [-h|-V] [-z] " UOPTS "[-s server] {-i|-f" SOPTS "} {-c|-t} <config>\n\n"
 	""
 	"Where:\n\n"
 	""
 	"    -h           Print this usage message and exit.\n"
+	"    -V           Print identification of server and exit.\n"
 	"    -i           Run in installed mode, log output to file.\n"
 	"    -f           Run in foreground mode, log output to screen.\n"
-	"    -V           Print identification of server and exit.\n"
-	"    -s <server>  Server to run when > 1 server in config file.\n"
 	"    -z           Enable fast memory allocator (see documentation).\n"
 #ifdef WIN32
-    	"    -I           Install as an NT service."
-    	"    -R           Remove installed NT service."
+    	"    -I           Install as an NT service.\n"
+    	"    -R           Remove installed NT service.\n"
 #else
 	"    -k           Kill running server (based on pidfile) and continue.\n"
 	"    -K           Kill running server (based on pidfile) and terminate.\n"
@@ -1249,6 +1248,7 @@ UsageError(char *msg)
 	"    -u <user>    setuid() to get given uid/user (normally required)\n"
 	"    -g <group>   setgid() to get given gid/group (perhaps useful)\n"
 #endif
+	"    -s <server>  Server to run when > 1 server in config file.\n"
 	"    -c <config>  Path to the config file (.ini format)\n"
 	"    -t <config>  Path to the config file (.tcl format)\n\n"
 	""
