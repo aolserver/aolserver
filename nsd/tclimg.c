@@ -33,7 +33,7 @@
  *	Commands for image files.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclimg.c,v 1.7 2003/02/04 23:10:50 jrasmuss23 Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclimg.c,v 1.8 2003/02/25 17:34:24 shmooved Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -46,7 +46,6 @@ static unsigned int JpegRead2Bytes(Tcl_Channel chan);
 static int JpegNextMarker(Tcl_Channel chan);
 static int JpegSize(Tcl_Channel chan, int *wPtr, int *hPtr);
 static unsigned int JpegRead2Bytes(Tcl_Channel chan);
-static void AppendDims(Tcl_Interp *interp, int w, int h);
 static int AppendObjDims(Tcl_Interp *interp, int w, int h);
 
 
@@ -224,7 +223,7 @@ JpegSize(Tcl_Channel chan, int *wPtr, int *hPtr)
 	    if (i == EOF || i == M_SOS || i == M_EOI) {
 	    	break;
 	    }
-	    if ((i >> 4) == 0xC) {
+            if (0xC0 <= i && i <= 0xC3) {
 		if (JpegRead2Bytes(chan) != EOF && ChanGetc(chan) != EOF
 		    && (h = JpegRead2Bytes(chan)) != EOF
 		    && (w = JpegRead2Bytes(chan)) != EOF) {
@@ -350,34 +349,6 @@ ChanGetc(Tcl_Channel chan)
 	return EOF;
     }
     return (int) buf[0];
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * AppendDims --
- *
- *	Format and append width and height dimensions.
- *
- * Results:
- *	None.
- *
- * Side effects:
- *	List elements appended to interp result.
- *
- *----------------------------------------------------------------------
- */
-
-static void
-AppendDims(Tcl_Interp *interp, int w, int h)
-{
-    char buf[20];
-
-    sprintf(buf, "%d", w);
-    Tcl_AppendElement(interp, buf);
-    sprintf(buf, "%d", h);
-    Tcl_AppendElement(interp, buf);
 }
 
 
