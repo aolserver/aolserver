@@ -1,5 +1,5 @@
 
-# $Header: /Users/dossy/Desktop/cvs/aolserver/Attic/sample-config.tcl,v 1.1 2002/02/24 21:45:29 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/Attic/sample-config.tcl,v 1.2 2002/06/12 22:41:22 jgdavidson Exp $
 
 #
 # sample-config.tcl --  The AOLserver Startup Script
@@ -57,7 +57,6 @@ ns_param   debug           false
 # Thread library (nsthread) parameters
 #
 ns_section "ns/threads"
-ns_param   mutexmeter      true      ;# measure lock contention
 #ns_param   stacksize [expr 128*1024] ;# Per-thread stack size.
 
 #
@@ -92,9 +91,6 @@ ns_param   $servername     $serverdesc
 ns_section "ns/server/${servername}"
 ns_param   directoryfile   $directoryfile
 ns_param   pageroot        $pageroot
-ns_param   globalstats     true      ;# Enable built-in statistics.
-ns_param   urlstats        true      ;# Enable URL statistics.
-ns_param   maxurlstats     1000      ;# Max number of URL's to do stats on.
 ns_param   enabletclpages  false     ;# Parse *.tcl files in pageroot.
 
 
@@ -129,13 +125,6 @@ ns_param   enabledebug     false     ;# Allow Tclpro debugging with "?debug".
 
 # ADP special pages
 #ns_param   errorpage      ${pageroot}/errorpage.adp ;# ADP error page.
-
-
-#
-# ADP custom parsers -- see adp.c
-#
-ns_section "ns/server/${servername}/adp/parsers"
-ns_param   adp             ".adp"    ;# adp is the default parser.
 
 
 #
