@@ -32,7 +32,7 @@
  *
  *	Core threading and system headers.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/nsthread.h,v 1.19 2002/06/08 14:49:12 jgdavidson Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/nsthread.h,v 1.20 2002/06/10 22:29:26 jgdavidson Exp $
  */
 
 #ifndef NSTHREAD_H
@@ -61,13 +61,15 @@
 #define FD_SETSIZE 1024
 #endif
 
-#include <sys/types.h>
+#include "tcl.h"
 #include <dirent.h>
 #include <sys/time.h>
-#include <unistd.h>
-#include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+#include <string.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <sys/socket.h>
 #include <netdb.h>
 #include <sys/uio.h>
 #include <limits.h>
@@ -75,7 +77,6 @@
 #include <fcntl.h>
 #include <signal.h>
 #include <errno.h>
-#include <string.h>
 #include <ctype.h>
 #include <stdlib.h>
 #include <stddef.h>
@@ -120,6 +121,7 @@ typedef struct Ns_Time {
 
 typedef void (Ns_ThreadProc) (void *arg);
 typedef void (Ns_TlsCleanup) (void *arg);
+typedef void (Ns_ThreadEnumProc) (Tcl_DString *, void *proc, void *arg);
 
 /*
  * fork.c:
@@ -146,7 +148,7 @@ NS_EXTERN char *ns_strdup(const char *string);
 NS_EXTERN char *ns_strcopy(const char *string);
 
 /*
- * lock.c:
+ * mutex.c:
  */
 
 NS_EXTERN void Ns_MutexInit(Ns_Mutex *mutexPtr);
@@ -156,11 +158,22 @@ NS_EXTERN int  Ns_MutexTryLock(Ns_Mutex *mutexPtr);
 NS_EXTERN void Ns_MutexUnlock(Ns_Mutex *mutexPtr);
 NS_EXTERN void Ns_MutexSetName(Ns_Mutex *mutexPtr, char *name);
 NS_EXTERN void Ns_MutexSetName2(Ns_Mutex *mutexPtr, char *prefix, char *name);
+NS_EXTERN void Ns_MutexEnum(Tcl_DString *dsPtr);
+
+/*
+ * rwlock.c:
+ */
+
 NS_EXTERN void Ns_RWLockInit(Ns_RWLock *lockPtr);
 NS_EXTERN void Ns_RWLockDestroy(Ns_RWLock *lockPtr);
 NS_EXTERN void Ns_RWLockRdLock(Ns_RWLock *lockPtr);
 NS_EXTERN void Ns_RWLockWrLock(Ns_RWLock *lockPtr);
 NS_EXTERN void Ns_RWLockUnlock(Ns_RWLock *lockPtr);
+
+/*
+ * cslock.c;
+ */
+
 NS_EXTERN void Ns_CsInit(Ns_Cs *csPtr);
 NS_EXTERN void Ns_CsDestroy(Ns_Cs *csPtr);
 NS_EXTERN void Ns_CsEnter(Ns_Cs *csPtr);
@@ -219,9 +232,10 @@ NS_EXTERN void Ns_ThreadYield(void);
 NS_EXTERN void Ns_ThreadSetName(char *name);
 NS_EXTERN int Ns_ThreadId(void);
 NS_EXTERN void Ns_ThreadSelf(Ns_Thread *threadPtr);
-NS_EXTERN int Ns_CheckStack(void);
 NS_EXTERN char *Ns_ThreadGetName(void);
 NS_EXTERN char *Ns_ThreadGetParent(void);
+NS_EXTERN void Ns_ThreadEnum(Tcl_DString *dsPtr, Ns_ThreadEnumProc *proc);
+NS_EXTERN long Ns_ThreadStackSize(long size);
 
 /*
  * time.c:
