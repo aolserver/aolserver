@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/Makefile,v 1.35 2002/07/08 02:59:34 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/Makefile,v 1.36 2002/09/11 00:06:48 jgdavidson Exp $
 #
 
 #
@@ -48,39 +48,20 @@
 
 include include/Makefile.global
 
-MAKEFLAGS 	+= nsbuild=1
-ifdef AOLSERVER
-    MAKEFLAGS	+= AOLSERVER=$(AOLSERVER)
-endif
-ifdef NSDEBUG
-    MAKEFLAGS	+= NSDEBUG=$(NSDEBUG)
-endif
-ifdef NSGCC
-    MAKEFLAGS	+= NSGCC=$(NSGCC)
-endif
-
 dirs   = nsthread nsd nssock nsssl nscgi nscp nslog nsperm nsdb nsext nspd
 
-all: tcl aolserver
-
-aolserver:
+all: 
 	@for i in $(dirs); do \
 		( cd $$i && $(MAKE) all ) || exit 1; \
 	done
 
-install: all install-tcl install-aolserver
-
-install-binaries: all install-tclbinaries install-asbinaries
-
-install-aolserver: install-asbinaries
+install: all 
 	$(MKDIR)		$(AOLSERVER)/log
 	$(MKDIR)		$(AOLSERVER)/modules
 	$(MKDIR)		$(INSTSRVPAG)
 	$(CP) -r tcl    	$(AOLSERVER)/modules/
 	$(CP) -r include	$(AOLSERVER)/
 	$(CP) sample-config.tcl $(AOLSERVER)/
-
-install-asbinaries: 
 	@for i in $(dirs); do \
 		(cd $$i && $(MAKE) install) || exit 1; \
 	done
@@ -88,35 +69,7 @@ install-asbinaries:
 install-tests:
 	$(CP) -r tests $(INSTSRVPAG)
 
-distclean: clean-aolserver
-	(cd $(tclsrc); $(MAKE) -f Makefile.in distclean)
-
-clean: clean-tcl clean-aolserver
-
-clean-aolserver:
+clean:
 	@for i in $(dirs); do \
 		(cd $$i && $(MAKE) clean) || exit 1; \
 	done
-
-clean-tcl:
-	(cd $(tclsrc); $(MAKE) -f Makefile.in clean)
-
-tcl: $(tclsrc)/Makefile 
-	(cd $(tclsrc); $(MAKE) MEM_DEBUG_FLAGS='$(tclmemdbg)')
-
-tcl-checkout:
-	(cd `dirname $(tcldir)` && \
-		cvs -d :pserver:anonymous@cvs.tcl.sourceforge.net:/cvsroot/tcl \
-			co -r$(tcltag) -d `basename $(tcldir)` tcl)
-
-tcl-update:
-	(cd $(tcldir) && cvs update)
-
-$(tclsrc)/Makefile: $(tclsrc)/Makefile.in $(tclsrc)/configure
-	(cd $(tclsrc); ./configure $(tclcfg))
-
-install-tcl: install-tclbinaries
-	(cd $(tclsrc); $(MAKE) install-libraries)
-
-install-tclbinaries: tcl
-	(cd $(tclsrc); $(MAKE) install-binaries)
