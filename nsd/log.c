@@ -34,29 +34,32 @@
  *	Manage the server log file.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/log.c,v 1.8 2001/03/28 00:26:35 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/log.c,v 1.9 2001/05/02 15:50:34 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
-
-#define DEFAULT_LEVEL         Notice
-#define DEFAULT_FILE          NULL
 
 /*
  * Local functions defined in this file
  */
 
-static void  Log(Ns_LogSeverity severity, char *fmt, va_list *argsPtr);
 static int   LogReOpen(void);
-static char *LogTime(char *buf);
-static int   GetSeverity(Tcl_Interp *interp, char *severityStr,
-			 Ns_LogSeverity *severityPtr);
+static void  Log(Ns_LogSeverity severity, char *fmt, va_list ap);
+static int   LogStart(Ns_DString *dsPtr, Ns_LogSeverity severity);
+static void  LogEnd(Ns_DString *dsPtr);
+static void  LogWrite(void);
+static Ns_Callback LogFlush;
+static char *LogTime(int gmtoff);
 
 /*
  * Static variables defined in this file
  */
-static char     *logFile;
-static FILE     *logFileFd;
-static Ns_Mutex  lock;
+
+static Ns_Mutex lock;
+static Ns_Cond cond;
+static Ns_DString buffer;
+static int buffered = 0;
+static int flushing = 0;
+static int nbuffered = 0;
 
 
 /*
@@ -78,7 +81,7 @@ static Ns_Mutex  lock;
 char *
 Ns_InfoErrorLog(void)
 {
-    return logFile;
+    return nsconf.log.file;
 }
 
 
@@ -102,11 +105,11 @@ Ns_InfoErrorLog(void)
 int
 Ns_LogRoll(void)
 {
-    if (logFile != NULL) {
-        if (access(logFile, F_OK) == 0) {
-            Ns_RollFile(logFile, nsconf.log.maxback);
+    if (nsconf.log.file != NULL) {
+        if (access(nsconf.log.file, F_OK) == 0) {
+            Ns_RollFile(nsconf.log.file, nsconf.log.maxback);
         }
-        Ns_Log(Notice, "log: re-opening log file '%s'", logFile);
+        Ns_Log(Notice, "log: re-opening log file '%s'", nsconf.log.file);
         if (LogReOpen() != NS_OK) {
 	    return NS_ERROR;
 	}
@@ -132,23 +135,21 @@ Ns_LogRoll(void)
  */
 
 void
-ns_serverLog(Ns_LogSeverity severity, char *fmt, va_list *vaPtr)
-{
-    
-    if (severity == Debug && nsconf.log.debug == 0) {
-	return;
-    }
-    Log(severity, fmt, vaPtr);
-}
-
-void
 Ns_Log(Ns_LogSeverity severity, char *fmt, ...)
 {
     va_list ap;
 
     va_start(ap, fmt);
-    ns_serverLog(severity, fmt, &ap);
+    Log(severity, fmt, ap);
     va_end(ap);
+}
+
+/* NB: For binary compatibility with previous releases. */
+
+void
+ns_serverLog(Ns_LogSeverity severity, char *fmt, va_list *vaPtr)
+{
+    Log(severity, fmt, *vaPtr);
 }
 
 
@@ -175,7 +176,7 @@ Ns_Fatal(char *fmt, ...)
     va_list ap;
 
     va_start(ap, fmt);
-    Log(Fatal, fmt, &ap);
+    Log(Fatal, fmt, ap);
     va_end(ap);
     _exit(1);
 }
@@ -184,7 +185,7 @@ Ns_Fatal(char *fmt, ...)
 /*
  *----------------------------------------------------------------------
  *
- * Ns_LogTime2, Ns_LogTime --
+ * Ns_LogTime --
  *
  *	Construct local date and time for log file. 
  *
@@ -199,48 +200,16 @@ Ns_Fatal(char *fmt, ...)
  */
 
 char *
-Ns_LogTime2(char *timeBuf, int gmtoff)
-{
-    time_t     now;
-    struct tm *ptm;
-    int gmtoffset, n, sign;
-
-    now = time(NULL);
-    ptm = ns_localtime(&now);
-    n = strftime(timeBuf, 32, "[%d/%b/%Y:%H:%M:%S", ptm);
-    if (!gmtoff) {
-    	strcat(timeBuf+n, "]");
-    } else {
-#ifdef NO_TIMEZONE
-	gmtoffset = ptm->tm_gmtoff / 60;
-#else
-	gmtoffset = -timezone / 60;
-	if (daylight && ptm->tm_isdst) {
-            gmtoffset += 60;
-	}
-#endif
-	if (gmtoffset < 0) {
-            sign = '-';
-            gmtoffset *= -1;
-	} else {
-            sign = '+';
-	}
-	sprintf(timeBuf + n, 
-		" %c%02d%02d]", sign, gmtoffset / 60, gmtoffset % 60);
-    }
-    return timeBuf;
-}
-
-char *
 Ns_LogTime(char *timeBuf)
 {
-    return Ns_LogTime2(timeBuf, 1);
+    strcpy(timeBuf, LogTime(1));
+    return timeBuf;
 }
-
 
 
 /*
  *----------------------------------------------------------------------
+ *
  * NsLogOpen --
  *
  *	Open the log file. Adjust configurable parameters, too. 
@@ -259,31 +228,31 @@ Ns_LogTime(char *timeBuf)
 void
 NsLogOpen(void)
 {
-    Ns_DString ds;
-    int        roll;
+    /*
+     * Initialize log buffering.
+     */
+
+    Ns_MutexInit(&lock);
+    Ns_CondInit(&cond);
+    Ns_MutexSetName(&lock, "ns:log");
+    Ns_DStringInit(&buffer);
+    if (nsconf.log.flags & LOG_BUFFER) {
+	buffered = 1;
+	Ns_RegisterAtShutdown(LogFlush, (void *) 1);
+	if (nsconf.log.flushint > 0) {
+	    Ns_ScheduleProc(LogFlush, (void *) 0, 0, nsconf.log.flushint);
+	}
+    }
 
     /*
-     * Log max backup is the maximum number of log files allowed.  Older files
-     * are nuked as newer ones are created
+     * Open the log and schedule the signal roll.
      */
-    
-    logFile = Ns_ConfigGet(NS_CONFIG_PARAMETERS, "serverlog");
-    if (logFile == NULL) {
-	logFile = "server.log";
-    }
-    Ns_DStringInit(&ds);
-    if (Ns_PathIsAbsolute(logFile) == NS_FALSE) {
-	Ns_HomePath(&ds, "log", logFile, NULL);
-	logFile = Ns_DStringExport(&ds);
-    }
+
     if (LogReOpen() != NS_OK) {
 	Ns_Fatal("log: failed to open server log '%s': '%s'", 
-		 logFile, strerror(errno));
+		 nsconf.log.file, strerror(errno));
     }
-    if (!Ns_ConfigGetBool(NS_CONFIG_PARAMETERS, "logroll", &roll)) {
-    	roll = 1;
-    }
-    if (roll) {
+    if (nsconf.log.flags & LOG_ROLL) {
 	Ns_RegisterAtSignal((Ns_Callback *) Ns_LogRoll, NULL);
     }
 }
@@ -332,36 +301,48 @@ NsTclLogRollCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
  *----------------------------------------------------------------------
  */
 
-static int
-TclLog(Tcl_Interp *interp, char *sevstr, int msgc, char **msgv)
-{
-    Ns_LogSeverity severity;
-    char *msg;
-
-    if (GetSeverity(interp, sevstr, &severity) != TCL_OK) {
-    	return TCL_ERROR;
-    }    
-    if (msgc == 1) {
-    	msg = msgv[0];
-    } else {
-    	msg = Tcl_Concat(msgc, msgv);
-    }
-    Ns_Log(severity, "%s", msg);
-    if (msg != msgv[0]) {
-    	ckfree(msg);
-    }
-    return TCL_OK;
-}
-
 int
 NsTclLogCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 {
+    Ns_LogSeverity severity;
+    Ns_DString ds;
+    int i;
+
     if (argc < 3) {
         Tcl_AppendResult(interp, "wrong # of args:  should be \"",
                          argv[0], " severity string ?string ...?\"", NULL);
     	return TCL_ERROR;
     }
-    return TclLog(interp, argv[1], argc-2, argv+2);
+    if (STRIEQ(argv[1], "notice")) {
+	severity = Notice;
+    } else if (STRIEQ(argv[1], "warning")) {
+	severity = Warning;
+    } else if (STRIEQ(argv[1], "error")) {
+	severity = Error;
+    } else if (STRIEQ(argv[1], "fatal")) {
+	severity = Fatal;
+    } else if (STRIEQ(argv[1], "bug")) {
+	severity = Bug;
+    } else if (STRIEQ(argv[1], "debug")) {
+	severity = Debug;
+    } else if (Tcl_GetInt(interp, argv[1], &i) == TCL_OK) {
+	severity = i;
+    } else {
+        Tcl_AppendResult(interp, "unknown severity \"",
+                         argv[1], "\":  should be one of: ",
+			 "fatal, error, warning, bug, notice, or debug.",
+			 NULL);
+    	return TCL_ERROR;
+    }
+    Ns_DStringInit(&ds);
+    if (LogStart(&ds, severity)) {
+	for (i = 2; i < argc; ++i) {
+	    Ns_DStringVarAppend(&ds, argv[i], i > 2 ? " " : NULL, NULL);
+	}
+	LogEnd(&ds);
+    }
+    Ns_DStringFree(&ds);
+    return TCL_OK;
 }
 
 
@@ -370,77 +351,215 @@ NsTclLogCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
  *
  * Log --
  *
- *	Unconditionally write a line to the log file--this does the 
- *	actual writing. 
+ *	Add an entry to the log file if the severity is not surpressed.
  *
  * Results:
  *	None. 
  *
  * Side effects:
- *	None. 
+ *	May write immediately or later through buffer.
  *
  *----------------------------------------------------------------------
  */
 
 static void
-Log(Ns_LogSeverity severity, char *fmt, va_list *argsPtr)
+Log(Ns_LogSeverity severity, char *fmt, va_list ap)
 {
-    char *severityStr;
-    char  timebuf[100];
-    FILE *fp;
-    static int initialized;
+    Ns_DString ds;
 
-    if (!initialized) {
-	Ns_MasterLock();
-	if (!initialized) {
-	    Ns_MutexSetName2(&lock, "ns", "log");
-	    initialized = 1;
-	}
-	Ns_MasterUnlock();
+    Ns_DStringInit(&ds);
+    if (LogStart(&ds, severity)) {
+	Ns_DStringVPrintf(&ds, fmt, ap);
+	LogEnd(&ds);
     }
+    Ns_DStringFree(&ds);
+}
 
-    Ns_LogTime2(timebuf, 0);
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * LogStart --
+ *
+ *	Start a log entry.
+ *
+ * Results:
+ *	1 if log started and should be written, 0 if given severity
+ *	is surpressed.
+ *
+ * Side effects:
+ *	May append log header to given dstring.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+LogStart(Ns_DString *dsPtr, Ns_LogSeverity severity)
+{
+    char *severityStr, buf[10];
+
     switch (severity) {
-	case Fatal:
-	    severityStr = "Fatal";
-	    break;
-	case Error:
-	    severityStr = "Error";
+	case Notice:
+	    if (nsconf.log.flags & LOG_NONOTICE) {
+		return 0;
+	    }
+	    severityStr = "Notice";
 	    break;
         case Warning:
 	    severityStr = "Warning";
 	    break;
+	case Error:
+	    severityStr = "Error";
+	    break;
+	case Fatal:
+	    severityStr = "Fatal";
+	    break;
 	case Bug:
 	    severityStr = "Bug";
 	    break;
-	case Notice:
-	    severityStr = "Notice";
-	    break;
 	case Debug:
+	    if (!(nsconf.log.flags & LOG_DEBUG)) {
+		return 0;
+	    }
 	    severityStr = "Debug";
 	    break;
+	case Dev:
+	    if (!(nsconf.log.flags & LOG_DEV)) {
+		return 0;
+	    }
+	    severityStr = "Dev";
+	    break;
 	default:
-	    severityStr = "<Unknown>";
+	    if (severity > nsconf.log.maxlevel) {
+		return 0;
+	    }
+	    sprintf(buf, "L%d", severity);
+	    severityStr = buf;
 	    break;
     }
+    Ns_DStringPrintf(dsPtr, "%s[%d.%d][%s] %s: ", LogTime(0),
+		Ns_InfoPid(), Ns_ThreadId(), Ns_ThreadGetName(), severityStr);
+    if (nsconf.log.flags & LOG_EXPAND) {
+	Ns_DStringAppend(dsPtr, "\n    ");
+    }
+    return 1;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * LogEnd --
+ *
+ *	Complete a log entry and either append to buffer or write
+ *	immediately.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	May flush log.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+LogEnd(Ns_DString *dsPtr)
+{
+    Ns_DStringNAppend(dsPtr, "\n", 1);
+    if (nsconf.log.flags & LOG_EXPAND) {
+	Ns_DStringNAppend(dsPtr, "\n", 1);
+    }
+    Ns_MutexLock(&lock);
+    if (!buffered) {
+	Ns_MutexUnlock(&lock);
+	(void) write(2, dsPtr->string, dsPtr->length);
+    } else {
+	while (flushing) {
+	    Ns_CondWait(&cond, &lock);
+	}
+	Ns_DStringNAppend(&buffer, dsPtr->string, dsPtr->length);
+	if (nbuffered++ > nsconf.log.maxbuffer) {
+	    LogWrite();
+	}
+	Ns_MutexUnlock(&lock);
+    }
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * LogFlush --
+ *
+ *	Flush the buffered log, either from the scheduled proc timeout
+ *	or at shutdown.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	May write to log and disables buffering at shutdown.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+LogFlush(void *arg)
+{
+    int exit = (int) arg;
 
     Ns_MutexLock(&lock);
-    if ((fp = logFileFd) == NULL) {
-	fp = stderr;
+
+    /*
+     * Wait for current flushing, if any, to complete.
+     */
+
+    while (flushing) {
+	Ns_CondWait(&cond, &lock);
     }
-    fprintf(fp, "%s[%d.%d][%s] %s: ", timebuf,
-		Ns_InfoPid(), Ns_ThreadId(), Ns_ThreadGetName(), severityStr);
-    if (nsconf.log.expanded == NS_TRUE) {
-	fprintf(fp, "\n    ");
+    if (nbuffered > 0) {
+	LogWrite();
     }
-    vfprintf(fp, fmt, *argsPtr);
-    if (nsconf.log.expanded == NS_TRUE) {
-	fprintf(fp, "\n\n");
-    } else {
-    	fprintf(fp, "\n");
+
+    /*
+     * Disable further buffering at exit time.
+     */
+
+    if (exit) {
+	buffered = 0;
     }
-    fflush(fp);
     Ns_MutexUnlock(&lock);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * LogWrite --
+ *
+ *	Write current buffer to log file.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	Will write data.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+LogWrite(void)
+{
+    flushing = 1;
+    Ns_MutexUnlock(&lock);
+    (void) write(2, buffer.string, buffer.length);
+    Ns_DStringSetLength(&buffer, 0);
+    Ns_MutexLock(&lock);
+    flushing = 0;
+    nbuffered = 0;
+    Ns_CondBroadcast(&cond);
 }
 
 
@@ -469,10 +588,10 @@ LogReOpen(void)
     int status;
 
     status = NS_OK;
-    fd = open(logFile, O_WRONLY|O_APPEND|O_CREAT|O_TEXT, 0644);
+    fd = open(nsconf.log.file, O_WRONLY|O_APPEND|O_CREAT|O_TEXT, 0644);
     if (fd < 0) {
         Ns_Log(Error, "log: failed to re-open log file '%s': '%s'",
-	       logFile, strerror(errno));
+	       nsconf.log.file, strerror(errno));
         status = NS_ERROR;
     } else {
 	/*
@@ -480,8 +599,8 @@ LogReOpen(void)
 	 */
 	
         if (fd != STDERR_FILENO && dup2(fd, STDERR_FILENO) == -1) {
-            fprintf(stdout, "dup2(%s, STDERR_FILENO) failed: %s\n", logFile,
-		    strerror(errno));
+            fprintf(stdout, "dup2(%s, STDERR_FILENO) failed: %s\n",
+		nsconf.log.file, strerror(errno));
             status = NS_ERROR;
         }
 	
@@ -510,41 +629,59 @@ LogReOpen(void)
 /*
  *----------------------------------------------------------------------
  *
- * GetSeverity --
+ * LogTime --
  *
- *	Convert a string severity name into an Ns_LogSeverity. 
+ *	Get formatted local or gmt log time.
  *
  * Results:
- *	Tcl result. 
+ *	Pointer to per-thread buffer.
  *
  * Side effects:
- *	Errors will be appended to interp->result. 
+ *	Buffer is updated if time has changed since check.
  *
  *----------------------------------------------------------------------
  */
 
-static int
-GetSeverity(Tcl_Interp *interp, char *severityStr,
-		Ns_LogSeverity *severityPtr)
+static char *
+LogTime(int gmtoff)
 {
-    if (STRIEQ(severityStr, 	   "fatal")) {
-	*severityPtr = Fatal;
-    } else if (STRIEQ(severityStr, "error")) {
-	*severityPtr = Error;
-    } else if (STRIEQ(severityStr, "warning")) {
-	*severityPtr = Warning;
-    } else if (STRIEQ(severityStr, "bug")) {
-	*severityPtr = Bug;
-    } else if (STRIEQ(severityStr, "notice")) {
-	*severityPtr = Notice;
-    } else if (STRIEQ(severityStr, "debug")) {
-	*severityPtr = Debug;
+    NsTls     *tlsPtr = NsGetTls();
+    time_t     *tp, now = time(NULL);
+    struct tm *ptm;
+    int gmtoffset, n, sign;
+    char *bp;
+
+    if (gmtoff) {
+	tp = &tlsPtr->tfmt.gtime;
+	bp = tlsPtr->tfmt.gbuf;
     } else {
-        Tcl_AppendResult(interp, "unknown severity \"",
-                         severityStr, "\":  should be one of: ",
-			 "fatal, error, warning, bug, notice, or debug.",
-			 NULL);
-    	return TCL_ERROR;
+	tp = &tlsPtr->tfmt.ltime;
+	bp = tlsPtr->tfmt.lbuf;
     }
-    return TCL_OK;
+    if (*tp != time(&now)) {
+	*tp = now;
+	ptm = ns_localtime(&now);
+	n = strftime(bp, 32, "[%d/%b/%Y:%H:%M:%S", ptm);
+	if (!gmtoff) {
+    	    strcat(bp+n, "]");
+	} else {
+#ifdef NO_TIMEZONE
+	    gmtoffset = ptm->tm_gmtoff / 60;
+#else
+	    gmtoffset = -timezone / 60;
+	    if (daylight && ptm->tm_isdst) {
+		gmtoffset += 60;
+	    }
+#endif
+	    if (gmtoffset < 0) {
+		sign = '-';
+		gmtoffset *= -1;
+	    } else {
+		sign = '+';
+	    }
+	    sprintf(bp + n, 
+		    " %c%02d%02d]", sign, gmtoffset / 60, gmtoffset % 60);
+	}
+    }
+    return bp;
 }

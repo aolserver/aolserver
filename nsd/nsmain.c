@@ -33,7 +33,7 @@
  *	AOLserver Ns_Main() startup routine.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.31 2001/04/24 18:55:33 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.32 2001/05/02 15:50:34 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -518,7 +518,11 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 
 #endif
 
-    Ns_MutexSetName2(&nsconf.state.lock, "nsconf", "state");
+    /*
+     * Update core config values.
+     */
+
+    NsConfInit();
 
     /*
      * Open the log file now that the home directory and runtime
@@ -573,7 +577,6 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
      * Initialize the core.
      */
 
-    NsConfInit();
     NsInitMimeTypes();
     NsInitEncodings();
     NsCreatePidFile(procname);

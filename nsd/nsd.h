@@ -101,6 +101,13 @@
 #define ADP_ABORT    2
 #define ADP_RETURN   4
 
+#define LOG_ROLL	1
+#define LOG_EXPAND	2
+#define LOG_DEBUG	4
+#define LOG_DEV		8
+#define LOG_NONOTICE	16
+#define LOG_BUFFER	32
+
 /*
  * The following is the default text/html content type
  * sent to the browsers.  The charset is also used for
@@ -150,9 +157,12 @@ struct _nsconf {
     } state;
     
     struct {
-	bool debug;
-	bool expanded;
+	char *file;
+	int  flags;
+	int  maxlevel;
 	int  maxback;
+	int  maxbuffer;
+	int  flushint;
     } log;
 
     struct {
@@ -754,6 +764,18 @@ typedef struct NsTls {
     struct {
 	Tcl_HashTable	    interps;
     } tcl;
+
+    /*
+     * The following struct maintains cached formatted
+     * time buffers.
+     */
+
+    struct {
+	time_t	gtime;
+	time_t	ltime;
+	char	gbuf[100];
+	char	lbuf[100];
+    } tfmt;
 
     /*
      * The following struct maintains a buffer
