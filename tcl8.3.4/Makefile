@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl8.3.4/Attic/Makefile,v 1.2 2001/11/05 21:52:25 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl8.3.4/Attic/Makefile,v 1.3 2001/11/05 23:02:19 jgdavidson Exp $
 #
 
 include ../include/Makefile.global
@@ -35,7 +35,7 @@ include ../include/Makefile.global
 MAKEFILE	=  $(NSTCL_DIR)/Makefile
 
 all: $(MAKEFILE)
-	(cd $(NSTCL_DIR); $(MAKE) CC='gcc -D_POSIX_PTHREAD_SEMANTICS=1')
+	(cd $(NSTCL_DIR); $(MAKE))
 
 $(MAKEFILE): $(NSTCL_DIR)/Makefile.in $(NSTCL_DIR)/configure
 	(cd $(NSTCL_DIR); ./configure $(NSTCL_CFG))
