@@ -194,7 +194,6 @@ DllMain(HANDLE hModule, DWORD why, LPVOID lpReserved)
  *----------------------------------------------------------------------
  */
 
-char *
 void **
 NsGetTls(void)
 {
@@ -1047,4 +1046,4 @@ readdir(DIR * dp)
     }
     sPtr->ent.d_name = sPtr->fdata.name;
     return &sPtr->ent;
-
+}
