@@ -53,7 +53,7 @@ LINK32=link.exe
 # ADD LINK32 ..\nsd\release\nsd.lib kernel32.lib /nologo /subsystem:console /machine:I386
 # Begin Special Build Tool
 SOURCE="$(InputPath)"
-PostBuild_Cmds=mkdir ..\release	for %%m in (nsd nsthread nstcl) do copy ..\%%m\release\%%m.dll ..\release\*.*	for %%m in (nsd nsthread nstcl) do copy ..\%%m\release\%%m.lib ..\release\*.*	for %%m in (nssock nslog nscp nscgi nsperm) do copy ..\%%m\release\%%m.dll ..\release\*.so	copy release\main.exe ..\release\nsd.exe	for %%m in (threadtest cgitest) do copy ..\%%m\release\*.exe ..\release\*.*
+PostBuild_Cmds=mkdir ..\release	for %%m in (nsd nsthread nstcl nssock nsssl nslog nscp nscgi nsperm) do copy ..\%%m\release\%%m.dll ..\release\*.*	for %%m in (nsd nsthread nstcl) do copy ..\%%m\release\%%m.lib ..\release\*.*	copy release\main.exe ..\release\nsd.exe	for %%m in (threadtest cgitest) do copy ..\%%m\release\*.exe ..\release\*.*
 # End Special Build Tool
 
 !ELSEIF  "$(CFG)" == "main - Win32 Debug"
