@@ -34,7 +34,7 @@
  *      Manage the Ns_Conn structure
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.9 2001/03/13 22:41:34 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.10 2001/03/22 21:30:17 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #define IOBUFSZ 2048
@@ -51,19 +51,10 @@ static int ConnCopy(Ns_Conn *conn, size_t tocopy, Ns_DString *dsPtr,
 static Ns_LocationProc *locationPtr = NULL;
 
 /*
- * Global variables defined in this file
- */
-
-/*
  * Macros for executing connection driver procedures.
  */
  
 #define CONN_CLOSED(conn)		((conn)->flags & NS_CONN_CLOSED)
-#define CONN_DRVPROC(conn,proc)   	(((Conn *) conn)->drvPtr->proc)
-#define CONN_DRVCALL(conn,proc,default) \
-    	((CONN_DRVPROC(conn,proc)) ? \
-	    ((*(CONN_DRVPROC(conn,proc)))(((Conn *) conn)->drvData)) : \
-	    (default))
 
 
 /*
@@ -85,7 +76,10 @@ static Ns_LocationProc *locationPtr = NULL;
 int
 Ns_ConnInit(Ns_Conn *conn)
 {
-    if (CONN_DRVCALL(conn, initProc, NS_OK) != NS_OK) {
+    Conn *connPtr = (Conn *) conn;
+
+    if (connPtr->drvPtr->initProc != NULL &&
+	(*connPtr->drvPtr->initProc)(connPtr->drvData) != NS_OK) {
 	return NS_ERROR;
     }
     return NS_OK;
@@ -435,8 +429,8 @@ Ns_ConnPeer(Ns_Conn *conn)
 {
     Conn           *connPtr = (Conn *) conn;
 
-    if (connPtr->peer == NULL) {
-    	connPtr->peer = CONN_DRVCALL(conn, peerProc, NULL);
+    if (connPtr->peer == NULL && connPtr->drvPtr->peerProc != NULL) {
+	connPtr->peer = (*connPtr->drvPtr->peerProc)(conn);
 	if (connPtr->peer != NULL) {
 	    strncpy(connPtr->peerBuf, connPtr->peer,
 	    	    sizeof(connPtr->peerBuf)-1);
@@ -468,7 +462,10 @@ Ns_ConnPeerPort(Ns_Conn *conn)
 {
     Conn           *connPtr = (Conn *) conn;
 
-    return CONN_DRVCALL(connPtr, peerPortProc, 0);
+    if (connPtr->drvPtr->peerPortProc == NULL) {
+	return 0;
+    }
+    return (*connPtr->drvPtr->peerPortProc)(connPtr->drvData);
 }
 
 
@@ -514,11 +511,14 @@ Ns_SetConnLocationProc(Ns_LocationProc *procPtr)
 char *
 Ns_ConnLocation(Ns_Conn *conn)
 {
+    Conn *connPtr = (Conn *) conn;
+
     if (locationPtr != NULL) {
         return (*locationPtr)(conn);
+    } else if (connPtr->drvPtr->locationProc == NULL) {
+	return NULL;
     }
-    
-    return CONN_DRVCALL(conn, locationProc, NULL);
+    return (*connPtr->drvPtr->locationProc)(connPtr->drvData);
 }
 
 
@@ -541,7 +541,12 @@ Ns_ConnLocation(Ns_Conn *conn)
 char *
 Ns_ConnHost(Ns_Conn *conn)
 {
-    return CONN_DRVCALL(conn, hostProc, NULL);
+    Conn *connPtr = (Conn *) conn;
+
+    if (connPtr->drvPtr->hostProc == NULL) {
+	return NULL;
+    }
+    return (*connPtr->drvPtr->hostProc)(connPtr->drvData);
 }
 
 
@@ -564,7 +569,12 @@ Ns_ConnHost(Ns_Conn *conn)
 int
 Ns_ConnPort(Ns_Conn *conn)
 {
-    return CONN_DRVCALL(conn, portProc, 0);
+    Conn *connPtr = (Conn *) conn;
+
+    if (connPtr->drvPtr->portProc == NULL) {
+	return 0;
+    }
+    return (*connPtr->drvPtr->portProc)(connPtr->drvData);
 }
 
 
@@ -587,7 +597,12 @@ Ns_ConnPort(Ns_Conn *conn)
 int
 Ns_ConnSock(Ns_Conn *conn)
 {
-    return CONN_DRVCALL(conn, sockProc, -1);
+    Conn *connPtr = (Conn *) conn;
+
+    if (connPtr->drvPtr->sockProc == NULL) {
+	return -1;
+    }
+    return (*connPtr->drvPtr->sockProc)(connPtr->drvData);
 }
 
 
@@ -610,7 +625,12 @@ Ns_ConnSock(Ns_Conn *conn)
 char *
 Ns_ConnDriverName(Ns_Conn *conn)
 {
-    return CONN_DRVCALL(conn, nameProc, NULL);
+    Conn *connPtr = (Conn *) conn;
+
+    if (connPtr->drvPtr->nameProc == NULL) {
+	return NULL;
+    }
+    return (*connPtr->drvPtr->nameProc)(connPtr->drvData);
 }
 
 
@@ -711,7 +731,6 @@ Ns_ConnReadLine(Ns_Conn *conn, Ns_DString *dsPtr, int *nreadPtr)
     if (nreadPtr != NULL) {
 	*nreadPtr = nread;
     }
-
     return ret;
 }
 
@@ -1066,8 +1085,7 @@ Ns_ConnReadHeaders(Ns_Conn *conn, Ns_Set *set, int *nreadPtr)
  * Ns_ParseHeader --
  *
  *	Consume a header line, handling header continuation, placing
- *	results in given set. NB: The ellipsis is for backwards
- *	compatibility with pre-3.0 AOLserver API.
+ *	results in given set.
  *
  * Results:
  *	NS_OK/NS_ERROR 
@@ -1143,184 +1161,26 @@ Ns_ParseHeader(Ns_Set *set, char *line, Ns_HeaderCaseDisposition disp)
 /*
  *----------------------------------------------------------------------
  *
- * Ns_ConnGetQuery --
+ * NsIsIdConn --
  *
- *	get the connection query data, either by reading the content 
- *	of a POST request or get it from the query string 
- *
- * Results:
- *	Query data or NULL if error 
- *
- * Side effects:
- *	
- *
- *----------------------------------------------------------------------
- */
-
-Ns_Set  *
-Ns_ConnGetQuery(Ns_Conn *conn)
-{
-    Ns_DString     *dsPtr;
-    Conn           *connPtr = (Conn *) conn;
-    int		    max;
-    
-    max = connPtr->servPtr->limits.maxpost;
-    dsPtr = Ns_DStringPop();
-    if (connPtr->query == NULL) {
-        if (STREQ(conn->request->method, "POST") && conn->contentLength > 0) {
-            if (connPtr->nContent == 0 
-		&& conn->contentLength > max) {
-		Ns_Log(Warning, "conn: "
-		       "post size %d exceeds maxpost limit of %d",
-		       conn->contentLength, max);
-	    } else if (Ns_ConnCopyToDString(conn, conn->contentLength,
-					 dsPtr) != NS_OK) {
-		goto bailout;
-            }
-        } else if (conn->request->query != NULL) {
-            Ns_DStringAppend(dsPtr, conn->request->query);
-        }
-        if (dsPtr->length > 0) {
-	    connPtr->query = Ns_SetCreate(NULL);
-	    if (Ns_QueryToSet(dsPtr->string, connPtr->query) != NS_OK) {
-		Ns_SetFree(connPtr->query);
-		connPtr->query = NULL;
-	    }
-        }
-    }
-    
- bailout:
-    Ns_DStringPush(dsPtr);
-
-    return connPtr->query;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Ns_QueryToSet --
- *
- *	Parse query data into an Ns_Set 
+ *	Given an conn ID, could this be a conn ID?
  *
  * Results:
- *	NS_OK/NS_ERROR 
+ *	Boolean. 
  *
  * Side effects:
- *	Will add data to set 
+ *	None. 
  *
  *----------------------------------------------------------------------
  */
 
 int
-Ns_QueryToSet(char *query, Ns_Set *set)
+NsIsIdConn(char *connId)
 {
-    char           *name;
-    char           *value;
-    int             done, status;
-    int             index;
-    Ns_DString      ds;
-    char           *decode;
-
-    status = NS_OK;
-    Ns_DStringInit(&ds);
-    name = query;
-    done = 0;
-    for (;;) {
-        switch (*query) {
-	    case '\n':
-	    case '\r':
-	    case '\0':
-                done = 1;
-                /* FALLTHROUGH */
-
-	    case '&':
-                *query = '\0';
-                value = strchr(name, '=');
-                if (value != NULL) {
-                  *value = '\0';
-                }
-                Ns_DStringTrunc(&ds, 0);
-                decode = Ns_DecodeUrl(&ds, name);
-                if (decode == NULL) {
-                    status = NS_ERROR;
-                    goto done;
-                }
-                index = Ns_SetPut(set, decode, NULL);
-                if (value != NULL) {
-                    *value++ = '=';
-
-		    Ns_DStringTrunc(&ds, 0);
-		    decode = Ns_DecodeUrl(&ds, value);
-		    if (decode == NULL) {
-			status = NS_ERROR;
-			goto done;
-		    }
-		    Ns_SetPutValue(set, index, decode);
-		}
-		if (done) {
-		    goto done;
-		}
-		++query;
-		name = query;
-		break;
-
-	    case '+':
-		*query = ' ';
-		/* FALLTHROUGH */
-
-	    default:
-		++query;
-		break;
-        }
+    if (connId == NULL || *connId != 'c') {
+	return NS_FALSE;
     }
-
- done:
-    Ns_DStringFree(&ds);
-
-    return status;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsTclParseQueryCmd --
- *
- *	This procedure implements the AOLserver Tcl
- *
- *	    ns_parsequery querystring
- *
- *	command.
- *
- * Results:
- *	The Tcl result is a Tcl set with the parsed name-value pairs from
- *	the querystring argument
- *
- * Side effects:
- *	None external.
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclParseQueryCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv) 
-{
-    Ns_Set *set;
-
-    if (argc != 2) {
-	Tcl_AppendResult(interp, argv[0], ": wrong number args: should be \"",
-	    argv[0], " querystring\"", (char *) NULL);
-	return TCL_ERROR;
-    }
-    set = Ns_SetCreate(NULL);
-    if (Ns_QueryToSet(argv[1], set) != NS_OK) {
-	Tcl_AppendResult(interp, argv[0], ": could not parse: \"",
-	    argv[1], "\"", (char *) NULL);
-	Ns_SetFree(set);
-	return TCL_ERROR;
-    }
-    return Ns_TclEnterSet(interp, set, NS_TCL_SET_DYNAMIC);
+    return NS_TRUE;
 }
 
 
@@ -1462,8 +1322,7 @@ badconn:
             if (form == NULL) {
         	itPtr->nsconn.form[0] = '\0';
 	    } else {
-		form = Ns_SetCopy(form);
-                Ns_TclEnterSet(interp, form, NS_TCL_SET_DYNAMIC);
+                Ns_TclEnterSet(interp, form, NS_TCL_SET_STATIC);
         	strcpy(itPtr->nsconn.form, interp->result);
 	    }
 	    itPtr->nsconn.flags |= CONN_TCLFORM;
