@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/Attic/sample-config.tcl,v 1.6 2003/01/31 22:47:31 mpagenva Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/Attic/sample-config.tcl,v 1.7 2003/02/01 23:45:31 shmooved Exp $
 #
 
 #
@@ -345,4 +345,27 @@ if { [file exists $sslcertfile] && [file exists $sslkeyfile] } {
 #ns_section ns/server/server1/pool/fast
 #ns_param map {GET /faststuff.adp}
 #ns_param maxthreads 10
+#
+
+#
+# Example:  Web based stats interface.
+#
+# To enable:
+#
+# 1. Configure whether or not stats are enabled. (Optional: default = false)
+# 2. Configure URL for statistics. (Optional: default = /_stats)
+#
+#    http://<host>:<port>/_stats
+# 
+# 3. Configure user. (Optional: default = aolserver)
+# 4. Configure password. (Optional: default = stats)
+#
+# For added security it is recommended that configure your own
+# URL, user, and password instead of using the default values.
+#
+#ns_section ns/server/stats
+#    ns_param enabled 1
+#    ns_param url /aolserver/stats
+#    ns_param user nsadmin
+#    ns_param password 23dfs!d
 # 
