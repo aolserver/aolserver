@@ -1,5 +1,11 @@
 2004-07-22  Dossy Shiobara <dossy@panoptic.com>
 
+	* win32/build.tcl (1.2): Ensure we're using the version of Tcl we
+	  built against by having the "install" target place it into the
+	  AOLserver install dirs.
+
+2004-07-22  Dossy Shiobara <dossy@panoptic.com>
+
 	* win32/build.tcl (1.1): Simple Tcl script to produce the Win32
 	  build of AOLserver.
 
