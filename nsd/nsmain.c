@@ -33,7 +33,7 @@
  *	AOLserver Ns_Main() startup routine.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.22.2.3 2001/04/04 00:13:15 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.22.2.4 2002/03/20 15:58:59 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #include "nsconf.h"
@@ -310,17 +310,9 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 
     /*
      * Verify the uid/gid args.
+     * Reversed the order so this will actually work.
+     * Jon Griffin <jon@jongriffin.com> 01/27/2001
      */
-
-    if (garg != NULL) {
-	gid = Ns_GetGid(garg);
-	if (gid < 0) {
-	    gid = atoi(garg);
-	    if (gid == 0) {
-		Ns_Fatal("nsmain: invalid group '%s'", garg);
-	    }
-	}
-    }
     if (uarg != NULL) {
 	uid = Ns_GetUid(uarg);
 	gid = Ns_GetUserGid(uarg);
@@ -331,7 +323,17 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 	    Ns_Fatal("nsmain: invalid user '%s'", uarg);
 	}
     }
-
+    
+    if (garg != NULL) {
+	gid = Ns_GetGid(garg);
+	if (gid < 0) {
+	    gid = atoi(garg);
+	    if (gid == 0) {
+		Ns_Fatal("nsmain: invalid group '%s'", garg);
+	    }
+	}
+    }
+    
     /*
      * AOLserver uses select() extensively so adjust the open file
      * limit to be no greater than FD_SETSIZE on Unix.  It's possible
