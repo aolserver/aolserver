@@ -32,7 +32,7 @@
  *
  *	Core threading and system headers.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/nsthread.h,v 1.6 2000/10/13 00:08:13 jgdavidson Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/nsthread.h,v 1.7 2000/10/18 15:36:11 jgdavidson Exp $
  */
 
 #ifndef NSTHREAD_H
@@ -90,7 +90,7 @@ struct dirent {
 NS_EXTERN DIR *opendir(char *pathname);
 NS_EXTERN struct dirent *readdir(DIR *dp);
 NS_EXTERN int closedir(DIR *dp);
-#define sleep(n)	(Sleep((n)*100))
+#define sleep(n)	(Sleep((n)*1000))
 
 #else
 
