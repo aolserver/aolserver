@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/aclocal.m4,v 1.1 2002/09/10 23:40:04 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/aclocal.m4,v 1.1.2.1 2002/09/17 23:36:02 jgdavidson Exp $
 #
 
 #

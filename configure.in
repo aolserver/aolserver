@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/configure.in,v 1.4 2002/09/16 22:06:56 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/configure.in,v 1.4.2.1 2002/09/17 23:36:02 jgdavidson Exp $
 #
 
 #
@@ -90,6 +90,13 @@ then
     AC_DEFINE(USE_DUPHIGH)
 fi
 AC_MSG_RESULT($duphigh)
+
+AC_TRY_COMPILE([
+#include <sys/types.h>
+#include <sys/socket.h>],[
+struct msghdr msg;
+int *i = msg.msg_controllen;
+],AC_DEFINE(HAVE_CMMSG),)
 
 #
 # Create Makefile.global.
