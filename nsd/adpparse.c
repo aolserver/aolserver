@@ -33,7 +33,7 @@
  *	ADP parser.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpparse.c,v 1.10 2002/11/02 18:05:57 jcollins Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpparse.c,v 1.11 2002/11/06 05:27:52 jcollins Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -653,7 +653,7 @@ Parse(AdpParse *parsePtr, NsServer *servPtr, char *utf)
 	    }
 	    break;
 	}
-	utf = e + 1;
+	utf = s + 1;
     }
     Ns_RWLockUnlock(&servPtr->adp.taglock);
 
