@@ -1,5 +1,11 @@
 2004-08-14  Dossy Shiobara <dossy@panoptic.com>
 
+	* aclocal.m4 (1.1.4.2), configure (1.15.2.3), nsd/dns.c (1.7.2.2):
+	  Solaris 7 uses gethostbyaddr_r(), and the autoconf and GetHost()
+	  versions didn't work.  Fixed now.  Backported from HEAD.
+
+2004-08-14  Dossy Shiobara <dossy@panoptic.com>
+
 	* nsd/dns.c (1.7.2.1), aclocal.m4 (1.1.4.1), configure.in
 	  (1.13.2.2), configure (1.15.2.2): gethostbyaddr() and
 	  gethostbyname() are not thread-safe.	Use the new getaddrinfo()
