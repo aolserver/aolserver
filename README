@@ -1,10 +1,10 @@
 
 README:  AOLserver
 
-    This is the AOLserver 3.5.1 source distribution.  AOLserver is
+    This is the AOLserver 3.5.2 source distribution.  AOLserver is
     available at http://aolserver.com, a SourceForge hosted site.
 
-RCS: @(#) $Id: README,v 1.1.4.1.2.4 2002/11/04 17:16:17 schaudhri Exp $
+RCS: @(#) $Id: README,v 1.1.4.1.2.5 2002/12/03 15:28:31 schaudhri Exp $
 
 
 Contents
@@ -86,8 +86,8 @@ be easy.  To compile and install AOLserver:
 3c.     Download, configure, build, and install AOLserver.  The
 	following should work:
 
-	% gunzip < aolserver-3.5.1.src.tar.gz | tar xvf -
-	% cd aolserver-3.5.1
+	% gunzip < aolserver-3.5.2.src.tar.gz | tar xvf -
+	% cd aolserver-3.5.2
 	% ./configure 
 	% make install
 
