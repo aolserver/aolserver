@@ -1,3 +1,10 @@
+2005-01-18  Dossy Shiobara <dossy@panoptic.com>
+
+	* include/ns.h (1.55.2.19): Added missing prototype for
+	  Ns_CompressGzip.
+
+	  BUMP: 4.0.10
+
 2005-01-12  Dossy Shiobara <dossy@panoptic.com>
 
 	* nsd/nsd.h (1.77.2.8), nsd/adpcmds.c (1.14.2.1), nsd/adprequest.c
