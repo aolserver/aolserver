@@ -85,6 +85,7 @@
 #define LOG_DEV		8
 #define LOG_NONOTICE	16
 #define LOG_BUFFER	32
+#define LOG_USEC	64
 
 /*
  * The following is the default text/html content type

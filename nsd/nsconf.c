@@ -33,7 +33,7 @@
  *	Various core configuration.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsconf.c,v 1.25 2002/06/12 23:08:09 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsconf.c,v 1.26 2002/07/14 23:05:34 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #include "nsconf.h"
@@ -133,6 +133,9 @@ NsConfUpdate(void)
      * log.c
      */
     
+    if (GetBool("logusec", LOG_USEC_BOOL)) {
+	nsconf.log.flags |= LOG_USEC;
+    }
     if (GetBool("logroll", LOG_ROLL_BOOL)) {
 	nsconf.log.flags |= LOG_ROLL;
     }

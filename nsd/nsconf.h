@@ -36,6 +36,7 @@
 #define LOG_DEV_BOOL           NS_FALSE
 #define LOG_ROLL_BOOL          NS_TRUE
 #define LOG_BUFFER_BOOL        NS_FALSE
+#define LOG_USEC_BOOL          NS_FALSE
 #define LOG_MAXBUFFER_INT      10
 #define LOG_MAXLEVEL_INT       INT_MAX
 #define LOG_MAXBACK_INT        10
