@@ -693,6 +693,10 @@ fi
 	LDFLAGS_DEFAULT='$(LDFLAGS_OPTIMIZE)'
 	DBGX=""
 	echo "$ac_t""no" 1>&6
+	cat >> confdefs.h <<\EOF
+#define TCL_CFG_OPTIMIZED 1
+EOF
+
     else
 	CFLAGS_DEFAULT='$(CFLAGS_DEBUG)'
 	LDFLAGS_DEFAULT='$(LDFLAGS_DEBUG)'
@@ -703,6 +707,10 @@ fi
     fi
     
     
+    cat >> confdefs.h <<\EOF
+#define TCL_CFG_DEBUG 1
+EOF
+
 
     if test "$tcl_ok" = "mem" -o "$tcl_ok" = "all"; then
 	cat >> confdefs.h <<\EOF
@@ -789,6 +797,12 @@ case "$system" in
 	LDRPATHS="\$(LDRPATH)"
 	CCRFLAG=$TCL_CC_SEARCH_FLAGS
 	LDRFLAG=$TCL_LD_SEARCH_FLAGS
+        if test "$CCRFLAG" = "" ; then
+            CCRPATH=
+        fi
+        if test "$LDRFLAG" = "" ; then
+            LDRPATH=
+        fi
 	;;
 esac
 SRCDIR=`cd $srcdir; pwd`
@@ -811,12 +825,12 @@ AOLSERVER=$prefix
 for ac_func in timegm fork1 poll drand48 random _NSGetEnviron
 do
 echo $ac_n "checking for $ac_func""... $ac_c" 1>&6
-echo "configure:815: checking for $ac_func" >&5
+echo "configure:829: checking for $ac_func" >&5
 if eval "test \"`echo '$''{'ac_cv_func_$ac_func'+set}'`\" = set"; then
   echo $ac_n "(cached) $ac_c" 1>&6
 else
   cat > conftest.$ac_ext <<EOF
-#line 820 "configure"
+#line 834 "configure"
 #include "confdefs.h"
 /* System header to define __stub macros and hopefully few prototypes,
     which can conflict with char $ac_func(); below.  */
@@ -839,7 +853,7 @@ $ac_func();
 
 ; return 0; }
 EOF
-if { (eval echo configure:843: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
+if { (eval echo configure:857: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
   rm -rf conftest*
   eval "ac_cv_func_$ac_func=yes"
 else
@@ -864,7 +878,7 @@ fi
 done
 
 echo $ac_n "checking how to run the C preprocessor""... $ac_c" 1>&6
-echo "configure:868: checking how to run the C preprocessor" >&5
+echo "configure:882: checking how to run the C preprocessor" >&5
 # On Suns, sometimes $CPP names a directory.
 if test -n "$CPP" && test -d "$CPP"; then
   CPP=
@@ -879,13 +893,13 @@ else
   # On the NeXT, cc -E runs the code through the compiler's parser,
   # not just through cpp.
   cat > conftest.$ac_ext <<EOF
-#line 883 "configure"
+#line 897 "configure"
 #include "confdefs.h"
 #include <assert.h>
 Syntax Error
 EOF
 ac_try="$ac_cpp conftest.$ac_ext >/dev/null 2>conftest.out"
-{ (eval echo configure:889: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
+{ (eval echo configure:903: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
 ac_err=`grep -v '^ *+' conftest.out | grep -v "^conftest.${ac_ext}\$"`
 if test -z "$ac_err"; then
   :
@@ -896,13 +910,13 @@ else
   rm -rf conftest*
   CPP="${CC-cc} -E -traditional-cpp"
   cat > conftest.$ac_ext <<EOF
-#line 900 "configure"
+#line 914 "configure"
 #include "confdefs.h"
 #include <assert.h>
 Syntax Error
 EOF
 ac_try="$ac_cpp conftest.$ac_ext >/dev/null 2>conftest.out"
-{ (eval echo configure:906: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
+{ (eval echo configure:920: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
 ac_err=`grep -v '^ *+' conftest.out | grep -v "^conftest.${ac_ext}\$"`
 if test -z "$ac_err"; then
   :
@@ -913,13 +927,13 @@ else
   rm -rf conftest*
   CPP="${CC-cc} -nologo -E"
   cat > conftest.$ac_ext <<EOF
-#line 917 "configure"
+#line 931 "configure"
 #include "confdefs.h"
 #include <assert.h>
 Syntax Error
 EOF
 ac_try="$ac_cpp conftest.$ac_ext >/dev/null 2>conftest.out"
-{ (eval echo configure:923: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
+{ (eval echo configure:937: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
 ac_err=`grep -v '^ *+' conftest.out | grep -v "^conftest.${ac_ext}\$"`
 if test -z "$ac_err"; then
   :
@@ -945,17 +959,17 @@ echo "$ac_t""$CPP" 1>&6
 
 ac_safe=`echo "mach-o/dyld.h" | sed 'y%./+-%__p_%'`
 echo $ac_n "checking for mach-o/dyld.h""... $ac_c" 1>&6
-echo "configure:949: checking for mach-o/dyld.h" >&5
+echo "configure:963: checking for mach-o/dyld.h" >&5
 if eval "test \"`echo '$''{'ac_cv_header_$ac_safe'+set}'`\" = set"; then
   echo $ac_n "(cached) $ac_c" 1>&6
 else
   cat > conftest.$ac_ext <<EOF
-#line 954 "configure"
+#line 968 "configure"
 #include "confdefs.h"
 #include <mach-o/dyld.h>
 EOF
 ac_try="$ac_cpp conftest.$ac_ext >/dev/null 2>conftest.out"
-{ (eval echo configure:959: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
+{ (eval echo configure:973: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
 ac_err=`grep -v '^ *+' conftest.out | grep -v "^conftest.${ac_ext}\$"`
 if test -z "$ac_err"; then
   rm -rf conftest*
@@ -981,17 +995,17 @@ fi
 
 ac_safe=`echo "dl.h" | sed 'y%./+-%__p_%'`
 echo $ac_n "checking for dl.h""... $ac_c" 1>&6
-echo "configure:985: checking for dl.h" >&5
+echo "configure:999: checking for dl.h" >&5
 if eval "test \"`echo '$''{'ac_cv_header_$ac_safe'+set}'`\" = set"; then
   echo $ac_n "(cached) $ac_c" 1>&6
 else
   cat > conftest.$ac_ext <<EOF
-#line 990 "configure"
+#line 1004 "configure"
 #include "confdefs.h"
 #include <dl.h>
 EOF
 ac_try="$ac_cpp conftest.$ac_ext >/dev/null 2>conftest.out"
-{ (eval echo configure:995: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
+{ (eval echo configure:1009: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
 ac_err=`grep -v '^ *+' conftest.out | grep -v "^conftest.${ac_ext}\$"`
 if test -z "$ac_err"; then
   rm -rf conftest*
@@ -1016,12 +1030,12 @@ else
 fi
 
 echo $ac_n "checking need for dup high""... $ac_c" 1>&6
-echo "configure:1020: checking need for dup high" >&5
+echo "configure:1034: checking need for dup high" >&5
 if test "$cross_compiling" = yes; then
   as_ok=no
 else
   cat > conftest.$ac_ext <<EOF
-#line 1025 "configure"
+#line 1039 "configure"
 #include "confdefs.h"
 
 #include <stdio.h>
@@ -1031,9 +1045,12 @@ main(int argc, char **argv)
     return (sizeof(stdout->_file) == 1) ? 0 : 1;
 }
 EOF
-if { (eval echo configure:1035: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext} && (./conftest; exit) 2>/dev/null
+if { (eval echo configure:1049: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext} && (./conftest; exit) 2>/dev/null
 then
-  as_ok=yes
+  cat >> confdefs.h <<\EOF
+#define USE_DUPHIGH 1
+EOF
+ as_ok=yes
 else
   echo "configure: failed program was:" >&5
   cat conftest.$ac_ext >&5
@@ -1044,18 +1061,11 @@ rm -fr conftest*
 fi
 
 echo "$ac_t""$as_ok" 1>&6
-if test "${as_ok}" = "yes"
-then
-    cat >> confdefs.h <<\EOF
-#define USE_DUPHIGH 1
-EOF
-
-fi
 
 echo $ac_n "checking msg_controllen in struct msghdr""... $ac_c" 1>&6
-echo "configure:1057: checking msg_controllen in struct msghdr" >&5
+echo "configure:1067: checking msg_controllen in struct msghdr" >&5
 cat > conftest.$ac_ext <<EOF
-#line 1059 "configure"
+#line 1069 "configure"
 #include "confdefs.h"
 
 #include <sys/types.h>
@@ -1067,9 +1077,12 @@ int *i = msg.msg_controllen;
 
 ; return 0; }
 EOF
-if { (eval echo configure:1071: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
+if { (eval echo configure:1081: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
   rm -rf conftest*
-  as_ok=yes
+  cat >> confdefs.h <<\EOF
+#define HAVE_CMMSG 1
+EOF
+ as_ok=yes
 else
   echo "configure: failed program was:" >&5
   cat conftest.$ac_ext >&5
@@ -1078,46 +1091,31 @@ else
 fi
 rm -f conftest*
 echo "$ac_t""$as_ok" 1>&6
-if test "$as_ok" = "yes"
-then
-	cat >> confdefs.h <<\EOF
-#define HAVE_CMMSG 1
-EOF
-
-fi
 
 #
 # Normally, we'd link the resulting server image
-# dynamically. In some cases it is however more
+# dynamically.  In some cases it is however more
 # appropriate to build it as a monolithic image.
 #
 
 echo $ac_n "checking how to build server image""... $ac_c" 1>&6
-echo "configure:1097: checking how to build server image" >&5
+echo "configure:1103: checking how to build server image" >&5
 # Check whether --enable-shared or --disable-shared was given.
 if test "${enable_shared+set}" = set; then
   enableval="$enable_shared"
-  shared_ok=$enableval
+  shared_ok=$enable_shared
 else
   shared_ok=yes
 fi
 
-if test "${enable_shared+set}" = set; then
-    enableval="$enable_shared"
-    shared_ok=$enableval
-else
-    shared_ok=yes
-fi
 if test "$shared_ok" = "yes" ; then
-    if test "${TCL_SHARED_BUILD}" != "1"
-    then
+    if test "${TCL_SHARED_BUILD}" != "1" ; then
         { echo "configure: error: must build tcl with --enable-shared" 1>&2; exit 1; }
     fi
     STATIC_BUILD=0
     echo "$ac_t""shared" 1>&6
 else
-    if test "${TCL_SHARED_BUILD}" != "0"
-    then
+    if test "${TCL_SHARED_BUILD}" != "0" ; then
         { echo "configure: error: must build tcl with --disable-shared" 1>&2; exit 1; }
     fi
     STATIC_BUILD=1
