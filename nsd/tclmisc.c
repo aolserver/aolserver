@@ -34,7 +34,7 @@
  *	Implements a lot of Tcl API commands. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclmisc.c,v 1.22 2002/06/13 04:41:21 jcollins Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclmisc.c,v 1.23 2002/07/08 02:51:22 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -378,100 +378,30 @@ TmCmd(ClientData isgmt, Tcl_Interp *interp, int argc, char **argv)
 static int
 TmObjCmd(ClientData isgmt, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 {
-    time_t     tt_now = time(NULL);
-    char       buf[10];
+    time_t     now;
     struct tm *ptm;
-    Tcl_Obj   *result;
+    Tcl_Obj   *objPtr[9];
 
+    if (objc != 1) {
+        Tcl_WrongNumArgs(interp, 1, objv, "");
+        return TCL_ERROR;
+    }
+    now = time(NULL);
     if (isgmt) {
-        if (objc != 1) {
-            Tcl_WrongNumArgs(interp, 1, objv, "");
-            return TCL_ERROR;
-        }
-        ptm = ns_gmtime(&tt_now);
+        ptm = ns_gmtime(&now);
     } else {
-        static Ns_Mutex lock;
-        char *oldTimezone = NULL;
-
-        if (objc > 2) {
-            Tcl_WrongNumArgs(interp, 1, objv, "?tz?");
-            return TCL_ERROR;
-        }
-
-        Ns_MutexLock(&lock);
-
-        if (objc == 2) {
-            Ns_DString dsNewTimezone;
-            Ns_DStringInit(&dsNewTimezone);
-
-            oldTimezone = getenv("TZ");
-            Ns_DStringAppend(&dsNewTimezone, "TZ=");
-            Ns_DStringAppend(&dsNewTimezone, Tcl_GetString(objv[1]));
-
-            putenv(dsNewTimezone.string);
-            tzset();
-
-            Ns_DStringFree(&dsNewTimezone);
-        }
-
-        ptm = ns_localtime(&tt_now);
-
-        if (oldTimezone != NULL) {
-            Ns_DString dsNewTimezone;
-            Ns_DStringInit(&dsNewTimezone);
-
-            Ns_DStringAppend(&dsNewTimezone, "TZ=");
-            Ns_DStringAppend(&dsNewTimezone, oldTimezone);
-
-            putenv(dsNewTimezone.string);
-
-            Ns_DStringFree(&dsNewTimezone);
-        }
-
-        Ns_MutexUnlock(&lock);
+        ptm = ns_localtime(&now);
     }
-
-    result = Tcl_NewObj();
-    sprintf(buf, "%d", ptm->tm_sec);
-    if (Tcl_ListObjAppendElement(interp, result, Tcl_NewStringObj(buf, -1)) != TCL_OK) {
-        return TCL_ERROR;
-    }
-    sprintf(buf, "%d", ptm->tm_min);
-    Tcl_AppendElement(interp, buf);
-    if (Tcl_ListObjAppendElement(interp, result, Tcl_NewStringObj(buf, -1)) != TCL_OK) {
-        return TCL_ERROR;
-    }
-    sprintf(buf, "%d", ptm->tm_hour);
-    if (Tcl_ListObjAppendElement(interp, result, Tcl_NewStringObj(buf, -1)) != TCL_OK) {
-        return TCL_ERROR;
-    }
-    sprintf(buf, "%d", ptm->tm_mday);
-    if (Tcl_ListObjAppendElement(interp, result, Tcl_NewStringObj(buf, -1)) != TCL_OK) {
-        return TCL_ERROR;
-    }
-    sprintf(buf, "%d", ptm->tm_mon);
-    if (Tcl_ListObjAppendElement(interp, result, Tcl_NewStringObj(buf, -1)) != TCL_OK) {
-        return TCL_ERROR;
-    }
-    sprintf(buf, "%d", ptm->tm_year);
-    if (Tcl_ListObjAppendElement(interp, result, Tcl_NewStringObj(buf, -1)) != TCL_OK) {
-        return TCL_ERROR;
-    }
-    sprintf(buf, "%d", ptm->tm_wday);
-    if (Tcl_ListObjAppendElement(interp, result, Tcl_NewStringObj(buf, -1)) != TCL_OK) {
-        return TCL_ERROR;
-    }
-    sprintf(buf, "%d", ptm->tm_yday);
-    if (Tcl_ListObjAppendElement(interp, result, Tcl_NewStringObj(buf, -1)) != TCL_OK) {
-        return TCL_ERROR;
-    }
-    sprintf(buf, "%d", ptm->tm_isdst);
-    if (Tcl_ListObjAppendElement(interp, result, Tcl_NewStringObj(buf, -1)) != TCL_OK) {
-        return TCL_ERROR;
-    }
-
-    Tcl_SetObjResult(interp, result);
-
+    objPtr[0] = Tcl_NewIntObj(ptm->tm_sec);
+    objPtr[1] = Tcl_NewIntObj(ptm->tm_min);
+    objPtr[2] = Tcl_NewIntObj(ptm->tm_hour);
+    objPtr[3] = Tcl_NewIntObj(ptm->tm_mday);
+    objPtr[4] = Tcl_NewIntObj(ptm->tm_mon);
+    objPtr[5] = Tcl_NewIntObj(ptm->tm_year);
+    objPtr[6] = Tcl_NewIntObj(ptm->tm_wday);
+    objPtr[7] = Tcl_NewIntObj(ptm->tm_yday);
+    objPtr[8] = Tcl_NewIntObj(ptm->tm_isdst);
+    Tcl_SetListObj(Tcl_GetObjResult(interp), 9, objPtr);
     return TCL_OK;
 }
 
@@ -570,7 +500,7 @@ NsTclSleepObjCmd(ClientData dummy, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
     }
 
     if (seconds < 0) {
-        Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "invalid sections \"", 
+        Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "invalid seconds \"", 
             Tcl_GetString(objv[1]),
 	        "\": should be >= 0", NULL);
         return TCL_ERROR;
@@ -641,22 +571,21 @@ int
 NsTclHTUUEncodeObjCmd(ClientData dummy, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 {
     char bufcoded[1 + (4 * 48) / 2];
-    int  nbytes;
+    char *string;
+    int   nbytes;
 
     if (objc != 2) {
         Tcl_WrongNumArgs(interp, 1, objv, "string");
         return TCL_ERROR;
     }
-    nbytes = Tcl_GetCharLength(objv[1]);
+    string = Tcl_GetStringFromObj(objv[1], &nbytes);
     if (nbytes > 48) {
         Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "invalid string \"",
-                         Tcl_GetString(objv[1]), 
-                         "\": must be less than 48 characters", NULL);
+                         string, "\": must be less than 48 characters", NULL);
         return TCL_ERROR;
     }
-    Ns_HtuuEncode((unsigned char *) Tcl_GetString(objv[1]), nbytes, bufcoded);
+    Ns_HtuuEncode((unsigned char *) string, nbytes, bufcoded);
     Tcl_SetResult(interp, bufcoded, TCL_VOLATILE);
-    
     return TCL_OK;
 }
 
@@ -664,7 +593,7 @@ NsTclHTUUEncodeObjCmd(ClientData dummy, Tcl_Interp *interp, int objc, Tcl_Obj **
 /*
  *----------------------------------------------------------------------
  *
- * HTUUDecodecmd --
+ * HTUUDecodeCmd --
  *
  *	Implements ns_uudecode. 
  *
@@ -718,18 +647,18 @@ int
 NsTclHTUUDecodeObjCmd(ClientData dummy, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 {
     int   n;
-    char *decoded;
+    char *string, *decoded;
 
     if (objc != 2) {
         Tcl_WrongNumArgs(interp, 1, objv, "string");
         return TCL_ERROR;
     }
-    n = Tcl_GetCharLength(objv[1]) + 3;
+    string = Tcl_GetStringFromObj(objv[1], &n);
+    n += 3;
     decoded = ns_malloc(n);
-    n = Ns_HtuuDecode(Tcl_GetString(objv[1]), (unsigned char *) decoded, n);
+    n = Ns_HtuuDecode(string, (unsigned char *) decoded, n);
     decoded[n] = '\0';
     Tcl_SetResult(interp, decoded, (Tcl_FreeProc *) ns_free);
-    
     return TCL_OK;
 }
 
@@ -753,35 +682,63 @@ NsTclHTUUDecodeObjCmd(ClientData dummy, Tcl_Interp *interp, int objc, Tcl_Obj **
 int
 NsTclTimeObjCmd(ClientData dummy, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 {
-    char *cmd;
     Ns_Time result, t1, t2;
-    int sec, usec;
-    Tcl_Obj *resultPtr;
+    static CONST char *opts[] = {
+	"adjust", "diff", "get", "incr", "make", "seconds",
+	"microseconds", NULL
+    };
+    enum {
+	TAdjustIdx, TDiffIdx, TGetIdx, TIncrIdx, TMakeIdx,
+	TSecondsIdx, TMicroSecondsIdx
+    } opt;
 
-    resultPtr = Tcl_GetObjResult(interp);
     if (objc < 2) {
-	Tcl_SetLongObj(resultPtr, time(NULL));
+    	Tcl_SetLongObj(Tcl_GetObjResult(interp), time(NULL));
     } else {
-	cmd = Tcl_GetString(objv[1]);
-	if (STREQ(cmd, "get")) {
+	if (Tcl_GetIndexFromObj(interp, objv[1], opts, "option", 0,
+				(int *) &opt) != TCL_OK) {
+	    return TCL_ERROR;
+	}
+	switch (opt) {
+	case TGetIdx:
 	    Ns_GetTime(&result);
-	} else if (STREQ(cmd, "incr")) {
+	    break;
+
+	case TMakeIdx:
+	    if (objc != 3 && objc != 4) {
+		Tcl_WrongNumArgs(interp, 2, objv, "sec ?usec?");
+		return TCL_ERROR;
+	    }
+	    if (Tcl_GetLongFromObj(interp, objv[2], &result.sec) != TCL_OK) {
+		return TCL_ERROR;
+	    }
+	    if (objc == 3) {
+		result.usec = 0;
+	    } else if (Tcl_GetLongFromObj(interp, objv[3], &result.usec) != TCL_OK) {
+		return TCL_ERROR;
+	    }
+	    break;
+
+	case TIncrIdx:
 	    if (objc != 4 && objc != 5) {
-		Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "wrong # args: should be \"",
-		    cmd, " incr time sec ?usec?\"", NULL);
+		Tcl_WrongNumArgs(interp, 2, objv, "time sec ?usec?");
 		return TCL_ERROR;
 	    }
-	    usec = 0;
 	    if (Ns_TclGetTimeFromObj(interp, objv[2], &result) != TCL_OK ||
-		Tcl_GetIntFromObj(interp, objv[3], &sec) != TCL_OK ||
-		(objc == 5 && Tcl_GetIntFromObj(interp, objv[4], &usec) != TCL_OK)) {
+		Tcl_GetLongFromObj(interp, objv[3], &t2.sec) != TCL_OK) {
 		return TCL_ERROR;
 	    }
-	    Ns_IncrTime(&result, sec, usec);
-	} else if (STREQ(cmd, "diff")) {
+	    if (objc == 4) {
+		t2.usec = 0;
+	    } else if (Tcl_GetLongFromObj(interp, objv[4], &t2.usec) != TCL_OK) {
+		return TCL_ERROR;
+	    }
+	    Ns_IncrTime(&result, t2.sec, t2.usec);
+	    break;
+
+	case TDiffIdx:
 	    if (objc != 4) {
-		Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "wrong # args: should be \"",
-		    cmd, " diff t1 t2\"", NULL);
+		Tcl_WrongNumArgs(interp, 2, objv, "time1 time2");
 		return TCL_ERROR;
 	    }
 	    if (Ns_TclGetTimeFromObj(interp, objv[2], &t1) != TCL_OK ||
@@ -789,23 +746,34 @@ NsTclTimeObjCmd(ClientData dummy, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 		return TCL_ERROR;
 	    }
 	    Ns_DiffTime(&t1, &t2, &result);
+	    break;
 
-	} else if (STREQ(cmd, "adj")) {
+	case TAdjustIdx:
 	    if (objc != 3) {
-		Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "wrong # args: should be \"",
-		    cmd, " adj time\"", NULL);
+		Tcl_WrongNumArgs(interp, 2, objv, "time");
 		return TCL_ERROR;
 	    }
 	    if (Ns_TclGetTimeFromObj(interp, objv[2], &result) != TCL_OK) {
 		return TCL_ERROR;
 	    }
 	    Ns_AdjTime(&result);
-	} else {
-	    Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "unknown command \"", cmd,
-		"\": should be get, incr, diff, or adj", NULL);
-	    return TCL_ERROR;
+	    break;
+
+	case TSecondsIdx:
+	case TMicroSecondsIdx:
+	    if (objc != 3) {
+		Tcl_WrongNumArgs(interp, 2, objv, "time");
+		return TCL_ERROR;
+	    }
+	    if (Ns_TclGetTimeFromObj(interp, objv[2], &result) != TCL_OK) {
+		return TCL_ERROR;
+	    }
+	    Tcl_SetLongObj(Tcl_GetObjResult(interp),
+			  opt == TSecondsIdx ? result.sec : result.usec);
+	    return TCL_OK;
+	    break;
 	}
-	Ns_TclSetTimeObj(resultPtr, &result);
+    	Ns_TclSetTimeObj(Tcl_GetObjResult(interp), &result);
     }
     return TCL_OK;
 }
@@ -878,13 +846,12 @@ NsTclStrftimeObjCmd(ClientData dummy, Tcl_Interp *interp, int objc, Tcl_Obj **ob
 {
     char   *fmt, buf[200];
     time_t  time;
-    int     i;
 
     if (objc != 2 && objc != 3) {
-        Tcl_WrongNumArgs(interp, 1, objv, "string");
+        Tcl_WrongNumArgs(interp, 1, objv, "time ?fmt?");
         return TCL_ERROR;
     }
-    if (Tcl_GetIntFromObj(interp, objv[1], &i) != TCL_OK) {
+    if (Tcl_GetLongFromObj(interp, objv[1], &time) != TCL_OK) {
         return TCL_ERROR;
     }
     if (objv[2] != NULL) {
@@ -892,15 +859,12 @@ NsTclStrftimeObjCmd(ClientData dummy, Tcl_Interp *interp, int objc, Tcl_Obj **ob
     } else {
         fmt = "%c";
     }
-    time = i;
     if (strftime(buf, sizeof(buf), fmt, ns_localtime(&time)) == 0) {
         Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "invalid time: ", 
             Tcl_GetString(objv[1]), NULL);
         return TCL_ERROR;
     }
-
-    Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), buf, NULL);
-
+    Tcl_SetResult(interp, buf, TCL_VOLATILE);
     return TCL_OK;
 }
 
