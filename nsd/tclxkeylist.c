@@ -8,7 +8,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclxkeylist.c,v 1.7 2004/06/22 19:13:14 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclxkeylist.c,v 1.8 2004/06/23 21:22:15 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -26,7 +26,7 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
  * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  *-----------------------------------------------------------------------------
- * $Id: tclxkeylist.c,v 1.7 2004/06/22 19:13:14 vasiljevic Exp $
+ * $Id: tclxkeylist.c,v 1.8 2004/06/23 21:22:15 vasiljevic Exp $
  *-----------------------------------------------------------------------------
  */
 
@@ -236,8 +236,8 @@ Tcl_GetKeyedListKeys(interp, subFieldName, keyedList, keyesArgcPtr,keyesArgvPtr)
     int status;
 
     Tcl_IncrRefCount(keylistPtr);
+
     status = TclX_KeyedListGetKeys(interp, keylistPtr, keylistKey, &objValPtr);
-    Tcl_DecrRefCount(keylistPtr);
 
     if (status == TCL_BREAK) {
         if (keyesArgcPtr) {
@@ -254,6 +254,7 @@ Tcl_GetKeyedListKeys(interp, subFieldName, keyedList, keyesArgcPtr,keyesArgvPtr)
             Tcl_Obj **objValues;
             if (Tcl_ListObjGetElements(interp, objValPtr, &keyCount,
                                        &objValues) != TCL_OK) {
+                Tcl_DecrRefCount(keylistPtr);
                 return TCL_ERROR;
             }
             for (ii = 0; ii < keyCount; ii++) {
@@ -275,6 +276,8 @@ Tcl_GetKeyedListKeys(interp, subFieldName, keyedList, keyesArgcPtr,keyesArgvPtr)
         }
         Tcl_DecrRefCount(objValPtr);
     }
+
+    Tcl_DecrRefCount(keylistPtr);
 
     return status;
 }
@@ -313,8 +316,8 @@ Tcl_GetKeyedListField(interp, fieldName, keyedList, fieldValuePtr)
     int status;
 
     Tcl_IncrRefCount(keylistPtr);
+
     status = TclX_KeyedListGet(interp, keylistPtr, keylistKey, &objValPtr);
-    Tcl_DecrRefCount(keylistPtr);
 
     if (status == TCL_BREAK) {
         if (fieldValuePtr) {
@@ -328,8 +331,10 @@ Tcl_GetKeyedListField(interp, fieldName, keyedList, fieldValuePtr)
             newValue[valueLen] = 0;
             *fieldValuePtr = newValue;
         }
-        Tcl_DecrRefCount(objValPtr);
+        /* Tcl_DecrRefCount(objValPtr); -> TclX_KeyedListGet has obj issues? */
     }
+
+    Tcl_DecrRefCount(keylistPtr);
 
     return status;
 }
@@ -370,16 +375,18 @@ Tcl_SetKeyedListField(interp, fieldName, fieldValue, keyedList)
 
     status = TclX_KeyedListSet(interp, keylistPtr, keylistKey, valuePtr);
 
-    Tcl_DecrRefCount(valuePtr);
-    Tcl_DecrRefCount(keylistPtr);
-
     if (status != TCL_OK) {
+        Tcl_DecrRefCount(valuePtr);
+        Tcl_DecrRefCount(keylistPtr);
         return NULL;
     }
 
     listStr = Tcl_GetStringFromObj(Tcl_GetObjResult(interp), &listLen);
     newList = strncpy(ckalloc(listLen + 1), listStr, listLen);
     listStr[listLen] = 0;
+
+    Tcl_DecrRefCount(valuePtr);
+    Tcl_DecrRefCount(keylistPtr);
 
     return newList;
 }
@@ -414,15 +421,17 @@ Tcl_DeleteKeyedListField(interp, fieldName, keyedList)
 
     Tcl_IncrRefCount(keylistPtr);
     status = TclX_KeyedListDelete(interp, keylistPtr, keylistKey);
-    Tcl_DecrRefCount(keylistPtr);
     
     if (status != TCL_OK) {
+        Tcl_DecrRefCount(keylistPtr);
         return NULL;
     }
 
     listStr = Tcl_GetStringFromObj(Tcl_GetObjResult(interp), &listLen);
     newList = strncpy(ckalloc(listLen + 1), listStr, listLen);
     listStr[listLen] = 0;
+
+    Tcl_DecrRefCount(keylistPtr);
 
     return newList;
 }

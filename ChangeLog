@@ -1,3 +1,8 @@
+2004-06-23  Zoran Vasiljevic <zv@archiware.com>
+
+	* nsd/tclxkeylist.c: fixed improper handling of objects
+	returned by reference in Tcl_GetKeyedListField wrapper.
+
 2004-06-23  Rob Crittenden <rcrittenden0569@aol.com>
 
 	* nsd/log.c: ns_log now logs to a custom logger as well.
