@@ -34,7 +34,7 @@
  *	Manage the server log file.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/log.c,v 1.19 2002/10/14 23:20:28 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/log.c,v 1.20 2003/01/14 22:08:30 shmooved Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -401,6 +401,7 @@ NsTclLogCtlObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
     case CGetIdx:
 	Tcl_SetResult(interp, cachePtr->buffer.string, TCL_VOLATILE);
 	Ns_DStringFree(&cachePtr->buffer);
+        cachePtr->count = 0;
 	break;
 
     case CReleaseIdx:
@@ -409,6 +410,7 @@ NsTclLogCtlObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
 
     case CFlushIdx:
 	LogFlush(cachePtr);
+        cachePtr->count = 0;
 	break;
 
     case CCountIdx:
