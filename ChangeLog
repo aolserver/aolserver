@@ -1,3 +1,7 @@
+2001-09-06  Kriston Rehberg  <Kriston@AOL.NET>
+
+	*** AOLserver 3.4.1 RELEASED ***
+
 2001-09-05  Kriston Rehberg  <Kriston@AOL.NET>
 
 	* nsd/tclnsshare.cpp: For ns_share Tcl command only; several crash
