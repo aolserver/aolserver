@@ -28,7 +28,7 @@
 '\" version of this file under either the License or the GPL.
 '\" 
 '\"
-'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_adp.n,v 1.4 2003/04/10 22:01:09 shmooved Exp $
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_adp.n,v 1.5 2005/01/15 23:59:18 jgdavidson Exp $
 '\"
 '\" 
 .so man.macros
@@ -37,7 +37,7 @@
 .BS
 '\" Note:  do not modify the .SH NAME line immediately below!
 .SH NAME
-ns_adp_abort, ns_adp_argc, ns_adp_argv, ns_adp_bind_args, ns_adp_break, ns_adp_debug, ns_adp_dir, ns_adp_dump, ns_adp_eval, ns_adp_exception, ns_adp_mimetype, ns_adp_parse, ns_adp_puts, ns_adp_registeradp, ns_adp_registertag, ns_adp_return, ns_adp_stream, ns_adp_tell, ns_adp_trunc, ns_puts, ns_register_adptag \- AOLserver Dynamic Page (ADP) commands
+ns_adp_abort, ns_adp_argc, ns_adp_argv, ns_adp_bind_args, ns_adp_break, ns_adp_close, ns_adp_ctl, ns_adp_debug, ns_adp_dir, ns_adp_dump, ns_adp_eval, ns_adp_exception, ns_adp_flush, ns_adp_mimetype, ns_adp_parse, ns_adp_puts, ns_adp_registeradp, ns_adp_registertag, ns_adp_return, ns_adp_stream, ns_adp_tell, ns_adp_trunc, ns_puts, ns_register_adptag \- AOLserver Dynamic Page (ADP) commands
 .SH SYNOPSIS
 \fBns_adp_abort \fR?\fIreturn_value\fR?
 .sp
@@ -49,6 +49,10 @@ ns_adp_abort, ns_adp_argc, ns_adp_argv, ns_adp_bind_args, ns_adp_break, ns_adp_d
 .sp
 \fBns_adp_break\fR ?\fIreturn_value\fR?
 .sp
+\fBns_adp_close\fR
+.sp
+\fBns_adp_ctl\fR
+.sp
 \fBns_adp_debug\fR ?\fIprocs\fR? ?\fIhost\fR? ?\fIport\fR?
 .sp
 \fBns_adp_dir
@@ -58,6 +62,8 @@ ns_adp_abort, ns_adp_argc, ns_adp_argv, ns_adp_bind_args, ns_adp_break, ns_adp_d
 \fBns_adp_eval\fR ?\fI-parser parser\fR? \fIpage\fR ?\fIarg ...\fR?
 .sp
 \fBns_adp_exception ?\fIstate\fR?
+.sp
+\fBns_adp_flush
 .sp
 \fBns_adp_include\fR \fIfilename\fR ?\fIarg...\fR?
 .sp
