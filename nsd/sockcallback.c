@@ -34,7 +34,7 @@
  *	Support for the socket callback thread.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sockcallback.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sockcallback.c,v 1.4 2000/08/17 06:09:49 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -158,8 +158,7 @@ NsWaitSockShutdown(Ns_Time *toPtr)
     }
     Ns_MutexUnlock(&lock);
     if (status != NS_OK) {
-	Ns_Log(Warning, "NsWaitSockShutdown: "
-	       "timeout waiting for socket callback shutdown!");
+	Ns_Log(Warning, "sockcallback: timeout waiting for callback shutdown");
     } else if (sockThread != NULL) {
 	Ns_ThreadJoin(&sockThread, NULL);
 	sockThread = NULL;
@@ -288,7 +287,7 @@ SockCallbackThread(void *ignored)
 
     Ns_ThreadSetName("-socks-");
     Ns_WaitForStartup();
-    Ns_Log(Notice, "SockCallbackThread: starting");
+    Ns_Log(Notice, "sockcallback: thread starting");
 
     when[0] = NS_SOCK_READ;
     when[1] = NS_SOCK_WRITE;
@@ -391,7 +390,7 @@ SockCallbackThread(void *ignored)
      * system, and signal shutdown complete.
      */
 
-    Ns_Log(Notice, "SockCallbackThread: shutdown pending");
+    Ns_Log(Notice, "sockcallback: shutdown pending");
     hPtr = Tcl_FirstHashEntry(&table, &search);
     while (hPtr != NULL) {
 	cbPtr = Tcl_GetHashValue(hPtr);
@@ -407,7 +406,7 @@ SockCallbackThread(void *ignored)
     }
     Tcl_DeleteHashTable(&table);
 
-    Ns_Log(Notice, "SockCallbackThread: shutdown complete");
+    Ns_Log(Notice, "sockcallback: shutdown complete");
     Ns_MutexLock(&lock);
     running = 0;
     Ns_CondBroadcast(&cond);

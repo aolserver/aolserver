@@ -33,7 +33,7 @@
  *	Support for the configuration file
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/config.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/config.c,v 1.4 2000/08/17 06:09:49 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #define ISSLASH(c)      ((c) == '/' || (c) == '\\')
@@ -131,8 +131,7 @@ Ns_ConfigGetInt(char *section, char *key, int *valuePtr)
     if (s == NULL) {
         return NS_FALSE;
     } else if (sscanf(s, "%d", valuePtr) != 1) {
-        Ns_Log(Warning, "config: Ns_ConfigGetInt: "
-	       "could not convert [%s]%s=\"%s\" to int",
+        Ns_Log(Warning, "config: failed to convert [%s]%s='%s' to int",
 	       section, key, s);
         return NS_FALSE;
     }
@@ -168,8 +167,7 @@ Ns_ConfigGetInt64(char *section, char *key, INT64 *valuePtr)
     if (s == NULL) {
         return NS_FALSE;
     } else if (sscanf(s, NS_INT_64_FORMAT_STRING, valuePtr) != 1) {
-        Ns_Log(Warning, "config: Ns_ConfigGetInt64: "
-	       "could not convert [%s]%s=\"%s\" to int64",
+        Ns_Log(Warning, "config: failed to convert [%s]%s='%s' to int64",
 	       section, key, s);
         return NS_FALSE;
     }
@@ -222,8 +220,7 @@ Ns_ConfigGetBool(char *section, char *key, int *valuePtr)
 
         *valuePtr = 0;
     } else if (sscanf(s, "%d", valuePtr) != 1) {
-        Ns_Log(Warning, "config: Ns_ConfigGetBool: "
-	       "could not convert [%s]%s=\"%s\" to bool",
+        Ns_Log(Warning, "config: failed to convert [%s]%s='%s' to boolean",
 	       section, key, s);
         return NS_FALSE;
     }
@@ -829,13 +826,11 @@ ParseConfig(char *file, char *config)
 		s = line + 1;
 		e = strchr(s, ']');
 		if (e == NULL) {
-		    Ns_Log(Warning, "config: ParseConfig: "
-			   "invalid section name: %s", line);
+		    Ns_Log(Warning, "config: invalid section name '%s'", line);
 		} else {
 		    *e = '\0';
 		    if (*s == '\0') {
-			Ns_Log(Warning, "config: ParseConfig: "
-			       "null section name");
+			Ns_Log(Warning, "config: null section name");
 		    } else {
 			setPtr = GetSection(s, 1);
 		    }
@@ -849,13 +844,11 @@ ParseConfig(char *file, char *config)
 		 */
 		 
 		if (setPtr == NULL) {
-		    Ns_Log(Warning, "config: ParseConfig: "
-			   "entry before section: %s", line);
+		    Ns_Log(Warning, "config: entry before section '%s'", line);
 		} else {
 		    e = strchr(line, '=');
 		    if (e == NULL) {
-			Ns_Log(Warning, "config: ParseConfig: "
-			       "invalid entry: %s", line);
+			Ns_Log(Warning, "config: invalid entry '%s'", line);
 		    } else {
 			*e++ = '\0';
 			e = Ns_StrTrim(e);

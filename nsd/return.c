@@ -34,7 +34,7 @@
  *	Functions that return data to a browser. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.4 2000/08/17 06:09:49 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -1138,8 +1138,8 @@ Ns_ConnReturnFile(Ns_Conn *conn, int status, char *type, char *filename)
         } else if (errno == EACCES) {
             return Ns_ReturnForbidden(conn);
         } else {
-            Ns_Log(Error, "Ns_ConnReturnFile: "
-		   "returnfile(%s): stat(%s) failed: %s",
+            Ns_Log(Error, "return: failed to return file: "
+		   "returnfile(%s): stat(%s) failed: '%s'",
 		   Ns_ConnServer(conn), filename, strerror(errno));
             return Ns_ReturnInternalError(conn);
         }
@@ -1224,10 +1224,9 @@ NsInitReturn(void)
 	url = Ns_SetValue(set, i);
 	status = atoi(key);
 	if (status <= 0) {
-	    Ns_Log(Error, "NsInitReturn: "
-		   "invalid redirect: %s=%s", key, url);
+	    Ns_Log(Error, "return: invalid redirect '%s=%s'", key, url);
 	} else {
-	    Ns_Log(Notice, "NsInitReturn: %d -> %s", status, url);
+	    Ns_Log(Notice, "return: redirecting '%d' to '%s'", status, url);
 	    Ns_RegisterReturn(status, url);
 	}
     }
@@ -1260,9 +1259,8 @@ ReturnRedirect(Ns_Conn *conn, int status, int *resultPtr)
     hPtr = Tcl_FindHashEntry(&redirectTable, (char *) status);
     if (hPtr != NULL) {
 	if (++connPtr->recursionCount > MAX_RECURSION) {
-	    Ns_Log(Error, "ReturnRedirect: "
-		   "(%d): exceeded recursion limit: %d",
-		   status, MAX_RECURSION);
+	    Ns_Log(Error, "return: failed to redirect '%d': "
+		   "exceeded recursion limit of %d", status, MAX_RECURSION);
 	} else {
     	    *resultPtr = Ns_ConnRedirect(conn, Tcl_GetHashValue(hPtr));
 	    return 1;

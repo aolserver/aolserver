@@ -33,7 +33,7 @@
  *	Routines for the core server connection threads.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/serv.c,v 1.4 2000/08/08 20:37:26 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/serv.c,v 1.5 2000/08/17 06:09:49 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -153,8 +153,7 @@ Ns_QueueConn(void *drvPtr, void *drvData)
 	status = NS_SHUTDOWN;
     } else if (firstFreeConnPtr == NULL) {
 	if (nsconf.serv.maxdropped > 0 && ++ndropped > nsconf.serv.maxdropped) {
-	    Ns_Log(Error, "Ns_QueueConn: "
-		   "max dropped connections reached (%d): shutting down",
+	    Ns_Log(Error, "serv: shutting down: %d dropped connections",
 		   nsconf.serv.maxdropped);
 	    NsSendSignal(NS_SIGTERM);
 	    nsconf.serv.maxdropped = 0;
@@ -334,13 +333,13 @@ NsStartServer(void)
      */
 
     if (nsconf.serv.maxthreads > nsconf.serv.maxconns) {
-	Ns_Log(Warning, "NsStartServer: "
+	Ns_Log(Warning, "serv: cannot have more maxthreads than maxconns: "
 	       "%d max threads adjusted down to %d max connections",
 	       nsconf.serv.maxthreads, nsconf.serv.maxconns);
 	nsconf.serv.maxthreads = nsconf.serv.maxconns;
     }
     if (nsconf.serv.minthreads > nsconf.serv.maxthreads) {
-	Ns_Log(Warning, "NsStartServer: "
+	Ns_Log(Warning, "serv: cannot have more minthreads than maxthreads: "
 	       "%d min threads adjusted down to %d max threads",
 	       nsconf.serv.minthreads, nsconf.serv.maxthreads);
 	nsconf.serv.minthreads = nsconf.serv.maxthreads;
@@ -380,7 +379,7 @@ NsStopServer(Ns_Time *toPtr)
     Ns_Thread joinThread;
     int status;
     
-    Ns_Log(Notice, "server: stopping connection threads");
+    Ns_Log(Notice, "serv: stopping connection threads");
 
     status = NS_OK;
     Ns_MutexLock(&lock);
@@ -394,9 +393,9 @@ NsStopServer(Ns_Time *toPtr)
     lastThread = NULL;
     Ns_MutexUnlock(&lock);
     if (status != NS_OK) {
-	Ns_Log(Warning, "server: timeout waiting for connection thread exit");
+	Ns_Log(Warning, "serv: timeout waiting for connection thread exit");
     } else {
-	Ns_Log(Notice, "server: connection threads stopped");
+	Ns_Log(Notice, "serv: connection threads stopped");
 	if (joinThread != NULL) {
 	    JoinThread(&joinThread);
 	}
@@ -472,7 +471,7 @@ NsConnThread(void *arg)
     Ns_MutexLock(&lock);
     sprintf(thrname, "-conn%d-", next++);
     Ns_ThreadSetName(thrname);
-    Ns_Log(Debug, "NsConnThread: starting: waiting for connections");
+    Ns_Log(Debug, "serv: starting: waiting for connections");
 
     while (1) {
 
@@ -626,7 +625,7 @@ NsConnThread(void *arg)
     if (joinThread != NULL) {
 	JoinThread(&joinThread);
     }
-    Ns_Log(Debug, "NsConnThread: exiting: %s", p);
+    Ns_Log(Debug, "serv: exiting: %s", p);
     Ns_ThreadExit(connPtrPtr);
 }
 

@@ -34,7 +34,7 @@
  *	This file implements the "ns_rand" command.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/random.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/random.c,v 1.4 2000/08/17 06:09:49 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -198,7 +198,7 @@ Ns_GenSeeds(unsigned long *seedsPtr, int nseeds)
 {
     Ns_Thread thr;
     
-    Ns_Log(Notice, "Ns_GenSeeds: generating %d random seed(s)...", nseeds);
+    Ns_Log(Notice, "random: generating %d random seeds...", nseeds);
     Ns_MasterLock();
     Ns_SemaInit(&counterSema, 0);
     counterRun = 1;
@@ -211,7 +211,7 @@ Ns_GenSeeds(unsigned long *seedsPtr, int nseeds)
     Ns_MasterUnlock();
     Ns_ThreadJoin(&thr, NULL);
     Ns_SemaDestroy(&counterSema);
-    Ns_Log(Notice, "Ns_GenSeeds: seed generation complete.");
+    Ns_Log(Notice, "random: seed generation complete");
 }
 
 /*

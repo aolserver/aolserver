@@ -34,7 +34,7 @@
  *	Win32 specific routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nswin32.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nswin32.c,v 1.4 2000/08/17 06:09:49 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -175,8 +175,7 @@ NsConnectService(Ns_ServerInitProc *initProc)
     freopen(null, "rt", stdin);
     freopen(log, "wt", stdout);
     freopen(log, "wt", stderr);
-    Ns_Log(Notice, "Ns_ConnectService: "
-	   "connecting to service control manager");
+    Ns_Log(Notice, "nswin32: connecting to service control manager");
     service = 1;
     table[0].lpServiceName = NSD_NAME;
     table[0].lpServiceProc = ServiceMain;
@@ -184,8 +183,8 @@ NsConnectService(Ns_ServerInitProc *initProc)
     table[1].lpServiceProc = NULL;
     ok = StartServiceCtrlDispatcher(table);
     if (!ok) {
-        Ns_Log(Error, "Ns_ConnectService: "
-	       "StartServiceCtrlDispatcher() failed: %s", SysErrMsg());
+        Ns_Log(Error, "nswin32: "
+	       "failed to contact service control dispatcher: '%s'", SysErrMsg());
     } else if (log != null) {
 	unlink(log);
     }
@@ -220,7 +219,7 @@ NsRemoveService(void)
 
     Ns_DStringInit(&name);
     GetServiceName(&name);
-    Ns_Log(Notice, "Ns_RemoveService: removing service: %s", name.string);
+    Ns_Log(Notice, "nswin32: removing service '%s'", name.string);
     ok = FALSE;
     hmgr = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
     if (hmgr != NULL) {
@@ -233,8 +232,8 @@ NsRemoveService(void)
         CloseServiceHandle(hmgr);
     }
     if (!ok) {
-	Ns_Log(Error, "Ns_RemoveService: "
-	       "could not remove %s: %s", name.string, SysErrMsg());
+	Ns_Log(Error, "nswin32: failed to remove service '%s': '%s'",
+	       name.string, SysErrMsg());
     }
     Ns_DStringFree(&name);
     return (ok ? NS_OK : NS_ERROR);
@@ -267,11 +266,9 @@ NsInstallService(void)
 
     ok = FALSE;
     if (_fullpath(config, nsconf.config, sizeof(config)) == NULL) {
-	Ns_Log(Error, "NsInstallService: "
-	       "invalid config path: %s", nsconf.config);
+	Ns_Log(Error, "nswin32: invalid config path '%s'", nsconf.config);
     } else if (!GetModuleFileName(NULL, nsd, sizeof(nsd))) {
-	Ns_Log(Error, "NsInstallService: "
-	       "could not find nsd.exe: %s", SysErrMsg());
+	Ns_Log(Error, "nswin32: failed to find nsd.exe: '%s'", SysErrMsg());
     } else {
 	sprintf(carg, " -%c ", nsconf.configfmt);
 	Ns_DStringInit(&name);
@@ -282,8 +279,7 @@ NsInstallService(void)
 	    Ns_DStringAppend(&cmd, " -z");
 	}
 	GetServiceName(&name);
-	Ns_Log(Notice, "NsInstallService: "
-	       "installing service: %s", name.string);
+	Ns_Log(Notice, "nswin32: installing service '%s'", name.string);
 	hmgr = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
 	if (hmgr != NULL) {
 	    hsrv = CreateService(hmgr, name.string, name.string,
@@ -297,8 +293,8 @@ NsInstallService(void)
 	    CloseServiceHandle(hmgr);
 	}
 	if (!ok) {
-	    Ns_Log(Error, "NsInstallService: "
-		   "could not install %s: %s", name.string, SysErrMsg());
+	    Ns_Log(Error, "nswin32: failed to install service '%s': '%s'",
+		   name.string, SysErrMsg());
 	}
 	Ns_DStringFree(&name);
 	Ns_DStringFree(&cmd);
@@ -399,7 +395,7 @@ NsSendSignal(int sig)
 	    Ns_MutexUnlock(&lock);
     	    break;
 	default:
-    	    Ns_Fatal("invalid signal: %d", sig);
+    	    Ns_Fatal("nswin32: invalid signal: %d", sig);
 	    break;
     }
 }
@@ -771,7 +767,7 @@ ServiceMain(DWORD argc, LPTSTR *argv)
 {
     hStatus = RegisterServiceCtrlHandler(argv[0], ServiceHandler);
     if (hStatus == 0) {
-        Ns_Fatal("RegisterServiceCtrlHandler() failed: %s", SysErrMsg());
+        Ns_Fatal("nswin32: RegisterServiceCtrlHandler() failed: '%s'",SysErrMsg());
     }
     curStatus.dwServiceType = SERVICE_WIN32_OWN_PROCESS;
     curStatus.dwServiceSpecificExitCode = 0;
@@ -780,7 +776,7 @@ ServiceMain(DWORD argc, LPTSTR *argv)
     StopTicker();
     ReportStatus(SERVICE_STOP_PENDING, NO_ERROR, 100);
     ReportStatus(SERVICE_STOPPED, 0, 0);
-    Ns_Log(Notice, "ServiceMain: service exiting");
+    Ns_Log(Notice, "nswin32: service exiting");
 }
 
 
@@ -848,7 +844,7 @@ ReportStatus(DWORD state, DWORD code, DWORD hint)
         curStatus.dwCheckPoint = check++;
     }
     if (hStatus != 0 && SetServiceStatus(hStatus, &curStatus) != TRUE) {
-        Ns_Fatal("SetServiceStatus(%d) failed: %s", state, SysErrMsg());
+        Ns_Fatal("nswin32: SetServiceStatus(%d) failed: '%s'", state, SysErrMsg());
     }
 }
 

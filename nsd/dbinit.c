@@ -35,7 +35,7 @@
  *	pools of database handles.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/dbinit.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/dbinit.c,v 1.4 2000/08/17 06:09:49 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -413,21 +413,19 @@ Ns_DbPoolTimedGetMultipleHandles(Ns_DbHandle **handles, char *pool,
      
     poolPtr = GetPool(pool);
     if (poolPtr == NULL) {
-	Ns_Log(Error, "Ns_DbPoolTimedGetMultipleHandles: "
-	       "no such pool: %s", pool);
+	Ns_Log(Error, "dbinit: no such pool '%s'", pool);
 	return NS_ERROR;
     }
     if (poolPtr->nhandles < nwant) {
-	Ns_Log(Error, "Ns_DbPoolTimedGetMultipleHandles: "
-	       "attempt to get %d handles from pool of %d: %s",
+	Ns_Log(Error, "dbinit: "
+	       "failed to get %d handles from a db pool of only %d handles: '%s'",
 	       nwant, poolPtr->nhandles, pool);
 	return NS_ERROR;
     }
     ngot = (int) Ns_TlsGet(&poolPtr->ngotTls);
     if (ngot > 0) {
-	Ns_Log(Error, "Ns_DbPoolTimedGetMultipleHandles: "
-	       "thread already owns %d handle%s from pool: %s",
-	       ngot, ngot > 1 ? "s" : "", pool);
+	Ns_Log(Error, "dbinit: db handle limit exceeded: "
+	       "thread already owns %d handles from pool '%s'", pool);
 	return NS_ERROR;
     }
     
@@ -624,7 +622,7 @@ NsDbInit(void)
 	driver = Ns_ConfigGet(path, "driver");
 	poolPtr = NULL;
 	if (driver == NULL) {
-	    Ns_Log(Error, "NsDbInit: no driver defined for pool: %s", pool);
+	    Ns_Log(Error, "dbinit: no driver defined for pool '%s'", pool);
 	} else {
 	    poolPtr = CreatePool(pool, path, driver);
 	}
@@ -643,7 +641,7 @@ NsDbInit(void)
     if (defaultPool != NULL) {
     	hPtr = Tcl_FindHashEntry(&poolsTable, defaultPool);
     	if (hPtr == NULL) {
-	    Ns_Log(Error, "NsDbInit: no such default pool: %s", defaultPool);
+	    Ns_Log(Error, "dbinit: no such default pool '%s'", defaultPool);
 	    defaultPool = NULL;
     	}
     }
@@ -654,7 +652,7 @@ NsDbInit(void)
      */
 
     if (poolsTable.numEntries == 0) {
-	Ns_Log(Debug, "NsDbInit: no configured pools");
+	Ns_Log(Debug, "dbinit: no configured pools");
 	allowedPools = "";
     } else {
 	tcheck = INT_MAX;
@@ -733,11 +731,11 @@ NsDbLogSql(Ns_DbHandle *handle, char *sql)
     if (handle->dsExceptionMsg.length > 0) {
         if (handlePtr->poolPtr->fVerboseError || handle->verbose) {
 	    
-            Ns_Log(Error, "NsDbLogSql: error(%s, %s): %s",
+            Ns_Log(Error, "dbinit: error(%s,%s): '%s'",
 		   handle->datasource, handle->dsExceptionMsg.string, sql);
         }
     } else if (handle->verbose) {
-        Ns_Log(Notice, "NsDbLogSql: sql(%s):  %s", handle->datasource, sql);
+        Ns_Log(Notice, "dbinit: sql(%s): '%s'", handle->datasource, sql);
     }
 }
 
@@ -872,7 +870,7 @@ IsStale(Handle *handlePtr)
 	    (handlePtr->poolPtr->stale_on_close > handlePtr->stale_on_close)) {
 
 	    if (handlePtr->poolPtr->fVerbose) {
-		Ns_Log(Notice, "IsStale: closing %s handle in pool: %s",
+		Ns_Log(Notice, "dbinit: closing %s handle in pool '%s'",
 		       handlePtr->tAccess < minAccess ? "idle" : "old",
 		       handlePtr->poolname);
 	    }
@@ -1012,7 +1010,7 @@ CreatePool(char *pool, char *path, char *driver)
     }
     source = Ns_ConfigGet(path, CONFIG_SOURCE);
     if (source == NULL) {
-	Ns_Log(Error, "nsdb[%s]: CreatePool: required datasource missing",
+	Ns_Log(Error, "dbinit: required datasource missing for pool '%s'",
 	       pool);
 	return NULL;
     }

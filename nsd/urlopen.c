@@ -33,7 +33,7 @@
  *	Make outgoing HTTP requests.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/urlopen.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/urlopen.c,v 1.4 2000/08/17 06:09:49 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -135,7 +135,7 @@ Ns_FetchURL(Ns_DString *dsPtr, char *url, Ns_Set *headers)
     request = Ns_ParseRequest(ds.string);
     if (request == NULL || request->protocol == NULL ||
 	!STREQ(request->protocol, "http") || request->host == NULL) {
-        Ns_Log(Notice, "Ns_FetchUrl: invalid url: %s", url);
+        Ns_Log(Notice, "urlopen: invalid url '%s'", url);
         goto done;
     }
     if (request->port == 0) {
@@ -143,8 +143,8 @@ Ns_FetchURL(Ns_DString *dsPtr, char *url, Ns_Set *headers)
     }
     sock = Ns_SockConnect(request->host, request->port);    
     if (sock == INVALID_SOCKET) {
-	Ns_Log(Error, "Ns_FetchUrl: connect() failed: %s on url %s",
-	       ns_sockstrerror(ns_sockerrno), url);
+	Ns_Log(Error, "urlopen: failed to connect to '%s': '%s'",
+	       url, ns_sockstrerror(ns_sockerrno));
 	goto done;
     }
 
@@ -163,8 +163,8 @@ Ns_FetchURL(Ns_DString *dsPtr, char *url, Ns_Set *headers)
     while (tosend > 0) {
         n = send(sock, p, tosend, 0);
         if (n == SOCKET_ERROR) {
-            Ns_Log(Error, "Ns_FetchUrl: send() failed: %s on url: %s",
-		   ns_sockstrerror(ns_sockerrno), url);
+            Ns_Log(Error, "urlopen: failed to send data to '%s': '%s'",
+		   url, ns_sockstrerror(ns_sockerrno));
 	    ns_sockclose(sock);
             goto done;
         }
@@ -244,7 +244,7 @@ Ns_FetchURL(Ns_DString *dsPtr, char *url, Ns_Set *headers)
 void
 NsGetURLInit(void)
 {
-    Ns_Log(Debug, "NsGetURLInit: initialized.");
+    Ns_Log(Debug, "urlopen: initialized.");
 }
 
 
@@ -338,7 +338,8 @@ FillBuf(Stream *sPtr)
     n = recv(sPtr->sock, sPtr->buf, BUFSIZE, 0);
     if (n <= 0) {
     	if (n < 0) {
-	    Ns_Log(Error, "FillBuf: read() failed: %s", strerror(errno));
+	    Ns_Log(Error, "urlopen: "
+		   "failed to fill socket stream buffer: '%s'", strerror(errno));
 	    sPtr->error = 1;
 	}
     	return 0;

@@ -35,7 +35,7 @@
  *  	routines (previously known as "op procs").
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/op.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/op.c,v 1.4 2000/08/17 06:09:49 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -291,8 +291,8 @@ Ns_RegisterProxyRequest(char *server, char *method, char *protocol,
     Ns_DStringInit(&ds);
 
     if (Ns_InfoStarted()) {
-	Ns_Log(Error, "Ns_RegisterProxyRequest: "
-	       "can not register proxy request after server started");
+	Ns_Log(Error, "op: failed to register proxy request: "
+	       "cannot do so after server startup");
 	goto done;
     }
 
@@ -310,14 +310,13 @@ Ns_RegisterProxyRequest(char *server, char *method, char *protocol,
 	Tcl_SetHashValue(hPtr, reqPtr);
     }
     else {
-	Ns_Log(Error, "Ns_RegisterProxyRequest: "
-	       "proxy request already registered for method: %s, protocol: %s",
-	       method, protocol);
+	Ns_Log(Error, "op: failed to register proxy request: "
+	       "a proxy request is already registered "
+	       "for method '%s', protocol '%s'", method, protocol);
     }
 
     if (new) {
-	Ns_Log(Debug, "Ns_RegisterProxyRequest: "
-	       "proxy request registered for method: %s, protocol: %s",
+	Ns_Log(Debug, "op: proxy request registered for method: %s, protocol: %s",
 	       method, protocol);
     }
     
@@ -354,8 +353,8 @@ Ns_UnRegisterProxyRequest(char *server, char *method, char *protocol)
     Ns_DStringInit(&ds);
 
     if (Ns_InfoShutdownPending() == NS_FALSE) {
-	Ns_Log(Error, "Ns_UnRegisterProxyRequest: "
-	       "can not unregister proxy request before server shutdown");
+	Ns_Log(Error, "op: failed to unregister proxy request: "
+	       "can not do so before server shutdown");
 	goto done;
     }
 
@@ -365,16 +364,15 @@ Ns_UnRegisterProxyRequest(char *server, char *method, char *protocol)
 	reqPtr = (Req *) Tcl_GetHashValue(hPtr);
         assert (reqPtr != NULL);
     } else {
-	Ns_Log(Error, "Ns_UnRegisterProxyRequest: "
-	       "proxy request was not registered for method: %s, protocol: %s",
+	Ns_Log(Error, "op: "
+	       "failed to unregister proxy request for method '%s', protocol '%s'",
 	       method, protocol);
 	goto done;
     }
 
     DeleteReq(reqPtr);
     Tcl_DeleteHashEntry(hPtr);
-    Ns_Log(Debug, "Ns_UnRegisterProxyRequest: "
-	   "proxy request unregistered for method: %s, protocol: %s",
+    Ns_Log(Debug, "op: proxy request unregistered for method '%s', protocol '%s'",
 	   method, protocol);
 done:
     Ns_DStringFree(&ds);

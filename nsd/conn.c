@@ -34,7 +34,7 @@
  *      Manage the Ns_Conn structure
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.4 2000/08/17 06:09:49 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -1164,8 +1164,8 @@ Ns_ConnGetQuery(Ns_Conn *conn)
         if (STREQ(conn->request->method, "POST") && conn->contentLength > 0) {
             if (connPtr->nContent == 0 
 		&& conn->contentLength > nsconf.conn.maxpost) {
-		Ns_Log(Warning, "Ns_ConnGetQuery: "
-		       "POST contentlength %d exceeds maxpost limit %d",
+		Ns_Log(Warning, "conn: "
+		       "post size %d exceeds maxpost limit of %d",
 		       conn->contentLength, nsconf.conn.maxpost);
 	    } else if (Ns_ConnCopyToDString(conn, conn->contentLength,
 					 dsPtr) != NS_OK) {

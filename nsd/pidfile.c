@@ -34,7 +34,7 @@
  *	Implement the PID file routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/pidfile.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/pidfile.c,v 1.4 2000/08/17 06:09:49 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -70,18 +70,18 @@ NsGetLastPid(void)
     if (fd >= 0) {
 	n = read(fd, buf, sizeof(buf)-1);
 	if (n < 0) {
-	    Ns_Log(Warning, "NsGetLastPid: pid file read() failed: %s",
+	    Ns_Log(Warning, "pidfile: pid file read() failed: '%s'",
 		   strerror(errno));
 	} else {
 	    buf[n] = '\0';
 	    if (sscanf(buf, "%d", &pid) != 1) {
-		Ns_Log(Warning, "NsGetLastPid: invalid pid file: %s", file);
+		Ns_Log(Warning, "pidfile: invalid pid file '%s'", file);
 	    	pid = -1;
 	    }
 	}
 	close(fd);
     } else if (errno != ENOENT) {
-	Ns_Log(Error, "NsGetLastPid: could not open pid file %s: %s",
+	Ns_Log(Error, "pidfile: failed to open pid file '%s': '%s'",
 	       file, strerror(errno));
     }
     return pid;
@@ -97,14 +97,13 @@ NsCreatePidFile(void)
 
     fd = open(file, O_WRONLY|O_TRUNC|O_CREAT|O_TEXT, 0644);
     if (fd < 0) {
-    	Ns_Log(Error, "Ns_CreatePidFile: "
-	       "could not open pid file \"%s\":  %s", file, strerror(errno));
+    	Ns_Log(Error, "pidfile: failed to open pid file '%s': '%s'",
+	       file, strerror(errno));
     } else {
 	sprintf(buf, "%d\n", nsconf.pid);
 	n = strlen(buf);
 	if (write(fd, buf, n) != n) {
-	    Ns_Log(Error, "Ns_CreatePidFile: "
-		   "write() failed: %s", strerror(errno));
+	    Ns_Log(Error, "pidfile: write() failed: '%s'", strerror(errno));
 	}
         close(fd);
     }
@@ -117,8 +116,8 @@ NsRemovePidFile(void)
     char *file = GetFile();
     
     if (unlink(file) != 0) {
-    	Ns_Log(Error, "NsRemovePidFile: "
-	       "could not remove \"%s\": %s", file, strerror(errno));
+    	Ns_Log(Error, "pidfile: failed to remove '%s': '%s'",
+	       file, strerror(errno));
     }
 }
 

@@ -33,7 +33,7 @@
  *	Routines for monitoring keep-alive sockets.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/keepalive.c,v 1.4 2000/08/08 20:37:26 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/keepalive.c,v 1.5 2000/08/17 06:09:49 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -129,7 +129,8 @@ NsKeepAlive(Ns_Conn *conn)
 	keepPtr->sock = sock;
 	if (keepThread == NULL) {
     	    if (ns_sockpair(trigPipe) != 0) {
-		Ns_Fatal("ns_sockpair() failed: %s", ns_sockstrerror(ns_sockerrno));
+		Ns_Fatal("keepalive: ns_sockpair() failed: '%s'",
+			 ns_sockstrerror(ns_sockerrno));
     	    }
 	    Ns_ThreadCreate(KeepThread, NULL, 0, &keepThread);
 	} else if (keepPtr->nextPtr == NULL) {
@@ -176,8 +177,8 @@ NsStartKeepAlive(void)
 
 	n = FD_SETSIZE - 256;
 	if (nsconf.keepalive.maxkeep > n) {
-	    Ns_Log(Warning, "NsStartKeepAlive: "
-		   "%d max keepalive adjusted to %d (FD_SETSIZE - 256)",
+	    Ns_Log(Warning, "keepalive: "
+		   "max keepalive %d truncated to %d (FD_SETSIZE - 256)",
 		   nsconf.keepalive.maxkeep, n);
 	    nsconf.keepalive.maxkeep = n;
 	}
@@ -255,7 +256,7 @@ KeepThread(void *ignored)
     time_t  now, timeout;
     
     Ns_ThreadSetName("-keepalive-");
-    Ns_Log(Notice, "KeepThread: keepalive thread starting");
+    Ns_Log(Notice, "keepalive: keepalive thread starting");
 
     /*
      * Lock the mutex and loop forever waiting for readability of
@@ -321,10 +322,11 @@ KeepThread(void *ignored)
 	    n = select(max+1, &set, NULL, NULL, tvPtr);
 	} while (n < 0 && ns_sockerrno == EINTR);
 	if (n < 0) {
-	    Ns_Fatal("select() failed: %s", ns_sockstrerror(ns_sockerrno));
+	    Ns_Fatal("keepalive: select() failed: '%s'",
+		     ns_sockstrerror(ns_sockerrno));
 	}
 	if (FD_ISSET(trigPipe[0], &set) && recv(trigPipe[0], &c, 1, 0) != 1) {
-	    Ns_Fatal("trigger recv() failed: %s",
+	    Ns_Fatal("keepalive: trigger recv() failed: '%s'",
 		     ns_sockstrerror(ns_sockerrno));
 	}
 
@@ -406,14 +408,14 @@ KeepThread(void *ignored)
      * system, and signal shutdown complete.
      */
     
-    Ns_Log(Notice, "shutdown pending");
+    Ns_Log(Notice, "keepalive: shutdown pending");
     Ns_MutexUnlock(&lock);
     while ((keepPtr = activePtr) != NULL) {
 	activePtr = keepPtr->nextPtr;
 	KeepClose(keepPtr);
     }
     ns_free(keepBufPtr);
-    Ns_Log(Notice, "shutdown complete");
+    Ns_Log(Notice, "keepalive: shutdown complete");
     Ns_MutexLock(&lock);
     Ns_CondBroadcast(&cond);
     Ns_MutexUnlock(&lock);
@@ -440,7 +442,7 @@ static void
 KeepTrigger(void)
 {
     if (send(trigPipe[1], "", 1, 0) != 1) {
-	Ns_Fatal("KeepTrigger: trigger send() failed: %s",
+	Ns_Fatal("keepalive: trigger send() failed: '%s'",
 		 ns_sockstrerror(ns_sockerrno));
     }
 }

@@ -36,7 +36,7 @@
  *	the Ns_AdpRegisterParser() API call.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/adpfancy.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/adpfancy.c,v 1.4 2000/08/17 06:09:49 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -562,7 +562,7 @@ FancyParsePage(Ns_DString *outPtr, char *in)
 	     */
 	    end = strstr(top, "%>");
 	    if (end == NULL) {
-		Ns_Log(Warning, "FancyParsePage: unterminated script");
+		Ns_Log(Warning, "adpfancy: unterminated script");
 		AddTextChunk(outPtr, oldtop, strlen(oldtop));
 		break;
 	    } else {
@@ -599,7 +599,7 @@ FancyParsePage(Ns_DString *outPtr, char *in)
 		
 		end = Ns_StrNStr(top, "</script>");
 		if (end == NULL) {
-		    Ns_Log(Warning, "FancyParsePage: unterminated script");
+		    Ns_Log(Warning, "adpfancy: unterminated script");
 		    AddTextChunk(outPtr, oldtop, strlen(oldtop));
                     Ns_SetFree(params);
 		    break;
@@ -640,8 +640,8 @@ FancyParsePage(Ns_DString *outPtr, char *in)
 	    if (rtPtr->endtag &&
 		((end = Ns_StrNStr(top, rtPtr->endtag)) == NULL)) {
 
-		Ns_Log(Warning, "FancyParsePage: "
-		       "unterminated registered tag %s", rtPtr->tag);
+		Ns_Log(Warning, "adpfancy: unterminated registered tag '%s'",
+		       rtPtr->tag);
 		AddTextChunk(outPtr, oldtop, strlen(oldtop));
                 Ns_SetFree(params);
 		break;

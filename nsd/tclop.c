@@ -35,7 +35,7 @@
  *	with registered procs and whatnot.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/tclop.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/tclop.c,v 1.4 2000/08/17 06:09:49 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -714,8 +714,8 @@ TclFilterProc(void *arg, Ns_Conn *conn, int why)
 	    }
 	}
 	if (status == NS_ERROR) {
-	    Ns_Log(Error, "Invalid return code from filter proc: %s "
-		   "(must be filter_ok, filter_return, or filter_break)",
+	    Ns_Log(Error, "tclop: invalid return code from filter proc '%s': "
+		   "must be filter_ok, filter_return, or filter_break",
 		   interp->result);
 	}
     }

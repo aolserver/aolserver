@@ -34,7 +34,7 @@
  *	Unix specific routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/unix.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/unix.c,v 1.4 2000/08/17 06:09:49 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -157,7 +157,7 @@ NsHandleSignals(void)
         sig = 0;
         err = ns_sigwait(&set, &sig);
         if (err != 0 && err != EINTR) {
-            Ns_Fatal("main: sigwait() error:  %s", strerror(err));
+            Ns_Fatal("unix: sigwait() error: '%s'", strerror(err));
         } else if (sig == NS_SIGHUP) {
 	    NsRunSignalProcs();
 	} else if (sig == NS_SIGTCL) {
@@ -201,7 +201,7 @@ void
 NsSendSignal(int sig)
 {
     if (kill(Ns_InfoPid(),  sig) != 0) {
-    	Ns_Fatal("kill() failed: %s", strerror(errno));
+    	Ns_Fatal("unix: kill() failed: '%s'", strerror(errno));
     }
 }
 
@@ -292,11 +292,13 @@ NsKillPid(int pid)
     int timeout, err;
     
     if (!Kill(pid, SIGTERM)) {
-	Ns_Log(Warning, "NsKillPid: pid %d does not exist", pid);
+	Ns_Log(Warning, "unix: failed to kill process %d: "
+	       "pid %d does not exist", pid, pid);
     } else if (!Wait(pid, 10)) {
-    	Ns_Log(Warning, "NsKillPid: pid %d still alive - killing", pid);
+    	Ns_Log(Warning, "unix: "
+	       "attempting again to kill process %d after waiting 10 seconds",pid);
 	if (Kill(pid, SIGKILL) && !Wait(pid, 5)) {
-	    Ns_Fatal("could not kill %d: %s", pid, strerror(errno));
+	    Ns_Fatal("unix: failed to kill process %d: '%s'",pid,strerror(errno));
 	}
     }
 }
@@ -325,7 +327,7 @@ Kill(int pid, int sig)
     
     err = kill(pid, sig);
     if (err != 0 && errno != ESRCH) {
-    	Ns_Fatal("kill(%d, %d) failed: %s", pid, sig, strerror(errno));
+    	Ns_Fatal("unix: kill(%d, %d) failed: '%s'", pid, sig, strerror(errno));
     }
     return (err == 0 ? 1 : 0);
 }
@@ -353,7 +355,7 @@ Wait(int pid, int seconds)
     int alive;
     
     while ((alive = Kill(pid, 0)) && seconds-- >= 0) {
-	Ns_Log(Notice, "Wait: waiting for %d to die...", pid);
+	Ns_Log(Notice, "unix: waiting for killed process %d to die...", pid);
     	sleep(1);
     }
     return (alive ? 0 : 1);

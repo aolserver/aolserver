@@ -34,7 +34,7 @@
  *	Routines for handling the loadable db driver interface.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/dbdrv.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/dbdrv.c,v 1.4 2000/08/17 06:09:49 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -119,7 +119,7 @@ static Tcl_HashTable driversTable;
 static void
 UnsupProcId(char *name)
 {
-    Ns_Log(Warning, "dbdrv: unsupported function id:  DbFn_%s", name);
+    Ns_Log(Warning, "dbdrv: unsupported function id '%s'", name);
 }
 
 int
@@ -130,12 +130,12 @@ Ns_DbRegisterDriver(char *driver, Ns_DbProc *procs)
 
     hPtr = Tcl_FindHashEntry(&driversTable, driver);
     if (hPtr == NULL) {
-        Ns_Log(Error, "Ns_DbRegisterDriver: no such driver: %s", driver);
+        Ns_Log(Error, "dbdrv: no such driver '%s'", driver);
 	return NS_ERROR;
     }
     driverPtr = (DbDriver *) Tcl_GetHashValue(hPtr);
     if (driverPtr->registered) {
-        Ns_Log(Error, "Ns_DbRegisterDriver: driver already registered: %s",
+        Ns_Log(Error, "dbdrv: a driver is already registered as '%s'",
 	       driver);
         return NS_ERROR;
     }
@@ -224,8 +224,7 @@ Ns_DbRegisterDriver(char *driver, Ns_DbProc *procs)
 		break;
 		
 	    default:
-		Ns_Log(Error, "Ns_DbRegisterDriver: unknown driver id: %d",
-		       procs->id);
+		Ns_Log(Error, "dbdrv: unknown driver id '%d'", procs->id);
 		return NS_ERROR;
 		break;
 	}
@@ -634,12 +633,12 @@ NsDbLoadDriver(char *driver)
         Tcl_SetHashValue(hPtr, driverPtr);
         module = Ns_ConfigGet("ns/db/drivers", driver);
         if (module == NULL) {
-	    Ns_Log(Error, "NsDbLoadDriver: no such driver: %s", driver);
+	    Ns_Log(Error, "dbdrv: no such driver '%s'", driver);
 	} else {
 	    path = Ns_ConfigGetPath(NULL, NULL, "db", "driver", driver, NULL);
             if (Ns_ModuleLoad(driver, path, module, "Ns_DbDriverInit")
 		    != NS_OK) {
-		Ns_Log(Error, "NsDbLoadDriver: could not load driver: %s",
+		Ns_Log(Error, "dbdrv: failed to load driver '%s'",
 		       driver);
             }
         }
@@ -675,7 +674,7 @@ NsDbServerInit(DbDriver *driverPtr)
     if (driverPtr->initProc != NULL &&
 	((*driverPtr->initProc) (nsServer, "db", driverPtr->name)) != NS_OK) {
 
-	Ns_Log(Warning, "NsDbServerInit: init proc failed for driver: %s",
+	Ns_Log(Warning, "dbdrv: init proc failed for driver '%s'",
 	       driverPtr->name);
     }
 }
@@ -703,13 +702,13 @@ NsDbOpen(Ns_DbHandle *handle)
 {
     DbDriver *driverPtr = NsDbGetDriver(handle);
 
-    Ns_Log(Notice, "NsDbOpen: opening:  %s:%s", handle->driver,
+    Ns_Log(Notice, "dbdrv: opening database '%s:%s'", handle->driver,
 	   handle->datasource);
     if (driverPtr == NULL ||
 	driverPtr->openProc == NULL ||
 	(*driverPtr->openProc) (handle) != NS_OK) {
 
-	Ns_Log(Error, "NsDbOpen: could not open:  %s:%s",
+	Ns_Log(Error, "dbdrv: failed to open database '%s:%s'",
 	       handle->driver, handle->datasource);
 	handle->connected = NS_FALSE;
         return NS_ERROR;

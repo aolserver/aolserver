@@ -34,7 +34,7 @@
  *	Support for the slave bind/listen process.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/binder.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/binder.c,v 1.4 2000/08/17 06:09:49 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -138,7 +138,7 @@ Ns_SockListen(char *address, int port)
 	msg.msg_iovlen = 2;
 	if (sendmsg(bindRequest[1],
 		    (struct msghdr *) &msg, 0) != REQUEST_SIZE) {
-            Ns_Fatal("binder sendmsg() failed: %s", strerror(errno));
+            Ns_Fatal("binder: sendmsg() failed: '%s'", strerror(errno));
 	}
 
 	iov[0].iov_base = (caddr_t) &err;
@@ -159,7 +159,7 @@ Ns_SockListen(char *address, int port)
 #endif
 	if (recvmsg(bindResponse[0],
 		    (struct msghdr *) &msg, 0) != RESPONSE_SIZE) {
-            Ns_Fatal("binder recvmsg() failed: %s", strerror(errno));
+            Ns_Fatal("binder: recvmsg() failed: '%s'", strerror(errno));
 	}
 #ifdef HAVE_CMMSG
 	sock = cm.fds[0];
@@ -168,12 +168,12 @@ Ns_SockListen(char *address, int port)
 	    address = "0.0.0.0";
 	}
 	if (err == 0) {
-	    Ns_Log(Notice, "binder: Ns_SockListen: listen(%s, %d) = %d",
+	    Ns_Log(Notice, "binder: listen(%s,%d) = %d",
 		   address, port, sock);
 	} else {
 	    Ns_SetSockErrno(err);
 	    sock = -1;
-	    Ns_Log(Error, "binder: Ns_SockListen: listen(%s, %d) failed: %s",
+	    Ns_Log(Error, "binder: listen(%s,%d) failed: '%s'",
 	           address, port, ns_sockstrerror(ns_sockerrno));
 	}
     }
@@ -212,7 +212,7 @@ NsForkBinder(void)
      */
 
     if (ns_sockpair(bindRequest) != 0 || ns_sockpair(bindResponse) != 0) { 
-	Ns_Fatal("ns_sockpair() failed:  %s", strerror(errno));
+	Ns_Fatal("binder: ns_sockpair() failed: '%s'", strerror(errno));
     }
 
     /*
@@ -225,11 +225,11 @@ NsForkBinder(void)
 
     pid = Ns_Fork();
     if (pid < 0) {
-	Ns_Fatal("fork() failed: %s", strerror(errno));
+	Ns_Fatal("binder: fork() failed: '%s'", strerror(errno));
     } else if (pid == 0) {
 	pid = fork();
 	if (pid < 0) {
-	    Ns_Fatal("fork() failed: %s", strerror(errno));
+	    Ns_Fatal("binder: fork() failed: '%s'", strerror(errno));
 	} else if (pid == 0) {
     	    close(bindRequest[1]);
     	    close(bindResponse[0]);
@@ -238,9 +238,11 @@ NsForkBinder(void)
 	exit(0);
     }
     if (Ns_WaitForProcess(pid, &status) != NS_OK) {
-	Ns_Fatal("Ns_WaitForProcess(%d) failed: %s", pid, strerror(errno));
+	Ns_Fatal("binder: Ns_WaitForProcess(%d) failed: '%s'",
+		 pid, strerror(errno));
     } else if (status != 0) {
-	Ns_Fatal("binder process %d exited with non-zero status: %d", pid, status);
+	Ns_Fatal("binder: process %d exited with non-zero status: %d",
+		 pid, status);
     }
     Ns_MutexLock(&lock);
     bindRunning = 1;
@@ -272,7 +274,7 @@ NsStopBinder(void)
     Ns_MutexLock(&lock);
     if (bindRunning) {
 #ifdef __sgi
-	Ns_Log(Warning, "NsStopBinder: SGI bug: binder left running");
+	Ns_Log(Warning, "binder: irix bug: binder left running");
 #else
 	close(bindRequest[1]);
 	close(bindResponse[0]);
@@ -363,7 +365,7 @@ Binder(void)
 	    break;
 	}
         if (n != REQUEST_SIZE) {
-            Ns_Fatal("recvmsg() failed: %s", strerror(errno));
+            Ns_Fatal("binder: recvmsg() failed: '%s'", strerror(errno));
         }
 
 	/*
@@ -403,7 +405,7 @@ Binder(void)
             n = sendmsg(bindResponse[1], (struct msghdr *) &msg, 0);
         } while (n == -1 && errno == EINTR);
         if (n != RESPONSE_SIZE) {
-            Ns_Fatal("sendmsg() failed: %s", strerror(errno));
+            Ns_Fatal("binder: sendmsg() failed: '%s'", strerror(errno));
         }
         if (fd != -1) {
 	

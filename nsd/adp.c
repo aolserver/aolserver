@@ -57,7 +57,7 @@
  * ns_param   "ParserName" "utf8"
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/adp.c,v 1.4 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/adp.c,v 1.5 2000/08/17 06:09:49 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -144,8 +144,7 @@ Ns_AdpRegisterParser(char *extension, Ns_AdpParserProc *newParserProc)
     int            new;
     
     if (Ns_InfoServersStarted() == NS_TRUE) {
-	Ns_Log(Error, "Ns_AdpRegisterParser: "
-	       "attempt to register ADP parser after server startup.");
+	Ns_Log(Error, "adp: cannot register parser after server startup");
 	return NS_ERROR;
     }
     hePtr = Tcl_CreateHashEntry(&parsersTable, extension, &new);
@@ -214,11 +213,11 @@ NsAdpInit(void)
 			       NULL, 0);
 	    Ns_RegisterRequest(nsServer, "POST", map, AdpProc, NULL,
 			       NULL, 0);
-	    Ns_Log(Notice, "NsAdpInit: mapped %s", map);
+	    Ns_Log(Notice, "adp: mapped %s", map);
 	}
     }
     if (map == NULL) {
-	Ns_Log(Warning, "NsAdpInit: no Map configuration - disabled");
+	Ns_Log(Warning, "adp: disabled -- no mappings");
     }
 
     /*
@@ -282,8 +281,7 @@ NsAdpParsers(void)
 
 	hePtr = Tcl_FindHashEntry(&parsersTable, parser);
 	if (hePtr == NULL) {
-	    Ns_Log(Notice, "NsAdpParsers: "
-		   "invalid parser '%s'", parser);
+	    Ns_Log(Notice, "adp: invalid parser '%s'", parser);
 	    continue;
 	}
 
@@ -388,8 +386,8 @@ NsAdpEval(Tcl_Interp *interp, char *file, char *chunks)
 		mktemp(debugfile);
 		fd = open(debugfile, O_WRONLY|O_TRUNC|O_CREAT|O_TEXT, 0644);
 		if (fd < 0) {
-	    	     Ns_Log(Error, "NsAdpEval: could not open %s: %s",
-			    debugfile, strerror(errno));
+		    Ns_Log(Error, "adp: failed to open %s: %s",
+			   debugfile, strerror(errno));
 		} else {
 		    write(fd, ds.string, ds.length);
 		    close(fd);
@@ -1485,8 +1483,7 @@ Ns_AdpRequest(Ns_Conn *conn, char *file)
 	    break;
 
 	case ADP_OVERFLOW:
-	    Ns_Log(Error, "Ns_AdpRequest: "
-		   "stack overflow:  %s", file);
+	    Ns_Log(Error, "adp: stack overflow: '%s'", file);
 	    status = Ns_ConnReturnInternalError(conn);
 	    break;
 

@@ -33,7 +33,7 @@
  *	Routines to roll files.
  */
  
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/rollfile.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/rollfile.c,v 1.4 2000/08/17 06:09:49 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -81,8 +81,8 @@ Ns_RollFile(char *file, int max)
     int   err;
     
     if (max < 0 || max > 999) {
-        Ns_Log(Error, "Ns_RollFile: "
-	       "invalid max parameter: %d (must be > 0 and < 999)", max);
+        Ns_Log(Error, "rollfile: invalid max parameter '%d'; "
+	       "must be > 0 and < 999", max);
 	return NS_ERROR;
     }
     
@@ -170,7 +170,8 @@ Ns_PurgeFiles(char *file, int max)
     Ns_NormalizePath(&dir, file);
     slash = strrchr (dir.string, '/');
     if (slash == NULL || slash[1] == '\0') {
-	Ns_Log (Error, "Ns_PurgeFiles: invalid path: %s", file);
+	Ns_Log (Error, "rollfile: failed to purge files: invalid path '%s'",
+		file);
     	goto err;
     }
     *slash = '\0';
@@ -179,7 +180,7 @@ Ns_PurgeFiles(char *file, int max)
     
     dp = opendir(dir.string);
     if (dp == NULL) {
-    	Ns_Log(Error, "Ns_PurgeFiles: opendir(%s) failed: %s",
+    	Ns_Log(Error, "rollfile: failed to purge files:opendir(%s) failed: '%s'",
 	       dir.string, strerror(errno));
 	goto err;
     }
@@ -245,8 +246,8 @@ AppendFile(Ns_DString *dsPtr, char *dir, char *tail)
     fPtr = ns_malloc(sizeof(File) + strlen(dir) + strlen(tail));
     sprintf(fPtr->name, "%s/%s", dir, tail);
     if (stat(fPtr->name, &st) != 0) {
-    	Ns_Log(Error, "rollfile: AppendFile: "
-	       "stat(%s) failed: %s", fPtr->name, strerror(errno));
+    	Ns_Log(Error, "rollfile: failed to append to file '%s': '%s'",
+	       fPtr->name, strerror(errno));
     	ns_free(fPtr);
 	return 0;
     }
@@ -310,8 +311,8 @@ Unlink(char *file)
     
     err = unlink(file);
     if (err != 0) {
-        Ns_Log(Error, "rollfile: Unlink: "
-	       "unlink(%s) failed:  %s", file, strerror(errno));
+        Ns_Log(Error, "rollfile: failed to delete file '%s': '%s'",
+	       file, strerror(errno));
     }
     return err;
 }
@@ -323,8 +324,8 @@ Rename(char *from, char *to)
     
     err = rename(from, to);
     if (err != 0) {
-    	Ns_Log(Error, "rollfile: Rename: "
-	       "rename(%s, %s) failed: %s", from, to, strerror(errno));
+    	Ns_Log(Error, "rollfile: failed to rename file '%s' to '%s': '%s'",
+	       from, to, strerror(errno));
     }
     return err;
 }
@@ -339,8 +340,8 @@ Exists(char *file)
     } else if (errno == ENOENT) {
     	exists = 0;
     } else {
-	Ns_Log(Error, "rollfile: Exists: "
-	       "access(%s) failed: %s", file, strerror(errno));
+	Ns_Log(Error, "rollfile: failed to determine if file '%s' exists: '%s'",
+	       file, strerror(errno));
     	exists = -1;
     }
     return exists;

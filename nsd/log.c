@@ -34,7 +34,7 @@
  *	Manage the server log file.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/log.c,v 1.5 2000/08/08 20:36:31 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/log.c,v 1.6 2000/08/17 06:09:49 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -106,7 +106,7 @@ Ns_LogRoll(void)
         if (access(logFile, F_OK) == 0) {
             Ns_RollFile(logFile, nsconf.log.maxback);
         }
-        Ns_Log(Notice, "Ns_LogRoll: re-opening log:  %s", logFile);
+        Ns_Log(Notice, "log: re-opening log file '%s'", logFile);
         if (LogReOpen() != NS_OK) {
 	    return NS_ERROR;
 	}
@@ -280,7 +280,7 @@ NsLogOpen(void)
 	logFile = Ns_DStringExport(&ds);
     }
     if (LogReOpen() != NS_OK) {
-	Ns_Fatal("NsLogOpen: could not open server log %s:  %s", 
+	Ns_Fatal("log: failed to open server log '%s': '%s'", 
 		 logFile, strerror(errno));
     }
     if (!Ns_ConfigGetBool(NS_CONFIG_PARAMETERS, "logroll", &roll)) {
@@ -469,8 +469,8 @@ LogReOpen(void)
     status = NS_OK;
     fd = open(logFile, O_WRONLY|O_APPEND|O_CREAT|O_TEXT, 0644);
     if (fd < 0) {
-        Ns_Log(Error, "LogReOpen: "
-	       "could not re-open log %s: %s", logFile, strerror(errno));
+        Ns_Log(Error, "log: failed to re-open log file '%s': '%s'",
+	       logFile, strerror(errno));
         status = NS_ERROR;
     } else {
 	/*
@@ -488,9 +488,8 @@ LogReOpen(void)
 	 */
 	
         if (dup2(STDERR_FILENO, STDOUT_FILENO) == -1) {
-            Ns_Log(Error, "LogReOpen: "
-		   "dup2(STDERR_FILENO, STDOUT_FILENO) failed: %s\n",
-		   logFile, strerror(errno));
+            Ns_Log(Error, "log: failed to route stdout to file: '%s'",
+		   strerror(errno));
             status = NS_ERROR;
         }
 	

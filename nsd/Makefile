@@ -1,7 +1,8 @@
 
-include ../include/Makefile.global
-
 NSHOME   =  ..
+
+include $(NSHOME)/include/Makefile.global
+
 
 LIBS	+= $(NSDLIBS)
 

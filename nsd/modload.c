@@ -34,7 +34,7 @@
  *	Load .so files into the server and initialize them. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/modload.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/modload.c,v 1.4 2000/08/17 06:09:49 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -175,8 +175,8 @@ Ns_ModuleLoad(char *server, char *module, char *file, char *init)
         if (verPtr == NULL || *verPtr < 1) {
             status = NS_OK;
         } else if (status != NS_OK) {
-	    Ns_Log(Error, "Ns_ModuleLoad: could not load \"%s\":"
-		   "%s returned %d", file, init, status);
+	    Ns_Log(Error, "modload: failed to load '%s': '%s' returned %d",
+		   file, init, status);
 	}
     }
 
@@ -241,11 +241,11 @@ Ns_ModuleSymbol(char *file, char *name)
 	 * Load the module because it was not found in the hash table.
 	 */
 	
-    	Ns_Log(Notice, "Ns_ModuleSymbol: loading: %s", file);
+    	Ns_Log(Notice, "modload: loading '%s'", file);
 	module = DlOpen(file);
 	if (module == NULL) {
-            Ns_Log(Warning, "Ns_ModuleSymbol: "
-		   "could not load %s:  %s", file, DlError());
+            Ns_Log(Warning, "modload: failed to load '%s': '%s'",
+		   file, DlError());
             Tcl_DeleteHashEntry(hPtr);
 	} else {
             Tcl_SetHashValue(hPtr, module);
@@ -261,8 +261,7 @@ Ns_ModuleSymbol(char *file, char *name)
     if (module != NULL) {
 	symbol = DlSym(module, name);
 	if (symbol == NULL) {
-	    Ns_Log(Warning, "Ns_ModuleSymbol: "
-		   "no such symbol \"%s\" in module \"%s\"",
+	    Ns_Log(Warning, "modload: no such symbol '%s' in module '%s'",
 		   name, file);
 	}
     }
@@ -372,9 +371,9 @@ NsLoadModules(void)
 	    
             if (!STRIEQ(file, "tcl") &&
 		Ns_ModuleLoad(nsServer, module, file, init) != NS_OK) {
-		Ns_Fatal("could not load: %s", file);
+		Ns_Fatal("modload: failed to load module '%s'", file);
             }
-	    Ns_Log(Debug, "Ns_LoadModules: initializing: %s", module);
+	    Ns_Log(Debug, "modload: initializing module '%s'", module);
 
 	    /*
 	     * Append this module to the list of modules that need
@@ -403,11 +402,10 @@ NsLoadModules(void)
 	firstPtr = NULL;
     	while (modPtr != NULL) {
 	    nextPtr = modPtr->nextPtr;
-	    Ns_Log(Notice, "Ns_LoadModules: "
-		   "modload: initializing: %s", modPtr->name);
+	    Ns_Log(Notice, "modload: initializing module '%s'", modPtr->name);
 	    if ((*modPtr->proc)(nsServer, modPtr->name) != NS_OK) {
-	    	Ns_Fatal("Ns_LoadModules: "
-			 "could not initialize: %s", modPtr->name);
+	    	Ns_Fatal("modload: failed to initialize module '%s'",
+			 modPtr->name);
 	    }
             Ns_TclInitModule(nsServer, modPtr->name);
 	    ns_free(modPtr);
@@ -459,29 +457,28 @@ DlOpen(char *file)
     if (err != NSObjectFileImageSuccess) {
 	switch (err) {
 	case NSObjectFileImageFailure:
-	    Ns_Log(Error, "DlOpen: dyld: "
-		   "general failure (%s)", file);
+	    Ns_Log(Error, "modload: failed to load '%s': "
+		   "general failure", file);
 	    break;
 	case NSObjectFileImageInappropriateFile:
-	    Ns_Log(Error, "DlOpen: dyld: "
-		   "inappropriate Mach-O file (%s)", file);
+	    Ns_Log(Error, "modload: failed to load '%s': "
+		   "inappropriate Mach-O file", file);
 	    break;
 	case NSObjectFileImageArch:
-	    Ns_Log(Error, "DlOpen: dyld: "
-		   "inappropriate Mach-O architecture (%s)",
-		   file);
+	    Ns_Log(Error, "modload: failed to load '%s': "
+		   "inappropriate Mach-O architecture", file);
 	    break;
 	case NSObjectFileImageFormat:
-	    Ns_Log(Error, "DlOpen: dyld: "
-		   "invalid Mach-O file format (%s)", file);
+	    Ns_Log(Error, "modload: failed to load '%s': "
+		   "invalid Mach-O file format", file);
 	    break;
 	case NSObjectFileImageAccess:
-	    Ns_Log(Error, "DlOpen: dyld: "
-		   "permission denied (%s)", file);
+	    Ns_Log(Error, "modload: failed to load '%s': "
+		   "permission denied trying to load file", file);
 	    break;
 	default:
-	    Ns_Log(Error, "DlOpen: dyld: "
-		   "unknown failure (%s)", file);
+	    Ns_Log(Error, "modload: failed to load '%s': "
+		   "unknown failure", file);
 	    break;
 	}
         return NULL;
@@ -592,7 +589,7 @@ DlError(void)
 static void
 dyld_undefined_symbol_handler(const char *symbolName) 
 {
-    Ns_Fatal("dyld: no such symbol: %s.", symbolName);
+    Ns_Fatal("modload: no such symbol '%s'", symbolName);
 }
 
 
@@ -617,8 +614,8 @@ static NSModule
 dyld_multiple_symbol_handler(NSSymbol s, NSModule old, NSModule new)
 {
 #ifdef DEBUG
-    Ns_Log(Warning, 
-	   "dyld: multiply-defined symbol '%s' in old '%s', new '%s'",
+    Ns_Log(Warning, "modload: " 
+	   "multiply-defined symbol '%s' in old module '%s' and new module '%s'",
 	   NSNameOfSymbol(s),  NSNameOfModule(old), NSNameOfModule(new));
 #endif
 
@@ -646,8 +643,8 @@ static void
 dyld_linkEdit_symbol_handler(NSLinkEditErrors c, int errNumber,
     const char *filename, const char *errString)
 {
-    Ns_Log(Error, "dyld: file: '%s': link edit errors: '%s'; aborting.",
-	   filename, errString);
+    Ns_Log(Error, "modload: "
+	   "failed to load '%s': link edit errors: '%s'", filename, errString);
     abort();
 }
 

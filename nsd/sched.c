@@ -27,7 +27,7 @@
  * version of this file under either the License or the GPL.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sched.c,v 1.4 2000/08/08 20:37:26 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sched.c,v 1.5 2000/08/17 06:09:49 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 /*
  * sched.c --
@@ -461,7 +461,7 @@ NsStartSchedShutdown(void)
 {
     Ns_MutexLock(&lock);
     if (running) {
-    	Ns_Log(Notice, "NsStartSchedShutdown: shutdown pending");
+    	Ns_Log(Notice, "sched: shutdown pending");
 	shutdownPending = 1;
 	Ns_CondSignal(&cond);
     }
@@ -480,8 +480,7 @@ NsWaitSchedShutdown(Ns_Time *toPtr)
     }
     Ns_MutexUnlock(&lock);
     if (status != NS_OK) {
-	Ns_Log(Warning, "NsWaitSchedShutdown: "
-	       "timeout waiting for sched exit!");
+	Ns_Log(Warning, "sched: timeout waiting for sched exit");
     } else if (schedThread != NULL) {
 	Ns_ThreadJoin(&schedThread, NULL);
     }
@@ -720,7 +719,7 @@ SchedThread(void *ignored)
 
     Ns_WaitForStartup();
     Ns_ThreadSetName("-sched-");
-    Ns_Log(Notice, "SchedThread: starting");
+    Ns_Log(Notice, "sched: starting");
     readyPtr = NULL;
     Ns_MutexLock(&lock);
     while (!shutdownPending) {
@@ -762,8 +761,9 @@ SchedThread(void *ignored)
 	    time(&now);
 	    elapsed = (int) difftime(now, ePtr->laststart);
 	    if (elapsed > nsconf.sched.maxelapsed) {
-		Ns_Log(Warning, "SchedThread: "
-		       "proc #%d elapsed time: %d seconds", ePtr->id, elapsed);
+		Ns_Log(Warning, "sched: "
+		       "excessive time taken by proc %d (%d seconds)",
+		       ePtr->id, elapsed);
 	    }
 	    if (ePtr->hPtr == NULL) {
 		FreeEvent(ePtr);
@@ -796,9 +796,9 @@ SchedThread(void *ignored)
      * shutdown complete.
      */
      
-    Ns_Log(Notice, "SchedThread: shutdown started");
+    Ns_Log(Notice, "sched: shutdown started");
     if (neventThreads > 0) {
-    	Ns_Log(Notice, "SchedThread: waiting for detached procs");
+    	Ns_Log(Notice, "sched: waiting for detached procs...");
 	while (neventThreads > 0) {
 	    Ns_CondWait(&cond, &lock);
 	}
@@ -813,7 +813,7 @@ SchedThread(void *ignored)
     }
     ns_free(queue);
     Tcl_DeleteHashTable(&eventsTable);
-    Ns_Log(Notice, "SchedThread: shutdown complete");
+    Ns_Log(Notice, "sched: shutdown complete");
     Ns_MutexLock(&lock);
     running = 0;
     Ns_CondBroadcast(&cond);

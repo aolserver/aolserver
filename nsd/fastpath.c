@@ -34,7 +34,7 @@
  *      Get page possibly from a file cache.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/fastpath.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/fastpath.c,v 1.4 2000/08/17 06:09:49 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #ifndef WIN32
@@ -313,7 +313,7 @@ FastGet(void *ignored, Ns_Conn *conn)
 
     if (stat(ds.string, &st) != 0) {
 	if (errno != ENOENT) {
-	    Ns_Log(Error, "FastGet: stat(%s) failed: %s",
+	    Ns_Log(Error, "fastpath: fastget failed to stat '%s': '%s'",
 		   ds.string, strerror(errno));
 	}
 	goto notfound;
@@ -333,7 +333,8 @@ FastGet(void *ignored, Ns_Conn *conn)
 	}
 
 
-	if (nsconf.fastpath.cache == NS_FALSE || st.st_size > nsconf.fastpath.cachemaxentry) {
+	if (nsconf.fastpath.cache == NS_FALSE
+	    || st.st_size > nsconf.fastpath.cachemaxentry) {
 
 	    /*
 	     * Caching is disabled or the entry is too large for the cache
@@ -342,7 +343,7 @@ FastGet(void *ignored, Ns_Conn *conn)
 
     	    fd = open(ds.string, O_RDONLY|O_BINARY);
     	    if (fd < 0) {
-	        Ns_Log(Warning, "FastGet: open(%s) failed: %s",
+	        Ns_Log(Warning, "fastpath: failed to open '%s': '%s'",
 		       ds.string, strerror(errno));
 	     	goto notfound;
 	    }
@@ -397,7 +398,7 @@ FastGet(void *ignored, Ns_Conn *conn)
 		fd = open(ds.string, O_RDONLY|O_BINARY);
 		if (fd < 0) {
 	    	    filePtr = NULL;
-	            Ns_Log(Warning, "FastGet: open(%s) failed: %s",
+	            Ns_Log(Warning, "fastpath: failed to open '%s': '%s'",
 			   ds.string, strerror(errno));
 		} else {
 		    filePtr = ns_malloc(sizeof(File) + st.st_size);
@@ -407,7 +408,7 @@ FastGet(void *ignored, Ns_Conn *conn)
 		    nread = read(fd, filePtr->bytes, filePtr->size);
 		    close(fd);
 		    if (nread != filePtr->size) {
-	    	    	Ns_Log(Warning, "FastGet: read(%s) failed: %s",
+	    	    	Ns_Log(Warning, "fastpath: failed to read '%s': '%s'",
 			       ds.string, strerror(errno));
 			ns_free(filePtr);
 			filePtr = NULL;

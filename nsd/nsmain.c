@@ -33,7 +33,7 @@
  *	AOLserver Ns_Main() startup routine.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.4 2000/08/08 20:37:26 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.5 2000/08/17 06:09:49 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -182,8 +182,8 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 
 #ifndef WIN32
     if (getrlimit(RLIMIT_NOFILE, &rl) != 0) {
-	Ns_Log(Warning, "Ns_Main: "
-	       "getrlimit(RLIMIT_NOFILE) failed: %s", strerror(errno));
+	Ns_Log(Warning, "nsmain: getrlimit(RLIMIT_NOFILE) failed: '%s'",
+	       strerror(errno));
     } else {
 	if (rl.rlim_max > FD_SETSIZE) {
 	    rl.rlim_max = FD_SETSIZE;
@@ -191,8 +191,8 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 	if (rl.rlim_cur != rl.rlim_max) {
     	    rl.rlim_cur = rl.rlim_max;
     	    if (setrlimit(RLIMIT_NOFILE, &rl) != 0) {
-	        Ns_Log(Warning, "Ns_Main: "
-		       "setrlimit(RLIMIT_NOFILE, %d) failed: %s",
+	        Ns_Log(Warning, "nsmain: "
+		       "setrlimit(RLIMIT_NOFILE, %d) failed: '%s'",
 		       rl.rlim_max, strerror(errno));
 	    } 
 	}
@@ -284,7 +284,7 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 	    if (gid < 0) {
 		gid = atoi(optarg);
 		if (gid == 0) {
-		    Ns_Fatal("invalid group: %s", optarg);
+		    Ns_Fatal("nsmain: invalid group '%s'", optarg);
 	    	}
 	    }
 	    break;
@@ -294,7 +294,7 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 		uid = atoi(optarg);
 	    }
 	    if (uid == 0) {
-		Ns_Fatal("invalid user: %s", optarg);
+		Ns_Fatal("nsmain: invalid user '%s'", optarg);
 	    }
 	    break;
 #endif
@@ -342,10 +342,10 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
     }
     if (root != NULL) {
 	if (chroot(root) != 0) {
-	    Ns_Fatal("chroot(%s) failed: %s", root, strerror(errno));
+	    Ns_Fatal("nsmain: chroot(%s) failed: '%s'", root, strerror(errno));
 	}
 	if (chdir("/") != 0) {
-	    Ns_Fatal("chdir(/) failed: %s", strerror(errno));
+	    Ns_Fatal("nsmain: chdir(/) failed: '%s'", strerror(errno));
 	}
 	nsconf.home = "/";
     }
@@ -356,33 +356,34 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 	    if (!Ns_ConfigGetInt(NS_CONFIG_PARAMETERS, "uid", &uid)) {
 	    	param = Ns_ConfigGet(NS_CONFIG_PARAMETERS, "user");
 		if (param != NULL && (uid = Ns_GetUid(param)) < 0) {
-		    Ns_Fatal("no such user: %s", param);
+		    Ns_Fatal("nsmain: no such user '%s'", param);
 		}
 	    }
 	}
 	if (uid == 0) {
-	    Ns_Fatal("server will not run as root");
+	    Ns_Fatal("nsmain: server will not run as root; "
+		     "must specify '-u username' parameter");
 	}
 	if (gid == 0 && nsconf.configfmt == 'c') {
 	    if (!Ns_ConfigGetInt(NS_CONFIG_PARAMETERS, "gid", &gid)) {
 	    	param = Ns_ConfigGet(NS_CONFIG_PARAMETERS, "group");
 	    	if (param != NULL && (gid = Ns_GetGid(param)) < 0) {
-		    Ns_Fatal("no such group: %s", param);
+		    Ns_Fatal("nsmain: no such group '%s'", param);
 		}
 	    }
 	}
 	NsForkBinder();
 	if (gid != 0 && gid != getgid() && setgid(gid) != 0) {
-	    Ns_Fatal("setgid(%d) failed: %s", gid, strerror(errno));
+	    Ns_Fatal("nsmain: setgid(%d) failed: '%s'", gid, strerror(errno));
 	}
 	if (setuid(uid) != 0) {
-	    Ns_Fatal("setuid(%d) failed: %s", uid, strerror(errno));
+	    Ns_Fatal("nsmain: setuid(%d) failed: '%s'", uid, strerror(errno));
 	}
     }
     if (mode == 0) {
 	i = fork();
 	if (i < 0) {
-	    Ns_Fatal("fork() failed: %s", strerror(errno));
+	    Ns_Fatal("nsmain: fork() failed: '%s'", strerror(errno));
 	}
 	if (i > 0) {
 	    return 0;
@@ -409,16 +410,16 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 
     if (nsServer != NULL) {
 	if (Ns_ConfigGet(NS_CONFIG_SERVERS, nsServer) == NULL) {
-	    Ns_Fatal("no such server: %s", nsServer);
+	    Ns_Fatal("nsmain: no such server '%s'", nsServer);
 	}
     } else {
 	Ns_Set *set;
 
 	set = Ns_ConfigGetSection(NS_CONFIG_SERVERS);
 	if (set == NULL || Ns_SetSize(set) != 1) {
-	    Ns_Fatal("no server specified: give -s switch or have "
-		     NS_CONFIG_SERVERS
-		     " section in config file.");
+	    Ns_Fatal("nsmain: no server specified: "
+		     "specify '-s' parameter or specify "
+		     NS_CONFIG_SERVERS " in config file");
 	}
 	nsServer = Ns_SetKey(set, 0);
     }
@@ -430,10 +431,10 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
      
     nsconf.home = Ns_ConfigGet(NS_CONFIG_PARAMETERS, "home");
     if (nsconf.home == NULL) {
-	Ns_Fatal("config: missing: [%s]home", NS_CONFIG_PARAMETERS);
+	Ns_Fatal("nsmain: missing: [%s]home", NS_CONFIG_PARAMETERS);
     }
     if (chdir(nsconf.home) != 0) {
-	Ns_Fatal("chdir(%s) failed: %s", nsconf.home, strerror(errno));
+	Ns_Fatal("nsmain: chdir(%s) failed: '%s'", nsconf.home, strerror(errno));
     }
 
 #ifdef WIN32
@@ -445,7 +446,7 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 
     nsconf.home = getcwd(cwd, sizeof(cwd));
     if (nsconf.home == NULL) {
-	Ns_Fatal("getcwd failed: %s", strerror(errno));
+	Ns_Fatal("nsmain: getcwd failed: '%s'", strerror(errno));
     }
     while (*nsconf.home != '\0') {
 	if (*nsconf.home == '\\') {
@@ -525,10 +526,10 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
      */
      
     if (getrlimit(RLIMIT_NOFILE, &rl) != 0) {
-	Ns_Log(Warning, "Ns_Main: "
-	       "getrlimit(RLIMIT_NOFILE) failed: %s", strerror(errno));
+	Ns_Log(Warning, "nsmain: "
+	       "getrlimit(RLIMIT_NOFILE) failed: '%s'", strerror(errno));
     } else {
-	Ns_Log(Notice, "Ns_Main: "
+	Ns_Log(Notice, "nsmain: "
 	       "max files: FD_SETSIZE = %d, rl_cur = %d, rl_max = %d",
 	       FD_SETSIZE, rl.rlim_cur, rl.rlim_max);
     }
@@ -567,7 +568,7 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
     NsDbInit();
     NsAdpInit();
     if (initProc != NULL && (*initProc)(nsServer) != NS_OK) {
-	Ns_Fatal("Ns_ServerInitProc failed");
+	Ns_Fatal("nsmain: Ns_ServerInitProc failed");
     }
     NsLoadModules();
     NsAdpParsers();    
@@ -685,7 +686,7 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 void
 Ns_StopServer(char *server)
 {
-    Ns_Log(Warning, "Ns_StopServer: immediate server shutdown requested");
+    Ns_Log(Warning, "nsmain: immediate server shutdown requested");
     NsSendSignal(NS_SIGTERM);
 }
 
@@ -1183,10 +1184,11 @@ StatusMsg(int state)
 	what = "exiting";
 	break;
     }
-    Ns_Log(Notice, "%s/%s %s.", Ns_InfoServerName(), Ns_InfoVersion(), what);
+    Ns_Log(Notice, "nsmain: %s/%s %s",
+	   Ns_InfoServerName(), Ns_InfoVersion(), what);
 #ifndef WIN32
     if (state < 2) {
-        Ns_Log(Notice, "security info: uid=%d, euid=%d, gid=%d, egid=%d",
+        Ns_Log(Notice, "nsmain: security info: uid=%d, euid=%d, gid=%d, egid=%d",
 	       getuid(), geteuid(), getgid(), getegid());
     }
 #endif

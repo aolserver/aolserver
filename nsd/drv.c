@@ -37,7 +37,7 @@
  *      happens. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/drv.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/drv.c,v 1.4 2000/08/17 06:09:49 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -157,9 +157,9 @@ Ns_RegisterDriver(char *ignored, char *label, Ns_DrvProc *procs, void *drvData)
 	}
 	procs++;
     }
-    if (drvPtr->readProc == NULL || drvPtr->writeProc == NULL || drvPtr->closeProc == NULL) {
-	Ns_Log(Error, "Ns_RegisterDriver: "
-	       "driver: %s missing required proc(s)", label);
+    if (drvPtr->readProc == NULL
+	|| drvPtr->writeProc == NULL || drvPtr->closeProc == NULL) {
+	Ns_Log(Error, "drv: driver '%s' missing required procs", label);
 	ns_free(drvPtr);
 	return NULL;
     }
@@ -304,7 +304,7 @@ RunDriver(void *arg)
     } else {
 	loc = "<unknown>";
     }
-    Ns_Log(Notice, "RunDriver: %s: accepting: %s", dPtr->label, loc);
+    Ns_Log(Notice, "drv: driver '%s' accepting '%s'", dPtr->label, loc);
 
     while ((status = ((*dPtr->acceptProc)(dData, &cData))) == NS_OK) {
 	if (Ns_QueueConn(dData, cData) != NS_OK) {
@@ -312,9 +312,9 @@ RunDriver(void *arg)
 	}
     }
     if (status == NS_SHUTDOWN) {
-	Ns_Log(Notice, "RunDriver: %s: stopping: %s", dPtr->label, loc);
+	Ns_Log(Notice, "drv: driver '%s' stopping '%s'", dPtr->label, loc);
     } else {
-	Ns_Log(Error, "RunDriver: %s: error status %d: %s",
-	       dPtr->label, status, loc);
+	Ns_Log(Error, "drv: driver '%s' failed for '%s': error %d",
+	       dPtr->label, loc, status);
     }
 }

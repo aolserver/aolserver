@@ -34,7 +34,7 @@
  *	Tcl database access routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/dbtcl.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/dbtcl.c,v 1.4 2000/08/17 06:09:49 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -111,7 +111,7 @@ NsDbTclInit(void)
     Ns_TclInitInterps(nsServer, EnableCmds, NULL);
 
     if (Ns_TclInitModule(nsServer, "nsdb") != NS_OK) {
-	Ns_Log(Warning, "NsDbTclInit: could not initialize nsdb Tcl");
+	Ns_Log(Warning, "dbtcl: failed to initialize nsdb tcl commands");
     }
 }
 

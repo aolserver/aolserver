@@ -34,7 +34,7 @@
  *      Manipulate file descriptors of open files.
  */
  
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/fd.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/fd.c,v 1.4 2000/08/17 06:09:49 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -152,13 +152,13 @@ Ns_DupHigh(int *fdPtr)
 
     ofd = *fdPtr;
     if ((flags = fcntl(ofd, F_GETFD)) < 0) {
-	Ns_Log(Warning, "Ns_DupHigh: fcntl(%d, F_GETFD) failed: %s",
+	Ns_Log(Warning, "fd: duphigh failed: fcntl(%d, F_GETFD): '%s'",
 	       ofd, strerror(errno));
     } else if ((nfd = fcntl(ofd, F_DUPFD, 256)) < 0) {
-	Ns_Log(Warning, "Ns_DupHigh: fcntl(%d, F_DUPFD, 256) failed: %s",
+	Ns_Log(Warning, "fd: duphigh failed: fcntl(%d, F_DUPFD, 256): '%s'",
 	       ofd, strerror(errno));
     } else if (fcntl(nfd, F_SETFD, flags) < 0) {
-	Ns_Log(Warning, "Ns_DupHigh: fcntl(%d, F_SETFD, %d) failed: %s",
+	Ns_Log(Warning, "fd: duphigh failed: fcntl(%d, F_SETFD, %d): '%s'",
 	       nfd, flags, strerror(errno));
 	close(nfd);
     } else {

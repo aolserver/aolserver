@@ -34,7 +34,7 @@
  *	Initialization routines for Tcl.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.4 2000/08/17 06:09:49 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -667,7 +667,7 @@ NsTclRunInits(void)
     Ns_MutexUnlock(&lock);
     
     if (initPtr != NULL) {
-	Ns_Log(Notice, "NsTclRunInits: re-initalizing tcl"); 
+	Ns_Log(Notice, "tclinit: re-initalizing tcl"); 
 	while (initPtr != NULL) {
 	    nextPtr = initPtr->nextPtr;
 	    interp = Ns_TclAllocateInterp(NULL);
@@ -688,7 +688,7 @@ NsTclRunInits(void)
     interp = Ns_TclAllocateInterp(NULL);
     iPtr = ns_calloc(1, sizeof(InitData));
     if (!GetCmds(interp, &cargc, &cargv)) {
-	Ns_Fatal("NsTclReinit: could not get list of commands");
+	Ns_Fatal("tclinit: failed to get get list of tcl commands");
     }
     while (--cargc >= 0) {
     	if (Tcl_FindHashEntry(&builtinCmds, cargv[cargc]) == NULL) {
@@ -706,7 +706,7 @@ NsTclRunInits(void)
 
     if (NsTclEval(interp, getInit) != TCL_OK) {
     	Ns_TclLogError(interp);
-	Ns_Fatal("NsTclReinit: could not copy procs");
+	Ns_Fatal("tclinit: failed to copy procs");
     }
     iPtr->procsInit = ns_strdup(interp->result);
     iPtr->refCnt = 1;
@@ -1026,13 +1026,11 @@ static int
 CheckStarting(char *funcName)
 {
     if (Ns_ThreadId() != initTid) {
-    	Ns_Log(Error, "CheckStarting: "
-	       "attempt to call NsTcl%s in a child thread", funcName);
+    	Ns_Log(Error, "tclinit: cannot call NsTcl%s in a child thread", funcName);
     	return NS_FALSE;
     }
     if (Ns_InfoServersStarted()) {
-	Ns_Log(Error, "CheckStarting: "
-	       "attempt to call NsTcl%s after startup", funcName);
+	Ns_Log(Error, "tclinit: cannot call NsTcl%s after startup", funcName);
 	return NS_FALSE;
     }
 
@@ -1091,17 +1089,17 @@ SourceDirFile(Ns_DString *dsPtr, char *file)
     len = dsPtr->length;
     file = Ns_DStringVarAppend(dsPtr, "/", file, NULL);
     if (stat(file, &st) != 0) {
-	Ns_Log(Warning, "SourceDirFile: "
-	       "could not stat %s: %s", file, strerror(errno));
+	Ns_Log(Warning, "tclinit: failed to access '%s': '%s'",
+	       file, strerror(errno));
     } else if (!S_ISREG(st.st_mode)) {
-	Ns_Log(Warning, "SourceDirFile: "
-	       "not an ordinary file: %s", file);
+	Ns_Log(Warning, "tclinit: failed to access '%s': not an ordinary file",
+	       file);
     } else if (access(file, R_OK) != 0) {
-	Ns_Log(Warning, "SourceDirFile: "
-	       "not readable %s: %s", file, strerror(errno));
+	Ns_Log(Warning, "tclinit: failed to access '%s': '%s'",
+	       file, strerror(errno));
     } else {
     	interp = Ns_TclAllocateInterp(NULL);
-	Ns_Log(Notice, "SourceDirFile: sourcing: %s", file);
+	Ns_Log(Notice, "tclinit: sourcing '%s'", file);
 	if (Tcl_EvalFile(interp, file) != TCL_OK) {
 	    Ns_TclLogError(interp);
 	}
@@ -1337,7 +1335,7 @@ CreateInterp(TclData *tdPtr)
     init = ns_strdup(iPtr->procsInit);
     if (NsTclEval(interp, init) != TCL_OK) {
 	Ns_TclLogError(interp);
-	Ns_Fatal("NsTclInitInterp: could not create procs");
+	Ns_Fatal("tclinit: failed to create procs");
     }
     ns_free(init);
     Tcl_ResetResult(interp);
