@@ -859,6 +859,7 @@ extern void NsStartServer(NsServer *servPtr);
 extern void NsStopServer(NsServer *servPtr);
 extern void NsWaitServer(NsServer *servPtr, Ns_Time *toPtr);
 extern void NsStartDrivers(void);
+extern void NsWaitDriversShutdown(Ns_Time *toPtr);
 extern void NsStartSchedShutdown(void);
 extern void NsWaitSchedShutdown(Ns_Time *toPtr);
 extern void NsStartSockShutdown(void); 
