@@ -34,7 +34,7 @@
  *	Functions that manipulate or return paths. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/pathname.c,v 1.6 2001/11/05 20:23:11 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/pathname.c,v 1.7 2002/02/16 00:22:07 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -66,10 +66,7 @@ static char *MakePath(Ns_DString *dest, va_list *pap);
 int
 Ns_PathIsAbsolute(char *path)
 {
-    if (isslash(*path)) {
-	return NS_TRUE;
-    }
-    return NS_FALSE;
+    return (path[0] == '/' ? NS_TRUE : NS_FALSE);
 }
 
 
@@ -208,10 +205,7 @@ Ns_LibPath(Ns_DString *dest, ...)
     va_list  ap;
     char    *path;
 
-    Ns_MakePath(dest, Ns_InfoHomePath(), "/lib", NULL);
-    if (dest->string[dest->length - 1] != '/') {
-        Ns_DStringAppend(dest, "/");
-    }
+    Ns_MakePath(dest, Ns_InfoHomePath(), "lib", NULL);
     va_start(ap, dest);
     path = MakePath(dest, &ap);
     va_end(ap);
@@ -243,9 +237,6 @@ Ns_HomePath(Ns_DString *dest, ...)
     char    *path;
 
     Ns_MakePath(dest, Ns_InfoHomePath(), NULL);
-    if (dest->string[dest->length - 1] != '/') {
-        Ns_DStringAppend(dest, "/");
-    }
     va_start(ap, dest);
     path = MakePath(dest, &ap);
     va_end(ap);
@@ -278,20 +269,16 @@ Ns_ModulePath(Ns_DString *dest, char *server, char *module, ...)
     va_list         ap;
     char           *path;
 
-    Ns_DStringAppend(dest, Ns_InfoHomePath());
-    if (dest->string[dest->length - 1] != '/') {
-        Ns_DStringAppend(dest, "/");
-    }
+    Ns_MakePath(dest, Ns_InfoHomePath(), NULL);
     if (server != NULL) {
-        Ns_DStringVarAppend(dest, "servers/", server, "/", NULL);
+       Ns_MakePath(dest, "servers", server, NULL);
     }
     if (module != NULL) {
-        Ns_DStringVarAppend(dest, "modules/", module, "/", NULL);
+       Ns_MakePath(dest, "modules", module, NULL);
     }
     va_start(ap, module);
     path = MakePath(dest, &ap);
     va_end(ap);
-
     return path;
 }
 
@@ -320,21 +307,22 @@ NsTclModulePathCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 
     Ns_DStringInit(&ds);
 
-    if ((argc < 2) || (argc > 3)) {
+    if (0/*(argc < 2) || (argc > 3)*/) {
         Tcl_AppendResult(interp, "wrong # args: should be \"",
                          argv[0], " server ?module?\"", NULL);
         return TCL_ERROR;
     }
+if (1) {
+Ns_MakePath(&ds, argv[1], argv[2], argv[3], argv[4], argv[5], NULL);
+} else {
     if (argc == 3) {
         Ns_ModulePath(&ds, argv[1], argv[2], NULL);
     } else {
         Ns_ModulePath(&ds, argv[1], NULL, NULL);
     }
-
+}
     Tcl_SetResult(interp, ds.string, TCL_VOLATILE);
-
     Ns_DStringFree(&ds);
-
     return TCL_OK;
 }
 
@@ -358,32 +346,24 @@ NsTclModulePathCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 static char *
 MakePath(Ns_DString *dest, va_list *pap)
 {
-    char *s;
-    int   addslash, trailslash;
-
-    addslash = 0;
+    char *s, *e;
+    int len;
 
     while ((s = va_arg(*pap, char *)) != NULL) {
-        trailslash = 0;
-        while (*s != '\0') {
-            while (isslash(*s)) {
-                addslash = 1;
-                s++;
-            }
-            if (addslash) {
-                Ns_DStringNAppend(dest, "/", 1);
-                addslash = 0;
-                trailslash = 1;
-            } else {
-                Ns_DStringNAppend(dest, s, 1);
-                s++;
-                trailslash = 0;
-            }
-        }
-        if (trailslash == 0) {
-            addslash = 1;
-        }
+	while (*s) {
+	    while (*s == '/') {
+	        ++s;
+	    }
+	    if (*s) {
+	    	Ns_DStringNAppend(dest, "/", 1);
+		len = 0;
+		while (s[len] != '\0' && s[len] != '/') {
+		    ++len;
+		}
+	    	Ns_DStringNAppend(dest, s, len);
+	    	s += len;
+	    }
+	}
     }
-    
     return dest->string;
 }
