@@ -47,6 +47,19 @@
 #include "tcl.h"
 
 /*
+ * The following structure and start wrapper is used
+ * to avoid a different definition of Tcl_ThreadCreateProc
+ * and Ns_ThreadProc (e.g., on Win32).
+ */
+
+typedef struct ThreadArg {
+    Tcl_ThreadCreateProc *proc;
+    ClientData clientData;
+} ThreadArg;
+
+static Ns_ThreadProc TclNsThread;
+
+/*
  * These are for the critical sections inside this file.
  */
 
@@ -80,6 +93,7 @@ Tcl_CreateThread(idPtr, proc, clientData, stackSize, flags)
     int flags;				/* Flags for new thread (ignored). */
 {
     Ns_Thread tid;
+    ThreadArg *argPtr;
 
     if (stackSize == TCL_THREAD_STACK_DEFAULT) {
 	stackSize = 0;
@@ -89,10 +103,27 @@ Tcl_CreateThread(idPtr, proc, clientData, stackSize, flags)
     } else {
 	flags = NS_THREAD_DETACHED;
     }
-    Ns_ThreadCreate2(proc, clientData, (long) stackSize, flags, &tid);
+    argPtr = ns_malloc(sizeof(ThreadArg));
+    argPtr->proc = proc;
+    argPtr->clientData = clientData;
+    Ns_ThreadCreate2(TclNsThread, argPtr, (long) stackSize, flags, &tid);
     *idPtr = (Tcl_ThreadId) tid;
     return TCL_OK;
 }
+
+static void
+TclNsThread(void *arg)
+{
+    ThreadArg *argPtr = arg;
+    Tcl_ThreadCreateProc *proc;
+    ClientData clientData;
+
+    proc = argPtr->proc;
+    clientData = argPtr->clientData;
+    ns_free(argPtr);
+    (*proc)(clientData);
+}
+
 
 /*
  *----------------------------------------------------------------------
