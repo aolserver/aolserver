@@ -33,7 +33,7 @@
  * 	Connect Tcl command names to the functions that implement them
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.20 2002/05/15 20:10:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.21 2002/06/05 23:27:02 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -167,8 +167,6 @@ extern Tcl_CmdProc
     NsTclUrlEncodeCmd,
     NsTclVarCmd,
     NsTclWriteContentCmd,
-    NsTclRegisterTagCmd,
-    NsTclRegisterAdpTagCmd,
     NsTclCacheStatsCmd,
     NsTclCacheFlushCmd,
     NsTclCacheNamesCmd,
@@ -184,6 +182,7 @@ extern Tcl_CmdProc
     NsTclEnvCmd,
     NsTclAdpStatsCmd,
     NsTclAdpEvalCmd,
+    NsTclAdpSafeEvalCmd,
     NsTclAdpIncludeCmd,
     NsTclAdpDirCmd,
     NsTclAdpReturnCmd,
@@ -200,6 +199,9 @@ extern Tcl_CmdProc
     NsTclAdpDebugCmd,
     NsTclAdpParseCmd,
     NsTclAdpMimeTypeCmd,
+    NsTclAdpRegisterAdpCmd,
+    NsTclAdpRegisterProcCmd,
+    NsTclRegisterTagCmd,
     NsTclNsvGetCmd,
     NsTclNsvExistsCmd,
     NsTclNsvSetCmd,
@@ -415,8 +417,9 @@ static Cmd servCmds[] = {
      */
 
     {"ns_register_adptag", NsTclRegisterTagCmd, NULL},
-    {"ns_adp_registeradp", NsTclRegisterAdpTagCmd, NULL},
-    {"ns_adp_registertag", NsTclRegisterAdpTagCmd, NULL},
+    {"ns_adp_registeradp", NsTclAdpRegisterAdpCmd, NULL},
+    {"ns_adp_registertag", NsTclAdpRegisterAdpCmd, NULL},
+    {"ns_adp_registerproc", NsTclAdpRegisterProcCmd, NULL},
 
     /*
      * tclthread.c
@@ -481,6 +484,7 @@ static Cmd servCmds[] = {
 
     {"_ns_adp_include", NsTclAdpIncludeCmd, NULL},
     {"ns_adp_eval", NsTclAdpEvalCmd, NULL},
+    {"ns_adp_safeeval", NsTclAdpSafeEvalCmd, NULL},
     {"ns_adp_stats", NsTclAdpStatsCmd, NULL},
     {"ns_adp_parse", NsTclAdpParseCmd, NULL},
     {"ns_puts", NULL, NsTclAdpPutsObjCmd},
