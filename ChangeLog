@@ -1,3 +1,9 @@
+2003-05-31  Zoran Vasiljevic <zoran@archiware.com>
+
+	* nsd/cache.c:
+	* include/ns.h:
+	* doc/Ns_Cache.3: added C-API for Ns_CacheTryLock as in RFE #725704
+	
 2003-05-30  Mark Page <mpagenva@aol.com>
 
 	* nsd/tclthread.c: fix problem in ns_thread begindetached api.

@@ -34,7 +34,7 @@
  *	Routines for a simple cache used by fastpath and Adp.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/cache.c,v 1.12 2002/06/10 22:35:32 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/cache.c,v 1.13 2003/05/31 20:42:41 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -736,6 +736,31 @@ Ns_CacheLock(Ns_Cache *cache)
     Cache *cachePtr = (Cache *) cache;
 
     Ns_MutexLock(&cachePtr->lock);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_CacheTryLock --
+ *
+ *	Try to lock the cache.
+ *
+ * Results:
+ *      NS_OK if cache is locked, NS_TIMEOUT if not.
+ *
+ * Side effects:
+ *	Mutex may eventually be locked.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Ns_CacheTryLock(Ns_Cache *cache)
+{
+    Cache *cachePtr = (Cache *) cache;
+
+    Ns_MutexTryLock(&cachePtr->lock);
 }
 
 

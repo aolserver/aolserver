@@ -28,7 +28,7 @@
 '\" version of this file under either the License or the GPL.
 '\" 
 '\"
-'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_Cache.3,v 1.5 2003/04/10 22:00:31 shmooved Exp $
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_Cache.3,v 1.6 2003/05/31 20:42:41 vasiljevic Exp $
 '\"
 '\" 
 .so man.macros
@@ -37,7 +37,7 @@
 .BS
 '\" Note:  do not modify the .SH NAME line immediately below!
 .SH NAME
-Ns_CacheBroadcast, Ns_CacheCreate, Ns_CacheCreateEntry, Ns_CacheCreateSz, Ns_CacheDeleteEntry, Ns_CacheDestroy, Ns_CacheFind, Ns_CacheFindEntry, Ns_CacheFirstEntry, Ns_CacheFlush, Ns_CacheFlushEntry, Ns_CacheFree, Ns_CacheGetValue, Ns_CacheKey, Ns_CacheLock, Ns_CacheMalloc, Ns_CacheName, Ns_CacheNextEntry, Ns_CacheSetValue, Ns_CacheSetValueSz, Ns_CacheSignal, Ns_CacheTimedWait, Ns_CacheUnlock, Ns_CacheUnsetValue, Ns_CacheWait \- library procedures
+Ns_CacheBroadcast, Ns_CacheCreate, Ns_CacheCreateEntry, Ns_CacheCreateSz, Ns_CacheDeleteEntry, Ns_CacheDestroy, Ns_CacheFind, Ns_CacheFindEntry, Ns_CacheFirstEntry, Ns_CacheFlush, Ns_CacheFlushEntry, Ns_CacheFree, Ns_CacheGetValue, Ns_CacheKey, Ns_CacheLock, Ns_CacheTryLock, Ns_CacheMalloc, Ns_CacheName, Ns_CacheNextEntry, Ns_CacheSetValue, Ns_CacheSetValueSz, Ns_CacheSignal, Ns_CacheTimedWait, Ns_CacheUnlock, Ns_CacheUnsetValue, Ns_CacheWait \- library procedures
 .SH SYNOPSIS
 .nf
 \fB#include "ns.h"\fR
@@ -71,6 +71,8 @@ Ns_CacheBroadcast, Ns_CacheCreate, Ns_CacheCreateEntry, Ns_CacheCreateSz, Ns_Cac
 \fBNs_CacheKey\fR(\fIarg, arg\fR)
 .sp
 \fBNs_CacheLock\fR(\fIarg, arg\fR)
+.sp
+\fBNs_CacheTryLock\fR(\fIarg, arg\fR)
 .sp
 \fBNs_CacheMalloc\fR(\fIarg, arg\fR)
 .sp
