@@ -28,7 +28,7 @@
 '\" version of this file under either the License or the GPL.
 '\" 
 '\"
-'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_ConnRead.3,v 1.5 2003/04/10 22:00:34 shmooved Exp $
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_ConnRead.3,v 1.6 2005/01/15 23:57:56 jgdavidson Exp $
 '\"
 '\" 
 .so man.macros
@@ -37,12 +37,14 @@
 .BS
 '\" Note:  do not modify the .SH NAME line immediately below!
 .SH NAME
-Ns_ConnGets, Ns_ConnRead, Ns_ConnReadHeaders, Ns_ConnReadLine \- library procedures
+Ns_ConnGets, Ns_ConnRead, Ns_ConnFlushHeaders, Ns_ConnReadHeaders, Ns_ConnReadLine \- library procedures
 .SH SYNOPSIS
 .nf
 \fB#include "ns.h"\fR
 .sp
 \fBNs_ConnGets\fR(\fIarg, arg\fR)
+.sp
+\fBNs_ConnFlushContent\fR(\fIarg, arg\fR)
 .sp
 \fBNs_ConnRead\fR(\fIarg, arg\fR)
 .sp
