@@ -30,7 +30,8 @@
 /* 
  * tclNsThread.cpp --
  *
- *	This file implements the nsthread-based thread support.
+ *	This file implements the nsthread-based thread support for
+ *	Tcl 8.3.1.
  *
  * Copyright (c) 1999 AOL, Inc.
  *
@@ -45,8 +46,6 @@
 #define BUILD_tcl
 #include "tcl.h"
 
-typedef void (Tcl_ThreadCreateProc) _ANSI_ARGS_((ClientData clientData));
-
 /*
  * These are for the critical sections inside this file.
  */
@@ -58,7 +57,7 @@ typedef void (Tcl_ThreadCreateProc) _ANSI_ARGS_((ClientData clientData));
 /*
  *----------------------------------------------------------------------
  *
- * TclpThreadCreate --
+ * Tcl_CreateThread --
  *
  *	This procedure creates a new thread.
  *
@@ -73,14 +72,24 @@ typedef void (Tcl_ThreadCreateProc) _ANSI_ARGS_((ClientData clientData));
  */
 
 NS_EXPORT int
-TclpThreadCreate(idPtr, proc, clientData)
+Tcl_CreateThread(idPtr, proc, clientData, stackSize, flags)
     Tcl_ThreadId *idPtr;		/* Return, the ID of the thread */
     Tcl_ThreadCreateProc proc;		/* Main() function of the thread */
     ClientData clientData;		/* The one argument to Main() */
+    int stackSize;			/* New thread stack size. */
+    int flags;				/* Flags for new thread (ignored). */
 {
     Ns_Thread tid;
 
-    Ns_ThreadCreate(proc, clientData, 0, &tid);
+    if (stackSize == TCL_THREAD_STACK_DEFAULT) {
+	stackSize = 0;
+    }
+    if (flags & TCL_THREAD_JOINABLE) {
+	flags = 0;
+    } else {
+	flags = NS_THREAD_DETACHED;
+    }
+    Ns_ThreadCreate2(proc, clientData, (long) stackSize, flags, &tid);
     *idPtr = (Tcl_ThreadId) tid;
     return TCL_OK;
 }

@@ -34,7 +34,7 @@
  *	Routines for creating, exiting, and joining threads.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/thread.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/thread.c,v 1.4 2000/08/08 20:49:59 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "thread.h"
 
@@ -60,21 +60,31 @@ static Thread *lastPtr;
 /*
  *----------------------------------------------------------------------
  *
- * Ns_ThreadCreate --
+ * Ns_ThreadCreate, Ns_ThreadCreate2 --
  *
- *	Create a new thread, possibly detached, thread.
+ *	Create a new thread thread.
  *
  * Results:
  *	None.
  *
  * Side effects:
- *	A new thread structure is allocated.
+ *	A new thread is allocated and started.
  *
  *----------------------------------------------------------------------
  */
 
 void
 Ns_ThreadCreate(Ns_ThreadProc *proc, void *arg, long stackSize, Ns_Thread *resultPtr)
+{
+    int flags;
+
+    flags = resultPtr ? 0 : NS_THREAD_DETACHED;
+    return Ns_ThreadCreate2(proc, arg, stackSize, flags, resultPtr);
+}
+
+void
+Ns_ThreadCreate2(Ns_ThreadProc *proc, void *arg, long stackSize,
+	int flags, Ns_Thread *resultPtr)
 {
     Thread *thrPtr;
 
@@ -96,8 +106,12 @@ Ns_ThreadCreate(Ns_ThreadProc *proc, void *arg, long stackSize, Ns_Thread *resul
     if (stackSize < 16384) {
 	stackSize = 16384;
     }
-    thrPtr = NsNewThread(proc, arg, stackSize, resultPtr ? 0 : 1);
 
+    /*
+     * Create the new thread structure.
+     */
+
+    thrPtr = NsNewThread(proc, arg, stackSize, flags);
     if (resultPtr != NULL) {
 	*resultPtr = (Ns_Thread) thrPtr;
     }
@@ -249,7 +263,7 @@ NsThreadMain(void *arg)
  */
 
 Thread *
-NsNewThread(Ns_ThreadProc *proc, void *arg, long stackSize, int detached)
+NsNewThread(Ns_ThreadProc *proc, void *arg, long stackSize, int flags)
 {
     Thread *thrPtr, *thisPtr;
     static int state;
@@ -263,12 +277,11 @@ NsNewThread(Ns_ThreadProc *proc, void *arg, long stackSize, int detached)
     thrPtr->arg = arg;
     thrPtr->stackSize = stackSize;
     thrPtr->ctime = time(NULL);
-
     if (state != 0) {
 	Ns_MutexLock(&lock);
     }
     strcpy(thrPtr->parent, thisPtr ? thisPtr->name : "");
-    thrPtr->flags = (detached ? NS_THREAD_DETACHED : 0);
+    thrPtr->flags = (flags & NS_THREAD_DETACHED);
     thrPtr->nextPtr = NULL;
     thrPtr->prevPtr = lastPtr;
     lastPtr = thrPtr;
@@ -584,7 +597,7 @@ NsGetThread2(void)
     memset(&temp, 0, sizeof(temp));
     NsSetThread(&temp);
 
-    thrPtr = NsNewThread(NULL, NULL, nsThreadStackSize, 1);
+    thrPtr = NsNewThread(NULL, NULL, nsThreadStackSize, NS_THREAD_DETACHED);
     NsSetThread(thrPtr);
     return thrPtr;
 }
