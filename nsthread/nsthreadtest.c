@@ -48,7 +48,7 @@
 #define PTHREAD_TEST 1
 #endif
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/nsthreadtest.c,v 1.3 2003/03/07 18:08:51 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/nsthreadtest.c,v 1.4 2003/06/02 14:42:00 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
 
 /*
  * Collection of synchronization objects for tests.
@@ -331,7 +331,7 @@ DumperThread(void *arg)
 	DumpString(&ds);
 	Ns_MutexList(&ds);
 	DumpString(&ds);
-#ifndef _WIN32
+#if !defined(_WIN32) && defined(USE_THREAD_ALLOC) && (STATIC_BUILD == 0)
 	/* NB: Not yet exported in WIN32 Tcl. */
 	Tcl_GetMemoryInfo(&ds);
 #endif
@@ -411,6 +411,11 @@ int main(int argc, char *argv[])
     char *p;
 #if PTHREAD_TEST
     pthread_t tids[10];
+#endif
+
+#if (STATIC_BUILD == 1)
+    extern void NsthreadsInit();
+    NsthreadsInit();
 #endif
 
     Ns_ThreadSetName("-main-");

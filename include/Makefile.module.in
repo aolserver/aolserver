@@ -1,4 +1,3 @@
-# Generated automatically from Makefile.module.in by configure.
 #
 # The contents of this file are subject to the AOLserver Public License
 # Version 1.1 (the "License"); you may not use this file except in
@@ -28,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Attic/Makefile.module.in,v 1.3 2002/10/14 23:20:09 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Attic/Makefile.module.in,v 1.4 2003/06/02 14:42:00 vasiljevic Exp $
 
 #
 # Makefile.module --
@@ -53,8 +52,18 @@
 #	At least one of PGM, MOD, or LIB must be defined.  For backwards compatibility,
 #	MODOBJS will default to OBJS and MODINST can be used for module install.
 #
+#       For static builds (use configure --disable-shared) the LIB variable is
+#       replaced with ALIB which triggers the linking of the static library.
+#
 #	See ../nsd/Makefile and ../nsdb/Makefile for examples.
 #	
+
+STATIC_BUILD = @STATIC_BUILD@
+ifeq ($(STATIC_BUILD), 1)
+    ALIB 	:= $(LIB)
+    LIB		:=
+    LIBINIT	:= 
+endif
 
 ifdef MOD
 BUILD	+= $(MOD)
@@ -107,11 +116,11 @@ $(LIBFILE): $(LIBOBJS)
 	$(RM) $(LIBFILE)
 	$(LDLIB) $(LDFLAGS) -o $(LIBFILE) $(LIBOBJS) $(LIBLIBS) $(LIBS) @LDRPATHS@
 
-$(ALIBFILE): $(ALIBOBJS)
-	$(AR) rv $(ALIBFILE) $(ALIBOBJS)
+$(ALIBFILE): $(LIBOBJS)
+	$(AR) rv $(ALIBFILE) $(LIBOBJS)
 	$(RANLIB) $(ALIBFILE)
 
-$(PGM): $(PGMOBJS) $(LIBFILE)
+$(PGM): $(PGMOBJS) $(LIBFILE) $(ALIBFILE)
 	$(RM) $(PGM)
 	$(CC) $(LDFLAGS) -o $(PGM) $(PGMOBJS) $(PGMLIBS) $(CCLIBS) @CCRPATHS@
 
@@ -137,7 +146,7 @@ clean-lib:
 	$(RM) $(LIBFILE) $(LIBOBJS)
 
 clean-alib:
-	$(RM) $(ALIBFILE) $(ALIBOBJS)
+	$(RM) $(ALIBFILE) $(LIBOBJS)
 
 clean-pgm:
 	$(RM) $(PGM) $(PGMOBJS)

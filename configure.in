@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/configure.in,v 1.12 2002/10/07 18:29:06 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/configure.in,v 1.13 2003/06/02 14:42:01 vasiljevic Exp $
 #
 
 #
@@ -47,13 +47,8 @@ AC_PREFIX_DEFAULT(/usr/local/aolserver)
 
 SC_PATH_TCLCONFIG
 SC_LOAD_TCLCONFIG
-if test "${TCL_THREADS}" != "1"
-then
+if test "${TCL_THREADS}" != "1"; then
     AC_MSG_ERROR([must build tcl with --enable-threads])
-fi
-if test "${TCL_SHARED_BUILD}" != "1"
-then
-    AC_MSG_ERROR([must build tcl with --enable-sahred])
 fi
 SC_ENABLE_SYMBOLS
 
@@ -79,6 +74,7 @@ AC_SUBST(TCL_DEFS)
 #
 # TCL_SHLIB_LD from tclConfig.sh is not quite right for aolserver.
 #
+
 test "x$prefix" = "xNONE" && prefix="/usr/local/aolserver"
 system=`uname`
 case "$system" in
@@ -162,6 +158,39 @@ if test "$as_ok" = "yes"
 then
 	AC_DEFINE(HAVE_CMMSG)
 fi
+
+#
+# Normally, we'd link the resulting server image
+# dynamically. In some cases it is however more
+# appropriate to build it as a monolithic image.
+#
+
+AC_MSG_CHECKING([how to build server image])
+AC_ARG_ENABLE(shared,
+    [  --enable-shared         build and link with shared libraries [--enable-shared]],
+    [shared_ok=$enableval], [shared_ok=yes])
+if test "${enable_shared+set}" = set; then
+    enableval="$enable_shared"
+    shared_ok=$enableval
+else
+    shared_ok=yes
+fi
+if test "$shared_ok" = "yes" ; then
+    if test "${TCL_SHARED_BUILD}" != "1"
+    then
+        AC_MSG_ERROR([must build tcl with --enable-shared])
+    fi
+    STATIC_BUILD=0
+    AC_MSG_RESULT([shared])
+else
+    if test "${TCL_SHARED_BUILD}" != "0"
+    then
+        AC_MSG_ERROR([must build tcl with --disable-shared])
+    fi
+    STATIC_BUILD=1
+    AC_MSG_RESULT([static])
+fi
+AC_SUBST(STATIC_BUILD)
 
 #
 # Create Makefile.global.
