@@ -34,7 +34,7 @@
  *      Manage the Ns_Conn structure
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.20 2002/06/12 23:08:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.21 2002/06/13 00:04:54 jcollins Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -633,6 +633,288 @@ NsIsIdConn(char *connId)
 	return NS_FALSE;
     }
     return NS_TRUE;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsTclConnObjCmd --
+ *
+ *	Implements ns_conn as an obj command. 
+ *
+ * Results:
+ *	Standard Tcl result.
+ *
+ * Side effects:
+ *	See docs. 
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+NsTclConnObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
+{
+    NsInterp     *itPtr = arg;
+    Ns_Conn      *conn = itPtr->conn;
+    Conn         *connPtr = (Conn *) conn;
+    Ns_Set       *form;
+    Ns_Request   *request;
+    Tcl_Encoding  encoding;
+    char	  buf[50];
+    int		  idx;
+
+    static CONST char *subCmds[] = {
+	"isconnected", "urlv", "authuser", "authpassword", "content",
+	"contentlength", "encoding", "peeraddr", "peerport", 
+	"headers", "outputheaders", "form", "files", "copy", "request",
+	"method", "protocol", "host", "port", "url", "query", 
+	"urlc", "version", "location", "driver", "server", "status",
+	"sock", "id", "flags", "start", "close", (char *) NULL};
+    enum ISubCmdIdx {
+	CIsConnectedIdx, CUrlvIdx, CAuthUserIdx, CAuthPasswordIdx, CContentIdx,
+	CContentLengthIdx, CEncodingIdx, CPeerAddrIdx, CPeerPortIdx,
+	CHeadersIdx, COutputHeadersIdx, CFormIdx, CFilesIdx, CCopyIdx, CRequestIdx,
+	CMethodIdx, CProtocolIdx, CHostIdx, CPortIdx, CUrlIdx, CQueryIdx,
+	CUrlcIdx, CVersionIdx, CLocationIdx, CDriverIdx, CServerIdx, CStatusIdx,
+	CSockIdx, CIdIdx, CFlagsIdx, CStartIdx, CCloseIdx
+    };
+    int index, result;
+
+    if (objc < 2) {
+	Tcl_WrongNumArgs(interp, 1, objv, "cmd");
+        return TCL_ERROR;
+    }
+
+    result = Tcl_GetIndexFromObj(interp, objv[1], subCmds, "cmd", 0,
+	    (int *) &index);
+    if (result != TCL_OK) {
+	return result;
+    }
+
+    /*
+     * Only the "isconnected" command operates without a conn.
+     */
+
+    if (index == CIsConnectedIdx) {
+	Tcl_SetResult(interp, (connPtr == NULL) ? "0" : "1", TCL_STATIC);
+	return TCL_OK;
+    } else if (connPtr == NULL) {
+	Tcl_SetResult(interp, "no current connection", TCL_STATIC);
+        return TCL_ERROR;
+    }
+
+    request = connPtr->request;
+
+    switch (index) {
+
+	case CUrlvIdx:
+	    if (objc == 2 || (objc == 3 && NsIsIdConn(Tcl_GetString(objv[2])))) {
+		for (idx = 0; idx < request->urlc; idx++) {
+		    Tcl_AppendElement(interp, request->urlv[idx]);
+		}
+	    } else if (Tcl_GetIntFromObj(interp, objv[2], &idx) != TCL_OK) {
+		return TCL_ERROR;
+	    } else if (idx >= 0 && idx < request->urlc) {
+		Tcl_SetResult(interp, request->urlv[idx], TCL_VOLATILE);
+	    }
+	    break;
+
+	case CAuthUserIdx:
+	    Tcl_SetResult(interp, connPtr->authUser, TCL_STATIC);
+	    break;
+	    
+	case CAuthPasswordIdx:
+	    Tcl_SetResult(interp, connPtr->authPasswd, TCL_STATIC);
+	    break;
+
+	case CContentIdx:
+	    Tcl_SetResult(interp, Ns_ConnContent(conn), TCL_VOLATILE);
+	    break;
+	    
+	case CContentLengthIdx:
+	    sprintf(buf, "%u", (unsigned) conn->contentLength);
+	    Tcl_SetResult(interp, buf, TCL_VOLATILE);
+	    break;
+
+	case CEncodingIdx:
+	    if (objc > 2) {
+		encoding = Ns_GetEncoding(Tcl_GetString(objv[2]));
+		if (encoding == NULL) {
+		    Tcl_AppendResult(interp, "no such encoding: ",
+			Tcl_GetString(objv[2]), NULL);
+		    return TCL_ERROR;
+		}
+		connPtr->encoding = encoding;
+	    }
+	    if (connPtr->encoding != NULL) {
+		Tcl_SetResult(interp, (char *) Tcl_GetEncodingName(connPtr->encoding), TCL_VOLATILE);
+	    }
+	    break;
+	
+	case CPeerAddrIdx:
+	    Tcl_SetResult(interp, Ns_ConnPeer(conn), TCL_STATIC);
+	    break;
+	
+	case CPeerPortIdx:
+	    sprintf(buf, "%d", Ns_ConnPeerPort(conn));
+	    Tcl_SetResult(interp, buf, TCL_VOLATILE);
+	    break;
+
+	case CHeadersIdx:
+	    if (itPtr->nsconn.flags & CONN_TCLHDRS) {
+		Tcl_SetResult(interp, itPtr->nsconn.hdrs, TCL_STATIC);
+	    } else {
+		Ns_TclEnterSet(interp, connPtr->headers, NS_TCL_SET_STATIC);
+		strcpy(itPtr->nsconn.hdrs, Tcl_GetStringResult(interp));
+		itPtr->nsconn.flags |= CONN_TCLHDRS;
+	    }
+	    break;
+	
+	case COutputHeadersIdx:
+	    if (itPtr->nsconn.flags & CONN_TCLOUTHDRS) {
+		Tcl_SetResult(interp, itPtr->nsconn.outhdrs, TCL_STATIC);
+	    } else {
+		Ns_TclEnterSet(interp, connPtr->outputheaders, NS_TCL_SET_STATIC);
+		strcpy(itPtr->nsconn.outhdrs, Tcl_GetStringResult(interp));
+		itPtr->nsconn.flags |= CONN_TCLOUTHDRS;
+	    }
+	    break;
+	
+	case CFormIdx:
+	    if (itPtr->nsconn.flags & CONN_TCLFORM) {
+		Tcl_SetResult(interp, itPtr->nsconn.form, TCL_STATIC);
+	    } else {
+		form = Ns_ConnGetQuery(conn);
+		if (form == NULL) {
+		    itPtr->nsconn.form[0] = '\0';
+		} else {
+		    Ns_TclEnterSet(interp, form, NS_TCL_SET_STATIC);
+		    strcpy(itPtr->nsconn.form, Tcl_GetStringResult(interp));
+		}
+		itPtr->nsconn.flags |= CONN_TCLFORM;
+	    }
+	    break;
+
+	case CFilesIdx:
+	    Tcl_SetResult(interp, connPtr->files.string, TCL_VOLATILE);
+	    break;
+
+	case CCopyIdx: {
+	    Tcl_Channel chan;
+	    int off, len;
+
+	    if (objc != 5) {
+		Tcl_WrongNumArgs(interp, 1, objv, "copy off len chan");
+		return TCL_ERROR;
+	    }
+	    if (Tcl_GetIntFromObj(interp, objv[2], &off) != TCL_OK ||
+		Tcl_GetIntFromObj(interp, objv[3], &len) != TCL_OK ||
+		GetChan(interp, Tcl_GetString(objv[4]), &chan) != TCL_OK) {
+		return TCL_ERROR;
+	    }
+	    if (off < 0 || off > connPtr->reqPtr->length) {
+		Tcl_AppendResult(interp, "invalid offset: ", Tcl_GetString(objv[2]), NULL);
+		return TCL_ERROR;
+	    }
+	    if (len < 0 || len > (connPtr->reqPtr->length - off)) {
+		Tcl_AppendResult(interp, "invalid length: ", Tcl_GetString(objv[3]), NULL);
+		return TCL_ERROR;
+	    }
+	    if (Tcl_WriteChars(chan, connPtr->reqPtr->content + off, len) != len) {
+		Tcl_AppendResult(interp, "could not write ", Tcl_GetString(objv[3]), " bytes to ",
+		    Tcl_GetString(objv[4]), ": ", Tcl_PosixError(interp), NULL);
+		return TCL_ERROR;
+	    }
+	}
+	    break;
+
+	case CRequestIdx:
+	    Tcl_SetResult(interp, request->line, TCL_STATIC);
+	    break;
+
+	case CMethodIdx:
+	    Tcl_SetResult(interp, request->method, TCL_STATIC);
+	    break;
+
+	case CProtocolIdx:
+	    Tcl_SetResult(interp, request->protocol, TCL_STATIC);
+	    break;
+
+	case CHostIdx:
+	    Tcl_SetResult(interp, request->host, TCL_STATIC);
+	    break;
+	
+	case CPortIdx:
+	    sprintf(buf, "%d", request->port);
+	    Tcl_SetResult(interp, buf, TCL_VOLATILE);
+	    break;
+
+	case CUrlIdx:
+	    Tcl_SetResult(interp, request->url, TCL_STATIC);
+	    break;
+	
+	case CQueryIdx:
+	    Tcl_SetResult(interp, request->query, TCL_STATIC);
+	    break;
+	
+	case CUrlcIdx:
+	    sprintf(buf, "%d", request->urlc);
+	    Tcl_SetResult(interp, buf, TCL_VOLATILE);
+	    break;
+	
+	case CVersionIdx:
+	    sprintf(buf, "%1.1f", request->version);
+	    Tcl_SetResult(interp, buf, TCL_VOLATILE);
+	    break;
+
+	case CLocationIdx:
+	    Tcl_SetResult(interp, Ns_ConnLocation(conn), TCL_STATIC);
+	    break;
+
+	case CDriverIdx:
+	    Tcl_AppendResult(interp, Ns_ConnDriverName(conn), NULL);
+	    break;
+    
+	case CServerIdx:
+	    Tcl_SetResult(interp, Ns_ConnServer(conn), TCL_STATIC);
+	    break;
+
+	case CStatusIdx:
+	    sprintf(buf, "%d", Ns_ConnResponseStatus(conn));
+	    Tcl_SetResult(interp, buf, TCL_VOLATILE);
+	    break;
+
+	case CSockIdx:
+	    sprintf(buf, "%d", Ns_ConnSock(conn));
+	    Tcl_SetResult(interp, buf, TCL_VOLATILE);
+	    break;
+	
+	case CIdIdx:
+	    sprintf(buf, "%d", Ns_ConnId(conn));
+	    Tcl_SetResult(interp, buf, TCL_VOLATILE);
+	    break;
+	
+	case CFlagsIdx:
+	    sprintf(buf, "%d", connPtr->flags);
+	    Tcl_SetResult(interp, buf, TCL_VOLATILE);
+	    break;
+
+	case CStartIdx:
+	    sprintf(buf, "%d", (int) connPtr->startTime);
+	    Tcl_SetResult(interp, buf, TCL_VOLATILE);
+	    break;
+
+	case CCloseIdx:
+	    if (Ns_ConnClose(conn) != NS_OK) {
+		Tcl_SetResult(interp, "could not close connection", TCL_STATIC);
+		return TCL_ERROR;
+	    }
+	    break;
+	    
+    }
+
+    return TCL_OK;
 }
 
 
