@@ -1,5 +1,19 @@
 2004-07-13  Dossy Shiobara <dossy@panoptic.com>
 
+	* nsd/: driver.c (1.17.2.5), op.c (1.11.2.1): Change to make HTTP
+	  request "Host:" header mandatory for HTTP/1.1 connections by
+	  returning 400 Bad Request response.  Closes SF Bug #787728.
+	  Also, changed virtual server code to use the "hostname" param
+	  from the "ns/module/nssock" section to map the default virtual
+	  server based on the value (hostname) from the
+	  "ns/module/nssock/servers" section, when the "Host:" header is
+	  either not specified (HTTP/1.0) or is not found in the virtual
+	  server table.  Closes SF Bug #812036.  Backport from HEAD, but
+	  not straight patch due to difference in conn/request handling in
+	  4.0 vs. 4.1.
+
+2004-07-13  Dossy Shiobara <dossy@panoptic.com>
+
 	* nslog/nslog.c (1.14.2.1): conn->headers can be NULL causing
 	  segfault.  Closes SF Bug #990439.  Backported from HEAD.
 
