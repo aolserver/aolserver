@@ -206,7 +206,7 @@ ifeq (IRIX, $(findstring IRIX, $(shell uname)))
     SGI_ABI=o32
     ABI=-$(SGI_ABI)
     CC=$(PURIFY) cc
-    CFLAGS+=$(ABI) -O2 -fullwarn
+    CFLAGS+=$(ABI) -KPIC -g3 -O2 -fullwarn
     LDSO=$(LD) $(ABI) -shared
     #CFLAGS+=$(GCCOPT)
     LDFLAGS+=$(ABI)
