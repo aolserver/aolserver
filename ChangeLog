@@ -1,3 +1,12 @@
+2004-08-10  Dossy Shiobara <dossy@panoptic.com>
+
+	* nsd/driver.c (1.29): Crash due to FreeConn() happening twice,
+	  once from DriverThread() and once from SockClose().  Commented
+	  out call from SockClose() for now.  Don't decrement
+	  limitPtr->nrunning if the connPtr->flags indicated overflow or
+	  timeout, since we didn't increment nrunning.	Set responseStatus
+	  to 503 so requests actually overflow or timeout again.
+
 2004-08-10  Jim Davidson <JGDavidson@aol.com>
 
 	* nsd/driver.c (1.28): Restructured code (again) to better support
