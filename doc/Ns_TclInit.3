@@ -28,12 +28,12 @@
 '\" version of this file under either the License or the GPL.
 '\" 
 '\"
-'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_TclInit.3,v 1.5 2003/04/10 22:01:02 shmooved Exp $
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_TclInit.3,v 1.6 2004/07/29 03:44:54 dossy Exp $
 '\"
 '\" 
 .so man.macros
 
-.TH Ns_TclInit 3 4.0 AOLserver "AOLserver Library Procedures"
+.TH Ns_TclInit 3 3.5 AOLserver "AOLserver Library Procedures"
 .BS
 '\" Note:  do not modify the .SH NAME line immediately below!
 .SH NAME
@@ -42,21 +42,91 @@ Ns_TclInitInterps, Ns_TclInitModule, Ns_TclInterpServer, Ns_TclLibrary \- librar
 .nf
 \fB#include "ns.h"\fR
 .sp
-\fBNs_TclInitInterps\fR(\fIarg, arg\fR)
+int
+\fBNs_TclInitInterps\fR(\fIserver, initProc, arg\fR)
 .sp
 \fBNs_TclInitModule\fR(\fIarg, arg\fR)
 .sp
-\fBNs_TclInterpServer\fR(\fIarg, arg\fR)
+char *
+\fBNs_TclInterpServer\fR(\fIinterp\fR)
 .sp
-\fBNs_TclLibrary\fR(\fIarg, arg\fR)
+char *
+\fBNs_TclLibrary\fR(\fIvoid\fR)
+
+.SH ARGUMENTS
+.AS Ns_TclInterpInitProc initProc
+.AP char *server in
+Name of virtual server.
+.AP Ns_TclInterpInitProc *initProc in
+Procedure to call to initialize interps.
+.AP void *arg in
+Callback data to pass to \fIinitProc\fR.
+.AP Tcl_Interp *interp in
+Tcl interp to get server.
 .BE
 
 .SH DESCRIPTION
 .PP
-These functions ...
+\fBNs_TclInitInterps\fR arranges for \fIinitProc\fR to be 
+called on the startup initialization interp.
+\fIinitProc\fR should have arguments and result that match the
+type \fINs_TclInterpInitProc\fR:
+.CS
+typedef int Ns_TclInterpInitProc(Tcl_Interp \fI*interp\fR, void \fI*arg\fR);
+.CE
+The \fIarg\fR parameter to \fIinitProc\fR is a copy of the \fIarg\fR
+argument given to \fBNs_TclInitInterps\fR.
+A typical \fIinitProc\fR
+will create new commands in the given interp with Tcl_CreateCommand.
+The following AOLserver module example results in the \fImsg\fR
+command being in all interps.  The command simply sets the "hello"
+static string as the interp result:
+.CS
+static Ns_TclInterpInitProc AddCmds;
+static Tcl_CmdProc MsgCmd;
+int
+Ns_ModuleInit(char *server, char *module)
+{
+    static char *arg = "hello";
+    return Ns_TclInitInterps(server, AddCmds, arg);
+}
+static int
+AddCmds(Tcl_Interp *interp, void *arg)
+{
+    Tcl_CreateCommand(interp, "msg", MsgCmd, arg, NULL);
+    return TCL_OK;
+}
+static int
+MsgCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
+{
+    Tcl_SetResult(interp, (char *) arg, TCL_STATIC);
+    return TCL_OK;
+}
+.CE
+In AOLserver 3.x, the effect of \fBNs_TclInitInterps\fR is to invoke
+\fIinitProc\fR immediately on the single initializaton interp of the
+server and the result of \fBNs_TclInitInterps\fR is the return code of
+\fIinitProc\fR.  The state of this interp (command, procedures) will
+then be copied to other interps when created via the
+\fBNs_TclAllocInterp\fR routine.  This differs from the original
+AOLserver 2.0 where \fIinitProc\fR was called on each interp in an
+interp pool, the 2.1-2.3 behavior where \fIinitProc\fR was called once
+on an interp linked to the per-server shared command tables, and the
+upcoming 4.0 behavior where \fIinitProc\fR is called at interp create
+time.  In fact, the 4.0 behavior is that of the
+\fBNs_TclRegisterAtCreate\fR routine.  In practice, if your
+\fIinitProc\fB does nothing but create commands with NULL or shared
+client data the effect is the same in all releases.
+.PP
+\fBNs_TclInterpServer\fR returns the virtual server in which the given
+interp was created.
+.PP
+\fBNs_TclLibrary\fR returns the shared Tcl library of the server installation
+(e.g., /usr/local/aolserver/modules/tcl).
+
 
 .SH "SEE ALSO"
-nsd(1), info(n)
+Ns_TclRegisterAtCreate(3), Ns_TclAllocInterp(3)
 
 .SH KEYWORDS
 
