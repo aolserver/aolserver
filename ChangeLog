@@ -1,5 +1,12 @@
 2004-09-17  Dossy Shiobara <dossy@panoptic.com>
 
+	* nsd/connio.c (1.12.2.2): Ns_ConnSend() now bubbles up the error
+	  from NsSockSend() on first send,	   which is what the C API
+	  documentation says.  Closes SF Bug #1029512.	Backported from
+	  HEAD for 4.0.9a.
+
+2004-09-17  Dossy Shiobara <dossy@panoptic.com>
+
 	* nsd/driver.c (1.17.2.9): "stopped" already initalized to 1, which
 	  means NsWaitDriversShutdown() will never timeout even when it
 	  should, which means trigPipe always gets closed immediately which
