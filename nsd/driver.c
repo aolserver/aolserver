@@ -34,7 +34,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.32 2004/08/12 14:26:35 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.33 2004/08/15 00:00:09 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -830,7 +830,7 @@ DriverThread(void *arg)
 {
     SOCKET lsock;
     Driver *drvPtr = (Driver *) arg;
-    int n, pollto, flags;
+    int n, pollto, flags, stop;
     Sock *sockPtr, *closePtr, *nextPtr;
     QueWait *queWaitPtr;
     Conn *connPtr, *nextConnPtr, *freeConnPtr;
@@ -876,6 +876,7 @@ DriverThread(void *arg)
      */
 
     nowPtr = &drvPtr->now;
+    stop = (flags & DRIVER_SHUTDOWN);
     drvPtr->pfds = NULL;
     drvPtr->nfds = 0;
     drvPtr->maxfds = 100;
@@ -885,14 +886,14 @@ DriverThread(void *arg)
     drvPtr->pfds[1].fd = lsock;
     Ns_GetTime(nowPtr);
 
-    while (!(flags & DRIVER_SHUTDOWN) || drvPtr->nactive) {
+    while (!stop || drvPtr->nactive) {
 
 	/*
          * Poll the trigger pipe and, if a Sock structure is available,
 	 * the listen socket.
 	 */
 
-        if ((drvPtr->flags & DRIVER_SHUTDOWN) || drvPtr->freeSockPtr == NULL) {
+        if (stop || drvPtr->freeSockPtr == NULL) {
             drvPtr->pfds[1].events = 0;
         } else {
             drvPtr->pfds[1].events = POLLIN;
@@ -956,10 +957,41 @@ DriverThread(void *arg)
 
         Ns_GetTime(nowPtr);
 
+	/*
+         * Get current flags, free conns, closing socks, and socks returning
+         * from the reader threads.
+	 */
+
+        Ns_MutexLock(&drvPtr->lock);
+        flags = drvPtr->flags;
+        freeConnPtr = drvPtr->freeConnPtr;
+        drvPtr->freeConnPtr = NULL;
+        closePtr = drvPtr->closeSockPtr;
+        drvPtr->closeSockPtr = NULL;
+        while ((sockPtr = drvPtr->runSockPtr) != NULL) {
+            drvPtr->runSockPtr = sockPtr->nextPtr;
+            SockPush(sockPtr, &runSockPtr);
+        }
+	Ns_MutexUnlock(&drvPtr->lock);
+
+	/*
+         * Free connections done executing.
+	 */
+
+        while ((connPtr = freeConnPtr) != NULL) {
+            freeConnPtr = connPtr->nextPtr;
+            limitsPtr = connPtr->limitsPtr;
+            Ns_MutexLock(&limitsPtr->lock);
+            --limitsPtr->nrunning;
+            Ns_MutexUnlock(&limitsPtr->lock);
+            FreeConn(drvPtr, connPtr);
+        }
+
         /*
          * Process ready sockets.
 	 */
 
+	stop = (flags & DRIVER_SHUTDOWN);
 	sockPtr = waitPtr;
 	waitPtr = NULL;
 	while (sockPtr != NULL) {
@@ -977,7 +1009,7 @@ DriverThread(void *arg)
 		        sockPtr->timeout = drvPtr->now;
 		    }
 	    	}
-	    	if (Ns_DiffTime(&sockPtr->timeout, nowPtr, NULL) <= 0) {
+	    	if (Ns_DiffTime(&sockPtr->timeout, nowPtr, NULL) <= 0 || stop) {
                     /* Close wait complete or timeout. */
                     SockClose(drvPtr, sockPtr);
 	    	} else {
@@ -1011,7 +1043,7 @@ DriverThread(void *arg)
 
 	    	if (!(drvPtr->pfds[sockPtr->pidx].revents & POLLIN)) {
                     /* Timeout or wait longer for input. */
-                    if (Ns_DiffTime(&sockPtr->timeout, nowPtr, NULL) <= 0) {
+                    if (Ns_DiffTime(&sockPtr->timeout, nowPtr, NULL) <= 0 || stop) {
                         /* Timeout waiting for input. */
                         SockClose(drvPtr, sockPtr);
 		    } else {
@@ -1057,22 +1089,12 @@ DriverThread(void *arg)
 	}
 
 	/*
-         * Get current flags, free conns, closing socks, and socks returning
-         * from the reader threads.
+         * Move Sock's to the reader threads if necessary.
 	 */
 
-        Ns_MutexLock(&drvPtr->lock);
-        flags = drvPtr->flags;
-        freeConnPtr = drvPtr->freeConnPtr;
-        drvPtr->freeConnPtr = NULL;
-        closePtr = drvPtr->closeSockPtr;
-        drvPtr->closeSockPtr = NULL;
-        while ((sockPtr = drvPtr->runSockPtr) != NULL) {
-            drvPtr->runSockPtr = sockPtr->nextPtr;
-            SockPush(sockPtr, &runSockPtr);
-        }
         if (readSockPtr != NULL) {
             n = 0;
+            Ns_MutexLock(&drvPtr->lock);
             while ((sockPtr = readSockPtr) != NULL) {
                 readSockPtr = sockPtr->nextPtr;
                 sockPtr->nextPtr = drvPtr->readSockPtr;
@@ -1087,11 +1109,11 @@ DriverThread(void *arg)
                 ++drvPtr->idlereaders;
                 --n;
             }
+            Ns_MutexUnlock(&drvPtr->lock);
             if (n > 0) {
                 Ns_CondSignal(&drvPtr->cond);
             }
 	}
-        Ns_MutexUnlock(&drvPtr->lock);
 
 	/*
          * Process Sock's returned for keep-alive or close.
@@ -1099,7 +1121,7 @@ DriverThread(void *arg)
 
         while ((sockPtr = closePtr) != NULL) {
             closePtr = sockPtr->nextPtr;
-            if (sockPtr->state == SOCK_READWAIT) {
+            if (!stop && sockPtr->state == SOCK_READWAIT) {
                 /* Allocate a new Conn for the connection. */
                 sockPtr->connPtr = AllocConn(drvPtr, sockPtr);
                 SockWait(sockPtr, nowPtr, drvPtr->keepwait, &waitPtr);
@@ -1110,19 +1132,6 @@ DriverThread(void *arg)
                 SockWait(sockPtr, nowPtr, drvPtr->closewait, &waitPtr);
             }
 	}
-
-	/*
-         * Free connections done executing.
-	 */
-
-        while ((connPtr = freeConnPtr) != NULL) {
-            freeConnPtr = connPtr->nextPtr;
-            limitsPtr = connPtr->limitsPtr;
-            Ns_MutexLock(&limitsPtr->lock);
-            --limitsPtr->nrunning;
-            Ns_MutexUnlock(&limitsPtr->lock);
-            FreeConn(drvPtr, connPtr);
-        }
 
 	/*
          * Process sockets ready to run, starting with pre-queue callbacks.
@@ -1229,7 +1238,7 @@ dropped:
 	 * Attempt to accept new sockets.
 	 */
 
-  	if ((drvPtr->pfds[1].revents & POLLIN)
+  	if (!stop && (drvPtr->pfds[1].revents & POLLIN)
                 && ((sockPtr = SockAccept(lsock, drvPtr)) != NULL)) {
 	    SockWait(sockPtr, &drvPtr->now, drvPtr->recvwait, &waitPtr);
 	}
