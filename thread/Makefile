@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/Makefile,v 1.15 2001/05/29 23:12:52 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/Makefile,v 1.16 2001/05/30 00:23:07 jgdavidson Exp $
 #
 
 
@@ -46,4 +46,4 @@ include ../include/Makefile.library
 $(OBJS):	thread.h
 osthread.o:	pthread.cpp sproc.cpp win32.cpp
 test: $(LIB) test.o
-	$(CC) -o test test.o $(RFLAG) . -L. -l$(NSTHREAD) $(LIBS)
+	$(CC) -o test test.o -L. -l$(NSTHREAD) $(LIBS) -Wl,$(RFLAG),. $(RPATH)
