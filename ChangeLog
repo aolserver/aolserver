@@ -1,3 +1,7 @@
+2003-03-28  Mark Page  <mpagenva@aol.com>
+
+	* nsd/tclhttp.c: (bug) Fix uninitialized hdrs var, was causing segfault.
+
 2003-03-21  Mark Page  <mpagenva@aol.com>
 
         * TAG aolserver_v4_r0_beta_4
