@@ -33,7 +33,7 @@
  *	ADP string and file eval.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.17 2002/09/21 17:49:15 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.18 2002/10/04 16:17:32 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -591,6 +591,7 @@ ParseFile(NsInterp *itPtr, char *file, struct stat *stPtr)
 
     pagePtr = NULL;
     buf = NULL;
+    trys = 0;
     do {
 	/*
 	 * fstat the open file to ensure it has not changed or been
