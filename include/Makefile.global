@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Makefile.global,v 1.48 2002/02/24 01:54:54 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Makefile.global,v 1.49 2002/02/24 02:21:34 jgdavidson Exp $
 #
 
 #
@@ -234,11 +234,11 @@ ifneq (,$(findstring Darwin,$(uname)))
     LIBEXT=dylib
     CFLAGS+=-dynamic -traditional-cpp -fno-common
     LDSO=cc -bundle
-    LDLIB=cc -dynamiclib
+    LDLIB=cc -dynamiclib -install_name $(AOLSERVER)/lib/$(LIB)
     CFLAGS+=-DUSE_DLSYMPREFIX=1 -DUSE_DYLD=1 \
             -DNO_RAND48=1 -DNO_TIMEZONE=1
     RFLAG=
-    RPATH=-install_name $(AOLSERVER)/lib/$(LIBFILE)
+    RPATH=
     RANLIB=/usr/bin/ranlib
 endif
 
