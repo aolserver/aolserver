@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Attic/Makefile.module.in,v 1.5 2003/06/02 16:51:53 vasiljevic Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Attic/Makefile.module.in,v 1.6 2004/11/15 13:38:38 dossy Exp $
 
 #
 # Makefile.module --
@@ -104,7 +104,7 @@ endif
 ifdef NSBUILD
     include ../include/Makefile.global
 else
-    include @prefix@/include/Makefile.global
+    include $(AOLSERVER)/include/Makefile.global
 endif
 
 all build: $(BUILD)
