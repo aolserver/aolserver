@@ -28,7 +28,7 @@
  */
 
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/exec.c,v 1.6 2000/10/13 18:10:30 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/exec.c,v 1.7 2001/03/27 16:44:06 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -249,7 +249,6 @@ Ns_ExecArgblk(char *exec, char *dir, int fdin, int fdout, char *args, Ns_Set *en
     char           *cmd;
 
     if (exec == NULL) {
-        Ns_Log(Bug, "exec: attempt to give null command child process");
         return -1;
     }
     oinfo.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
@@ -334,7 +333,6 @@ Ns_ExecArgblk(char *exec, char *dir, int fdin, int fdout, char *args, Ns_Set *en
     } else {
         CloseHandle(pi.hThread);
         pid = (int) pi.hProcess;
-        Ns_Log(Debug, "exec: child process %d started", pid);
     }
     Ns_DStringFree(&dsCmd);
     Ns_DStringFree(&dsExec);
@@ -393,15 +391,14 @@ Ns_ExecArgv(char *exec, char *dir, int fdin, int fdout,
     pid = Ns_ExecArgblk(exec, dir, fdin, fdout, argblk, env);
     Ns_DStringFree(&ds);
 #else
-    int    pipeError[2];
+    int    errpipe[2];
     int    nread;
-    char   cBuf[200];
+    char   errbuf[200];
     char  *envBlock;
     char **envp;
     char  *argvSh[4];
 
     if (exec == NULL) {
-        Ns_Log(Bug, "exec: null command given to child process");
         return -1;
     }
     if (argv == NULL) {
@@ -412,14 +409,17 @@ Ns_ExecArgv(char *exec, char *dir, int fdin, int fdout,
         argv[3] = NULL;
         exec = argv[0];
     }
-    if (ns_pipe(pipeError) < 0) {
+    if (ns_pipe(errpipe) < 0) {
         Ns_Log(Error, "exec: failed to create pipe for '%s': '%s'",
 	       exec, strerror(errno));
         return -1;
     }
-    if (env != NULL) {
+    if (env == NULL) {
+	/* NB: Not strictly thread safe. */
+	envp = environ;
+    } else {
         envBlock = GetEnvBlock(env);
-        envp = BuildVector(envBlock);
+	envp = BuildVector(envBlock);
     }
     if (fdin < 0) {
 	fdin = 0;
@@ -430,28 +430,28 @@ Ns_ExecArgv(char *exec, char *dir, int fdin, int fdout,
     pid = ns_fork();
     if (pid < 0) {
         Ns_Log(Error, "exec: failed to fork '%s': '%s'", exec, strerror(errno));
-        close(pipeError[0]);
-        close(pipeError[1]);
+        close(errpipe[0]);
+        close(errpipe[1]);
     } else if (pid == 0) {	/* child */
-        close(pipeError[0]);
+        close(errpipe[0]);
         if (dir != NULL && chdir(dir) != 0) {
-            ExecFailed(pipeError[1], cBuf, "%dchdir(\"%.150s\")", errno, dir);
+            ExecFailed(errpipe[1], errbuf, "%dchdir(\"%.150s\")", errno, dir);
         }
 	if (fdin == 1) {
 	    fdin = dup(1);
             if (fdin == -1) {
-                ExecFailed(pipeError[1], cBuf, "%ddup(1)", errno);
+                ExecFailed(errpipe[1], errbuf, "%ddup(1)", errno);
             }
 	}
 	if (fdout == 0) {
 	    fdout = dup(0);
             if (fdout == -1) {
-                ExecFailed(pipeError[1], cBuf, "%ddup(0)", errno);
+                ExecFailed(errpipe[1], errbuf, "%ddup(0)", errno);
             }
 	}
         if (fdin != 0) {
             if (dup2(fdin, 0) == -1) {
-                ExecFailed(pipeError[1], cBuf, "%ddup2(%d, 0)", errno, fdin);
+                ExecFailed(errpipe[1], errbuf, "%ddup2(%d, 0)", errno, fdin);
             }
 	    if (fdin != fdout) {
 		close(fdin);
@@ -459,7 +459,7 @@ Ns_ExecArgv(char *exec, char *dir, int fdin, int fdout,
         }
         if (fdout != 1) {
             if (dup2(fdout, 1) == -1) {
-                ExecFailed(pipeError[1], cBuf, "%ddup2(%d, 1)", errno, fdout);
+                ExecFailed(errpipe[1], errbuf, "%ddup2(%d, 1)", errno, fdout);
             }
             close(fdout);
         }
@@ -467,18 +467,14 @@ Ns_ExecArgv(char *exec, char *dir, int fdin, int fdout,
 	Ns_NoCloseOnExec(0);
 	Ns_NoCloseOnExec(1);
 	Ns_NoCloseOnExec(2);
-        if (env != NULL) {
-            execve(exec, argv, envp);
-        } else {
-            execv(exec, argv);
-        }
-        ExecFailed(pipeError[1], cBuf, "%dexecv()", errno);
+        execve(exec, argv, envp);
+        ExecFailed(errpipe[1], errbuf, "%dexecv()", errno);
 	
     } else {	/* parent */
 	
-        close(pipeError[1]);
-        nread = read(pipeError[0], cBuf, sizeof(cBuf) - 1);
-        close(pipeError[0]);
+        close(errpipe[1]);
+        nread = read(errpipe[0], errbuf, sizeof(errbuf) - 1);
+        close(errpipe[0]);
         if (nread != 0) {
             if (nread < 0) {
 		Ns_Log(Error, "exec: "
@@ -488,8 +484,8 @@ Ns_ExecArgv(char *exec, char *dir, int fdin, int fdout,
                 char *msg;
 		int   err;
 		
-                cBuf[nread] = '\0';
-                err = strtol(cBuf, &msg, 10);
+                errbuf[nread] = '\0';
+                err = strtol(errbuf, &msg, 10);
                 Ns_Log(Error, "exec: "
 		       "failed to execute '%s': failed to read '%s': '%s'",
 		       exec, msg, strerror(err));
