@@ -35,7 +35,7 @@
  *  	fixed size blocks from block caches.  
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/pool.c,v 1.13 2000/11/17 16:52:15 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/pool.c,v 1.14 2001/01/10 18:26:04 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "thread.h"
 
@@ -241,16 +241,14 @@ Ns_PoolCreate(char *name)
 void
 Ns_PoolEnum(Ns_PoolInfoProc *proc, void *arg)
 {
-    static Ns_PoolInfo *infoPtr;
+    Ns_PoolInfo *infoPtr;
     Pool *poolPtr;
     int i;
 
     Ns_MasterLock();
     if (initialized) {
-    	if (infoPtr == NULL) {
-	    infoPtr = NsAlloc(sizeof(Ns_PoolInfo) +
+	infoPtr = ns_calloc(1, sizeof(Ns_PoolInfo) +
 		sizeof(Ns_PoolBucketInfo) * nbuckets);
-	}
 	poolPtr = firstPtr;
 	while (poolPtr != NULL) {
     	    infoPtr->name = poolPtr->name;
@@ -268,6 +266,7 @@ Ns_PoolEnum(Ns_PoolInfoProc *proc, void *arg)
 	    (*proc)(infoPtr, arg);
 	    poolPtr = poolPtr->nextPtr;
 	}
+	ns_free(infoPtr);
     }
     Ns_MasterUnlock();
 }
@@ -829,4 +828,46 @@ GetBlocks(Pool *poolPtr, int bucket)
 	blockPtr->b_next = NULL;
     }
     return 1;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ *  Ns_PoolBlockSize --
+ *
+ *	Return size info for an allocated pool block.
+ *
+ * Results:
+ *	NS_OK if block is valid, NS_ERROR otherwise.
+ *
+ * Side effects:
+ *	Will update given reqPtr and usePtr with requested and used
+ *	byte count.  Used byte count of -1 means it was a direct
+ *	malloc allocated block.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Ns_PoolBlockSize(void *ptr, int *reqPtr, int *usePtr)
+{
+    Block *blockPtr;
+    int bucket;
+
+    blockPtr = (((Block *) ptr) - 1);
+    if (blockPtr->b_magic1 != MAGIC || blockPtr->b_magic2 != MAGIC) {
+	return NS_ERROR;
+    }
+    if (reqPtr != NULL) {
+    	*reqPtr = blockPtr->b_reqsize;
+    }
+    if (usePtr != NULL) {
+    	if (blockPtr->b_bucket == nbuckets) {
+	    *usePtr = -1;
+    	} else {
+    	    *usePtr = binfo[blockPtr->b_bucket].blocksize;
+    	}
+    }
+    return NS_OK;
 }
