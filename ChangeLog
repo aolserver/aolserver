@@ -1,5 +1,10 @@
 2004-07-30  Dossy Shiobara <dossy@panoptic.com>
 
+	* nsd/driver.c (1.27): Fixes nslog logging incorrect number of
+	  bytes sent in access.log.
+
+2004-07-30  Dossy Shiobara <dossy@panoptic.com>
+
 	* include/ns.h (1.64), nsd/driver.c (1.26), nsd/limits.c (1.2),
 	  nsd/nsd.h (1.85), nsd/op.c (1.13), nsd/pools.c (1.2), nsd/queue.c
 	  (1.26), nsd/return.c (1.41): Implement the "maxwait" limit.  Use
