@@ -34,7 +34,7 @@
  *	Implements a lot of Tcl API commands. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclmisc.c,v 1.12.2.1.2.3 2003/01/09 18:46:11 elizthom Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclmisc.c,v 1.12.2.1.2.4 2003/02/01 19:00:16 shmooved Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -86,6 +86,8 @@ static int JpegSize(Tcl_Channel chan, int *wPtr, int *hPtr);
 /*
  * Static variables defined in this file
  */
+
+static Ns_ThreadArgProc ThreadArgProc;
 
 
 /*
@@ -934,7 +936,7 @@ NsTclInfoCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 	Ns_MutexList(&ds);
 	Tcl_DStringResult(interp, &ds);
     } else if (STREQ(argv[1], "threads")) {
-	Ns_ThreadList(&ds, NULL);
+	Ns_ThreadList(&ds, ThreadArgProc);
 	Tcl_DStringResult(interp, &ds);
     } else if (STREQ(argv[1], "pools")) {
 #ifndef _WIN32
@@ -1737,4 +1739,10 @@ JpegSize(Tcl_Channel chan, int *wPtr, int *hPtr)
 	}
     }
     return TCL_ERROR;
+}
+
+static void      
+ThreadArgProc(Tcl_DString *dsPtr, void *proc, void *arg)
+{
+    Ns_GetProcInfo(dsPtr, proc, arg);
 }
