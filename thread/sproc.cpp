@@ -661,7 +661,8 @@ static void
 WakeupSproc(int pid)
 {
     if (kill(pid, SIGHUP) != 0) {
-    	NsThreadError("Wakeup", "kill", errno);
+    	NsThreadError("WakeupSproc: kill(%d, SIGHUP) failed: %s", 
+	    pid, strerror(errno));
     }
 }
 
@@ -1385,13 +1386,14 @@ exit(int status)
  *
  * fork --
  *
- *	Fork wrapper to forget about the thread manager in the child.
+ *	Fork wrapper to forget about the thread manager and update
+ *	the pid's in the child.
  *
  * Results:
  *	See fork(2).
  *
  * Side effects:
- *	Child will not have access to thread manager.
+ *	Child will not have access to parent's thread manager.
  *
  *----------------------------------------------------------------------
  */
@@ -1401,12 +1403,27 @@ fork(void)
 {
     extern pid_t _fork(void);
     pid_t pid;
+    Sproc *sPtr;
 
     pid = _fork();
-    if (pid == 0 && mgrPid != -1) {
-    	mgrPid = -1;
-    	close(mgrPipe[0]);
-    	close(mgrPipe[1]);
+    if (pid == 0) {
+
+	/*
+	 * Close off the thread manager pipe if opened.
+	 */
+
+	if (mgrPid != -1) {
+    	    mgrPid = -1;
+    	    close(mgrPipe[0]);
+    	    close(mgrPipe[1]);
+	}
+
+	/*
+	 * Update the new process pid.
+	 */
+
+    	sPtr = GETSPROC();
+	sPtr->pid = sPtr->startPid = getpid();
     }
     return pid;
 }
