@@ -1,3 +1,9 @@
+2004-07-02  Dossy Shiobara <dossy@panoptic.com>
+
+	* nsd/init.tcl (1.31): ns_eval of script containing comments (i.e.,
+	  lines starting with "#") cause an error because $args is a list,
+	  which gets evaluated differently than a plain string script.
+
 2004-07-01  Dossy Shiobara <dossy@panoptic.com>
 
 	* nsd/: nsd.h (1.82), nsmain.c (1.55): Ensure that supplementary
