@@ -34,7 +34,7 @@
  *      Manage the Ns_Conn structure
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.29 2002/10/14 23:20:19 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.30 2002/10/25 21:31:17 jcollins Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -728,7 +728,7 @@ NsTclConnObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
      */
 
     if (opt == CIsConnectedIdx) {
-	Tcl_SetBooleanObj(result, connPtr ? 0 : 1);
+	Tcl_SetBooleanObj(result, connPtr ? 1 : 0);
 	return TCL_OK;
     }
     if (connPtr == NULL) {
