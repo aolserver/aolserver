@@ -28,7 +28,7 @@
  */
 
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscgi/nscgi.c,v 1.5 2000/10/13 18:10:30 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscgi/nscgi.c,v 1.6 2000/12/19 00:47:01 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 #include <sys/stat.h>
@@ -212,7 +212,7 @@ Ns_ModuleInit(char *server, char *module)
 	}
 	Ns_DupHigh(&devNull);
 	Ns_CloseOnExec(devNull);
-	Ns_MutexInit2(&tmpLock, "cgitmp");
+	Ns_MutexSetName2(&tmpLock, "nscgi", "tmpfd");
 	initialized = 1;
     }
 

@@ -34,7 +34,7 @@
  *	Manage the server log file.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/log.c,v 1.6 2000/08/17 06:09:49 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/log.c,v 1.7 2000/12/19 00:47:01 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -391,9 +391,18 @@ Log(Ns_LogSeverity severity, char *fmt, va_list *argsPtr)
     char *severityStr;
     char  timebuf[100];
     FILE *fp;
+    static int initialized;
+
+    if (!initialized) {
+	Ns_MasterLock();
+	if (!initialized) {
+	    Ns_MutexSetName2(&lock, "ns", "log");
+	    initialized = 1;
+	}
+	Ns_MasterUnlock();
+    }
 
     Ns_LogTime2(timebuf, 0);
-
     switch (severity) {
 	case Fatal:
 	    severityStr = "Fatal";
@@ -422,10 +431,9 @@ Log(Ns_LogSeverity severity, char *fmt, va_list *argsPtr)
     }
 
     Ns_MutexLock(&lock);
-    if ( (fp = logFileFd) == NULL) {
+    if ((fp = logFileFd) == NULL) {
 	fp = stderr;
     }
-
     fprintf(fp, "%s[%d.%d][%s] %s: ", timebuf,
 		Ns_InfoPid(), Ns_ThreadId(), Ns_ThreadGetName(), severityStr);
     if (nsconf.log.expanded == NS_TRUE) {

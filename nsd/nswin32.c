@@ -34,7 +34,7 @@
  *	Win32 specific routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nswin32.c,v 1.7 2000/11/06 18:10:58 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nswin32.c,v 1.8 2000/12/19 00:47:01 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -340,6 +340,7 @@ NsHandleSignals(void)
 	ReportStatus(SERVICE_RUNNING, NO_ERROR, 0);
     }
 
+    Ns_MutexSetName2(&lock, "ns", "signal");
     do {
     	Ns_MutexLock(&lock);
 	while (sigpending == 0) {
