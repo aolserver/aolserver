@@ -35,7 +35,7 @@
  *	pools of database handles.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsdb/dbinit.c,v 1.1 2002/05/15 20:17:49 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsdb/dbinit.c,v 1.2 2002/06/05 22:57:41 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "db.h"
 
@@ -128,38 +128,6 @@ static Ns_ArgProc CheckArgProc;
 static Tcl_HashTable poolsTable;
 static Tcl_HashTable serversTable;
 static Ns_Tls tls;
-
-int Ns_ModuleVersion = 1;
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Ns_ModuleInit --
- *
- *	Module initialization point.
- *
- * Results:
- *	NS_OK.
- *
- * Side effects:
- *	May load database drivers and configure pools.
- *
- *----------------------------------------------------------------------
- */
-
-int
-Ns_ModuleInit(char *server, char *module)
-{
-    static int once;
-
-    if (!once) {
-	NsDbInitPools();
-	once = 1;
-    }
-    NsDbInitServer(server);
-    return Ns_TclInitInterps(server, NsDbAddCmds, server);
-}
 
 
 /*
