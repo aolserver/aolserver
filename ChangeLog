@@ -1,17 +1,26 @@
+2004-10-27  Jim Davidson <jgdavidson@aol.com>
+
+	* include/nsd.h:
+	* nsd/adpcmds.c:
+	* nsd/adpeval.c: Updates to new ADP cache capability, changing
+	ns_adp_include -ttl option to -cache and adding -nocache option.
+
+
 2004-10-26  Jim Davidson <jgdavidson@aol.com>
 
 	* ns.h:
-	* adpcmds.c:
-	* adpeval.c:
-	* adprequest.c:
-	* nsd.h:
-	* server.c: Added new ADP caching capabilities enabled via
+	* nsd/adpcmds.c:
+	* nsd/adpeval.c:
+	* nsd/adprequest.c:
+	* nsd/nsd.h:
+	* nsd/server.c: Added new ADP caching capabilities enabled via
 	configuration and/or ns_adp_include -ttl (work in progress).
 
-	* queue.c:
-	* driver.c:
-	* request.c: Fixes to avoid thread race conditions when
+	* nsd/queue.c:
+	* nsd/driver.c:
+	* nsd/request.c: Fixes to avoid thread race conditions when
 	when using ns_info threads.
+
 
 2004-10-06  Jim Davidson <jgdavidson@aol.com>
 
