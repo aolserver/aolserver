@@ -33,7 +33,7 @@
  * 	Connect Tcl command names to the functions that implement them
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.40 2004/07/29 23:05:49 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.41 2004/08/16 20:27:46 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -71,7 +71,6 @@ extern Tcl_ObjCmdProc
     NsTclCryptObjCmd,
     NsTclCritSecObjCmd,
     NsTclDummyObjCmd,
-    NsTclICtlObjCmd,
     NsTclFTruncateObjCmd,
     NsTclGetAddrObjCmd,
     NsTclGetHostObjCmd,
@@ -84,12 +83,12 @@ extern Tcl_ObjCmdProc
     NsTclHeadersObjCmd,
     NsTclHttpObjCmd,
     NsTclHttpTimeObjCmd,
+    NsTclICtlObjCmd,
     NsTclInfoObjCmd,
     NsTclJobObjCmd,
     NsTclJpegSizeObjCmd,
     NsTclKillObjCmd,
     NsTclLimitsObjCmd,
-    NsTclPoolsObjCmd,
     NsTclLinkObjCmd,
     NsTclLocalTimeObjCmd,
     NsTclLogObjCmd,
@@ -111,6 +110,7 @@ extern Tcl_ObjCmdProc
     NsTclNsvUnsetObjCmd,
     NsTclParseHttpTimeObjCmd,
     NsTclParseQueryObjCmd,
+    NsTclPoolsObjCmd,
     NsTclPurgeFilesObjCmd,
     NsTclRandObjCmd,
     NsTclRegisterAdpObjCmd,
