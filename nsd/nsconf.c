@@ -33,7 +33,7 @@
  *	Various core configuration.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsconf.c,v 1.20 2001/05/10 08:58:57 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsconf.c,v 1.21 2001/06/26 22:08:24 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #include "nsconf.h"
@@ -106,9 +106,9 @@ NsConfInit(void)
     if (!GetBool("lognotice", LOG_NOTICE_BOOL)) {
 	nsconf.log.flags |= LOG_NONOTICE;
     }
-    nsconf.log.maxlevel = GetInt("maxloglevel", LOG_MAXLEVEL_INT);
-    nsconf.log.maxback  = GetInt("maxbackup", LOG_MAXBACK_INT);
-    nsconf.log.maxbuffer  = GetInt("maxlogbuffer", LOG_MAXBUFFER_INT);
+    nsconf.log.maxback  = GetInt("logmaxbackup", LOG_MAXBACK_INT);
+    nsconf.log.maxlevel = GetInt("logmaxlevel", LOG_MAXLEVEL_INT);
+    nsconf.log.maxbuffer  = GetInt("logmaxbuffer", LOG_MAXBUFFER_INT);
     nsconf.log.flushint  = GetInt("logflushinterval", LOG_FLUSHINT_INT);
     nsconf.log.file = Ns_ConfigGet(NS_CONFIG_PARAMETERS, "serverlog");
     if (nsconf.log.file == NULL) {
@@ -147,7 +147,7 @@ NsConfInit(void)
 	i = GetInt("dnscachetimeout", DNS_TIMEOUT_INT);
 	if (max > 0 && i > 0) {
 	    i *= 60; /* NB: Config minutes, seconds internally. */
-	    NsEnableDNSCache(i * 60, max);
+	    NsEnableDNSCache(i, max);
 	}
     }
 
