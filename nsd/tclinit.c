@@ -34,7 +34,7 @@
  *	Initialization routines for Tcl.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.9 2001/01/16 18:13:24 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.10 2001/01/16 22:57:04 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -784,10 +784,6 @@ NsTclEvalCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
     char *script;
     int   retcode;
 
-    if (!nsconf.tcl.nseval) {
-	Tcl_SetResult(interp, "ns_eval not enabled", TCL_STATIC);
-	return TCL_ERROR;
-    }
     if (argc < 2) {
         Tcl_AppendResult(interp, "wrong # args: should be \"",
             argv[0], " arg ?arg? ?arg?", NULL);
