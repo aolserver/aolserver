@@ -1,3 +1,29 @@
+2000-08-09  Jim Davidson <jgdavidson@aol.com>
+	
+	* tcl7.6/generic/tclFHandle.c: Removed needed fileTable which
+	could result in crashes when fd's where reused quickly [fixes a
+	rare multiple-exec crashing bug in nsd76 --kris].
+
+	* thread/tcl8x.c: Added a wrapper startup for Tcl_CreateThread for
+	the benefit of Win32.
+
+	* nsd/log.c: Removed severityRank array.
+
+	* nsd/tclmisc.c: Fixed bug with ns_info pid. [I can't code --kris]
+	
+	* nsd: keepalive.c,nsmain.c,sched.c,serv.c: Re-ordered shutdowns
+	to ensure connection threads are stopped before other shutdowns
+	begin (e.g., sched, sockcallback).
+	
+	* tcl8.3.1 replaces tcl8.3.0.  README.AOLSERVER added to tcl8.3.1
+	directory.  Original copies of changed are named *.orig.
+
+	* include/Makefile.global: Build environment now uses gcc -shared
+	-nostartfiles as the default LDSO.
+
+	* nsthread/thread.c: Added Ns_ThreadCreate2 with extra flags
+	argument used by Tcl_CreateThread to create a detached thread.
+	
 2000-08-06  Scott S. Goodwin  <scott@scottg.net>
 
 	* nsd/log.c: Segmentation fault was occuring when writing to the
