@@ -1,3 +1,41 @@
+2000-10-04  Jim Davidson
+
+	* binder.c: Set close-on-exec on received fd from binder.
+	
+	* sock.c: Removed cthread errno API's, Mac OS X now has
+	thread-safe errno.
+
+	* nsd/nsmain.c, include/Makefile.global, nsd/nsthread.h,
+	nspd/main.c, nsunix/nsunix.c, nsvhr/nsvhr.c, thread/Makefile,
+	thread/osthread, thread/reentrant.c, thread/signal.c: Updates for
+	Mac OS X.  Use MACOSX instead of APPLE; use HAVE_BSDSETPGRP,
+	HAVE_CMMSG, use pthreads instead of cthreads.
+	
+	* nssock/sock.c: Removed setting bufsize to uninitialized value on
+	ssl.
+
+	* include/ns.h: Removed Ns_CacheTimedGetValue which was an odd
+	interface not used anywhere.
+	
+	* nsd/nsd.h: Update to version 3.11.
+	
+	* tcl/namespace.tcl: Added namespace export to init script.
+	
+	* thread/pthread.cpp: Stopped using pthread_once as it appears to
+	require a lock.
+	
+2000-10-04  Kriston J. Rehberg  <Kriston@AOL.NET>
+
+	* win32/nsssl/nsssl.dsp: nsssl project for win32.
+
+	* win32/aolserver.dsw: main installation keeps DLL's as DLL's now.
+
+	* scripts/nsd.tcl: shared library extension is now
+	platform-dependent
+
+	* nssock/ssltcl.c: Changed name of ReadFile adn WriteFile to avoid
+	Win32 naming conflicts.
+	
 2000-09-28  Kriston J. Rehberg  <Kriston@AOL.NET>
 
 	* scripts/tests/nstelemetry.adp: added "Expires: now" header to
