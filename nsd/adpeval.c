@@ -33,7 +33,7 @@
  *	ADP string and file eval.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.16 2002/08/25 19:55:59 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.17 2002/09/21 17:49:15 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -251,7 +251,7 @@ AdpRun(NsInterp *itPtr, char *file, int objc, Tcl_Obj *objv[],
     }
 
     if (itPtr->adp.cache == NULL) {
-	Ns_DStringPrintf(&tmp, "nsadp:%s:%d", itPtr->servPtr->server, Ns_ThreadId());
+	Ns_DStringPrintf(&tmp, "nsadp:%s:%p", itPtr->servPtr->server, itPtr);
 	itPtr->adp.cache = Ns_CacheCreateSz(tmp.string, FILE_KEYS,
 				itPtr->servPtr->adp.cachesize, FreeInterpPage);
 	Ns_DStringTrunc(&tmp, 0);
