@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Makefile,v 1.39.2.1 2004/11/19 14:01:40 dossy Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Makefile,v 1.39.2.2 2004/11/20 02:01:24 dossy Exp $
 #
 
 INSTALL	= install-init
@@ -54,8 +54,6 @@ LOBJS	= adpcmds.o adpeval.o adpparse.o adprequest.o auth.o binder.o \
 LIBOBJS	= $(LOBJS) stamp.o
 
 include ../include/Makefile.build
-
-LIBS	+= -lz
 
 stamp.o: $(LOBJS)
 	$(CC) -c -o stamp.o stamp.c
