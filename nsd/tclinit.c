@@ -33,19 +33,24 @@
  *	Initialization routines for Tcl.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.27 2002/09/21 17:52:00 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.28 2002/09/28 19:24:48 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
 /*
- * The following structure maintains new interp init callbacks.
+ * The following structure maintains interp callback traces.
  */
 
-typedef struct Init {
-    struct Init *nextPtr;
+typedef struct Trace {
+    struct Trace *nextPtr;
     Ns_TclInterpInitProc *proc;
     void *arg;  
-} Init;
+} Trace;
+
+#define TRACE_INIT	0
+#define TRACE_CREATE	1
+#define TRACE_CLEANUP	2
+#define TRACE_DELETE	3
 
 /*
  * The following structure maintains procs to call at interp
@@ -67,6 +72,9 @@ static Ns_TlsCleanup DeleteInterps;
 static Tcl_Interp *CreateInterp(NsInterp *itPtr);
 static int UpdateInterp(NsInterp *itPtr);
 static Tcl_HashEntry *GetHashEntry(NsServer *servPtr);
+static int RegisterTrace(NsServer *servPtr, int idx,
+			 Ns_TclTraceProc *proc, void *arg);
+static void RunTraces(NsInterp *itPtr, int idx);
 
 /*
  * Static variables defined in this file.
@@ -159,19 +167,43 @@ Ns_TclEval(Ns_DString *dsPtr, char *server, char *script)
 int
 Ns_TclInitInterps(char *server, Ns_TclInterpInitProc *proc, void *arg)
 {
-    NsServer *servPtr = NsGetServer(server);
-    Init *initPtr, **firstPtrPtr;
+    return RegisterTrace(NsGetServer(server), TRACE_INIT, proc, arg);
+}
 
-    initPtr = ns_malloc(sizeof(Init));
-    initPtr->nextPtr = NULL;
-    initPtr->proc = proc; 
-    initPtr->arg = arg;
-    firstPtrPtr = &servPtr->tcl.firstInitPtr;
-    while (*firstPtrPtr != NULL) {
-	firstPtrPtr = &((*firstPtrPtr)->nextPtr);
-    }
-    *firstPtrPtr = initPtr;
-    return NS_OK;
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_TclRegisterAtCreate, Ns_TclRegisterAtCleanup,
+ * Ns_TclRegisterAtDelete --
+ *
+ *  	Register callbacks for interp create, cleanup, and delete.
+ *
+ * Results:
+ *	NS_ERROR if no initializing server, NS_OK otherwise.
+ *
+ * Side effects:
+ *	Callback will be invoke at requested time.
+ *
+ *----------------------------------------------------------------------
+ */
+ 
+int
+Ns_TclRegisterAtCreate(Ns_TclTraceProc *proc, void *arg)
+{
+    return RegisterTrace(NsGetInitServer(), TRACE_CREATE, proc, arg);
+}
+
+int
+Ns_TclRegisterAtCleanup(Ns_TclTraceProc *proc, void *arg)
+{
+    return RegisterTrace(NsGetInitServer(), TRACE_CLEANUP, proc, arg);
+}
+
+int
+Ns_TclRegisterAtDelete(Ns_TclTraceProc *proc, void *arg)
+{
+    return RegisterTrace(NsGetInitServer(), TRACE_DELETE, proc, arg);
 }
 
 
@@ -230,6 +262,29 @@ Ns_TclCreateInterp(void)
 /*
  *----------------------------------------------------------------------
  *
+ * Ns_TclDestroyInterp --
+ *
+ *      Delete an interp.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+Ns_TclDestroyInterp(Tcl_Interp *interp)
+{
+    Tcl_DeleteInterp(interp);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  * Ns_TclAllocateInterp --
  *
  *	Allocate an interpreter, or if one is already associated with 
@@ -251,7 +306,14 @@ Ns_TclAllocateInterp(char *server)
     Tcl_Interp *interp;
     NsInterp *itPtr;
     NsServer *servPtr;
-    Init *initPtr;
+
+    /*
+     * If no server is requested, return a new interp.
+     */
+
+    if (server == NULL) {
+	return Ns_TclCreateInterp();
+    }
 
     /*
      * Validate the server and get the per-thread hash entry.
@@ -282,17 +344,20 @@ Ns_TclAllocateInterp(char *server)
 	Tcl_SetAssocData(interp, "ns:data", FreeData, itPtr);
 
 	/*
-	 * Call inits registered by Ns_TclInitInterps which
+	 * Call traces registered by Ns_TclInitInterps which
 	 * generally create commands for loadable module.
 	 */
 
-	initPtr = itPtr->servPtr->tcl.firstInitPtr;
-	while (initPtr != NULL) {
-	    if (((*initPtr->proc)(interp, initPtr->arg)) != TCL_OK) {
-		Ns_TclLogError(interp);
-	    }
-	    initPtr = initPtr->nextPtr;
-	}
+	RunTraces(itPtr, TRACE_INIT);
+
+	/*
+	 * Call traces registered by Ns_RegisterAtCreate.
+	 * This was necessary in prior releases because
+	 * Ns_TclInitInterp traces where actually only 
+	 * called in the initial startup interp.
+	 */
+
+	RunTraces(itPtr, TRACE_CREATE);
 
 	/*
 	 * Update the interp state which should define ns_init used
@@ -338,6 +403,15 @@ Ns_TclDeAllocateInterp(Tcl_Interp *interp)
 {
     NsInterp	*itPtr = NsGetInterp(interp);
     Tcl_HashEntry *hPtr;
+
+    if (itPtr == NULL) {
+	/*
+	 * Not a server interp.
+	 */
+
+	Tcl_DeleteInterp(interp);
+	return;
+    }
 
     if (itPtr->conn != NULL) {
 	/*
@@ -680,6 +754,76 @@ Ns_TclLogError(Tcl_Interp *interp)
 /*
  *----------------------------------------------------------------------
  *
+ * Ns_TclLogErrorRequest --
+ *
+ *	Log both errorInfo and info about the HTTP request that led 
+ *	to it. 
+ *
+ * Results:
+ *	Returns a pointer to the errorInfo. 
+ *
+ * Side effects:
+ *	None. 
+ *
+ *----------------------------------------------------------------------
+ */
+
+char *
+Ns_TclLogErrorRequest(Tcl_Interp *interp, Ns_Conn *conn)
+{
+    char *agent;
+    CONST char *errorInfo;
+
+    errorInfo = Tcl_GetVar(interp, "errorInfo", TCL_GLOBAL_ONLY);
+    if (errorInfo == NULL) {
+        errorInfo = Tcl_GetStringResult(interp);
+    }
+    agent = Ns_SetIGet(conn->headers, "user-agent");
+    if (agent == NULL) {
+	agent = "?";
+    }
+    Ns_Log(Error, "error for %s %s, "
+           "User-Agent: %s, PeerAddress: %s\n%s", 
+           conn->request->method, conn->request->url,
+	   agent, Ns_ConnPeer(conn), errorInfo);
+    return errorInfo;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_TclInitModule --
+ *
+ *      Add a module name to the init list.
+ *
+ * Results:
+ *      TCL_ERROR if no such server, TCL_OK otherwise.
+ *
+ * Side effects:
+ *	Module will be initialized by the init script later.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Ns_TclInitModule(char *server, char *module)
+{
+    NsServer *servPtr;
+
+    servPtr = NsGetServer(server);
+    if (servPtr == NULL) {
+	return NS_ERROR;
+    }
+    (void) Tcl_ListObjAppendElement(NULL, servPtr->tcl.modules,
+			     	    Tcl_NewStringObj(module, -1));
+    return NS_OK;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  * NsTclDummyObjCmd --
  *
  *      Dummy command for ns_init and ns_cleanup normally replaced
@@ -723,10 +867,12 @@ NsTclICtlObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
     Defer    	*deferPtr;
     NsInterp *itPtr = arg;
     static CONST char *opts[] = {
-	"cleanup", "epoch", "get", "save", "update", NULL
+	"addmodule", "cleanup", "epoch", "get", "getmodules", "save",
+	"update", NULL
     };
     enum {
-	ICleanupIdx, IEpochIdx, IGetIdx, ISaveIdx, IUpdateIdx
+	IAddModuleIdx, ICleanupIdx, IEpochIdx, IGetIdx, IGetModulesIdx,
+	ISaveIdx, IUpdateIdx
     } opt;
     char *script;
     int length, result;
@@ -742,6 +888,26 @@ NsTclICtlObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 
     result = TCL_OK;
     switch (opt) {
+    case IAddModuleIdx:
+	if (objc != 3) {
+            Tcl_WrongNumArgs(interp, 2, objv, "module");
+	    return TCL_ERROR;
+	}
+	if (Tcl_ListObjAppendElement(interp, itPtr->servPtr->tcl.modules,
+				     objv[2]) != TCL_OK) {
+	    return TCL_ERROR;
+	}
+	Tcl_SetObjResult(interp, itPtr->servPtr->tcl.modules);
+	break;
+
+    case IGetModulesIdx:
+	if (objc != 2) {
+            Tcl_WrongNumArgs(interp, 2, objv, NULL);
+	    return TCL_ERROR;
+	}
+	Tcl_SetObjResult(interp, itPtr->servPtr->tcl.modules);
+	break;
+
     case IGetIdx:
 	if (objc != 2) {
             Tcl_WrongNumArgs(interp, 2, objv, NULL);
@@ -792,6 +958,7 @@ NsTclICtlObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
             Tcl_WrongNumArgs(interp, 2, objv, NULL);
 	    return TCL_ERROR;
 	}
+	RunTraces(itPtr, TRACE_CLEANUP);
     	while ((deferPtr = itPtr->firstDeferPtr) != NULL) {
 	    itPtr->firstDeferPtr = deferPtr->nextPtr;
 	    (*deferPtr->proc)(interp, deferPtr->arg);
@@ -898,6 +1065,7 @@ FreeData(ClientData arg, Tcl_Interp *interp)
 {
     NsInterp *itPtr = arg;
 
+    RunTraces(itPtr, TRACE_DELETE);
     NsFreeAdp(itPtr);
     Tcl_DeleteHashTable(&itPtr->sets);
     Tcl_DeleteHashTable(&itPtr->chans);
@@ -973,4 +1141,74 @@ GetHashEntry(NsServer *servPtr)
 	Ns_TlsSet(&tls, tablePtr);
     }
     return Tcl_CreateHashEntry(tablePtr, (char *) servPtr, &ignored);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * RegisterTrace --
+ *
+ *  	Add a trace to one of the server trace lists.  Traces are
+ *	added in FIFO order which (aside from init's) may not
+ *	be quite right.
+ *
+ * Results:
+ *	NS_OK if called with a non-NULL server, NS_ERROR otherwise.
+ *
+ * Side effects:
+ *	Will modify server trace list.
+ *
+ *----------------------------------------------------------------------
+ */
+ 
+static int
+RegisterTrace(NsServer *servPtr, int idx, Ns_TclTraceProc *proc, void *arg)
+{
+    Trace *tracePtr, **firstPtrPtr;
+
+    if (servPtr == NULL) {
+	return NS_ERROR;
+    }
+    tracePtr = ns_malloc(sizeof(Trace));
+    tracePtr->proc = proc;
+    tracePtr->arg = arg;
+    tracePtr->nextPtr = NULL;
+    firstPtrPtr = &servPtr->tcl.traces[idx];
+    while (*firstPtrPtr != NULL) {
+	firstPtrPtr = &((*firstPtrPtr)->nextPtr);
+    }
+    *firstPtrPtr = tracePtr;
+    return NS_OK;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * RunTraces --
+ *
+ *  	Execute trace callbacks.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	Depeneds on callbacks.
+ *
+ *----------------------------------------------------------------------
+ */
+ 
+static void
+RunTraces(NsInterp *itPtr, int idx)
+{
+    Trace *tracePtr;
+
+    tracePtr = itPtr->servPtr->tcl.traces[idx];
+    while (tracePtr != NULL) {
+	if ((*tracePtr->proc)(itPtr->interp, tracePtr->arg) != TCL_OK) {
+	    Ns_TclLogError(itPtr->interp);
+	}
+	tracePtr = tracePtr->nextPtr;
+    }
 }
