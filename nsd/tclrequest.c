@@ -33,7 +33,7 @@
  *	Routines for Tcl proc and ADP registered requests.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclrequest.c,v 1.10 2005/03/25 00:39:15 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclrequest.c,v 1.11 2005/03/28 00:06:44 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -269,7 +269,7 @@ NsTclRegisterFilterObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj 
     }
     when = 0;
     for (i = 0; i < lobjc; ++i) {
-    	if (Tcl_GetIndexFromObj(interp, lobjv[i], wopt, "when", 1,
+    	if (Tcl_GetIndexFromObj(interp, lobjv[i], wopt, "when", 0,
                 (int *) &widx) != TCL_OK) {
             return TCL_ERROR;
     	}
