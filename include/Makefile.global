@@ -156,25 +156,25 @@ endif
 
 
 #
-# SGI Irix (6.4 or better) -- cc or gcc
+# SGI Irix (6.4 or better) -- cc
 #
+#  cc -o32 is the default.
 #  GCC: unset ABI, set SGI_ABI env variable to n32 to force linker to behave.
 #  CC: unset SGI_ABI; set the ABI variable to "-n32".
 #  gcc only works if all third-party libraries are in the "n32" ABI.
 #  The "-pipe" option to gcc does not work on some versions of Irix.
-#  ABI can be -o32, -n32, or -64.  Only "-n32" has been tested.
+#  ABI can be -o32, -n32, or -64.  Only "-o32" has been tested in production.
 #  SMP is fully supported.  It works best with "sproc" threads, not "pthreads."
 #  Use "systune" command to set "maxuproc" and "nproc" to reasonable values.
-#  The gcc compiler might not work on Irix 6.4.  It does work on 6.5.7.
 #
 ifeq (IRIX, $(findstring IRIX, $(shell uname)))
     PLATFORM=irix
-    SGI_ABI=n32
+    SGI_ABI=o32
     ABI=-$(SGI_ABI)
-    # CC=cc
-    # CFLAGS+=$(ABI) -D_SGI_MP_SOURCE -fullwarn
-    # LDSO=$(LD) $(ABI) -shared
-    CFLAGS+=-D_SGI_MP_SOURCE -fPIC -Wall -Wno-unused
+    CC=cc
+    CFLAGS+=$(ABI) -D_SGI_MP_SOURCE -fullwarn
+    LDSO=$(LD) $(ABI) -shared
+    #CFLAGS+=-D_SGI_MP_SOURCE -fPIC -Wall -Wno-unused
     LDFLAGS+=$(ABI)
     NSDLIBS=-lm
     # CFLAGS+=-DUSE_PTHREADS=1
