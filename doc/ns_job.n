@@ -28,7 +28,7 @@
 '\" version of this file under either the License or the GPL.
 '\" 
 '\"
-'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_job.n,v 1.4 2003/09/11 21:34:14 pmoosman Exp $
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_job.n,v 1.5 2003/09/11 21:50:47 pmoosman Exp $
 '\"
 '\" 
 .so man.macros
@@ -78,9 +78,11 @@ Create a new thread pool queue called \fIqueue_name\fR. If \fImaxthreads\fR is n
 \fBqueue\fR
 .RS
 
-queue \fIqueue_name script \fR
+queue \fIqueue_name script ?detached?\fR
 
 Add a new job to the queue. If there are less than \fImaxthreads\fR current running then the job will be started. If there are \fImaxthreads\fR currently running then this new job will be queued.
+
+If \fIdetached\fR is true then the job will be cleaned when it completes; no wait will be nessary.
 
 The new job's ID is returned.
 
@@ -91,6 +93,14 @@ The new job's ID is returned.
 wait \fIqueue_name job_id \fR
 
 Wait for the specified queued or running job to finish. \fIwait\fR returns the results of the script.
+
+.RE
+\fBwait_any\fR
+.RS
+
+wait_any \fIqueue_name \fR
+
+Wait for any job on the queue complete.
 
 .RE
 \fBcancel\fR
@@ -120,7 +130,7 @@ Returns a list of the current queues.
 \fBjob_list \fR
 .RS
 
-Return a list of all the jobs in the queue. The "job" consists of:
+Returns a list of all the jobs in the queue. The "job" consists of:
 
 ID
 .RS

@@ -45,7 +45,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tcljob.c,v 1.12 2003/09/11 21:35:04 pmoosman Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tcljob.c,v 1.13 2003/09/11 21:51:36 pmoosman Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -592,7 +592,7 @@ NsTclJobObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
         case JJobsListIdx:
         {
             /*
-             * Return a list of all the jobs in the queue. The "job" consists of:
+             * Returns a list of all the jobs in the queue. The "job" consists of:
              *
              * Job ID
              * Job State (Scheduled, Running, or Done)
