@@ -34,7 +34,7 @@
  *	Tcl commands that let you do TCP sockets. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclsock.c,v 1.6 2001/03/14 01:09:56 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclsock.c,v 1.7 2001/03/14 02:30:39 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -764,7 +764,7 @@ NsTclSockListenCallbackCmd(ClientData arg, Tcl_Interp *interp, int argc,
     NsInterp *itPtr = arg;
     ListenCallback *lcbPtr;
     int       port;
-    char     *addr, *script;
+    char     *addr;
 
     if (argc != 4) {
         Tcl_AppendResult(interp, "wrong # args: should be \"",
