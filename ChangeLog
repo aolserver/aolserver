@@ -1,3 +1,8 @@
+2003-04-23  Mark Page  <mpagenva@aol.com>
+
+	* nsd/log.c (NsTclLogObjCmd): (bug fix) Tweeked previous fix to
+	suppress trailing space on output.
+
 2003-04-22  Nathan Folkman <shmooved@aol.com>
 
         * nsd/log.c: (bug fix) Fixed bug causing first two string
