@@ -35,7 +35,7 @@
  *  	fixed size blocks from block caches.  
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/pool.c,v 1.11 2000/11/09 00:48:41 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/pool.c,v 1.12 2000/11/10 12:37:11 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "thread.h"
 
@@ -85,12 +85,12 @@ typedef struct Block {
 
 typedef struct Bucket {
     Block *firstPtr;
-    unsigned int nfree;
-    unsigned int nget;
-    unsigned int nput;
-    unsigned int nwait;
-    unsigned int nlock;
-    unsigned int nrequest;
+    int nfree;
+    int nget;
+    int nput;
+    int nwait;
+    int nlock;
+    int nrequest;
 } Bucket;
 
 /*
@@ -100,9 +100,9 @@ typedef struct Bucket {
  */
 
 typedef struct Pool {
-    char     name[NS_THREAD_NAMESIZE];
-    unsigned int nsysalloc;
-    Bucket   buckets[1];
+    char    name[NS_THREAD_NAMESIZE];
+    int	    nsysalloc;
+    Bucket  buckets[1];
 } Pool;
 
 /*
@@ -112,12 +112,12 @@ typedef struct Pool {
  */
 
 struct binfo {
-    size_t  blocksize;	/* Bucket blocksize. */
-    int	    maxblocks;	/* Max blocks before move to share. */
-    int     nmove;	/* Num blocks to move to share. */
-    void   *lock;	/* Share bucket lock. */
-    unsigned int nlock;	/* Share bucket total lock count. */
-    unsigned int nwait;	/* Share bucket lock waits. */
+    size_t blocksize;	/* Bucket blocksize. */
+    int maxblocks;	/* Max blocks before move to share. */
+    int nmove;		/* Num blocks to move to share. */
+    void *lock;		/* Share bucket lock. */
+    int nlock;		/* Share bucket total lock count. */
+    int nwait;		/* Share bucket lock waits. */
 } *binfo;
 
 /*
@@ -138,7 +138,7 @@ static void  *Block2Ptr(Block *blockPtr, int bucket, int reqsize);
 
 static int	nbuckets;  /* Number of buckets. */
 static Pool    *sharedPtr; /* Pool to which blocks are flushed. */
-static int	maxalloc;  /* Max block allocation size. */
+static size_t	maxalloc;  /* Max block allocation size. */
 
 /*
  * The following global variable can be set to a different value
@@ -534,7 +534,6 @@ Ns_PoolStats(Ns_Pool *pool)
 {
     Ns_PoolInfo *infoPtr;
     Pool *poolPtr = (Pool *) pool;
-    Bucket bucket;
     int i, size;
     static Ns_Tls tls;
 
@@ -544,7 +543,6 @@ Ns_PoolStats(Ns_Pool *pool)
     if (poolPtr == NULL) {
 	return NULL;
     }
-
     size = sizeof(Ns_PoolInfo) + (sizeof(Ns_PoolBucketInfo) * (nbuckets - 1));
     if (tls == NULL) {
 	Ns_MasterLock();
@@ -563,11 +561,12 @@ Ns_PoolStats(Ns_Pool *pool)
     infoPtr->nsysalloc = poolPtr->nsysalloc;
     for (i = 0; i < nbuckets; ++i) {
 	infoPtr->buckets[i].blocksize  = binfo[i].blocksize;
-	bucket = poolPtr->buckets[i];
-	infoPtr->buckets[i].nfree = bucket.nfree;
-	infoPtr->buckets[i].nrequest = bucket.nrequest;
-	infoPtr->buckets[i].nlock = bucket.nlock;
-	infoPtr->buckets[i].nwait = bucket.nwait;
+	infoPtr->buckets[i].nfree = poolPtr->buckets[i].nfree;
+	infoPtr->buckets[i].nrequest = poolPtr->buckets[i].nrequest;
+	infoPtr->buckets[i].nget = poolPtr->buckets[i].nget;
+	infoPtr->buckets[i].nput = poolPtr->buckets[i].nput;
+	infoPtr->buckets[i].nlock = poolPtr->buckets[i].nlock;
+	infoPtr->buckets[i].nwait = poolPtr->buckets[i].nwait;
     }
     return infoPtr;
 }
