@@ -34,7 +34,7 @@
  *	The proxy-side library for external drivers. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nspd/main.c,v 1.4 2000/08/15 20:24:33 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nspd/main.c,v 1.5 2000/10/03 17:58:04 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "pd.h"
 #include "nspd.h"
@@ -109,7 +109,7 @@ Ns_PdMain(int argc, char **argv)
         if (fork() > 0) {
             exit(0);
         }
-#if (defined(__alpha) && !defined(__linux__)) || defined(__APPLE__) || defined(__FreeBSD__) || defined(__OpenBSD__)
+#if HAVE_BSDPGRP
 	setpgrp(0, getpid());
 #else
 	setpgrp();
