@@ -33,7 +33,7 @@
  *	Routines for the core server connection threads.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/serv.c,v 1.6 2000/08/28 13:10:33 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/serv.c,v 1.7 2000/09/05 20:02:50 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -810,6 +810,7 @@ ConnRun(Conn *connPtr)
 	if (Ns_ConnFlushContent(conn) == NS_OK) {
 	    Ns_ReturnUnauthorized(conn);
 	}
+	break;
 
     case NS_ERROR:
     default:
