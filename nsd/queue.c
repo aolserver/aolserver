@@ -34,7 +34,7 @@
  *	and service threads.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/queue.c,v 1.31 2005/01/17 14:03:06 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/queue.c,v 1.32 2005/01/17 16:04:30 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -156,7 +156,7 @@ Ns_GetConn(void)
 void
 NsQueueConn(Conn *connPtr)
 {
-    Pool *poolPtr = NsGetPool(connPtr);
+    Pool *poolPtr = NsGetConnPool(connPtr);
     int create = 0;
 
     /*
@@ -210,10 +210,7 @@ int
 NsTclServerObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
 		  Tcl_Obj **objv)
 {
-#if 0
-    NsInterp *itPtr = arg;
-    NsServer *servPtr = itPtr->servPtr;
-    Pool *poolPtr = poolPtr->defaultPtr;
+    Pool *poolPtr;
     char buf[100], *pool;
     Tcl_DString ds;
     static CONST char *opts[] = {
@@ -233,27 +230,21 @@ NsTclServerObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
 			    (int *) &opt) != TCL_OK) {
 	return TCL_ERROR;
     }
+    if (opt == SPoolsIdx) {
+	return NsTclListPoolsObjCmd(arg, interp, objc, objv);
+    }
     if (objc == 2) {
-        poolPtr = poolPtr->defaultPtr;
+        pool = "default";
     } else {
 	pool = Tcl_GetString(objv[2]);
-        poolPtr = poolPtr->firstPtr;
-	while (poolPtr != NULL && !STREQ(poolPtr->pool, pool)) {
-	    poolPtr = poolPtr->nextPtr;
-	}
-	if (poolPtr == NULL) {
-	    Tcl_AppendResult(interp, "no such pool: ", pool, NULL);
-	    return TCL_ERROR;
-	}
+    }
+    if (NsTclGetPool(interp, pool, &poolPtr) != TCL_OK) {
+	return TCL_ERROR;
     }
     Ns_MutexLock(&poolPtr->lock);
     switch (opt) {
     case SPoolsIdx:
-        poolPtr = poolPtr->firstPtr;
-	while (poolPtr != NULL) {
-	    Tcl_AppendElement(interp, poolPtr->pool);
-	    poolPtr = poolPtr->nextPtr;
-	}
+	/* NB: Silence compiler. */
 	break;
 	  
     case SWaitingIdx:
@@ -265,7 +256,7 @@ NsTclServerObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
 	break;
 
     case SConnectionsIdx:
-        Tcl_SetObjResult(interp, Tcl_NewIntObj((int) poolPtr->nextconnid));
+        Tcl_SetObjResult(interp, Tcl_NewIntObj((int) poolPtr->threads.nextid));
 	break;
 
     case SThreadsIdx:
@@ -294,7 +285,6 @@ NsTclServerObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
         Tcl_DStringResult(interp, &ds);
     }
     Ns_MutexUnlock(&poolPtr->lock);
-#endif
     return TCL_OK;
 }
 
