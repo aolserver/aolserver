@@ -1,3 +1,12 @@
+2003-09-11  Elizabeth Thomas  <eathomas93@aol.com>
+
+        * nsd/init.tcl: Add 'lazyproc' functionality. Controlled by 
+        ns/parameters config parm 'lazyprocdef' (defaults to 'false')
+        When 'true', we do not put proc definitions in the interp
+        init script, but instead wrap the tcl 'unknown' command and
+        evaluate them on the first reference. Also wraps the tcl 'info'
+        command to intercept queries about procs not yet in the interpreter.
+
 2003-09-03  Mark Page  <mpagenva@aol.com>
 
 	* TAG aolserver_v4_r0_beta_13
