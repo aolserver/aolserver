@@ -33,7 +33,7 @@
  *      All the public types and function declarations for the core
  *	AOLserver.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.37 2002/06/10 22:28:48 jgdavidson Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.38 2002/06/19 10:18:52 jgdavidson Exp $
  */
 
 #ifndef NS_H
@@ -956,6 +956,7 @@ NS_EXTERN int Ns_TclGetOpenFd(Tcl_Interp *interp, char *chanId, int write,
 NS_EXTERN int Ns_TclInitInterps(char *server, Ns_TclInterpInitProc *proc, void *arg);
 NS_EXTERN void Ns_TclRegisterDeferred(Tcl_Interp *interp, Ns_TclDeferProc *proc, void *arg);
 NS_EXTERN void Ns_TclMarkForDelete(Tcl_Interp *interp);
+NS_EXTERN Tcl_Interp *Ns_TclCreateInterp(void);
 NS_EXTERN Tcl_Interp *Ns_TclAllocateInterp(char *server);
 NS_EXTERN void Ns_TclDeAllocateInterp(Tcl_Interp *interp);
 NS_EXTERN char *Ns_TclLibrary(char *server);
