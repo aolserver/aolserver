@@ -27,38 +27,61 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/Makefile,v 1.22 2001/05/28 21:58:12 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/Makefile,v 1.23 2001/05/29 23:12:52 jgdavidson Exp $
 #
 
 #
-# Tell make where AOLserver source code lives.
+# You may set the following variables here, on the make command line,
+# or via shell environment variables.
 #
 
-NSHOME    =  $(shell pwd)
-MAKEFLAGS += NSHOME=$(NSHOME)
-
-include $(NSHOME)/include/Makefile.global
-
 #
-# The nsthread, Tcl, nsd libraries and nsd main directories.
+# Location of AOLserver sources (this directory).
 #
 
-DIRS	= thread $(NSTCL_ROOT) nsd nsmain
+ifndef NSHOME
+    NSHOME	= $(shell pwd)
+endif
 
 #
-# Optional module directories:
-#
-#   nssock      -- serves HTTP
-#   nsssl       -- serves HTTPS
-#   nscgi       -- CGI module
-#   nscp        -- Control port remote administration interface
-#   nslog       -- Common log format module
-#   nsperm      -- Permissions module
-#   nsext       -- External database driver module
-#   nspd        -- Archive library for building an external driver
+# AOLserver installation directory where files are copied and
+# shared libraries and Tcl files are searched for at runtime.
 #
 
-DIRS	+= nssock nsssl nscgi nscp nslog nsperm nsext nspd 
+ifndef AOLSERVER
+    AOLSERVER	= /usr/local/aolserver
+endif
+
+#
+# Compile for debugging and with GCC if available.
+#
+
+ifndef NSDEBUG
+    NSDEBUG	= 1
+endif
+ifndef NSGCC
+    NSGCC	= 1
+endif
+
+#
+# Modules to build.
+#
+
+ifndef NSMODS	
+    NSMODS	= nssock nsssl nscgi nscp nslog nsperm nsext nspd 
+endif
+
+
+##################################################################
+#
+# You should not need to edit anything below.
+#
+##################################################################
+
+include include/Makefile.global
+
+MAKEFLAGS 	+= NSHOME=$(NSHOME) NSDEBUG=$(NSDEBUG) NSGCC=$(NSGCC)
+DIRS		=  thread $(NSTCL_ROOT) nsd nsmain $(NSMODS)
 
 all:
 	@for i in $(DIRS); do \
@@ -92,4 +115,4 @@ clean:
 	done
 
 distclean: clean
-	(cd $(NSTCL_ROOT); make distclean)
+	(cd $(NSTCL_ROOT); $(MAKE) distclean)

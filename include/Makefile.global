@@ -1,26 +1,66 @@
 #
+# The contents of this file are subject to the AOLserver Public License
+# Version 1.1 (the "License"); you may not use this file except in
+# compliance with the License. You may obtain a copy of the License at
+# http://aolserver.com/.
+#
+# Software distributed under the License is distributed on an "AS IS"
+# basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+# the License for the specific language governing rights and limitations
+# under the License.
+#
+# The Original Code is AOLserver Code and related documentation
+# distributed by AOL.
+# 
+# The Initial Developer of the Original Code is America Online,
+# Inc. Portions created by AOL are Copyright (C) 1999 America Online,
+# Inc. All Rights Reserved.
+#
+# Alternatively, the contents of this file may be used under the terms
+# of the GNU General Public License (the "GPL"), in which case the
+# provisions of GPL are applicable instead of those above.  If you wish
+# to allow use of your version of this file only under the terms of the
+# GPL and not to allow others to use your version of this file under the
+# License, indicate your decision by deleting the provisions above and
+# replace them with the notice and other provisions required by the GPL.
+# If you do not delete the provisions above, a recipient may use your
+# version of this file under either the License or the GPL.
+# 
+#
+# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Makefile.global,v 1.39 2001/05/29 23:12:52 jgdavidson Exp $
+#
+
+#
 # Makefile.global --
 #
 #      This is the common Makefile that contains all variables and
 #      utilities used by AOLserver source code and modules.
 #
 
-#
-# To build, type "gmake"
-# To override the default compiler on SOME platforms, type:
-# To use Purify, type "gmake nativeme=1 PURIFY=/path/to/purify/executable".
-#
 
 #
-# Installation directories.
+# The following conditional variable updates are for the benefit
+# of typing make in a module subdirectory during development
 #
 
-ifeq (,$(NSHOME))
-    NSHOME   =   $(shell pwd)/..
+ifndef NSHOME
+    NSHOME=$(shell pwd)/..
 endif
-ifeq (,$(INST))
-    INST     =   $(NSHOME)/root
+ifndef AOLSERVER
+    AOLSERVER=$(NSHOME)/root
 endif
+ifndef NSDEBUG
+    NSDEBUG=1
+endif
+ifndef NSGCC
+    NSGCC=1
+endif
+
+#
+# You should not need to edit anything below.
+#
+
+INST         =	 $(AOLSERVER)
 INSTBIN      =   $(INST)/bin
 INSTLIB      =   $(INST)/lib
 INSTINC      =   $(INST)/include
@@ -31,31 +71,20 @@ INSTSRV      =   $(INST)/servers/server1
 INSTSRVMOD   =   $(INSTSRV)/modules
 INSTSRVPAG   =   $(INSTSRV)/pages
 
-
-#
-# Set DEBUG for debug build variables.
-#
-
-DEBUG	     =   1
-GCC	     =   1
-
 #
 # Common build variables.
 #
 
-ifeq (1,$(DEBUG))
+ifeq (1,$(NSDEBUG))
     CCOPT     	= -g
-    NSTCL_DBG  	=  g
-    NSTCL_CFG  	+= --enable-symbols
 else
     CCOPT    	= -O2
     CFLAGS   	+= -DNDEBUG=1
 endif
 
-ifeq (1,$(GCC))
+ifeq (1,$(NSGCC))
     CC       	=  gcc 
     LDSO     	=  gcc -shared -nostartfiles
-    NSTCL_CFG  	+= --enable-gcc
 else
     CC	     =   $(PURIFY) cc
 endif
@@ -70,10 +99,9 @@ MV           =   /bin/mv
 LN           =   ln -s
 AR           =   ar
 ARFLAGS      =   rv
-RANLIB       =   true
 
 #
-# Directory configuration.
+# Tcl version config.
 #
 
 NSTCL_MAJOR  	= 8
@@ -81,50 +109,58 @@ NSTCL_MINOR  	= 3
 NSTCL_PATCH  	= .3
 NSTCL_VERSION	= $(NSTCL_MAJOR).$(NSTCL_MINOR)
 NSTCL_ROOT	= $(NSHOME)/tcl$(NSTCL_VERSION)$(NSTCL_PATCH)
-NSTCL_DIR	= $(NSTCL_ROOT)/unix
+ifeq (1,$(NSGCC))
+    NSTCL_CFG  	+= --enable-gcc
+endif
+ifeq (1,$(NSDEBUG))
+    NSTCL_DBG  	=  g
+    NSTCL_CFG  	+= --enable-symbols
+endif
 
+#
+# Directory config.
+#
+
+NSTCL_DIR	= $(NSTCL_ROOT)/unix
 NSTHREAD_DIR	= $(NSHOME)/thread
 NSD_DIR		= $(NSHOME)/nsd
 
-
 #
-# Library configuration
+# Library config.
 #
 
-NSTCL_CFG	+= --prefix=$(INST)
+NSTCL_CFG	+= --prefix=$(AOLSERVER)
 NSTCL		= tcl$(NSTCL_VERSION)$(NSTCL_DBG)
 NSTCL_FILE	= lib$(NSTCL).so
-NSTCL_PATH	= $(NSTCL_DIR)/$(NSTCL_FILE)
 NSTCL_LIB	= -L$(NSTCL_DIR) -l$(NSTCL)
 
 NSTHREAD	= nsthread
 NSTHREAD_FILE	= lib$(NSTHREAD).so
-NSTHREAD_PATH	= $(NSTHREAD_DIR)/$(NSTHREAD_FILE)
 NSTHREAD_LIB	= -L$(NSTHREAD_DIR) -l$(NSTHREAD)
 
 NSD	 	= nsd
 NSD_FILE	= lib$(NSD).so
-NSD_PATH	= $(NSD_DIR)/$(NSD_FILE)
 NSD_LIB		= -L$(NSD_DIR) -l$(NSD)
 
 RFLAG		= -rpath
-RPATH		= $(RFLAG) $(INSTLIB) $(RFLAG) $(NSTCL_DIR) $(RFLAG) $(NSTHREAD_DIR) $(RFLAG) $(NSD_DIR)
-
-LIBS	     	= $(RPATH)
-MAINLIBS	= $(NSTCL_LIB) $(NSTHREAD_LIB) $(NSD_LIB) $(LIBS) -lm
+RPATH		= $(RFLAG) $(INSTLIB) 
+LIBS	     	= $(RPATH) -lm
+MAINLIBS	= $(NSTCL_LIB) $(NSTHREAD_LIB) $(NSD_LIB) $(LIBS)
 
 #
 # Figure the OS and architecture.
 #
+
 PLATFORM = unknown
 PLAT     = $(shell uname -a)
 
 #
 # HP/UX
 #
+
 ifneq (,$(findstring HP-UX,$(PLAT)))
     PLATFORM=hp10
-    ifneq (1,$(GCC))
+    ifneq (1,$(NSGCC))
         CFLAGS+=-Ae +DAportable +z
     else
         CFLAGS+=-mpa-risc-1-0
@@ -138,6 +174,7 @@ endif
 #
 # Linux
 #
+
 ifneq (,$(findstring Linux,$(PLAT)))
     PLATFORM=linux
     RFLAG=-Xlinker -rpath -Xlinker
@@ -158,11 +195,12 @@ endif
 #
 #    Note: Purify works only on Solaris 7 SPARC with SUNWspro or gcc-2.8.1.
 #
+
 ifneq (,$(findstring SunOS,$(PLAT)))
     PLATFORM=solaris
-    ifneq (1,$(GCC))
+    ifneq (1,$(NSGCC))
         CC=$(PURIFY) /opt/SUNWspro/bin/cc
-	ifneq (1,$(DEBUG))
+	ifneq (1,$(NSDEBUG))
             CCOPT = -xO2
 	endif
         CFLAGS+=-KPIC -erroff=%none
@@ -188,10 +226,10 @@ ifneq (,$(findstring SunOS,$(PLAT)))
             -DUSE_DUPHIGH=1 -DHAVE_FORK1=1
 endif
 
-
 #
 # DEC OSF/1, Digital UNIX, Tru64 UNIX
 #
+
 ifneq (,$(findstring OSF1,$(PLAT)))
     PLATFORM=osf
     # gcc not verified
@@ -205,10 +243,11 @@ endif
 #
 # SGI Irix
 #
+
 ifneq (,$(findstring IRIX,$(PLAT)))
     PLATFORM=irix
     ## Purify seems to work on Irix o32 only.
-    ifneq (1,$(GCC))
+    ifneq (1,$(NSGCC))
         ABI=-o32
         ##CCOPT = -g3 -O2
         CFLAGS  += $(ABI) -KPIC -fullwarn -DUSE_DUPHIGH=1
@@ -228,14 +267,15 @@ endif
 #
 # FreeBSD
 #
+
 ifneq (,$(findstring FreeBSD,$(PLAT)))
     PLATFORM=freebsd
-    CFLAGS+=-pthread
+    CC += -pthread
     ## FreeBSD doesn't make a distinction among processors in the x86 class.
     ifneq (,$(findstring i386,$(PLAT)))
         CFLAGS+=-mcpu=pentium
     endif
-    RANLIB=ranlib
+    LDSO=ld -Bshareable -x
     CFLAGS+=-D_THREAD_SAFE=1 -DHAVE_CMMSG=1 -DNO_TIMEZONE=1 \
 	   -DHAVE_TIMEGM=1 -DNO__ENVIRON=1
 endif
@@ -244,6 +284,7 @@ endif
 #
 # OpenBSD
 #
+
 ifneq (,$(findstring OpenBSD,$(PLAT)))
     PLATFORM=openbsd
     CFLAGS+=-pthread
@@ -251,7 +292,6 @@ ifneq (,$(findstring OpenBSD,$(PLAT)))
     ifneq (,$(findstring i386,$(PLAT)))
         CFLAGS+=-mcpu=pentium
     endif
-    RANLIB=ranlib
     CFLAGS+=-DHAVE_CMMSG=1 -DUSE_DLSYMPREFIX=1 -DUSE_RTLD_LAZY=1 \
            -DNO_TIMEZONE=1 -DHAVE_TIMEGM=1 -D_THREAD_SAFE=1 \
 	   -DNO__ENVIRON=1
@@ -261,6 +301,7 @@ endif
 #
 # SCO Unixware
 #
+
 ifneq (,$(findstring UnixWare,$(PLAT)))
     PLATFORM=unixware
     CC=cc
@@ -274,6 +315,7 @@ endif
 #
 # Mac OS X
 #
+
 ifneq (,$(findstring Rhapsody,$(PLAT)))
     PLATFORM=osx
 endif
@@ -284,7 +326,6 @@ ifeq (osx,$(PLATFORM))
     CC=cc
     CFLAGS+=-dynamic -traditional-cpp
     LDSO=cc -bundle -undefined suppress
-    RANLIB=ranlib
     CFLAGS+=-DHAVE_CMMSG=1 -DUSE_DYLD=1 -DUSE_DLSYMPREFIX=1 \
             -DNO_RAND48=1 -DNO_TIMEZONE=1 -DMACOSX=1
 endif

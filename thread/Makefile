@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/Makefile,v 1.14 2001/05/28 21:30:04 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/Makefile,v 1.15 2001/05/29 23:12:52 jgdavidson Exp $
 #
 
 
@@ -38,13 +38,12 @@ OBJS	=   compat.o cs.o rwlock.o reentrant.o \
             sema.o thread.o tls.o time.o memory.o debug.o \
             pool.o error.o signal.o \
             mutex.o cond.o osthread.o fork.o
+CLEAN	+= test test.o
+ALL	= test
+
 include ../include/Makefile.library
 
 $(OBJS):	thread.h
 osthread.o:	pthread.cpp sproc.cpp win32.cpp
-
-TEST      = test
-TEST_OBJS = test.o
-
-test: all $(TEST_OBJS)
-	$(CC) -o $(TEST) $(TEST_OBJS) $(RFLAG) . -L. -l$(NSTHREAD) $(LIBS)
+test: $(LIB) test.o
+	$(CC) -o test test.o $(RFLAG) . -L. -l$(NSTHREAD) $(LIBS)
