@@ -28,7 +28,7 @@
 '\" version of this file under either the License or the GPL.
 '\" 
 '\"
-'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_adp.n,v 1.1.2.2 2002/12/04 23:56:26 petej Exp $
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_adp.n,v 1.1.2.3 2002/12/05 00:00:19 petej Exp $
 '\"
 '\" 
 .so man.macros
@@ -554,7 +554,7 @@ a table, or shows "No rows in result." if there are no rows:
 <remember name="hasrows_header">
 <table>
 </remember>
-<remember name="hasrows_rows>
+<remember name="hasrows_rows">
 <tr>
 	<td><%=$column%></td>
 </tr>
