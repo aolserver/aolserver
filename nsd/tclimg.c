@@ -33,7 +33,7 @@
  *	Commands for image files.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclimg.c,v 1.9 2003/03/07 18:08:39 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclimg.c,v 1.10 2003/05/20 20:12:07 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -88,7 +88,7 @@ NsTclGifSizeObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST 
      * Read the GIF version number
      */
     
-    if (read(fd, buf, 6) == -1) {
+    if (read(fd, buf, 6) != 6) {
 readfail:
         Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "could not read \"", 
             Tcl_GetString(objv[1]),
@@ -104,7 +104,7 @@ badfile:
         goto done;
     }
 
-    if (read(fd, buf, 7) == -1) {
+    if (read(fd, buf, 7) != 7) {
 	goto readfail;
     }
 
@@ -112,30 +112,30 @@ badfile:
     colormap = (buf[4] & 0x80 ? 1 : 0);
 
     if (colormap) {
-        if (read(fd, buf, (size_t)(3*depth)) == -1) {
+        if (read(fd, buf, (size_t)(3*depth)) != (3*depth)) {
             goto readfail;
         }
     }
 
   outerloop:
-    if (read(fd, buf, 1) == -1) {
+    if (read(fd, buf, 1) != 1) {
         goto readfail;
     }
 
     if (buf[0] == '!') {
         unsigned char count;
 	
-        if (read(fd, buf, 1) == -1) {
+        if (read(fd, buf, 1) != 1) {
             goto readfail;
         }
       innerloop:
-        if (read(fd, (char *) &count, 1) == -1) {
+        if (read(fd, (char *) &count, 1) != 1) {
             goto readfail;
         }
         if (count == 0) {
             goto outerloop;
         }
-        if (read(fd, buf, count) == -1) {
+        if (read(fd, buf, count) != count) {
             goto readfail;
         }
         goto innerloop;
@@ -143,7 +143,7 @@ badfile:
         goto badfile;
     }
 
-    if (read(fd,buf,9) == -1) {
+    if (read(fd,buf,9) != 9) {
         goto readfail;
     }
 
