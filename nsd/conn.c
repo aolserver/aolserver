@@ -34,7 +34,7 @@
  *      Manage the Ns_Conn structure
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.40 2004/02/15 16:29:31 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.41 2005/01/15 23:54:37 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -621,13 +621,55 @@ Ns_ConnModifiedSince(Ns_Conn *conn, time_t since)
     Conn	   *connPtr = (Conn *) conn;
     char           *hdr;
 
-    if (connPtr->servPtr->opts.modsince) {
+    if (connPtr->servPtr->opts.flags & SERV_MODSINCE) {
         hdr = Ns_SetIGet(conn->headers, "If-Modified-Since");
         if (hdr != NULL && Ns_ParseHttpTime(hdr) >= since) {
 	    return NS_FALSE;
         }
     }
     return NS_TRUE;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_ConnGetType, Ns_ConnSetType --
+ *
+ *	Get (set) the response mime type.
+ *
+ * Results:
+ *	Pointer to current type.
+ *
+ * Side effects:
+ *	May update connection enconding.
+ *
+ *----------------------------------------------------------------------
+ */
+
+char *
+Ns_ConnGetType(Ns_Conn *conn)
+{
+    Conn *connPtr = (Conn *) conn;
+
+    return connPtr->type;
+}
+
+void
+Ns_ConnSetType(Ns_Conn *conn, char *type)
+{
+    Tcl_Encoding encoding;
+    Conn *connPtr = (Conn *) conn;
+
+    ns_free(connPtr->type);
+    connPtr->type = ns_strcopy(type);
+    if (connPtr->type != NULL) {
+	encoding = Ns_GetTypeEncoding(type);
+	if (encoding != NULL) {
+	    Ns_ConnSetEncoding(conn, encoding);
+	    Ns_ConnSetUrlEncoding(conn, encoding);
+	}
+    }
 }
 
 
@@ -820,14 +862,13 @@ NsTclConnObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
     Conn         *connPtr;
     Ns_Set       *form;
     Ns_Request   *request;
-    Tcl_Encoding  encoding;
+    Tcl_Encoding  encoding, *encodingPtr;
     Tcl_Channel   chan;
     Tcl_Obj	 *result;
     Tcl_HashEntry *hPtr;
     Tcl_HashSearch search;
     FormFile	 *filePtr;
-    int		  idx, off, len;
-    int           write_encoded_flag;
+    int		  idx, off, len, flag;
 
     static CONST char *opts[] = {
 	 "authpassword", "authuser", "close", "content", "contentlength",
@@ -836,7 +877,8 @@ NsTclConnObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 	 "host", "id", "isconnected", "location", "method",
 	 "outputheaders", "peeraddr", "peerport", "port", "protocol",
 	 "query", "request", "server", "sock", "start", "status",
-	 "url", "urlc", "urlencoding", "urlv", "version", "write_encoded", NULL
+	 "url", "urlc", "urlencoding", "urlv", "version",
+	 "write_encoded", NULL
     };
     enum ISubCmdIdx {
 	 CAuthPasswordIdx, CAuthUserIdx, CCloseIdx, CContentIdx,
@@ -846,7 +888,8 @@ NsTclConnObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 	 CLocationIdx, CMethodIdx, COutputHeadersIdx, CPeerAddrIdx,
 	 CPeerPortIdx, CPortIdx, CProtocolIdx, CQueryIdx, CRequestIdx,
 	 CServerIdx, CSockIdx, CStartIdx, CStatusIdx, CUrlIdx,
-	 CUrlcIdx, CUrlEncodingIdx, CUrlvIdx, CVersionIdx, CWriteEncodedIdx
+	 CUrlcIdx, CUrlEncodingIdx, CUrlvIdx, CVersionIdx,
+	 CWriteEncodedIdx
     } opt;
 
     if (objc < 2) {
@@ -921,44 +964,25 @@ NsTclConnObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 	    Tcl_SetIntObj(result, conn->contentLength);
 	    break;
 
-	case CEncodingIdx:
-	    if (objc > 2) {
-		encoding = Ns_GetEncoding(Tcl_GetString(objv[2]));
-		if (encoding == NULL) {
-		    Tcl_AppendResult(interp, "no such encoding: ",
-			Tcl_GetString(objv[2]), NULL);
-		    return TCL_ERROR;
-		}
-		connPtr->encoding = encoding;
-	    }
-	    if (connPtr->encoding != NULL) {
-		Tcl_SetResult(interp, (char *) Tcl_GetEncodingName(connPtr->encoding),
-			      TCL_STATIC);
-	    }
-	    break;
-	
 	case CUrlEncodingIdx:
+	case CEncodingIdx:
+	    if (opt == CEncodingIdx) {
+		encodingPtr = &connPtr->encoding;
+	    } else {
+		encodingPtr = &connPtr->urlEncoding;
+	    }
 	    if (objc > 2) {
-		encoding = Ns_GetEncoding(Tcl_GetString(objv[2]));
-		if (encoding == NULL) {
+    		encoding = Ns_GetEncoding(Tcl_GetString(objv[2]));
+    		if (encoding == NULL) {
 		    Tcl_AppendResult(interp, "no such encoding: ",
-			Tcl_GetString(objv[2]), NULL);
+				     Tcl_GetString(objv[2]), NULL);
 		    return TCL_ERROR;
 		}
-                /*
-                 * Check to see if form data has already been parsed.
-                 * If so, and the urlEncoding is changing, then clear
-                 * the previous form data.
-                 */
-                if ((connPtr->urlEncoding != encoding) &&
-                    (itPtr->nsconn.flags & CONN_TCLFORM)) {
-                    Ns_ConnClearQuery(conn);
-                    itPtr->nsconn.flags ^= CONN_TCLFORM;
-                }
-		connPtr->urlEncoding = encoding;
+		*encodingPtr = encoding;
 	    }
-	    if (connPtr->urlEncoding != NULL) {
-		Tcl_SetResult(interp, (char *) Tcl_GetEncodingName(connPtr->urlEncoding),
+	    encoding = *encodingPtr;
+	    if (encoding != NULL) {
+    	    	Tcl_SetResult(interp, (char *) Tcl_GetEncodingName(encoding),
 			      TCL_STATIC);
 	    }
 	    break;
@@ -992,6 +1016,10 @@ NsTclConnObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 	    break;
 	
 	case CFormIdx:
+	     /* NB: Ignore any cached form if encoding has changed. */
+	    if (connPtr->queryEncoding != connPtr->urlEncoding) {
+		itPtr->nsconn.flags &= ~CONN_TCLFORM;
+	    }
 	    if (itPtr->nsconn.flags & CONN_TCLFORM) {
 		Tcl_SetResult(interp, itPtr->nsconn.form, TCL_STATIC);
 	    } else {
@@ -1027,7 +1055,8 @@ NsTclConnObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 	    }
 	    hPtr = Tcl_FindHashEntry(&connPtr->files, Tcl_GetString(objv[2]));
 	    if (hPtr == NULL) {
-		Tcl_AppendResult(interp, "no such file: ", Tcl_GetString(objv[2]), NULL);
+		Tcl_AppendResult(interp, "no such file: ",
+				 Tcl_GetString(objv[2]), NULL);
 		return TCL_ERROR;
 	    }
 	    filePtr = Tcl_GetHashValue(hPtr);
@@ -1050,26 +1079,22 @@ NsTclConnObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 		return TCL_ERROR;
 	    }
 	    if (Tcl_Write(chan, connPtr->content + off, len) != len) {
-		Tcl_AppendResult(interp, "could not write ", Tcl_GetString(objv[3]), " bytes to ",
-		    Tcl_GetString(objv[4]), ": ", Tcl_PosixError(interp), NULL);
+		Tcl_AppendResult(interp, "could not write ",
+			Tcl_GetString(objv[3]), " bytes to ",
+		    	Tcl_GetString(objv[4]), ": ",
+			Tcl_PosixError(interp), NULL);
 		return TCL_ERROR;
 	    }
 	    break;
 
         case CWriteEncodedIdx:
 	    if (objc > 2) {
-		if (Tcl_GetIntFromObj(interp, objv[2], &write_encoded_flag) 
-                    != TCL_OK) {
-                    Tcl_AppendResult(interp, "Invalid write-encoded flag", NULL );
+		if (Tcl_GetBooleanFromObj(interp, objv[2], &flag) != TCL_OK) {
                     return TCL_ERROR;
                 }
-                Ns_ConnSetWriteEncodedFlag(conn, write_encoded_flag);
+                Ns_ConnSetWriteEncodedFlag(conn, flag);
            }
-           if (Ns_ConnGetWriteEncodedFlag(conn)) {
-               Tcl_AppendResult(interp, "1", NULL );
-           } else {
-               Tcl_AppendResult(interp, "0", NULL );
-           }
+	   Tcl_SetBooleanObj(result, Ns_ConnGetWriteEncodedFlag(conn));
            break;
 
 	case CRequestIdx:
