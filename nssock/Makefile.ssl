@@ -25,9 +25,23 @@ else
   MOD    =  nsssle.so
   CFLAGS =  -DSSL_EXPORT=1 $(BSAFE_VERSION) -I$(BSAFE)/include
 endif
-MODLIBS   =  $(BSAFE)/lib/libbsafe.a
-MODDIR    =  nsssl
-HDRS      =  ssl.h ssltcl.h x509.h
+MODLIBS  =  -L$(BSAFE)/lib -lbsafe
+MODDIR   =  nsssl
+HDRS     =  ssl.h ssltcl.h x509.h
+
+
+#
+# Rainbow SSL accelerator card support.
+#
+#   Note: Requires position-independent version of libbswift.a.
+#         Requires libswift.so to be somewhere in your system's library path.
+#         Contact Rainbow at http://www.rainbow.com/ for the software.
+#
+ifdef SWIFT
+  CFLAGS  +=-DHAVE_SWIFT=1 -I$(SWIFT)/include
+  MODLIBS +=-L$(SWIFT)/lib -lbswift -lswift
+endif
+
 
 #
 # Objects to build

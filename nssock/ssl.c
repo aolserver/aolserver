@@ -47,7 +47,7 @@
  *
  */
 
-static const char *RCSID = "@(#): $Header: /Users/dossy/Desktop/cvs/aolserver/nssock/Attic/ssl.c,v 1.2 2000/08/15 20:24:33 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#): $Header: /Users/dossy/Desktop/cvs/aolserver/nssock/Attic/ssl.c,v 1.3 2000/12/12 18:48:43 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 #include "ssl.h"
@@ -83,6 +83,10 @@ B_ALGORITHM_METHOD *ALGORITHM_CHOOSER[] = {
     &AM_RC2_CBC_ENCRYPT,
     &AM_RC4_DECRYPT,
     &AM_RC4_ENCRYPT,
+#ifdef HAVE_SWIFT
+    &AM_SwiftRSA_CRT_DECRYPT,
+    &AM_SwiftRSA_CRT_ENCRYPT,
+#endif
     &AM_RSA_CRT_DECRYPT,
     &AM_RSA_CRT_ENCRYPT,
     &AM_RSA_KEY_GEN,

@@ -48,6 +48,10 @@
 #include "aglobal.h"
 #include "bsafe.h"
 
+#ifdef HAVE_SWIFT
+#include "bswift.h"
+#endif
+
 /*
  * SSL version information.
  */

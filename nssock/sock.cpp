@@ -65,7 +65,7 @@
  *	the server core and close client connections.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nssock/Attic/sock.cpp,v 1.7 2000/11/17 13:45:18 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nssock/Attic/sock.cpp,v 1.8 2000/12/12 18:48:43 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 
@@ -267,6 +267,12 @@ Ns_ModuleInit(char *server, char *name)
     n = 128;
 #endif
     Ns_Log(Notice, "%s: initialized with %d-bit encryption", name, n);
+
+#ifdef HAVE_SWIFT
+    Ns_Log(Notice, "%s: SUPPORTS RAINBOW CRYPTOSWIFT HARDWARE SSL ACCELERATOR",
+	   DRIVER_NAME);
+#endif
+
 #endif 
     
     /*
