@@ -33,7 +33,7 @@
  *	AOLserver Ns_Main() startup routine.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.14 2000/10/16 15:09:39 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.15 2000/10/17 19:09:17 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -1316,7 +1316,7 @@ UsageError(char *msg)
 #else
 	"  -d           Ignore SIGINT for debugging on some platforms.\n"
 	""
-	"  -r  <path>   chroot(path) after reading config file.\n"
+	"  -r <path>    chroot(path) after reading config file.\n"
 	"  -u <user>    run as user/uid (required).\n"
 	"  -g <group>   run as group/gid (optional).\n"
 #endif

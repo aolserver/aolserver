@@ -163,7 +163,7 @@ struct _nsconf {
     	int maxheaders;
     	int maxline;
     	int maxpost;
-	int flushcontent;
+	bool flushcontent;
     	bool modsince;
 	Ns_HeaderCaseDisposition hdrcase;
     } conn;
@@ -213,7 +213,7 @@ struct _nsconf {
 
     struct {
 	char *realm;
-	int aolpress;
+	bool aolpress;
 	int sendfdmin;
 	int maxconns;
 	int maxdropped;

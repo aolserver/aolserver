@@ -34,9 +34,10 @@
  *	Various core configuration.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsconf.c,v 1.7 2000/10/17 17:27:38 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsconf.c,v 1.8 2000/10/17 19:09:17 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
+#include "nsconf.h"
 
 struct _nsconf nsconf;
 int nsConfQuiet;
@@ -138,63 +139,67 @@ NsConfInit(void)
      * log.c
      */
      
-    nsconf.log.expanded = GetBool(PARAMS, "logexpanded", 0);
-    nsconf.log.dev = GetBool(PARAMS, "dev", 0);
-    nsconf.log.debug = GetBool(PARAMS, "debug", 0);
-    nsconf.log.maxback = GetInt(PARAMS, "maxbackup", 10);
+    nsconf.log.expanded = GetBool(PARAMS, "logexpanded", LOG_EXPANDED_BOOL);
+    nsconf.log.dev      = GetBool(PARAMS, "dev", LOG_DEV_BOOL);
+    nsconf.log.debug    = GetBool(PARAMS, "debug", LOG_DEBUG_BOOL);
+    nsconf.log.maxback  = GetInt(PARAMS, "maxbackup", LOG_MAXBACK_INT);
 
     /*
      * libnsthread.a
      */
 
-    i = GetInt(PARAMS, "stacksize", nsThreadStackSize);
-    nsThreadStackSize = GetInt("ns/threads", "stacksize", i);
-    nsThreadMutexMeter = GetBool("ns/threads", "mutexmeter", 0);
+    i = GetInt(PARAMS, "stacksize", THREAD_STACKSIZE_INT);
+    nsThreadStackSize   = GetInt("ns/threads", "stacksize", i);
+    nsThreadMutexMeter  = GetBool("ns/threads", "mutexmeter", THREAD_MUTEXMETER_BOOL);
     
 
     /*
      * nsmain.c
      */
          
-    nsconf.shutdowntimeout = GetInt(PARAMS, "shutdowntimeout", 20);
-    nsconf.bufsize = GetInt(PARAMS, "iobufsize", 16000);
+    nsconf.shutdowntimeout = GetInt(PARAMS, "shutdowntimeout", SHUTDOWNTIMEOUT);
+    nsconf.bufsize         = GetInt(PARAMS, "iobufsize", IOBUFSIZE);
 
     /*
      * sched.c
      */
 
-    nsconf.sched.maxelapsed = GetInt(PARAMS, "schedmaxelapsed", 2);
+    nsconf.sched.maxelapsed = GetInt(PARAMS, "schedmaxelapsed", SCHED_MAXELAPSED_INT);
 
     /*
      * binder.c, win32.c
      */
 
-    nsconf.backlog = GetInt(PARAMS, "listenbacklog", 32);
+    nsconf.backlog = GetInt(PARAMS, "listenbacklog", BACKLOG);
     
     /*
      * dns.c
      */
      
-    nsconf.dns.cache = GetBool(PARAMS, "dnscache", 1);
-    nsconf.dns.timeout = GetInt(PARAMS, "dnscachetimeout", 60) * 60;
-    nsconf.dstring.maxentries = GetInt(PARAMS, "dstringcachemaxentries", 10);
-    nsconf.dstring.maxsize = GetInt(PARAMS, "dstringcachemaxsize", 3*1024);
+    nsconf.dns.cache   = GetBool(PARAMS, "dnscache", DNS_CACHE_BOOL);
+    nsconf.dns.timeout = GetInt(PARAMS, "dnscachetimeout", DNS_TIMEOUT_INT) * 60;
+
+    /*
+     * dstring.c
+     */
+    nsconf.dstring.maxentries = GetInt(PARAMS, "dstringcachemaxentries", DSTRING_MAXENTRIES_INT);
+    nsconf.dstring.maxsize    = GetInt(PARAMS, "dstringcachemaxsize", DSTRING_MAXSIZE_INT);
 
     /*
      * exec.c
      */
      
-    nsconf.exec.checkexit = GetBool(PARAMS, "checkexitcode", 1);
+    nsconf.exec.checkexit = GetBool(PARAMS, "checkexitcode", EXEC_CHECKEXIT_BOOL);
 
     /*
      * keepalive.c
      */
      
-    nsconf.keepalive.timeout = GetInt(PARAMS, "keepalivetimeout", 30);
+    nsconf.keepalive.timeout = GetInt(PARAMS, "keepalivetimeout", KEEPALIVE_TIMEOUT_INT);
     if (nsconf.keepalive.timeout > 0) {
 	nsconf.keepalive.enabled = 1;
     }
-    nsconf.keepalive.maxkeep = GetInt(PARAMS, "maxkeepalive", 100);
+    nsconf.keepalive.maxkeep = GetInt(PARAMS, "maxkeepalive", KEEPALIVE_MAXKEEP_INT);
 
     /*
      * return.c, serv.c, conn.c
@@ -212,10 +217,10 @@ NsConfInit(void)
     Ns_DStringTrunc(&pds, 0);
     path = Ns_DStringVarAppend(&pds, "ns/server/", nsServer, NULL);
     nsconf.serv.realm = GetString(path, "realm", nsServer);
-    nsconf.serv.aolpress = GetBool(path, "enableaolpress", 0);
-    nsconf.serv.sendfdmin = GetInt(path, "sendfdthreshold", 2048);
-    nsconf.serv.maxconns = GetInt(path, "maxconnections", 100);
-    nsconf.serv.maxdropped = GetInt(path, "maxdropped", 0);
+    nsconf.serv.aolpress = GetBool(path, "enableaolpress", SERV_AOLPRESS_BOOL);
+    nsconf.serv.sendfdmin = GetInt(path, "sendfdthreshold", SERV_SENDFDMIN_INT);
+    nsconf.serv.maxconns = GetInt(path, "maxconnections", SERV_MAXCONNS_INT);
+    nsconf.serv.maxdropped = GetInt(path, "maxdropped", SERV_MAXDROPPED_INT);
     /* NB: DirectoryFile, DirectoryListing, and Pages in old location. */
     olddf = GetString(path, "directoryfile", NULL);
     oldp = GetString(path, "pageroot", NULL);
@@ -227,15 +232,15 @@ NsConfInit(void)
     }
     nsconf.fastpath.dirproc = GetString(path, "directoryproc", s);
     nsconf.fastpath.diradp = GetString(path, "directoryadp", NULL);
-    if (GetBool(path, "globalstats", 0)) {
+    if (GetBool(path, "globalstats", SERV_GLOBALSTATS_BOOL)) {
 	nsconf.serv.stats |= STATS_GLOBAL;
     }
-    nsconf.serv.maxurlstats = GetInt(path, "maxurlstats", 1000);
-    if (nsconf.serv.maxurlstats > 0 && GetBool(path, "urlstats", 0)) {
+    nsconf.serv.maxurlstats = GetInt(path, "maxurlstats", SERV_MAXURLSTATS_INT);
+    if (nsconf.serv.maxurlstats > 0 && GetBool(path, "urlstats", SERV_URLSTATS_BOOL)) {
 	nsconf.serv.stats |= STATS_PERURL;
     }
-    nsconf.serv.errorminsize = GetInt(path,  "errorminsize", 514);
-    nsconf.serv.noticedetail = GetBool(path, "noticedetail", 1);
+    nsconf.serv.errorminsize = GetInt(path,  "errorminsize", SERV_ERRORMINSIZE_INT);
+    nsconf.serv.noticedetail = GetBool(path, "noticedetail", SERV_NOTICEDETAIL_BOOL);
 
     /*
      * ConnsPerThread specifies the maximum number of connections for
@@ -243,15 +248,15 @@ NsConfInit(void)
      * TLS garbage collection.  A value <= 0 disables this feature.
      */
 
-    nsconf.serv.connsperthread = GetInt(path, "connsperthread", 0);
-    nsconf.serv.minthreads = GetInt(path, "minthreads", 0);
-    nsconf.serv.maxthreads = GetInt(path, "maxthreads", 20);
-    nsconf.serv.threadtimeout = GetInt(path, "threadtimeout", 120);
-    nsconf.conn.maxheaders = GetInt(path, "maxheaders", 16384);
-    nsconf.conn.maxline = GetInt(path, "maxline", 8192);
-    nsconf.conn.maxpost = GetInt(path, "maxpost", 65536);
-    nsconf.conn.flushcontent = GetBool(path, "flushcontent", 0);
-    nsconf.conn.modsince = GetBool(path, "checkmodifiedsince", 1);
+    nsconf.serv.connsperthread = GetInt(path, "connsperthread", SERV_CONNSPERTHREAD_INT);
+    nsconf.serv.minthreads = GetInt(path, "minthreads", SERV_MINTHREADS_INT);
+    nsconf.serv.maxthreads = GetInt(path, "maxthreads", SERV_MAXTHREADS_INT);
+    nsconf.serv.threadtimeout = GetInt(path, "threadtimeout", SERV_THREADTIMEOUT_INT);
+    nsconf.conn.maxheaders = GetInt(path, "maxheaders", CONN_MAXHEADERS_INT);
+    nsconf.conn.maxline = GetInt(path, "maxline", CONN_MAXLINE_INT);
+    nsconf.conn.maxpost = GetInt(path, "maxpost", CONN_MAXPOST_INT);
+    nsconf.conn.flushcontent = GetBool(path, "flushcontent", CONN_FLUSHCONTENT_BOOL);
+    nsconf.conn.modsince = GetBool(path, "checkmodifiedsince", CONN_MODSINCE_BOOL);
     s = GetString(path, "headercase", "preserve");
     if (STRIEQ(s, "tolower")) {
     	nsconf.conn.hdrcase = ToLower;
@@ -271,11 +276,11 @@ NsConfInit(void)
 
     Ns_DStringTrunc(&pds, 0);
     path = Ns_DStringVarAppend(&pds, "ns/server/", nsServer, "/fastpath", NULL);
-    nsconf.fastpath.mmap = GetBool(path, "mmap", 0);
-    nsconf.fastpath.cache = GetBool(path, "cache", 1);
+    nsconf.fastpath.mmap = GetBool(path, "mmap", FASTPATH_MMAP_BOOL);
+    nsconf.fastpath.cache = GetBool(path, "cache", FASTPATH_CACHE_BOOL);
     if (nsconf.fastpath.cache) {
-    	nsconf.fastpath.cachesize = GetInt(path, "cachemaxsize", 5000*1024);
-	nsconf.fastpath.cachemaxentry = GetInt(path, "cachemaxentry", 8192);
+    	nsconf.fastpath.cachesize = GetInt(path, "cachemaxsize", FASTPATH_CACHESIZE_INT);
+	nsconf.fastpath.cachemaxentry = GetInt(path, "cachemaxentry", FASTPATH_CACHEMAXENTRY_INT);
     }
     s = GetString(path, "directoryfile", olddf);
     if (s != NULL) {
@@ -310,17 +315,17 @@ NsConfInit(void)
      
     Ns_DStringTrunc(&pds, 0);
     path = Ns_DStringVarAppend(&pds, "ns/server/", nsServer, "/tcl", NULL);
-    nsconf.tcl.autoclose = GetBool(path, "autoclose", 1);
-    nsconf.tcl.debug = GetBool(path, "debug", 0);    
+    nsconf.tcl.autoclose = GetBool(path, "autoclose", TCL_AUTOCLOSE_BOOL);
+    nsconf.tcl.debug = GetBool(path, "debug", TCL_DEBUG_BOOL);
     Ns_DStringTrunc(&ds, 0);
     Ns_ModulePath(&ds, nsServer, "tcl", NULL);
     nsconf.tcl.library = GetString2(path, "library", &ds);
     Ns_DStringTrunc(&ds, 0);
     Ns_HomePath(&ds, "modules", "tcl", NULL);
     nsconf.tcl.sharedlibrary = GetString2(path, "sharedlibrary", &ds);
-    nsconf.tcl.statlevel = GetInt(path, "statlevel", 0);
-    nsconf.tcl.statmaxbuf = GetInt(path, "statmaxbuf", 1000);
-    nsconf.tcl.nsvbuckets = GetInt(path, "nsvbuckets", 8);
+    nsconf.tcl.statlevel = GetInt(path, "statlevel", TCL_STATLEVEL_INT);
+    nsconf.tcl.statmaxbuf = GetInt(path, "statmaxbuf", TCL_STATMAXBUF_INT);
+    nsconf.tcl.nsvbuckets = GetInt(path, "nsvbuckets", TCL_NSVBUCKETS_INT);
 
     /*
      * adp.c, adpfancy.c
@@ -330,11 +335,11 @@ NsConfInit(void)
     path = Ns_DStringVarAppend(&pds, "ns/server/", nsServer, "/adp", NULL);
     nsconf.adp.errorpage = GetFile(path, "errorpage");
     nsconf.adp.startpage = GetFile(path, "startpage");
-    nsconf.adp.enableexpire = GetBool(path, "enableexpire", 0);
-    nsconf.adp.enabledebug = GetBool(path, "enabledebug", 0);
+    nsconf.adp.enableexpire = GetBool(path, "enableexpire", ADP_ENABLEEXPIRE_BOOL);
+    nsconf.adp.enabledebug = GetBool(path, "enabledebug", ADP_ENABLEDEBUG_BOOL);
     nsconf.adp.debuginit = GetString(path, "debuginit", "ns_adp_debuginit");
     nsconf.adp.defaultparser = GetString(path, "defaultparser", "adp");
-    nsconf.adp.taglocks = GetBool(path, "taglocks", 0);
+    nsconf.adp.taglocks = GetBool(path, "taglocks", ADP_TAGLOCKS_BOOL);
 
     /*
      * ADP supports three caching options:
@@ -353,11 +358,11 @@ NsConfInit(void)
      *     load.  This is the default for 8.2.
      */
 
-    nsconf.adp.cache = GetBool(path, "cache", 1);
+    nsconf.adp.cache = GetBool(path, "cache", ADP_CACHE_BOOL);
     if (nsconf.adp.cache) {
 	i = (*nsTclVersion == '7' ? 0 : 1);
 	nsconf.adp.threadcache = GetBool(path, "threadcache", i);
-	nsconf.adp.cachesize = GetInt(path, "cachesize", 5000*1024);
+	nsconf.adp.cachesize = GetInt(path, "cachesize", ADP_CACHESIZE_INT);
     }
     
     for (i = 0; ignored[i] != NULL; ++i) {

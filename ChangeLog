@@ -1,5 +1,8 @@
 2000-10-17  Kriston J. Rehberg  <Kriston@AOL.NET>
 
+	* nsd/nsconf.h: All configuration option defaults have been moved
+	to nsconf.h as #defines.
+
 	* Makefile (install): Tcl library for nsd8x is now installed into
 	$(PREFIX)/lib/tcl8.3.
 
