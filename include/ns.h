@@ -33,7 +33,7 @@
  *      All the public types and function declarations for the core
  *	AOLserver.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.19 2001/03/27 16:42:57 jgdavidson Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.20 2001/03/27 21:08:49 jgdavidson Exp $
  */
 
 #ifndef NS_H
@@ -1094,6 +1094,12 @@ NS_EXTERN char *Ns_StrCaseFind(char *s1, char *s2);
 NS_EXTERN char *Ns_Match(char *a, char *b);
 NS_EXTERN char *Ns_NextWord(char *line);
 NS_EXTERN char *Ns_StrNStr(char *pattern, char *expression);
+
+/*
+ * tclenv.c:
+ */
+
+NS_EXTERN char *Ns_GetEnvironment(Ns_DString *dsPtr);
 
 /*
  * tclfile.c:

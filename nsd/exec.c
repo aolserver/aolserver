@@ -28,7 +28,7 @@
  */
 
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/exec.c,v 1.8 2001/03/27 17:35:55 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/exec.c,v 1.9 2001/03/27 21:08:49 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -41,8 +41,8 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
 #else
 static void     ExecFailed(int errPipe, char *errBuf, char *fmt, ...);
 #endif
-static char   **BuildVector(char *ptr);
-static char    *GetEnvBlock(Ns_Set *env);
+static char   **Args2Vec(Ns_DString *dsPtr, char *args);
+static char    *Set2Args(Ns_DString *dsPtr, Ns_Set *set);
 static int  	WaitForProcess(int pid, int *statusPtr);
 
 
@@ -219,7 +219,8 @@ waitproc:
  */
 
 int
-Ns_ExecArgblk(char *exec, char *dir, int fdin, int fdout, char *args, Ns_Set *env)
+Ns_ExecArgblk(char *exec, char *dir, int fdin, int fdout,
+		char *args, Ns_Set *env)
 {
 #ifndef WIN32
     /*
@@ -228,23 +229,23 @@ Ns_ExecArgblk(char *exec, char *dir, int fdin, int fdout, char *args, Ns_Set *en
      
     int    pid;
     char **argv;
+    Ns_DString vds;
 
+    Ns_DStringInit(&vds);
     if (args != NULL) {
-        argv = BuildVector(args);
+        argv = Args2Vec(&vds, args);
     } else {
         argv = NULL;
     }
     pid = Ns_ExecArgv(exec, dir, fdin, fdout, argv, env);
-    if (args != NULL) {
-        ns_free(argv);
-    }
+    Ns_DStringFree(&vds);
 #else
     STARTUPINFO     si;
     PROCESS_INFORMATION pi;
     HANDLE          hCurrentProcess;
     int             pid;
-    Ns_DString      dsCmd, dsExec;
-    char           *envBlock;
+    Ns_DString      cds, xds, eds;
+    char           *envp;
     OSVERSIONINFO   oinfo;
     char           *cmd;
 
@@ -291,11 +292,12 @@ Ns_ExecArgblk(char *exec, char *dir, int fdin, int fdout, char *args, Ns_Set *en
      * subprocess.
      */
     
-    Ns_DStringInit(&dsCmd);
-    Ns_DStringInit(&dsExec);
+    Ns_DStringInit(&cds);
+    Ns_DStringInit(&xds);
+    Ns_DStringInit(&eds);
     if (args == NULL) {
         /* NB: exec specifies a complete cmd.exe command string. */
-        Ns_DStringVarAppend(&dsCmd, cmd, " /c ", exec, NULL);
+        Ns_DStringVarAppend(&cds, cmd, " /c ", exec, NULL);
         exec = NULL;
     } else {
         char           *s;
@@ -305,40 +307,38 @@ Ns_ExecArgblk(char *exec, char *dir, int fdin, int fdout, char *args, Ns_Set *en
             int             len;
 
             len = strlen(s);
-            Ns_DStringNAppend(&dsCmd, s, len);
+            Ns_DStringNAppend(&cds, s, len);
             s += len + 1;
             if (*s != '\0') {
-                Ns_DStringNAppend(&dsCmd, " ", 1);
+                Ns_DStringNAppend(&cds, " ", 1);
             }
         }
-	Ns_NormalizePath(&dsExec, exec);
-	s = dsExec.string;
+	Ns_NormalizePath(&xds, exec);
+	s = xds.string;
 	while (*s != '\0') {
 	    if (*s == '/') {
 		*s = '\\';
 	    }
 	    ++s;
 	}
-	exec = dsExec.string;
+	exec = xds.string;
     }
     if (env == NULL) {
-        envBlock = NULL;
+        envp = NULL;
     } else {
-        envBlock = GetEnvBlock(env);
+        envp = Set2Args(&eds, env);
     }
-    if (CreateProcess(exec, dsCmd.string, NULL, NULL, TRUE, 0, envBlock, dir, &si, &pi) != TRUE) {
+    if (CreateProcess(exec, cds.string, NULL, NULL, TRUE, 0, envp, dir, &si, &pi) != TRUE) {
         Ns_Log(Error, "exec: failed to create process: %s: %s",
-	       exec ? exec : dsCmd.string, NsWin32ErrMsg(GetLastError()));
+	       exec ? exec : cds.string, NsWin32ErrMsg(GetLastError()));
         pid = -1;
     } else {
         CloseHandle(pi.hThread);
         pid = (int) pi.hProcess;
     }
-    Ns_DStringFree(&dsCmd);
-    Ns_DStringFree(&dsExec);
-    if (envBlock != NULL) {
-        ns_free(envBlock);
-    }
+    Ns_DStringFree(&cds);
+    Ns_DStringFree(&xds);
+    Ns_DStringFree(&eds);
     CloseHandle(si.hStdInput);
     CloseHandle(si.hStdOutput);
 #endif
@@ -375,26 +375,26 @@ Ns_ExecArgv(char *exec, char *dir, int fdin, int fdout,
      * Win32 ExecArgv simply calls ExecArgblk.
      */
      
-    Ns_DString      ds;
-    char           *argblk;
+    Ns_DString      ads;
+    char	   *args;
     int		    i;
 
-    Ns_DStringInit(&ds);
+    Ns_DStringInit(&ads);
     if (argv == NULL) {
-        argblk = NULL;
+	args = NULL;
     } else {
         for (i = 0; argv[i] != NULL; ++i) {
-            Ns_DStringNAppend(&ds, argv[i], strlen(argv[i]) + 1);
+            Ns_DStringNAppend(&ads, argv[i], strlen(argv[i]) + 1);
         }
-        argblk = ds.string;
+	args = ads.string;
     }
     pid = Ns_ExecArgblk(exec, dir, fdin, fdout, argblk, env);
-    Ns_DStringFree(&ds);
+    Ns_DStringFree(&ads);
 #else
     int    errpipe[2];
     int    nread;
     char   errbuf[200];
-    char  *envBlock;
+    Ns_DString eds, vds;
     char **envp;
     char  *argvSh[4];
 
@@ -414,20 +414,32 @@ Ns_ExecArgv(char *exec, char *dir, int fdin, int fdout,
 	       exec, strerror(errno));
         return -1;
     }
+
+    /*
+     * Create the envp array, either from the given Ns_Set
+     * or from a safe copy of the environment.
+     */
+
+    Ns_DStringInit(&eds);
+    Ns_DStringInit(&vds);
     if (env == NULL) {
-	/* NB: Not strictly thread safe. */
-	extern char **environ;
-	envp = environ;
+	Ns_GetEnvironment(&eds);
     } else {
-        envBlock = GetEnvBlock(env);
-	envp = BuildVector(envBlock);
+	Set2Args(&eds, env);
     }
+    envp = Args2Vec(&vds, eds.string);
+
+    /*
+     * By default, input and output are the same as the server.
+     */
+
     if (fdin < 0) {
 	fdin = 0;
     }
     if (fdout < 0) {
 	fdout = 1;
     }
+
     pid = ns_fork();
     if (pid < 0) {
         Ns_Log(Error, "exec: failed to fork '%s': '%s'", exec, strerror(errno));
@@ -469,7 +481,7 @@ Ns_ExecArgv(char *exec, char *dir, int fdin, int fdout,
 	Ns_NoCloseOnExec(1);
 	Ns_NoCloseOnExec(2);
         execve(exec, argv, envp);
-        ExecFailed(errpipe[1], errbuf, "%dexecv()", errno);
+        ExecFailed(errpipe[1], errbuf, "%dexecve()", errno);
 	
     } else {	/* parent */
 	
@@ -495,10 +507,8 @@ Ns_ExecArgv(char *exec, char *dir, int fdin, int fdout,
             pid = -1;
         }
     }
-    if (env != NULL) {
-        ns_free(envp);
-        ns_free(envBlock);
-    }
+    Ns_DStringFree(&eds);
+    Ns_DStringFree(&vds);
 #endif
     return pid;
 }
@@ -506,12 +516,12 @@ Ns_ExecArgv(char *exec, char *dir, int fdin, int fdout,
 
 /*
  *----------------------------------------------------------------------
- * BuildVector --
+ * Args2Vec --
  *
  *      Build an argv vector from a sequence of character strings
  *
  * Results:
- *      Return a pointer to a argv vector.
+ *      Return a pointer to a argv vector stored in given dstring.
  *
  * Side effects:
  *      None.
@@ -520,30 +530,23 @@ Ns_ExecArgv(char *exec, char *dir, int fdin, int fdout,
  */
 
 static char **
-BuildVector(char *ptr)
+Args2Vec(Ns_DString *dsPtr, char *arg)
 {
-    Ns_DString      dsVec;
+    int len;
 
-    /*
-     * ptr points to a char array containing a sequence of character
-     * strings with their terminating null bytes.  
-     */
-
-    Ns_DStringInit(&dsVec);
-    while (*ptr != '\0') {
-        Ns_DStringNAppend(&dsVec, (char *) &ptr, sizeof(ptr));
-        ptr += strlen(ptr) + 1;
+    while (*arg != '\0') {
+        Ns_DStringNAppend(dsPtr, (char *) &arg, sizeof(arg));
+        arg += strlen(arg) + 1;
     }
-    ptr = NULL;
-    Ns_DStringNAppend(&dsVec, (char *) &ptr, sizeof(ptr));
-
-    return (char **) Ns_DStringExport(&dsVec);
+    arg = NULL;
+    Ns_DStringNAppend(dsPtr, (char *) &arg, sizeof(arg));
+    return (char **) dsPtr->string;
 }
 
 
 /*
  *----------------------------------------------------------------------
- * GetEnvBlock --
+ * Set2Args --
  *
  *      Convert an Ns_Set containing key-value pairs into a character
  *	array containing a sequence of name-value pairs with their 
@@ -560,20 +563,17 @@ BuildVector(char *ptr)
  */
 
 static char *
-GetEnvBlock(Ns_Set *env)
+Set2Args(Ns_DString *dsPtr, Ns_Set *env)
 {
-    Ns_DString dsBuf;
-    int        i;
+    int        i, len;
 
-    Ns_DStringInit(&dsBuf);
     for (i = 0; i < Ns_SetSize(env); ++i) {
-        Ns_DStringVarAppend(&dsBuf, Ns_SetKey(env, i), "=",
-			    Ns_SetValue(env, i), NULL);
-        Ns_DStringNAppend(&dsBuf, "", 1);
+        Ns_DStringVarAppend(dsPtr,
+	    Ns_SetKey(env, i), "=", Ns_SetValue(env, i), NULL);
+        Ns_DStringNAppend(dsPtr, "", 1);
     }
-    Ns_DStringNAppend(&dsBuf, "", 1);
-
-    return Ns_DStringExport(&dsBuf);
+    Ns_DStringNAppend(dsPtr, "", 1);
+    return dsPtr->string;
 }
 
 

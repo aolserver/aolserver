@@ -28,7 +28,7 @@
  */
 
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscgi/nscgi.c,v 1.9 2001/03/24 18:21:06 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscgi/nscgi.c,v 1.10 2001/03/27 21:08:49 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 #include <sys/stat.h>
@@ -39,9 +39,10 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsc
 #define NDSTRINGS   5
 #define UCHAR(c)	((unsigned char) (c))
 #define DEFAULT_MAXINPUT    1024000
-#define CGI_NPH	    1
-#define CGI_GETHOST 2
-#define CGI_ECONTENT   4
+#define CGI_NPH	    	1
+#define CGI_GETHOST	2
+#define CGI_ECONTENT	4
+#define CGI_SYSENV	8
 
 #ifdef WIN32
 #include <share.h>
@@ -50,11 +51,6 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsc
 #define DEVNULL	    "nul:"
 #else
 #define DEVNULL	    "/dev/null"
-#ifdef __sgi
-extern char   *environ[];
-#else
-extern char   **environ;
-#endif
 #endif
 
 /*
@@ -70,7 +66,6 @@ typedef struct Mod {
     char	   *tmpdir;
     Ns_Set         *interps;
     Ns_Set         *mergeEnv;
-    Ns_Set	   *sysEnv;
     struct Cgi     *firstCgiPtr;
     int		    flags;
     int             maxInput;
@@ -275,17 +270,7 @@ Ns_ModuleInit(char *server, char *module)
         i = 0;
     }
     if (i) {
-        modPtr->sysEnv = Ns_SetCreate(NULL);
-        for (i = 0; environ[i] != NULL; ++i) {
-            Ns_DStringAppend(&ds, environ[i]);
-            key = ds.string;
-            value = strchr(key, '=');
-            if (value != NULL) {
-                *value++ = '\0';
-            }
-            Ns_SetPut(modPtr->sysEnv, key, value);
-            Ns_DStringTrunc(&ds, 0);
-        }
+	modPtr->flags |= CGI_SYSENV;
     }
 
     /*
@@ -804,8 +789,21 @@ CgiExec(Cgi *cgiPtr, Ns_Conn *conn)
     if (modPtr->mergeEnv != NULL) {
         Ns_SetMerge(cgiPtr->env, modPtr->mergeEnv);
     }
-    if (modPtr->sysEnv != NULL) {
-        Ns_SetMerge(cgiPtr->env, modPtr->sysEnv);
+    if (modPtr->flags & CGI_SYSENV) {
+	s = Ns_GetEnvironment(dsPtr);
+	while (*s != '\0') {
+	    e = strchr(s, '=');
+	    if (e != NULL) {
+		*e = '\0';
+        	i = Ns_SetFind(cgiPtr->env, s);
+		if (i < 0) {
+        	    Ns_SetPut(cgiPtr->env, s, e+1);
+		}
+		*e = '=';
+	    }
+	    s += strlen(s) + 1;
+	}
+	Ns_DStringTrunc(dsPtr, 0);
     }
 
     /*
@@ -824,7 +822,6 @@ CgiExec(Cgi *cgiPtr, Ns_Conn *conn)
      * Set all the CGI specified variables.
      */
 
-    Ns_DStringInit(dsPtr);
     SetUpdate(cgiPtr->env, "SCRIPT_NAME", cgiPtr->name);
     if (cgiPtr->pathinfo != NULL && *cgiPtr->pathinfo != '\0') {
     	Ns_DString tmp;
