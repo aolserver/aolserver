@@ -33,7 +33,7 @@
  *	Defines standard default charset to encoding mappings.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/encoding.c,v 1.14 2005/01/17 14:02:04 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/encoding.c,v 1.15 2005/01/17 16:04:04 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -462,8 +462,8 @@ NsGetTypeEncoding(NsServer *servPtr, char **typePtr, Ns_DString *dsPtr)
 	 */
 
 	charset = servPtr->encoding.outputCharset;
+	len = -1;
 	if (charset != NULL && servPtr->encoding.hackContentTypeP) {
-	    len = -1;
 	    Ns_DStringVarAppend(dsPtr, type, "; charset=", charset, NULL);
     	    *typePtr = dsPtr->string;
 	}
