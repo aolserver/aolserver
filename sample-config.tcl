@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/Attic/sample-config.tcl,v 1.13 2004/07/22 20:52:23 dossy Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/Attic/sample-config.tcl,v 1.14 2004/08/11 19:21:14 dossy Exp $
 #
 
 #
@@ -362,19 +362,21 @@ if { [file exists $sslcertfile] && [file exists $sslkeyfile] } {
 # 1. Load comm driver(s) globally.
 # 2. Configure drivers as in a virtual server.
 # 3. Add a "servers" section to map virtual servers to Host headers.
+# 4. Ensure "defaultserver" in comm driver refers to a defined
+#    virtual server.
 #
-#ns_section ns/modules
-#ns_section nssock nssock${shlibext}
+#ns_section "ns/modules"
+#    ns_param   nssock          ${bindir}/nssock${shlibext}
 #
-#ns_section ns/module/nssock
-#ns_param   port            $httpport
-#ns_param   hostname        $hostname
-#ns_param   address         $address
-# 
-#ns_section ns/module/nssock/servers
-#ns_param server1 $hostname:$httpport
+#ns_section "ns/module/nssock"
+#    ns_param   port            $httpport
+#    ns_param   hostname        $hostname
+#    ns_param   address         $address
+#    ns_param   defaultserver   server1
 #
-
+#ns_section "ns/module/nssock/servers"
+#    ns_param   server1         $hostname:$httpport
+#
 
 #
 # Example:  Multiple connection thread pools.
