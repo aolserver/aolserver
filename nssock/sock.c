@@ -40,7 +40,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nssock/Attic/sock.c,v 1.2 2000/08/15 20:24:33 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nssock/Attic/sock.c,v 1.3 2000/08/17 18:48:20 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 
@@ -75,10 +75,10 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nss
 	"<html>\n"\
 	"<head><title>Server Busy</title></head>\n"\
 	"<body>\n"\
-	"<h2><font face=helvetica>Server Busy</font></h2>\n"\
-	"<p><font face=helvetica>\n"\
-	"The server is temporarily busy. Please try again later.\n"\
-	"</font></body>\n"\
+	"<h2>Server Busy</h2>\n"\
+	"The server is temporarily too busy to process your request. "\
+        "Please try again later.\n"\
+	"</body>\n"\
 	"</html>\n"
 
 struct ConnData;
@@ -521,11 +521,12 @@ SockThread(void *ignored)
 	    n = select(max+1, &set, NULL, NULL, NULL);
 	} while (n < 0  && ns_sockerrno == EINTR);
 	if (n < 0) {
-	    Ns_Fatal("select() failed: %s", ns_sockstrerror(ns_sockerrno));
+	    Ns_Fatal("%s: select() failed: '%s'",
+		     DRIVER_NAME, ns_sockstrerror(ns_sockerrno));
 	} else if (FD_ISSET(trigPipe[0], &set)) {
 	    if (recv(trigPipe[0], &c, 1, 0) != 1) {
-	    	Ns_Fatal("trigger recv() failed: %s",
-			 ns_sockstrerror(ns_sockerrno));
+	    	Ns_Fatal("%s: trigger recv() failed: '%s'",
+			 DRIVER_NAME, ns_sockstrerror(ns_sockerrno));
 	    }
 	    stop = 1;
 	    --n;
@@ -562,6 +563,8 @@ SockThread(void *ignored)
 		    if (Ns_QueueConn(sdPtr->driver, cdPtr) != NS_OK) {
 #ifndef SSL
 			(void) send(sock, BUSY, sizeof(BUSY), 0);
+			Ns_Log(Warning, "%s: server too busy (peer '%s')",
+			       DRIVER_NAME, cdPtr->peer);
 #endif
 			(void) SockClose(cdPtr);
 		    }

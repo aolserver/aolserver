@@ -1,5 +1,8 @@
 2000-08-17  Kriston J. Rehberg  <Kriston@AOL.NET>
 
+	* nssock/sock.c (SockThread): warning sent to log when Server Busy
+	is returned.
+
 	* All the Makefiles should be in line with each other.  Typing
 	"gmake", "gmake install" and "gmake clean" should work in any
 	directory.  NSHOME is paid attention to by all Makefiles.
