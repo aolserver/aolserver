@@ -28,7 +28,7 @@
  */
 
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscgi/nscgi.c,v 1.18 2002/06/08 14:49:12 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscgi/nscgi.c,v 1.19 2002/09/28 19:22:54 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 #include <sys/stat.h>
@@ -728,7 +728,7 @@ CgiExec(Cgi *cgiPtr, Ns_Conn *conn)
         Ns_SetMerge(cgiPtr->env, modPtr->mergeEnv);
     }
     if (modPtr->flags & CGI_SYSENV) {
-	envp = Ns_GetEnvironment(dsPtr);
+	envp = Ns_CopyEnviron(dsPtr);
 	while (*envp != NULL) {
 	    s = *envp;
 	    e = strchr(s, '=');
