@@ -34,7 +34,7 @@
  *	Various sundry logging functions. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nspd/log.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nspd/log.c,v 1.4 2000/08/15 20:24:33 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "pd.h"
 
@@ -98,7 +98,7 @@ PdTraceOn(char *file)
 void
 PdTraceOff(void)
 {
-    Ns_PdLog(Notice, "PdTraceOff: traceoff:");
+    Ns_PdLog(Notice, "nspd: traceoff");
     trace = 0;
     if (tracefp != NULL) {
         fclose(tracefp);
@@ -128,7 +128,7 @@ PdTraceOff(void)
 void
 Ns_FatalErrno(char *func)
 {
-    Ns_PdLog(Error, "%s failed:  %s(%d)", func, strerror(errno), errno);
+    Ns_PdLog(Error, "nspd: %s failed: %s(%d)", func, strerror(errno), errno);
     Ns_PdExit(1);
 }
 
@@ -199,7 +199,7 @@ Ns_PdLog(Ns_PdLogMsgType errtype, char *format,...)
             break;
         default:
             typeok = 0;
-            syslog(LOG_ERR, "nspd: unknown error type: %d received", errtype);
+            syslog(LOG_ERR, "nspd: unknown error type: %d", errtype);
             break;
         }
         if (typeok) {

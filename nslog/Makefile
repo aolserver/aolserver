@@ -1,4 +1,6 @@
 
+NSHOME   =  ..
+
 #
 # Module name
 #
@@ -23,7 +25,7 @@ MODDIR   =  nslog
 #         Makefile.module is usually all you will ever need.
 #
 
-include ../include/Makefile.global
+include $(NSHOME)/include/Makefile.global
 
 all: $(MOD)
 

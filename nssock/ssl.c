@@ -47,7 +47,7 @@
  *
  */
 
-static const char *RCSID = "@(#): $Header: /Users/dossy/Desktop/cvs/aolserver/nssock/Attic/ssl.c,v 1.1 2000/07/13 18:43:54 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#): $Header: /Users/dossy/Desktop/cvs/aolserver/nssock/Attic/ssl.c,v 1.2 2000/08/15 20:24:33 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 #include "ssl.h"
@@ -279,8 +279,7 @@ NsSSLGenerateKeypair(unsigned int modulusBits,
         A_RSA_KEY_GEN_PARAMS params;
 	
         if ((modulusBits < 256) || (modulusBits > 1024)) {
-            Ns_Log(Error, "nsssl:NsSSLGenerateKeypair: "
-		   "256 <= key size <= 1024.");
+            Ns_Log(Error, "nsssl: invalid key size");
             break;
         }
         params.modulusBits = modulusBits;
@@ -327,8 +326,7 @@ NsSSLGenerateKeypair(unsigned int modulusBits,
     } while (0);
     
     if (err != 0) {
-        Ns_Log(Error, "nsssl:NsSSLGenerateKeypair: "
-	       "encountered bsafe error %d.", err);
+        Ns_Log(Error, "nsssl: bsafe error %d", err);
         B_DestroyKeyObject(publicKey);
         B_DestroyKeyObject(privateKey);
     }
@@ -382,8 +380,7 @@ NsSSLInitialize(char *server, char *module)
 	    Ns_RegisterShutdown(RandomCleanup, NULL);
 	    Ns_TclInitInterps(server, NsSSLInterpInit, NULL);
 	} else {
-	    Ns_Log(Notice, "nsssl:NsSSLInitialize: "
-		   "running in STAND-ALONE mode.");
+	    Ns_Log(Notice, "nsssl: running in stand-alone mode");
 	}
 	
         initialized = NS_TRUE;
@@ -419,16 +416,16 @@ NsSSLCreateServer(char *cert, char *key)
     if (key != NULL &&
 	GetPrivateKey(&sPtr->privateKey, key) != NS_OK) {
 	
-        Ns_Log(Error, "nsssl:NsSSLCreateServer: "
-	       "unable to fetch server private key in %s", key);
+        Ns_Log(Error, "nsssl: "
+	       "failed to fetch private key from file '%s'", key);
     	ns_free(sPtr);
 	return NULL;
     }
     
     if (GetCertificate(&sPtr->certificate,
 		       &sPtr->certificateLength, cert) != NS_OK) {
-        Ns_Log(Error, "nsssl:NsSSLCreateServer: "
-	       "unable to fetch server certificate in %s", cert);
+        Ns_Log(Error, "nsssl: "
+	       "failed to fetch server certificate from file '%s'", cert);
 	ns_free(sPtr);
 	return NULL;
     }
@@ -524,9 +521,8 @@ NsSSLCreateConn(SOCKET socket, int timeout, void *server)
 	 * Get CLIENT-HELLO.
 	 */
         if (RecvRecord(con) != NS_OK) {
-            Ns_Log(Debug, "nsssl:NsSSLCreateConn: "
-		   "failed waiting for CLIENT-HELLO -- "
-		   "client dropped connection.");
+            Ns_Log(Debug, "nsssl: "
+		   "client dropped connection before CLIENT-HELLO");
 	    /*
 	     * This is not something to get concerned about.
 	     */
@@ -553,8 +549,7 @@ NsSSLCreateConn(SOCKET socket, int timeout, void *server)
                 ((iCipherSpecsLength % 3) != 0) ||
                 ((iSessionIdLength != 0) && (iSessionIdLength != 16)) ||
                 (iChallengeLength < 16) || (iChallengeLength > 32)) {
-		Ns_Log(Debug, "nsssl:NsSSLCreateConn: "
-		       "corrupted CLIENT-HELLO sent from client.");
+		Ns_Log(Debug, "nsssl: client sent malformed CLIENT-HELLO");
 		/*
 		 * This is not something to get worried about.  If the
 		 * browser is that messed up it will drop the
@@ -563,15 +558,9 @@ NsSSLCreateConn(SOCKET socket, int timeout, void *server)
                 break;
             }
 
-	    Ns_Log(Debug, "nsssl:NsSSLCreateConn: "
-		   "received CLIENT-HELLO version %d", iClientVersion);
-	    
             num_common = 0;
             for (i = 0; i < iCipherSpecsLength; i += 3) {
                 int ck = ATOU24(&clientHello->data + i) | 0x01000000;
-		
-                Ns_Log(Debug, "nsssl:NsSSLCreateConn: "
-		       "client accepts %d", ck);
 		
                 if ( CheckForAlgorithm(ck) == NS_OK) {
                     U24TOA(ck, &common_ciphers[num_common * 3]);
@@ -580,10 +569,8 @@ NsSSLCreateConn(SOCKET socket, int timeout, void *server)
             }
 	    
             if (num_common == 0) {
-                Ns_Log(Warning, "nsssl:NsSSLCreateConn: "
-		       "could not find a common cipher to use -- "
-		       "if you see this message very often, it might be "
-		       "time to implement SSL v3.");
+                Ns_Log(Warning, "nsssl: "
+		       "client and server failed to agree on cipher");
     		rec = &con->rec;
     		rec->input[0] = SSL_MT_ERROR;
     		U16TOA(SSL_PE_NO_CIPHER, &(rec->input)[1]);
@@ -634,9 +621,8 @@ NsSSLCreateConn(SOCKET socket, int timeout, void *server)
 	 * Send the SERVER-HELLO.
 	 */
         if (SendRecord(con) != NS_OK) {
-	    Ns_Log(Debug, "nsssl:NsSSLCreateConn: "
-		   "could not send SERVER-HELLO -- "
-		   "client probably dropped connection.");
+	    Ns_Log(Debug, "nsssl: "
+		   "client failed to receive SERVER-HELLO");
             break;
         }
 	
@@ -644,8 +630,8 @@ NsSSLCreateConn(SOCKET socket, int timeout, void *server)
 	 * Get the CLIENT-MASTER-KEY.
 	 */
         if (RecvRecord(con) != NS_OK) {
-	    Ns_Log(Debug, "nsssl:NsSSLCreateConn: "
-		   "failed waiting for CLIENT-MASTER-KEY.");
+	    Ns_Log(Debug, "nsssl: "
+		   "client failed to send CLIENT-MASTER-KEY");
             break;
 
         } else {
@@ -675,20 +661,11 @@ NsSSLCreateConn(SOCKET socket, int timeout, void *server)
 	    
             if ( (clientMasterKey->msg != SSL_MT_CLIENT_MASTER_KEY) ||
 		 (CheckForAlgorithm(con->cipherKind) != NS_OK) ) {
-                Ns_Log(Debug, "nsssl:NsSSLCreateConn: "
-		       "corrupted CLIENT-MASTER-KEY message.");
+                Ns_Log(Debug, "nsssl: "
+		       "client sent malformed CLIENT-MASTER-KEY");
                 break;
             }
 	    
-	    /*
-	     * Logging CLIENT-MASTER-KEY is a security risk if it is enabled.
-	     */
-#ifdef SSL_DEBUG
-            Ns_Log(Debug, "nsssl:NsSSLCreateConn: "
-		   "received CLIENT-MASTER-KEY message, using %d.",
-	    	   con->cipherKind);
-#endif
-
             p = &(clientMasterKey->data);
             memcpy(con->masterKey, p, iClearKeyLength);
             p += iClearKeyLength;
@@ -732,8 +709,8 @@ NsSSLCreateConn(SOCKET socket, int timeout, void *server)
 				 outMax, NULL,
 				 (A_SURRENDER_CTX *) NULL);
             if (err != 0) {
-		Ns_Log(Debug, "nsssl:NsSSLCreateConn: "
-		       "failed decrypting the secret session key.");
+		Ns_Log(Debug, "nsssl: "
+		       "failed to decrypt secret session key");
                 break;
             }
 	    
@@ -791,9 +768,8 @@ NsSSLCreateConn(SOCKET socket, int timeout, void *server)
         rec->fIsEscape = 0;
 	
         if (SendRecord(con) != NS_OK) {
-	    Ns_Log(Debug, "nsssl:NsSSLCreateConn: "
-		   "couldn't send SERVER-VERIFY -- "
-		   "the client probably dropped the connection.");
+	    Ns_Log(Debug, "nsssl: "
+		   "client did not receive SERVER-VERIFY");
 	    break;
         }
 	
@@ -801,9 +777,8 @@ NsSSLCreateConn(SOCKET socket, int timeout, void *server)
 	 * Get the CLIENT-FINISHED-V2 or CLIENT-FINISHED message.
 	 */
         if (RecvRecord(con) != NS_OK) {
-	    Ns_Log(Debug, "nsssl:NsSSLCreateConn: "
-		   "failed waiting for CLIENT-FINISHED -- "
-		   "the client probably dropped the connection.");
+	    Ns_Log(Debug, "nsssl: "
+		   "client did not receive CLIENT-FINISHED");
             break;
 	    
         } else {
@@ -814,18 +789,15 @@ NsSSLCreateConn(SOCKET socket, int timeout, void *server)
             }
             if ((*p != SSL_MT_CLIENT_FINISHED) &&
                 (*p != SSL_MT_CLIENT_FINISHED_V2)) {
-                Ns_Log(Debug, "nsssl: NsSSLCreateConn: "
-		       "corrupted CLIENT-FINISHED message.");
+                Ns_Log(Debug, "nsssl: "
+		       "client sent malformed CLIENT-FINISHED");
                 break;
-            } else {
-                Ns_Log(Debug, "nsssl: NsSSLCreateConn: "
-		       "received CLIENT-FINISHED message");
             }
 	    
             /*
 	     * We probably should verify that the CLIENT-FINISHED
-	     * message is correct at this point but we don't because at
-	     * this point it doesn't really matter.
+	     * message is correct at this point but we don't because it
+	     * doesn't really matter once the connection was closed.
 	     */
         }
 	
@@ -843,14 +815,10 @@ NsSSLCreateConn(SOCKET socket, int timeout, void *server)
         rec->fIsEscape = 0;
 
         if (SendRecord(con) != NS_OK) {
-            Ns_Log(Debug, "nsssl:NsSSLCreateConn: "
-		   "couldn't send SERVER-FINISHED-V2 -- "
-		   "the client probably dropped the connection.");
+            Ns_Log(Debug, "nsssl: "
+		   "client did not receive SERVER-FINISHED-V2");
             break;
         }
-	
-        Ns_Log(Debug, "nsssl:NsSSLCreateConn: "
-	       "handshake complete.");
 	
     } while (0);
     
@@ -862,16 +830,8 @@ NsSSLCreateConn(SOCKET socket, int timeout, void *server)
     }
     
     if (err != 0) {
-	if (err == BE_INPUT_DATA || err == BE_INPUT_LEN) {
-	    Ns_Log(Error, "nsssl:NsSSLCreateConn: "
-		   "problem establishing connection -- "
-		   "make sure your key and certificate match -- "
-		   "bsafe error code %d", err);
-	} else {
-	    Ns_Log(Error, "nsssl:NsSSLCreateConn: "
-		   "problem establishing connection -- "
-		   "BSAFE error code %d", err);
-	}
+	Ns_Log(Error, "nsssl: "
+	       "ssl connection failed, bsafe error %d", err);
 	NsSSLDestroyConn(con);
 	con = NULL;
     }
@@ -997,7 +957,7 @@ NsSSLSend(void *conn, void *vbuf, int towrite)
             towrite -= ncopy;
             buf += ncopy;
             if (SendRecord(con) != NS_OK) {
-		Ns_Log(Debug, "nsssl:NsSSLSend: "
+		Ns_Log(Debug, "nsssl: "
 		       "failed sending record to client");
 		/*
 		 * Note that we're returning -1 here.
@@ -1053,8 +1013,8 @@ NsSSLRecv(void *conn, void *vbuf, int toread)
         } else {
             if ((NsSSLFlush(conn) != NS_OK) ||
 		(RecvRecord(cPtr) != NS_OK)) {
-		Ns_Log(Debug, "nsssl:NsSSLRecv: "
-		       "failed receiving record from client.");
+		Ns_Log(Debug, "nsssl: "
+		       "failed receiving record from client");
 		/*
 		 * Note that we're returning -1 here.
 		 */
@@ -1116,9 +1076,7 @@ NsSSLFlush(void *conn)
         cPtr->outgoingLength -= towrite;
 	
         if (SendRecord(cPtr) != NS_OK) {
-	    Ns_Log(Debug, "nsssl:NsSSLFlush: "
-		   "Failed flushing record to client -- "
-		   "client probably dropped connection.");	    
+	    Ns_Log(Debug, "nsssl: failed flushing record to client");
 	    return NS_ERROR;
 	}
     }
@@ -1167,9 +1125,7 @@ Recv(SSLConn *cPtr, void *vbuf, int toread)
 	     * hitting "stop" or rejects the server's master key
 	     * and/or certificate.
 	     */
-	    Ns_Log(Debug, "nsssl:Recv: "
-		   "failed to read anything -- "
-		   "client dropped connection.");
+	    Ns_Log(Debug, "nsssl: client dropped connection");
 	    return NS_ERROR;
 	}
 
@@ -1213,8 +1169,7 @@ Decrypt(SSLConn * con)
     SSLRecord      *rec;
     
     if (EncryptInit(con, 1) != NS_OK) {
-	Ns_Log(Error, "nsssl:Decrypt: "
-	       "encryptinit failed.");
+	Ns_Log(Error, "nsssl: encryptinit failed");
     	return NS_ERROR;
     }
     
@@ -1271,15 +1226,11 @@ Decrypt(SSLConn * con)
         break;
 	
     default:
-        Ns_Log(Warning, "nsssl:Decrypt: "
-	       "unimplemented cipher referenced -- "
-	       "if you see this message very often, it might be "
-	       "time to implement SSL v3.");
+        Ns_Log(Warning, "nsssl: unsupported cipher");
     }
     
     if (err != 0) {
-        Ns_Log(Error, "nsssl:Decrypt: "
-	       "encountered bsafe error %d.", err);
+        Ns_Log(Error, "nsssl: failed to decrypt, bsafe error %d", err);
     }
     if (status != NS_OK) {
         return NS_ERROR;
@@ -1325,8 +1276,7 @@ Decrypt(SSLConn * con)
         }
 	
         if (memcmp(rec->mac, rec->macBuf, con->macSize) != 0) {
-            Ns_Log(Error, "nsssl:Decrypt: "
-		   "bad message authentication code");
+            Ns_Log(Error, "nsssl: invalid message authentication code");
             break;
         }
         status = NS_OK;
@@ -1334,8 +1284,7 @@ Decrypt(SSLConn * con)
     } while (0);
     
     if (err != 0) {
-        Ns_Log(Error, "nsssl:Decrypt: "
-	       "encountered bsafe error %d.", err);
+        Ns_Log(Error, "nsssl: decrypt failed, bsafe error %d", err);
     }
     
     return status;
@@ -1418,8 +1367,7 @@ Encrypt(SSLConn * con)
     } while (0);
     
     if (err != 0) {
-        Ns_Log(Error, "nsssl:Encrypt: "
-	       "encountered bsafe error %d.", err);
+        Ns_Log(Error, "nsssl: encrypt failed, bsafe error %d", err);
     }
 
     /*
@@ -1496,15 +1444,11 @@ Encrypt(SSLConn * con)
         break;
 	
     default:
-        Ns_Log(Warning,
-	       "nsssl:Encrypt: unimplemented cipher referenced -- "
-	       "if you see this message very often, it might be "
-	       "time to implement SSL v3.");
+        Ns_Log(Warning, "nsssl: unsupported cipher");
     }
     
     if (err != 0) {
-        Ns_Log(Error, "nsssl:Encrypt: "
-	       "encountered bsafe error %d.", err);
+        Ns_Log(Error, "nsssl: encrypt failed, bsafe error %d", err);
     }
 
     return status;
@@ -1573,15 +1517,12 @@ RecvRecord(SSLConn * con)
         /*
 	 * Client cancelled due to server certificate rejection.
 	 */
-	Ns_Log(Debug, "nsssl:RecvRecord: "
-	       "client cancelled due to server certificate rejection --"
-	       "client dropped connection.");
+	Ns_Log(Debug, "nsssl: client rejected cert and dropped connection");
 	return NS_ERROR;
     }
 
     if (Recv(con, dest, toread) != NS_OK) {
-	Ns_Log(Debug, "nsssl:RecvRecord: "
-	       "client dropped connection.");
+	Ns_Log(Debug, "nsssl: client dropped connection");
     	return NS_ERROR;
     }
     
@@ -1738,8 +1679,7 @@ SetupDigester(SSLConn * con)
 	    B_SetAlgorithmInfo(con->digester, AI_MD5, NULL) != 0 ||
 	    B_DigestInit(con->digester, (B_KEY_OBJ) NULL,
 			 DIGEST_CHOOSER, NULL) != 0) {
-	    Ns_Log(Error, "nsssl:SetupDigester: "
-		   "failed initializing digester.");
+	    Ns_Log(Error, "nsssl: failed initializing digester");
 	    return NS_ERROR;
 	}
 	break;
@@ -1897,10 +1837,7 @@ DetermineSessionKeys(SSLConn * con)
 	 *       situation would be extremely rare, since all browsers
 	 *       are set up to accept MD5 and only crazies turn it off.
 	 */
-	Ns_Log(Error, "nsssl:DetermineSessionKeys: "
-	       "encountered unimplemented cipher 0x%x -- "
-	       "if you see this message very often, it might be "
-	       "time to implement SSL v3.", con->cipherKind);
+	Ns_Log(Error, "nsssl: unsupported message digest algorithm");
 	
 	return NS_ERROR;
     }
@@ -2200,10 +2137,7 @@ EncryptInit(SSLConn * con, int fRead)
 	break;
 	
     default:
-	Ns_Log(Warning, "nsssl:EncryptInit: "
-	       "unimplemented algorithm -- "
-	       "if you see this message very often, it might be "
-	       "time to implement SSL v3.");
+	Ns_Log(Warning, "nsssl: unsupported cipher");
 	return NS_ERROR;
     }
 
@@ -2235,10 +2169,7 @@ EncryptInit(SSLConn * con, int fRead)
 	break;
 	
     default:
-	Ns_Log(Warning, "nsssl:EncryptInit: "
-	       "unimplemented cipher referenced -- "
-	       "if you see this message very often, it might be "
-	       "time to implement SSL v3.");
+	Ns_Log(Warning, "nsssl: unsupported cipher");
 	return NS_ERROR;
     }
     
@@ -2327,8 +2258,7 @@ DescribeError(unsigned char *errorcode)
         msg = "Unknown Error";
     }
 
-    Ns_Log(Debug, "nsssl: "
-	   "client sent the following error: %s", msg);
+    Ns_Log(Debug, "nsssl: client sent this error: '%s'", msg);
 }
 
 
@@ -2493,22 +2423,19 @@ DescribeAlgorithm(int trialck)
 static int
 GenerateRandomBytes(unsigned char *output, int outputLength)
 {
-    int             retval;
+    int             retval = NS_ERROR;
+    int             err = -1;
     
-    Ns_Log(Debug, "nsssl:GenerateRandomBytes: Starting.");
-
     Ns_CsEnter(&csRandom);
-    if (B_GenerateRandomBytes(randomObject, output, outputLength,
-			      &surrenderCtx) != 0) {
-	Ns_Log(Error, "nsssl:GenerateRandomBytes: "
-	       "B_GenerateRandomBytes failed.");
+    if ( (err = (B_GenerateRandomBytes(randomObject, output, outputLength,
+				       &surrenderCtx))) != 0 ) {
+	Ns_Log(Error, "nsssl: "
+	       "failed to generate random bytes, bsafe error %d", err);
         retval = NS_ERROR;
     } else {
         retval = NS_OK;
     }
     Ns_CsLeave(&csRandom);
-    
-    Ns_Log(Debug, "nsssl:GenerateRandomBytes: Completed.");
     
     return retval;
 }

@@ -53,7 +53,7 @@
  *
  */
 
-static const char *RCSID = "@(#): $Header: /Users/dossy/Desktop/cvs/aolserver/nssock/Attic/x509.c,v 1.2 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#): $Header: /Users/dossy/Desktop/cvs/aolserver/nssock/Attic/x509.c,v 1.3 2000/08/15 20:24:33 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 
 #include "ns.h"
@@ -149,7 +149,7 @@ GetPrivateKey(B_KEY_OBJ * privateKey, char *filename)
     }
     
     if (err != 0) {
-        Ns_Log(Error, "nsssl:GetPrivateKey: BSAFE error %d", err);
+        Ns_Log(Error, "nsssl: failed to get private key, bsafe error %d", err);
     }
     return status;
 }
@@ -284,7 +284,8 @@ PrivateKeyToPEM(B_KEY_OBJ privateKey)
     Ns_DStringFree(&ds);
     
     if (err != 0) {
-        Ns_Log(Error, "nsssl:PrivateKeyToPEM: BSAFE error %d", err);
+        Ns_Log(Error, "nsssl: failed to convert private key to PEM, "
+	       "bsafe error %d", err);
         if (berKey != NULL) {
             ns_free(berKey);
             berKey = NULL;
@@ -333,8 +334,7 @@ GetBerFromPEM(char *filename, char *section, int *length)
 
         fp = fopen(filename, "rb");
         if (fp == NULL) {
-            Ns_Log(Error, "nsssl:GetBerFromPEM: unable to open file "
-		   " '%s'.", filename);
+            Ns_Log(Error, "nsssl: unable to open pem file '%s'", filename);
             break;
         }
         posBegin = -1;
@@ -349,12 +349,11 @@ GetBerFromPEM(char *filename, char *section, int *length)
         }
 	
         Ns_DStringFree(&ds);
-
+	
         if (posBegin == -1) {
             if (strstr(section, "CERTIFICATE") == NULL) { 
-                Ns_Log(Error, "nsssl:GetBerFromPEM: Error parsing file "
-		       "'%s': '-----BEGIN %s-----' not found.",
-                       filename, section);
+                Ns_Log(Error, "nsssl: error parsing pem file '%s': "
+		       "'-----BEGIN %s-----' not found", filename, section);
             }
             break;
         }
@@ -373,13 +372,11 @@ GetBerFromPEM(char *filename, char *section, int *length)
 
         i = posEnd - posBegin;
         if ((posEnd == -1) || (i == 0)) {
-            Ns_Log(Error, "nsssl:GetBerFromPEM: error parsing file "
-		   "'%s'.", filename);
+            Ns_Log(Error, "nsssl: error parsing pem file '%s'", filename);
             break;
         }
         if (fseek(fp, posBegin, SEEK_SET) == -1) {
-            Ns_Log(Error, "nsssl:GetBerFromPEM: could not rewind file "
-		   "'%s'.", filename);
+            Ns_Log(Error, "nsssl: failed to rewind pem file '%s'", filename);
             break;
         }
         /* 
@@ -429,7 +426,7 @@ GetBerFromPEM(char *filename, char *section, int *length)
         fclose(fp);
     }
     if (err != 0) {
-        Ns_Log(Error, "nsssl:GetBerFromPEM: BSAFE error %d", err);
+        Ns_Log(Error, "nsssl: failed decoding ber, bsafe error %d", err);
     }
     return (unsigned char *) chunk;
 }
@@ -787,8 +784,7 @@ DERDecode(Ns_DString *ds, unsigned char *der, int length, int indent)
                 name = NULL;
             }
             if (name == NULL) {
-                Ns_Log(Debug, "nsssl:DERDecode: unknown tag type "
-		       "%u.", tag);
+                Ns_Log(Debug, "nsssl: unknown tag type '%u'", tag);
                 break;
             }
         }
@@ -947,8 +943,7 @@ DEREncode(Ns_DString *ds, char *asn1)
             unsigned int    val1, val2;
 	    
             if (sscanf(++asn1, "%1x%04x", &val1, &val2) != 2) {
-                Ns_Log(Error,
-		       "nsssl:DEREncode: unable to parse class/tag id.");
+                Ns_Log(Error, "nsssl: unable to parse class/tag id");
                 break;
             }
             asn1 += 5;
@@ -1008,8 +1003,7 @@ DEREncode(Ns_DString *ds, char *asn1)
                 tag = 4;
                 fInsertRaw = 1;
             } else {
-                Ns_Log(Error,
-		       "nsssl:DEREncode: encountered unknown tag type.");
+                Ns_Log(Error, "nsssl: unknown tag type");
                 break;
             }
         }
@@ -1017,8 +1011,7 @@ DEREncode(Ns_DString *ds, char *asn1)
         if (fHasArg) {
             asn1 = Ns_StrTrimLeft(asn1);
             if (*asn1 == '\0') {
-                Ns_Log(Error,
-		       "nsssl:DEREncode: tag type %d needs an arg.", tag);
+                Ns_Log(Error, "nsssl: tag type %d needs an arg", tag);
                 status = NS_ERROR;
                 break;
             }
@@ -1042,8 +1035,7 @@ DEREncode(Ns_DString *ds, char *asn1)
                     p++;
                 }
                 if (p == NULL) {
-                    Ns_Log(Error, "nsssl:DEREncode: found an unmatched "
-			   "parenthesis.");
+                    Ns_Log(Error, "nsssl: unmatched parenthesis");
                     break;
                 }
                 *p = '\0';
@@ -1084,8 +1076,7 @@ DEREncode(Ns_DString *ds, char *asn1)
 		    case 23:
                         p = strchr(asn1 + 1, '\"');
                         if ((*asn1 != '\"') || (p == NULL)) {
-                            Ns_Log(Error, "nsssl:DEREncode: "
-				   "expected quoted string.");
+                            Ns_Log(Error, "nsssl: expected quoted string");
                             break;
                         }
                         if (p != (asn1+1)) {
@@ -1103,9 +1094,8 @@ DEREncode(Ns_DString *ds, char *asn1)
                                           ((c >= 'a') && (c <= 'z')) ||
                                           ((c >= '0') && (c <= '9')) ||
                                           (strchr(" '()+,-./:=?", c)!=NULL))) {
-                                        Ns_Log(Error, "nsssl:DEREncode: "
-					       "illegal character '%c' "
-					       "in PrintableString", c);
+                                        Ns_Log(Error, "nsssl: "
+					       "illegal char '%c'", c);
                                         status = NS_ERROR;
                                         break;
                                     }
@@ -1119,8 +1109,7 @@ DEREncode(Ns_DString *ds, char *asn1)
 		    case 6:
                         p = strchr(asn1 + 1, ')');
                         if ((*asn1 != '(') || (p == NULL)) {
-                            Ns_Log(Error, "nsssl:DEREncode: "
-				   "expected a list of integers.");
+                            Ns_Log(Error, "nsssl: expected list of integers");
                             break;
                         } else {
                             unsigned int    val1, val2;
@@ -1128,8 +1117,8 @@ DEREncode(Ns_DString *ds, char *asn1)
                             asn1 = Ns_StrTrimLeft(asn1 + 1);
                             p = strpbrk(asn1, " )");
                             if (*p == ')') {
-                                Ns_Log(Error, "nsssl:DEREncode: too few"
-				       " integers for OBJECT IDENTIFIER.");
+                                Ns_Log(Error, "nsssl: too few integers "
+				       "for OBJECT IDENTIFIER");
                                 break;
                             }
                             *p = '\0';

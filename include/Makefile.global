@@ -48,6 +48,11 @@ ARFLAGS      =   rv
 RANLIB       =   true
 
 #
+# RPATH is only used by some platforms (so far).
+#
+RPATH = $(PREFIX)/lib:/usr/local/aolserver/lib:/opt/aolserver/lib:/usr/local/lib
+
+#
 # Auto-detect the platform
 #
 PLATFORM = unknown
@@ -128,7 +133,7 @@ ifeq (SunOS,$(shell uname))
     # LDSO=$(LD) -G
     CFLAGS+=-D_POSIX_PTHREAD_SEMANTICS -fPIC -Wall -Wno-unused
     NSDLIBS=-lm
-    LIBS+=-lsocket -lnsl -ldl -lposix4 -lpthread -lresolv
+    LIBS+=-lsocket -lnsl -ldl -lposix4 -lpthread -lresolv -R $(RPATH)
     LD=/usr/ccs/bin/ld
     AR=/usr/ccs/bin/ar
     CFLAGS+=-DUSE_PTHREAD_SYSSCOPE=1 -DUSE_DUPHIGH=1 -DHAVE_FORK1=1
@@ -290,6 +295,9 @@ LIBTCL8X=$(NSHOME)/$(TCL8X_DIR)/unix/$(TCL8X_LIB)
 #
 all:
 
+libnspd: $(NSHOME)/nspd/libnspd.a
+	(cd $(NSHOME)/nspd && $(MAKE) all)
+
 libtcl76:
 	(cd $(NSHOME)/$(TCL76_DIR) && $(MAKE) all)
 
@@ -302,7 +310,7 @@ libtcl8x:
 libtcl8x-clean:
 	(cd $(NSHOME)/$(TCL8X_DIR) && $(MAKE) clean)
 
-libnsthread:
+libnsthread: $(NSHOME)/thread/libnsthread.a
 	(cd $(NSHOME)/thread && $(MAKE) all)
 
 libnsthread-clean:

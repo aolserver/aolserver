@@ -6,6 +6,8 @@
 #     servers/server1/modules/nsperm
 #
 
+NSHOME   =  ..
+
 #
 # Module name
 #
@@ -30,7 +32,7 @@ MODDIR   =  nsperm
 #         Makefile.module is usually all you will ever need.
 #
 
-include ../include/Makefile.global
+include $(NSHOME)/include/Makefile.global
 
 all: $(MOD)
 

@@ -109,7 +109,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsext/nsext.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsext/nsext.c,v 1.4 2000/08/15 20:24:33 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 #include "nsextmsg.h"
@@ -333,8 +333,8 @@ Ns_DbDriverInit(char *hDriver, char *configPath)
      */
     
     if (Ns_DbRegisterDriver(hDriver, &(ExtProcs[0])) != NS_OK) {
-        Ns_Log(Error, "Ns_DbDriverInit(%s): "
-	       "Could not register the %s driver.", hDriver, extName);
+        Ns_Log(Error, "nsext: "
+	       "failed to register driver: %s", extName);
     } else {
         ctx = ns_malloc(sizeof(NsExtCtx));
         ctx->connNum = 0;
@@ -348,12 +348,11 @@ Ns_DbDriverInit(char *hDriver, char *configPath)
             ctx->port = 0;
         }
         if (ctx->path == NULL && ctx->host == NULL) {
-            Ns_Log(Error, "Ns_DbDriverInit(%s): "
-		   "LocalDaemon or Remotehost must be specified in config",
-		   hDriver);
+            Ns_Log(Error, "nsext: "
+		   "bad config: localdaemon or remotehost required");
         } else if (ctx->path == NULL && ctx->port == 0) {
-            Ns_Log(Error, "Ns_DbDriverInit(%s): "
-		   "ProxyHost specified without ProxyPort", hDriver);
+            Ns_Log(Error, "nsext: "
+		   "bad config: proxyhost requires proxyport");
         } else {
             if (!Ns_ConfigGetInt(configPath, CONFIG_TIMEOUT, &ctx->timeout)) {
                 ctx->timeout = DEFAULT_TIMEOUT;
@@ -401,7 +400,8 @@ Ns_DbDriverInit(char *hDriver, char *configPath)
             Ns_MutexUnlock(&muCtx);
         }
     }
-    Ns_Log (Notice, "nsext started.  (built on %s/%s)", __DATE__, __TIME__);
+    Ns_Log (Notice, "nsext: module started; built on %s/%s)",
+	    __DATE__, __TIME__);
 
     return status;
 }
@@ -554,8 +554,8 @@ ExtOpenDb(Ns_DbHandle *handle)
 		    char *temp = ns_malloc(RSP_BUFSIZE);
 		    
 		    if (DbProxyIdentify(handle, temp) == NS_OK) {
-			Ns_Log(Notice, "ExtOpenDb(%s): Opened"
-			       "datasource: %s with %s", extName,
+			Ns_Log(Notice, "nsext: "
+			       "datasource opened: %s with %s",
 			       handle->datasource, ctx->ident); 
 			status = NS_OK;
                         Ns_MutexLock(&ctx->muIdent);
@@ -595,22 +595,21 @@ ExtOpenDb(Ns_DbHandle *handle)
 static int
 ExtCloseDb(Ns_DbHandle *handle)
 {
-    static char *asfuncname = "ExtCloseDb";
     NsExtConn   *nsConn;
     int          status = NS_OK;
 
     if (handle == NULL || handle->connection == NULL) {
-	 Ns_Log(Bug, "%s: called with NULL handle.", asfuncname);
-	 status = NS_ERROR;
-	 goto done;
+	Ns_Log(Bug, "nsext: connection handle is null");
+	status = NS_ERROR;
+	goto done;
     }
     
     nsConn = handle->connection;
     DbProxySend(handle, Close, NULL, 0);
 
     if ((status = DbProxyCheckStatus(nsConn, handle)) != NS_OK) {
-        Ns_Log(Error, "%s(%s):  Error closing connection #%d.",
-			asfuncname, extName, nsConn->connNum);
+        Ns_Log(Error, "nsext: error closing connection: %d",
+	       nsConn->connNum);
     } 
     if (handle->connected) {            
 	 /*
@@ -986,13 +985,12 @@ AllDigits(char *str)
 static int 
 ExtResetHandle(Ns_DbHandle *handle)
 {
-    static char *asfuncname = "DbResetHandle";
     char         statusBuf[STATUS_BUFSIZE];
     int          status = NS_ERROR;
     
     if (handle == NULL || handle->connection == NULL) {
 	
-	Ns_Log(Error, "%s:  %s NULL.", asfuncname,
+	Ns_Log(Error, "nsext: %s is null", 
 	       ((handle == NULL)?("handle"):("connection")));
     } else {
 	DbProxySend(handle, ResetHandle, NULL, 0);
@@ -1001,8 +999,9 @@ ExtResetHandle(Ns_DbHandle *handle)
 	    if (strncasecmp(statusBuf, OK_STATUS, 2) == 0) {
 		status = NS_OK;
 	    } else {
-		Ns_Log(Error,"%s: protocol error: received|%s| expected|%s|",
-		       asfuncname, statusBuf, OK_STATUS);
+		Ns_Log(Error,"nsext: "
+		       "protocol error: received|%s| expected|%s|",
+		       statusBuf, OK_STATUS);
 		
 		DbProxyCleanup(handle);
 		status = NS_ERROR;
@@ -1033,7 +1032,6 @@ ExtResetHandle(Ns_DbHandle *handle)
 static int 
 ExtSpStart(Ns_DbHandle *handle, char *procname)
 {
-    static char *asfuncname = "DbSpStart";
     NsExtConn   *nsConn;
     int          status;
 
@@ -1066,7 +1064,6 @@ ExtSpStart(Ns_DbHandle *handle, char *procname)
 static int 
 ExtSpSetParam(Ns_DbHandle *handle, char *args)
 {
-    static char *asfuncname = "DbSpSetParam";
     NsExtConn   *nsConn;
     int          status;
 
@@ -1099,7 +1096,6 @@ ExtSpSetParam(Ns_DbHandle *handle, char *args)
 static int
 ExtSpExec(Ns_DbHandle *handle)
 {
-    static char *asfuncname = "DbSpExec";
     NsExtConn   *nsConn;
     int          retcode = NS_ERROR;
     char         respBuf[RESPBUFMAX];
@@ -1144,15 +1140,14 @@ ExtSpExec(Ns_DbHandle *handle)
 static int
 ExtSpReturnCode(Ns_DbHandle *dbhandle, char *returnCode, int bufsize)
 {
-    static char *asfuncname = "DbSpReturnCode";
     int status = NS_ERROR;
 
     if (DbProxySend(dbhandle, SpReturnCode, NULL, 0) == NS_OK &&
         DbProxyGetString(dbhandle, returnCode, bufsize) == NS_OK) {
         status = NS_OK;
     } else {
-        Ns_Log(Error, "ExtSpReturnCode: "
-	       "ReturnCode command to Proxy Daemon failed");
+        Ns_Log(Error, "nsext: "
+	       "'returncode' command to proxy daemon failed");
         returnCode[0] = '\0';
     }
 
@@ -1179,7 +1174,6 @@ ExtSpReturnCode(Ns_DbHandle *dbhandle, char *returnCode, int bufsize)
 static Ns_Set *
 ExtSpGetParams(Ns_DbHandle *handle)
 {
-    static char         *asfuncname = "DbSpReturnCode";
     int                  status = NS_ERROR;
     int                  i;
     NsExtConn           *nsConn;
@@ -1196,7 +1190,7 @@ ExtSpGetParams(Ns_DbHandle *handle)
         DbProxyCheckStatus(nsConn, handle) == NS_OK) {
         if ((paramList = DbProxyGetList(handle)) != NULL) {
             if ((rowList = DbProxyGetList(handle)) == NULL) {
-                Ns_Log(Error, "ExtSpGetParams: rowList didn't arrive");
+                Ns_Log(Error, "nsext: rowlist did not arrive");
                 Ns_ListFree(paramList, (Ns_ElemVoidProc *) ExtFree);
                 return NULL;
             }
@@ -1276,7 +1270,6 @@ ExtSpGetParams(Ns_DbHandle *handle)
 static void
 ExtFree(void *ptr)
 {
-    static char *asfuncname = "ExtFree";
     DbProxyInputElement *element;
     char                *data;
 
@@ -1308,7 +1301,6 @@ ExtFree(void *ptr)
 static void
 ExtFreeElement(void *ptr)
 {
-    static char *asfuncname = "ExtFree";
     DbProxyInputElement *element;
     char                *data;
 
@@ -1371,9 +1363,8 @@ DbProxyStart(NsExtConn * nsConn)
 static void
 DbProxyStop(NsExtConn * nsConn)
 {
-    Ns_Log(Debug,
-	   "DbProxyStop(%s): Stopping Database Proxy Daemon connection #%d.",
-	   extName, nsConn->connNum);
+    Ns_Log(Debug, "nsext: stopping db proxy daemon connection %d",
+	   nsConn->connNum);
     ns_sockclose(nsConn->socks[0]);
     ns_sockclose(nsConn->socks[1]);
     nsConn->socks[0] = nsConn->socks[1] = INVALID_SOCKET;
@@ -1400,7 +1391,6 @@ static int
 DbProxySend(Ns_DbHandle *dbhandle, Ns_ExtDbCommandCode msgType, char *arg,
 	    int argSize)
 {
-    char           *asfuncname = "DbProxySend";
     int             status = NS_ERROR;
     int             arglen;
     char           *msg;
@@ -1411,12 +1401,12 @@ DbProxySend(Ns_DbHandle *dbhandle, Ns_ExtDbCommandCode msgType, char *arg,
     Ns_DStringInit(&ds);
 
     if ((msg = Ns_ExtDbMsgCodeToName(msgType)) == NULL) {
-        Ns_Log(Bug,
-               "DbProxySend: received unknown message type for connection #%d",
+        Ns_Log(Bug, "nsext: "
+               "unknown message type received for connection %d",
                nsConn->connNum);
     } else if (arg == NULL && Ns_ExtDbMsgRequiresArg(msgType)) {
-        Ns_Log(Bug,
-               "DbProxySend: %s message requires argument (connection #%d)",
+        Ns_Log(Bug, "nsext: "
+	       "'%s' message requires argument (connection %d)",
                Ns_ExtDbMsgCodeToName(msgType), nsConn->connNum);
     } else {
 
@@ -1437,7 +1427,7 @@ DbProxySend(Ns_DbHandle *dbhandle, Ns_ExtDbCommandCode msgType, char *arg,
                            Write, nsConn->ctx->timeout, dbhandle,
 			   0) == NS_ERROR) {
 	    
-            Ns_Log(Error, "DbProxySend: error sending buffer(%s): %s",
+            Ns_Log(Error, "nsext: error sending buffer(%s): %s",
                    ds.string, strerror(errno));
         } else {
             if (nsConn->ctx->ioTrace) {
@@ -1479,10 +1469,8 @@ DbProxyGetPingReply(Ns_DbHandle *dbhandle)
         if (strcasecmp(statusBuf, OK_STATUS) == 0) {
             status = NS_OK;
         } else {
-            Ns_Log(Error,
-		   "DbProxyGetPingReply: protocol error: "
-		   "received|%s| expected|%s|",
-		   statusBuf, OK_STATUS);
+            Ns_Log(Error, "nsext: protocol error on ping: "
+		   "received|%s| expected|%s|", statusBuf, OK_STATUS);
 	    
             DbProxyCleanup(dbhandle);
             status = NS_ERROR;
@@ -1537,9 +1525,8 @@ DbProxyCheckStatus(NsExtConn * nsConn, Ns_DbHandle *handle)
 	    Ns_DStringTrunc(&handle->dsExceptionMsg, 0);
 	} else if (strstr(statusBuf, SILENT_ERROR_STATUS) != NULL) {
 	    if (verbose) {
-		Ns_Log(Debug,
-		       "DbProxyCheckStatus: silent error string: \"%s\"."
-		       " can be ignored.", statusBuf);
+		Ns_Log(Debug, "nsext: "
+		       "silent error string '%s'", statusBuf);
 	    }
         } else {
 	    /*
@@ -1553,21 +1540,16 @@ DbProxyCheckStatus(NsExtConn * nsConn, Ns_DbHandle *handle)
 		 * generic error message, not a db exception, just log msg
 		 */
 		
-                Ns_Log(Error,
-                    "DbProxyCheckStatus: database error message: \"%s\"",
-                    statusBuf);
+                Ns_Log(Error, "nsext: "
+		       "database error message: '%s'", statusBuf);
             } else {
                 *p++ = '\0';
                 if (*p == '\0') {
-                    Ns_Log(Error,
-			   "DbProxyCheckStatus: "
-			   "Invalid exception status string: \"%s\"",
-			   statusBuf);
+                    Ns_Log(Error, "nsext: "
+			   "invalid exception status string: '%s'", statusBuf);
                 } else {
                     exceptionMsg = p;
-                    Ns_Log(Debug,
-			   "DbProxyCheckStatus: "
-			   "received exception code=%s msg=%s",
+                    Ns_Log(Debug, "nsext: received exception code=%s msg=%s",
 			   exceptionCode, exceptionMsg);
                     strcpy(handle->cExceptionCode, exceptionCode);
                     Ns_DStringFree(&handle->dsExceptionMsg);
@@ -1622,13 +1604,12 @@ DbProxyTimedIO(SOCKET sock, char *buf, int nbytes, int flags,
         }
         if (nsel <= 0 || !FD_ISSET(sock, &set)) {
             if (nsel == 0) {
-                Ns_Log(Warning,
-		       "ExtDb:  Proxy I/O timeout (exceeded %d seconds).",
-		       timeout);
+                Ns_Log(Warning, "nsext: "
+		       "exceeded proxy i/o timeout (%d seconds)", timeout);
                 DbProxyCleanup(dbhandle);
             } else {
-                Ns_Log(Error, "DbProxyTimedIO: select() of %d failed: %s "
-		       "(code %d)",
+                Ns_Log(Error, "nsext: "
+		       "select() of %d failed: %s (code %d)",
 		       sock, strerror(errno), errno);
             }
             status = NS_ERROR;
@@ -1669,9 +1650,10 @@ DbProxyTimedIO(SOCKET sock, char *buf, int nbytes, int flags,
             if (iotype == Write || ioreturn <= 0 || readExact) {
                 status = NS_ERROR;
                 if (ErrnoPeerClose(errno)) {
-                    Ns_Log(Warning, "ExtDb:  Proxy dropped connection.");
+                    Ns_Log(Warning, "nsext: "
+			   "connection dropped by external proxy daemon");
                 } else {
-                    Ns_Log(Error, "DbProxyTimedIO: socket %s %d failed: "
+                    Ns_Log(Error, "nsext: socket %s %d failed: "
 			   "%s (code %d), ioreturn=%d, nbytes=%d",
 			   iotype == Write ? "write to" : "read from", sock,
 			   strerror(errno), errno,
@@ -1743,9 +1725,8 @@ DbProxyGetString(Ns_DbHandle *dbhandle, char *buf, int maxbuf)
             Read, nsConn->ctx->timeout, dbhandle, 0) >= 0) {
 
         if ((nlTailPos = strchr(buf, (int) '\n')) == NULL) {
-            Ns_Log(Error, "DBProxyGetString: "
-		   "protocol error: no record separator(NEWLINE) in: %s",
-		   buf);
+            Ns_Log(Error, "nsext: "
+		   "protocol error: no record separator in '%s'", buf);
             DbProxyCleanup(dbhandle);
         } else {
             strSize = nlTailPos - buf;
@@ -1798,14 +1779,12 @@ DbProxyGetList(Ns_DbHandle *dbhandle)
         if ((status = DbProxyGetString(dbhandle, sizebuf,
 				       MAX_SIZEDIGITS)) == NS_OK) {
             if (!AllDigits(sizebuf)) {
-                Ns_Log(Error, "DbProxyGetList: "
-		       "protocol error: read %s, expected number",
-		       sizebuf);
+                Ns_Log(Error, "nsext: "
+		       "protocol error: number expected, got '%s'", sizebuf);
                 status = NS_ERROR;
             } else if ((size = atoi(sizebuf)) > nsConn->ctx->maxElementSize) {
-                Ns_Log(Error, "DbProxyGetList: "
-		       "elements size %d exceeds limit of %d\n.",
-                       size, nsConn->ctx->maxElementSize);
+                Ns_Log(Error, "nsext: "
+		       "exceeded element size limit of %d", size);
                 status = NS_ERROR;
             } else if (size == END_LIST_VAL) {
                 done = 1;
@@ -1819,8 +1798,8 @@ DbProxyGetList(Ns_DbHandle *dbhandle)
                 if (size && DbProxyTimedIO(nsConn->socks[0], datum, size, 0,
                         Read, nsConn->ctx->timeout, dbhandle, 1) != NS_OK) {
 		    
-                    Ns_Log(Error, "DbProxyGetList: read error: %s",
-                           strerror(errno));
+                    Ns_Log(Error, "nsext: "
+			   "read error: %s", strerror(errno));
                     status = NS_ERROR;
                 } else {
                     datum[size] = '\0';
@@ -1899,8 +1878,8 @@ DbProxyIdentify(Ns_DbHandle *dbhandle, char *identbuf)
 	 * result is now in identbuf
 	 */
     } else {
-        Ns_Log(Error, "DbProxyIdentify: "
-	       "Identify command to Proxy Daemon failed");
+        Ns_Log(Error, "nsext: "
+	       "'identify' command to proxy daemon failed");
         sprintf(identbuf, "Error: Identify command to Proxy Daemon failed\n");
 	status = NS_ERROR;
     }
@@ -1933,8 +1912,8 @@ DbProxyGetTypes(Ns_DbHandle *dbhandle, char *typesbuf)
         DbProxyGetString(dbhandle, typesbuf, RSP_BUFSIZE) == NS_OK) {
         status = NS_OK;
     } else {
-        Ns_Log(Error, "DbProxyGetTypes: "
-	       "GetTypes command to Proxy Daemon failed");
+        Ns_Log(Error, "nsext: "
+	       "'gettypes' command to proxy daemon failed");
         typesbuf[0] = '\0';
     }
     return status;
@@ -1966,8 +1945,8 @@ DbProxyResultId(Ns_DbHandle *dbhandle, char *idbuf)
         DbProxyGetString(dbhandle, idbuf, RSP_BUFSIZE) == NS_OK) {
         status = NS_OK;
     } else {
-        Ns_Log(Error, "DbProxyResultId: "
-	       "ResultId command to Proxy Daemon failed");
+        Ns_Log(Error, "nsext: "
+	       "'resultid' command to proxy daemon failed");
         idbuf[0] = '\0';
     }
     return status;
@@ -1999,8 +1978,8 @@ DbProxyResultRows(Ns_DbHandle *dbhandle, char *rowCountStr)
         DbProxyGetString(dbhandle, rowCountStr, RSP_BUFSIZE) == NS_OK) {
         status = NS_OK;
     } else {
-        Ns_Log(Error, "DbProxyResultRows: "
-	       "ResultRows command to Proxy Daemon failed");
+        Ns_Log(Error, "nsext: "
+	       "'resultrows' command to proxy daemon failed");
         rowCountStr[0] = '\0';
     }
     return status;
@@ -2034,8 +2013,8 @@ DbProxySetMaxRows(Ns_DbHandle *dbhandle, char *maxRowsStr)
 	
         status = NS_OK;
     } else {
-        Ns_Log(Error, "DbProxySetMaxRows: "
-	       "SetMaxRows command to Proxy Daemon failed");
+        Ns_Log(Error, "nsext: "
+	       "'setmaxrows' command to proxy daemon failed");
     }
     return status;
 }
@@ -2066,8 +2045,8 @@ DbProxyTraceOn(Ns_DbHandle *dbhandle, char *filepath)
         DbProxyGetPingReply(dbhandle) == NS_OK) {
         status = NS_OK;
     } else {
-        Ns_Log(Error, "DbProxyTraceOn: "
-	       "TraceOn command to Proxy Daemon failed");
+        Ns_Log(Error, "nsext: "
+	       "'traceon' command to proxy daemon failed");
     }
     
     return status;
@@ -2100,8 +2079,8 @@ DbProxyTraceOff(Ns_DbHandle *dbhandle)
 	
         status = NS_OK;
     } else {
-        Ns_Log(Error, "DbProxyTraceOff: "
-	       "TraceOff command to Proxy Daemon failed");
+        Ns_Log(Error, "nsext: "
+	       "'traceoff' command to proxy daemon failed");
     }
     
     return status;
@@ -2367,9 +2346,8 @@ DbProxyCopyFromRemoteFile(Ns_DbHandle *dbhandle, char *destFile,
 		     * readEl->size < 0
 		     */
 		    
-                    Ns_Log(Bug,
-			   "DbProxyCopyFromRemoteFile: negative size from "
-			   "remote read");
+                    Ns_Log(Bug, "nsext: "
+			   "negative size from remote read");
                     sprintf(errbuf,
 			    "Read error from Proxy Daemon (negative size)");
                 }
@@ -2470,10 +2448,10 @@ NetProxy(NsExtConn *nsConn, char *host, int port)
 {
     nsConn->socks[0] = nsConn->socks[1] = Ns_SockConnect(host, port);
     if (nsConn->socks[0] == INVALID_SOCKET) {
-        Ns_Log(Error, "ExtDb:  Connect failed:  %s:%d", host, port);
+        Ns_Log(Error, "nsext: connect failure: %s:%d", host, port);
         return NS_ERROR;
     }
-    Ns_Log(Notice, "ExtDb:  Connected:  %s:%d", host, port);
+    Ns_Log(Notice, "nsext: connect success: %s:%d", host, port);
     return NS_OK;
 }
 
@@ -2512,12 +2490,12 @@ LocalProxy(NsExtConn * nsConn)
     Ns_CloseOnExec(out[1]);
 
     if (ns_sockpair(in) < 0) {
-        Ns_Log(Error, "ExtDb:  Could not create input socket pipes.");
+        Ns_Log(Error, "nsext: failed to create input socket pipes");
     } else {
         if (ns_sockpair(out) < 0) {
 	    ns_sockclose(in[0]);
 	    ns_sockclose(in[1]);
-            Ns_Log(Error, "ExtDb:  Could not create output socket pipes.");
+            Ns_Log(Error, "nsext: failed to create output socket pipes");
         } else {
             argv[0] = nsConn->ctx->path;
             argv[1] = NULL;
@@ -2526,14 +2504,13 @@ LocalProxy(NsExtConn * nsConn)
             ns_sockclose(out[0]);
             ns_sockclose(in[1]);
             if (pid == -1) {
-                Ns_Log(Error, "ExtDb:  Spawn failed:  %s", nsConn->ctx->path);
+                Ns_Log(Error, "nsext: spawn failed for '%s'",
+		       nsConn->ctx->path);
             } else {
                 if (Ns_WaitForProcess(pid, &code) == NS_OK) {
                     if (code != 0) {
-                        Ns_Log(Error, "ExtDb: "
-			       "Proxy startup returned non-zero exit code: "
-			       "%d",
-			       nsConn->ctx->path, code);
+                        Ns_Log(Error, "nsext: "
+			       "proxy returned non-zero exit code: %d", code);
                     } else {
                         nsConn->socks[0] = in[0];
                         nsConn->socks[1] = out[1];

@@ -40,7 +40,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nssock/Attic/sock.c,v 1.1 2000/07/13 18:43:54 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nssock/Attic/sock.c,v 1.2 2000/08/15 20:24:33 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 
@@ -216,14 +216,12 @@ Ns_ModuleInit(char *server, char *name)
 
 #ifdef SSL 
     if (NsSSLInitialize(server, name) != NS_OK) { 
-        Ns_Log(Error, "%s:Ns_ModuleInit: "
-	       "could not initialize SSL", DRIVER_NAME);
+        Ns_Log(Error, "%s: failed to initialize ssl driver", DRIVER_NAME);
         return NS_ERROR; 
     } 
     cert = Ns_ConfigGet(path, "certfile"); 
     if (cert == NULL) { 
-        Ns_Log(Warning, "%s:Ns_ModuleInit: "
-	       "certfile not specified - will not listen.", DRIVER_NAME); 
+        Ns_Log(Warning, "%s: certfile not specified", DRIVER_NAME); 
         return NS_OK; 
     } 
 #endif 
@@ -259,15 +257,15 @@ Ns_ModuleInit(char *server, char *name)
 	 */
 
         if (he == NULL || he->h_name == NULL) {
-            Ns_Log(Error, "%s:Ns_ModuleInit(%s): "
-		   "Could not resolve '%s':  %s", DRIVER_NAME,
+            Ns_Log(Error, "%s: "
+		   "failed to resolve '%s': %s", DRIVER_NAME,
 		   name, host ? host : Ns_InfoHostname(), strerror(errno));
 	    return NS_ERROR;
 	}
         if (*(he->h_addr_list) == NULL) {
-            Ns_Log(Error, "%s:Ns_ModuleInit(%s): "
-		   "NULL address list in (derived) host entry for '%s'",
-		   DRIVER_NAME, name, he->h_name);
+            Ns_Log(Error, "%s: failed to get address: "
+		   "null address list in (derived) host entry for '%s'",
+		   DRIVER_NAME, he->h_name);
 	    return NS_ERROR;
 	}
         memcpy(&ia.s_addr, *(he->h_addr_list), sizeof(ia.s_addr));
@@ -355,11 +353,11 @@ Ns_ModuleInit(char *server, char *name)
 
 #ifdef SSL
 #ifdef SSL_EXPORT 
-    Ns_Log(Notice, "nsssl:Ns_ModuleInit: " 
-           "initialized with EXPORT 40-bit/512-bit encryption."); 
+    Ns_Log(Notice, "%s: initialized with 40-bit export encryption",
+	   DRIVER_NAME);
 #else 
-    Ns_Log(Notice, "nsssl:Ns_ModuleInit: " 
-           "initialized with DOMESTIC 128-bit/1024-bit encryption."); 
+    Ns_Log(Notice, "%s: initialized with 128-bit domestic encryption",
+	   DRIVER_NAME);
 #endif 
 #endif
 
@@ -392,15 +390,15 @@ SockStart(char *server, char *label, void **drvDataPtr)
     
     sdPtr->lsock = Ns_SockListen(sdPtr->bindaddr, sdPtr->port);
     if (sdPtr->lsock == INVALID_SOCKET) {
-	Ns_Log(Error, "%s:SockStart: could not listen on %s:%d: %s",
+	Ns_Log(Error, "%s: failed to listen on %s:%d: '%s'",
 	       sdPtr->name, sdPtr->address ? sdPtr->address : "*",
 	       sdPtr->port, ns_sockstrerror(ns_sockerrno));
 	return NS_ERROR;
     }
     if (sockThread == NULL) {
 	if (ns_sockpair(trigPipe) != 0) {
-	    Ns_Fatal("ns_sockpair() failed: %s",
-		     ns_sockstrerror(ns_sockerrno));
+	    Ns_Fatal("%s: ns_sockpair() failed: '%s'",
+		     DRIVER_NAME, ns_sockstrerror(ns_sockerrno));
 	}
 	Ns_ThreadCreate(SockThread, NULL, 0, &sockThread);
     }
@@ -504,20 +502,7 @@ SockThread(void *ignored)
 	sdPtr = nextPtr;
     }
 
-#ifdef SSL
-#ifdef SSL_EXPORT 
-    Ns_Log(Notice, "%s: "
-	   "accepting connections (EXPORT 40-bit/512-bit encryption).",
-	   DRIVER_NAME); 
-#else 
-    Ns_Log(Notice, "%s: "
-	   "accepting connections (DOMESTIC 128-bit/1024-bit encryption).",
-	   DRIVER_NAME); 
-#endif 
-#else
-    Ns_Log(Notice, "%s: "
-	   "accepting connections", DRIVER_NAME);
-#endif
+    Ns_Log(Notice, "%s: accepting connections", DRIVER_NAME);
 
     stop = 0;
     do {
@@ -621,8 +606,8 @@ SockDrv *sdPtr = (SockDrv *) arg;
     if (sockThread != NULL) {
     	Ns_Log(Notice, "%s: exiting: triggering shutdown", DRIVER_NAME);
 	if (send(trigPipe[1], "", 1, 0) != 1) {
-	    Ns_Fatal("trigger send() failed: %s",
-		     ns_sockstrerror(ns_sockerrno));
+	    Ns_Fatal("%s: trigger send() failed: %s",
+		     DRIVER_NAME, ns_sockstrerror(ns_sockerrno));
 	}
 	Ns_ThreadJoin(&sockThread, NULL);
 	sockThread = NULL;

@@ -1,5 +1,7 @@
 
-include ../include/Makefile.global
+NSHOME     =  ..
+
+include $(NSHOME)/include/Makefile.global
 
 #
 # Specify the name of the library.
@@ -12,7 +14,7 @@ TARGET	   =  libnspd.a
 #
 
 OBJS       =  listen.o log.o main.o
-NSEXTMSG   =  ../nsext/nsextmsg.o
+NSEXTMSG   =  $(NSHOME)/nsext/nsextmsg.o
 
 #
 # Link the objects into a library.
@@ -26,6 +28,8 @@ $(TARGET): $(OBJS) $(NSEXTMSG)
 
 #
 # Installation (empty rule)
+#
+#  Note: libnspd.a should be put in the AOLserver binary distribution here.
 #
 install:
 

@@ -52,7 +52,7 @@
  *
  */
 
-static const char *RCSID = "@(#): $Header: /Users/dossy/Desktop/cvs/aolserver/nssock/Attic/ssltcl.c,v 1.1 2000/07/13 18:43:54 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#): $Header: /Users/dossy/Desktop/cvs/aolserver/nssock/Attic/ssltcl.c,v 1.2 2000/08/15 20:24:33 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 #include "ssl.h"
@@ -146,13 +146,12 @@ int
 Nsssle_Init(Tcl_Interp *interp)
 {
 #ifdef SSL_EXPORT
-    Ns_Log(Notice, "nsssl:Nsssle_Init: "
-	   "export 40-bit/512-bit version (stand-alone mode)");
+    Ns_Log(Notice, "nsssl: "
+	   "40-bit export encryption version starting in stand-alone mode");
     InitCommands(interp);
 #else
-    Ns_Log(Fatal, "nsssl:Nsssle_Init: "
-	   "only the export 40-bit/512-bit version can be named "
-	   "'nsssle.so'.");
+    Ns_Log(Fatal, "nsssl: "
+	   "128-bit domestic encryption not supported by this module");
     return TCL_ERROR;
 #endif    
 
@@ -180,13 +179,12 @@ int
 Nsssl_Init(Tcl_Interp *interp)
 {
 #ifdef SSL_EXPORT
-    Ns_Log(Fatal, "nsssl:Nsssl_Init: "
-	   "only the domestic 128-bit/1024-bit version can be named "
-	   "'nsssl.so'");
+    Ns_Log(Fatal, "nsssl: "
+	   "40-bit export encryption not supported by this module");
     return TCL_ERROR;
 #else
-    Ns_Log(Notice, "nsssl:Nsssl_Init: "
-	   "domestic 128-bit/1024-bit version (stand-alone mode)");
+    Ns_Log(Notice, "nsssl: "
+	   "128-bit domestic encryption version starting in stand-alone mode");
     InitCommands(interp);
 #endif
     
@@ -251,8 +249,7 @@ InitCommands(Tcl_Interp *interp)
 {
     
     if (NsSSLInitialize(NULL, NULL) != NS_OK) {
-	Ns_Log(Error, "nsssl:InitCommands: "
-	       "could not initialize nsssl (stand-alone mode)");
+	Ns_Log(Error, "nsssl: failed to initialize nsssl in stand-alone mode");
 	return TCL_ERROR;
     }
     
@@ -852,8 +849,8 @@ OctetStringCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
             B_DestroyAlgorithmObject(&asciiDecoder);
 
             if (err != 0) {
-                Ns_Log(Error, "osi_octet_string frombase64 encountered "
-                       "BSAFE error %d.", err);
+                Ns_Log(Error, "nsssl: 'osi_octet_string frombase64' failed, "
+		       "bsafe error %d", err);
                 break;
             }
         } else if (strcasecmp(argv[1], "tobase64") == 0) {
@@ -936,8 +933,8 @@ OctetStringCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
             B_DestroyAlgorithmObject(&asciiEncoder);
 
             if (err != 0) {
-                Ns_Log(Error, "osi_octet_string tobase64 encountered "
-                       "BSAFE error %d.", err);
+                Ns_Log(Error, "nsssl: 'osi_octet_string tobase64' failed, "
+		       "bsafe error %d", err);
                 break;
             }
         } else {
@@ -1076,9 +1073,9 @@ RsaKeyCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
     } while (0);
 
     if (err != 0) {
-        Ns_Log(Error, "tcl command: ssl_rsa_key %s encountered "
-               "BSAFE error %d.", argv[1], err);
-        Tcl_AppendResult(interp, "encountered BSAFE error.", NULL);
+        Ns_Log(Error, "nsssl: 'ssl_rsa_key %s' failed, bsafe error %d",
+	       argv[1], err);
+        Tcl_AppendResult(interp, "encountered BSAFE error", NULL);
     }
 
     Ns_DStringFree(&ds);
@@ -1211,8 +1208,8 @@ SignatureCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
     } while (0);
 
     if (err != 0) {
-        Ns_Log(Error, "ssl_signature encountered BSAFE error %d.", err);
-        Tcl_AppendResult(interp, "encountered BSAFE error.", NULL);
+        Ns_Log(Error, "nsssl: 'ssl_signature' failed, bsafe error %d", err);
+        Tcl_AppendResult(interp, "encountered BSAFE error", NULL);
     }
 
     Ns_DStringFree(&ds);
@@ -1375,8 +1372,8 @@ EncryptCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
     } while (0);
 
     if (err != 0) {
-        Ns_Log(Error, "ssl_encrypt encountered BSAFE error %d.", err);
-        Tcl_AppendResult(interp, "encountered BSAFE error.", NULL);
+        Ns_Log(Error, "nsssl: 'ssl_encrypt' failed, bsafe error %d", err);
+        Tcl_AppendResult(interp, "encountered BSAFE error", NULL);
     }
 
     Ns_DStringFree(&ds);
@@ -1541,8 +1538,8 @@ DecryptCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
     } while (0);
 
     if (err != 0) {
-        Ns_Log(Error, "ssl_decrypt encountered BSAFE error %d.", err);
-        Tcl_AppendResult(interp, "encountered BSAFE error.", NULL);
+        Ns_Log(Error, "nsssl: 'ssl_decrypt' failed, bsafe error %d", err);
+        Tcl_AppendResult(interp, "encountered BSAFE error", NULL);
     }
 
     Ns_DStringFree(&ds);
@@ -1651,8 +1648,8 @@ DigestCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
     } while (0);
 
     if (err != 0) {
-        Ns_Log(Error, "ssl_digest encountered BSAFE error %d.", err);
-        Tcl_AppendResult(interp, "encountered BSAFE error.", NULL);
+        Ns_Log(Error, "nsssl: 'ssl_digest' failed, bsafe error %d", err);
+        Tcl_AppendResult(interp, "encountered BSAFE error", NULL);
     }
 
     Ns_DStringFree(&ds);

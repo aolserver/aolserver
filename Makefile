@@ -18,7 +18,7 @@ include $(NSHOME)/include/Makefile.global
 #  Choose the modules you want and put them in the MODULES variable below.
 #  A typical web server might load nssock, nslog, and nsperm.
 #
-#   nssock      -- serves HTTP and HTTPS
+#   nssock      -- serves HTTP (nssock) and HTTPS (nsssl)
 #   nscgi       -- CGI module
 #   nscp        -- Control port remote administration interface
 #   nslog       -- Common log format module
@@ -34,9 +34,8 @@ include $(NSHOME)/include/Makefile.global
 #   nssolid     -- Solid driver (requires Solid library)
 #
 
-MODULES   = nssock nscgi nscp nslog nsperm nsext nspd nsftp nsvhr
-#MODULES  = nspostgres nssybpd nssolid nsunix
-
+MODULES   =  nssock nscgi nscp nslog nsperm nsext nspd \
+             nsftp nsunix nsvhr nspostgres nssybpd nssolid
 
 #
 # AOLserver main executable statically-links the thread and tcl libraries.

@@ -1,4 +1,6 @@
 
+NSHOME   =  ..
+
 #
 # Module name
 #
@@ -10,5 +12,5 @@ MOD      =  nscp.so
 OBJS     =  nscp.o
 
 
-include  ../include/Makefile.module
+include  $(NSHOME)/include/Makefile.module
 

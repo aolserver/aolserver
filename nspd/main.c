@@ -34,7 +34,7 @@
  *	The proxy-side library for external drivers. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nspd/main.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nspd/main.c,v 1.4 2000/08/15 20:24:33 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "pd.h"
 #include "nspd.h"
@@ -186,8 +186,8 @@ Ns_PdSendData(char *data, int len)
         writeReturn = write(1, data, len);
     } while ((writeReturn < 0) && (errno == EINTR));
     if (writeReturn != len) {
-        Ns_PdLog(Error, "Ns_PdSendData: write error: "
-		 "%s while writing %d bytes", strerror(errno), len);
+        Ns_PdLog(Error, "nspd: "
+		 "error '%s' writing %d bytes", strerror(errno), len);
     }
 }
 
@@ -280,15 +280,15 @@ Ns_PdNewRowInfo(int ncols)
     Ns_PdRowInfo *rowInfo;
 
     if ((rowInfo = malloc(sizeof(Ns_PdRowInfo))) == NULL) {
-        Ns_PdLog(Error, "Ns_PdNewRowInfo(%d): rowinfo malloc(%d) error: %s",
-		 ncols, sizeof(Ns_PdRowInfo), strerror(errno));
+        Ns_PdLog(Error, "nspd: rowinfo malloc(%d) error: '%s'",
+		 sizeof(Ns_PdRowInfo), strerror(errno));
     } else {
         rowInfo->numColumns = ncols;
 	rowInfo->rowData = malloc(sizeof(Ns_PdRowData) * ncols);
 	if (rowInfo->rowData == NULL) {
-            Ns_PdLog(Error, "Ns_PdNewRowInfo(%d): "
-		     "rowdata malloc(%d) error: %s",
-		     ncols, sizeof(Ns_PdRowData) * ncols, strerror(errno));
+            Ns_PdLog(Error, "nspd: "
+		     "rowdata malloc(%d) error: '%s'",
+		     sizeof(Ns_PdRowData) * ncols, strerror(errno));
             free(rowInfo);
             rowInfo = NULL;
         }
@@ -566,11 +566,10 @@ Ns_PdSqlbufEnough(char **buf, int *size, int howmuch)
     int status = NS_OK;
 
     if (*size < howmuch) {
-        Ns_PdLog(Notice, "Ns_PdSqlBufEnough: "
+        Ns_PdLog(Notice, "nspd: "
 		 "reallocing sqlbuf from %d to %d", *size, howmuch);
         if ((*buf = (char *) realloc(*buf, howmuch)) == NULL) {
-            Ns_PdLog(Error, "Ns_PdSqlBufEnough: "
-		     "realloc error (%s)", strerror(errno));
+            Ns_PdLog(Error, "nspd: realloc error '%s'", strerror(errno));
             status = NS_ERROR;
         } else {
             *size = howmuch;
@@ -633,9 +632,9 @@ PdMainLoop(void)
     char           *cmdArg;
     void           *dbhandle;
 
-    Ns_PdLog(Notice, "PdMainLoop: started");
+    Ns_PdLog(Notice, "nspd: starting");
     if ((dbhandle = Ns_PdDbInit()) == NULL) {
-        Ns_PdLog(Error, "PdMainLoop: Ns_PdDbInit failure");
+        Ns_PdLog(Error, "nspd: initialization failure");
     } else {
         while (readInput) {
             if (GetMsg(buf, &cmdName, &cmdArg) == NS_OK) {
@@ -679,7 +678,7 @@ PdPort(char *arg)
 
     port = atoi(arg);
     if (port <= 0 || port >= 65535) {
-        Ns_PdLog(Error, "PdPort: invalid port:  %s", arg);
+        Ns_PdLog(Error, "nspd: invalid port '%s'", arg);
         Ns_PdExit(1);
     }
     return port;
@@ -713,21 +712,21 @@ GetMsg(char *buf, char **cmdName, char **cmdArg)
 
     if ((bytesRead = RecvData(buf, CMDMAX)) > 0) {
         if ((p = strchr(buf, '\n')) == NULL) {
-            Ns_PdLog(Error, "GetMsg: protocol error: "
+            Ns_PdLog(Error, "nspd: protocol error: "
 		     "no newline terminator for command name");
         } else {
             *p++ = '\0';
             *cmdName = buf;
             pargsize = p;
             if ((p = strchr(pargsize, '\n')) == NULL) {
-                Ns_PdLog(Error, "GetMsg: protocol error: "
-			 "no newline terminator for arglen of command: %s",
+                Ns_PdLog(Error, "nspd: protocol error: "
+			 "no newline terminator for arglen of command: '%s'",
 			 *cmdName);
             } else {
                 *p++ = '\0';
                 argsize = atoi(pargsize);
 		if (argsize > (CMDMAX - (p - buf))) {
-                    Ns_PdLog(Error, "GetMsg: "
+                    Ns_PdLog(Error, "nspd: "
 			     "arglen of %d for %s command is greater than "
 			     "configured max %d", argsize, *cmdName, CMDMAX);
                 } else {
@@ -784,9 +783,9 @@ DispatchCmd(char *cmd, char *arg, void *dbhandle)
     Ns_ExtDbCommandCode cmdcode;
 
     if ((cmdcode = Ns_ExtDbMsgNameToCode(cmd)) == NS_ERROR) {
-        Ns_PdLog(Error, "DispatchCmd: unknown message: %s", cmd);
+        Ns_PdLog(Error, "nspd: unknown dispatch message '%s'", cmd);
     } else if (arg == NULL && Ns_ExtDbMsgRequiresArg(cmdcode)) {
-        Ns_PdLog(Error, "DispatchCmd: msg: %s requires argument", cmd);
+        Ns_PdLog(Error, "nspd: dispatch message requires argument");
     } else {
         switch (cmdcode) {
         case Flush:
@@ -805,13 +804,13 @@ DispatchCmd(char *cmd, char *arg, void *dbhandle)
             Ns_PdDbGetRow(dbhandle, arg);
             break;
         case GetTableInfo:
-	    Ns_PdLog(Error, "DispatchCmd: unsupported command: GetTableInfo");
+	    Ns_PdLog(Error, "nspd: unsupported dispatch command: GetTableInfo");
             break;
         case TableList:
-	    Ns_PdLog(Error, "DispatchCmd: unsupported command: TableList");
+	    Ns_PdLog(Error, "nspd: unsupported dispatch command: TableList");
             break;
         case BestRowId:
-	    Ns_PdLog(Error, "DispatchCmd: unsupported command: BestRowId");
+	    Ns_PdLog(Error, "nspd: unsupported dispatch command: BestRowId");
             break;
         case Close:
             Ns_PdDbClose(dbhandle);
@@ -919,7 +918,7 @@ DispatchCmd(char *cmd, char *arg, void *dbhandle)
 static void
 PdPing()
 {
-    Ns_PdLog(Trace, "PgPing: statusrequest:");
+    Ns_PdLog(Trace, "nspd: responding to ping");
     Ns_PdSendString(OK_STATUS);
 }
 
@@ -955,12 +954,12 @@ PdOpenFile(char *openParams)
     if (matchedArgs != 2) {
         sprintf(errbuf, "Error parsing open parameters: %s",
             openParams);
-        Ns_PdLog(Error, "PdOpenFile: %s", errbuf);
+        Ns_PdLog(Error, "nspd: '%s'", errbuf);
         Ns_PdSendString(errbuf);
     } else if ((fd = open(pathName, oflags, 0)) < 0) {
         sprintf(errbuf, "Can't open file %s (oflags=%d): %s",
             pathName, oflags, strerror(errno));
-        Ns_PdLog(Error, "PdOpenFile: %s", errbuf);
+        Ns_PdLog(Error, "nspd: '%s'", errbuf);
         Ns_PdSendString(errbuf);
     } else {
         Ns_PdSendString(OK_STATUS);
@@ -997,7 +996,7 @@ PdCloseFile(char *fdStr)
     if (close(fd) < 0) {
         sprintf(errbuf, "Close error on file descriptor %d: %s",
             fd, strerror(errno));
-        Ns_PdLog(Error, "PdCloseFile: %s", errbuf);
+        Ns_PdLog(Error, "nspd: failed closing file '%s'", errbuf);
         Ns_PdSendString(errbuf);
     } else {
         Ns_PdSendString(OK_STATUS);
@@ -1037,14 +1036,14 @@ PdReadFile(char *readParams)
     if (matchedArgs != 3) {
         sprintf(errbuf, "Error parsing read parameters: %s",
 		readParams);
-        Ns_PdLog(Error, "PdReadFile: %s", errbuf);
+        Ns_PdLog(Error, "nspd: failed reading file: '%s'", errbuf);
         Ns_PdSendString(errbuf);
     } else {
         lseek(fd, offset, SEEK_SET);
         if ((bytesRead = read(fd, readBuf, bytecount)) < 0) {
             sprintf(errbuf, "Read error on fd %d (%d bytes): %s",
 		    fd, bytecount, strerror(errno));
-            Ns_PdLog(Error, "PdReadFile: %s", errbuf);
+            Ns_PdLog(Error, "failed reading file: '%s'", errbuf);
             Ns_PdSendString(errbuf);
         } else {
             Ns_PdSendString(OK_STATUS);
@@ -1088,7 +1087,7 @@ PdWriteFile(char *writeParams)
     if (matchedArgs != 3) {
         sprintf(errbuf, "Error parsing write parameters: %s",
 		writeParams);
-        Ns_PdLog(Error, "PdWriteFile: %s", errbuf);
+        Ns_PdLog(Error, "nspd: failed writing file: '%s'", errbuf);
         Ns_PdSendString(errbuf);
     } else {
         for (pw = writeParams; *pw;) {
@@ -1102,7 +1101,7 @@ PdWriteFile(char *writeParams)
         if (write(fd, pw, bytecount) != bytecount) {
             sprintf(errbuf, "Write error to fd %d (%d bytes): %s",
 		    fd, bytecount, strerror(errno));
-            Ns_PdLog(Error, "PdWriteFile: %s", errbuf);
+            Ns_PdLog(Error, "nspd: failed writing file: '%s'", errbuf);
             Ns_PdSendString(errbuf);
         } else {
             Ns_PdSendString(OK_STATUS);
@@ -1136,7 +1135,7 @@ PdDeleteFile(char *fileName)
     if (unlink(fileName) < 0) {
         sprintf(errbuf, "Can't delete file %s: %s",
             fileName, strerror(errno));
-        Ns_PdLog(Error, "PdDeleteFile: %s", errbuf);
+        Ns_PdLog(Error, "nspd: failed deleting file: '%s'", errbuf);
         Ns_PdSendString(errbuf);
     } else {
         Ns_PdSendString(OK_STATUS);
@@ -1177,14 +1176,15 @@ PdCreateTmpFile()
         if (tmpName[0] == '\0') {
             sprintf(errbuf, "mktemp of %s failed", tmpName);
             Ns_PdSendString(errbuf);
-            Ns_PdLog(Error, "PdCreateTmpFile: %s", errbuf);
+            Ns_PdLog(Error, "nspd: failed to create temp file: '%s'", errbuf);
         } else if ((fd = open(tmpName,
 			      O_CREAT | O_TRUNC | O_RDWR, 0644)) < 0) {
 	    
             sprintf(errbuf, "open/create of %s failed: %s",
 		    tmpName, strerror(errno));
             Ns_PdSendString(errbuf);
-            Ns_PdLog(Error, "PdCreateTmpFile: %s", errbuf);
+            Ns_PdLog(Error, "nspd: "
+		     "failed to open/create temp file: '%s'", errbuf);
         } else {
             close(fd);
             Ns_PdSendString(OK_STATUS);
@@ -1228,8 +1228,8 @@ Ns_PdSendString(char *rsp)
 	 * rare event
 	 */
         if ((pout = malloc(len + 1)) == NULL) {
-            Ns_PdLog(Error, "Ns_PdSendString: "
-		     "malloc error (%d bytes), truncating...", len + 1);
+            Ns_PdLog(Error, "nspd: "
+		     "data truncated; malloc failed to get %d bytes", len + 1);
             rsp[MAXSTACK - 1] = '\0';
             pout = outbuf;
         } else {
@@ -1269,8 +1269,8 @@ RecvData(char *buf, int len)
         readReturn = read(0, buf, len);
     } while ((readReturn < 0) && (errno == EINTR));
     if (readReturn < 0) {
-        Ns_PdLog(Error, "RecvData: read error: "
-		 "%s while reading %d bytes", strerror(errno), len);
+        Ns_PdLog(Error, "nspd: read error while reading %d bytes: '%s'",
+		 strerror(errno), len);
     }
     return readReturn;
 }
@@ -1296,7 +1296,7 @@ static char *
 StringTrimLeft(char *string)
 {
     assert(string != NULL);
-    while (isspace(*string)) {
+    while (isspace((unsigned int)*string)) {
         ++string;
     }
     return string;
@@ -1327,7 +1327,8 @@ StringTrimRight(char *string)
     assert(string != NULL);
 
     len = strlen(string);
-    while ((len-- >= 0) && (isspace(string[len]) || string[len] == '\n')) {
+    while ((len-- >= 0) 
+	   && (isspace((unsigned int)string[len]) || string[len] == '\n')) {
         string[len] = '\0';
     }
     return string;

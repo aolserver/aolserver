@@ -35,7 +35,7 @@
  *  	Tcl commands.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscp/nscp.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscp/nscp.c,v 1.4 2000/08/15 20:24:33 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 
@@ -106,10 +106,10 @@ Ns_ModuleInit(char *s, char *module)
     }
     lsock = Ns_SockListen(addr, port);
     if (lsock == INVALID_SOCKET) {
-	Ns_Log(Error, "%s: could not listen on %s:%d", module, addr, port);
+	Ns_Log(Error, "nscp: could not listen on %s:%d", addr, port);
 	return NS_ERROR;
     }
-    Ns_Log(Notice, "%s: listening on %s:%d", module, addr, port);
+    Ns_Log(Notice, "nscp: listening on %s:%d", addr, port);
     Ns_RegisterProcInfo(AcceptProc, "nscp", ArgProc);
     Ns_SockCallback(lsock, AcceptProc, NULL, NS_SOCK_READ|NS_SOCK_EXIT);
 
@@ -132,18 +132,18 @@ Ns_ModuleInit(char *s, char *module)
 	if (STRIEQ(key, "user")) {
 	    pass = strchr(user, ':');
 	    if (pass == NULL) {
-	    	Ns_Log(Error, "%s: invalid user entry: %s", module, user);
+	    	Ns_Log(Error, "nscp: invalid user entry: %s", user);
 		continue;
 	    }
 	} else if (!STRIEQ(key, "permuser")) {
-	    Ns_Log(Error, "%s: invalid user key: %s", module, key);
+	    Ns_Log(Error, "nscp: invalid user key: %s", key);
 	    continue;
 	}
 	if (pass != NULL) {
 	    *pass = '\0';
 	}
 	hPtr = Tcl_CreateHashEntry(&users, user, &new);
-	Ns_Log(Notice, "%s: added user: %s", module, user);
+	Ns_Log(Notice, "nscp: added user: %s", user);
 	if (pass != NULL) {
 	    *pass++ = ':';
 	    end = strchr(pass, ':');
@@ -158,7 +158,7 @@ Ns_ModuleInit(char *s, char *module)
 	Tcl_SetHashValue(hPtr, pass);
     }
     if (users.numEntries == 0) {
-	Ns_Log(Warning, "%s: no authorized users", module);
+	Ns_Log(Warning, "nscp: no authorized users");
     }
 
     return NS_OK;

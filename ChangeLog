@@ -1,3 +1,19 @@
+2000-08-15  Kriston J. Rehberg  <Kriston@AOL.NET>
+
+	* nsext: Ten guesses why $(NSHOME)/include/nsextmsg.h was
+	duplicated here.
+
+	* nssybpd: Hopefully, the log statements will be easier to
+	understand by both admins and developers.  It's still messy since
+	it uses syslog.  Makefile redone to use standard AOLserver rules.
+	RPATH is used a little more intelligently.  Removed files that had
+	no business living there.
+	
+	* include/Makefile.global: Took stab at RPATH support on Solaris
+	to perhaps remove the need for LD_LIBRARY_PATH on an
+	intelligenly-administered system.  New rule for libnspd.a.
+	
+	
 2000-08-14  Kriston J. Rehberg  <Kriston@AOL.NET>
 
 	* Makefile: nsvhr has been resurrected and enjoys our full

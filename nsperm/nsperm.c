@@ -34,7 +34,7 @@
  *	Permissions
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsperm/nsperm.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsperm/nsperm.c,v 1.4 2000/08/15 20:24:33 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 
@@ -751,8 +751,7 @@ ValidateUserAddr(User *userPtr, char *peer)
 	return NS_TRUE;
     }
     if (inet_aton(peer, &peerip) == 0) {
-	Ns_Log(Bug, "ValidateUserAddr: "
-	       "bogus peer address of '%s'", peer);
+	Ns_Log(Bug, "nsperm: bogus peer address '%s'", peer);
 	return NS_FALSE;
     }
     if (!skiplocks) {
@@ -854,8 +853,8 @@ ValidateUserAddr(User *userPtr, char *peer)
 		}
 
 		if (last == start) {
-		    Ns_Log(Warning, "ValidateUserAddr: "
-			   "invalid hostname: %s", addr.string);
+		    Ns_Log(Warning, "nsperm: "
+			   "invalid hostname '%s'", addr.string);
 		    break;
 		}
 	    }

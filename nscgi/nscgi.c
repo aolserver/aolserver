@@ -28,7 +28,7 @@
  */
 
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscgi/nscgi.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscgi/nscgi.c,v 1.4 2000/08/15 20:24:33 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 #include <sys/stat.h>
@@ -207,8 +207,8 @@ Ns_ModuleInit(char *server, char *module)
     if (!initialized) {
 	devNull = open(DEVNULL, O_RDONLY);
 	if (devNull < 0) {
-	    Ns_Log(Error, "%s: open(%s) failed: %s",
-	    	module, DEVNULL, strerror(errno));
+	    Ns_Log(Error, "nscgi: open(%s) failed: %s",
+		   DEVNULL, strerror(errno));
 	    return NS_ERROR;
 	}
 	Ns_DupHigh(&devNull);
@@ -755,7 +755,7 @@ CgiFree(Cgi *cgiPtr)
      */
      
     if (cgiPtr->pid != -1 && Ns_WaitProcess(cgiPtr->pid) != NS_OK) {
-	Ns_Log(Error, "CgiFree: wait for %s failed: %s",
+	Ns_Log(Error, "nscgi: wait for %s failed: %s",
 	       cgiPtr->exec, strerror(errno));
     }
 }
@@ -974,8 +974,7 @@ CgiExec(Cgi *cgiPtr, Ns_Conn *conn)
      */
      
     if (pipe(opipe) != 0) {
-	Ns_Log(Error, "%s: pipe() failed: %s",
-	       cgiPtr->modPtr->module, strerror(errno));
+	Ns_Log(Error, "nscgi: pipe() failed: %s", strerror(errno));
 	return NS_ERROR;
     }
     Ns_CloseOnExec(opipe[0]);
@@ -1025,8 +1024,8 @@ CgiRead(Cgi *cgiPtr)
     if (n > 0) {
 	cgiPtr->cnt = n;
     } else if (n < 0) {
-	Ns_Log(Error, "%s: pipe read() from %s failed: %s",
-	       cgiPtr->modPtr->module, cgiPtr->exec, strerror(errno));
+	Ns_Log(Error, "nscgi: pipe read() from %s failed: %s",
+	       cgiPtr->exec, strerror(errno));
     }
     return n;
 }
@@ -1247,7 +1246,7 @@ CgiRegister(Mod *modPtr, char *map)
     method = ds1.string;
     url = NextWord(method);
     if (*method == '\0' || *url == '\0') {
-        Ns_Log(Error, "%s: invalid mapping: %s", modPtr->module, map);
+        Ns_Log(Error, "nscgi: invalid mapping: %s", map);
 	goto done;
     }
     
@@ -1258,7 +1257,7 @@ CgiRegister(Mod *modPtr, char *map)
     	Ns_NormalizePath(&ds2, path);
     	path = ds2.string;
     	if (!Ns_PathIsAbsolute(path) || access(path, R_OK) != 0) {
-            Ns_Log(Error, "%s: invalid directory: %s", modPtr->module, path);
+            Ns_Log(Error, "nscgi: invalid directory: %s", path);
 	    goto done;
 	}
     }
@@ -1267,8 +1266,8 @@ CgiRegister(Mod *modPtr, char *map)
     mapPtr->modPtr = modPtr;
     mapPtr->url = ns_strdup(url);
     mapPtr->path = ns_strcopy(path);
-    Ns_Log(Notice, "%s: %s %s%s%s",
-	   modPtr->module, method, url, path ? " -> " : "", path ? path : "");
+    Ns_Log(Notice, "nscgi: %s %s%s%s",
+	   method, url, path ? " -> " : "", path ? path : "");
     Ns_RegisterRequest(modPtr->server, method, url, 
 		       CgiRequest, CgiFreeMap, mapPtr, 0);
 
@@ -1421,7 +1420,7 @@ CgiGetTmp(Mod *modPtr)
 	Ns_DStringInit(&ds);
 	tmp = Ns_MakePath(&ds, modPtr->tmpdir, "cgi.XXXXXX", NULL);
 	if (mktemp(tmp) == NULL || tmp[0] == '\0') {
-	    Ns_Log(Error, "CgiGetTemp: %s: mktemp(%s) failed: %s",
+	    Ns_Log(Error, "nscgi: %s: mktemp(%s) failed: %s",
 		   modPtr->server, tmp, strerror(errno));
 	} else {
 	    int flags = O_RDWR|O_CREAT|O_TRUNC;
@@ -1432,8 +1431,8 @@ CgiGetTmp(Mod *modPtr)
 #else
 	    fd = open(tmp, flags, 0600);
 	    if (fd >= 0 && unlink(tmp) != 0) {
-		Ns_Log(Error, "CgiGetTmp: "
-		       "unlink(%s) failed: %s", tmp, strerror(errno));
+		Ns_Log(Error, "nscgi: unlink(%s) failed: %s",
+		       tmp, strerror(errno));
 		close(fd);
 		fd = -1;
 	    }
@@ -1443,9 +1442,8 @@ CgiGetTmp(Mod *modPtr)
 	    }
 #endif
 	    if (fd < 0) {
-		Ns_Log(Error, "CgiGetTmp: "
-		       "could not open temp file %s: %s",
-		       modPtr->server, tmp, strerror(errno));
+		Ns_Log(Error, "nscgi: could not open temp file %s: %s",
+		       tmp, strerror(errno));
 	    } else {
 		tmpPtr = ns_malloc(sizeof(Tmp));
 		tmpPtr->nextPtr = NULL;

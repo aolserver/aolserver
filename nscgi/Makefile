@@ -1,4 +1,6 @@
 
+NSHOME   =  ..
+
 #
 # Module name
 #
@@ -9,5 +11,5 @@ MOD      =  nscgi.so
 #
 OBJS     =  nscgi.o
 
-include  ../include/Makefile.module
+include  $(NSHOME)/include/Makefile.module
 

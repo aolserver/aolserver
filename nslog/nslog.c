@@ -34,7 +34,7 @@
  *	This file implements the access log using NCSA Common Log format.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nslog/nslog.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nslog/nslog.c,v 1.4 2000/08/15 20:24:33 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 #include <sys/stat.h>	/* mkdir */
@@ -333,8 +333,7 @@ LogTrace(void *arg, Ns_Conn *conn)
     Ns_MutexUnlock(&logPtr->lock);
     Ns_DStringFree(&ds);
     if (status != NS_OK) {
-	Ns_Log(Error, "%s: could not flush log: %s",
-	    logPtr->module, strerror(errno));
+	Ns_Log(Error, "nslog: failed to flush log: %s", strerror(errno));
     }
 }
 
@@ -463,15 +462,15 @@ LogOpen(Log *logPtr)
 
     fd = open(logPtr->file, O_APPEND|O_WRONLY|O_CREAT|O_TEXT, 0644);
     if (fd < 0) {
-    	Ns_Log(Error, "nslog: open(%s) failed: %s", logPtr->file,
-		  strerror(errno));
+    	Ns_Log(Error, "nslog: error '%s' opening '%s'",
+	       strerror(errno),logPtr->file);
 	return NS_ERROR;
     }
     if (logPtr->fd >= 0) {
 	close(logPtr->fd);
     }
     logPtr->fd = fd;
-    Ns_Log(Notice, "nslog: opened: %s", logPtr->file);
+    Ns_Log(Notice, "nslog: opened '%s'", logPtr->file);
     return NS_OK;
 }
 
@@ -499,7 +498,7 @@ LogClose(Log *logPtr)
 
     status = NS_OK;
     if (logPtr->fd >= 0) {
-	Ns_Log(Notice, "nslog: closing: %s", logPtr->file);
+	Ns_Log(Notice, "nslog: closing '%s'", logPtr->file);
 	status = LogFlush(logPtr, &logPtr->buffer);
 	close(logPtr->fd);
 	logPtr->fd = -1;
@@ -533,7 +532,7 @@ LogFlush(Log *logPtr, Ns_DString *dsPtr)
     	if (logPtr->fd >= 0 &&
 	    write(logPtr->fd, dsPtr->string, dsPtr->length) != dsPtr->length) {
 	    Ns_Log(Error, "nslog: "
-		   "logging disabled: write() failed: %s", strerror(errno));
+		   "logging disabled: write() failed: '%s'", strerror(errno));
 	    close(logPtr->fd);
 	    logPtr->fd = -1;
 	}
@@ -587,12 +586,12 @@ LogRoll(Log *logPtr)
 	    if (access(ds.string, F_OK) == 0) {
 		status = Ns_RollFile(ds.string, logPtr->maxbackup);
 	    } else if (errno != ENOENT) {
-		Ns_Log(Error, "nslog: access(%s, F_OK) failed:  %s", 
+		Ns_Log(Error, "nslog: access(%s, F_OK) failed: '%s'", 
 	      	       ds.string, strerror(errno));
 		status = NS_ERROR;
 	    }
 	    if (status == NS_OK && rename(logPtr->file, ds.string) != 0) {
-	    	Ns_Log(Error, "nslog: rename(%s, %s) failed: %s",
+	    	Ns_Log(Error, "nslog: rename(%s, %s) failed: '%s'",
 		    logPtr->file, ds.string, strerror(errno));
 		status = NS_ERROR;
 	    }
@@ -633,8 +632,8 @@ LogCallback(int (proc)(Log *), void *arg, char *desc)
     status = (*proc)(logPtr);
     Ns_MutexUnlock(&logPtr->lock);
     if (status != NS_OK) {
-	Ns_Log(Error, "%s: could not %s %s: %s",
-	       logPtr->module, desc, logPtr->file, strerror(errno));
+	Ns_Log(Error, "nslog: failed: %s '%s': '%s'",
+	       desc, logPtr->file, strerror(errno));
     }
 }
 

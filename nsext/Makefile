@@ -1,4 +1,6 @@
 
+NSHOME    =  ..
+
 #
 # Module name
 #
@@ -12,8 +14,10 @@ OBJS      =  nsext.o nsextmsg.o
 #
 # Header files
 #
-HDRS      =  nsextmsg.h
+#  Note: nsextmsg.h lives in AOLserver's include directory
+#
+HDRS      =  $(NSHOME)/include/nsextmsg.h
 
 
-include  ../include/Makefile.module
+include  $(NSHOME)/include/Makefile.module
 

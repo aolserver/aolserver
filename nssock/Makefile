@@ -4,25 +4,21 @@
 #      Socket driver for HTTP and HTTPS connections.
 #
 
-#
-# AOLserver's location
-#
-#  Since your module probably doesn't live inside the "aolserver"
-#  directory, you can tell make where to find aolserver.
-#
-#NSHOME   =  /home/user/cvs/aolserver
 NSHOME   =  ..
 
-ifeq ($(SSL),1)
 
 ##################################################
 #
 # Make the nsssl (HTTPS) module.
 #
 
-BSAFE=/usr/local/bsafe
-
+#BSAFE=/usr/local/bsafe
 #BSAFE_VERSION=-DBSAFE4
+
+
+ifeq ($(SSL),1)
+
+ifdef BSAFE
 
 #
 # Module name
@@ -69,7 +65,7 @@ MODDIR    =  nsssl
 #         Makefile.module is usually all you will ever need.
 #
 
-include ../include/Makefile.global
+include $(NSHOME)/include/Makefile.global
 
 all: clean $(MOD)
 
@@ -99,6 +95,16 @@ distclean: clobber
 	$(RM) TAGS core
 
 else
+all:
+	@echo "** "
+	@echo "** BSAFE variable not set."
+	@echo "** nsssl will not be built."
+	@echo "** "
+clean: all
+distclean: all
+endif
+
+else
 
 ##################################################
 #
@@ -120,6 +126,7 @@ all: objclean $(MOD)
 objclean:
 	$(RM) *.o
 
-include ../include/Makefile.module
+include $(NSHOME)/include/Makefile.module
 
 endif
+
