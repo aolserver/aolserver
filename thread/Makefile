@@ -26,7 +26,7 @@ $(LIBNSTHREAD): $(OBJS)
 	$(RANLIB) $(LIBNSTHREAD)
 
 $(TEST):  $(TEST_OBJS) $(LIBNSTHREAD)
-	$(CC) $(LDFLAGS) -o $(TEST) $(TEST_OBJS) $(LIBS) $(LIBNSTHREAD) 
+	$(CC) $(LDFLAGS) -o $(TEST) $(TEST_OBJS) $(LIBNSTHREAD) $(LIBS)
 
 #
 # Special dependency for the OS interfaces.
