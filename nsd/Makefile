@@ -54,6 +54,8 @@ $(NSD8): libtcl8x libnsthread $(TCL8XSTUB) $(OBJS) stamp.c
 #
 $(TCL76STUB) $(TCL8XSTUB): tclstubs.cpp tclnsshare.cpp tclinvoke.cpp
 
+$(OBJS): nsd.h nsconf.h
+
 
 #
 # Installation
