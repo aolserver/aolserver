@@ -1,3 +1,8 @@
+2000-12-12  Kriston J. Rehberg  <Kriston@AOL.NET>
+
+	* nsd/nsmain.c (Ns_Main): Changed order of some config default
+	initialization.
+
 2000-10-20  Kriston J. Rehberg  <Kriston@AOL.NET>
 
 	*** AOLserver 3.2 RELEASED ***

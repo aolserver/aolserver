@@ -33,9 +33,10 @@
  *	AOLserver Ns_Main() startup routine.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.19 2000/11/09 01:50:48 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.20 2000/12/12 21:16:45 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
+#include "nsconf.h"
 
 #ifdef WIN32
 #define DEVNULL "nul:"
@@ -133,13 +134,17 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 #endif
 
     /*
-     * Set up logging defaults (for Ns_Log at startup time).
+     * Set up configuration defaults and initial values.
      */
-
-    nsconf.log.dev       = NS_FALSE;
-    nsconf.log.debug     = NS_FALSE;
-    nsconf.log.expanded  = NS_FALSE;
-    nsconf.log.maxback   = 10;
+    nsconf.argv0         = argv[0];
+    nsconf.log.debug     = LOG_DEBUG_BOOL;
+    nsconf.log.dev       = LOG_DEV_BOOL;
+    nsconf.log.expanded  = LOG_EXPANDED_BOOL;
+    nsconf.log.maxback   = LOG_MAXBACK_INT;
+    nsconf.name          = NSD_NAME;
+    nsconf.version       = NSD_VERSION;
+    nsconf.quiet         = SERV_QUIET_BOOL;
+    nsconf.config        = NULL;
 
     /*
      * AOLserver requires file descriptor 0 be open on /dev/null to
@@ -188,7 +193,7 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 	    UsageError(NULL);
 	    break;
 	case 'q':
-	    nsconf.quiet = 1;
+	    nsconf.quiet = NS_TRUE;
 	    break;
 	case 'f':
 	case 'i':
@@ -213,7 +218,7 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 	    fprintf(stderr, "\nWARNING: -c option is deprecated.  Use translate-ini to convert to tcl (-t) format.\n\n");
 	case 't':
 	    if (nsconf.config != NULL) {
-		UsageError("multiple -t/-c <config> options");
+		UsageError("multiple -t/-c <file> options");
 	    }
             nsconf.config = optarg;
 	    nsconf.configfmt = i;
@@ -281,9 +286,6 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 
     Ns_ThreadSetName("-main-");
 
-    nsconf.argv0 = argv[0];
-    nsconf.name = NSD_NAME;
-    nsconf.version = NSD_VERSION;
     time(&nsconf.boot_t);
     nsconf.pid = getpid();
     nsconf.home = getcwd(cwd, sizeof(cwd));
@@ -1349,11 +1351,11 @@ StatusMsg(int state)
  */
 
 #ifdef WIN32
-#define SOPTS	"|-I|-R"
-#define UOPTS   ""
+#define OPTS      "[-I|R]"
+#define OPTS_ARGS ""
 #else
-#define SOPTS	""
-#define UOPTS	"[-d] [-r root] [-u user] [-g group] "
+#define OPTS      "[-d]"
+#define OPTS_ARGS "[-u <user>] [-g <group>] [-r <path>]"
 #endif
 
 static void
@@ -1362,37 +1364,32 @@ UsageError(char *msg)
     if (msg != NULL) {
 	fprintf(stderr, "\nError: %s\n", msg);
     }
-    fprintf(stderr,
-	"\nUsage:\n"
-	"\n"
-	"%s [-h|-V] [-z] " UOPTS "[-s server] {-i|-f" SOPTS "} [-b address:port]|[-B <file>] {-c|-t} <config>\n"
-	"\n"
-	"  -h           Print this usage message and exit.\n"
-	"  -V           Print identification of server and exit.\n"
-	"  -i           Run in installed mode (inittab) and log output to file.\n"
-	"  -f           Run in foreground mode and log output to screen.\n"
-	"  -z           Enable fast memory allocator (see documentation).\n"
-	"  -q           Start up more quietly.\n"
-	"  -b           Pre-bind to comma-separated list of address:port.\n"
-	"  -B           Pre-bind to newline-separated list of address:port from file.\n"
+    fprintf(stderr, "\n"
+	    "Usage: %s [-h|V] [-i|f] [-z] [-q] " OPTS " " OPTS_ARGS " [-b <address:port>|-B <file>] [-s <server>] -t <file>\n"
+	    "\n"
+	    "  -h  help (this message)\n"
+	    "  -V  version and release information\n"
+	    "  -i  inittab mode\n"
+	    "  -f  foreground mode\n"
+	    "  -z  zippy memory allocator\n"
+	    "  -q  quieter startup\n"
 #ifdef WIN32
-    	"  -I           Install as an NT service.\n"
-    	"  -R           Remove an installed NT service.\n"
+	    "  -I  Install win32 service\n"
+	    "  -R  Remove win32 service\n"
 #else
-	"  -d           Ignore SIGINT for debugging on some platforms.\n"
-	""
-	"  -r <path>    chroot(path) after reading config file.\n"
-	"  -u <user>    run as user/uid (required).\n"
-	"  -g <group>   run as group/gid (optional).\n"
+	    "  -d  debugger-friendly mode (ignore SIGINT)\n"
+	    "  -u  run as <user>\n"
+	    "  -g  run as <group>\n"
+	    "  -r  chroot to <path>\n"
 #endif
-	"  -s <server>  Server to run when > 1 server in config file.\n"
-	"  -c <config>  Path to the config file (.ini format) -- deprecated.\n"
-	"  -t <config>  Path to the config file (.tcl format).\n"
-	"\n"
-	"Note: One of {-c|-t} and <config> is required.\n\n", nsconf.argv0);
+	    "  -b  bind <address:port>\n"
+	    "  -B  bind address:port list from <file>\n"
+	    "  -s  use server named <server> in config file\n"
+	    "  -t  read config from <file> (REQUIRED)\n"
+	    "\n", nsconf.argv0);
     exit(msg ? 1 : 0);
 }
-
+    
 
 /*
  *----------------------------------------------------------------------

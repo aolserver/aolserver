@@ -37,10 +37,11 @@ LDSO	     =   $(CC) -shared -nostartfiles
 #
 # Select one of the following for debug or optimization.
 #
-CCOPT        =  -O2 -DNDEBUG=1
-#CCOPT        =  -g 
+#CCOPT        =   -DNDEBUG=1
+CCOPT        =  -g 
+GCCOPT       =   -g -O2 -fPIC -Wall -Wno-unused
 
-CFLAGS       +=  $(CCOPT) -I$(NSHOME)/include -D_REENTRANT
+CFLAGS       +=  $(CCOPT) -I$(NSHOME)/include -D_REENTRANT=1
 LIBNSTHREAD  =   $(NSHOME)/thread/libnsthread.a
 LIBS         +=  
 MKDIR        =   mkdir -p
@@ -101,13 +102,13 @@ PLATFORM = unknown
 ifeq (HP-UXB.11.00, $(shell uname -s)$(shell uname -r))
     PLATFORM=hp11
     # CC=$(PURIFY) cc
-    # CFLAGS+=-Ae +DAportable +z
+    # CFLAGS+=-O2 -Ae +DAportable +z
+    CFLAGS+=$(GCCOPT)
     LDSO=$(LD) -b
     NSDLIBS=-lm
-    CFLAGS+=-D__hp11 -pipe -fPIC -Wall -Wno-unused
     LDFLAGS=-Wl,-E
     LIBS+=-lpthread
-    CFLAGS+=-DUSE_DLSHL=1
+    CFLAGS+=-DUSE_DLSHL=1 -D__hp11=1
 endif
 
 
@@ -121,13 +122,13 @@ endif
 ifeq (HP-UXB.10.20, $(shell uname -s)$(shell uname -r))
     PLATFORM=hp10
     # CC=$(PURIFY) cc
-    # CFLAGS+=-Ae +DAportable +z
+    # CFLAGS+=-O2 -Ae +DAportable +z
+    CFLAGS+=$(GCCOPT)
     LDSO=$(LD) -b
     NSDLIBS=-lm
-    CFLAGS+=-D__hp10 -pipe -fPIC -Wall -Wno-unused
     LDFLAGS=-Wl,-E
     LIBS+=-ldce -lc_r
-    CFLAGS+=-DHAVE_PTHREAD_D4=1 -DUSE_DLSHL=1 -DNEED_HERRNO=1
+    CFLAGS+=-D__hp10=1 -DHAVE_PTHREAD_D4=1 -DUSE_DLSHL=1 -DNEED_HERRNO=1
 endif
 
 
@@ -141,7 +142,7 @@ endif
 ifeq (Linux,$(shell uname))
     PLATFORM=linux
     LDFLAGS+=-Wl,-E
-    CFLAGS+=-pipe -fPIC -Wall -Wno-unused
+    CFLAGS+=$(GCCOPT)
     NSDLIBS=-lm
     LIBS+=-ldl -lpthread 
     CFLAGS+=-DHAVE_CMMSG=1 -DUSE_FIONREAD=1 -DHAVE_COND_EINTR=1
@@ -158,16 +159,17 @@ endif
 ifeq (SunOS,$(shell uname))
     PLATFORM=solaris
     CC=$(PURIFY) /opt/SUNWspro/bin/cc
-    CFLAGS+=-KPIC
+#    CFLAGS+=-g -xO2 -KPIC -xarch=v8plusa 
+    CFLAGS+=-g -KPIC
+    #CFLAGS+=$(GCCOPT) -mcpu=ultrasparc
     LDSO=$(LD) -G
-    #CFLAGS+=-D_POSIX_PTHREAD_SEMANTICS -fPIC -Wall -Wno-unused
     NSDLIBS=-lm
     LIBS+=-lsocket -lnsl -ldl -lposix4 -lthread -lresolv -R $(RPATH)
     LD=/usr/ccs/bin/ld
     AR=/usr/ccs/bin/ar
-    CFLAGS+=-DUSE_PTHREAD_SYSSCOPE=1 -DUSE_DUPHIGH=1 -DHAVE_FORK1=1
-    # Flags for pshared mutexes and conditions.
-    CFLAGS+=-DUSE_PTHREAD_PSHARED=1 -DHAVE_ETIME_BUG=1
+    CFLAGS+=-D_POSIX_PTHREAD_SEMANTICS=1 -DUSE_PTHREAD_SYSSCOPE=1 \
+            -DUSE_PTHREAD_PSHARED=1 -DHAVE_ETIME_BUG=1 \
+            -DUSE_DUPHIGH=1 -DHAVE_FORK1=1
 endif
 
 
@@ -181,7 +183,7 @@ endif
 ifeq (OSF1,$(shell uname))
     PLATFORM=osf
     CC=$(PURIFY) cc
-    CFLAGS+=-std1 -pthread
+    CFLAGS+=$(GCCOPT) -std1 -pthread
     LDFLAGS+=-pthread
     LDSO=$(LD) -shared -expect_unresolved '*'
     NSDLIBS=-lm
@@ -205,13 +207,13 @@ ifeq (IRIX, $(findstring IRIX, $(shell uname)))
     SGI_ABI=o32
     ABI=-$(SGI_ABI)
     CC=$(PURIFY) cc
-    CFLAGS+=$(ABI) -D_SGI_MP_SOURCE -fullwarn
+    CFLAGS+=$(ABI) -O2 -fullwarn
     LDSO=$(LD) $(ABI) -shared
-    #CFLAGS+=-D_SGI_MP_SOURCE -fPIC -Wall -Wno-unused
+    #CFLAGS+=$(GCCOPT)
     LDFLAGS+=$(ABI)
     NSDLIBS=-lm
     #LIBS+=-lpthread
-    CFLAGS+=-DUSE_SPROC=1
+    CFLAGS+=-DUSE_SPROC=1 -D_SGI_MP_SOURCE=1
     ifeq (o32, $(ABI))
 	CFLAGS+=-DUSE_DUPHIGH=1
     endif
@@ -226,10 +228,10 @@ endif
 #
 ifeq (FreeBSD,$(shell uname))
     PLATFORM=freebsd
-    CFLAGS+=-pthread -D_THREAD_SAFE
+    CFLAGS+=$(GCCOPT) -pthread
     LDFLAGS+=-pthread -Wl,-E
     RANLIB=ranlib
-    CFLAGS+=-DHAVE_CMMSG=1 -DNO_TIMEZONE=1 -DHAVE_TIMEGM
+    CFLAGS+=-D_THREAD_SAFE=1 -DHAVE_CMMSG=1 -DNO_TIMEZONE=1 -DHAVE_TIMEGM=1
     NSDLIBS=-lm
 endif
 
@@ -242,11 +244,11 @@ endif
 #
 ifeq (OpenBSD,$(shell uname))
     PLATFORM=openbsd
-    CFLAGS+=-pthread -D_THREAD_SAFE
+    CFLAGS+=$(GCCOPT) -pthread
     LDFLAGS+=-pthread -Wl,-E
     RANLIB=ranlib
-    CFLAGS+=-DHAVE_CMMSG=1 -DUSE_DLSYMPREFIX=1 -DUSE_RTLD_LAZY=1
-    CFLAGS+=-DNO_TIMEZONE=1 -DHAVE_TIMEGM
+    CFLAGS+=-DHAVE_CMMSG=1 -DUSE_DLSYMPREFIX=1 -DUSE_RTLD_LAZY=1 \
+           -DNO_TIMEZONE=1 -DHAVE_TIMEGM=1 -D_THREAD_SAFE=1
     NSDLIBS=-lm
 endif
 
@@ -261,7 +263,7 @@ endif
 ifeq (UnixWare,$(shell uname))
     PLATFORM=unixware
     CC=$(PURIFY) cc
-    CFLAGS+=-D__unixware -Kpic -Kthread
+    CFLAGS+=-O2 -Kpic -Kthread -D__unixware
     LDFLAGS=-Wl,-B export
     LDSO=$(LD) -G
     LIBS+=-Kthread -lsocket
@@ -288,13 +290,12 @@ endif
 ifeq (osx,$(PLATFORM))
     CC=$(PURIFY) cc
     LD=cc
-    CFLAGS+=-DMACOSX=1
-    CFLAGS+=-dynamic -traditional-cpp -pipe -Wall -Wno-unused
+    CFLAGS+=$(GCCOPT) -dynamic -traditional-cpp
     LDSO=$(LD) -bundle -undefined suppress
     RANLIB=ranlib
     NSDLIBS=
-    CFLAGS+=-DHAVE_CMMSG=1 -DUSE_DYLD -DUSE_DLSYMPREFIX=1
-    CFLAGS+=-DNO_RAND48=1 -DNO_TIMEZONE=1
+    CFLAGS+=-DHAVE_CMMSG=1 -DUSE_DYLD=1 -DUSE_DLSYMPREFIX=1 \
+            -DNO_RAND48=1 -DNO_TIMEZONE=1 -DMACOSX=1
 endif
 
 ifeq (unknown,$(PLATFORM))
