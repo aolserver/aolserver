@@ -1,5 +1,5 @@
 
-$Header: /Users/dossy/Desktop/cvs/aolserver/doc/Attic/nsssl2.txt,v 1.2 2000/06/19 23:46:26 scottg Exp $
+$Header: /Users/dossy/Desktop/cvs/aolserver/doc/Attic/nsssl2.txt,v 1.3 2000/06/19 23:46:53 scottg Exp $
 
 
 The nsssl2 Socket Driver
@@ -54,6 +54,12 @@ To compile the 128-bit/1024-bit version of nsssl.so:
 An example:
 
    make DOMESTIC=1 BSAFE4=1 BSAFEDIR=/rsa/cryptoc43/linux/i386-libc6/library
+
+
+If you have the BSAFE 3.x library, don't use a BSAFE4 or BSAFE5 argument
+at all, just do a:
+
+	make BSAFEDIR=/path/to/bsafe3
 
 
 Installing is a bit iffy. Easiest to just manually copy the
