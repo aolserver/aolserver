@@ -1,3 +1,8 @@
+2004-12-01  Dossy Shiobara <dossy@panoptic.com>
+
+	* include/ns.h (1.72): Provide NS_VERSION_NUM definition to make
+	  conditionalized testing of AOLserver version at build time easy.
+
 2004-11-20  Dossy Shiobara <dossy@panoptic.com>
 
 	* nsd/tclsched.c (1.6): Option parsing needed to be more careful,
