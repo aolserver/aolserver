@@ -61,7 +61,8 @@ OBJS = \
         $(TMPDIR)\tclfile.obj \
         $(TMPDIR)\tclinit.obj \
         $(TMPDIR)\tclmisc.obj \
-        $(TMPDIR)\tclop.obj \
+        $(TMPDIR)\tclatclose.obj \
+        $(TMPDIR)\tclrequest.obj \
         $(TMPDIR)\tclresp.obj \
         $(TMPDIR)\tclsched.obj \
         $(TMPDIR)\tclset.obj \

@@ -69,7 +69,7 @@ LINK32=link.exe
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /MTd /W3 /Gm /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "NSD_EXPORTS" /YX /FD /GZ /c
-# ADD CPP /nologo /MDd /W3 /Gm /GX /ZI /Od /I "..\..\include" /D "_WINDOWS" /D "_USRDLL" /D "NSD_EXPORTS" /D "_DEBUG" /D "WIN32" /D "_MBCS" /D FD_SETSIZE=128 /D TCL_THREADS=1 /Fr /YX /FD /GZ /c
+# ADD CPP /nologo /MDd /W3 /Gm /GX /ZI /Od /I "..\..\include" /D "_WINDOWS" /D "_USRDLL" /D "NSD_EXPORTS" /D "_DEBUG" /D "WIN32" /D "_MBCS" /D FD_SETSIZE=128 /D TCL_THREADS=1 /FR /YX /FD /GZ /c
 # ADD BASE MTL /nologo /D "_DEBUG" /mktyplib203 /win32
 # ADD MTL /nologo /D "_DEBUG" /mktyplib203 /win32
 # ADD BASE RSC /l 0x409 /d "_DEBUG"
@@ -308,6 +308,10 @@ SOURCE=..\..\nsd\str.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\nsd\tclatclose.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\nsd\tclcmds.c
 # End Source File
 # Begin Source File
@@ -340,7 +344,7 @@ SOURCE=..\..\nsd\tclmisc.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\nsd\tclop.c
+SOURCE=..\..\nsd\tclrequest.c
 # End Source File
 # Begin Source File
 
