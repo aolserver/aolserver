@@ -34,7 +34,7 @@
  *	and service threads.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/queue.c,v 1.17 2002/10/30 00:02:06 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/queue.c,v 1.18 2003/01/18 18:24:43 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -65,7 +65,6 @@ static void AppendConnList(Tcl_DString *dsPtr, Conn *firstPtr,
  * Static variables defined in this file.
  */
 
-static Tcl_HashTable hosts;
 static Ns_Tls argtls;
 static int poolid;
 
@@ -89,7 +88,6 @@ static int poolid;
 void
 NsInitQueue(void)
 {
-    Tcl_InitHashTable(&hosts, TCL_STRING_KEYS);
     Ns_TlsAlloc(&argtls, NULL);
     poolid = Ns_UrlSpecificAlloc();
 }
@@ -181,33 +179,6 @@ NsMapPool(ConnPool *poolPtr, char *map)
 /*
  *----------------------------------------------------------------------
  *
- * NsMapServer --
- *
- *	Map a Host header to a virtual server for unbounded drivers.
- *
- * Results:
- *	None.
- *
- * Side effects:
- *	Requests with given Host header will be serviced by given server.
- *
- *----------------------------------------------------------------------
- */
-
-void
-NsMapServer(NsServer *servPtr, char *host)
-{
-    Tcl_HashEntry *hPtr;
-    int new;
-
-    hPtr = Tcl_CreateHashEntry(&hosts, host, &new);
-    Tcl_SetHashValue(hPtr, servPtr);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
  * NsQueueConn --
  *
  *	Append a connection to the run queue.
@@ -224,34 +195,13 @@ NsMapServer(NsServer *servPtr, char *host)
 int
 NsQueueConn(Sock *sockPtr, Ns_Time *nowPtr)
 {
-    Driver *drvPtr = sockPtr->drvPtr;
-    NsServer *servPtr = drvPtr->servPtr;
-    Tcl_HashEntry *hPtr;
+    NsServer *servPtr = sockPtr->servPtr;
     ConnPool *poolPtr = NULL;
     Conn *connPtr = NULL;
     int create = 0;
-    char *host;
 
     /*
-     * Check for Host: header based virtual server selection.
-     */
-
-    if (servPtr == NULL && sockPtr->reqPtr != NULL) {
-	host = Ns_SetIGet(sockPtr->reqPtr->headers, "Host");
-	if (host != NULL) {
-	    hPtr = Tcl_FindHashEntry(&hosts, host);
-	    if (hPtr != NULL) {
-		servPtr = Tcl_GetHashValue(hPtr);
-	    }
-	}
-fprintf(stderr, "%s %p\n", host, servPtr);
-    }
-    if (servPtr == NULL) {
-	return 0;
-    }
-
-    /*
-     * Select connection pool.
+     * Select server connection pool.
      */
 
     if (sockPtr->reqPtr != NULL) {
@@ -275,8 +225,10 @@ fprintf(stderr, "%s %p\n", host, servPtr);
 	    connPtr->startTime = *nowPtr;
 	    connPtr->id = servPtr->pools.nextconnid++;
 	    connPtr->sockPtr = sockPtr;
-	    connPtr->drvPtr  = drvPtr;
+	    connPtr->drvPtr = sockPtr->drvPtr;
 	    connPtr->servPtr = servPtr;
+	    connPtr->server = servPtr->server;
+	    connPtr->location = sockPtr->location;
 	    if (poolPtr->queue.wait.firstPtr == NULL) {
 		poolPtr->queue.wait.firstPtr = connPtr;
 	    } else {
@@ -284,7 +236,8 @@ fprintf(stderr, "%s %p\n", host, servPtr);
 	    }
 	    poolPtr->queue.wait.lastPtr = connPtr;
 	    connPtr->nextPtr = NULL;
-	    if (poolPtr->threads.idle == 0 && poolPtr->threads.current < poolPtr->threads.max) {
+	    if (poolPtr->threads.idle == 0
+		    && poolPtr->threads.current < poolPtr->threads.max) {
 		++poolPtr->threads.idle;
 		++poolPtr->threads.current;
 		create = 1;
@@ -720,6 +673,7 @@ static void
 ConnRun(Conn *connPtr)
 {
     Ns_Conn 	  *conn = (Ns_Conn *) connPtr;
+    NsServer	  *servPtr = connPtr->servPtr;
     Tcl_HashEntry *hPtr;
     Tcl_HashSearch search;
     FormFile	  *filePtr;
@@ -749,9 +703,9 @@ ConnRun(Conn *connPtr)
     if (connPtr->request->version < 1.0) {
 	conn->flags |= NS_CONN_SKIPHDRS;
     }
-    if (connPtr->servPtr->opts.hdrcase != Preserve) {
+    if (servPtr->opts.hdrcase != Preserve) {
 	for (i = 0; i < Ns_SetSize(connPtr->headers); ++i) {
-    	    if (connPtr->servPtr->opts.hdrcase == ToLower) {
+    	    if (servPtr->opts.hdrcase == ToLower) {
 		Ns_StrToLower(Ns_SetKey(connPtr->headers, i));
 	    } else {
 		Ns_StrToUpper(Ns_SetKey(connPtr->headers, i));
@@ -775,7 +729,7 @@ ConnRun(Conn *connPtr)
     } else {
 	status = NsRunFilters(conn, NS_FILTER_PRE_AUTH);
 	if (status == NS_OK) {
-	    status = Ns_AuthorizeRequest(connPtr->servPtr->server,
+	    status = Ns_AuthorizeRequest(servPtr->server,
 			connPtr->request->method, connPtr->request->url, 
 			connPtr->authUser, connPtr->authPasswd, connPtr->reqPtr->peer);
 	    switch (status) {

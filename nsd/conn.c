@@ -34,7 +34,7 @@
  *      Manage the Ns_Conn structure
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.31 2002/10/30 00:03:22 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.32 2003/01/18 18:24:42 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -204,7 +204,7 @@ Ns_ConnServer(Ns_Conn *conn)
 {
     Conn           *connPtr = (Conn *) conn;
 
-    return connPtr->servPtr->server;
+    return connPtr->server;
 }
 
 
@@ -407,12 +407,13 @@ char *
 Ns_ConnLocation(Ns_Conn *conn)
 {
     Conn *connPtr = (Conn *) conn;
+    NsServer *servPtr = connPtr->servPtr;
     char *location;
 
-    if (connPtr->servPtr->locationProc != NULL) {
-        location = (*connPtr->servPtr->locationProc)(conn);
+    if (servPtr->locationProc != NULL) {
+        location = (*servPtr->locationProc)(conn);
     } else {
-	location = connPtr->drvPtr->location;
+	location = connPtr->location;
     }
     return location;
 }

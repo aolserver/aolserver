@@ -33,7 +33,7 @@
  *	Routines for managing NsServer structures.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.23 2002/10/30 00:02:13 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.24 2003/01/18 18:24:43 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -528,7 +528,6 @@ CreatePool(NsServer *servPtr, char *pool)
     for (n = 0; n < maxconns - 1; ++n) {
 	connPtr = &connBufPtr[n];
 	connPtr->nextPtr = &connBufPtr[n+1];
-	connPtr->servPtr = servPtr;
     }
     connBufPtr[n].nextPtr = NULL;
     poolPtr->queue.freePtr = &connBufPtr[0];

@@ -33,7 +33,7 @@
  *	Initialization routines for Tcl.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.29 2002/10/14 23:20:58 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.30 2003/01/18 18:24:43 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -606,7 +606,7 @@ Ns_GetConnInterp(Ns_Conn *conn)
     NsInterp *itPtr;
 
     if (connPtr->interp == NULL) {
-	connPtr->interp = Ns_TclAllocateInterp(connPtr->servPtr->server);
+	connPtr->interp = Ns_TclAllocateInterp(connPtr->server);
 	itPtr = NsGetInterp(connPtr->interp);
 	itPtr->conn = conn;
 	itPtr->nsconn.flags = 0;

@@ -34,7 +34,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.12 2003/01/17 18:42:32 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.13 2003/01/18 18:24:42 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -45,6 +45,15 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
 #define SOCK_READY		0
 #define SOCK_MORE		1
 #define SOCK_ERROR		(-1)
+
+/*
+ * The following maintains Host header to server mappings.
+ */
+
+typedef struct ServerMap {
+    NsServer *servPtr;
+    char location[1];
+} ServerMap;
 
 /*
  * Static functions defined in this file.
@@ -59,6 +68,8 @@ static Sock *firstClosePtr; /* First conn ready for graceful close. */
 static int SockRead(Sock *sockPtr);
 static void SockPoll(Sock *sockPtr, Ns_Time *timeoutPtr);
 static void SockTimeout(Sock *sockPtr, Ns_Time *nowPtr, int timeout);
+static void MapServer(NsServer *servPtr, char *proto, char *host);
+static int  SetServer(Sock *sockPtr);
 
 /*
  * Static variables defined in this file.
@@ -77,6 +88,30 @@ static Ns_Cond cond;	    /* Cond for stopped flag. */
 static int nfds;	    /* Number of Sock to poll(). */
 static int maxfds;	    /* Max pollfd's in pfds. */ 
 static struct pollfd *pfds; /* Array of pollfds to poll(). */
+static Tcl_HashTable hosts; /* Host header to server table. */
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsInitDrivers --
+ *
+ *	Init drivers system.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+NsInitDrivers(void)
+{
+    Tcl_InitHashTable(&hosts, TCL_STRING_KEYS);
+}
 
 
 /*
@@ -275,7 +310,7 @@ Ns_DriverInit(char *server, char *module, char *name,
 	for (i = 0; set != NULL && i < Ns_SetSize(set); ++i) {
 	    servPtr = NsGetServer(Ns_SetKey(set, i));
 	    if (servPtr != NULL) {
-		NsMapServer(servPtr, Ns_SetValue(set, i));
+		MapServer(servPtr, defproto, Ns_SetValue(set, i));
 	    }
 	}
     }
@@ -451,7 +486,6 @@ NsWaitDriversShutdown(Ns_Time *toPtr)
 	close(trigPipe[1]);
     }
 }
-
 
 
 /* 
@@ -790,8 +824,10 @@ DriverThread(void *ignored)
 		    readPtr = sockPtr;
 		    break;
 		case SOCK_READY:
-		    if (!NsQueueConn(sockPtr, &now)) {
-			sockPtr->nextPtr = waitPtr;
+		    if (!SetServer(sockPtr)) {
+			SockRelease(sockPtr);
+		    } else {
+		    	sockPtr->nextPtr = waitPtr;
 			waitPtr = sockPtr;
 		    }
 		    break;
@@ -818,7 +854,7 @@ DriverThread(void *ignored)
 	    }
 	    while (sockPtr != NULL) {
 		nextPtr = sockPtr->nextPtr;
-		if (!NsQueueConn(sockPtr, &now)) {
+		if (waitPtr != NULL || !NsQueueConn(sockPtr, &now)) {
 		    sockPtr->nextPtr = waitPtr;
 		    waitPtr = sockPtr;
 		}
@@ -936,6 +972,85 @@ DriverThread(void *ignored)
     stopped = 1;
     Ns_CondBroadcast(&cond);
     Ns_MutexUnlock(&lock);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * MapServer --
+ *
+ *	Map a Host header to a virtual server for unbounded drivers.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	Requests with given Host header will be serviced by given server.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+MapServer(NsServer *servPtr, char *proto, char *host)
+{
+    ServerMap *mapPtr;
+    Tcl_HashEntry *hPtr;
+    Ns_DString ds;
+    int new;
+
+    Ns_DStringInit(&ds);
+    Ns_DStringPrintf(&ds, "%s://%s", proto, host);
+    mapPtr = ns_malloc(sizeof(ServerMap) + ds.length);
+    mapPtr->servPtr  = servPtr;
+    strcpy(mapPtr->location, ds.string);
+    Ns_DStringFree(&ds);
+    hPtr = Tcl_CreateHashEntry(&hosts, host, &new);
+    if (!new) {
+	Ns_Log(Error, "server: duplicate host mapping: %s", host);
+	ns_free(mapPtr);
+    }
+    Tcl_SetHashValue(hPtr, mapPtr);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * SetServer --
+ *
+ *	Set virtual server from driver context or Host header.
+ *
+ * Results:
+ *	1 if valid server set, 0 otherwise.
+ *
+ * Side effects:
+ *	Will update sockPtr->servPtr.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+SetServer(Sock *sockPtr)
+{
+    ServerMap *mapPtr;
+    Tcl_HashEntry *hPtr;
+    char *host;
+
+    sockPtr->servPtr = sockPtr->drvPtr->servPtr;
+    sockPtr->location = sockPtr->drvPtr->location;
+    if (sockPtr->servPtr == NULL && sockPtr->reqPtr != NULL) {
+	host = Ns_SetIGet(sockPtr->reqPtr->headers, "Host");
+	if (host != NULL) {
+	    hPtr = Tcl_FindHashEntry(&hosts, host);
+	    if (hPtr != NULL) {
+		mapPtr = Tcl_GetHashValue(hPtr);
+		sockPtr->servPtr = mapPtr->servPtr;
+		sockPtr->location = mapPtr->location;
+	    }
+	}
+    }
+    return (sockPtr->servPtr ? 1 : 0);
 }
 
 

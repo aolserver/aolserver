@@ -322,6 +322,8 @@ typedef struct Sock {
      */
 
     struct Sock *nextPtr;
+    struct NsServer *servPtr;
+    char *location;
     struct sockaddr_in sa;
     int		 keep;
     int		 pidx;		    /* poll() index. */
@@ -364,12 +366,21 @@ typedef struct Conn {
      * Visible only in a Conn:
      */
     
-    struct NsServer *servPtr;
     struct Conn *prevPtr;
     struct Conn *nextPtr;
-    struct Driver *drvPtr;
     struct Sock *sockPtr;
+
+    /*
+     * The following are copied from sockPtr so they're valid
+     * after the connection is closed (e.g., within traces).
+     */
+
+    char *server;
+    char *location;
     struct Request *reqPtr;
+    struct NsServer *servPtr;
+    struct Driver *drvPtr;
+
     int          id;
     char	 idstr[16];
     Ns_Time	 startTime;
@@ -709,6 +720,7 @@ extern void NsInitMimeTypes(void);
 extern void NsInitModLoad(void);
 extern void NsInitProcInfo(void);
 extern void NsInitQueue(void);
+extern void NsInitDrivers(void);
 extern void NsInitSched(void);
 extern void NsInitTcl(void);
 extern void NsInitUrlSpace(void);
@@ -716,7 +728,6 @@ extern void NsInitRequests(void);
 
 extern int NsQueueConn(Sock *sockPtr, Ns_Time *nowPtr);
 extern void NsMapPool(ConnPool *poolPtr, char *map);
-extern void NsMapServer(NsServer *servPtr, char *server);
 extern int NsSockSend(Sock *sockPtr, struct iovec *bufs, int nbufs);
 extern void NsSockClose(Sock *sockPtr, int keep);
 

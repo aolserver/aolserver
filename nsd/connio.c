@@ -34,7 +34,7 @@
  *      Handle connection I/O.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/connio.c,v 1.9 2002/09/28 19:23:17 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/connio.c,v 1.10 2003/01/18 18:24:42 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #define IOBUFSZ 2048
@@ -460,12 +460,13 @@ Ns_ConnReadLine(Ns_Conn *conn, Ns_DString *dsPtr, int *nreadPtr)
 {
     Conn	   *connPtr = (Conn *) conn;
     Request	   *reqPtr = connPtr->reqPtr;
+    NsServer	   *servPtr = connPtr->servPtr;
     char           *eol;
     int             nread, ncopy;
 
     if (connPtr->sockPtr == NULL
 	|| (eol = strchr(reqPtr->next, '\n')) == NULL
-	|| (nread = (eol - reqPtr->next)) > connPtr->servPtr->limits.maxline) {
+	|| (nread = (eol - reqPtr->next)) > servPtr->limits.maxline) {
 	return NS_ERROR;
     }
     ncopy = nread;
@@ -504,11 +505,12 @@ Ns_ConnReadHeaders(Ns_Conn *conn, Ns_Set *set, int *nreadPtr)
 {
     Ns_DString      ds;
     Conn           *connPtr = (Conn *) conn;
+    NsServer	   *servPtr = connPtr->servPtr;
     int             status, nread, nline, maxhdr;
 
     Ns_DStringInit(&ds);
     nread = 0;
-    maxhdr = connPtr->servPtr->limits.maxheaders;
+    maxhdr = servPtr->limits.maxheaders;
     status = NS_OK;
     while (nread < maxhdr && status == NS_OK) {
         Ns_DStringTrunc(&ds, 0);
@@ -521,7 +523,7 @@ Ns_ConnReadHeaders(Ns_Conn *conn, Ns_Set *set, int *nreadPtr)
                 if (ds.string[0] == '\0') {
                     break;
                 }
-                status = Ns_ParseHeader(set, ds.string, connPtr->servPtr->opts.hdrcase);
+                status = Ns_ParseHeader(set, ds.string, servPtr->opts.hdrcase);
             }
         }
     }
