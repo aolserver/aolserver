@@ -28,7 +28,7 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/init.tcl,v 1.22 2003/06/25 21:50:56 mpagenva Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/init.tcl,v 1.23 2003/07/01 21:08:52 mpagenva Exp $
 #
 
 #
@@ -91,7 +91,6 @@ proc ns_module {key {val ""}} {
 
 proc ns_eval {args} {
     set len [llength $args]
-
     if {$len == 0} {
         return
     } elseif {$len == 1} {
@@ -101,7 +100,7 @@ proc ns_eval {args} {
     # Need to always incorporate given script into current interp
     # Use this also to verify the script prior to doing the fold into
     # the ictl environment
-    set code [catch {uplevel 1 $args} result]
+    set code [catch {uplevel 1 _ns_helper_eval $args} result]
     if {!$code && [ns_ictl epoch]} {
         # If the local eval result was ok (code == 0),
         # and if we are not in interp init processing (epoch != 0),
@@ -139,14 +138,13 @@ proc ns_eval {args} {
 
 proc _ns_eval {args} {
     set len [llength $args]
-
     if {$len == 0} {
         return
     } elseif {$len == 1} {
         set args [lindex $args 0]
     }
 
-    set code [catch {uplevel 1 $args} result]
+    set code [catch {uplevel 1 _ns_helper_eval $args} result]
 
     if {$code == 1} {
         # TCL_ERROR: Dump this interp to avoid proc pollution.
@@ -155,7 +153,39 @@ proc _ns_eval {args} {
         # Save this interp's namespaces for others.
         _ns_savenamespaces
     }
+    return -code $code $result
+}
 
+#
+# _ns_helper_eval --
+#
+#   This Internal helper func is used by both ns_eval and _ns_eval.
+#   It will insure that any references to ns_eval from code
+#   eval'ed is properly turned into simple evals.
+#
+
+proc _ns_helper_eval {args} {
+    set didsaveproc 0
+    if {[info proc _saved_ns_eval] == ""} {
+	rename ns_eval _saved_ns_eval
+	proc ns_eval {args} {
+            set len [llength $args]
+            if {$len == 0} {
+                return
+            } elseif {$len == 1} {
+                set args [lindex $args 0]
+            }
+	    uplevel 1 $args
+	}
+	set didsaveproc 1
+    }
+
+    set code [catch {uplevel 1 $args} result]
+
+    if $didsaveproc {
+	rename ns_eval ""
+	rename _saved_ns_eval ns_eval
+    }
     return -code $code $result
 }
 
