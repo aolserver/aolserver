@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Makefile.global,v 1.53 2002/05/15 23:38:40 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Makefile.global,v 1.54 2002/06/05 22:54:31 jgdavidson Exp $
 #
 
 #
@@ -62,7 +62,7 @@ RANLIB	     =   /usr/bin/true
 ifeq (1,$(NSDEBUG))
     CCOPT     	= -g
     tcldbg	= g
-    #CFLAGS	+= -DTCL_MEM_DEBUG=1
+    #tclmemdbg	= -DTCL_MEM_DEBUG=1
 else
     CCOPT    	= -O2
     CFLAGS   	+= -DNDEBUG=1
@@ -81,7 +81,7 @@ ifeq (1,$(NSDEBUG))
     tclcfg      += --enable-symbols
 endif
 
-CFLAGS          += -D_REENTRANT=1 -DTCL_THREADS=1
+CFLAGS          += -D_REENTRANT=1 -DTCL_THREADS=1 $(tclmemdbg)
 ifdef NSHOME
     CFLAGS      += -I$(NSHOME)/include -I$(NSHOME)/$(tcldir)/generic
     LIBS	=  -L$(NSHOME)/$(tcldir)/unix -L$(NSHOME)/nsd

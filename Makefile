@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/Makefile,v 1.31 2002/05/15 23:16:04 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/Makefile,v 1.32 2002/06/05 22:54:31 jgdavidson Exp $
 #
 
 #
@@ -59,9 +59,9 @@ ifdef NSGCC
     MAKEFLAGS	+= NSGCC=$(NSGCC)
 endif
 
-dirs   = nsd nssock nsssl nscgi nscp nslog nsperm nsdb nspd nsext 
+dirs   = nsd nssock nsssl nscgi nscp nslog nsperm nsdb nsext nspd
 
-all: tcl 
+all: tcl
 	@for i in $(dirs); do \
 		( cd $$i && $(MAKE) all ) || exit 1; \
 	done
@@ -99,8 +99,8 @@ clean-aolserver:
 clean-tcl:
 	(cd $(tclsrc); $(MAKE) -f Makefile.in clean)
 
-tcl: $(tclsrc)/Makefile
-	(cd $(tclsrc); $(MAKE))
+tcl: $(tclsrc)/Makefile 
+	(cd $(tclsrc); $(MAKE) MEM_DEBUG_FLAGS='$(tclmemdbg)')
 
 tcl-checkout:
 	(cd `dirname $(tcldir)` && \
