@@ -33,7 +33,7 @@
  *	ADP commands.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpcmds.c,v 1.13 2003/03/05 14:40:38 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpcmds.c,v 1.14 2003/05/21 00:47:29 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -41,6 +41,8 @@ static int ReturnObjCmd(NsInterp *itPtr, int objc, Tcl_Obj **objv,
 			int exception);
 static int EvalObjCmd(NsInterp *itPtr, int objc, Tcl_Obj **objv,
 		      int safe);
+static int IsValidAdpContext(NsInterp *itPtr);
+
 
 
 /*
@@ -241,6 +243,14 @@ NsTclAdpAppendObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
 	Tcl_WrongNumArgs(interp, 1, objv, "string ?string ...?");
 	return TCL_ERROR;
     }
+
+    if (!IsValidAdpContext(itPtr)) {
+	Tcl_AppendResult(interp, 
+                         "This function cannot be used outside of an ADP",
+                         NULL );
+	return TCL_ERROR;
+    }
+
     for (i = 1; i < objc; ++i) {
 	s = Tcl_GetStringFromObj(objv[i], &len);
 	Ns_DStringNAppend(itPtr->adp.outputPtr, s, len);
@@ -269,6 +279,14 @@ NsTclAdpPutsObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
 	    return TCL_ERROR;
 	}
     }
+
+    if (!IsValidAdpContext(itPtr)) {
+	Tcl_AppendResult(interp, 
+                         "This function cannot be used outside of an ADP",
+                         NULL );
+	return TCL_ERROR;
+    }
+
     s = Tcl_GetStringFromObj(objv[objc-1], &len);
     Ns_DStringNAppend(itPtr->adp.outputPtr, s, len);
     if (objc == 2) {
@@ -397,6 +415,14 @@ NsTclAdpTellObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
 	Tcl_WrongNumArgs(interp, 1, objv, NULL);
 	return TCL_ERROR;
     }
+
+    if (!IsValidAdpContext(itPtr)) {
+	Tcl_AppendResult(interp, 
+                         "This function cannot be used outside of an ADP",
+                         NULL );
+	return TCL_ERROR;
+    }
+
     Tcl_SetObjResult(interp, Tcl_NewIntObj(itPtr->adp.outputPtr->length));
     return TCL_OK;
 }
@@ -442,6 +468,14 @@ NsTclAdpTruncObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
 	    return TCL_ERROR;
 	}
     }
+
+    if (!IsValidAdpContext(itPtr)) {
+	Tcl_AppendResult(interp, 
+                         "This function cannot be used outside of an ADP",
+                         NULL );
+	return TCL_ERROR;
+    }
+
     Ns_DStringTrunc(itPtr->adp.outputPtr, length);
     return TCL_OK;
 }
@@ -474,6 +508,14 @@ NsTclAdpDumpObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
 	Tcl_WrongNumArgs(interp, 1, objv, NULL);
 	return TCL_ERROR;
     }
+
+    if (!IsValidAdpContext(itPtr)) {
+	Tcl_AppendResult(interp, 
+                         "This function cannot be used outside of an ADP",
+                         NULL );
+	return TCL_ERROR;
+    }
+
     Tcl_SetResult(interp, itPtr->adp.outputPtr->string, TCL_VOLATILE);
     return TCL_OK;
 }
@@ -539,6 +581,14 @@ NsTclAdpArgvObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
 	Tcl_WrongNumArgs(interp, 1, objv, "?index?");
 	return TCL_ERROR;
     }
+
+    if (!IsValidAdpContext(itPtr)) {
+	Tcl_AppendResult(interp, 
+                         "This function cannot be used outside of an ADP",
+                         NULL );
+	return TCL_ERROR;
+    }
+
     if (objc == 1) {
 	Tcl_SetListObj(Tcl_GetObjResult(interp), itPtr->adp.objc,
 		       itPtr->adp.objv);
@@ -582,6 +632,14 @@ NsTclAdpBindArgsObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
 	Tcl_WrongNumArgs(interp, 1, objv, "varName ?varName ...?");
 	return TCL_ERROR;
     }
+
+    if (!IsValidAdpContext(itPtr)) {
+	Tcl_AppendResult(interp, 
+                         "This function cannot be used outside of an ADP",
+                         NULL );
+	return TCL_ERROR;
+    }
+
     if (objc != itPtr->adp.objc) {
 	Tcl_AppendResult(interp, "invalid #variables", NULL);
 	return TCL_ERROR;
@@ -766,4 +824,29 @@ NsTclAdpMimeTypeObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
 	Tcl_SetResult(interp, itPtr->adp.typePtr->string, TCL_VOLATILE);
     }
     return TCL_OK;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * IsValidAdpContext --
+ *
+ *      Evaluate the given NsInterp structure, and determine whether
+ *      it has been properly setup for use by ns_adp_puts and family.
+ *
+ * Results:
+ *      1 if valid adp context, 0 if not.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int 
+IsValidAdpContext(NsInterp *itPtr)
+{
+
+    return (itPtr->adp.outputPtr != NULL);
 }
