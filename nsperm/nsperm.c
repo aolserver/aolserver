@@ -33,7 +33,7 @@
  *	Permissions
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsperm/nsperm.c,v 1.8 2003/03/07 18:08:50 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsperm/nsperm.c,v 1.9 2004/02/18 06:30:32 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 
@@ -833,7 +833,7 @@ AllowDenyCmd(Server *servPtr, Tcl_Interp *interp, int argc, char **argv, int all
 	Tcl_InitHashTable(&permPtr->denygroup, TCL_STRING_KEYS);
 	Ns_UrlSpecificSet(servPtr->server, method, url, uskey, permPtr, flags, NULL);
     }
-    permPtr->implicit_allow = allow;
+    permPtr->implicit_allow = !allow;
     if (user) {
 	if (allow) {
             (void) Tcl_CreateHashEntry(&permPtr->allowuser, key, &new);
