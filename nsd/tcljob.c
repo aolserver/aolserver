@@ -33,7 +33,7 @@
  *	Tcl job queueing routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tcljob.c,v 1.10 2003/03/07 18:08:40 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tcljob.c,v 1.11 2003/09/05 14:52:17 pmoosman Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -371,7 +371,7 @@ NsTclJobObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 
     case JJobsIdx:
 	if (objc != 3) {
-	    Tcl_WrongNumArgs(interp, 2, objv, "queue id");
+	    Tcl_WrongNumArgs(interp, 2, objv, "queue");
 	    return TCL_ERROR;
 	}
 	if (GetQueueFromObj(interp, objv[2], &queuePtr) != TCL_OK) {
