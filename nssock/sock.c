@@ -40,7 +40,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nssock/Attic/sock.c,v 1.5 2000/09/25 22:14:58 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nssock/Attic/sock.c,v 1.6 2000/09/29 13:42:39 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 
@@ -307,15 +307,12 @@ Ns_ModuleInit(char *server, char *name)
     } 
     sdPtr->bufsize = 0; 
 #else 
- 
     if (!Ns_ConfigGetInt(path, "bufsize", &n) || n < 1) { 
         n = 16000; 
     } 
     sdPtr->bufsize = n; 
 #endif 
-
     Ns_MutexSetName2(&sdPtr->lock, DRIVER_NAME, name);
-    sdPtr->bufsize = n;
     sdPtr->refcnt = 1;
     sdPtr->lsock = INVALID_SOCKET;
     sdPtr->name = name;
