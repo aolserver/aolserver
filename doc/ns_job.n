@@ -28,7 +28,7 @@
 '\" version of this file under either the License or the GPL.
 '\" 
 '\"
-'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_job.n,v 1.1 2002/09/28 19:58:27 jgdavidson Exp $
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_job.n,v 1.2 2003/09/05 14:46:34 pmoosman Exp $
 '\"
 '\" 
 .so man.macros
@@ -40,14 +40,82 @@
 ns_job \- commands
 .SH SYNOPSIS
 \fBns_job \fIoption \fR?\fIarg arg ...\fR?
+
+\fBns_job \fIcreate \fR\fIqueue_name ?maxthreads? \fR
+
+\fBns_job \fIqueue \fR\fIqueue_name script \fR
+
+\fBns_job \fIwait \fR\fIqueue_name job_id \fR
+
+\fBns_job \fIcancel \fR\fIqueue_name job_id \fR
+
+\fBns_job \fIjobs \fR\fIqueue_name \fR
+
+\fBns_job \fIqueues \fR
+
 .BE
 
 .SH DESCRIPTION
 .PP
-These commands...
+ns_job manages sets of thread pools called "queues". Queues have a max number of threads and when the current number of running thread reaches "max" then jobs are queued.
+
+
+.SH OPTIONS
+.PP
+
+.IP \fBcreate \fR
+
+create \fIqueue_name ?maxthreads? \fR
+
+Create a new thread pool queue called \fIqueue_name\fR. If \fImaxthreads\fR is not specified, then the default of 4 is used.
+
+
+.IP \fBqueue \fR
+
+queue \fIqueue_name script \fR
+
+Add a new job to the queue. If there are less than \fImaxthreads\fR current running then the job will be started. If there are \fImaxthreads \fR currently running then this new job will be queued.
+
+The new job's ID is returned.
+
+.IP \fBwait \fR
+
+wait \fR\fIqueue_name job_id \fR
+
+Wait for the specified queued or running job to finish. \fIwait\fR returns the results of the script.
+
+.IP \fBcancel \fR
+
+cancel \fR\fIqueue_name job_id \fR
+
+Remove a queued job from the queue. If the job is currently running, then the job can not be cancelled.
+
+true is returned if the job is currently running and can not be cancelled.
+
+.IP \fBjobs \fR
+
+\fBns_job \fIjobs \fR\fIqueue_name \fR
+
+This API should be changed. It should return a list of job ids, and whether the job is currently running or queued.
+
+Instead it return a list of job results in arbitrary order.
+
+.IP \fBqueues \fR
+
+\fBqueues \fR
+
+Returns a list of the current queues.
+
+.SH BUGS
+
+There is currently no way to destroy a created queue.
+
+The ns_job jobs API needs changes in order to make it useful.
+
 
 .SH "SEE ALSO"
 nsd(1), info(n)
 
 .SH KEYWORDS
 
+ns_job
