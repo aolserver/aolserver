@@ -1,5 +1,7 @@
 2000-10-09  Kriston J. Rehberg  <Kriston@AOL.NET>
 
+	* tests/:  Moved from its hiding place in scripts/test
+
 	* nsd/tclxkeylist.c, nsd/tclcmds.c, nsd/Makefile: Re-added TclX
 	keyl* commands that were in AOLserver 2.x.
 
