@@ -33,7 +33,7 @@
  *	Initialization routines for Tcl.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.32 2003/03/07 18:08:39 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.33 2003/04/03 19:45:35 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -75,6 +75,8 @@ static Tcl_HashEntry *GetHashEntry(NsServer *servPtr);
 static int RegisterTrace(NsServer *servPtr, int idx,
 			 Ns_TclTraceProc *proc, void *arg);
 static void RunTraces(NsInterp *itPtr, int idx);
+static int TclScriptTraceCB(Tcl_Interp *interp, void *arg);
+static int TclInitScriptCB(Tcl_Interp *interp, void *arg);
 
 /*
  * Static variables defined in this file.
@@ -959,6 +961,146 @@ NsTclICtlObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
     return result;
 }
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsTclRegisterInterpTraceObjCmd --
+ *
+ *      Implements ns_register_interptrace command to establish tcl
+ *      scripts to be invoked at points around the lifetime of Tcl interpreters.
+ *      Note that this function does not provide when == destroy, since the
+ *      destroy traces are run after the interp is deallocated.
+ *
+ *      This function can only be called during server startup.  It will return
+ *      an error if called after server startup.
+ *
+ *      Ex: ns_register_interptrace create { rename foo _foo }
+ *
+ * Results:
+ *      Standard Tcl result.
+ *
+ * Side effects:
+ *	May update current saved server Tcl state.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+NsTclRegisterInterpTraceObjCmd(ClientData arg, Tcl_Interp *interp,
+                               int objc, Tcl_Obj **objv)
+{
+    Tcl_Obj   *objPtr;
+    NsInterp  *itPtr = arg;
+    static CONST char *opts[] = {
+	"create", "cleanup", "init", NULL
+    };
+    enum {
+	ICreateIdx, ICleanupIdx, IInitIdx
+    }          opt;
+    int        status = NS_ERROR;
+
+
+    if (objc != 3) {
+        Tcl_WrongNumArgs(interp, 1, objv, "when script");
+	return TCL_ERROR;
+    }
+
+    if (Tcl_GetIndexFromObj(interp, objv[1], opts, "when", 0,
+			    (int *) &opt) != TCL_OK) {
+	return TCL_ERROR;
+    }
+
+    objPtr = objv[2];
+    Tcl_IncrRefCount(objPtr);
+
+    switch( opt ) {
+        case ICreateIdx:
+            status = Ns_TclRegisterAtCreate(TclScriptTraceCB, objPtr);
+            break;
+        case ICleanupIdx:
+            status = Ns_TclRegisterAtCleanup(TclScriptTraceCB, objPtr);
+            break;
+        case IInitIdx:
+            status = Ns_TclInitInterps(itPtr->servPtr->server,
+                                       TclInitScriptCB, objPtr);
+    }
+
+    if( status != NS_OK ) {
+        Tcl_AppendResult(interp, "Failed ", opts[opt], "-time registration", NULL );
+        /*
+         * There is a restriction imposed from the Ns_TclRegisterAtxx
+         * funcs that this can only be called during server init.
+         * Check for this case, so that I can produce a reasonable 
+         * diagnostic.
+         */
+        if( (opt != IInitIdx) && (NsGetInitServer() == NULL) ) {
+            Tcl_AppendResult(interp,
+                             ", this can only be used during server init.",
+                             NULL );
+        }
+        Tcl_DecrRefCount(objPtr);
+        return TCL_ERROR;
+    }
+    return TCL_OK;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * TclScriptTraceCB --
+ *
+ *      Eval the given script from being called as a trace callback.
+ *
+ * Results:
+ *      Status from script eval.
+ *
+ * Side effects:
+ *	Depends on Tcl init script sources by Tcl_Init.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+TclScriptTraceCB(Tcl_Interp *interp, void *arg)
+{
+    Tcl_Obj *objPtr = (Tcl_Obj *)arg;
+    int status = TCL_OK;
+
+    if( objPtr != NULL ) {
+        status = Tcl_EvalObjEx(interp, objPtr, 0);
+    }
+    return status;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * TclInitScriptCB --
+ *
+ *      Eval the given script from being called as a Tcl Init callback.
+ *
+ * Results:
+ *      Status from script eval.
+ *
+ * Side effects:
+ *	Depends on Tcl init script sources by Tcl_Init.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+TclInitScriptCB(Tcl_Interp *interp, void *arg)
+{
+    Tcl_Obj *objPtr = (Tcl_Obj *)arg;
+    int status = NS_OK;
+
+    if( (objPtr != NULL) &&
+        (Tcl_EvalObjEx(interp, objPtr, 0) != TCL_OK) ) {
+        status = NS_ERROR;
+    }
+    return status;
+}
 
 /*
  *----------------------------------------------------------------------
