@@ -52,7 +52,7 @@
  *
  */
 
-static const char *RCSID = "@(#): $Header: /Users/dossy/Desktop/cvs/aolserver/nssock/Attic/ssltcl.c,v 1.2 2000/08/15 20:24:33 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#): $Header: /Users/dossy/Desktop/cvs/aolserver/nssock/Attic/ssltcl.c,v 1.3 2000/09/06 22:41:59 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 #include "ssl.h"
@@ -70,10 +70,10 @@ static int
 InitCommands(Tcl_Interp *interp);
 
 static void *
-ReadFile(char *filename, int *length);
+SslReadFile(char *filename, int *length);
 
 static int
-WriteFile(char *filename, void *data, int length);
+SslWriteFile(char *filename, void *data, int length);
 
 static int
 OctetStringDecode(Ns_DString *ds, char *s);
@@ -286,7 +286,7 @@ InitCommands(Tcl_Interp *interp)
 /* 
  *---------------------------------------------------------------------- 
  * 
- * ReadFile
+ * SslReadFile
  * 
  *      Returns the file as a block of allocated memory.
  * 
@@ -300,7 +300,7 @@ InitCommands(Tcl_Interp *interp)
  *---------------------------------------------------------------------- 
  */ 
 static void *
-ReadFile(char *filename, int *length)
+SslReadFile(char *filename, int *length)
 {
     FILE *fp;
     void *data;
@@ -349,7 +349,7 @@ ReadFile(char *filename, int *length)
 /* 
  *---------------------------------------------------------------------- 
  * 
- * WriteFile
+ * SslWriteFile
  * 
  *      Write a block of ram to disk.
  * 
@@ -362,7 +362,7 @@ ReadFile(char *filename, int *length)
  *---------------------------------------------------------------------- 
  */ 
 static int
-WriteFile(char *filename, void *data, int length)
+SslWriteFile(char *filename, void *data, int length)
 {
     FILE *fp;
     int status;
@@ -546,7 +546,7 @@ DerDecodeCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
         if (strcasecmp(argv[1], "-file") == 0) {
             int length;
 
-            der = ReadFile(argv[2], &length);
+            der = SslReadFile(argv[2], &length);
             if (der == NULL) {
                 Tcl_AppendResult(interp, "Could not read file '", argv[2],
                                  "'.", NULL);
@@ -747,7 +747,7 @@ OctetStringCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
         } else if (strcasecmp(argv[1], "read") == 0) {
             int length;
 
-            rawBytes = ReadFile(argv[2], &length);
+            rawBytes = SslReadFile(argv[2], &length);
             if (rawBytes == NULL) {
                 Tcl_AppendResult(interp, "Could not read file '", argv[2],
                                  "'.", NULL);
@@ -764,7 +764,7 @@ OctetStringCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
                 break;
             }
 
-            if (WriteFile(argv[2], ds.string, ds.length) != NS_OK) {
+            if (SslWriteFile(argv[2], ds.string, ds.length) != NS_OK) {
                 Tcl_AppendResult(interp, "Could not write file '", argv[2],
                                  "'.", NULL);
                 break;
