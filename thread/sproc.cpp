@@ -109,9 +109,7 @@ struct {
  * If you're interested in how per-thread context management would
  * be done on other platforms check out the LinuxThreads source
  * code.  For example, on Sparc Linux (and Solaris) a pointer to thread
- * context is stored in CPU register #6 and on Intel Linux it's
- * calculated based on the known spacing of thread context mmaped()'ed 
- * at high virtual memory addresses.
+ * context is stored in CPU register g7.
  */
 
 static Sproc  **prdaPtrPtr = (Sproc **) (&((PRDA)->usr2_prda));
@@ -195,7 +193,6 @@ Ns_MasterLock(void)
 
     if (!initialized) {
 	master.lock = NsLockAlloc();
-    	usinitlock(master.lock);
 	master.sema = usnewsema(GetArena(), 0);
 	if (master.sema == NULL) {
     	    NsThreadFatal("Ns_MasterLock", "usnewsema", errno);
@@ -214,7 +211,7 @@ Ns_MasterLock(void)
 	++master.nwait;
     	NsLockUnset(master.lock);
 	if (uspsema(master.sema) != 1) {
-    	    NsThreadFatal("Ns_MasterUnlock", "usvsema", errno);
+    	    NsThreadFatal("Ns_MasterUnlock", "uspsema", errno);
 	}
     	NsLockSet(master.lock);
     }
