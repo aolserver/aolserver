@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/aclocal.m4,v 1.2 2004/08/14 03:56:58 dossy Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/aclocal.m4,v 1.3 2004/08/14 16:43:04 dossy Exp $
 #
 
 #
@@ -48,7 +48,9 @@ dnl FAQ Q213.
 dnl
 
 AC_DEFUN(AC_HAVE_GETHOSTBYNAME_R,
-[AC_CHECK_FUNC(gethostbyname_r, [
+[saved_CFLAGS=$CFLAGS
+CFLAGS="$CFLAGS -lnsl"
+AC_CHECK_FUNC(gethostbyname_r, [
   AC_DEFINE(HAVE_GETHOSTBYNAME_R)
   AC_MSG_CHECKING([for gethostbyname_r with 6 args])
   AC_TRY_COMPILE([
@@ -99,10 +101,13 @@ AC_DEFUN(AC_HAVE_GETHOSTBYNAME_R,
       ])
     ])
   ])
-])])
+])
+CFLAGS="$saved_CFLAGS"])
 
 AC_DEFUN(AC_HAVE_GETHOSTBYADDR_R,
-[AC_CHECK_FUNC(gethostbyaddr_r, [
+[saved_CFLAGS=$CFLAGS
+CFLAGS="$CFLAGS -lnsl"
+AC_CHECK_FUNC(gethostbyaddr_r, [
   AC_DEFINE(HAVE_GETHOSTBYADDR_R)
   AC_MSG_CHECKING([for gethostbyaddr_r with 7 args])
   AC_TRY_COMPILE([
@@ -123,5 +128,6 @@ AC_DEFUN(AC_HAVE_GETHOSTBYADDR_R,
   ], [
     AC_MSG_RESULT(no)
   ])
-])])
+])
+CFLAGS="$saved_CFLAGS"])
 
