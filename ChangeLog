@@ -1,3 +1,23 @@
+2003-04-10  Nathan Folkman <shmooved@aol.com>
+
+    * nslog/nslog.c: (new feature): Added a new option allowing
+    the request time to be captured and appended to the access
+    log. 
+
+    To enable:
+
+    ns_section "ns/server/${servername}/module/nslog"
+        ns_param logreqtime true
+
+    By default the option is disabled. If enabled the connection's
+    request time will be appended to the access log before the
+    extended headers (if configured).
+
+    The time is captured using a combination of a registered filter
+    and the server trace invoked to write the access log entry - for 
+    these reasons the time is not as precise as it could be. This
+    deficiency will be addressed in AOLserver 4.x.
+
 2003-04-04  Scott S. Goodwin  <scott@scottg.net>
 
     * nscgi/nscgi.c: (bug) Ns_DStringInit called in CgiExec was destroying the
