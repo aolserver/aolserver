@@ -27,41 +27,35 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Attic/Makefile.global.in,v 1.6 2002/09/18 23:54:45 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Attic/Makefile.global.in,v 1.7 2002/09/19 21:35:52 jgdavidson Exp $
 #
 
 #
-# Makefile.global --
+# Makefile.global.in --
 #
 #	Common and platform-specific make variables to be included
 #	by other makefiles.
 #
 
-#
-# Variables from Tcl config.
-#
+MKDIR        	= /bin/mkdir -p
+RM           	= /bin/rm -f
+CP           	= /bin/cp -fp
+AR	     	= /usr/bin/ar
 
 AOLSERVER    	= @prefix@
-
-#
-# Command variables.
-#
-
-MKDIR        =   /bin/mkdir -p
-RM           =   /bin/rm -f
-CP           =   /bin/cp -fp
-AR	     =   /usr/bin/ar
 RANLIB	     	= @TCL_RANLIB@
-LDLIB		= @TCL_SHLIB_LD@
-LDSO		= $(LDLIB)
-CC		= @TCL_CC@ @TCL_EXTRA_CFLAGS@
-CFLAGS      	= @TCL_SHLIB_CFLAGS@ @TCL_CFLAGS_WARNING@ \
-		  -I$(INCDIR) @TCL_INCLUDE_SPEC@ \
-		  -DNO_CONST @TCL_DEFS@ @DEFS@
-
-#
-# Libraries.
-#
+CC		= @TCL_CC@
+LIBEXT		= @TCL_SHLIB_SUFFIX@
+TCL_EXEC_PREFIX	= @TCL_EXEC_PREFIX@
+LIB_RUNTIME_DIR =
+TCL_CC_SEARCH_FLAGS = @TCL_CC_SEARCH_FLAGS@
+TCL_LD_SEARCH_FLAGS = @TCL_LD_SEARCH_FLAGS@
+LDLIB		= @LDLIB@
+LDSO		= @LDSO@
+CCRPATH		= @CCRPATH@
+LDRPATH		= @LDRPATH@
+CFLAGS      	= @TCL_SHLIB_CFLAGS@ @TCL_CFLAGS_WARNING@ @TCL_EXTRA_CFLAGS@ \
+		  -I$(INCDIR) @TCL_INCLUDE_SPEC@ -DNO_CONST @TCL_DEFS@ @DEFS@
 
 INCDIR	=  $(NSHOME)/include
 ifneq (nsthread,$(LIB))
@@ -71,21 +65,6 @@ ifneq (nsthread,$(LIB))
     endif
 endif
 LIBS		+= @TCL_LIB_SPEC@ @TCL_LIBS@
-
-
-#
-# Variables for the dynamic linker runtime path.
-#
-
-
-LIBEXT		= @TCL_SHLIB_SUFFIX@
-TCLLIBDIR	= @TCL_EXEC_PREFIX@/lib
-ASLIBDIR	= $(AOLSERVER)/lib
-LIB_RUNTIME_DIR =
-CCRFLAG		= @TCL_CC_SEARCH_FLAGS@
-LDRFLAG		= @TCL_LD_SEARCH_FLAGS@
-LDRPATH		= $(LDRFLAG)$(ASLIBDIR) $(LDRFLAG)$(TCLLIBDIR)
-CCRPATH		= $(CCRFLAG)$(ASLIBDIR) $(CCRFLAG)$(TCLLIBDIR)
 
 # Install directories
 INSTBIN		= $(AOLSERVER)/bin
@@ -99,25 +78,12 @@ INSTSRVPAG	= $(AOLSERVER)/servers/server1/pages
 # Platform-specific options.
 uname = $(shell uname -a)
 
-# Linux 2.2+
-ifneq (,$(findstring Linux,$(uname)))
-    CFLAGS+=-DUSE_FIONREAD=1 -DUSE_PROCTHREAD
-endif
-
 # Solaris 2.7+
 ifneq (,$(findstring SunOS,$(uname)))
     AR=/usr/ccs/bin/ar
     CCRPATH += $(CCRFLAG)/usr/lib/lwp
     LDRPATH += $(LDRFLAG)/usr/lib/lwp
     LIBS+=-lrt
-endif
-
-# Mac OS X
-ifneq (,$(findstring Darwin,$(uname)))
-    LDSO=cc -bundle
-    LDLIB=cc -dynamiclib -install_name $(ASLIBDIR)/$(LIBFILE)
-    CCRPATH=
-    LDRPATH=
 endif
 
 # Add dynamic library entry point flags.

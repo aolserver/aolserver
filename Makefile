@@ -27,24 +27,8 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/Makefile,v 1.37 2002/09/11 00:20:38 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/Makefile,v 1.38 2002/09/19 21:35:40 jgdavidson Exp $
 #
-
-#
-# You may set the following variables here, on the make command line,
-# or via shell environment variables.
-#
-# AOLSERVER:	AOLserver install directory (/usr/local/aolserver)
-# DEBUG		Build with debug symbols (default: 0, no symbols)
-# GCC		Build with gcc compiler (default: 1, use gcc)
-#
-
-
-##################################################################
-#
-# You should not need to edit anything below.
-#
-##################################################################
 
 include include/Makefile.global
 

@@ -27,13 +27,13 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/configure.in,v 1.5 2002/09/18 23:54:45 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/configure.in,v 1.6 2002/09/19 21:35:45 jgdavidson Exp $
 #
 
 #
 # configure.in --
 #
-#	AOLserver configure script.
+#    AOLserver configure script.
 #
 
 
@@ -49,41 +49,65 @@ SC_PATH_TCLCONFIG
 SC_LOAD_TCLCONFIG
 if test "${TCL_THREADS}" != "1"
 then
-	AC_MSG_ERROR([must build tcl with --enable-threads])
+    AC_MSG_ERROR([must build tcl with --enable-threads])
 fi
 if test "${TCL_SHARED_BUILD}" != "1"
 then
-	AC_MSG_ERROR([must build tcl with --enable-sahred])
+    AC_MSG_ERROR([must build tcl with --enable-sahred])
 fi
-
-#
-# TCL_SHLIB_LD from tclConfig.sh is not quite right for aolserver.
-#
-case "${TCL_SHLIB_LD}" in
-	*gcc*)
-		TCL_SHLIB_LD="$TCL_SHLIB_LD -nostartfiles"
-		;;
-esac
-case "$system" in
-	Darwin-*)
-		TCL_SHLIB_LD="$TCL_SHLIB_LD -install_name \$(ASLIBDIR)/\$(LIBFILE)"
-		;;
-esac
-
 AC_SUBST(TCL_LIB_SPEC)
 AC_SUBST(TCL_LIBS)
 AC_SUBST(TCL_CC)
 AC_SUBST(TCL_INCLUDE_SPEC)
 AC_SUBST(TCL_RANLIB)
-AC_SUBST(TCL_SHLIB_LD)
 AC_SUBST(TCL_SHLIB_SUFFIX)
-AC_SUBST(TCL_CC_SEARCH_FLAGS)
-AC_SUBST(TCL_LD_SEARCH_FLAGS)
 AC_SUBST(TCL_EXEC_PREFIX)
 AC_SUBST(TCL_EXTRA_CFLAGS)
 AC_SUBST(TCL_CFLAGS_WARNING)
 AC_SUBST(TCL_SHLIB_CFLAGS)
+AC_SUBST(TCL_CC_SEARCH_FLAGS)
+AC_SUBST(TCL_LD_SEARCH_FLAGS)
 AC_SUBST(TCL_DEFS)
+
+#
+# TCL_SHLIB_LD from tclConfig.sh is not quite right for aolserver.
+#
+test "x$prefix" = "xNONE" && prefix="/usr/local/aolserver"
+system=`uname`
+case "$system" in
+    Darwin)
+	LDLIB="cc -dynamiclib -install_name \$(INSTLIB)/\$(LIBFILE)"
+	LDSO="cc -bundle"
+	CCRPATH=
+	LDRPATH=
+	;;
+    *)
+	LDLIB="$TCL_SHLIB_LD"
+	case "$LDLIB" in
+	    *gcc*)
+		LDLIB="$LDLIB -nostartfiles \$(CCRFLAG)"
+		;;
+	    *cc*)
+		LDLIB="$LDLIB \$(CCRFLAG)"
+		;;
+	    *)
+		LDLIB="$LDLIB \$(LDRFLAG)"
+		;;
+	esac
+	CCRPATH="\$(TCL_CC_SEARCH_FLAGS)\$(INSTLIB)"
+	LDRPATH="\$(TCL_LD_SEARCH_FLAGS)\$(INSTLIB)"
+	if test "$TCL_EXEC_PREFIX" != "$prefix"
+	then
+		CCRPATH="$CCRPATH \$(TCL_CC_SEARCH_FLAGS)\$(TCL_EXEC_PREFIX)/lib"
+		LDRPATH="$LDRPATH \$(TCL_LD_SEARCH_FLAGS)\$(TCL_EXEC_PREFIX)/lib"
+	fi
+	LDSO="\$(LDLIB)"
+	;;
+esac
+AC_SUBST(LDLIB)
+AC_SUBST(LDSO)
+AC_SUBST(CCRPATH)
+AC_SUBST(LDRPATH)
 
 #
 # Additional AOLserver checks.
@@ -98,18 +122,34 @@ AC_TRY_RUN([
 int
 main(int argc, char **argv)
 {
-	return (sizeof(stdout->_file) == 1) ? 0 : 1;
-}], duphigh=yes, duphigh=no, duphigh=no)
-if test "${duphigh}" = "yes"
+    return (sizeof(stdout->_file) == 1) ? 0 : 1;
+}], as_ok=yes, as_ok=no, as_ok=no)
+AC_MSG_RESULT($as_ok)
+if test "${as_ok}" = "yes"
 then
     AC_DEFINE(USE_DUPHIGH)
 fi
-AC_MSG_RESULT($duphigh)
+
+AC_MSG_CHECKING([msg_controllen in struct msghdr])
+AC_TRY_COMPILE([
+#include <sys/types.h>
+#include <sys/socket.h>],[
+struct msghdr msg;
+int *i = msg.msg_controllen;
+],as_ok=yes, as_ok=no)
+AC_MSG_RESULT($as_ok)
+if test "$as_ok" = "yes"
+then
+	AC_DEFINE(HAVE_CMMSG)
+fi
+
+if test "$system" = "Linux"
+then
+    AC_DEFINE(USE_PROCTHREAD)
+fi
 
 #
 # Create Makefile.global.
 #
 
-AOLSERVER=$prefix
-AC_SUBST(AOLSERVER)
 AC_OUTPUT(include/Makefile.global)
