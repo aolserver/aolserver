@@ -135,7 +135,7 @@ BOOL APIENTRY
 DllMain(HANDLE hModule, DWORD why, LPVOID lpReserved)
 {
     WinThread *wPtr;
-HANDLE hdl;
+
     switch (why) {
     case DLL_PROCESS_ATTACH:
 	tlskey = TlsAlloc();
@@ -163,7 +163,6 @@ HANDLE hdl;
 	 * unloaded DLL, e.g., Tcl.
 	 */
 
-Ns_ThreadSelf(&hdl);
 	wPtr = TlsGetValue(tlskey);
 	NsCleanupTls(wPtr->slots);
 	if (!CloseHandle(wPtr->event)) {
