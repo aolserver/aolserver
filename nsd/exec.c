@@ -28,7 +28,7 @@
  */
 
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/exec.c,v 1.7 2001/03/27 16:44:06 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/exec.c,v 1.8 2001/03/27 17:35:55 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -416,6 +416,7 @@ Ns_ExecArgv(char *exec, char *dir, int fdin, int fdout,
     }
     if (env == NULL) {
 	/* NB: Not strictly thread safe. */
+	extern char **environ;
 	envp = environ;
     } else {
         envBlock = GetEnvBlock(env);
