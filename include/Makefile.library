@@ -1,0 +1,24 @@
+#
+# Makefile.library --
+#
+#      This Makefile contains rules for building AOLserver modules.
+#      You include this file at the bottom of your module's Makefile.
+#
+#   Note: We override the LIBS variable because it is not appropriate
+#         for most shared objects.
+#
+
+include ../include/Makefile.global
+
+all: $(LIB)
+
+$(LIB): $(OBJS)
+	$(RM) $(LIB)
+	$(LDSO) -o $(LIB) $(OBJS) $(LIBS)
+
+install: all $(LIBINST)
+	$(RM) $(INSTLIB)/$(LIB)
+	$(CP) $(LIB) $(INSTLIB)
+
+clean:
+	$(RM) $(OBJS) $(LIB) so_locations
