@@ -34,7 +34,7 @@
  *	Functions that return data to a browser. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.30 2003/08/19 22:10:33 rahul032213 Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.31 2003/08/19 22:14:58 shmooved Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -95,7 +95,7 @@ static struct {
     {413, "Request Entity Too Large"},
     {414, "Request-URI Too Long"},
     {415, "Unsupported Media Type"},
-    {416, "Requested range not satisfiable"},
+    {416, "Requested Range Not Satisfiable"},
     {417, "Expectation Failed"},
     {423, "Locked"},
     {500, "Internal Server Error"},
