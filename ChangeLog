@@ -1,3 +1,12 @@
+2004-06-03  Rob Crittenden <rcrittenden0569@aol.com>
+
+	* Makefile: remove Makefile.module during distclean
+	* include/ns.h, nsd/log.c: Allow users to override logging functions.
+	* nsd/str.c: Fix crash bug in Ns_Trim* when trimming NULL strings.
+	* nsd/: nsconf.c, driver.c, return.c, nsd.h: Add new bool config
+	  option, keepaliveallmethods, which enables HTTP/1.0 Keep-Alives for
+	  all valid methods. By default this is false.
+
 2004-03-26  Mark Page  <mpagenva@aol.com>
 
 	* nsd/nsd.h:
