@@ -34,7 +34,7 @@
  *	Tcl database access routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/dbtcl.c,v 1.5 2000/08/17 23:08:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/dbtcl.c,v 1.6 2000/08/18 00:12:28 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -834,8 +834,8 @@ NsTclQuoteListToListCmd(ClientData cd, Tcl_Interp *interp, int argc,
 int
 NsTclGetCsvCmd(ClientData cd, Tcl_Interp *interp, int argc, char **argv)
 {
-    int             ncols, inquote, quoted, blank, n;
-    char            c, *p, *s, buf[20];
+    int             ncols, inquote, quoted, blank;
+    char            c, *p, buf[20];
     Tcl_DString     line, cols, elem;
     Tcl_Channel	    chan;
 
