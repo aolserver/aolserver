@@ -1,4 +1,14 @@
 if {[ns_config -bool ns/server/stats enabled] == 1} {
+    nsv_set _ns_stats menu.cache    "Cache"
+    nsv_set _ns_stats menu.commands "Tcl Commands"
+    nsv_set _ns_stats menu.locks    "Locks"
+    nsv_set _ns_stats menu.log      "Log"
+    nsv_set _ns_stats menu.mempools "Memory Pools"
+    nsv_set _ns_stats menu.process  "Process Information"
+    nsv_set _ns_stats menu.sched    "Scheduled Procedures"
+    nsv_set _ns_stats menu.threads  "Threads"
+    nsv_set _ns_stats menu.url      "URL Stats"
+
 	nsv_set _ns_stats thread.0      "NS_OK"
 	nsv_set _ns_stats thread.-1     "NS_ERROR"
 	nsv_set _ns_stats thread.-2     "NS_TIMEOUT"
@@ -177,4 +187,12 @@ if {[ns_config -bool ns/server/stats enabled] == 1} {
 		
 		return 0
 	}
+	
+	proc _ns_stats.addMenuItem {shortName description} {
+	    return [nsv_set _ns_stats menu.$shortName $description]
+	}
+ 
+        proc _ns_stats.getMenuItemDescription {shortName} {
+            return [nsv_get _ns_stats menu.$shortName]
+        }
 }
