@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/configure.in,v 1.7 2002/09/19 22:27:55 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/configure.in,v 1.8 2002/09/21 17:07:36 jgdavidson Exp $
 #
 
 #
@@ -55,18 +55,25 @@ if test "${TCL_SHARED_BUILD}" != "1"
 then
     AC_MSG_ERROR([must build tcl with --enable-sahred])
 fi
+SC_ENABLE_SYMBOLS
+
 AC_SUBST(TCL_LIB_SPEC)
 AC_SUBST(TCL_LIBS)
-AC_SUBST(TCL_CC)
 AC_SUBST(TCL_INCLUDE_SPEC)
 AC_SUBST(TCL_RANLIB)
-AC_SUBST(TCL_SHLIB_SUFFIX)
 AC_SUBST(TCL_EXEC_PREFIX)
-AC_SUBST(TCL_EXTRA_CFLAGS)
-AC_SUBST(TCL_CFLAGS_WARNING)
-AC_SUBST(TCL_SHLIB_CFLAGS)
+
+AC_SUBST(TCL_SHLIB_SUFFIX)
 AC_SUBST(TCL_CC_SEARCH_FLAGS)
 AC_SUBST(TCL_LD_SEARCH_FLAGS)
+AC_SUBST(TCL_LD_FLAGS)
+
+AC_SUBST(TCL_CC)
+AC_SUBST(TCL_CFLAGS_DEBUG)
+AC_SUBST(TCL_CFLAGS_OPTIMIZE)
+AC_SUBST(TCL_CFLAGS_WARNING)
+AC_SUBST(TCL_EXTRA_CFLAGS)
+AC_SUBST(TCL_SHLIB_CFLAGS)
 AC_SUBST(TCL_DEFS)
 
 #
@@ -109,6 +116,8 @@ case "$system" in
 	LDSO="\$(LDLIB)"
 	;;
 esac
+SRCDIR=`cd $srcdir; pwd`
+AC_SUBST(SRCDIR)
 AC_SUBST(LDLIB)
 AC_SUBST(LDSO)
 AC_SUBST(CCRPATH)
@@ -157,4 +166,4 @@ fi
 # Create Makefile.global.
 #
 
-AC_OUTPUT(include/Makefile.global)
+AC_OUTPUT(include/Makefile.global include/Makefile.module)

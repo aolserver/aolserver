@@ -27,14 +27,14 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsperm/Makefile,v 1.5 2001/11/13 00:07:14 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsperm/Makefile,v 1.6 2002/09/21 17:07:36 jgdavidson Exp $
 #
 
 MOD      =  nsperm.so
 OBJS     =  nsperm.o
 MODINST	 =  cpfiles
 
-include ../include/Makefile.module
+include ../include/Makefile.build
 
 moddir	 = nsperm
 moddat	 = $(INSTSRVMOD)/$(moddir)
@@ -42,8 +42,9 @@ modtcl	 = $(INSTTCL)/$(moddir)
 
 cpfiles:
 	$(MKDIR) $(modtcl)
-	$(CP) init.tcl compat.tcl $(modtcl)/
+	$(INSTALL_DATA) init.tcl $(modtcl)/
+	$(INSTALL_DATA) compat.tcl $(modtcl)/
 	$(MKDIR) $(moddat)
 	for f in passwd group hosts.allow hosts.deny perms; do \
-		test -f $(moddat)/$$f || $(CP) $$f $(moddat)/; \
+		test -f $(moddat)/$$f || $(INSTALL_DATA) $$f $(moddat)/; \
 	done

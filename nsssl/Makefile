@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsssl/Makefile,v 1.2 2001/05/28 21:30:04 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsssl/Makefile,v 1.3 2002/09/21 17:07:36 jgdavidson Exp $
 #
 
 
@@ -80,7 +80,7 @@ endif
 OBJS      =  nsssl.o ssl.o ssltcl.o t_stdlib.o x509.o
 MODINST	  =  cppem
 
-include  ../include/Makefile.module
+include  ../include/Makefile.build
 
 cppem:
 	$(MKDIR) $(INSTMOD)/nsssl

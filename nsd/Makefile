@@ -27,10 +27,9 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Makefile,v 1.38 2002/07/14 23:15:56 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Makefile,v 1.39 2002/09/21 17:07:36 jgdavidson Exp $
 #
 
-INIT	= init.tcl
 INSTALL = install-init
 LIB     = nsd
 PGM	= nsd
@@ -54,11 +53,10 @@ LOBJS = adpcmds.o adpeval.o adpparse.o adprequest.o auth.o binder.o \
 
 LIBOBJS=$(LOBJS) stamp.o
 
-include ../include/Makefile.module
+include ../include/Makefile.build
 
 stamp.o: $(LOBJS)
 	$(CC) -c -o stamp.o stamp.c
 
 install-init:
-	$(RM) $(INSTBIN)/$(INIT)
-	$(CP) $(INIT) $(INSTBIN)/
+	$(INSTALL_DATA) init.tcl $(INSTBIN)/

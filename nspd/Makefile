@@ -27,24 +27,9 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nspd/Makefile,v 1.7 2002/06/05 22:56:30 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nspd/Makefile,v 1.8 2002/09/21 17:07:36 jgdavidson Exp $
 #
 
-NSHOME ?= ..
-include  $(NSHOME)/include/Makefile.global
-
-LIB	 =  libnspd.a
-OBJS     =  listen.o log.o main.o 
-
-all: $(LIB)
-
-$(LIB): $(OBJS)
-	$(AR) rv $(LIB) $(OBJS)
-	$(RANLIB) $(LIB)
-
-install: $(LIB)
-	$(RM) $(INSTLIB)/$(LIB)
-	$(CP) $(LIB) $(INSTLIB)/
-
-clean:
-	$(RM) $(LIB) $(OBJS)
+ALIB	 =  nspd
+ALIBOBJS =  listen.o log.o main.o 
+include  ../include/Makefile.build

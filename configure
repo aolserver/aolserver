@@ -14,6 +14,8 @@ ac_default_prefix=/usr/local
 ac_default_prefix=/usr/local/aolserver
 ac_help="$ac_help
   --with-tcl              directory containing tcl configuration (tclConfig.sh)"
+ac_help="$ac_help
+  --enable-symbols        build with debugging symbols [--disable-symbols]"
 
 # Initialize some variables set by options.
 # The variables have the same names as the options, with
@@ -548,7 +550,7 @@ if test "${with_tcl+set}" = set; then
 fi
 
 	echo $ac_n "checking for Tcl configuration""... $ac_c" 1>&6
-echo "configure:552: checking for Tcl configuration" >&5
+echo "configure:554: checking for Tcl configuration" >&5
 	if eval "test \"`echo '$''{'ac_cv_c_tclconfig'+set}'`\" = set"; then
   echo $ac_n "(cached) $ac_c" 1>&6
 else
@@ -621,7 +623,7 @@ fi
 
 
     echo $ac_n "checking for existence of $TCL_BIN_DIR/tclConfig.sh""... $ac_c" 1>&6
-echo "configure:625: checking for existence of $TCL_BIN_DIR/tclConfig.sh" >&5
+echo "configure:627: checking for existence of $TCL_BIN_DIR/tclConfig.sh" >&5
 
     if test -f "$TCL_BIN_DIR/tclConfig.sh" ; then
         echo "$ac_t""loading" 1>&6
@@ -678,6 +680,38 @@ then
     { echo "configure: error: must build tcl with --enable-sahred" 1>&2; exit 1; }
 fi
 
+    echo $ac_n "checking for build with symbols""... $ac_c" 1>&6
+echo "configure:685: checking for build with symbols" >&5
+    # Check whether --enable-symbols or --disable-symbols was given.
+if test "${enable_symbols+set}" = set; then
+  enableval="$enable_symbols"
+  tcl_ok=$enableval
+else
+  tcl_ok=no
+fi
+
+# FIXME: Currently, LDFLAGS_DEFAULT is not used, it should work like CFLAGS_DEFAULT.
+    if test "$tcl_ok" = "yes"; then
+	CFLAGS_DEFAULT='$(CFLAGS_DEBUG)'
+	LDFLAGS_DEFAULT='$(LDFLAGS_DEBUG)'
+	DBGX=g
+	echo "$ac_t""yes" 1>&6
+    else
+	CFLAGS_DEFAULT='$(CFLAGS_OPTIMIZE)'
+	LDFLAGS_DEFAULT='$(LDFLAGS_OPTIMIZE)'
+	DBGX=""
+	echo "$ac_t""no" 1>&6
+    fi
+    
+    
+
+
+
+
+
+
+
+
 
 
 
@@ -731,6 +765,8 @@ case "$system" in
 	LDSO="\$(LDLIB)"
 	;;
 esac
+SRCDIR=`cd $srcdir; pwd`
+
 
 
 
@@ -743,12 +779,12 @@ esac
 for ac_func in timegm fork1 poll drand48 random _NSGetEnviron
 do
 echo $ac_n "checking for $ac_func""... $ac_c" 1>&6
-echo "configure:747: checking for $ac_func" >&5
+echo "configure:783: checking for $ac_func" >&5
 if eval "test \"`echo '$''{'ac_cv_func_$ac_func'+set}'`\" = set"; then
   echo $ac_n "(cached) $ac_c" 1>&6
 else
   cat > conftest.$ac_ext <<EOF
-#line 752 "configure"
+#line 788 "configure"
 #include "confdefs.h"
 /* System header to define __stub macros and hopefully few prototypes,
     which can conflict with char $ac_func(); below.  */
@@ -771,7 +807,7 @@ $ac_func();
 
 ; return 0; }
 EOF
-if { (eval echo configure:775: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
+if { (eval echo configure:811: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
   rm -rf conftest*
   eval "ac_cv_func_$ac_func=yes"
 else
@@ -796,7 +832,7 @@ fi
 done
 
 echo $ac_n "checking how to run the C preprocessor""... $ac_c" 1>&6
-echo "configure:800: checking how to run the C preprocessor" >&5
+echo "configure:836: checking how to run the C preprocessor" >&5
 # On Suns, sometimes $CPP names a directory.
 if test -n "$CPP" && test -d "$CPP"; then
   CPP=
@@ -811,13 +847,13 @@ else
   # On the NeXT, cc -E runs the code through the compiler's parser,
   # not just through cpp.
   cat > conftest.$ac_ext <<EOF
-#line 815 "configure"
+#line 851 "configure"
 #include "confdefs.h"
 #include <assert.h>
 Syntax Error
 EOF
 ac_try="$ac_cpp conftest.$ac_ext >/dev/null 2>conftest.out"
-{ (eval echo configure:821: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
+{ (eval echo configure:857: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
 ac_err=`grep -v '^ *+' conftest.out | grep -v "^conftest.${ac_ext}\$"`
 if test -z "$ac_err"; then
   :
@@ -828,13 +864,13 @@ else
   rm -rf conftest*
   CPP="${CC-cc} -E -traditional-cpp"
   cat > conftest.$ac_ext <<EOF
-#line 832 "configure"
+#line 868 "configure"
 #include "confdefs.h"
 #include <assert.h>
 Syntax Error
 EOF
 ac_try="$ac_cpp conftest.$ac_ext >/dev/null 2>conftest.out"
-{ (eval echo configure:838: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
+{ (eval echo configure:874: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
 ac_err=`grep -v '^ *+' conftest.out | grep -v "^conftest.${ac_ext}\$"`
 if test -z "$ac_err"; then
   :
@@ -845,13 +881,13 @@ else
   rm -rf conftest*
   CPP="${CC-cc} -nologo -E"
   cat > conftest.$ac_ext <<EOF
-#line 849 "configure"
+#line 885 "configure"
 #include "confdefs.h"
 #include <assert.h>
 Syntax Error
 EOF
 ac_try="$ac_cpp conftest.$ac_ext >/dev/null 2>conftest.out"
-{ (eval echo configure:855: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
+{ (eval echo configure:891: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
 ac_err=`grep -v '^ *+' conftest.out | grep -v "^conftest.${ac_ext}\$"`
 if test -z "$ac_err"; then
   :
@@ -877,17 +913,17 @@ echo "$ac_t""$CPP" 1>&6
 
 ac_safe=`echo "mach-o/dyld.h" | sed 'y%./+-%__p_%'`
 echo $ac_n "checking for mach-o/dyld.h""... $ac_c" 1>&6
-echo "configure:881: checking for mach-o/dyld.h" >&5
+echo "configure:917: checking for mach-o/dyld.h" >&5
 if eval "test \"`echo '$''{'ac_cv_header_$ac_safe'+set}'`\" = set"; then
   echo $ac_n "(cached) $ac_c" 1>&6
 else
   cat > conftest.$ac_ext <<EOF
-#line 886 "configure"
+#line 922 "configure"
 #include "confdefs.h"
 #include <mach-o/dyld.h>
 EOF
 ac_try="$ac_cpp conftest.$ac_ext >/dev/null 2>conftest.out"
-{ (eval echo configure:891: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
+{ (eval echo configure:927: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
 ac_err=`grep -v '^ *+' conftest.out | grep -v "^conftest.${ac_ext}\$"`
 if test -z "$ac_err"; then
   rm -rf conftest*
@@ -913,17 +949,17 @@ fi
 
 ac_safe=`echo "dl.h" | sed 'y%./+-%__p_%'`
 echo $ac_n "checking for dl.h""... $ac_c" 1>&6
-echo "configure:917: checking for dl.h" >&5
+echo "configure:953: checking for dl.h" >&5
 if eval "test \"`echo '$''{'ac_cv_header_$ac_safe'+set}'`\" = set"; then
   echo $ac_n "(cached) $ac_c" 1>&6
 else
   cat > conftest.$ac_ext <<EOF
-#line 922 "configure"
+#line 958 "configure"
 #include "confdefs.h"
 #include <dl.h>
 EOF
 ac_try="$ac_cpp conftest.$ac_ext >/dev/null 2>conftest.out"
-{ (eval echo configure:927: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
+{ (eval echo configure:963: \"$ac_try\") 1>&5; (eval $ac_try) 2>&5; }
 ac_err=`grep -v '^ *+' conftest.out | grep -v "^conftest.${ac_ext}\$"`
 if test -z "$ac_err"; then
   rm -rf conftest*
@@ -948,12 +984,12 @@ else
 fi
 
 echo $ac_n "checking need for dup high""... $ac_c" 1>&6
-echo "configure:952: checking need for dup high" >&5
+echo "configure:988: checking need for dup high" >&5
 if test "$cross_compiling" = yes; then
   as_ok=no
 else
   cat > conftest.$ac_ext <<EOF
-#line 957 "configure"
+#line 993 "configure"
 #include "confdefs.h"
 
 #include <stdio.h>
@@ -963,7 +999,7 @@ main(int argc, char **argv)
     return (sizeof(stdout->_file) == 1) ? 0 : 1;
 }
 EOF
-if { (eval echo configure:967: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext} && (./conftest; exit) 2>/dev/null
+if { (eval echo configure:1003: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext} && (./conftest; exit) 2>/dev/null
 then
   as_ok=yes
 else
@@ -985,9 +1021,9 @@ EOF
 fi
 
 echo $ac_n "checking msg_controllen in struct msghdr""... $ac_c" 1>&6
-echo "configure:989: checking msg_controllen in struct msghdr" >&5
+echo "configure:1025: checking msg_controllen in struct msghdr" >&5
 cat > conftest.$ac_ext <<EOF
-#line 991 "configure"
+#line 1027 "configure"
 #include "confdefs.h"
 
 #include <sys/types.h>
@@ -999,7 +1035,7 @@ int *i = msg.msg_controllen;
 
 ; return 0; }
 EOF
-if { (eval echo configure:1003: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
+if { (eval echo configure:1039: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
   rm -rf conftest*
   as_ok=yes
 else
@@ -1142,7 +1178,7 @@ done
 
 ac_given_srcdir=$srcdir
 
-trap 'rm -fr `echo "include/Makefile.global" | sed "s/:[^ ]*//g"` conftest*; exit 1' 1 2 15
+trap 'rm -fr `echo "include/Makefile.global include/Makefile.module" | sed "s/:[^ ]*//g"` conftest*; exit 1' 1 2 15
 EOF
 cat >> $CONFIG_STATUS <<EOF
 
@@ -1183,18 +1219,24 @@ s%@TCL_LIB_SPEC@%$TCL_LIB_SPEC%g
 s%@TCL_STUB_LIB_FILE@%$TCL_STUB_LIB_FILE%g
 s%@TCL_STUB_LIB_FLAG@%$TCL_STUB_LIB_FLAG%g
 s%@TCL_STUB_LIB_SPEC@%$TCL_STUB_LIB_SPEC%g
+s%@CFLAGS_DEFAULT@%$CFLAGS_DEFAULT%g
+s%@LDFLAGS_DEFAULT@%$LDFLAGS_DEFAULT%g
 s%@TCL_LIBS@%$TCL_LIBS%g
-s%@TCL_CC@%$TCL_CC%g
 s%@TCL_INCLUDE_SPEC@%$TCL_INCLUDE_SPEC%g
 s%@TCL_RANLIB@%$TCL_RANLIB%g
-s%@TCL_SHLIB_SUFFIX@%$TCL_SHLIB_SUFFIX%g
 s%@TCL_EXEC_PREFIX@%$TCL_EXEC_PREFIX%g
-s%@TCL_EXTRA_CFLAGS@%$TCL_EXTRA_CFLAGS%g
-s%@TCL_CFLAGS_WARNING@%$TCL_CFLAGS_WARNING%g
-s%@TCL_SHLIB_CFLAGS@%$TCL_SHLIB_CFLAGS%g
+s%@TCL_SHLIB_SUFFIX@%$TCL_SHLIB_SUFFIX%g
 s%@TCL_CC_SEARCH_FLAGS@%$TCL_CC_SEARCH_FLAGS%g
 s%@TCL_LD_SEARCH_FLAGS@%$TCL_LD_SEARCH_FLAGS%g
+s%@TCL_LD_FLAGS@%$TCL_LD_FLAGS%g
+s%@TCL_CC@%$TCL_CC%g
+s%@TCL_CFLAGS_DEBUG@%$TCL_CFLAGS_DEBUG%g
+s%@TCL_CFLAGS_OPTIMIZE@%$TCL_CFLAGS_OPTIMIZE%g
+s%@TCL_CFLAGS_WARNING@%$TCL_CFLAGS_WARNING%g
+s%@TCL_EXTRA_CFLAGS@%$TCL_EXTRA_CFLAGS%g
+s%@TCL_SHLIB_CFLAGS@%$TCL_SHLIB_CFLAGS%g
 s%@TCL_DEFS@%$TCL_DEFS%g
+s%@SRCDIR@%$SRCDIR%g
 s%@LDLIB@%$LDLIB%g
 s%@LDSO@%$LDSO%g
 s%@CCRPATH@%$CCRPATH%g
@@ -1241,7 +1283,7 @@ EOF
 
 cat >> $CONFIG_STATUS <<EOF
 
-CONFIG_FILES=\${CONFIG_FILES-"include/Makefile.global"}
+CONFIG_FILES=\${CONFIG_FILES-"include/Makefile.global include/Makefile.module"}
 EOF
 cat >> $CONFIG_STATUS <<\EOF
 for ac_file in .. $CONFIG_FILES; do if test "x$ac_file" != x..; then

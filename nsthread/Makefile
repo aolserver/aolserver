@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/Makefile,v 1.3 2002/09/16 19:43:07 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/Makefile,v 1.4 2002/09/21 17:07:36 jgdavidson Exp $
 #
 
 LIB     = nsthread
@@ -40,4 +40,4 @@ LIBOBJS = \
 	rwlock.o reentrant.o sema.o thread.o tls.o signal.o	\
 	compat.o time.o fork.o
 
-include ../include/Makefile.module
+include ../include/Makefile.build
