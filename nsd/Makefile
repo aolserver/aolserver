@@ -31,7 +31,7 @@ NSD7      = nsd76
 NSD8      = nsd8x
 
 
-all: $(NSD7) $(NSD8)
+all: $(NSD8)
 
 #
 # Tcl 7.6
@@ -60,13 +60,11 @@ $(OBJS): nsd.h nsconf.h
 #
 # Installation
 #
-#   Tcl 7.6 is nsd76.  Tcl 8.x is nsd8x.
+#   AOLserver 3.3.1 and later are nsd only, Tcl 8.x.
 #
-install: $(NSD7) $(NSD8)
-	$(RM) $(INSTBIN)/nsd82 $(INSTBIN)/nsd
-	$(RM) $(INSTBIN)/$(NSD7) $(INSTBIN)/$(NSD8)
-	$(CP) $(NSD7) $(NSD8) $(INSTBIN)
-	cd $(INSTBIN) ; $(RM) nsd ; $(LN) ./$(NSD8) nsd
+install: $(NSD8)
+	$(RM) $(INSTBIN)/$(NSD8) $(INSTBIN)/$(NSD7) $(INSTBIN)/nsd
+	$(CP) $(NSD8) $(INSTBIN)/nsd
 
 #
 # Clean the directory to pre-built state.

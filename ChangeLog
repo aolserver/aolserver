@@ -1,3 +1,11 @@
+2001-03-12  Kris Rehberg  <kriston@aol.com>
+
+	* Build rules for nsd76 are turned off -- nsd76 is not supported
+	anymore.  The build rules and targets still exist, but we no
+	longer use them.  The binary named "nsd" is now nsd8x.
+
+	*** nsd_v3_r3_p0 (AOLserver 3.3.0) BRANCH BEGINS ***
+
 2001-03-08  Kris Rehberg
 
 	*** AOLserver 3.3 RELEASED ***

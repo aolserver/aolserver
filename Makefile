@@ -34,7 +34,7 @@ ALLDIRS   = nsd $(MODULES)
 #
 # Main build rule.
 #
-all: libtcl76 libtcl8x libnsthread
+all: libtcl8x libnsthread
 	@for i in $(ALLDIRS); do \
 		$(ECHO) "building \"$$i\""; \
 		( cd $$i && $(MAKE) all ) || exit 1; \
@@ -74,7 +74,7 @@ install-tests:
 #
 # Cleaning rule.
 #
-clean: libtcl8x-clean libtcl76-clean libnsthread-clean
+clean: libtcl8x-clean libnsthread-clean
 	@for i in $(ALLDIRS); do \
 		$(ECHO) "cleaning \"$$i\""; \
 		( cd $$i && $(MAKE) $@) || exit 1; \
