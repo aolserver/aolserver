@@ -1,3 +1,8 @@
+2004-06-30 17:03  Dossy Shiobara <dossy@panoptic.com>
+
+	* nsd/unix.c: Ensure synchronous signals are handled correctly
+	  under LinuxThreads.  Possible fix for Bug #982955.
+
 2004-06-30 01:16  Dossy Shiobara <dossy@panoptic.com>
 
 	* include/ns.h: Fix build on alpha arch, removing extra INT64
