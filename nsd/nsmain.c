@@ -33,7 +33,7 @@
  *	AOLserver Ns_Main() startup routine.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.29 2001/04/02 19:35:06 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.30 2001/04/23 21:15:25 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -599,7 +599,6 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 
     NsRunPreStartupProcs();
     NsStartServers();
-    NsStartKeepAlive();
 
     /*
      * Signal startup is complete.
@@ -632,7 +631,7 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
      * ready.
      */
 
-    NsStartDrivers(server);
+    NsStartDrivers();
 #ifndef WIN32
     NsStopBinder();
 #endif
@@ -667,7 +666,6 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
      */
 
     NsStopDrivers();
-    NsStopKeepAlive();
     NsStopServers(&timeout);
 
     /*
