@@ -1,5 +1,10 @@
 2004-07-13  Dossy Shiobara <dossy@panoptic.com>
 
+	* nslog/nslog.c (1.14.2.1): conn->headers can be NULL causing
+	  segfault.  Closes SF Bug #990439.  Backported from HEAD.
+
+2004-07-13  Dossy Shiobara <dossy@panoptic.com>
+
 	* include/nsthread.h (1.24.2.1): OpenBSD 3.5 doesn't define
 	  ENOTSUP, so we'll define it ourselves.  Closes SF Bug #985076.
 	  Backported from HEAD.
