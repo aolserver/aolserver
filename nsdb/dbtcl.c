@@ -33,7 +33,7 @@
  *	Tcl database access routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsdb/dbtcl.c,v 1.5 2005/03/28 00:03:55 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsdb/dbtcl.c,v 1.6 2005/03/28 00:13:54 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "db.h"
 
@@ -70,7 +70,7 @@ static char *datakey = "nsdb:data";
 
 /*
  *----------------------------------------------------------------------
- * Ns_TclGetHandle --
+ * Ns_TclDbGetHandle --
  *
  *      Get database handle from its handle id.
  *
@@ -84,7 +84,7 @@ static char *datakey = "nsdb:data";
  */
 
 int
-Ns_TclGetHandle(Tcl_Interp *interp, char *id, Ns_DbHandle **handle)
+Ns_TclDbGetHandle(Tcl_Interp *interp, char *id, Ns_DbHandle **handle)
 {
     InterpData *idataPtr;
 
