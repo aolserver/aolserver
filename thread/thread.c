@@ -34,7 +34,7 @@
  *	Routines for creating, exiting, and joining threads.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/thread.c,v 1.10 2000/10/22 20:36:09 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/thread.c,v 1.11 2000/10/22 21:18:03 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "thread.h"
 
@@ -202,13 +202,15 @@ Ns_ThreadJoin(Ns_Thread *threadPtr, void **argPtr)
  * NsThreadMain --
  *
  *	Thread startup routine called by interface specific
- *	NsCreateThread.
+ *	NsCreateThread to set the given pre-allocated thread.
+ *	structure and call the user specified procedure.
  *
  * Results:
- *	None.
+ *	None.  Will call Ns_ThreadExit if not called by the
+ *	users.
  *
  * Side effects:
- *	None.
+ *	See NsSetThread and NsInitThread.
  *
  *----------------------------------------------------------------------
  */
@@ -220,7 +222,6 @@ NsThreadMain(void *arg)
 
     NsSetThread(thrPtr);
     thrPtr->stackBase = &arg;
-    sprintf(thrPtr->name, "-t%d-", thrPtr->tid);
     (*thrPtr->proc) (thrPtr->arg);
     Ns_ThreadExit(0);
 }
@@ -551,6 +552,7 @@ NsInitThread(Thread *thrPtr, int tid)
 	initialized = 1;
     }
     thrPtr->tid = tid;
+    sprintf(thrPtr->name, "-t%d-", thrPtr->tid);
     Ns_MutexLock(&lock);
     thrPtr->nextPtr = firstPtr;
     firstPtr = thrPtr;
