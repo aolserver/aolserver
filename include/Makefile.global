@@ -26,15 +26,19 @@ INSTSRVPAG   =   $(INSTSRV)/pages
 # Common build variables.  The default is to
 # use gcc for compile and shared library link.
 #
-CC           =   gcc
+# NOTE: Purify only works with native compilers.  It works with gcc-2.8.1
+#       on some platforms.  IT WILL *NOT* WORK WITH GCC-2.95.2.
+#
+
+CC           =   $(PURIFY) gcc
 LD           =   ld
 LDSO	     =   $(CC) -shared -nostartfiles
 
 #
 # Select one of the following for debug or optimization.
 #
-#CCOPT        =  -O2 -DNDEBUG=1
-CCOPT        =  -g 
+CCOPT        =  -O2 -DNDEBUG=1
+#CCOPT        =  -g 
 
 CFLAGS       +=  $(CCOPT) -I$(NSHOME)/include -D_REENTRANT
 LIBNSTHREAD  =   $(NSHOME)/thread/libnsthread.a
@@ -60,14 +64,43 @@ RPATH = $(PREFIX)/lib:/usr/local/aolserver/lib:/opt/aolserver/lib:/usr/local/lib
 #
 PLATFORM = unknown
 
+
 #
-# HP/UX 11 -- gcc
+# KNOWN-GOOD PLATFORMS FOR THIS RELEASE:
 #
-#  SMP is fully supported.
+# **=read notes carefully
 #
+#    HP/UX 10.20, 11.x, and better
+#    Linux i386 from Red Hat**
+#    Solaris 2.6 SPARC and better
+#    Solaris 7 x86 and better
+#    DEC OSF/1 Tru64 UNIX 4.x and better
+#    SGI Irix 6.4**
+#    FreeBSD 3.x i386 and better
+#
+# UNTESTED PLATFORMS:
+#
+#    OpenBSD 2.x and better
+#    SCO Unixware 7.x
+#    Mac OS X Public Beta (desktop Darwin/Mach 3.0-based product)
+#    Mac OS X Server (Mach 2.5-based undead zombie product)
+#
+# UNSUPPORTED PLATFORMS:
+#
+#    NetBSD 1.x (no threads library)
+#    SCO Xenix-based (OpenServer)
+#
+
+#
+# HP/UX 11.x -- gcc
+#
+#  The HP/UX 10.20 build works fine on HP/UX 11.x
+#  "gcc -g" may have trouble supplying debug symbols.
+#  SMP is fully supported by HP/UX.
+#  
 ifeq (HP-UXB.11.00, $(shell uname -s)$(shell uname -r))
     PLATFORM=hp11
-    # CC=cc
+    # CC=$(PURIFY) cc
     # CFLAGS+=-Ae +DAportable +z
     LDSO=$(LD) -b
     NSDLIBS=-lm
@@ -79,15 +112,15 @@ endif
 
 
 #
-# HP/UX 10 -- gcc
+# HP/UX 10.20 -- gcc
 #
-#  The optional DCE threads package must be installed.
-#  SMP is fully supported.
-#  "gcc -g" gives a harmless warning unless you have the GNU version of as.
+#  The HP/UX 10.20 build works fine on HP/UX 11.x.
+#  "gcc -g" may have trouble supplying debug symbols.
+#  SMP is fully supported by HP/UX if the "DCE Threads" package is installed.
 #
 ifeq (HP-UXB.10.20, $(shell uname -s)$(shell uname -r))
     PLATFORM=hp10
-    # CC=cc
+    # CC=$(PURIFY) cc
     # CFLAGS+=-Ae +DAportable +z
     LDSO=$(LD) -b
     NSDLIBS=-lm
@@ -101,12 +134,9 @@ endif
 #
 # Linux -- gcc
 #
-#  Red Hat 6.1 is known to work -- it has working glibc 2.1 and Linuxthreads.
-#  glibc 2.1 (libc6) and its Linuxthreads component are absolutely required.
-#  glibc 2.0 (libc6) and BSD libc5 are obsolete on Linux and do not work.
-#  Linux supports SMP to some extent.  It will get better eventually.
-#  Some SMP systems accumulate zombie processes (this is a kernel issue).
-#  Note that we use the compiler to create shared objects, not the linker.
+#  Post-mortem debugging with core dumps is all but impossible.
+#  We use the VA Linux release of Red Hat 6.x exclusively.
+#  SMP and threads are badly supported by Linux (we recommend Solaris x86).
 #
 ifeq (Linux,$(shell uname))
     PLATFORM=linux
@@ -119,23 +149,18 @@ endif
 
 
 #
-# Sun Solaris SPARC and x86 -- gcc
+# Sun Solaris SPARC and x86 -- SUNWspro
 #
-#  Free Solaris distributions are available on promotion at http://sun.com/.
+#  Purify only works with SUNWspro and gcc-2.8.1.
 #  The "-pipe" option to gcc does not work on some versions of Solaris.
-#  -lresolv is only needed by reverse-host lookup modules like nsperm.
-#  Solaris 7 binaries will not run on Solaris 2.6 (this is a Solaris problem).
-#  Cygnus "GNUPro" DOES NOT WORK.  Use GNU gcc and /usr/ccs/bin/ld.
-#  GNU gcc 2.8.1 and 2.95.2 from http://www.sunfreeware.com/ work fine.
-#  Solaris 7 pthreads sometimes report cond_wait timeouts (a Solaris bug).
-#  SMP is fully supported.
+#  SMP is fully supported by Solaris on both SPARC and x86.
 #
 ifeq (SunOS,$(shell uname))
     PLATFORM=solaris
-    # CC=/opt/SUNWspro/bin/cc
-    # CFLAGS+=-KPIC
-    # LDSO=$(LD) -G
-    CFLAGS+=-D_POSIX_PTHREAD_SEMANTICS -fPIC -Wall -Wno-unused
+    CC=$(PURIFY) /opt/SUNWspro/bin/cc
+    CFLAGS+=-KPIC
+    LDSO=$(LD) -G
+    #CFLAGS+=-D_POSIX_PTHREAD_SEMANTICS -fPIC -Wall -Wno-unused
     NSDLIBS=-lm
     LIBS+=-lsocket -lnsl -ldl -lposix4 -lthread -lresolv -R $(RPATH)
     LD=/usr/ccs/bin/ld
@@ -151,11 +176,11 @@ endif
 #
 #  This should be changed to gcc as soon as possible.
 #  This is a 64-bit platform.
-#  SMP is fully supported.
+#  SMP is fully supported by DEC UNIX.
 #
 ifeq (OSF1,$(shell uname))
     PLATFORM=osf
-    CC=cc
+    CC=$(PURIFY) cc
     CFLAGS+=-std1 -pthread
     LDFLAGS+=-pthread
     LDSO=$(LD) -shared -expect_unresolved '*'
@@ -167,20 +192,19 @@ endif
 #
 # SGI Irix (6.4 or better) -- cc
 #
-#  cc -o32 is the default.
+#  We only use o32 binaries and use "cc -o32" to build.
 #  GCC: unset ABI, set SGI_ABI env variable to n32 to force linker to behave.
 #  CC: unset SGI_ABI; set the ABI variable to "-n32".
 #  gcc only works if all third-party libraries are in the "n32" ABI.
 #  The "-pipe" option to gcc does not work on some versions of Irix.
-#  ABI can be -o32, -n32, or -64.  Only "-o32" has been tested in production.
-#  SMP is fully supported.  It works best with "sproc" threads, not "pthreads."
 #  Use "systune" command to set "maxuproc" and "nproc" to reasonable values.
+#  SMP is fully supported by Irix.
 #
 ifeq (IRIX, $(findstring IRIX, $(shell uname)))
     PLATFORM=irix
     SGI_ABI=o32
     ABI=-$(SGI_ABI)
-    CC=cc
+    CC=$(PURIFY) cc
     CFLAGS+=$(ABI) -D_SGI_MP_SOURCE -fullwarn
     LDSO=$(LD) $(ABI) -shared
     #CFLAGS+=-D_SGI_MP_SOURCE -fPIC -Wall -Wno-unused
@@ -198,7 +222,7 @@ endif
 # FreeBSD 3.x -- gcc
 #
 #  The pthread library that ships with FreeBSD 3.3 or better is required.
-#  FreeBSD does not yet support SMP -- evidently a FreeBSD 4.x release will.
+#  SMP is supported by recent FreeBSD 4.x releases.
 #
 ifeq (FreeBSD,$(shell uname))
     PLATFORM=freebsd
@@ -214,7 +238,7 @@ endif
 # OpenBSD 2.5 or better -- gcc
 #
 # Contributed by Michael Yoon <michael@yoon.org>
-# SMP is not supported.
+# SMP is not supported by OpenBSD.
 #
 ifeq (OpenBSD,$(shell uname))
     PLATFORM=openbsd
@@ -230,18 +254,13 @@ endif
 #
 # SCO Unixware 7.x -- cc
 #
-#  Free Unixware 7 is available free on promotion at http://sco.com/.
 #  This should be changed to gcc as soon as possible -- anybody?
-#  GNU gcc is on the Skunkware disc and at http://sco.com/.
-#  Both cc and gcc require the UnixWare Development Kit (UDK) version 7.x.
-#  The UDK is free on promotion -- it's needed the dev utils and libs.
-#  SMP support is not known.
-#  For best results use Unixware 7.1 or later with all patches applied.
-#  This is *not* "SCO OpenServer," which is the older Xenix-based product.
+#  Do not confuse Unixware with OpenServer or other Caldera OS's.
+#  SMP is fully supported by Unixware (but remains untested).
 #
 ifeq (UnixWare,$(shell uname))
     PLATFORM=unixware
-    CC=cc
+    CC=$(PURIFY) cc
     CFLAGS+=-D__unixware -Kpic -Kthread
     LDFLAGS=-Wl,-B export
     LDSO=$(LD) -G
@@ -252,12 +271,13 @@ endif
 
 
 #
-# Mac OS X Server -- cc
+# Mac OS X -- cc
 #
-#  The Mac OS X Server and Public Beta.
-#  cc is gcc; the Mac OS X Server make is gmake.
+#  The Mac OS X Server and Public Beta are completely different systems.
+#  cc is gcc; the Mac OS X make is gmake.
 #  Tested under releases 1.0 and 1.02.
-#  No SMP support as of this writing.
+#  OS X Server is an undead zombie product.  Use the Darwin version instead.
+#  SMP support by Mac OS X is unknown.
 #
 ifeq (Rhapsody,$(shell uname))
     PLATFORM=osx
@@ -266,7 +286,7 @@ ifeq (Darwin,$(shell uname))
     PLATFORM=osx
 endif
 ifeq (osx,$(PLATFORM))
-    CC=cc
+    CC=$(PURIFY) cc
     LD=cc
     CFLAGS+=-DMACOSX=1
     CFLAGS+=-dynamic -traditional-cpp -pipe -Wall -Wno-unused
