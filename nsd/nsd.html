@@ -1,0 +1,367 @@
+<html>
+<head>
+  <title>nsd</title>
+</head>
+<body bgcolor="#ffffff">
+<h2>nsd - Core Server</h2>
+<pre>$Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsd.html,v 1.1 2000/10/10 18:03:51 kriston Exp $
+</pre>
+<br>
+<a href="#The_urlspace_Trie">The urlspace Trie</a><br>
+<a href="#Tcl_Extensions__sharing_variables_with">Tcl Extensions - sharing variables with nsv</a><br>
+<a href="#Tcl_Extensions__ns_set">Tcl Extensions - ns_set</a><br>
+<a href="#Tcl_Extensions__keyed_lists">Tcl Extensions - keyed lists</a><br>
+<a href="#Thread_library">Thread library</a><br>
+<br>
+<h2><a name="The_urlspace_Trie"></a>The urlspace Trie</h2>
+<pre>There are four basic data structures used in maintaining the urlspace
+trie. They are:
+
+1. Junction
+   A junction is nothing more than a list of channels.
+2. Channel
+   A channel points to a branch which ultimately leads to nodes
+   that match a particular "filter", such as "*.html". The filter
+   is the last section of a URL mask, and is the only part of
+   the mask that may contain wildcards.
+3. Branch
+   A branch represents one part of a URL, such as a server, method,
+   directory, or wildcard filename. It has a list of branches
+   representing sub-URLs as well as a pointer to a list of Nodes.
+4. Node
+   A node stores URL-specific data, as well as a pointer to the
+   cleanup function. 
+
+Another data structure, called an Index, which is manipulated by the
+Ns_Index API calls, is used by the urlspace code. An Index is an
+ordered list of pointers. The order is determined by callback
+functions. See index.c for the scoop on that.
+
+Here is what the urlspace data structure would look like after
+calling
+
+Ns_UrlSpecificSet("server1", "GET", "/foo/bar/*.html", myID, myData,
+                  0, MyDeleteProc);
+------------------------------------------------------------------------------
+		  
+urlspace: JUNCTION
+  byname: INDEX [*][ ][ ][ ][ ]
+                 |
+  +--------------+
+  |
+  V		 
+CHANNEL
+  filter:  CHAR*   "*.html"
+  trie:    TRIE
+             indexnode: INDEX* (NULL)
+	     branches:  INDEX  [*][ ][ ][ ][ ]
+	                        |
+  +-----------------------------+
+  |
+  V
+BRANCH
+  word: CHAR* "server1"
+  node: TRIE
+          indexnode: INDEX* (NULL)
+	  branches:  INDEX  [*][ ][ ][ ][ ]
+	                     |
+  +--------------------------+
+  |
+  V
+BRANCH
+  word: CHAR* "GET"
+  node: TRIE
+          indexnode: INDEX* (NULL)
+	  branches:  INDEX  [*][ ][ ][ ][ ]
+	                     |
+  +--------------------------+
+  |
+  V
+BRANCH
+  word: CHAR* "foo"
+  node: TRIE
+          indexnode: INDEX* (NULL)
+	  branches:  INDEX  [*][ ][ ][ ][ ]
+	                     |
+  +--------------------------+
+  |
+  V
+BRANCH
+  word: CHAR* "*.html"
+  node: TRIE
+          indexnode: INDEX* -----------------&gt; [*][ ][ ][ ][ ]
+	  branches:  INDEX  [ ][ ][ ][ ][ ]     |
+	                                        |
+  +---------------------------------------------+
+  |
+  V
+NODE
+  id:                  INT               myID
+  dataInherit:         VOID*             myData
+  dataNoInherit:       VOID*             0
+  deleteFuncInherit:   VOID(*)(VOID*)    MyDeleteProc
+  deleteFuncNoInherit: VOID(*)(VOID*)    0
+
+</pre>
+<h2><a name="Tcl_Extensions__sharing_variables_with"></a>Tcl Extensions -- sharing variables with nsv</h2>
+Sharing variables among interpreters and threads with the <b>nsv </b>commands.&nbsp;
+
+
+ The documentation is below but will eventually move to http://aolserver.com/doc/.<br>
+<br>
+<pre>The NSV Interface:
+------------------
+
+The new nsv interface of AOLserver 3.0 was added to provide a high
+performance, more flexible alternative to ns_share.  The model is
+similar to the existing (and undocumented) ns_var command but uses an
+array syntax and includes more features.
+
+
+Basics:
+-------
+
+The following commands currently make up the nsv interface:
+
+    	nsv_get      - get key value 
+    	nsv_exists   - check key existence
+    	nsv_set      - set key value
+    	nsv_append   - append value
+    	nsv_lappend  - append value as list element
+    	nsv_incr     - increment and return value
+    	nsv_unset    - unset a value
+    	nsv_array    - manage nsv arrays
+
+Commands for the most part mirror the corresponding Tcl command for
+ordinary variables.  Basically, to set a value, simply use the nsv_set
+command:
+
+	nsv_set myarray foo $value
+
+and to get a value, simply use the nsv_get command:
+
+	set value [nsv_get myarray foo]
+
+
+Migrating From ns_share:
+------------------------
+
+Migrating from ns_share is straightforward.  If your init.tcl included
+commands such as:
+
+	ns_share myshare
+	set myshare(lock) [ns_mutex create]
+
+use instead:
+
+	nsv_set myshare lock [ns_mutex create]
+
+In your procedures, instead of:
+
+	proc myproc {} {
+		ns_share myshare
+
+		ns_mutex lock $myshare(lock)
+		...
+
+use:
+
+	proc myproc {} {
+		ns_mutex lock [nsv_get myshare lock]
+		...
+
+and within an ADP page, instead of:
+
+	&lt;%
+	ns_share myshare
+	ns_puts $myshare(key1)
+	%&gt;
+
+	&lt;%=$myshare(key2)%&gt;
+
+use:
+
+	&lt;%
+	ns_puts [nsv_get myshare key1]
+	%&gt;
+
+	&lt;%=[nsv_get myshare key2]%&gt;
+
+
+Notice that, unlike ns_share, no command is required to define the
+shared array.  The first attempt at setting the variable through any
+means will automaticaly create the array.  Also notice that only
+arrays and simple Tcl variables are supported.  However, to migrate
+from ns_share you can simply package up all existing ns_share scalars
+into a single array with a short name, perhaps just ".". For example,
+if you had:
+
+	ns_share mylock myfile
+	set myfile /tmp/some.file
+	set mylock [ns_mutex create]
+
+you can use:
+
+	nsv_set . myfile /tmp/some.file
+	nsv_set . mylock [ns_mutex create]
+
+
+Multithreading Features:
+------------------------
+
+One advantages of nsv is built in interlocking for thread safety.  For
+example, consider a case of a "increment-by-one" unique id system.
+Here's the ns_share solution:
+
+	ns_share ids
+	set ids(lock) [ns_mutex create]
+	set ids(next) 0
+
+	proc nextid {} {
+		ns_share ids
+
+		ns_mutex lock $ids(lock)
+		set next [incr ids(next)]
+		ns_mutex unlock $ids(lock)
+		return $next
+	}
+
+and here's an nsv solution:
+
+	nsv_set ids next 0
+
+	proc nextid {} {
+		return [nsv_incr ids next]
+	}
+
+Note that the nsv solution does not need a mutex as the nsv_incr command
+is internally interlocked.
+
+
+Compatibility with Tcl Arrays:
+------------------------------
+
+Another useful feature of nsv is the nsv_array command which works
+much like the Tcl array command.  This can be used to import and
+export values from ordinary Tcl arrays.  For example, to copy from Tcl
+use:
+
+	nsv_array set meta [array get tmpmeta]
+
+and to copy to Tcl use:
+
+	array set metacopy [nsv_array get meta]
+
+As with all other nsv commands, nsv_array is atomic and no explicit
+locking is required.  This feature can be used to contruct a new nsv
+array by first filling up an ordinary temporary Tcl array via some
+time-consuming process and then swapping it into place as above.
+While the new temporary array is being constructed, other threads can
+access the old array without delay or inconsistant data.  You can even
+reset a complete nsv array in one step with "reset".  For example,
+instead of:
+
+	ns_share lock meta
+	set lock [ns_mutex create]
+
+	ns_mutex lock $lock
+	unset meta
+	array set meta [array get tmpmeta]
+	ns_mutex unlock $lock
+
+you can simply use:
+
+	nsv_array reset meta [array get tmpmeta]
+
+The reset option will flush and then reset all values atomically,
+eliminating the need for the explicit lock.
+
+Other options for the nsv_array command include:
+
+	nsv_array exists - test existance of array
+	nsv_array size   - return # of elements in array
+	nsv_array names  - return keys of array
+
+
+Configuration:
+--------------
+
+The nsv system uses a common multithreading technique to reduce the
+potential for lock contention which is to split the locks to achieve
+finer-grained locking.  This technique groups arrays randomly into
+buckets and only the arrays within a particular bucket share a lock.
+The number of buckets to be used can be configured by setting the
+"nsvbuckets" tcl parameters, e.g.:
+
+	[ns/server/server1/tcl]
+	nsvbuckets=20
+
+The default is 8 which should be reasonable.  Note that you can
+monitor the lock contention, if any, by enabling mutex metering:
+
+	[ns/threads]
+	mutexmetering=on
+
+and then viewing the results of "ns_info locks" command after the
+server has been running for some time.  The nsv locks all have names
+of the form "nsv:##".  If you find many lock attempts which did not
+successed immediately, try increasing nsvbuckets.
+
+
+Feedback:
+---------
+
+Please give us feedback, including ideas for additional features, at
+http://aolserver.com/community/.</pre>
+<br>
+<br>
+<h2><a name="Tcl_Extensions__ns_set"></a>Tcl Extensions -- ns_set</h2>
+The ns_set is a convenient way of handing key/value pairs, such as HTTP form
+
+
+
+ data.&nbsp; It is fully documented at <a href="http://aolserver.com/doc/">http://aolserver.com/doc/</a>.<br>
+<br>
+<h2><a name="Tcl_Extensions__keyed_lists"></a>Tcl Extensions -- keyed lists</h2>
+Keyed lists are an extension of Tcl provided by the TclX package.&nbsp; They are
+
+
+
+ an alternative to using ns_set, but we highly recommend using ns_set instead
+
+
+
+ of keyed lists.&nbsp; The commands provided by AOLserver were taken directly
+
+
+
+ from a 1995 version of the TclX package.&nbsp; They are:&nbsp; keyldel, keylget, keylkeys,
+
+
+
+ and keylset.<br>
+<br>
+<h2><a name="Thread_library"></a>Thread library</h2>
+The thread library, libnsthread, is documented elsewhere at <a href="../thread/thread.html">../thread/thread.html</a>.<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+</body>
+</html>

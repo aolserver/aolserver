@@ -1,3 +1,55 @@
+2003-02-05  Elizabeth Thomas <eathomas93@aol.com>
+
+        * nsext/nsext.c: Fixed LocalProxy to move Ns_CloseOnExec
+        calls after the file descriptors have been opened
+
+        * nsd/nsd.h: Bump label/version to aolserver_v35_b5
+
+        * Create tag aolserver_v35_b5
+
+2003-02-01  Nathan Folkman <shmooved@aol.com>
+
+        * nsd/tclmisc.c: Fixed Ns_ThreadList to include connection 
+        argument and proc information via Ns_GetProcInfo.
+        * tcl/stats.tcl:
+        * stats: Removed. Clumsy initial implementation.
+
+2003-01-24  Nathan Folkman <shmooved@aol.com>
+
+        * nsd/tclvar.c: Added a NULL as the last argument to 
+        Tcl_AppendResult for nsv_incr error message handling the 
+        case of an array which exists, and a key that does not exist.
+
+
+2002-12-02  Elizabeth Thomas <eathomas93@aol.com>
+
+        * Create tag aolserver_v35_b3
+
+        * nsd/tclmisc.c:  Fix WordEndsInSemi so that
+        correctly parses (and doesn't run off end of string) when
+        an ampersand is not followed by a space or semicolon
+ 
+        * nsd/nsd.h: Bumped label to aolserver_v35_b3
+
+
+2002-12-02  Jim Davidson <jgdavidson@aol.com>
+
+	* nsthread/winthread.c:  Ns_ThreadSelf now returns actual
+	thread handle instead of silly pseudo handle.
+
+	* nsd/nsmain.c:  Fixed crash bug with win32 service mode.
+
+
+2002-12-02  Shahzad Chaudhri <schaudhri@aol.com>
+
+	* nsd/nsd.h:  Bumped label to aolserver_v35_b2.
+
+	* nsd/dns.c:  Added round robin dns cache lookups for multi ip
+        host entries.
+
+	* doc/...:  Added tcl api man pages.
+
+
 2002-11-10  Jim Davidson <jgdavidson@aol.com>
 
 	* nsd/nsd.h:  Bumped version to 3.5.2.
@@ -23,7 +75,7 @@
 	* nsthread/winthread.c (new file):
 	* nsthread/pthread.c (new file):
 	* nsthread/error.c:
-	* * nsthread/mutex.c:
+	* nsthread/mutex.c:
 	* nsthread/nsthreadtest.c:
 	* nsthread/reentrant.c:
 	* nsthread/thread.c:
@@ -35,7 +87,7 @@
 	* win32/README: 
 	* win32/nsthread:
 	* win32/nsd:
-	* win32/...:  Restore most of the previous WIN32 build environment.
+	* win32/...:  Restored most of the previous WIN32 build environment.
 	The README includes updated notes on how to build and test.
 
 
