@@ -33,7 +33,7 @@
  *	Support for the ns_http command.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclhttp.c,v 1.17 2003/11/23 16:46:18 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclhttp.c,v 1.18 2004/03/09 18:34:56 rcrittenden0569 Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -380,10 +380,12 @@ HttpResult(char *response, Ns_Set *hdrs)
     eoh = strstr(response, "\r\n\r\n");
     if (eoh != NULL) {
         body = eoh + 4;
+	eoh += 2;
     } else {
         eoh = strstr(response, "\n\n");
         if (eoh != NULL) {
             body = eoh + 2;
+	    eoh += 2;
         }
     }
     if (eoh != NULL) {
