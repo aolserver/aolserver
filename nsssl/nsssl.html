@@ -1,0 +1,239 @@
+<html>
+<head>
+  <title>nsssl</title>
+</head>
+<body bgcolor="#ffffff">
+<h2>nsssl -- Socket (HTTPS) Driver Module</h2>
+<pre>$Header: /Users/dossy/Desktop/cvs/aolserver/nsssl/nsssl.html,v 1.1 2001/04/23 21:06:01 jgdavidson Exp $
+</pre>
+<br>
+<a href="#Theory_of_Operation">Theory of Operation</a><br>
+<a href="#Known_Issues">Known Issues</a><br>
+<a href="#Sample_Configuration">Sample Configuration</a><br>
+<br>
+<br>
+<h3><a name="Theory_of_Operation"></a>Theory of Operation</h3>
+<br>
+<pre>
+The nsssl Socket Driver
+-----------------------
+
+EXPORT NOTICE
+This source code is subject to the U.S. Export Administration
+Regulations and other U.S. law, and may not be exported or re-exported
+to certain countries (currently Afghanistan (Taliban-controlled
+areas), Cuba, Iran, Iraq, Libya, North Korea, Serbia (except Kosovo),
+Sudan and Syria) or to persons or entities prohibited from receiving
+U.S. exports (including Denied Parties, Specially Designated
+Nationals, and entities on the Bureau of Export Administration Entity
+List).
+
+
+The nsssl driver supports SSL v2 according to the Netscape SSL
+documentation, which you can find at http://developer.netscape.com/.
+It was developed using the BSAFE libraries from RSA Data Security at
+http://www.rsasecurity.com/.
+
+Some seldom-used SSL v2 features that were omitted include client
+certificates and the SHA-1 message digest algorithm.  The reasoning
+behind this is that users browsing the web very seldom have client
+certificates, let alone know what they are intended for.  Likewise, in
+virtually all cases, MD5 is the message digest requested by all
+browsers and is fully supported.  In any event, we always welcome
+contributions to add these features to nsssl.
+
+We are interested in supporting SSL v3 and welcome your contributions
+to help us get there.  An alternative to nsssl is nsopenssl at
+http://aolserver.com/modules/.  The nsopenssl module supports SSL v3
+using the OpenSSL library and the AOLserver communications driver API.
+
+
+Compiling and Installing
+------------------------
+
+If you have BSAFE, simply type "gmake" in the root directory of the
+AOLserver source distribution.  If you want 128-bit/1024-bit
+(domestic) security, type "gmake DOMESTIC=1".  If you have a BSAFE
+version newer than BSAFE 3, add "BSAFE_VERSION=BSAFEx" where "x" is
+"4" or "5".  You may also type "gmake SSL=1" in the nssock directory
+if you only want to build nsssl.
+
+The BSAFE encryption toolkit is available from RSA Data Security at
+http://www.rsasecurity.com/.
+
+
+RSA Alternatives
+----------------
+
+RSA Data Security, at http://www.rsasecurity.com/, holds the patents
+and intellectual rights to the most important algorithms used by SSL:
+RSA and RC4.  As a direct result of this the use of anything but RSA
+products to implement these algorithms is illegal in the United States
+of America and other countries with which the USA has intellectual
+property treaties.  The patent on the RSA public-key algorithm expires
+in the Fall of 2000, but RSA still retains rights to RC4 and possibly
+RC5, RC2, and MD5.  In particular, the source code implementation of
+the RC4 cipher used by OpenSSL/SSLeay is, unfortunately, contraband.
+
+While it is theoretically possible to implement SSL v2 using
+unencumbered algorithms the performance and security are both too low.
+Therefore, we use RSA BSAFE libraries to implement SSL v2.  This is
+not intended to be interpreted as an endorsement of any product or
+service.  There is an alternative module, nsopenssl, that uses the
+OpenSSL library to implement SSL.  This module is available at
+http://aolserver.com/modules/ but is not supported in any way by the
+AOLserver Team at AOL.
+
+
+Key Pair and Certificate Request Generation
+-------------------------------------------
+
+SSL key pair and certificate request generation is handled by a Tcl
+script that you source into a stand-alone AOLserver process.  To use,
+change to your AOLserver's root directory and edit the certificate
+information at the top of the "./modules/nsssl/keygen.tcl" file.
+
+Once you are satisfied with your information, create your key pair and
+certificate request by typing:
+
+./bin/nsd -ft ./modules/nsssl/keygen.tcl
+
+Your directory will now include two files, "keyfile.pem" and
+"certreq.pem."  Put the "keyfile.pem" file in a safe place for now.
+Send the "certreq.pem" file to your favorite Certificate Authority.
+Some Certificate Authorities are http://www.thawte.com/ and
+http://www.verisign.com/.  This is not intended to be interpreted as
+an endorsement of any product or service.
+
+
+What To Do Next
+---------------
+
+After a while, you will receive a signed certificate from your
+Certificate Authority in PEM (Privacy-Enhanced Mail) format.  Save the
+body of the message (and just the body) in a file called
+"certfile.pem" and place it and the "keyfile.pem" file into the
+"./servers/server1/modules/nsssl/" directory.  If you are using the
+domestic version of nsssl, edit the "sslmodule" variable in your
+nsd.tcl file to read "nsssle.so".  Check the included nsd.tcl
+distributed with this version of AOLserver to see the most-current
+options.
+
+That's it!  You're all set and ready to use the SSL v2 protocol to
+provide secure access to your web site!
+
+
+Security Notes
+--------------
+
+The "keyfile.pem" is a very sensitive document!  Do not let it out of
+your hands, do not send it out over the network, and don't delete it.
+It contains your server's private key and if it's lost then you must
+cancel your certificate, regenerate the key pair, and get it signed
+all over again.  You should put this in the
+"./servers/server1/modules/nsssl/" directory.
+
+The "certreq.pem" file generated by keygen.tcl should be deleted once
+you receive your signed certificate, though it's harmless to keep
+around.  When you need to renew your certificate most Certificate
+Authorities should not need it again.
+
+The "certfile.pem" file that you will receive from the certificate
+authority is very valuable, though it can be handled in a less-secure
+fashion since it's presented to the browsers that visit your web site.
+You put this in the "./servers/server1/modules/nsssl/" directory.
+
+Implementation Notes
+--------------------
+
+ nsssl vs. nssock
+ ----------------- 
+
+ The nsssl and nssock modules are nearly identical, save for the extra
+ encryption steps used in SSL.  This release of AOLserver has merged
+ nsssl and nssock together.  The SSL=1 variable determines whether
+ nssock or nsssl is built.  The advantage is that both nssock and
+ nsssl function identically as far as the network is concerned.  This
+ also means that nssock and nsssl will continue to share important new
+ features such as connection keepalive in both HTTP and HTTPS
+ protocols.
+
+
+ Running AOLserver in Stand-Alone Mode
+ -------------------------------------
+
+ What's this about running AOLserver just to source a Tcl script?
+ This was an interesting exercise in using Tcl's extensible C API to
+ load dynamic objects.  The old nsssl module for AOLserver 2.x used
+ the old web-based admin interface with lots of Tcl code bound to
+ URL's with ns_register_proc.  Partly because of this design, nsssl's
+ key, certificate, and x.509 handling is a mixture of C and Tcl code.
+ Since the code as a whole is functional, duplicating the same nsssl
+ code into an external executable seemed silly.
+
+  There are three entry points in nsssl:
+
+    Ns_ModuleInit  -- for AOLserver's dynamic loader
+    Nsssle_Init    -- for Tcl's dynamic loader (export version)
+    Nsssl_Init     -- for Tcl's dynamic loader (domestic version)
+
+   o When AOLserver starts up as a normal web server, it invokes
+   Ns_ModuleInit which starts up the socket driver and initializes
+   SSL.
+
+   o When AOLserver starts up with ./modules/nsssl/keygen.tcl, the Tcl
+   "load" command this file asks the Tcl interpreter to load nsssl.so
+   (or nsssle.so) and invoke Nsssl_Init (or Nsssle_Init) which
+   registers special key/cert generation Tcl commands and initializes
+   SSL, but doesn't start up the socket library.  When the keygen.tcl
+   script is finished, it terminates the server and returns.
+
+ In this fashion way we can use the same code for serving pages as
+ well as generating the key pair and certificate request without
+ having another cumbersome binary executable hanging around.  Now that
+ nsssl and nssock are one, maintenance of this code can now be done in
+ one place.
+
+
+</pre>
+<br>
+<h3><a name="Known_Issues"></a>Known Issues</h3>
+Only SSL v2 is supported.<br>
+<br>
+Client-side certificates are not supported.<br>
+<br>
+SHA-1 message digests are not support (only MD5).<br>
+<br>
+The key- and certificate-handling code in x509.c and keygen.tcl needs to&nbsp;
+ go away.&nbsp; It is implemented better in BSAFE and OpenSSL.<br>
+<br>
+Requires the proprietary RSA BSAFE encryption library from <a href="http://www.rsasecurity.com/">http://www.rsasecurity.com/</a>.&nbsp;
+ We should provide the option of using other libraries like <a href="http://www.openssl.org/">OpenSSL</a>.<br>
+<br>
+There are reports that the keygen.tcl file does not work correctly on Win32.<br>
+<br>
+<h3><a name="Sample_Configuration"></a>Sample Configuration</h3>
+Please see the <a href="../doc/config.txt">Configuration File Reference</a>.<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+</body>
+</html>
