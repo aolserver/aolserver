@@ -34,160 +34,11 @@
  *      Manage the Ns_Conn structure
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.14 2001/04/10 23:21:22 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.15 2001/04/23 21:13:01 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
-#define IOBUFSZ 2048
 
-/*
- * Local functions defined in this file
- */
-
-static int ConnSend(Ns_Conn *, int nsend, Tcl_Channel chan,
-    	    	    FILE *fp, int fd);
-static int ConnCopy(Ns_Conn *conn, size_t tocopy, char *buffer,
-    	    	    Tcl_Channel chan, FILE *fp, int fd);
-
-/*
- * Macros for executing connection driver procedures.
- */
- 
-#define CONN_CLOSED(conn)		((conn)->flags & NS_CONN_CLOSED)
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Ns_ConnInit --
- *
- *	initialize the socket driver (when the connection is made) 
- *
- * Results:
- *	NS_OK or NS_ERROR.
- *
- * Side effects:
- *	Depends on socket driver 
- *
- *----------------------------------------------------------------------
- */
-
-int
-Ns_ConnInit(Ns_Conn *conn)
-{
-    Conn *connPtr = (Conn *) conn;
-
-    if (connPtr->drvPtr->initProc != NULL &&
-	(*connPtr->drvPtr->initProc)(connPtr->drvData) != NS_OK) {
-	return NS_ERROR;
-    }
-    return NS_OK;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Ns_ConnRead --
- *
- *	Read data from the connection, either by doing a read() or 
- *	calling the registered read function if it's a socket driver 
- *
- * Results:
- *	Number of bytes read, or -1 if error 
- *
- * Side effects:
- *	Data will be read from a socket (or whatever the socket 
- *	driver implements) 
- *
- *----------------------------------------------------------------------
- */
-
-int
-Ns_ConnRead(Ns_Conn *conn, void *vbuf, int toread)
-{
-    Conn *connPtr = (Conn *) conn;
-    int nread;
-
-    if (CONN_CLOSED(connPtr)) {
-	nread = -1;
-    } else {
-    	nread = (*connPtr->drvPtr->readProc)(connPtr->drvData, vbuf, toread);
-        if (nread > 0 && (conn->flags & NS_CONN_READHDRS)) {
-            connPtr->nContent += nread;
-	}
-    }
-    return nread;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Ns_ConnWrite --
- *
- *	Writes data to a socket/socket driver 
- *
- * Results:
- *	Number of bytes written, -1 for error 
- *
- * Side effects:
- *	Stuff may be written to a socket/socket driver.
- *
- *      NOTE: This may not write all of the data you send it!
- *            Use Ns_WriteConn if that's your desire!
- *
- *----------------------------------------------------------------------
- */
-
-int
-Ns_ConnWrite(Ns_Conn *conn, void *vbuf, int towrite)
-{
-    Conn *connPtr = (Conn *) conn;
-    int nwrote;
-    
-    if (CONN_CLOSED(connPtr)) {
-	nwrote = -1;
-    } else {
-    	nwrote = (*connPtr->drvPtr->writeProc)(connPtr->drvData, vbuf, towrite);
-    	if (nwrote > 0 && (conn->flags & NS_CONN_SENTHDRS)) {
-            connPtr->nContentSent += nwrote;
-    	}
-    }
-    return nwrote;
-}
-
-
-/*
- *-----------------------------------------------------------------
- *
- * Ns_ConnClose - Close a connection.
- *
- * Results:
- *	Always NS_OK.
- * 
- * Side effects:
- *	The underlying socket in the connection is closed or moved
- *	to the waiting keep-alive list.
- *
- *-----------------------------------------------------------------
- */
-
-int
-Ns_ConnClose(Ns_Conn *conn)
-{
-    Conn             *connPtr = (Conn *)conn;
-    
-    if (!CONN_CLOSED(connPtr)) {
-        if (!NsKeepAlive(conn)) {
-    	    (*connPtr->drvPtr->closeProc)(connPtr->drvData);
-	}
-	connPtr->flags |= NS_CONN_CLOSED;
-	if (connPtr->interp != NULL) {
-	    NsRunAtClose(connPtr->interp);
-	}
-    }
-    return NS_OK;
-}
+static int GetChan(Tcl_Interp *interp, char *id, Tcl_Channel *chanPtr);
 
 
 /*
@@ -302,6 +153,31 @@ int
 Ns_ConnContentLength(Ns_Conn *conn)
 {
     return conn->contentLength;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_ConnContent --
+ *
+ *	Return pointer to start of content.
+ *
+ * Results:
+ *	Start of content.
+ *
+ * Side effects:
+ *	None. 
+ *
+ *----------------------------------------------------------------------
+ */
+
+char *
+Ns_ConnContent(Ns_Conn *conn)
+{
+    Conn *connPtr = (Conn *) conn;
+
+    return connPtr->reqPtr->content;
 }
 
 
@@ -427,15 +303,7 @@ Ns_ConnPeer(Ns_Conn *conn)
 {
     Conn           *connPtr = (Conn *) conn;
 
-    if (connPtr->peer == NULL && connPtr->drvPtr->peerProc != NULL) {
-	connPtr->peer = (*connPtr->drvPtr->peerProc)(conn);
-	if (connPtr->peer != NULL) {
-	    strncpy(connPtr->peerBuf, connPtr->peer,
-	    	    sizeof(connPtr->peerBuf)-1);
-	}
-	connPtr->peer = connPtr->peerBuf;
-    }
-    return connPtr->peer;
+    return connPtr->reqPtr->peer;
 }
 
 
@@ -460,10 +328,7 @@ Ns_ConnPeerPort(Ns_Conn *conn)
 {
     Conn           *connPtr = (Conn *) conn;
 
-    if (connPtr->drvPtr->peerPortProc == NULL) {
-	return 0;
-    }
-    return (*connPtr->drvPtr->peerPortProc)(connPtr->drvData);
+    return connPtr->reqPtr->port;
 }
 
 
@@ -518,10 +383,8 @@ Ns_ConnLocation(Ns_Conn *conn)
 
     if (connPtr->servPtr->locationProc != NULL) {
         location = (*connPtr->servPtr->locationProc)(conn);
-    } else if (connPtr->drvPtr->locationProc != NULL) {
-	location = (*connPtr->drvPtr->locationProc)(connPtr->drvData);
     } else {
-	location = NULL;
+	location = connPtr->drvPtr->location;
     }
     return location;
 }
@@ -548,10 +411,7 @@ Ns_ConnHost(Ns_Conn *conn)
 {
     Conn *connPtr = (Conn *) conn;
 
-    if (connPtr->drvPtr->hostProc == NULL) {
-	return NULL;
-    }
-    return (*connPtr->drvPtr->hostProc)(connPtr->drvData);
+    return connPtr->drvPtr->address;
 }
 
 
@@ -576,10 +436,7 @@ Ns_ConnPort(Ns_Conn *conn)
 {
     Conn *connPtr = (Conn *) conn;
 
-    if (connPtr->drvPtr->portProc == NULL) {
-	return 0;
-    }
-    return (*connPtr->drvPtr->portProc)(connPtr->drvData);
+    return connPtr->drvPtr->port;
 }
 
 
@@ -604,10 +461,7 @@ Ns_ConnSock(Ns_Conn *conn)
 {
     Conn *connPtr = (Conn *) conn;
 
-    if (connPtr->drvPtr->sockProc == NULL) {
-	return -1;
-    }
-    return (*connPtr->drvPtr->sockProc)(connPtr->drvData);
+    return (connPtr->sockPtr ? connPtr->sockPtr->sock : -1);
 }
 
 
@@ -632,10 +486,7 @@ Ns_ConnDriverName(Ns_Conn *conn)
 {
     Conn *connPtr = (Conn *) conn;
 
-    if (connPtr->drvPtr->nameProc == NULL) {
-	return NULL;
-    }
-    return (*connPtr->drvPtr->nameProc)(connPtr->drvData);
+    return connPtr->drvPtr->name;
 }
 
 
@@ -658,9 +509,7 @@ Ns_ConnDriverName(Ns_Conn *conn)
 void *
 Ns_ConnDriverContext(Ns_Conn *conn)
 {
-    Conn *connPtr = (Conn *) conn;
-
-    return connPtr->drvData;
+    return NULL;
 }
 
 
@@ -686,290 +535,6 @@ Ns_ConnId(Ns_Conn *conn)
     Conn *connPtr = (Conn *) conn;
 
     return connPtr->id;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Ns_ConnReadLine --
- *
- *	Read a line (\r or \n terminated) from the conn 
- *
- * Results:
- *	NS_OK or NS_ERROR 
- *
- * Side effects:
- *	Stuff may be read 
- *
- *----------------------------------------------------------------------
- */
-
-int
-Ns_ConnReadLine(Ns_Conn *conn, Ns_DString *dsPtr, int *nreadPtr)
-{
-    Conn	   *connPtr = (Conn *) conn;
-    char            buf[1];
-    int             n, nread;
-    int		    ret = NS_OK;
-
-    nread = 0;
-    do {
-        n = Ns_ConnRead(conn, buf, 1);
-        if (n == 1) {
-            ++nread;
-            if (buf[0] == '\n') {
-                n = 0;
-            } else {
-                Ns_DStringNAppend(dsPtr, buf, 1);
-            }
-        }
-    } while (n == 1 && nread <= connPtr->servPtr->limits.maxline);
-    if (n < 0) {
-        ret = NS_ERROR;
-    } else {
-	n = dsPtr->length;
-	if (n > 0 && dsPtr->string[n-1] == '\r') {
-	    Ns_DStringTrunc(dsPtr, n-1);
-	}
-    }
-    if (nreadPtr != NULL) {
-	*nreadPtr = nread;
-    }
-    return ret;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Ns_WriteConn --
- *
- *	This will write a buffer to the conn. It promises to write 
- *	all of it. 
- *
- * Results:
- *	NS_OK/NS_ERROR
- *
- * Side effects:
- *	Stuff may be written 
- *
- *----------------------------------------------------------------------
- */
-
-int
-Ns_WriteConn(Ns_Conn *conn, char *buf, int len)
-{
-    int             nwrote;
-    int             status;
-
-    status = NS_OK;
-    while (len > 0 && status == NS_OK) {
-        nwrote = Ns_ConnWrite(conn, buf, len);
-        if (nwrote < 0) {
-            status = NS_ERROR;
-        } else {
-            len -= nwrote;
-            buf += nwrote;
-        }
-    }
-    return status;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Ns_ConnPuts --
- *
- *	Write a null-terminated string to the conn; no trailing 
- *	newline will be appended despite the name. 
- *
- * Results:
- *	See Ns_WriteConn 
- *
- * Side effects:
- *	See Ns_WriteConn 
- *
- *----------------------------------------------------------------------
- */
-
-int
-Ns_ConnPuts(Ns_Conn *conn, char *string)
-{
-    return Ns_WriteConn(conn, string, strlen(string));
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Ns_ConnSendDString --
- *
- *	Write contents of a DString
- *
- * Results:
- *	See Ns_WriteConn 
- *
- * Side effects:
- *	See Ns_WriteConn 
- *
- *----------------------------------------------------------------------
- */
-
-int
-Ns_ConnSendDString(Ns_Conn *conn, Ns_DString *dsPtr)
-{
-    return Ns_WriteConn(conn, dsPtr->string, dsPtr->length);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Ns_ConnSendChannel, Fp, Fd --
- *
- *	Send an open channel, FILE, or fd.
- *
- * Results:
- *	NS_OK/NS_ERROR
- *
- * Side effects:
- *	See ConnSend().
- *
- *----------------------------------------------------------------------
- */
-
-int
-Ns_ConnSendChannel(Ns_Conn *conn, Tcl_Channel chan, int nsend)
-{
-    return ConnSend(conn, nsend, chan, NULL, -1);
-}
-
-int
-Ns_ConnSendFp(Ns_Conn *conn, FILE *fp, int nsend)
-{
-    return ConnSend(conn, nsend, NULL, fp, -1);
-}
-
-int
-Ns_ConnSendFd(Ns_Conn *conn, int fd, int nsend)
-{
-    Conn *connPtr = (Conn*) conn;
-    int status, min;
-
-    min = connPtr->servPtr->limits.sendfdmin;
-    if (CONN_CLOSED(connPtr)) {
-	status = NS_ERROR; 
-    } else if (connPtr->drvPtr->sendFdProc != NULL && nsend > min) {
-    	status = (*connPtr->drvPtr->sendFdProc)(connPtr->drvData, fd, nsend);
-    } else {
-        status = ConnSend(conn, nsend, NULL, NULL, fd);
-    }
-    return status;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Ns_ConnCopyToDString, File, Fd, Channel --
- *
- *	Copy data from a connection to a dstring, channel, FILE, or 
- *	fd. 
- *
- * Results:
- *	NS_OK or NS_ERROR 
- *
- * Side effects:
- *	See ConnCopy().
- *
- *----------------------------------------------------------------------
- */
-
-int
-Ns_ConnCopyToDString(Ns_Conn *conn, size_t ncopy, Ns_DString *dsPtr)
-{
-    int len, status;
-
-    /*
-     * Grow dstring to include space for requested bytes to
-     * avoid later data copies.
-     */
-
-    len = dsPtr->length;
-    Ns_DStringSetLength(dsPtr, ncopy+len);
-    Ns_DStringSetLength(dsPtr, len);
-    status = ConnCopy(conn, ncopy, dsPtr->string + len, NULL, NULL, -1);
-    if (status != NS_OK) {
-	ncopy = 0;
-    }
-    Ns_DStringSetLength(dsPtr, len + ncopy);
-    return status;
-}
-
-int
-Ns_ConnCopyToChannel(Ns_Conn *conn, size_t ncopy, Tcl_Channel chan)
-{
-    return ConnCopy(conn, ncopy, NULL, chan, NULL, -1);
-}
-
-int
-Ns_ConnCopyToFile(Ns_Conn *conn, size_t ncopy, FILE *fp)
-{
-    return ConnCopy(conn, ncopy, NULL, NULL, fp, -1);
-}
-
-int
-Ns_ConnCopyToFd(Ns_Conn *conn, size_t ncopy, int fd)
-{
-    return ConnCopy(conn, ncopy, NULL, NULL, NULL, fd);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Ns_ConnFlushContent --
- *
- *	Finish reading the data waiting to be read.
- *
- * Results:
- *	NS_OK or NS_ERROR.
- *
- * Side effects:
- *	NOTE: Content only gets read if the server's 'flushcontent' flag
- *            is set to true
- *
- *----------------------------------------------------------------------
- */
-
-int
-Ns_ConnFlushContent(Ns_Conn *conn)
-{
-    Conn           *connPtr;
-    char            buf[IOBUFSZ];
-    int             nread, nflush, toread, status;
-
-    connPtr = (Conn *) conn;
-    status = NS_OK;
-    if (connPtr->servPtr->opts.flushcontent && connPtr->contentLength > 0) {
-        nflush = connPtr->contentLength - connPtr->nContent;
-        while (nflush > 0) {
-            toread = nflush;
-            if (toread > sizeof(buf)) {
-                toread = sizeof(buf);
-            }
-            nread = Ns_ConnRead(conn, buf, toread);
-            if (nread <= 0) {
-                status = NS_ERROR;
-                break;
-            }
-            nflush -= nread;
-        }
-    }
-
-    return status;
 }
 
 
@@ -1012,96 +577,6 @@ Ns_ConnModifiedSince(Ns_Conn *conn, time_t since)
 /*
  *----------------------------------------------------------------------
  *
- * Ns_ConnGets --
- *
- *	Read in a string from a connection, stopping when either 
- *	we've run out of data, hit a newline, or had an error 
- *
- * Results:
- *	Pointer to given buffer or NULL on error.
- *
- * Side effects:
- *	
- *
- *----------------------------------------------------------------------
- */
-
-char *
-Ns_ConnGets(char *buf, size_t bufsize, Ns_Conn *conn)
-{
-    char *p;
-
-    p = buf;
-    while (bufsize > 1) {
-	if (Ns_ConnRead(conn, p, 1) != 1) {
-	    return NULL;
-	}
-        if (*p++ == '\n') {
-            break;
-	}
-        --bufsize;
-    }
-    *p = '\0';
-    return buf;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Ns_ConnReadHeaders --
- *
- *	Read the headers and insert them into the passed-in set 
- *
- * Results:
- *	NS_OK/NS_ERROR 
- *
- * Side effects:
- *	Stuff will be read from the conn 
- *
- *----------------------------------------------------------------------
- */
-
-int
-Ns_ConnReadHeaders(Ns_Conn *conn, Ns_Set *set, int *nreadPtr)
-{
-    Ns_DString      ds;
-    Conn           *connPtr = (Conn *) conn;
-    int             status, nread, nline, max;
-
-    Ns_DStringInit(&ds);
-    nread = 0;
-    status = NS_OK;
-    max = connPtr->servPtr->limits.maxheaders;
-    while (nread < max && status == NS_OK) {
-        Ns_DStringTrunc(&ds, 0);
-        status = Ns_ConnReadLine(conn, &ds, &nline);
-        if (status == NS_OK) {
-            nread += nline;
-            if (nread > max) {
-                status = NS_ERROR;
-            } else {
-                if (ds.string[0] == '\0') {
-		    connPtr->flags |= NS_CONN_READHDRS;
-                    break;
-                }
-                status = Ns_ParseHeader(set, ds.string,
-			connPtr->servPtr->opts.hdrcase);
-            }
-        }
-    }
-    if (nreadPtr != NULL) {
-	*nreadPtr = nread;
-    }
-    Ns_DStringFree(&ds);
-
-    return status;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
  * Ns_ConnGetEncoding, Ns_ConnSetEncoding --
  *
  *	Get (set) the Tcl_Encoding for the connection which is used
@@ -1130,85 +605,6 @@ Ns_ConnSetEncoding(Ns_Conn *conn, Tcl_Encoding encoding)
     Conn *connPtr = (Conn *) conn;
 
     connPtr->encoding = encoding;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Ns_ParseHeader --
- *
- *	Consume a header line, handling header continuation, placing
- *	results in given set.
- *
- * Results:
- *	NS_OK/NS_ERROR 
- *
- * Side effects:
- *	None
- *
- *----------------------------------------------------------------------
- */
-
-int
-Ns_ParseHeader(Ns_Set *set, char *line, Ns_HeaderCaseDisposition disp)
-{
-    char           *key, *sep;
-    char           *value;
-    int             index;
-    Ns_DString	    ds;
-
-    /* 
-     * Header lines are first checked if they continue a previous
-     * header indicated by any preceeding white space.  Otherwise,
-     * they must be in well form key: value form.
-     */
-
-    if (isspace(UCHAR(*line))) {
-        index = Ns_SetLast(set);
-        if (index < 0) {
-	    return NS_ERROR;	/* Continue before first header. */
-        }
-        while (isspace(UCHAR(*line))) {
-            ++line;
-        }
-        if (*line != '\0') {
-	    value = Ns_SetValue(set, index);
-	    Ns_DStringInit(&ds);
-	    Ns_DStringVarAppend(&ds, value, " ", line, NULL);
-	    Ns_SetPutValue(set, index, ds.string);
-	    Ns_DStringFree(&ds);
-	}
-    } else {
-        sep = strchr(line, ':');
-        if (sep == NULL) {
-	    return NS_ERROR;	/* Malformed header. */
-	}
-        *sep = '\0';
-        value = sep + 1;
-        while (*value != '\0' && isspace(UCHAR(*value))) {
-            ++value;
-        }
-        index = Ns_SetPut(set, line, value);
-        key = Ns_SetKey(set, index);
-	if (disp == ToLower) {
-            while (*key != '\0') {
-	        if (isupper(UCHAR(*key))) {
-            	    *key = tolower(UCHAR(*key));
-		}
-            	++key;
-	    }
-	} else if (disp == ToUpper) {
-            while (*key != '\0') {
-	        if (islower(UCHAR(*key))) {
-		    *key = toupper(UCHAR(*key));
-		}
-		++key;
-	    }
-        }
-        *sep = ':';
-    }
-    return NS_OK;
 }
 
 
@@ -1260,87 +656,50 @@ NsTclConnCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
     NsInterp   *itPtr = arg;
     Ns_Conn    *conn = itPtr->conn;
     Conn       *connPtr = (Conn *) conn;
-    Ns_Request *request;
     Ns_Set     *form;
+    Ns_Request *request;
+    Tcl_Encoding encoding;
     char	buf[50];
-    int		urlv, idx;
+    int		idx;
 
     if (argc < 2) {
-badargs:
         Tcl_AppendResult(interp, "wrong # of args: should be \"",
                          argv[0], " cmd ", NULL);
         return TCL_ERROR;
     }
-    urlv = STREQ(argv[1], "urlv");
-    if (!urlv) {
-	if (argc > 3) {
-	    goto badargs;
-	}
-	if (argc == 3 && !NsIsIdConn(argv[2])) {
-badconn:
-	    Tcl_AppendResult(interp, "invalid connid: \"", argv[2], "\"", NULL);
-	    return TCL_ERROR;
-	}
-    } else {
-	/*
-	 * Special treatment for urlv command.
-	 */
 
-	switch (argc) {
-	case 2:
-	    idx = -1;
-	    break;
-
-	case 3:
-	    /* NB: Ambiguous, check conn id then assume arg is index. */
-	    if (NsIsIdConn(argv[2])) {
-		idx = -1;
-	    } else if (Tcl_GetInt(interp, argv[2], &idx) != TCL_OK) {
-		return TCL_ERROR;
-	    }
-	    break;
-
-	case 4:
-	    if (!NsIsIdConn(argv[2])) {
-		goto badconn;
-	    }
-	    if (Tcl_GetInt(interp, argv[3], &idx) != TCL_OK) {
-		return TCL_ERROR;
-	    }
-	    break;
-
-	default:
-	    goto badargs;
-	}
-    }
+    /*
+     * Only the "isconnected" command operates without a conn.
+     */
 
     if (STREQ(argv[1], "isconnected")) {
 	Tcl_SetResult(interp, (connPtr == NULL) ? "0" : "1", TCL_STATIC);
 	return TCL_OK;
-    }
-
-    /*
-     * All remaining commands require a conn.
-     */
-
-    if (connPtr == NULL) {
+    } else if (connPtr == NULL) {
         Tcl_AppendResult(interp, "no current connection", NULL);
         return TCL_ERROR;
     }
+
     request = connPtr->request;
-    if (urlv) {
-	if (idx < 0) {
+    if (STREQ(argv[1], "urlv")) {
+	if (argc == 2 || (argc == 3 && NsIsIdConn(argv[2]))) {
 	    for (idx = 0; idx < request->urlc; idx++) {
 	        Tcl_AppendElement(interp, request->urlv[idx]);
 	    }
+	} else if (Tcl_GetInt(interp, argv[2], &idx) != TCL_OK) {
+	    return TCL_ERROR;
 	} else if (idx >= 0 && idx < request->urlc) {
 	    Tcl_SetResult(interp, request->urlv[idx], TCL_VOLATILE);
 	}
+
     } else if (STREQ(argv[1], "authuser")) {
         Tcl_SetResult(interp, connPtr->authUser, TCL_STATIC);
 
     } else if (STREQ(argv[1], "authpassword")) {
         Tcl_SetResult(interp, connPtr->authPasswd, TCL_STATIC);
+
+    } else if (STREQ(argv[1], "content")) {
+	Tcl_SetResult(interp, Ns_ConnContent(conn), TCL_VOLATILE);
 
     } else if (STREQ(argv[1], "contentlength")) {
         sprintf(buf, "%u", (unsigned) conn->contentLength);
@@ -1348,12 +707,13 @@ badconn:
 
     } else if (STREQ(argv[1], "encoding")) {
 	if (argc > 2) {
-	    connPtr->encoding = Ns_GetEncoding(argv[2]);
-	    if (connPtr->encoding == NULL) {
+	    encoding = Ns_GetEncoding(argv[2]);
+	    if (encoding == NULL) {
 		Tcl_AppendResult(interp, "no such encoding: ",
 		    argv[2], NULL);
 		return TCL_ERROR;
 	    }
+	    connPtr->encoding = encoding;
 	}
 	if (connPtr->encoding != NULL) {
 	    Tcl_SetResult(interp, Tcl_GetEncodingName(connPtr->encoding), TCL_VOLATILE);
@@ -1396,6 +756,37 @@ badconn:
         	strcpy(itPtr->nsconn.form, interp->result);
 	    }
 	    itPtr->nsconn.flags |= CONN_TCLFORM;
+	}
+
+    } else if (STREQ(argv[1], "files")) {
+	Tcl_SetResult(interp, connPtr->files.string, TCL_VOLATILE);
+
+    } else if (STREQ(argv[1], "copy")) {
+	Tcl_Channel chan;
+	int off, len;
+
+	if (argc != 5) {
+	    Tcl_AppendResult(interp, "wrong # of args: should be: \"",
+		argv[0], " copy off len chan\"", NULL);
+	    return TCL_ERROR;
+	}
+	if (Tcl_GetInt(interp, argv[2], &off) != TCL_OK ||
+	    Tcl_GetInt(interp, argv[3], &len) != TCL_OK ||
+	    GetChan(interp, argv[4], &chan) != TCL_OK) {
+	    return TCL_ERROR;
+	}
+	if (off < 0 || off > connPtr->reqPtr->length) {
+	    Tcl_AppendResult(interp, "invalid offset: ", argv[2], NULL);
+	    return TCL_ERROR;
+	}
+	if (len < 0 || len > (connPtr->reqPtr->length - off)) {
+	    Tcl_AppendResult(interp, "invalid length: ", argv[3], NULL);
+	    return TCL_ERROR;
+	}
+	if (Tcl_WriteChars(chan, connPtr->reqPtr->content + off, len) != len) {
+	    Tcl_AppendResult(interp, "could not write ", argv[3], " bytes to ",
+		argv[4], ": ", Tcl_PosixError(interp), NULL);
+	    return TCL_ERROR;
 	}
 
     } else if (STREQ(argv[1], "request")) {
@@ -1474,6 +865,7 @@ badconn:
                          "driver, "
                          "encoding, "
                          "flags, "
+                         "files, "
                          "form, "
                          "headers, "
                          "host, "
@@ -1521,162 +913,50 @@ NsTclWriteContentCmd(ClientData arg, Tcl_Interp *interp, int argc,
 		     char **argv)
 {
     NsInterp	*itPtr = arg;
-    int          mode;
-    int	         fileArg = 1;   /* assume no-conn parameter usage */
     Tcl_Channel  chan;
 
-    if (argc == 3) {
-	/*
-	 * They must have specified a conn ID.  Make sure it's a valid
-	 * conn ID.  If not, it's an error.
-	 */
-	
-	if (NsIsIdConn(argv[1])== NS_FALSE) {
-	    Tcl_AppendResult(interp, "bad connid: \"", argv[1], "\"", NULL);
-	    return TCL_ERROR;
-	}
-	fileArg = 2;
-    } else if (argc > 3 || argc < 2) {
+    if (argc != 2 && argc != 3) {
         Tcl_AppendResult(interp, "wrong # of args: should be \"",
-                         argv[0], " cmd ", NULL);
+                         argv[0], " ?connid? channel", NULL);
         return TCL_ERROR;
+    }
+    if (argc == 3 && !NsIsIdConn(argv[1])) {
+	Tcl_AppendResult(interp, "bad connid: \"", argv[1], "\"", NULL);
+	return TCL_ERROR;
     }
     if (itPtr->conn == NULL) {
         Tcl_AppendResult(interp, "no connection", NULL);
         return TCL_ERROR;
     }
-    chan = Tcl_GetChannel(interp, argv[fileArg], &mode);
-    if (chan == (Tcl_Channel) NULL) {
-        return TCL_ERROR;
-    }
-    if ((mode & TCL_WRITABLE) == 0) {
-        Tcl_AppendResult(interp, "channel \"", argv[fileArg],
-                "\" wasn't opened for writing", (char *) NULL);
-        return TCL_ERROR;
+    if (GetChan(interp, argv[argc-1], &chan) != TCL_OK) {
+	return TCL_ERROR;
     }
     Tcl_Flush(chan);
     if (Ns_ConnCopyToChannel(itPtr->conn, itPtr->conn->contentLength, chan) != NS_OK) {
-        Tcl_AppendResult(interp, "Error writing content: ",
-	    Tcl_PosixError(interp), NULL);
+        Tcl_SetResult(interp, "could not copy content (likely client disconnect)",
+	    TCL_STATIC);
         return TCL_ERROR;
     }
     
     return TCL_OK;
 }
 
-
-/*
- *----------------------------------------------------------------------
- *
- * ConnCopy --
- *
- *	Copy connection content to a buffer, channel, FILE, or fd.
- *
- * Results:
- *  	NS_OK or NS_ERROR if not all content could be read.
- *
- * Side effects:
- *	None.
- *
- *----------------------------------------------------------------------
- */
 
 static int
-ConnCopy(Ns_Conn *conn, size_t tocopy, char *buffer,
-    	 Tcl_Channel chan, FILE *fp, int fd)
+GetChan(Tcl_Interp *interp, char *id, Tcl_Channel *chanPtr)
 {
-    char        tmp[IOBUFSZ];
-    char       *buf;
-    int		toread, towrite, nread, nwrote;
+    Tcl_Channel chan;
+    int mode;
 
-    while (tocopy > 0) {
-	toread = tocopy;
-	if (buffer != NULL) {
-	    buf = buffer;
-	} else {
-	    buf = tmp;
-	    if (toread > sizeof(tmp)) {
-		toread = sizeof(tmp);
-	    }
-	}
-        nread = Ns_ConnRead(conn, buf, toread);
-	if (nread < 0) {
-	    return NS_ERROR;
-	}
-	if (buffer != NULL) {
-	    buffer += nread;
-	} else {
-	    towrite = nread;
-	    while (towrite > 0) {
-		if (chan != NULL) {
-		    nwrote = Tcl_Write(chan, buf, nread);
-    		} else if (fp != NULL) {
-        	    nwrote = fwrite(buf, 1, nread, fp);
-        	    if (ferror(fp)) {
-			nwrote = -1;
-		    }
-		} else {
-	    	    nwrote = write(fd, buf, nread);
-		}
-		if (nwrote < 0) {
-	    	    return NS_ERROR;
-		}
-		towrite -= nwrote;
-		buf += nwrote;
-	    }
-	}
-        tocopy -= nread;
+    chan = Tcl_GetChannel(interp, id, &mode);
+    if (chan == (Tcl_Channel) NULL) {
+        return TCL_ERROR;
     }
-    return NS_OK;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * ConnSend --
- *
- *	Send content from a channel, FILE, or fd.
- *
- * Results:
- *  	NS_OK or NS_ERROR if a write failed.
- *
- * Side effects:
- *	None.
- *
- *----------------------------------------------------------------------
- */
-
-static int
-ConnSend(Ns_Conn *conn, int nsend, Tcl_Channel chan, FILE *fp, int fd)
-{
-    Conn    	   *connPtr = (Conn *) conn;
-    int             toread, nread, status;
-    char            buf[IOBUFSZ];
-
-    status = NS_OK;
-    while (status == NS_OK && nsend > 0) {
-        toread = nsend;
-        if (toread > sizeof(buf)) {
-            toread = sizeof(buf);
-        }
-	if (chan != NULL) {
-	    nread = Tcl_Read(chan, buf, toread);
-	} else if (fp != NULL) {
-            nread = fread(buf, 1, toread, fp);
-            if (ferror(fp)) {
-	    	nread = -1;
-	    }
-    	} else {
-	    nread = read(fd, buf, toread);
-    	}
-	if (nread == -1) {
-	    status = NS_ERROR;
-	} else if (nread == 0) { 
-            nsend = 0;	/* NB: Silently ignore a truncated file. */
-	} else if ((status = Ns_WriteConn(conn, buf, nread)) == NS_OK) {
-            nsend -= nread;
-	}
+    if ((mode & TCL_WRITABLE) == 0) {
+        Tcl_AppendResult(interp, "channel \"", id,
+                "\" wasn't opened for writing", (char *) NULL);
+        return TCL_ERROR;
     }
-    return status;
+    *chanPtr = chan;
+    return TCL_OK;
 }
