@@ -33,7 +33,7 @@
  * 	Connect Tcl command names to the functions that implement them
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.43 2004/08/28 01:07:22 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.44 2004/10/06 18:49:22 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -82,7 +82,7 @@ extern Tcl_ObjCmdProc
     NsTclHTUUDecodeObjCmd,
     NsTclHTUUEncodeObjCmd,
     NsTclHeadersObjCmd,
-    NsTclHttpObjCmd,
+    NsTclNHttpObjCmd,
     NsTclHttpTimeObjCmd,
     NsTclICtlObjCmd,
     NsTclInfoObjCmd,
@@ -141,6 +141,7 @@ extern Tcl_ObjCmdProc
     NsTclSleepObjCmd,
     NsTclSockAcceptObjCmd,
     NsTclSockCallbackObjCmd,
+    NsTclSockQueWaitObjCmd,
     NsTclSockCheckObjCmd,
     NsTclSockListenCallbackObjCmd,
     NsTclSockListenObjCmd,
@@ -228,180 +229,106 @@ typedef struct Cmd {
  */
 
 static Cmd cmds[] = {
-    {"ns_crypt", NULL, NsTclCryptObjCmd},
-    {"ns_sleep", NULL, NsTclSleepObjCmd},
-    {"ns_localtime", NULL, NsTclLocalTimeObjCmd},
-    {"ns_gmtime", NULL, NsTclGmTimeObjCmd},
-    {"ns_time", NULL, NsTclTimeObjCmd},
-    {"ns_fmttime", NULL, NsTclStrftimeObjCmd},
-    {"ns_httptime", NULL, NsTclHttpTimeObjCmd},
-    {"ns_parsehttptime", NULL, NsTclParseHttpTimeObjCmd},
-    {"ns_parsequery", NULL, NsTclParseQueryObjCmd},
-
-    {"ns_rand", NULL, NsTclRandObjCmd},
-
-    {"ns_info", NULL, NsTclInfoObjCmd},
-    {"ns_modulepath", NULL, NsTclModulePathObjCmd},
-    {"ns_limits", NULL, NsTclLimitsObjCmd},
-    {"ns_pools", NULL, NsTclPoolsObjCmd},
-    {"ns_driver", NULL, NsTclDriverObjCmd},
-
-    /*
-     * log.c
-     */
-
-    {"ns_log", NULL, NsTclLogObjCmd},
-    {"ns_logctl", NULL, NsTclLogCtlObjCmd},
-    {"ns_logroll", NULL, NsTclLogRollObjCmd},
-
-    {"ns_urlencode", NULL, NsTclUrlEncodeObjCmd},
-    {"ns_urldecode", NULL, NsTclUrlDecodeObjCmd},
-    {"ns_uuencode", NULL, NsTclHTUUEncodeObjCmd},
-    {"ns_uudecode", NULL, NsTclHTUUDecodeObjCmd},
-    {"ns_gifsize", NULL, NsTclGifSizeObjCmd},
-    {"ns_jpegsize", NULL, NsTclJpegSizeObjCmd},
-    {"ns_guesstype", NULL, NsTclGuessTypeObjCmd},
-
-    {"ns_striphtml", NsTclStripHtmlCmd, NULL},
-    {"ns_quotehtml", NsTclQuoteHtmlCmd, NULL},
-    {"ns_hrefs", NsTclHrefsCmd, NULL},
-
-    /*
-     * tclconf.c
-     */
-
-    {"ns_config", NsTclConfigCmd, NULL},
-    {"ns_configsection", NsTclConfigSectionCmd, NULL},
-    {"ns_configsections", NsTclConfigSectionsCmd, NULL},
-
-    /*
-     * tclfile.c
-     */
-
-    {"ns_unlink", NULL, NsTclUnlinkObjCmd},
-    {"ns_mkdir", NULL, NsTclMkdirObjCmd},
-    {"ns_rmdir", NULL, NsTclRmdirObjCmd},
-    {"ns_cp", NULL, NsTclCpObjCmd},
-    {"ns_cpfp", NULL, NsTclCpFpObjCmd},
-    {"ns_rollfile", NULL, NsTclRollFileObjCmd},
-    {"ns_purgefiles", NULL, NsTclPurgeFilesObjCmd},
-    {"ns_mktemp", NsTclMkTempCmd, NULL},
-    {"ns_tmpnam", NULL, NsTclTmpNamObjCmd},
-    {"ns_normalizepath", NULL, NsTclNormalizePathObjCmd},
-    {"ns_link", NULL, NsTclLinkObjCmd},
-    {"ns_symlink", NULL, NsTclSymlinkObjCmd},
-    {"ns_rename", NULL, NsTclRenameObjCmd},
-    {"ns_kill", NULL, NsTclKillObjCmd},
-    {"ns_writefp", NULL, NsTclWriteFpObjCmd},
-    {"ns_truncate", NULL, NsTclTruncateObjCmd},
-    {"ns_ftruncate", NULL, NsTclFTruncateObjCmd},
-    {"ns_chmod", NULL, NsTclChmodObjCmd},
-
-    /*
-     * tclenv.c
-     */
-
-    {"ns_env", NsTclEnvCmd, NULL},
     {"env", NsTclEnvCmd, NULL}, /* NB: Backwards compatible. */
-
-    /*
-     * tcljob.c
-     */
-
-    {"ns_job", NULL, NsTclJobObjCmd},
-
-    /*
-     * tclhttp.c
-     */
-
-    {"ns_http", NULL, NsTclHttpObjCmd},
-
-    /*
-     * tclsched.c
-     */
-
-    {"ns_schedule_proc", NsTclSchedCmd, NULL},
-    {"ns_schedule_daily", NsTclSchedDailyCmd, NULL},
-    {"ns_schedule_weekly", NsTclSchedWeeklyCmd, NULL},
-    {"ns_atsignal", NsTclAtSignalCmd, NULL},
-    {"ns_atshutdown", NsTclAtShutdownCmd, NULL},
-    {"ns_atexit", NsTclAtExitCmd, NULL},
-    {"ns_after", NsTclAfterCmd, NULL},
-    {"ns_cancel", NsTclCancelCmd, NULL},
-    {"ns_pause", NsTclPauseCmd, NULL},
-    {"ns_resume", NsTclResumeCmd, NULL},
-    {"ns_unschedule_proc", NsTclUnscheduleCmd, NULL},
-
-    /*
-     * tclset.c
-     */
-
-    {"ns_set", NULL, NsTclSetObjCmd},
-    {"ns_parseheader", NsTclParseHeaderCmd, NULL},
-
-    /*
-     * tclsock.c
-     */
-
-    {"ns_sockcallback", NULL, NsTclSockCallbackObjCmd},
-    {"ns_socklistencallback", NULL, NsTclSockListenCallbackObjCmd},
-    {"ns_sockblocking", NULL, NsTclSockSetBlockingObjCmd},
-    {"ns_socknonblocking", NULL, NsTclSockSetNonBlockingObjCmd},
-    {"ns_socknread", NULL, NsTclSockNReadObjCmd},
-    {"ns_sockopen", NULL, NsTclSockOpenObjCmd},
-    {"ns_socklisten", NULL, NsTclSockListenObjCmd},
-    {"ns_sockaccept", NULL, NsTclSockAcceptObjCmd},
-    {"ns_sockcheck", NULL, NsTclSockCheckObjCmd},
-    {"ns_sockselect", NULL, NsTclSelectObjCmd},
-    {"ns_socketpair", NULL, NsTclSocketPairObjCmd},
-    {"ns_hostbyaddr", NULL, NsTclGetHostObjCmd},
-    {"ns_addrbyhost", NULL, NsTclGetAddrObjCmd},
-
-    /*
-     * tclxkeylist.c
-     */
-
     {"keyldel", NULL, TclX_KeyldelObjCmd},
     {"keylget", NULL, TclX_KeylgetObjCmd},
     {"keylkeys", NULL, TclX_KeylkeysObjCmd},
     {"keylset", NULL, TclX_KeylsetObjCmd},
-
-    /*
-     * cache.c
-     */
-
+    {"ns_addrbyhost", NULL, NsTclGetAddrObjCmd},
+    {"ns_after", NsTclAfterCmd, NULL},
+    {"ns_atexit", NsTclAtExitCmd, NULL},
+    {"ns_atshutdown", NsTclAtShutdownCmd, NULL},
+    {"ns_atsignal", NsTclAtSignalCmd, NULL},
     {"ns_cache_flush", NsTclCacheFlushCmd, NULL},
-    {"ns_cache_stats", NsTclCacheStatsCmd, NULL},
+    {"ns_cache_keys", NsTclCacheKeysCmd, NULL},
     {"ns_cache_names", NsTclCacheNamesCmd, NULL},
     {"ns_cache_size", NsTclCacheSizeCmd, NULL},
-    {"ns_cache_keys", NsTclCacheKeysCmd, NULL},
-
-    /*
-     * tclthread.c
-     */
-
-    {"ns_thread", NsTclThreadCmd, NULL},
-    {"ns_mutex", NULL, NsTclMutexObjCmd},
-    {"ns_cond", NULL, NsTclCondObjCmd},
-    {"ns_event", NULL, NsTclCondObjCmd},
-    {"ns_rwlock", NULL, NsTclRWLockObjCmd},
-    {"ns_sema", NULL, NsTclSemaObjCmd},
-    {"ns_critsec", NULL, NsTclCritSecObjCmd},
-
-    /*
-     * tclinit.c
-     */
-
-    {"ns_init", NULL, NsTclDummyObjCmd},
-    {"ns_cleanup", NULL, NsTclDummyObjCmd},
-    {"ns_markfordelete", NULL, NsTclMarkForDeleteObjCmd},
-
-    /*
-     * encoding.c
-     */
-
+    {"ns_cache_stats", NsTclCacheStatsCmd, NULL},
+    {"ns_cancel", NsTclCancelCmd, NULL},
     {"ns_charsets", NsTclCharsetsCmd, NULL},
+    {"ns_chmod", NULL, NsTclChmodObjCmd},
+    {"ns_cleanup", NULL, NsTclDummyObjCmd},
+    {"ns_cond", NULL, NsTclCondObjCmd},
+    {"ns_config", NsTclConfigCmd, NULL},
+    {"ns_configsection", NsTclConfigSectionCmd, NULL},
+    {"ns_configsections", NsTclConfigSectionsCmd, NULL},
+    {"ns_cp", NULL, NsTclCpObjCmd},
+    {"ns_cpfp", NULL, NsTclCpFpObjCmd},
+    {"ns_critsec", NULL, NsTclCritSecObjCmd},
+    {"ns_crypt", NULL, NsTclCryptObjCmd},
+    {"ns_driver", NULL, NsTclDriverObjCmd},
     {"ns_encodingforcharset", NsTclEncodingForCharsetCmd, NULL},
+    {"ns_env", NsTclEnvCmd, NULL},
+    {"ns_event", NULL, NsTclCondObjCmd},
+    {"ns_fmttime", NULL, NsTclStrftimeObjCmd},
+    {"ns_ftruncate", NULL, NsTclFTruncateObjCmd},
+    {"ns_gifsize", NULL, NsTclGifSizeObjCmd},
+    {"ns_gmtime", NULL, NsTclGmTimeObjCmd},
+    {"ns_guesstype", NULL, NsTclGuessTypeObjCmd},
+    {"ns_hostbyaddr", NULL, NsTclGetHostObjCmd},
+    {"ns_hrefs", NsTclHrefsCmd, NULL},
+    {"ns_http", NULL, NsTclNHttpObjCmd},
+    {"ns_httptime", NULL, NsTclHttpTimeObjCmd},
+    {"ns_info", NULL, NsTclInfoObjCmd},
+    {"ns_init", NULL, NsTclDummyObjCmd},
+    {"ns_job", NULL, NsTclJobObjCmd},
+    {"ns_jpegsize", NULL, NsTclJpegSizeObjCmd},
+    {"ns_kill", NULL, NsTclKillObjCmd},
+    {"ns_limits", NULL, NsTclLimitsObjCmd},
+    {"ns_link", NULL, NsTclLinkObjCmd},
+    {"ns_localtime", NULL, NsTclLocalTimeObjCmd},
+    {"ns_log", NULL, NsTclLogObjCmd},
+    {"ns_logctl", NULL, NsTclLogCtlObjCmd},
+    {"ns_logroll", NULL, NsTclLogRollObjCmd},
+    {"ns_markfordelete", NULL, NsTclMarkForDeleteObjCmd},
+    {"ns_mkdir", NULL, NsTclMkdirObjCmd},
+    {"ns_mktemp", NsTclMkTempCmd, NULL},
+    {"ns_modulepath", NULL, NsTclModulePathObjCmd},
+    {"ns_mutex", NULL, NsTclMutexObjCmd},
+    {"ns_normalizepath", NULL, NsTclNormalizePathObjCmd},
+    {"ns_parseheader", NsTclParseHeaderCmd, NULL},
+    {"ns_parsehttptime", NULL, NsTclParseHttpTimeObjCmd},
+    {"ns_parsequery", NULL, NsTclParseQueryObjCmd},
+    {"ns_pause", NsTclPauseCmd, NULL},
+    {"ns_pools", NULL, NsTclPoolsObjCmd},
+    {"ns_purgefiles", NULL, NsTclPurgeFilesObjCmd},
+    {"ns_quotehtml", NsTclQuoteHtmlCmd, NULL},
+    {"ns_rand", NULL, NsTclRandObjCmd},
+    {"ns_rename", NULL, NsTclRenameObjCmd},
+    {"ns_resume", NsTclResumeCmd, NULL},
+    {"ns_rmdir", NULL, NsTclRmdirObjCmd},
+    {"ns_rollfile", NULL, NsTclRollFileObjCmd},
+    {"ns_rwlock", NULL, NsTclRWLockObjCmd},
+    {"ns_schedule_daily", NsTclSchedDailyCmd, NULL},
+    {"ns_schedule_proc", NsTclSchedCmd, NULL},
+    {"ns_schedule_weekly", NsTclSchedWeeklyCmd, NULL},
+    {"ns_sema", NULL, NsTclSemaObjCmd},
+    {"ns_set", NULL, NsTclSetObjCmd},
+    {"ns_sleep", NULL, NsTclSleepObjCmd},
+    {"ns_sockaccept", NULL, NsTclSockAcceptObjCmd},
+    {"ns_sockblocking", NULL, NsTclSockSetBlockingObjCmd},
+    {"ns_sockcallback", NULL, NsTclSockCallbackObjCmd},
+    {"ns_sockcheck", NULL, NsTclSockCheckObjCmd},
+    {"ns_socketpair", NULL, NsTclSocketPairObjCmd},
+    {"ns_socklisten", NULL, NsTclSockListenObjCmd},
+    {"ns_socklistencallback", NULL, NsTclSockListenCallbackObjCmd},
+    {"ns_socknonblocking", NULL, NsTclSockSetNonBlockingObjCmd},
+    {"ns_socknread", NULL, NsTclSockNReadObjCmd},
+    {"ns_sockopen", NULL, NsTclSockOpenObjCmd},
+    {"ns_sockselect", NULL, NsTclSelectObjCmd},
+    {"ns_striphtml", NsTclStripHtmlCmd, NULL},
+    {"ns_symlink", NULL, NsTclSymlinkObjCmd},
+    {"ns_thread", NsTclThreadCmd, NULL},
+    {"ns_time", NULL, NsTclTimeObjCmd},
+    {"ns_tmpnam", NULL, NsTclTmpNamObjCmd},
+    {"ns_truncate", NULL, NsTclTruncateObjCmd},
+    {"ns_unlink", NULL, NsTclUnlinkObjCmd},
+    {"ns_unschedule_proc", NsTclUnscheduleCmd, NULL},
+    {"ns_urldecode", NULL, NsTclUrlDecodeObjCmd},
+    {"ns_urlencode", NULL, NsTclUrlEncodeObjCmd},
+    {"ns_uudecode", NULL, NsTclHTUUDecodeObjCmd},
+    {"ns_uuencode", NULL, NsTclHTUUEncodeObjCmd},
+    {"ns_writefp", NULL, NsTclWriteFpObjCmd},
 
     /*
      * Add more basic Tcl commands here.
@@ -416,133 +343,80 @@ static Cmd cmds[] = {
  */
 
 static Cmd servCmds[] = {
-
-    /*
-     * tclrequest.c
-     */
-
-    {"ns_register_filter", NULL, NsTclRegisterFilterObjCmd},
-    {"ns_register_trace", NULL, NsTclRegisterTraceObjCmd},
-    {"ns_register_adp", NULL, NsTclRegisterAdpObjCmd},
-    {"ns_register_proc", NULL, NsTclRegisterProcObjCmd},
-    {"ns_unregister_adp", NULL, NsTclUnRegisterObjCmd},
-    {"ns_unregister_proc", NULL, NsTclUnRegisterObjCmd},
-    {"ns_atclose", NsTclAtCloseCmd, NULL},
-
-    /*
-     * tclresp.c
-     */
-
-    {"ns_return", NULL, NsTclReturnObjCmd},
-    {"ns_respond", NULL, NsTclRespondObjCmd},
-    {"ns_returnfile", NULL, NsTclReturnFileObjCmd},
-    {"ns_returnfp", NULL, NsTclReturnFpObjCmd},
-    {"ns_returnbadrequest", NULL, NsTclReturnBadRequestObjCmd},
-    {"ns_returnerror", NULL, NsTclReturnErrorObjCmd},
-    {"ns_returnnotice", NsTclReturnNoticeCmd, NULL},
-    {"ns_returnadminnotice", NsTclReturnAdminNoticeCmd, NULL},
-    {"ns_returnredirect", NULL, NsTclReturnRedirectObjCmd},
-    {"ns_headers", NULL, NsTclHeadersObjCmd},
-    {"ns_write", NULL, NsTclWriteObjCmd},
-    {"ns_connsendfp", NULL, NsTclConnSendFpObjCmd},
-    {"ns_returnforbidden", NULL, NsTclReturnForbiddenObjCmd},
-    {"ns_returnunauthorized", NULL, NsTclReturnUnauthorizedObjCmd},
-    {"ns_returnnotfound", NULL, NsTclReturnNotFoundObjCmd},
-
-    /*
-     * tclfile.c
-     */
-
-    {"ns_chan", NULL, NsTclChanObjCmd},
-    {"ns_url2file", NULL, NsTclUrl2FileObjCmd},
-
-
-    {"ns_library", NsTclLibraryCmd, NULL},
-    {"ns_geturl", NULL, NsTclGetUrlObjCmd},
-
-    {"ns_checkurl", NULL, NsTclRequestAuthorizeObjCmd},
-    {"ns_requestauthorize", NULL, NsTclRequestAuthorizeObjCmd},
-
-    /*
-     * tcladmin.c
-     */
-
-    {"ns_shutdown", NULL, NsTclShutdownObjCmd},
-
-    /*
-     * conn.c
-     */
-
-    {"ns_conncptofp", NULL, NsTclWriteContentObjCmd},
-    {"ns_writecontent", NULL, NsTclWriteContentObjCmd},
-    {"ns_conn", NULL, NsTclConnObjCmd},
-    {"ns_startcontent", NULL, NsTclStartContentObjCmd},
-
-    /*
-     * adpparse.c
-     */
-
-    {"ns_register_adptag", NsTclRegisterTagCmd, NULL},
-    {"ns_adp_registeradp", NsTclAdpRegisterAdpCmd, NULL},
-    {"ns_adp_registertag", NsTclAdpRegisterAdpCmd, NULL},
-    {"ns_adp_registerproc", NsTclAdpRegisterProcCmd, NULL},
-
-    /*
-     * adpcmds.c
-     */
-
-    {"ns_adp_stats", NsTclAdpStatsCmd, NULL},
-    {"ns_adp_debug", NsTclAdpDebugCmd, NULL},
-
     {"_ns_adp_include", NULL, NsTclAdpIncludeObjCmd},
-    {"ns_adp_eval", NULL, NsTclAdpEvalObjCmd},
-    {"ns_adp_safeeval", NULL, NsTclAdpSafeEvalObjCmd},
-    {"ns_adp_parse", NULL, NsTclAdpParseObjCmd},
-    {"ns_puts", NULL, NsTclAdpPutsObjCmd},
-    {"ns_adp_puts", NULL, NsTclAdpPutsObjCmd},
-    {"ns_adp_append", NULL, NsTclAdpAppendObjCmd},
-    {"ns_adp_dir", NULL, NsTclAdpDirObjCmd},
-    {"ns_adp_return", NULL, NsTclAdpReturnObjCmd},
-    {"ns_adp_break", NULL, NsTclAdpBreakObjCmd},
     {"ns_adp_abort", NULL, NsTclAdpAbortObjCmd},
-    {"ns_adp_tell", NULL, NsTclAdpTellObjCmd},
-    {"ns_adp_trunc", NULL, NsTclAdpTruncObjCmd},
-    {"ns_adp_dump", NULL, NsTclAdpDumpObjCmd},
+    {"ns_adp_append", NULL, NsTclAdpAppendObjCmd},
     {"ns_adp_argc", NULL, NsTclAdpArgcObjCmd},
     {"ns_adp_argv", NULL, NsTclAdpArgvObjCmd},
     {"ns_adp_bind_args", NULL, NsTclAdpBindArgsObjCmd},
+    {"ns_adp_break", NULL, NsTclAdpBreakObjCmd},
+    {"ns_adp_debug", NsTclAdpDebugCmd, NULL},
+    {"ns_adp_dir", NULL, NsTclAdpDirObjCmd},
+    {"ns_adp_dump", NULL, NsTclAdpDumpObjCmd},
+    {"ns_adp_eval", NULL, NsTclAdpEvalObjCmd},
     {"ns_adp_exception", NULL, NsTclAdpExceptionObjCmd},
-    {"ns_adp_stream", NULL, NsTclAdpStreamObjCmd},
     {"ns_adp_mime", NULL, NsTclAdpMimeTypeObjCmd},
     {"ns_adp_mimetype", NULL, NsTclAdpMimeTypeObjCmd},
-
-    /*
-     * tclvar.c
-     */
-
-    {"ns_share", NsTclShareCmd, NULL},
-    {"ns_var", NULL, NsTclVarObjCmd},
-    {"nsv_get", NULL, NsTclNsvGetObjCmd},
-    {"nsv_exists", NULL, NsTclNsvExistsObjCmd},
-    {"nsv_set", NULL, NsTclNsvSetObjCmd},
-    {"nsv_incr", NULL, NsTclNsvIncrObjCmd},
-    {"nsv_append", NULL, NsTclNsvAppendObjCmd},
-    {"nsv_lappend", NULL, NsTclNsvLappendObjCmd},
-    {"nsv_array", NULL, NsTclNsvArrayObjCmd},
-    {"nsv_unset", NULL, NsTclNsvUnsetObjCmd},
-    {"nsv_names", NULL, NsTclNsvNamesObjCmd},
-
-    /*
-     * serv.c
-     */
-
-    {"ns_server", NULL, NsTclServerObjCmd},
-
-    /*
-     * tclinit.c
-     */
-
+    {"ns_adp_parse", NULL, NsTclAdpParseObjCmd},
+    {"ns_adp_puts", NULL, NsTclAdpPutsObjCmd},
+    {"ns_adp_registeradp", NsTclAdpRegisterAdpCmd, NULL},
+    {"ns_adp_registerproc", NsTclAdpRegisterProcCmd, NULL},
+    {"ns_adp_registertag", NsTclAdpRegisterAdpCmd, NULL},
+    {"ns_adp_return", NULL, NsTclAdpReturnObjCmd},
+    {"ns_adp_safeeval", NULL, NsTclAdpSafeEvalObjCmd},
+    {"ns_adp_stats", NsTclAdpStatsCmd, NULL},
+    {"ns_adp_stream", NULL, NsTclAdpStreamObjCmd},
+    {"ns_adp_tell", NULL, NsTclAdpTellObjCmd},
+    {"ns_adp_trunc", NULL, NsTclAdpTruncObjCmd},
+    {"ns_atclose", NsTclAtCloseCmd, NULL},
+    {"ns_chan", NULL, NsTclChanObjCmd},
+    {"ns_checkurl", NULL, NsTclRequestAuthorizeObjCmd},
+    {"ns_conn", NULL, NsTclConnObjCmd},
+    {"ns_conncptofp", NULL, NsTclWriteContentObjCmd},
+    {"ns_connsendfp", NULL, NsTclConnSendFpObjCmd},
+    {"ns_geturl", NULL, NsTclGetUrlObjCmd},
+    {"ns_headers", NULL, NsTclHeadersObjCmd},
     {"ns_ictl", NULL, NsTclICtlObjCmd},
+    {"ns_library", NsTclLibraryCmd, NULL},
+    {"ns_puts", NULL, NsTclAdpPutsObjCmd},
+    {"ns_register_adp", NULL, NsTclRegisterAdpObjCmd},
+    {"ns_register_adptag", NsTclRegisterTagCmd, NULL},
+    {"ns_register_filter", NULL, NsTclRegisterFilterObjCmd},
+    {"ns_register_proc", NULL, NsTclRegisterProcObjCmd},
+    {"ns_register_trace", NULL, NsTclRegisterTraceObjCmd},
+    {"ns_requestauthorize", NULL, NsTclRequestAuthorizeObjCmd},
+    {"ns_respond", NULL, NsTclRespondObjCmd},
+    {"ns_return", NULL, NsTclReturnObjCmd},
+    {"ns_returnadminnotice", NsTclReturnAdminNoticeCmd, NULL},
+    {"ns_returnbadrequest", NULL, NsTclReturnBadRequestObjCmd},
+    {"ns_returnerror", NULL, NsTclReturnErrorObjCmd},
+    {"ns_returnfile", NULL, NsTclReturnFileObjCmd},
+    {"ns_returnforbidden", NULL, NsTclReturnForbiddenObjCmd},
+    {"ns_returnfp", NULL, NsTclReturnFpObjCmd},
+    {"ns_returnnotfound", NULL, NsTclReturnNotFoundObjCmd},
+    {"ns_returnnotice", NsTclReturnNoticeCmd, NULL},
+    {"ns_returnredirect", NULL, NsTclReturnRedirectObjCmd},
+    {"ns_returnunauthorized", NULL, NsTclReturnUnauthorizedObjCmd},
+    {"ns_server", NULL, NsTclServerObjCmd},
+    {"ns_share", NsTclShareCmd, NULL},
+    {"ns_shutdown", NULL, NsTclShutdownObjCmd},
+    {"ns_sockquewait", NULL, NsTclSockQueWaitObjCmd},
+    {"ns_startcontent", NULL, NsTclStartContentObjCmd},
+    {"ns_unregister_adp", NULL, NsTclUnRegisterObjCmd},
+    {"ns_unregister_proc", NULL, NsTclUnRegisterObjCmd},
+    {"ns_url2file", NULL, NsTclUrl2FileObjCmd},
+    {"ns_var", NULL, NsTclVarObjCmd},
+    {"ns_write", NULL, NsTclWriteObjCmd},
+    {"ns_writecontent", NULL, NsTclWriteContentObjCmd},
+    {"nsv_append", NULL, NsTclNsvAppendObjCmd},
+    {"nsv_array", NULL, NsTclNsvArrayObjCmd},
+    {"nsv_exists", NULL, NsTclNsvExistsObjCmd},
+    {"nsv_get", NULL, NsTclNsvGetObjCmd},
+    {"nsv_incr", NULL, NsTclNsvIncrObjCmd},
+    {"nsv_lappend", NULL, NsTclNsvLappendObjCmd},
+    {"nsv_names", NULL, NsTclNsvNamesObjCmd},
+    {"nsv_set", NULL, NsTclNsvSetObjCmd},
+    {"nsv_unset", NULL, NsTclNsvUnsetObjCmd},
 
     /*
      * Add more server Tcl commands here.
