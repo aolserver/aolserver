@@ -1,3 +1,12 @@
+2003-07-18  Mark Page  <mpagenva@aol.com>
+
+	* nsd/adpeval.c (AdpEval): Check adp.outputPtr validity before
+	use.  It can get reset within this adp evaluation loop from
+	commands like ns_respond (when it does an internal redirect for
+	the file not found case).  In this case, it's appropriate that
+	further text from this page code is not appended to the result, as
+	other code had determined that the result was complete.
+
 2003-07-12  Zoran Vasiljevic <zoran@archiware.com>
 
 	* nslog/nslog.c: the "X-Forwarded-For" header existence is examined
