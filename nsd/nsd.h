@@ -201,6 +201,7 @@ struct _nsconf {
 	int timeout;
 	int maxkeep;
 	int npending;
+	int allmethods;
     } keepalive;
 
     struct {
@@ -283,6 +284,7 @@ typedef struct Request {
     char	   *content;	/* Start of content. */
     int		    length;	/* Length of content. */
     int		    avail;	/* Bytes avail in buffer. */
+    int		    leadblanks;	/* # of leading blank lines read */
 
     /*
      * The following offsets are used to manage the 

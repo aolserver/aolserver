@@ -33,7 +33,7 @@
  *	Various core configuration.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsconf.c,v 1.32 2003/07/18 18:01:17 elizthom Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsconf.c,v 1.32.2.1 2004/06/03 18:02:21 rcrittenden0569 Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #include "nsconf.h"
@@ -213,6 +213,7 @@ NsConfUpdate(void)
 	nsconf.keepalive.enabled = 1;
     }
     nsconf.keepalive.maxkeep = GetInt("maxkeepalive", KEEPALIVE_MAXKEEP_INT);
+    nsconf.keepalive.allmethods = GetBool("keepaliveallmethods", NS_FALSE);
 
     /*
      * tclinit.c

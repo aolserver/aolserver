@@ -34,7 +34,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.17.2.3 2004/03/26 20:58:18 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.17.2.4 2004/06/03 18:02:20 rcrittenden0569 Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -611,6 +611,7 @@ NsFreeRequest(Request *reqPtr)
     reqPtr->next = reqPtr->content = NULL;
     reqPtr->length = reqPtr->avail = 0;
     reqPtr->coff = reqPtr->woff = reqPtr->roff = 0;
+    reqPtr->leadblanks = 0;
     Tcl_DStringFree(&reqPtr->buffer);
     Ns_SetTrunc(reqPtr->headers, 0);
     Ns_FreeRequest(reqPtr->request);
@@ -1395,6 +1396,7 @@ SockRead(Sock *sockPtr)
 	    reqPtr->next = reqPtr->content = NULL;
 	    reqPtr->length = reqPtr->avail = 0;
 	    reqPtr->coff = reqPtr->woff = reqPtr->roff = 0;
+	    reqPtr->leadblanks = 0;
 	}
 	sockPtr->reqPtr = reqPtr;
     	reqPtr->port = ntohs(sockPtr->sa.sin_port);
@@ -1473,6 +1475,20 @@ SockRead(Sock *sockPtr)
 	 */
 
 	if (e == s) {
+            /* Look for a blank line on its own prior to any "real" 
+             * data. We eat up to 2 of these before closing the
+             * connection.
+             */
+            if (bufPtr->length == 2 && e[0] == '\r' && e[1] == '\n') {
+		if (reqPtr->leadblanks++ >= 2) {
+		    reqPtr->leadblanks = 0;
+		    return SOCK_ERROR;
+		}
+		reqPtr->woff = reqPtr->roff = 0;
+		reqPtr->leadblanks++;
+		Tcl_DStringSetLength(bufPtr, len - n);
+		return SOCK_MORE;
+            }
 	    reqPtr->coff = reqPtr->roff;
 	    s = Ns_SetIGet(reqPtr->headers, "content-length");
 	    if (s != NULL) {

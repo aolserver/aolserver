@@ -34,7 +34,7 @@
  *	Functions that return data to a browser. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.33 2003/08/25 20:41:04 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.33.2.1 2004/06/03 18:02:21 rcrittenden0569 Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -250,7 +250,7 @@ Ns_ConnConstructHeaders(Ns_Conn *conn, Ns_DString *dsPtr)
 	
 	/*
 	 * Output a connection keep-alive header only on
-	 * basic HTTP status 200 GET responses which included
+	 * any HTTP status 200 response which included
 	 * a valid and correctly set content-length header.
 	 */
 
@@ -261,7 +261,8 @@ Ns_ConnConstructHeaders(Ns_Conn *conn, Ns_DString *dsPtr)
 	    (lengthHdr != NULL &&
 	    connPtr->responseLength == length) || doChunkEncoding) ||
 	    connPtr->responseStatus == 304) &&
-	    STREQ(connPtr->request->method, "GET") &&
+	    (nsconf.keepalive.allmethods == NS_TRUE ||
+	    STREQ(connPtr->request->method, "GET")) &&
 	    (key = Ns_SetIGet(conn->headers, "connection")) != NULL &&
 	    STRIEQ(key, "keep-alive")) {
 	    conn->flags |= NS_CONN_KEEPALIVE;
@@ -271,7 +272,6 @@ Ns_ConnConstructHeaders(Ns_Conn *conn, Ns_DString *dsPtr)
 	}
 
 	Ns_ConnCondSetHeaders(conn, "Connection", keep);
-	
 
 	for (i = 0; i < Ns_SetSize(conn->outputheaders); i++) {
 	    key = Ns_SetKey(conn->outputheaders, i);
