@@ -28,7 +28,7 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/http.tcl,v 1.10 2001/08/27 20:16:00 scottg Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/http.tcl,v 1.11 2001/08/30 01:52:39 scottg Exp $
 #
 
 # http.tcl -
@@ -191,20 +191,7 @@ proc ns_httpopen {method url {rqset ""} {timeout 30} {pdata ""}} {
 # Side effects:
 #
 
-proc ns_httppost {url {rqset ""} {qsset ""} {timeout 30}} {
-    #
-    # Build the query string to POST with
-    #
-
-    set querystring ""
-    for {set i 0} {$i < [ns_set size $qsset]} {incr i} {
-	set key [ns_set key $qsset $i]
-	set value [ns_set value $qsset $i]
-	set querystring "$querystring&$key=$value"
-    }
-    ns_log notice "QS to send is $querystring"
-    set querystring [ns_urlencode $querystring]
-
+proc ns_httppost {url {rqset ""} {qsset ""} {type ""} {timeout 30}} {
     #
     # Build the request. Since we're posting, we have to set
     # content-type and content-length ourselves. We'll add these to
@@ -217,8 +204,32 @@ proc ns_httppost {url {rqset ""} {qsset ""} {timeout 30}} {
 	ns_set put $rqset "Accept" "*/*\r"
 	ns_set put $rqset "User-Agent" "[ns_info name]-Tcl/[ns_info version]\r"
     }
-    ns_set put $rqset "Content-length" [string length $querystring]
-    ns_set put $rqset "Content-type" "application/x-www-form-urlencoded"
+    if {$type == ""} {
+	ns_set put $rqset "Content-type" "application/x-www-form-urlencoded"
+    } else {
+	ns_set put $rqset "Content-type" "$type"
+    }
+
+    #
+    # Build the query string to POST with
+    #
+
+    set querystring ""
+    if {![string match "" $qsset]} {
+	for {set i 0} {$i < [ns_set size $qsset]} {incr i} {
+	    set key [ns_set key $qsset $i]
+	    set value [ns_set value $qsset $i]
+	    if { $i > 0 } {
+		append querystring "&"
+	    }
+	    append querystring "$key=[ns_urlencode $value]"
+	}
+	ns_log notice "QS that will be sent is $querystring"
+	ns_set put $rqset "Content-length" [string length $querystring]
+    } else {
+	ns_log notice "QS string is empty"
+	ns_set put $rqset "Content-length" "0"
+    }
 
     #
     # Perform the actual request.

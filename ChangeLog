@@ -1,3 +1,9 @@
+2001-08-29  Scott S. Goodwin  <scott@scottg.net>
+
+	* https.tcl: made fixes to ns_httppost per Rick Lansky at
+	bom.com. He also suggested I allow the Content-type to be passed
+	in as a parameter, so I've added that too.
+
 2001-08-27  Soctt S. Goodwin  <scott@scottg.net>
 
 	* https.tcl: added ns_httppost, that is called with url, rqset,
