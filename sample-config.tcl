@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/Attic/sample-config.tcl,v 1.7 2003/02/01 23:45:31 shmooved Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/Attic/sample-config.tcl,v 1.8 2003/02/25 17:12:03 shmooved Exp $
 #
 
 #
@@ -166,13 +166,6 @@ ns_param   enabletclpages  false     ;# Parse *.tcl files in pageroot.
 #ns_param   minthreads      0         ;# Tune this to scale your server
 #ns_param   threadtimeout   120       ;# Idle threads die at this rate
 
-
-# Directory listings -- use an ADP or a Tcl proc to generate them.
-#ns_param   directoryadp    $pageroot/dirlist.adp ;# Choose one or the other.
-#ns_param   directoryproc   _ns_dirlist           ;#  ...but not both!
-#ns_param   directorylisting simple               ;# Can be simple or fancy.
-
-
 #
 # ADP (AOLserver Dynamic Page) configuration
 #
@@ -210,6 +203,47 @@ ns_param   hostname        $hostname
 ns_param   address         $address
 ns_param   keyfile         $sslkeyfile
 ns_param   certfile        $sslcertfile
+
+
+# Fast Path --
+#
+#     Fast path configuration is used to configure options used for serving 
+#     static content, and also provides options to automatically display 
+#     directory listings.
+#
+# Parameters:
+#                     
+#     cache               Boolean. Enable cache for normal URLs.
+#                         Optional, default is false.
+#     cachemaxsize        Integer. Size of fast path cache.
+#                         Optional, default is 5120000.
+#     cachemaxentry       Integer. Largest file size allowed in cache.
+#                         Optional, default is cachemaxsize / 10.
+#     mmap                Boolean. Use mmap() for cache.
+#                         Optional, default is false.
+#     directoryfile       String. Directory index/default page to
+#                         look for. Optional, default is directoryfile
+#                         parameter set in ns/server/${servername} section.
+#     directorylisting    String. Directory listing style. Optional,
+#                         Can be "fancy" or "simple". 
+#     directoryproc       String. Name of Tcl proc to use to display
+#                         directory listings. Optional, default is to use
+#                         _ns_dirlist. You can either specify directoryproc,
+#                         or directoryadp - not both.
+#     directoryadp        String. Name of ADP page to use to display
+#                         directory listings. Optional. You can either
+#                         specify directoryadp or directoryproc - not both.
+#
+# Example:
+#
+#    ns_section "ns/server/${servername}/fastpath"
+#        ns_param directorylisting fancy
+#
+# See also:
+#
+#     /aolserver/nsd/fastpath.c
+#     /aolserver/tcl/fastpath.tcl         
+
 
 #
 # Example:  Control port configuration.
