@@ -33,7 +33,7 @@
  *	ADP commands.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpcmds.c,v 1.1 2001/03/12 22:06:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpcmds.c,v 1.2 2001/03/19 15:44:02 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -171,6 +171,53 @@ NsTclAdpParseCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
  *----------------------------------------------------------------------
  */
  
+int
+NsTclAdpAppendObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
+{
+    NsInterp *itPtr = arg;
+    int i, len;
+    char *s;
+
+    if (objc < 2) {
+	Tcl_WrongNumArgs(interp, 1, objv, "string ?string ...?");
+	return TCL_ERROR;
+    }
+    for (i = 1; i < objc; ++i) {
+	s = Tcl_GetStringFromObj(objv[i], &len);
+	Ns_DStringNAppend(&itPtr->adp.output, s, len);
+    }
+    NsAdpFlush(itPtr);
+    return TCL_OK;
+}
+
+int
+NsTclAdpPutsObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
+{
+    NsInterp *itPtr = arg;
+    char *s;
+    int len;
+
+    if (objc != 2 && objc != 3) {
+	Tcl_WrongNumArgs(interp, 1, objv, "?-nonewline? string");
+	return TCL_ERROR;
+    }
+    if (objc == 3) {
+	s = Tcl_GetString(objv[1]);
+	if (!STREQ(s, "-nonewline")) {
+	    Tcl_AppendResult(interp, "invalid flag \"",
+		s, "\": expected -nonewline", NULL);
+	    return TCL_ERROR;
+	}
+    }
+    s = Tcl_GetStringFromObj(objv[objc-1], &len);
+    Ns_DStringNAppend(&itPtr->adp.output, s, len);
+    if (objc == 2) {
+	Ns_DStringNAppend(&itPtr->adp.output, "\n", 1);
+    }
+    NsAdpFlush(itPtr);
+    return TCL_OK;
+}
+
 int
 NsTclAdpPutsCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 {
@@ -653,9 +700,9 @@ NsTclAdpDebugCmd(ClientData arg, Tcl_Interp *interp, int argc,
 /*
  *----------------------------------------------------------------------
  *
- * NsTclAdpMimeCmd --
+ * NsTclAdpMimeTypeCmd --
  *
- *	Process the ns_adp_mime command to set or get the mime type
+ *	Process the ns_adp_mimetype command to set or get the mime type
  *      returned upon completion of the parsed file.
  *
  * Results:
@@ -668,7 +715,7 @@ NsTclAdpDebugCmd(ClientData arg, Tcl_Interp *interp, int argc,
  */
 
 int
-NsTclAdpMimeCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
+NsTclAdpMimeTypeCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 {
     NsInterp *itPtr = arg;
     
@@ -681,6 +728,40 @@ NsTclAdpMimeCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
         NsAdpSetMimeType(itPtr, argv[1]);
     }
     Tcl_SetResult(interp, itPtr->adp.mimetype, TCL_VOLATILE);
+    return TCL_OK;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsTclAdpCharSetCmd --
+ *
+ *	Process the ns_adp_charset command to set or get the output
+ *      character set and encoding.
+ *
+ * Results:
+ *	A standard Tcl result.
+ *
+ * Side effects:
+ *  	Potentially enables output encoding for this adp page.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+NsTclAdpCharSetCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
+{
+    NsInterp *itPtr = arg;
     
+    if (argc != 1 && argc != 2) {
+        Tcl_AppendResult(interp, "wrong # args: should be \"",
+              argv[0], " ?charset?\"", NULL);
+        return TCL_ERROR;
+    }
+    if (argc == 2) {
+        NsAdpSetCharSet(itPtr, argv[1]);
+    }
+    Tcl_SetResult(interp, itPtr->adp.charset, TCL_VOLATILE);
     return TCL_OK;
 }
