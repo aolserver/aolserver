@@ -57,7 +57,7 @@
  * ns_param   "ParserName" "utf8"
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/adp.c,v 1.7 2000/08/24 23:04:55 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/adp.c,v 1.8 2000/08/25 14:16:18 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -529,7 +529,7 @@ NsTclAdpEvalCmd(ClientData dummy, Tcl_Interp *interp, int argc,
     int               code;
     Tcl_HashEntry    *hPtr;
     Ns_AdpParserProc *parserProc;
-    char	     *page, *cmd;
+    char	     *cmd;
     
     if (argc < 2) {
 badargs:
