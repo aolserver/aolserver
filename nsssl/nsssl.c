@@ -134,7 +134,7 @@ Ns_ModuleInit(char *server, char *module)
  */
 
 static int
-SSLProc(Ns_DriverCmd cmd, Ns_Sock *sock, Ns_Buf *bufs, int nbufs)
+SSLProc(Ns_DriverCmd cmd, Ns_Sock *sock, struct iovec *bufs, int nbufs)
 {
     Ns_Driver *driver = sock->driver;
     int n, total;
@@ -164,9 +164,9 @@ SSLProc(Ns_DriverCmd cmd, Ns_Sock *sock, Ns_Buf *bufs, int nbufs)
 	total = 0;
 	do {
 	    if (cmd == DriverSend) {
-		n = NsSSLSend(sock->arg, bufs->ns_buf, bufs->ns_len);
+		n = NsSSLSend(sock->arg, bufs->iov_base, bufs->iov_len);
 	    } else {
-		n = NsSSLRecv(sock->arg, bufs->ns_buf, bufs->ns_len);
+		n = NsSSLRecv(sock->arg, bufs->iov_base, bufs->iov_len);
 	    }
 	    if (n < 0 && total > 0) {
 		/* NB: Mask error if some bytes were read. */
