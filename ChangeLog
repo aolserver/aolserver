@@ -1,3 +1,8 @@
+2003-03-03 Nathan Folkman <shmooved@aol.com>
+
+        * nscgi/nscgi.c: (patch) Applied patch to set SCRIPT_NAME 
+        which is passed as an environment variable to the CGI script.
+
 2003-02-25  Nathan Folkman <shmooved@aol.com>
 
         * nsd/init.tcl: (patch) Added logging of errorInfo
