@@ -34,7 +34,7 @@
  *	Implements a lot of Tcl API commands. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclmisc.c,v 1.25 2002/12/14 18:25:45 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclmisc.c,v 1.26 2003/01/16 16:41:13 elizthom Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -901,14 +901,13 @@ NsTclCrashCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
  *
  * WordEndsInSemi --
  *
- *	Does this word end in a semicolon or a space? 
+ *      Does this word end in a semicolon or a space?
  *
  * Results:
- *	1 if semi, 0 if space. 
+ *      1 if semi, 0 if space.
  *
  * Side effects:
- *	Behavior is undefined if string ends before either space or 
- *	semi. 
+ *      Undefined behavior if string does not end in null
  *
  *----------------------------------------------------------------------
  */
@@ -916,7 +915,16 @@ NsTclCrashCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 static int
 WordEndsInSemi(char *ip)
 {
-    while((*ip != ' ') && (*ip != ';')) {
+    if (ip == NULL) {
+        return 0;
+    }
+    /* advance past the first '&' so we can check for a second
+       (i.e. to handle "ben&jerry&nbsp;")
+    */
+    if (*ip == '&') {
+        ip++;
+    }
+    while((*ip != '\0') && (*ip != ' ') && (*ip != ';') && (*ip != '&')) {
         ip++;
     }
     if (*ip == ';') {
