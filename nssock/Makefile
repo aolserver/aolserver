@@ -20,7 +20,9 @@ ifeq ($(SSL),1)
 # Make the nsssl (HTTPS) module.
 #
 
-#BSAFE=/usr/local/bsafe
+BSAFE=/usr/local/bsafe
+
+#BSAFE_VERSION=-DBSAFE4
 
 #
 # Module name
@@ -30,10 +32,10 @@ ifeq ($(SSL),1)
 #
 ifeq ($(SSL_DOMESTIC),1)
   MOD    =  nsssl.so
-  CFLAGS =  -DSSL=1 -I$(BSAFE)/include
+  CFLAGS =  -DSSL=1 $(BSAFE_VERSION) -I$(BSAFE)/include
 else
   MOD    =  nsssle.so
-  CFLAGS =  -DSSL_EXPORT=1 -DSSL=1 -I$(BSAFE)/include
+  CFLAGS =  -DSSL_EXPORT=1 -DSSL=1 $(BSAFE_VERSION) -I$(BSAFE)/include
 endif
 
 #

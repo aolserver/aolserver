@@ -52,8 +52,7 @@
  *
  */
 
-static const char *RCSID = "@(#): $Header: /Users/dossy/Desktop/cvs/aolserver/nssock/Attic/t_stdlib.c,v 1.1 2000/07/13 18:43:54 kriston Exp $, compiled: " __DATE__ " " __TIME__;
-
+static const char *RCSID = "@(#): $Header: /Users/dossy/Desktop/cvs/aolserver/nssock/Attic/t_stdlib.c,v 1.2 2000/08/06 21:20:33 scottg Exp $, compiled: " __DATE__ " " __TIME__;
 
 /* Copyright (C) RSA Data Security, Inc. created 1992.
 
@@ -69,8 +68,19 @@ static const char *RCSID = "@(#): $Header: /Users/dossy/Desktop/cvs/aolserver/ns
 
 #include "ns.h"
 
+#if defined (BSAFE4) || defined (BSAFE5)
+/*
+ * BSAFE 4/5 headers
+ */
+#include "aglobal.h"
+#include "bsafe.h"
+#else
+/*
+ * BSAFE 3 headers
+ */
 #include "global.h"
 #include "bsafe2.h"
+#endif
 
 /* If the standard C library comes with a memmove() that correctly
      handles overlapping buffers, MEMMOVE_PRESENT should be defined as
@@ -81,6 +91,110 @@ static const char *RCSID = "@(#): $Header: /Users/dossy/Desktop/cvs/aolserver/ns
 #ifndef MEMMOVE_PRESENT
 #define MEMMOVE_PRESENT 1
 #endif
+
+#if defined (BSAFE4) || defined (BSAFE5)
+
+void CALL_CONV T_memset (p, c, count)
+POINTER p;
+int c;
+unsigned int count;
+{
+  if (count != 0)
+    memset (p, c, count);
+}
+
+void CALL_CONV T_memcpy (d, s, count)
+POINTER d, s;
+unsigned int count;
+{
+  if (count != 0)
+    memcpy (d, s, count);
+}
+
+void CALL_CONV T_memmove (d, s, count)
+POINTER d, s;
+unsigned int count;
+{
+#if MEMMOVE_PRESENT
+  if (count != 0)
+    memmove (d, s, count);
+#else
+  unsigned int i;
+
+  if ((char *)d == (char *)s)
+    return;
+  else if ((char *)d > (char *)s) {
+    for (i = count; i > 0; i--)
+      ((char *)d)[i-1] = ((char *)s)[i-1];
+  }
+  else {
+    for (i = 0; i < count; i++)
+      ((char *)d)[i] = ((char *)s)[i];
+  }
+#endif
+}
+
+int CALL_CONV T_memcmp (s1, s2, count)
+POINTER s1, s2;
+unsigned int count;
+{
+  if (count == 0)
+    return (0);
+  else
+    return (memcmp (s1, s2, count));
+}
+
+POINTER CALL_CONV T_malloc (size)
+unsigned int size;
+{
+  return ((POINTER)ns_malloc (size == 0 ? 1 : size));
+}
+
+POINTER CALL_CONV T_realloc (p, size)
+POINTER p;
+unsigned int size;
+{
+  POINTER result;
+  
+  if (p == NULL_PTR)
+    return (T_malloc (size));
+
+  if ((result = (POINTER)ns_realloc (p, size == 0 ? 1 : size)) == NULL_PTR)
+    ns_free (p);
+  return (result);
+}
+
+void CALL_CONV T_free (p)
+POINTER p;
+{
+  if (p != NULL_PTR)
+    ns_free (p);
+}
+
+
+unsigned int CALL_CONV T_strlen(p)
+char *p;
+{
+    return strlen(p);
+}
+
+void CALL_CONV T_strcpy(dest, src)
+char *dest;
+char *src;
+{
+    strcpy(dest, src);
+}
+
+int CALL_CONV T_strcmp (a, b)
+char *a, *b;
+{
+  return (strcmp (a, b));
+}
+
+#else
+/*
+ * BSAFE 3.0
+ */
 
 void T_CALL T_memset (p, c, count)
      POINTER p;
@@ -159,3 +273,4 @@ void T_CALL T_free (p)
 	ns_free (p);
 }
 
+#endif
