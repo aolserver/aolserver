@@ -34,7 +34,7 @@
  *	Functions that return data to a browser. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.21 2002/05/15 23:38:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.22 2002/09/28 19:24:31 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -47,10 +47,6 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
 static int ReturnRedirect(Ns_Conn *conn, int status, int *resultPtr);
 static int ReturnOpen(Ns_Conn *conn, int status, char *type, Tcl_Channel chan,
 		      FILE *fp, int fd, int len);
-
-/*
- * Static variables defined in this file.
- */
 
 /*
  * This structure connections HTTP response codes to their descriptions.
@@ -94,7 +90,52 @@ static struct {
     {505, "HTTP Version Not Supported"}
 };
 
+/*
+ * Static variables defined in this file.
+ */
+
 static int             nreasons = (sizeof(reasons) / sizeof(reasons[0]));
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_RegisterReturn --
+ *
+ *	Associate a URL with a status. Rather than return the
+ *	default error page for this status, a redirect will be
+ *	issued to the url.
+ *
+ * Results:
+ *	None. 
+ *
+ * Side effects:
+ *	None. 
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+Ns_RegisterReturn(int status, char *url)
+{
+    NsServer	  *servPtr;
+    Tcl_HashEntry *hPtr;
+    int            new;
+
+    servPtr = NsGetInitServer();
+    if (servPtr != NULL) {
+    	hPtr = Tcl_CreateHashEntry(&servPtr->request.redirect,
+				   (char *) status, &new);
+    	if (!new) {
+	    ns_free(Tcl_GetHashValue(hPtr));
+    	}
+    	if (url == NULL) {
+	    Tcl_DeleteHashEntry(hPtr);
+    	} else {
+	    Tcl_SetHashValue(hPtr, ns_strdup(url));
+	}
+    }
+}
 
 
 /*
