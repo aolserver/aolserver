@@ -52,6 +52,12 @@ ARFLAGS      =   rv
 RANLIB       =   true
 RPATH = $(PREFIX)/lib:/usr/local/aolserver/lib:/opt/aolserver/lib:/usr/local/lib
 
+#
+# Set the names of the Tcl libraries
+#
+TCL_DIR=tcl8.3.3
+TCL_LIB=libtcl8.3g.a
+LIBTCL=$(NSHOME)/$(TCL_DIR)/unix/$(TCL_LIB)
 
 #
 # Figure the OS and architecture.
@@ -200,6 +206,8 @@ ifneq (,$(findstring FreeBSD,$(PLAT)))
     RANLIB=ranlib
     CFLAGS+=-D_THREAD_SAFE=1 -DHAVE_CMMSG=1 -DNO_TIMEZONE=1 -DHAVE_TIMEGM=1
     NSDLIBS=-lm
+    ## FreeBSD Tcl library name slightly different.
+    TCL_LIB=libtcl83g.a
 endif
 
 
@@ -261,13 +269,6 @@ endif
 ifeq (unknown,$(PLATFORM))
     error unknown platform
 endif
-
-#
-# Set the names of the Tcl libraries
-#
-TCL_DIR=tcl8.3.3
-TCL_LIB=libtcl8.3g.a
-LIBTCL=$(NSHOME)/$(TCL_DIR)/unix/$(TCL_LIB)
 
 #
 # Rules for library dependencies.
