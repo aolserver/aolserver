@@ -33,7 +33,7 @@
  *	AOLserver Ns_Main() startup routine.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.12 2000/10/14 00:21:28 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.13 2000/10/16 15:06:53 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -121,7 +121,6 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
      * Set up logging defaults (for Ns_Log at startup time).
      */
 
-    Ns_ThreadSetName("-main-");
     nsconf.log.dev       = NS_FALSE;
     nsconf.log.debug     = NS_FALSE;
     nsconf.log.expanded  = NS_FALSE;
@@ -169,6 +168,8 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
     if (fd > 0 && fd != 2) {
 	close(fd);
     }
+
+    Ns_ThreadSetName("-main-");
 
 #ifndef WIN32
 

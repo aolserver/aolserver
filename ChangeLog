@@ -1,3 +1,10 @@
+2000-10-16  Kriston J. Rehberg  <Kriston@AOL.NET>
+
+	* nsd/nsmain.c (Ns_Main): Had to move Ns_ThreadSetName below the
+	stdin/stdout/stderr reassignment to fix a fd problem with running
+	nsd on Irix in "installed" or "daemon" mode that would prevent the
+	server from starting up.  Sigh.
+
 2000-10-13  Kriston J. Rehberg  <Kriston@AOL.NET>
 
 	* nsd/nsmain.c (Ns_Main): gid of the specified user is set even if
