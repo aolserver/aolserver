@@ -33,7 +33,7 @@
  *	ADP connection request support.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adprequest.c,v 1.1 2001/03/12 22:06:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adprequest.c,v 1.2 2001/03/19 15:46:15 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -94,10 +94,12 @@ Ns_AdpRequest(Ns_Conn *conn, char *file)
     Conn	     *connPtr = (Conn *) conn;
     Tcl_Interp       *interp;
     NsInterp          *itPtr;
-    int               status;
-    char             *mimetype, *start, *argv[1];
+    int               status, len;
+    char             *type, *charset, *start, *argv[1], *out;
     Ns_Set           *setPtr;
     NsServer	     *servPtr;
+    Tcl_Encoding      encoding;
+    Tcl_DString	      ds;
     
     /*
      * Get the current connection's interp.
@@ -106,6 +108,7 @@ Ns_AdpRequest(Ns_Conn *conn, char *file)
     interp = Ns_GetConnInterp(conn);
     itPtr = NsGetInterp(interp);
     servPtr = itPtr->servPtr;
+    Tcl_DStringInit(&ds);
 
     /*
      * Set the old conn variable for backwards compatibility.
@@ -120,11 +123,11 @@ Ns_AdpRequest(Ns_Conn *conn, char *file)
 	(setPtr = Ns_ConnGetQuery(conn)) != NULL) {
 	itPtr->adp.debugFile = Ns_SetIGet(setPtr, "debug");
     }
-    mimetype = Ns_GetMimeType(file);
-    if (mimetype == NULL || (strcmp(mimetype, "*/*") == 0)) {
-        mimetype = "text/html";
+    type = Ns_GetMimeType(file);
+    if (type == NULL || (strcmp(type, "*/*") == 0)) {
+        type = "text/html";
     }
-    NsAdpSetMimeType(itPtr, mimetype);
+    NsAdpSetMimeType(itPtr, type);
 
     /*
      * Include the ADP with the special start page and null args.
@@ -132,7 +135,9 @@ Ns_AdpRequest(Ns_Conn *conn, char *file)
 
     start = servPtr->adp.startpage ? servPtr->adp.startpage : file;
     argv[0] = NULL;
-    (void) NsAdpInclude(itPtr, start, 0, argv);
+    if (NsAdpInclude(itPtr, start, 0, argv) != TCL_OK) {
+	Ns_TclLogError(interp);
+    }
 
     /*
      * Deal with any possible exceptions.
@@ -158,11 +163,28 @@ Ns_AdpRequest(Ns_Conn *conn, char *file)
 	    if (servPtr->adp.enableexpire) {
 		Ns_ConnCondSetHeaders(conn, "Expires", "now");
 	    }
+	    out = itPtr->adp.output.string;
+	    len = itPtr->adp.output.length;
+	    type = itPtr->adp.mimetype;
+	    charset = itPtr->adp.charset;
+	    if (charset == NULL) {
+		charset = strstr(type, "charset=");
+		if (charset != NULL) {
+		    charset += 8;
+		}
+	    }
+	    if (charset != NULL) {
+		encoding = Ns_GetEncoding(charset);
+		if (encoding != NULL) {
+		    Tcl_UtfToExternalDString(encoding,
+			itPtr->adp.output.string,
+			itPtr->adp.output.length, &ds);
+		    out = ds.string;
+		    len = ds.length;
+		}
+	    }
 	    if (Ns_ConnResponseStatus(conn) == 0) {
-                status = Ns_ConnReturnData(conn, 200,
-					   itPtr->adp.output.string,
-					   itPtr->adp.output.length,
-					   itPtr->adp.mimetype);
+                status = Ns_ConnReturnData(conn, 200, out, len, type);
 	    } else {
                 status = NS_OK;
             }
@@ -184,7 +206,8 @@ Ns_AdpRequest(Ns_Conn *conn, char *file)
     itPtr->adp.debugInit = 0;
     itPtr->adp.debugFile = NULL;
     NsAdpSetMimeType(itPtr, NULL);
-
+    NsAdpSetCharSet(itPtr, NULL);
+    Tcl_DStringFree(&ds);
     return status;
 }
 
@@ -254,16 +277,15 @@ NsAdpStream(NsInterp *itPtr)
 /*
  *----------------------------------------------------------------------
  *
- * NsAdpSetMimeType --
+ * NsAdpSetMimeType, NsAdpSetCharSet --
  *
- *	Sets the mime type for this adp context.
+ *	Sets the mime type (charset) for this adp.
  *
  * Results:
  *	None.
  *
  * Side effects:
- *  	Updates the mime type for this adp context, using ns_strcopy.
- *      Existing mime type is freed if not NULL.
+ *  	New mime type (charset) will be used on output.
  *
  *----------------------------------------------------------------------
  */
@@ -271,10 +293,19 @@ NsAdpStream(NsInterp *itPtr)
 void
 NsAdpSetMimeType(NsInterp *itPtr, char *mimetype)
 {
-    if (itPtr->adp.mimetype) {
-        ns_free(itPtr->adp.mimetype);
+    if (itPtr->adp.mimetype != NULL) {
+	ns_free(itPtr->adp.mimetype);
     }
     itPtr->adp.mimetype = ns_strcopy(mimetype);
+}
+
+void
+NsAdpSetCharSet(NsInterp *itPtr, char *charset)
+{
+    if (itPtr->adp.charset != NULL) {
+	ns_free(itPtr->adp.charset);
+    }
+    itPtr->adp.charset = ns_strcopy(charset);
 }
 
 
