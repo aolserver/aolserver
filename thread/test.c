@@ -40,7 +40,7 @@
 #include <pthread.h>
 #endif
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/test.c,v 1.7 2000/10/22 20:36:38 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/test.c,v 1.8 2000/10/22 20:39:34 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 /*
  * Collection of synchronization objects for tests.
@@ -399,9 +399,9 @@ int main(int argc, char *argv[])
     Ns_Thread       threads[10];
     Ns_Thread       self, dumper;
     extern int      nsMemPools;
+    void *arg;
 #ifndef USE_SPROC
     pthread_t tids[10];
-    void *arg;
 #endif
 
     nsThreadMutexMeter = 1;
