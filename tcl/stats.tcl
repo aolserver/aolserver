@@ -23,16 +23,16 @@ nsv_set _ns_stats sched_running 32
 
 set path "ns/server/stats"
 set enabled [ns_config -bool $path enabled 0]
-set directory [ns_config $path directory "/_stats"]
+set url [ns_config $path url "/_stats"]
 
 nsv_set _ns_stats enabled       $enabled
-nsv_set _ns_stats directory     $directory
+nsv_set _ns_stats url           $url
 nsv_set _ns_stats user          [ns_config $path user "aolserver"]
 nsv_set _ns_stats password      [ns_config $path password "stats"]
 
 if {$enabled} {
-    ns_register_proc GET $directory/* _ns_stats.handleUrl
-    ns_log notice "stats: web stats enabled for '$directory'"
+    ns_register_proc GET $url/* _ns_stats.handleUrl
+    ns_log notice "stats: web stats enabled for '$url'"
 }
 
 proc _ns_stats.handleUrl {} {
@@ -107,16 +107,17 @@ proc _ns_stats.footer {} {
 
 proc _ns_stats.index {} {
     set html [_ns_stats.header]
+    set baseUrl [nsv_get _ns_stats url]
     
     append html "\
-    o <a href=adp.adp>ADP</a><br>
-    o <a href=cache.adp>Cache</a><br>
-    o <a href=locks.adp>Locks</a><br>
-    o <a href=log.adp>Log</a><br>
-    o <a href=mempools.adp>Memory</a><br>
-    o <a href=process.adp>Process</a><br>
-    o <a href=sched.adp>Scheduled Proceedures</a><br>
-    o <a href=threads.adp>Threads</a><br>"
+    o <a href=$baseUrl/adp.adp>ADP</a><br>
+    o <a href=$baseUrl/cache.adp>Cache</a><br>
+    o <a href=$baseUrl/locks.adp>Locks</a><br>
+    o <a href=$baseUrl/log.adp>Log</a><br>
+    o <a href=$baseUrl/mempools.adp>Memory</a><br>
+    o <a href=$baseUrl/process.adp>Process</a><br>
+    o <a href=$baseUrl/sched.adp>Scheduled Proceedures</a><br>
+    o <a href=$baseUrl/threads.adp>Threads</a><br>"
     
     append html [_ns_stats.footer]
     
