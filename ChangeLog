@@ -1,6 +1,7 @@
 2000-10-13  Kriston J. Rehberg  <Kriston@AOL.NET>
 
-	*** AOLserver 3.2 Released ***
+	* nssock/sock.cpp, nsd/return.c: Made an attempt at standardizing
+	the error codes and error page content.
 	
 2000-10-13  Jim Davidson
 	
