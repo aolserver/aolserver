@@ -11,11 +11,8 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * RCS: @(#) $Id: tclLoadDyld.c,v 1.2 2002/02/24 02:13:56 jgdavidson Exp $
+ * RCS: @(#) $Id: tclLoadDyld.c,v 1.3 2002/02/24 20:33:35 jgdavidson Exp $
  */
-
-#include "../../compat/poll.h"
-#include "../../compat/osx.c"
 
 #include "tclInt.h"
 #include <mach-o/dyld.h>
@@ -163,3 +160,96 @@ TclGuessPackageName(fileName, bufPtr)
 {
     return 0;
 }
+
+#ifdef __APPLE__
+/* 
+ *	Hack for routines missing from OS/X.
+ */
+
+#include <pthread.h>
+#include <dirent.h>
+
+static pthread_mutex_t ctlock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t atlock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t rdlock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t ltlock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_mutex_t gmlock = PTHREAD_MUTEX_INITIALIZER;
+
+char *
+ctime_r(const time_t * clock, char *buf)
+{
+    char *s;
+
+    pthread_mutex_lock(&ctlock);
+    s = ctime(clock);
+    if (s != NULL) {
+	strcpy(buf, s);
+	s = buf;
+    }
+    pthread_mutex_unlock(&ctlock);
+    return s;
+}
+
+char *
+asctime_r(const struct tm *tmPtr, char *buf)
+{
+    char *s;
+
+    pthread_mutex_lock(&atlock);
+    s = asctime(tmPtr);
+    if (s != NULL) {
+	strcpy(buf, s);
+	s = buf;
+    }
+    pthread_mutex_unlock(&atlock);
+    return s;
+}
+
+static struct tm *
+tmtime_r(pthread_mutex_t *lockPtr, const time_t * clock, struct tm *ptmPtr, int gm)
+{
+    struct tm *ptm;
+
+    pthread_mutex_lock(lockPtr);
+    if (gm) {
+    	ptm = localtime(clock);
+    } else {
+    	ptm = gmtime(clock);
+    }
+    if (ptm != NULL) {
+	*ptmPtr = *ptm;
+	ptm = ptmPtr;
+    }
+    pthread_mutex_unlock(lockPtr);
+    return ptm;
+}
+
+struct tm *
+localtime_r(const time_t * clock, struct tm *ptmPtr)
+{
+    return tmtime_r(&ltlock, clock, ptmPtr, 0);
+}
+
+struct tm *
+gmtime_r(const time_t * clock, struct tm *ptmPtr)
+{
+    return tmtime_r(&gmlock, clock, ptmPtr, 1);
+}
+
+int
+readdir_r(DIR * dir, struct dirent *ent, struct dirent **entPtr)
+{
+    struct dirent *res;
+
+    pthread_mutex_lock(&rdlock);
+    res = readdir(dir);
+    if (res != NULL) {
+	memcpy(ent, res,
+	       sizeof(*res) - sizeof(res->d_name) + res->d_namlen + 1);
+    }
+    pthread_mutex_unlock(&rdlock);
+    *entPtr = res;
+    return (res ? 0 : errno);
+}
+
+#endif

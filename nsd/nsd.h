@@ -42,10 +42,24 @@
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <ctype.h>
-#ifdef __APPLE__
-  #include "../compat/poll.h"
+#ifndef __APPLE__
+  #include <poll.h>
 #else
-  #include <sys/poll.h>
+  struct pollfd {
+    int fd;
+    short events;
+    short revents;
+  };
+  #define POLLIN 1
+  #define POLLOUT 2
+  #define POLLPRI 3
+  extern int poll(struct pollfd *, unsigned long, int);
+  extern char *ctime_r(const time_t *, char *);
+  extern char *asctime_r(const struct tm *, char *);
+  extern struct tm *localtime_r(const time_t *, struct tm *);
+  extern struct tm *gmtime_r(const time_t *, struct tm *);
+  extern int readdir_r(DIR *, struct dirent *, struct dirent **);
+  extern char *strtok_r(char *, const char *, char **);
 #endif
 #ifdef __hp
   #define seteuid(i)     setresuid((-1),(i),(-1))
