@@ -42,11 +42,21 @@
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <ctype.h>
-#ifndef __APPLE__
+
+#ifdef HAVE_POLL
   #include <poll.h>
 #else
-  #include "../nsthread/osxcompat.h"
+  #define POLLIN 1
+  #define POLLOUT 2
+  #define POLLPRI 3
+  struct pollfd {
+    int fd;
+    short events;
+    short revents;
+  };
+  extern int poll(struct pollfd *, unsigned long, int);
 #endif
+
 #ifdef __hp
   #define seteuid(i)     setresuid((-1),(i),(-1))
 #endif
