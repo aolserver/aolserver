@@ -33,7 +33,7 @@
  *	AOLserver Ns_Main() startup routine.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.52.2.2 2004/09/21 00:47:41 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.52.2.3 2004/11/15 16:14:40 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #ifdef _WIN32
@@ -300,13 +300,11 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
     }
 
     /*
-     * AOLserver uses select() extensively so adjust the open file
-     * limit to be no greater than FD_SETSIZE on Unix.  It's possible
-     * you could define FD_SETSIZE to a larger value and recompile but
-     * this has not been verified.  Note also that on some platforms
-     * (e.g., Solaris, SGI o32) you're still left with the hardcoded
-     * limit of 255  open streams due to the definition of the FILE
-     * structure with an unsigned char member for the file descriptor.
+     * AOLserver now uses poll() but Tcl and other components may
+     * still use select() which will likely break when fd's exceed
+     * FD_SETSIZE.  We now allow setting the fd limit above FD_SETSIZE,
+     * but do so at your own risk.
+     *
      * Note this limit must be set now to ensure it's inherited by
      * all future threads on certain platforms such as Linux.
      */
@@ -315,9 +313,6 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 	Ns_Log(Warning, "nsmain: getrlimit(RLIMIT_NOFILE) failed: '%s'",
 	       strerror(errno));
     } else {
-	if (rl.rlim_max > FD_SETSIZE) {
-	    rl.rlim_max = FD_SETSIZE;
-	}
 	if (rl.rlim_cur != rl.rlim_max) {
     	    rl.rlim_cur = rl.rlim_max;
     	    if (setrlimit(RLIMIT_NOFILE, &rl) != 0) {
@@ -563,6 +558,9 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 	Ns_Log(Notice, "nsmain: "
 	       "max files: FD_SETSIZE = %d, rl_cur = %d, rl_max = %d",
 	       FD_SETSIZE, rl.rlim_cur, rl.rlim_max);
+	if (rl.rlim_max > FD_SETSIZE) {
+            Ns_Log(Warning, "nsmain: rl_max > FD_SETSIZE");
+	}
     }
 
 #endif
