@@ -2,11 +2,13 @@
 <head>
   <title>Building, Installing, and Configuring AOLserver</title>
 </head>
-<body>
+<body bgcolor="#ffffff" link="#0000ee" vlink="#551a8b" alink="#0000ee">
 <h2>Building, Installing, and Configuring AOLserver</h2>
-<pre>$Header: /Users/dossy/Desktop/cvs/aolserver/doc/Attic/install.html,v 1.1 2000/10/10 18:05:27 kriston Exp $
+<pre>$Header: /Users/dossy/Desktop/cvs/aolserver/doc/Attic/install.html,v 1.2 2000/10/10 22:56:42 kriston Exp $
 </pre>
 <p>AOLserver is distributed in source form.&nbsp; Pre-built binary kits for many
+
+
 
  platforms are available at <a href="http://aolserver.com/">http://aolserver.com/</a>.
 </p>
@@ -16,7 +18,11 @@ known to compile and run on the following
 
 
 
+
+
  platforms:
+
+
 
 
 
@@ -41,88 +47,147 @@ known to compile and run on the following
 </ul>
 <p>It's likely AOLserver can compile on other systems and/or higher or&nbsp; lower
 
+
+
  numbered versions but this has not been extensively tested.&nbsp; The primary
 
+
+
  development platforms for AOLserver at AOL are IRIX 6.4&nbsp; and Solaris 7.&nbsp;
+
 
  We also use HP/UX 10.20/11.0, Solaris 2.6, and VA Linux 6.2.1 (Linux 2.2).</p>
 <p>You will need a <b>C compiler</b>.&nbsp; The best one to use is GNU GCC from
 
+
+
  <a href="http://www.gnu.org/">http://www.gnu.org/</a>and its mirrors.&nbsp; The versions
 
+
+
  we use are 2.95.2.&nbsp; AOLserver (and the&nbsp; included Tcl libraries) are written
+
+
 
  entirely
 in ANSI standard C.</p>
 <p><b>GNU make</b>is also required.&nbsp; It is also available from the GNU web
 
+
+
  site.</p>
 <h2>Building</h2>
 We've tried to make building AOLserver as simple as possible.&nbsp; On the supported
 
+
+
  platforms, simply typing "<b>gmake</b>" will build the server and its standard
+
+
 
  modules.<br>
 <ol>
   <li>Check the include/Makefile.global file for platform-specific options.&nbsp;
 
+
  Most platforms use gcc.</li>
   <li>Enable optional modules.&nbsp; The default Makefile builds nssock, nsssl,
+
+
 
  nscgi,
 nscp, nslog, nsperm, and nsext.</li>
   <li>Type "<tt>gmake</tt>", ensuring the make which is executed is GNU make.&nbsp;
 
+
  You might want to call your GNU Make "gmake" instead of "make".</li>
   <li>Watch for any warnings.&nbsp; The warning for a missing third-party library
+
+
 
  in nsssl can be safely ignored.</li>
 </ol>
 Some modules use third-party libraries.&nbsp; If the library is missing, the AOLserver
 
+
+
  build will continue without error -- it just will not build the offending
+
+
 
  module.&nbsp; The only module in the base server installation that requires an
 
+
+
  external library is "nsssl" (in the nssock/ directory) which requires BSAFE
+
+
 
  from <a href="http://www.rsasecurity.com/">http://www.rsasecurity.com/</a>.&nbsp; You can download
 
+
+
  a binary version of nsssl at <a href="http://aolserver.com/">http://aolserver.com/</a>if
+
+
 
  you don't have BSAFE.<br>
 <br>
 <i>Note: If you have any problems building, the two files <b>include/Makefile.global</b>and
 
+
+
  <b>include/Makefile.module</b>have all the information you need to change
+
+
 
  settings throughout the AOLserver environment.</i><br>
 <h2>Installing<br>
 </h2>
 <p>Type "<tt><b>gmake install</b></tt>" to make a production server.&nbsp; This
 
+
+
  will create an installation directory at /usr/local/aolserver/, populate
+
+
 
  the directories with various&nbsp; startup files and&nbsp; configuration files, copy
 
+
+
  the binaries to the /usr/local/aolsever/bin directory, and finish.&nbsp; To install
+
+
 
  confidence tests, type "make install-tests" and they will appear in the
 
+
+
  tests/ directory of your server's pageroot.&nbsp; The default location for installations
+
+
 
  can be overridden by typing "<tt><b>gmake install PREFIX=/your/directory/</b></tt>".</p>
 <p><i>Note:&nbsp; AOLserver requires the modified versions of Tcl included&nbsp; with
+
+
 
  the
 distribution.&nbsp; The 7.6 library&nbsp; is heavily modified, mostly for&nbsp; thread
 safety
 
+
+
  and ns_share support.&nbsp; The&nbsp; 8.x library is modified slightly&nbsp; to
 enable
 
+
+
  thread support through AOLserver's&nbsp; nsthread library and to
 patch a few
+
+
 
  minor problems.</i><br>
 <br>
@@ -130,19 +195,29 @@ patch a few
 <h2>Configuring</h2>
 <p>The installation directory contains a file named "sample-config.tcl" which
 
+
+
  represents a complete configuration of AOLserver.&nbsp; This configuration will:</p>
 <ol>
   <li>Listen for http connections on your
 computer's&nbsp; primary interface at
 
+
+
  port 8000.&nbsp; To use another port&nbsp; and/or
 select interfaces,&nbsp; you can set
+
+
 
  the "host" and "httpport" variables.</li>
   <li>Check security settings for nscp (Control Port module) and listen on
 
+
+
  localhost:9999 if they are set.</li>
   <li>Check for the existence of ssl keys (nsssl module) and listen with
+
+
 
  https on port 8443 if they exist.<br>
   </li>
@@ -150,75 +225,116 @@ select interfaces,&nbsp; you can set
 <p><i>Note: Some modules have&nbsp; been disabled in the sample nsd.tcl&nbsp; for security
 reasons.&nbsp;
 
+
  They are <b>nscp </b>and <b>nsperm</b>.&nbsp; They aren't required&nbsp; to run a
 server
+
+
 
  unless you want to use&nbsp; the Control Port and/or the Permissions
 module,&nbsp;
 
+
  respectively.&nbsp; Before using&nbsp; them, change the passwords and
 default permissions&nbsp;
+
 
  by following the instructions&nbsp; in the AOLserver
 documentation.</i></p>
 <p>Although&nbsp; you must be root to start AOLserver,&nbsp; the server itself must
 change
 
+
+
  to a&nbsp; regular user shortly after initialization. &nbsp; You either
 need to start
+
+
 
  the&nbsp; server as a non-root user (in which case you&nbsp; will
 not be able to listen&nbsp;
 
+
  for connections on privileged ports such as port
 80)&nbsp; or you must include&nbsp;
+
 
  a -u user command line flag to which the
 server will&nbsp; setuid(2) after startup.
 
+
+
  &nbsp; You may either specify a Unix
 username or numeric uid, e.g.: &nbsp; <tt>./bin/nsd76
 
+
+
  -t ./config.tcl -u user -g group</tt></p>
 <p>AOLserver can be started by executing&nbsp; the <b>nsd76 </b>or <b>nsd8x </b>binary.&nbsp;
+
 
  The
 choice of nsd76&nbsp; or nsd8x depends on whether you&nbsp; need compatibility
 with
 
+
+
  Tcl7.6 (closer&nbsp; to the 7.4 of previous releases)&nbsp; or special
 features of
 
+
+
  Tcl8.x (e.g., internationalizaton). &nbsp; For the mode&nbsp; of
 operation, there
+
+
 
  are three choices: <b>Foreground, Background, </b>and <b>Inittab.</b></p>
 <h3></h3>
 In <b>Foreground </b>mode , the server starts&nbsp; and emits diagnostic log messages&nbsp;
 
+
  directly to the&nbsp; terminal window. &nbsp; This is useful for testing, configuration
+
+
 
  or debugging&nbsp; a server.&nbsp; To start the server in foreground mode use:<br>
 <tt>/bin/nsd&nbsp; -ft ./config.tcl -u user -g group</tt><br>
 To stop a server running the foreground simply press&nbsp; interrupt on your keyboard
 
+
+
  (e.g., ctrl-c or the DEL key) which will send a SIGINT to the server and
+
+
 
  initiate shutdown.<br>
 <br>
 In <b>Background </b>mode, the server&nbsp; forks and disassociates from the terminal.&nbsp;
 
+
  Diagnostic messages&nbsp; are&nbsp; appended to log/server.log.&nbsp; This&nbsp; is a&nbsp; typical
+
+
 
  daemon-style mode of operation.&nbsp; To start the server in&nbsp; background&nbsp; mode
 
+
+
  use: &nbsp; <tt>./bin/nsd -t ./config.tcl -u user -g group</tt>.&nbsp; To stop a server
+
+
 
  running&nbsp; the background&nbsp; you may either use the kill(2) command to send
 
+
+
  a SIGTERM to the background&nbsp; process id(*) or the special -K flag of the
 
+
+
  nsd binary.&nbsp; This flag&nbsp; will determine the process id from a special marker&nbsp;
+
 
  file, send the signal and wait for shutdown, e.g.:<br>
 <tt>./bin/nsd8x -Kt ./config.tcl -u user -g group</tt><br>
@@ -226,48 +342,79 @@ You may also use the -k flag to kill and restart a&nbsp; background server.<br>
 <br>
 In <b>Inittab </b>mode, the server runs in the foreground&nbsp; but opens the&nbsp;
 
+
  log file as with background mode.&nbsp; This mode is used&nbsp; when the server is
+
+
 
  started from an entry in the /etc/inittab file. &nbsp; The benefit of this mode
 
+
+
  is that init will restart the server if it&nbsp; happens to crash. &nbsp; Production
+
+
 
  servers at AOL normally run in this mode. &nbsp; To run the server&nbsp; from /etc/inittab,
 
+
+
  add an entry similar to the following, substituting the proper id, run levels,
+
+
 
  and full pathnames:<br>
 <tt>w1:23:respawn:/usr/local/as3/bin/nsd&nbsp; -it /usr/local/as3/nsd.tcl -u user
 
+
+
  -g group</tt><br>
 To restart a server you can simply kill the current server with the -K flag
 
+
+
  as with the background&nbsp; mode; init will then restart the server for you.&nbsp;
+
 
  To stop a&nbsp; server running in inittab mode&nbsp; you must comment out or remove
 
+
+
  the&nbsp; entry from the /etc/inittab file&nbsp; and signal the init process to re-read&nbsp;
+
 
  inittab with the "<tt>init q</tt>" command.<br>
 <br>
 <i>Note:&nbsp; While running AOLserver on some Unix platforms (e.g., Linux,&nbsp; SGI),
 
+
+
  you'll notice multiple nsd&nbsp; processes.&nbsp; This is
 normal and represents the
+
+
 
  individual threads.&nbsp; The main&nbsp; process id can
 be determined&nbsp; by checking
 
+
+
  the log/nspid.server1 file or looking&nbsp; at the
 last few entries&nbsp; of the server
 
+
+
  log, each of which will include the
 process&nbsp; id and thread&nbsp; id in the form
+
+
 
  [pid.tid].&nbsp; You can also telnet to the control port and type "ns_info pid".</i><br>
 <br>
 For more detailed configuration&nbsp; information&nbsp; refer to the online
 documentation
+
+
 
  at <a href="http://aolserver.com/">http://aolserver.com/</a>.&nbsp; Enjoy! <br>
 <br>
