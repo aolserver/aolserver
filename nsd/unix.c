@@ -34,7 +34,7 @@
  *	Unix specific routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/unix.c,v 1.15.2.1 2004/02/26 19:36:37 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/unix.c,v 1.15.2.2 2004/06/30 05:24:32 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #include <pwd.h>
@@ -42,6 +42,31 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
 
 static Ns_Mutex lock;
 static int debugMode;
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * FatalSignalHandler --
+ *
+ * 	Ensure that we drop core on fatal signals like SIGBUS and
+ * 	SIGSEGV.
+ *
+ * Results:
+ * 	None.
+ *
+ * Side effects:
+ * 	A core file will be left wherever the server was running.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+FatalSignalHandler(int signal)
+{
+    abort();
+    exit(1);
+}
 
 
 /*
@@ -84,6 +109,9 @@ NsBlockSignals(int debug)
         sigaddset(&set, SIGINT);
     }
     ns_sigmask(SIG_BLOCK, &set, NULL);
+
+    ns_signal(SIGBUS, FatalSignalHandler); 
+    ns_signal(SIGSEGV, FatalSignalHandler); 
 }
 
 
