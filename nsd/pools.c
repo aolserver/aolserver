@@ -33,13 +33,13 @@
  *  Routines for the managing the connection thread pools.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/pools.c,v 1.5 2004/08/20 02:03:49 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/pools.c,v 1.6 2004/08/20 23:32:10 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
 typedef void (PoolFunc)(Pool *poolPtr, void *arg);
 
-static void InitPool(Pool *poolPtr);
+static Pool *CreatePool(char *name);
 static PoolFunc StartPool;
 static PoolFunc StopPool;
 static PoolFunc WaitPool;
@@ -53,8 +53,8 @@ static int GetPool(Tcl_Interp *interp, Tcl_Obj *objPtr, Pool **poolPtrPtr);
  */
 
 static int            poolid;
-static Pool           defpool;
-static Pool	     *timeoutPoolPtr;
+static Pool          *defPoolPtr;
+static Pool          *errPoolPtr;
 static Tcl_HashTable  pools;
 
 
@@ -77,18 +77,10 @@ static Tcl_HashTable  pools;
 void
 NsInitPools(void)
 {
-    Tcl_HashEntry *hPtr;
-    int new;
-
     poolid = Ns_UrlSpecificAlloc();
     Tcl_InitHashTable(&pools, TCL_STRING_KEYS);
-    InitPool(&defpool);
-    defpool.name = ns_strdup("default");
-    timeoutPoolPtr = &defpool;
-    hPtr = Tcl_CreateHashEntry(&pools, "default", &new);
-    if (new) {
-        Tcl_SetHashValue(hPtr, &defpool);
-    }
+    defPoolPtr = CreatePool("default");
+    errPoolPtr = CreatePool("error");
 }
 
 Pool *
@@ -96,14 +88,13 @@ NsGetPool(Conn *connPtr)
 {
     Pool *poolPtr;
 
-    if (connPtr->flags & NS_CONN_TIMEOUT) {
-	poolPtr = timeoutPoolPtr;
-    } else {
-    	poolPtr = Ns_UrlSpecificGet(connPtr->server, connPtr->request->method,
-				    connPtr->request->url, poolid);
+    if (connPtr->flags & NS_CONN_OVERFLOW) {
+	return errPoolPtr;
     }
+    poolPtr = Ns_UrlSpecificGet(connPtr->server, connPtr->request->method,
+				    connPtr->request->url, poolid);
     if (poolPtr == NULL) {
-        poolPtr = &defpool;
+	return defPoolPtr;
     }
     return poolPtr;
 }
@@ -112,32 +103,42 @@ NsGetPool(Conn *connPtr)
 /*
  *----------------------------------------------------------------------
  *
- * InitPool --
+ * CreatePool --
  *
- *  Initialize a connection pool structure with defaults.
+ *  Create a new connection pool with default, unlimited values.
  *
  * Results:
- *  None.
+ *  Pointer to new pool.
  *
  * Side effects:
- *  None.
+ *  Pool is added to pools hash table.
  *
  *----------------------------------------------------------------------
  */
 
-static void
-InitPool(Pool *poolPtr)
+static Pool *
+CreatePool(char *name)
 {
-    memset(poolPtr, 0, sizeof(Pool));
-    Ns_MutexInit(&poolPtr->lock);
-    Ns_CondInit(&poolPtr->cond);
-    poolPtr->name = NULL;
-    poolPtr->threads.min = 0;       
-    poolPtr->threads.max = 10;      
-    poolPtr->threads.timeout = 120; /* NB: Exit after 2 minutes idle. */
-    poolPtr->threads.maxconns = 0;  /* NB: Never exit thread. */
-}
+    Pool *poolPtr;
+    Tcl_HashEntry *hPtr;
+    int new;
 
+    hPtr = Tcl_CreateHashEntry(&pools, name, &new);
+    if (!new) {
+	poolPtr = Tcl_GetHashValue(hPtr);
+    } else {
+    	poolPtr = ns_calloc(sizeof(Pool), 1);
+    	Ns_MutexInit(&poolPtr->lock);
+    	Ns_CondInit(&poolPtr->cond);
+    	Tcl_SetHashValue(hPtr, poolPtr);
+    	poolPtr->name = Tcl_GetHashKey(&pools, hPtr);
+    	poolPtr->threads.min = 0;       
+    	poolPtr->threads.max = 10;      
+    	poolPtr->threads.timeout = 120; /* NB: Exit after 2 minutes idle. */
+    	poolPtr->threads.maxconns = 0;  /* NB: Never exit thread. */
+   }
+    return poolPtr;
+}
 
 void
 NsStartPools(void)
@@ -229,12 +230,12 @@ NsTclPoolsObjCmd(ClientData data, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
     Tcl_HashSearch search;
     Pool *poolPtr, savedPool;
     char *pool, *pattern;
-    int i, val, new;
+    int i, val;
     static CONST char *opts[] = {
-        "get", "set", "list", "register", "timeout", NULL
+        "get", "set", "list", "register", NULL
     };
     enum {
-        PGetIdx, PSetIdx, PListIdx, PRegisterIdx, PTimeoutIdx
+        PGetIdx, PSetIdx, PListIdx, PRegisterIdx
     } opt;
     static CONST char *cfgs[] = {
         "-maxthreads", "-minthreads", "-maxconns", "-timeout", NULL
@@ -291,15 +292,7 @@ NsTclPoolsObjCmd(ClientData data, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
             return TCL_ERROR;
         }
         pool = Tcl_GetString(objv[2]);
-        hPtr = Tcl_CreateHashEntry(&pools, pool, &new);
-        if (!new) {
-            poolPtr = Tcl_GetHashValue(hPtr);
-        } else {
-            poolPtr = ns_malloc(sizeof(Pool));
-            InitPool(poolPtr);
-            poolPtr->name = ns_strdup(pool);
-            Tcl_SetHashValue(hPtr, poolPtr);
-        }
+	poolPtr = CreatePool(pool);
         savedPool = *poolPtr;
         for (i = 3; i < objc; i += 2) {
             if (Tcl_GetIndexFromObj(interp, objv[i], cfgs, "cfg", 0,
@@ -343,17 +336,6 @@ NsTclPoolsObjCmd(ClientData data, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
                 Tcl_GetString(objv[4]),
                 Tcl_GetString(objv[5]), poolid, poolPtr, 0, NULL);
         break;
-
-    case PTimeoutIdx:
-        if (objc != 2 && objc !=3) {
-            Tcl_WrongNumArgs(interp, 2, objv, "?pool?");
-            return TCL_ERROR;
-        }
-	if (objc == 3 && GetPool(interp, objv[2], &timeoutPoolPtr) != TCL_OK) {
-            return TCL_ERROR;
-        }
-	Tcl_SetResult(interp, timeoutPoolPtr->name, TCL_VOLATILE);
-	break;
     }
 
     return TCL_OK;
@@ -384,8 +366,9 @@ PoolResult(Tcl_Interp *interp, Pool *poolPtr)
         !AppendPool(interp, "idle", poolPtr->threads.idle) ||
         !AppendPool(interp, "current", poolPtr->threads.current) ||
         !AppendPool(interp, "maxconns", poolPtr->threads.maxconns) ||
+        !AppendPool(interp, "queued", poolPtr->threads.queued) ||
         !AppendPool(interp, "timeout", poolPtr->threads.timeout)) {
-    return TCL_ERROR;
+    	return TCL_ERROR;
     }
     return TCL_OK;
 }
