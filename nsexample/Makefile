@@ -1,5 +1,5 @@
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsexample/Attic/Makefile,v 1.4 2000/05/02 22:35:25 kriston Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsexample/Attic/Makefile,v 1.5 2000/08/14 23:11:45 kriston Exp $
 #
 # nsexample --
 #
@@ -41,5 +41,4 @@ MODLIBS  =
 CFLAGS   =  
 
 
-include  ../include/Makefile.module
-
+include  $(NSHOME)/include/Makefile.module
