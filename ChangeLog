@@ -1,3 +1,12 @@
+2003-09-03  Mark Page  <mpagenva@aol.com>
+
+	* nsd/tclinit.c (NsTclICtlObjCmd): Fix intermittant core dumps
+        occurring during oncleanup processing.  The error is in the Tcl_Obj
+	for the script passed into ns_ictl on* callbacks was being saved
+	and passed to the callbacks (this Tcl_Obj was then being shared 
+        amoung Interps, which is not allowed).
+	Now, extract a copy of the script string, and pass that to the callbacks.
+
 2003-08-27  Elizabeth Thomas  <eathomas93@aol.com>
 
 	* nsd/adprequest.c: Complete 8/12 fix of not
