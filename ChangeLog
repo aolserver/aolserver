@@ -1,3 +1,19 @@
+2002-07-14  Jim Davidson <jgdavidson@aol.com>
+
+	* nsd/log.c:
+	* nsd/tclcmds.c:  Added the ns_logctl command with options
+	to hold, release, flush, etc. the log messages in a thread.
+
+	* nsd/adpcmds.c:
+	* nsd/urlopen.c:  Switched to more object-correct
+	Tcl_ObjSetVar2.
+
+2002-07-08  Jim Davidson <jgdavidson@aol.com>
+
+	* nsd/tclthread.c:  Cleaned up the object-based commands
+	by collecting common argument and new object allocation
+	code into single GetArgs function.
+
 2002-07-07  Jim Davidson <jgdavidson@aol.com>
 
 	* nsd/tclvar.c:  Removed string commands because it was
@@ -20,6 +36,17 @@
 	Otherwise, minor edits to new object commands in several
 	places.
 	
+2002-07-05  Jim Davidson <jgdavidson@aol.com>
+
+	* nsd/nsd.h:
+	* nsd/adpcmds.c:
+	* nsd/adpeval.c:
+	* nsd/adprequest.c:
+	* nsd/tclcmds.c:  Updated remaining ADP commands to be
+	object-based.  Because the NsInterp->adp struct now uses
+	Tcl_Obj's for call frame args, the string commands were
+	just dumped.
+
 2002-06-25  Scott S. Goodwin <scott@scottg.net>
 
 	* nsd/tclvar.c:
@@ -312,6 +339,11 @@
 	* tcl/nsdb.tcl:
 	* tcl/sendmail.tcl:
 	* tcl/util.tcl: code cleanup to brace exprs and fix indentation
+
+2001-12-05  Jim Davidson <jgdavidson@aol.com>
+
+	* nsd/tclthread:  Tcl threads now return their string result
+	via ns_thread wait.
 
 2001-12-20  Scott S. Goodwin  <scott@scottg.net>
 
