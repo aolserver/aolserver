@@ -34,13 +34,17 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.33 2004/08/15 00:00:09 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.34 2004/08/16 20:29:05 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
 /*
  * The following are result codes for SockRead, RunPreQueues, and RunQueWaits.
  */
+
+#ifdef _WIN32
+#undef STATUS_PENDING
+#endif
 
 enum {
     STATUS_READY,
@@ -1907,7 +1911,9 @@ SetupConn(Conn *connPtr)
         connPtr->content = bufPtr->string + connPtr->roff;
     } else {
         /*
-         * Content must overflow to a mmap'ed temp file.
+         * Content must overflow to a mmap'ed temp file if it's
+         * supported, otherwise we fake it by writing to the
+         * file.
          */
 
         connPtr->flags |= NS_CONN_FILECONTENT;
@@ -1919,11 +1925,19 @@ SetupConn(Conn *connPtr)
         if (ftruncate(connPtr->tfd, (off_t) connPtr->mlen) < 0) {
             return 0;
         }
+#ifndef _WIN32
         connPtr->content = mmap(0, connPtr->mlen, PROT_READ|PROT_WRITE,
                 MAP_SHARED, connPtr->tfd, 0);
         if (connPtr->content == MAP_FAILED) {
             return 0;
         }
+#else
+        connPtr->content = ns_calloc(1, connPtr->mlen);
+        if (write(connPtr->tfd, bufPtr->string + connPtr->roff,
+                    connPtr->avail) < 0) {
+            return 0;
+        }
+#endif
         memcpy(connPtr->content, bufPtr->string + connPtr->roff,
                 connPtr->avail);
         Tcl_DStringSetLength(bufPtr, connPtr->roff);
@@ -2056,13 +2070,15 @@ FreeConn(Driver *drvPtr, Conn *connPtr)
      * Cleanup content buffers.
      */
 
-#ifndef WIN32
+#ifndef _WIN32
     if (connPtr->mlen > 0) {
         if (munmap(connPtr->content, connPtr->mlen) != 0) {
             Ns_Fatal("FreeConn: munmap() failed: %s", strerror(errno));
         }
         connPtr->mlen = 0;
     }
+#else
+    ns_free(connPtr->content);
 #endif
     if (connPtr->tfd >= 0) {
         Ns_ReleaseTemp(connPtr->tfd);
