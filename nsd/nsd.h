@@ -302,11 +302,18 @@ typedef struct Driver {
 
     struct Driver *nextPtr;	    /* Next in list of drivers. */
     struct NsServer *servPtr;	    /* Driver virtual server. */
+    int          flags;             /* Driver state flags. */
+    Ns_Thread	 thread;	    /* Thread id to join on shutdown. */
+    Ns_Mutex	 lock;		    /* Lock to protect lists below. */
+    Ns_Cond 	 cond;		    /* Cond to signal reader threads,
+				     * driver query, startup, and shutdown. */
+    int     	 trigger[2];	    /* Wakeup trigger pipe. */
+
     Ns_DriverProc *proc;	    /* Driver callback. */
     int		 opts;		    /* Driver options. */
+
     int     	 closewait;	    /* Graceful close timeout. */
     int     	 keepwait;	    /* Keepalive timeout. */
-    int		 pidx;		    /* poll() index. */
     char        *bindaddr;	    /* Numerical listen address. */
     int          port;		    /* Port in location. */
     int		 backlog;	    /* listen() backlog. */
@@ -314,39 +321,39 @@ typedef struct Driver {
     int          maxline;           /* Maximum request line length to read. */
     int          maxheader;         /* Maximum total header length to read. */
     int		 maxinput;	    /* Maximum request bytes to read. */
-    int     	 maxsock;	    /* Maximum open Sock's. */
-    int     	 nactive;	    /* Number of active Sock's. */
 
     struct Sock *freeSockPtr;       /* Sock free list. */
+    int     	 maxsock;	    /* Maximum open Sock's. */
+    int     	 nactive;	    /* Number of active Sock's. */
     unsigned int nextid;	    /* Next sock unique id. */
 
-    int		 maxreaders;	    /* Max reader threads. */
     Ns_Thread   *readers;	    /* Array of reader Ns_Thread's. */
+    int		 maxreaders;	    /* Max reader threads. */
     int		 nreaders;	    /* Current num reader threads. */
     int		 idlereaders;	    /* Idle reader threads. */
 
     struct Sock *readSockPtr;       /* Sock's waiting for reader threads. */
     struct Sock *runSockPtr;        /* Sock's returning from reader threads. */
-    struct Sock *closeSockPtr;      /* Sock's returning to the driver thread. */
+    struct Sock *closeSockPtr;      /* Sock's returning from conn threads. */
 
     struct Conn *firstConnPtr;      /* First Conn waiting to run. */
     struct Conn *lastConnPtr;       /* Last Conn waiting to run. */
-    struct Conn *freeConnPtr;       /* Conn's returning to the driver thread. */
-
-    int     	 trigger[2];	    /* Wakeup trigger pipe. */
-    int          flags;             /* Driver state flags. */
-
-    Ns_Mutex	 lock;
-    Ns_Cond 	 cond;
-    Ns_Time 	 now;		    /* Current time updated each spin. */
-    Ns_Thread	 thread;
-    Tcl_DString *queryPtr;	    /* Buffer to copy driver query data. */
-
-    struct pollfd *pfds;
-    int          nfds;
-    int          maxfds;
+    struct Conn *freeConnPtr;       /* Conn's returning from conn threads. */
 
     struct QueWait *freeQueWaitPtr;
+
+    Tcl_DString *queryPtr;	    /* Buffer to copy driver query data. */
+
+    struct {
+        unsigned int spins;
+        unsigned int accepts;
+        unsigned int reads;
+        unsigned int writes;
+        unsigned int queued;
+        unsigned int timeout;
+        unsigned int overflow;
+        unsigned int dropped;
+    } stats;
     
 } Driver;
 
@@ -378,7 +385,8 @@ typedef struct Sock {
     int		 pidx;		    /* poll() index. */
     Ns_Time      acceptTime;
     Ns_Time	 timeout;
-
+    unsigned int nreads;
+    unsigned int nwrites;
 } Sock;
 
 /*
@@ -451,8 +459,8 @@ typedef struct Conn {
     char	 idstr[16];
     struct {
         Ns_Time  accept;
-        Ns_Time  ready;
         Ns_Time  read;
+        Ns_Time  ready;
         Ns_Time  queue;
         Ns_Time  run;
         Ns_Time  close;
@@ -561,7 +569,6 @@ typedef struct Pool {
 typedef struct NsServer {
     char    	    	   *server;
     Ns_LocationProc 	   *locationProc;
-    struct PreQueue 	   *firstPreQuePtr;
 
     /* 
      * The following struct maintains various server options.
