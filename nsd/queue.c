@@ -34,7 +34,7 @@
  *	and service threads.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/queue.c,v 1.30 2004/10/26 19:53:27 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/queue.c,v 1.31 2005/01/17 14:03:06 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -320,13 +320,13 @@ NsConnArgProc(Tcl_DString *dsPtr, void *arg)
 {
     ConnThreadData *dataPtr = arg;
     
+    Ns_MutexLock(&connlock);
     if (dataPtr->connPtr != NULL) {
-    	Ns_MutexLock(&connlock);
         NsAppendConn(dsPtr, dataPtr->connPtr, "running");
-    	Ns_MutexUnlock(&connlock);
     } else {
     	Tcl_DStringAppendElement(dsPtr, "");
     }
+    Ns_MutexUnlock(&connlock);
 }
 
 
