@@ -35,7 +35,7 @@
  *  	Tcl commands.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscp/nscp.c,v 1.16 2001/11/05 20:30:38 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscp/nscp.c,v 1.17 2002/10/10 19:25:30 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 
@@ -50,6 +50,7 @@ typedef struct Mod {
     char *addr;
     int port;
     int echo;
+    int commandLogging;
 } Mod;
 
 static Ns_ThreadProc EvalThread;
@@ -67,7 +68,7 @@ typedef struct Sess {
 
 static Ns_SockProc AcceptProc;
 static Tcl_CmdProc ExitCmd;
-static int Login(Sess *sessPtr);
+static int Login(Sess *sessPtr, Tcl_DString *unameDS);
 static int GetLine(int sock, char *prompt, Tcl_DString *dsPtr, int echo);
 static Ns_ArgProc ArgProc;
 
@@ -148,6 +149,10 @@ Ns_ModuleInit(char *server, char *module)
     modPtr->port = port;
     if (!Ns_ConfigGetBool(path, "echopassword", &modPtr->echo)) {
     	modPtr->echo = 1;
+    }
+
+    if (!Ns_ConfigGetBool(path, "cpcmdlogging", &modPtr->commandLogging)) {
+        modPtr->commandLogging = 1; /* Default to on */
     }
 
     /*
@@ -293,6 +298,7 @@ EvalThread(void *arg)
 {
     Tcl_Interp *interp;
     Tcl_DString ds;
+    Tcl_DString unameDS;
     char buf[64], *res;
     int n, len, ncmd, stop;
     Sess *sessPtr = arg;
@@ -304,12 +310,19 @@ EvalThread(void *arg)
      
     interp = NULL;
     Tcl_DStringInit(&ds);
+    Tcl_DStringInit(&unameDS);
     sprintf(buf, "-nscp:%d-", sessPtr->id);
     Ns_ThreadSetName(buf);
     Ns_Log(Notice, "nscp: connect: %s", ns_inet_ntoa(sessPtr->sa.sin_addr));
-    if (!Login(sessPtr)) {
+    if (!Login(sessPtr, &unameDS)) {
 	goto done;
     }
+
+    /*
+     * Now, update the thread name to include username info.
+     */
+    sprintf(buf, "-nscp:%s:%d-", Tcl_DStringValue(&unameDS), sessPtr->id);
+    Ns_ThreadSetName(buf);
 
     /*
      * Loop until the remote shuts down, evaluating complete
@@ -346,6 +359,11 @@ retry:
 	if (STREQ(ds.string, "")) {
 	    goto retry; /* Empty command - try again. */
 	}
+
+        if (sessPtr->modPtr->commandLogging) {
+            Ns_Log(Notice, " %d> %s", ncmd, ds.string);
+        }
+
 	if (Tcl_RecordAndEval(interp, ds.string, 0) != TCL_OK) {
 	    Ns_TclLogError(interp);
 	}
@@ -357,9 +375,14 @@ retry:
 	    len -= n;
 	    res += n;
 	}
+
+        if (sessPtr->modPtr->commandLogging) {
+            Ns_Log(Notice, " %d> Command Completed.", ncmd);
+        }
     }
 done:
     Tcl_DStringFree(&ds);
+    Tcl_DStringFree(&unameDS);
     if (interp != NULL) {
     	Ns_TclDeAllocateInterp(interp);
     }
@@ -392,6 +415,7 @@ GetLine(int sock, char *prompt, Tcl_DString *dsPtr, int echo)
     unsigned char buf[2048];
     int n;
     int result = 0;
+    int retry = 0;
 
     /*
      * Suppress output on things like password prompts.
@@ -437,6 +461,16 @@ GetLine(int sock, char *prompt, Tcl_DString *dsPtr, int echo)
 	    } else if (buf[1] == TN_IP) {
 		result = 0;
 		goto bail;
+            } else if ((buf[1] == TN_WONT) && (retry < 2)) {
+                /*
+                 * It seems like the flush at the bottom of this func
+                 * does not always get all the acks, thus an echo ack
+                 * showing up here. Not clear why this would be.  Need
+                 * to investigate further. For now, breeze past these
+                 * (within limits).
+                 */
+                retry++;
+                continue;
 	    } else {
 		Ns_Log(Warning, "nscp: "
 		       "unsupported telnet IAC code received from client");
@@ -471,13 +505,13 @@ GetLine(int sock, char *prompt, Tcl_DString *dsPtr, int echo)
  *  	1 if login ok, 0 otherwise.
  *
  * Side effects:
- *  	None.
+ *  	Stores user's login name into unameDSPtr.
  *
  *----------------------------------------------------------------------
  */
 
 static int
-Login(Sess *sessPtr)
+Login(Sess *sessPtr, Tcl_DString *unameDSPtr)
 {
     Tcl_HashEntry *hPtr;
     Tcl_DString uds, pds;
@@ -503,6 +537,7 @@ Login(Sess *sessPtr)
     }
     if (ok) {
 	Ns_Log(Notice, "nscp: logged in: '%s'", user);
+        Tcl_DStringAppend(unameDSPtr, user, -1);
 	sprintf(msg, "\nWelcome to %s running at %s (pid %d)\n"
 		"%s/%s (%s) for %s built on %s\nCVS Tag: %s\n",
 		sessPtr->modPtr->server,
