@@ -1,5 +1,11 @@
 2004-07-18  Dossy Shiobara <dossy@panoptic.com>
 
+	* nsd/return.c (1.33.2.6): Fix bug where internal redirect for 401
+	  omitted including the HTTP auth.  "WWW-Authenticate:" header.
+	  Fixes bug #674033.  Backported from HEAD.
+
+2004-07-18  Dossy Shiobara <dossy@panoptic.com>
+
 	* nsd/: nsd.h (1.77.2.6), init.c (1.5.2.1), nsconf.c (1.32.2.2):
 	  Ns_GetAddrByHost() reports errors via Ns_Log(), so calls to it
 	  should be done after Ns_Log has been initialized, otherwise very
