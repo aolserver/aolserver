@@ -1,5 +1,8 @@
 2000-10-17  Kriston J. Rehberg  <Kriston@AOL.NET>
 
+	* tcl8.3.2/generic/tclCmdIL.c: Nonsense case of lsorting a list
+	with length <= 0 caused a memory leak.  Fixed.
+
 	* nsd/adpfancy.c: We now use the Arsdigita version of adpfancy.
 
 	* nsd/adp.c: ArsDigita changes.
