@@ -32,7 +32,7 @@
  *
  *	Core threading and system headers.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/nsthread.h,v 1.4 2000/08/08 20:48:51 jgdavidson Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/nsthread.h,v 1.5 2000/10/03 17:56:17 jgdavidson Exp $
  */
 
 #ifndef NSTHREAD_H
@@ -68,11 +68,6 @@
 /*
  * Required constants and system headers.
  */
-
-#if defined(__APPLE__)
-#include <mach/cthreads.h>
-#define errno (cthread_errno())
-#endif 
 
 #ifdef WIN32
 

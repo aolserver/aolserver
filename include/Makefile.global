@@ -30,12 +30,15 @@ CC           =   gcc
 LD           =   ld
 LDSO	     =   $(CC) -shared -nostartfiles
 
-CFLAGS       +=  -g -I$(NSHOME)/include -D_REENTRANT
+#
+# Select one of the following for debug or optimization.
+#
+#CCOPT        =  -O2 -DNDEBUG=1
+CCOPT        =  -g 
 
+CFLAGS       +=  $(CCOPT) -I$(NSHOME)/include -D_REENTRANT
 LIBNSTHREAD  =   $(NSHOME)/thread/libnsthread.a
-
 LIBS         +=  
-
 MKDIR        =   mkdir -p
 RM           =   /bin/rm -f
 CP           =   /bin/cp -fp
@@ -112,6 +115,7 @@ ifeq (Linux,$(shell uname))
     NSDLIBS=-lm
     LIBS+=-ldl -lpthread 
     CFLAGS+=-DHAVE_CMMSG=1 -DUSE_FIONREAD=1 -DHAVE_COND_EINTR=1
+    CFLAGS+=-DHAVE_BSDSETPGRP=1
 endif
 
 
@@ -154,6 +158,7 @@ ifeq (OSF1,$(shell uname))
     PLATFORM=osf
     CC=cc
     CFLAGS+=-std1 -pthread
+    CFLAGS+=-DHAVE_BSDSETPGRP=1
     LDFLAGS+=-pthread
     LDSO=$(LD) -shared -expect_unresolved '*'
     NSDLIBS=-lm
@@ -204,6 +209,7 @@ ifeq (FreeBSD,$(shell uname))
     LDFLAGS+=-pthread -Wl,-E
     RANLIB=ranlib
     CFLAGS+=-DHAVE_CMMSG=1 -DNO_TIMEZONE=1 -DHAVE_TIMEGM
+    CFLAGS+=-DHAVE_BSDSETPGRP=1
     NSDLIBS=-lm
 endif
 
@@ -221,6 +227,7 @@ ifeq (OpenBSD,$(shell uname))
     RANLIB=ranlib
     CFLAGS+=-DHAVE_CMMSG=1 -DUSE_DLSYMPREFIX=1 -DUSE_RTLD_LAZY=1
     CFLAGS+=-DNO_TIMEZONE=1 -DHAVE_TIMEGM
+    CFLAGS+=-DHAVE_BSDSETPGRP=1
     NSDLIBS=-lm
 endif
 
@@ -252,27 +259,33 @@ endif
 #
 # Mac OS X Server -- cc
 #
-#  The Mac OS X Server cc is gcc; the Mac OS X Server make is gmake.
+#  The Mac OS X Server and Public Beta.
+#  cc is gcc; the Mac OS X Server make is gmake.
 #  Tested under releases 1.0 and 1.02.
 #  No SMP support as of this writing.
 #
 ifeq (Rhapsody,$(shell uname))
     PLATFORM=osx
+endif
+ifeq (Darwin,$(shell uname))
+    PLATFORM=osx
+endif
+ifeq (osx,$(PLATFORM))
     CC=cc
     LD=cc
+    CFLAGS+=-DMACOSX=1
     CFLAGS+=-dynamic -traditional-cpp -pipe -Wall -Wno-unused
     LDSO=$(LD) -bundle -undefined suppress
     RANLIB=ranlib
     NSDLIBS=
-    CFLAGS+=-DUSE_CTHREADS=1 -DHAVE_CMMSG=1 -DUSE_DYLD -DUSE_DLSYMPREFIX=1
+    CFLAGS+=-DHAVE_CMMSG=1 -DUSE_DYLD -DUSE_DLSYMPREFIX=1
     CFLAGS+=-DNO_RAND48=1 -DNO_TIMEZONE=1
+    CFLAGS+=-DHAVE_BSDSETPGRP=1
 endif
-
 
 ifeq (unknown,$(PLATFORM))
     error unknown platform
 endif
-
 
 #
 # Set the names of the Tcl libraries
