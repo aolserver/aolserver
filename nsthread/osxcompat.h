@@ -16,6 +16,8 @@ struct pollfd {
 #define POLLPRI 3
 
 extern int poll(struct pollfd *, unsigned long, int);
+
+#ifdef NEED_OSXCOMPAT
 extern char *strtok_r(char *s, const char *delim, char **last);
 extern int readdir_r(DIR * dir, struct dirent *ent, struct dirent **entPtr);
 extern char *ctime_r(const time_t * clock, char *buf);
@@ -24,5 +26,6 @@ extern struct tm *localtime_r(const time_t * clock, struct tm *ptmPtr);
 extern struct tm *gmtime_r(const time_t * clock, struct tm *ptmPtr);
 extern int pthread_sigmask(int how, sigset_t *set, sigset_t *oset);
 extern int sigwait(sigset_t * set, int *sig);
+#endif
 
 #endif

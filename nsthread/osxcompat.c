@@ -33,7 +33,7 @@
  *	Routines missing from OS/X required by AOLserver.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/Attic/osxcompat.c,v 1.1 2002/06/10 22:30:23 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/Attic/osxcompat.c,v 1.2 2002/08/10 17:22:21 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "thread.h"
 
@@ -116,6 +116,8 @@ poll (fds, nfds, timeout)
  
  return ready;
 }
+
+#ifdef NEED_OSXCOMPAT
 
 static pthread_mutex_t rdlock = PTHREAD_MUTEX_INITIALIZER;
 
@@ -311,3 +313,4 @@ gmtime_r(const time_t * clock, struct tm *ptmPtr)
 {
     return tmtime_r(&gmlock, clock, ptmPtr, 1);
 }
+#endif
