@@ -34,22 +34,15 @@
  *	Load .so files into the server and initialize them. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/modload.c,v 1.7 2001/11/05 20:23:11 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/modload.c,v 1.8 2002/02/16 00:21:19 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
 #if defined(USE_DLSHL)
 #include <dl.h>
-
 #elif defined(USE_DYLD)
 #include <mach-o/dyld.h>
-static int dyld_handlers_installed = 0;
-static void dyld_linkEdit_symbol_handler(NSLinkEditErrors c, int errorNumber,
-      const char *fileName, const char *errorString);
-static NSModule dyld_multiple_symbol_handler(NSSymbol s, NSModule old,
-	NSModule new);
-static void dyld_undefined_symbol_handler(const char *symbolName);
-
+static char *dylderr = "";
 #else
 #include <dlfcn.h>
 #ifdef USE_RTLD_LAZY
@@ -64,10 +57,7 @@ static void dyld_undefined_symbol_handler(const char *symbolName);
 #ifndef RTLD_NOW
 #define RTLD_NOW 0
 #endif
-
 #endif
-
-#define DEFAULT_INITPROC "Ns_ModuleInit"
 
 /*
  * Static variables defined in this file.
@@ -84,7 +74,8 @@ static char *DlError(void);
  *
  * Ns_ModuleLoad --
  *
- *	Load a module and initialize it. 
+ *	Load a module and initialize it.  The result code from modules
+ *	without the version symbol are ignored.
  *
  * Results:
  *	NS_OK or NS_ERROR 
@@ -102,35 +93,17 @@ Ns_ModuleLoad(char *server, char *module, char *file, char *init)
     int                status = NS_OK;
     int               *verPtr;
 
-    if (init == NULL) {
-        init = DEFAULT_INITPROC;
-    }
-    initProc = (Ns_ModuleInitProc *) Ns_ModuleSymbol(file, init);
+    initProc = Ns_ModuleSymbol(file, init);
     if (initProc == NULL) {
-        status = NS_ERROR;
-    } else {
-
-	/*
-	 * Get the version of the module stored in the Ns_ModuleVersion
-	 * variable and check that it's version 1.0 or higher. If it's
-	 * lower, then ignore failure from the init proc.
-	 */
-
-        verPtr = (int *) Ns_ModuleSymbol(file, "Ns_ModuleVersion");
-
-	/*
-	 * Run the init proc.
-	 */
-	
-        status = (*initProc) (server, module);
-        if (verPtr == NULL || *verPtr < 1) {
-            status = NS_OK;
-        } else if (status != NS_OK) {
-	    Ns_Log(Error, "modload: failed to load '%s': '%s' returned %d",
-		   file, init, status);
-	}
+	return NS_ERROR;
     }
-
+    verPtr = Ns_ModuleSymbol(file, "Ns_ModuleVersion");
+    status = (*initProc) (server, module);
+    if (verPtr == NULL || *verPtr < 1) {
+        status = NS_OK;
+    } else if (status != NS_OK) {
+	Ns_Log(Error, "modload: init %s of %s returned: %d", file, init, status);
+    }
     return status;
 }
 
@@ -161,92 +134,45 @@ Ns_ModuleSymbol(char *file, char *name)
     void	  *module;
     void          *symbol;
     static int     initialized = 0;
+    struct stat    st;
+    FileKey	   key;
 
-    /*
-     * Clean up the module filename.
-     */
-    
-    Ns_DStringInit(&ds);
-    Ns_DStringInit(&ds2);
-    if (Ns_PathIsAbsolute(file)) {
-        Ns_DStringAppend(&ds, file);
-    } else {
-        Ns_HomePath(&ds, "bin", file, NULL);
-    }
-    file = Ns_NormalizePath(&ds2, ds.string);
-
-    /*
-     * Find or load the module.
-     */
-    
     if (initialized == 0) {
-    	Tcl_InitHashTable(&modulesTable, TCL_STRING_KEYS);
+    	Tcl_InitHashTable(&modulesTable, FILE_KEYS);
 	initialized = 1;
     }
-    hPtr = Tcl_CreateHashEntry(&modulesTable, file, &new);
-    if (new == 0) {
+
+    symbol = NULL;
+    Ns_DStringInit(&ds);
+    if (!Ns_PathIsAbsolute(file)) {
+        file = Ns_HomePath(&ds, "bin", file, NULL);
+    }
+    if (stat(file, &st) != 0) {
+	Ns_Log(Notice, "modload: stat(%s) failed: %s", file, strerror(errno));
+	goto done;
+    }
+    key.dev = st.st_dev;
+    key.ino = st.st_ino;
+    hPtr = Tcl_CreateHashEntry(&modulesTable, (char *) &key, &new);
+    if (!new) {
         module = Tcl_GetHashValue(hPtr);
     } else {
-
-	/*
-	 * Load the module because it was not found in the hash table.
-	 */
-	
     	Ns_Log(Notice, "modload: loading '%s'", file);
 	module = DlOpen(file);
 	if (module == NULL) {
-            Ns_Log(Warning, "modload: failed to load '%s': '%s'",
-		   file, DlError());
+            Ns_Log(Warning, "modload: could not load %s: %s", file, DlError());
             Tcl_DeleteHashEntry(hPtr);
-	} else {
-            Tcl_SetHashValue(hPtr, module);
-        }
-    }
-    symbol = NULL;
-    
-    /*
-     * Now load the symbol from the module, assuming the module has
-     * been loaded without errors.
-     */
-
-    if (module != NULL) {
-	symbol = DlSym(module, name);
-	if (symbol == NULL) {
-	    Ns_Log(Warning, "modload: no such symbol '%s' in module '%s'",
-		   name, file);
+	    goto done;
 	}
+        Tcl_SetHashValue(hPtr, module);
     }
-
+    symbol = DlSym(module, name);
+    if (symbol == NULL) {
+	Ns_Log(Warning, "modload: could not find %s in %s", name, file);
+    }
+done:
     Ns_DStringFree(&ds);
-    Ns_DStringFree(&ds2);
-
     return symbol;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Ns_ModuleGetSymbol --
- *
- *	Locate a given symbol in the program's symbol table and 
- *	return the address of it. This differs from the other Module 
- *	functions in that it doesn't require the shared library file 
- *	name - this should sniff the entire symbol space. 
- *
- * Results:
- *	A pointer to the requested symbol's value. 
- *
- * Side effects:
- *	None. 
- *
- *----------------------------------------------------------------------
- */
-
-void *
-Ns_ModuleGetSymbol(char *name)
-{
-    return DlSym(NULL, name);
 }
 
 
@@ -255,7 +181,7 @@ Ns_ModuleGetSymbol(char *name)
  *
  * NsLoadModules --
  *
- *	Load all modules. 
+ *	Load all modules for given server.
  *
  * Results:
  *	None. 
@@ -273,66 +199,38 @@ NsLoadModules(char *server)
     int     i;
     char   *file, *module, *init, *s, *e;
 
-    /*
-     * Get ahold of the key/value pairs for this section.  e.g. in the nsd.ini:
-     *
-     * [ns/server/server1/modules]
-     * nssock=nssock.so
-     * nsperm=nsperm.so(spoonman)
-     *
-     * The "modules" set would have keys [nssock, nsperm]
-     * and values [nssock.so, nsperm.so(spoonman)]
-     *
-     * In the 'nsperm.so(spoonman)', the function "spoonman" will be the one
-     * used to initialize the module.  [it's special-cased so that value "TCL"
-     * doesn't do that.  I suppose that's because TCL is built-in.]
-     *
-     */
-
     modules = Ns_ConfigGetSection(Ns_ConfigGetPath(server, NULL, "modules", NULL));
-    if (modules != NULL) {
+    for (i = 0; modules != NULL && i < Ns_SetSize(modules); ++i) {
+	module = Ns_SetKey(modules, i);
+        file = Ns_SetValue(modules, i);
+
 	/*
-	 * Spin over the modules specified in this subsection
+	 * Check for specific module init after filename.
 	 */
-	
-        for (i = 0; i < Ns_SetSize(modules); ++i) {
-            module = Ns_SetKey(modules, i);
-            file = Ns_SetValue(modules, i);
 
-	    /*
-	     * See if there's an optional argument to the module file name.
-	     */
-
-            init = NULL; 
-            s = strchr(file, '(');
-            if (s != NULL) {
-                *s = '\0';
-                init = s + 1;
-                e = strchr(init, ')');
-                if (e != NULL) {
-                    *e = '\0';
-                }
+        s = strchr(file, '(');
+        if (s == NULL) {
+	    init = "Ns_ModuleInit";
+	} else {
+            *s = '\0';
+            e = strchr(init, ')');
+            if (e != NULL) {
+                *e = '\0';
             }
+            init = s + 1;
+	}
 
-	    /*
-	     * If the file is not called tcl (which is a special case),
-	     * then try to load the module.
-	     */
+	/*
+	 * Load the module if it's not the reserved "tcl" name.
+	 */
 	    
-            if (!STRIEQ(file, "tcl") &&
-		Ns_ModuleLoad(server, module, file, init) != NS_OK) {
-		Ns_Fatal("modload: failed to load module '%s'", file);
-            }
-
-	    /*
-	     * Restore the strings.
-	     */
-
-            if (s != NULL) {
-                *s = '(';
-                if (e != NULL) {
-                    *e = ')';
-                }
+       if (!STRIEQ(file, "tcl") && Ns_ModuleLoad(server, module, file, init) != NS_OK) {
+	    Ns_Fatal("modload: failed to load module '%s'", file);
+        }
+        if (s != NULL) {
+            *s = '(';
+            if (e != NULL) {
+                *e = ')';
             }
         }
     }
@@ -358,55 +256,36 @@ NsLoadModules(char *server)
 static void *
 DlOpen(char *file)
 {
-#if defined(USE_DLSHL)
-    return (void *) shl_load(file, BIND_VERBOSE|BIND_IMMEDIATE|BIND_RESTRICTED, 0);
-#elif defined(USE_DYLD)
+#if defined(USE_DYLD)
     NSObjectFileImage		image;
-    NSModule			linkedModule;
+    NSModule			module;
     NSObjectFileImageReturnCode	err;
 
-    if (dyld_handlers_installed == 0) {
-	NSLinkEditErrorHandlers handlers;
-
-	handlers.undefined = dyld_undefined_symbol_handler;
-	handlers.multiple  = dyld_multiple_symbol_handler;
-	handlers.linkEdit  = dyld_linkEdit_symbol_handler;
-
-	NSInstallLinkEditErrorHandlers(&handlers);
-	dyld_handlers_installed = 1;
-    }
+    module = NULL;
     err = NSCreateObjectFileImageFromFile(file, &image);
-    if (err != NSObjectFileImageSuccess) {
-	switch (err) {
-	case NSObjectFileImageFailure:
-	    Ns_Log(Error, "modload: failed to load '%s': "
-		   "general failure", file);
+    switch (err) {
+	case NSObjectFileImageSuccess:
+    	    module = NSLinkModule(image, file, TRUE);
 	    break;
 	case NSObjectFileImageInappropriateFile:
-	    Ns_Log(Error, "modload: failed to load '%s': "
-		   "inappropriate Mach-O file", file);
+	    dylderr = "Inappropriate Mach-O file";
 	    break;
 	case NSObjectFileImageArch:
-	    Ns_Log(Error, "modload: failed to load '%s': "
-		   "inappropriate Mach-O architecture", file);
+	    dylderr = "Inappropriate Mach-O architecture";
 	    break;
 	case NSObjectFileImageFormat:
-	    Ns_Log(Error, "modload: failed to load '%s': "
-		   "invalid Mach-O file format", file);
+	    dylderr = "Invalid Mach-O file format";
 	    break;
 	case NSObjectFileImageAccess:
-	    Ns_Log(Error, "modload: failed to load '%s': "
-		   "permission denied trying to load file", file);
+	    dylderr = "Permission denied";
 	    break;
 	default:
-	    Ns_Log(Error, "modload: failed to load '%s': "
-		   "unknown failure", file);
+	    dylderr = "Unknown error";
 	    break;
-	}
-        return NULL;
     }
-    linkedModule = NSLinkModule(image, file, TRUE);
-    return (void *) linkedModule;
+    return (void *) module;
+#elif defined(USE_DLSHL)
+    return (void *) shl_load(file, BIND_VERBOSE|BIND_IMMEDIATE|BIND_RESTRICTED, 0);
 #else
     return dlopen(file, RTLD_NOW|RTLD_GLOBAL);
 #endif
@@ -442,12 +321,14 @@ DlSym(void *handle, char *name)
 
 #if defined(USE_DLSHL)
     symbol = NULL;
-    if (shl_findsym((shl_t *) &handle, name, TYPE_UNDEFINED,
-		    &symbol) == -1) {
+    if (shl_findsym((shl_t *) &handle, name, TYPE_UNDEFINED, &symbol) == -1) {
 	symbol = NULL;
     }
 #elif (USE_DYLD)
-    symbol = (void *) NSAddressOfSymbol(NSLookupAndBindSymbol(name));
+    symbol = NSLookupSymbolInModule(handle, name);
+    if (symbol != NULL) {
+    	symbol = NSAddressOfSymbol(symbol);
+    }
 #else
     symbol = dlsym(handle, name);
 #endif
@@ -481,89 +362,8 @@ DlError(void)
 #if defined(USE_DLSHL)
     return strerror(errno);
 #elif defined(USE_DYLD)
-    return "Unknown dyld error";
+    return dylderr;
 #else
     return (char *) dlerror();
 #endif
 }
-
-#if defined(USE_DYLD)
-
-/*
- *----------------------------------------------------------------------
- *
- * dyld_undefined_symbol_handler --
- *
- *	Handle undefined symbol exceptions from dyld
- *
- * Results:
- *	Process is aborted.
- *
- * Side effects:
- *	None. 
- *
- *----------------------------------------------------------------------
- */
-static void
-dyld_undefined_symbol_handler(const char *symbolName) 
-{
-    Ns_Fatal("modload: no such symbol '%s'", symbolName);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * dyld_multiple_symbol_handler --
- *
- *	Handle multiple symbol exceptions from dyld
- *
- * Results:
- *	New symbol definition is used.  This is basically a memory leak,
- *	but is necessary because there's no way to unload a module.
- *
- * Side effects:
- *	None. 
- *
- *----------------------------------------------------------------------
- */
-
-static NSModule
-dyld_multiple_symbol_handler(NSSymbol s, NSModule old, NSModule new)
-{
-#ifdef DEBUG
-    Ns_Log(Warning, "modload: " 
-	   "multiply-defined symbol '%s' in old module '%s' and new module '%s'",
-	   NSNameOfSymbol(s),  NSNameOfModule(old), NSNameOfModule(new));
-#endif
-
-    return(new);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * dyld_linkEdit_symbol_handler --
- *
- *	Handle link editor errors from dyld.
- *
- * Results:
- *	Error is logged and process is aborted.
- *
- * Side effects:
- *	None. 
- *
- *----------------------------------------------------------------------
- */
-
-static void
-dyld_linkEdit_symbol_handler(NSLinkEditErrors c, int errNumber,
-    const char *filename, const char *errString)
-{
-    Ns_Log(Error, "modload: "
-	   "failed to load '%s': link edit errors: '%s'", filename, errString);
-    abort();
-}
-
-#endif
