@@ -1,7 +1,69 @@
+2001-05-18  Kris Rehberg  <Kriston@aol.com>
+	
+	*** AOLserver 3.4 RELEASED ***
+
+2001-05-17  Kris Rehberg  <Kriston@aol.com>
+
+	* nsd/conn.c: conn is now aware of Latin-1 charsets for ADPs,
+	requests, query data, and the like in Tcl 8.  This does not affect
+	IS0-8859-1 (see nsd/adp.c below).
+	(NsTclConnCmd): [ns_conn encoding] reports the encoding used (see
+	nsd/adp.c below).
+	
+	* nsd/adp.c: The ADP requests, file parsing, file includes, and
+	all related ADP functions now force ISO-8859-1 for support of all
+	Latin-1 character sets in ADPs on nsd8x.  There is new handling of
+	UTF data in Tcl 8 that was implemented in AOLserver 4 which has
+	been back-ported to support Latin-1 *only* in AOLserver 3.4.
+	Previously, nsd8x could not handle anything but 7-bit ASCII in
+	ADPs.  The reading of Latin-1 charsets seemed to fail
+	intermittently in previous 3.x AOLservers.  The reason was that
+	AOLserver reads files in as UTF-8 and some Latin-1 characters
+	confuse Tcl 8's UTF reader.  (Note that the en-us characters in
+	Unicode, when encoded in UTF-8, look just like 7-bit US ASCII to
+	computers).  Naturally, when non-en-us characters are encountered,
+	the Tcl 8 UTF-8 reader gets confused.  The correct MIME type is
+	now returned for all Latin-1 charsets.  This does not affect
+	IS0-8859-1.
+
+	* thread/pool.c, thread/pthread.cpp, thread/reentrant.c: Tls
+	entries for memory pools, thread pools, re-entrant libc
+	replacements, are self-initializing.
+
+	* thread/Makefile, tcl8.3.2/unix/Makefile.in: Moved Tcl nsthread
+	support into Tcl sources.
+
+	* tcl8.3.2/generic/tclEvent.c: Fixed library path code as in
+	AOLserver 4 so Tcl 8 can find encoding files for UTF in a
+	thread-safe manner.
+
+	* nsd/tclstubs.cpp: Back-ported some AOLserver 4 initialization
+	code.  Tls self-initializes.  UTF-aware encodings based on file
+	extension (from AOLserver 4).  See nsd/adp.c below.
+
+	* nsd/tclinit.c: Tls entry for Tcl interps is self-initializing.
+
+	* nsd/nsmain.c: UTF encoding-aware (see nsd/adp.c below).
+
+	* nsd/nsd.h: New UTF encoding routines and version strings (see
+	nsd/adp.c below).
+
+	* nsd/dstring.c: NS_DStrings are self-initializing.  You should
+	not need to use Ns_DStringInit anymore, though you still can with
+	no ill effect.
+
+	* nsd/dbinit.c (IncrCount): Tls entry for db handles is
+	self-initializing.
+
+	* nsd/adp.c: Tls entry for ADP parser is self-initializing.
+	
+	* include/Makefile.global: Solaris build rule now uses gcc for
+	linking and `uname -m`.
+
 2001-04-26  Kris Rehberg  <Kriston@aol.com>
 
 	* AOLserver 3.4pre1 released.  The ChangeLog will be updated in
-	the next release.
+	the next release (see above).
 
 2001-03-14  Kris Rehberg  <kriston@aol.com>
 

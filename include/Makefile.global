@@ -108,6 +108,8 @@ ifneq (,$(findstring SunOS,$(PLAT)))
         #CCOPTIMIZE = -x02
         CCOPTIMIZE = -g
         CFLAGS+=$(CCOPTIMIZE) -KPIC -erroff=%none
+        LD=/usr/ccs/bin/ld
+        LDSO=$(LD) -G
         ifneq (,$(findstring sparc,$(PLAT)))
             CFLAGS+=-xarch=v8plusa
         else
@@ -115,16 +117,14 @@ ifneq (,$(findstring SunOS,$(PLAT)))
         endif
     else
         ifneq (,$(findstring sparc,$(PLAT)))
-            CFLAGS+=$(GCCOPT) -mcpu=ultrasparc
+            CFLAGS+=$(GCCOPT) -mcpu=`uname -m`
         else
             CFLAGS+=$(GCCOPT) -mcpu=pentium
         endif
     endif
 
-    LDSO=$(LD) -G
     NSDLIBS=-lm
     LIBS+=-lsocket -lnsl -ldl -lposix4 -lthread -lresolv -R $(RPATH)
-    LD=/usr/ccs/bin/ld
     AR=/usr/ccs/bin/ar
     CFLAGS+=-D_POSIX_PTHREAD_SEMANTICS=1 -DUSE_PTHREAD_SYSSCOPE=1 \
             -DUSE_PTHREAD_PSHARED=1 -DHAVE_ETIME_BUG=1 \
