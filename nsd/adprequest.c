@@ -33,7 +33,7 @@
  *	ADP connection request support.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adprequest.c,v 1.19 2005/01/15 23:53:50 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adprequest.c,v 1.20 2005/01/16 03:25:06 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -163,10 +163,10 @@ Ns_AdpRequestEx(Ns_Conn *conn, char *file, Ns_Time *ttlPtr)
     }
 
     /*
-     * Set default ADP response buffer size.
+     * Set default ADP flags and buffer size.
      */
 
-    itPtr->adp.flags = 0;
+    itPtr->adp.flags = (itPtr->servPtr->adp.flags & (ADP_GZIP|ADP_TRACE));
     itPtr->adp.bufsize = itPtr->servPtr->adp.bufsize;
 
     /*
@@ -339,7 +339,7 @@ NsAdpFlush(NsInterp *itPtr, int stream)
 	    && !(itPtr->adp.flags & ADP_ERROR)
 	    && (bufPtr->length > 0 || !stream)) {
 	if (itPtr->adp.flags & ADP_GZIP) {
-	    itPtr->nsconn.flags |= NS_CONN_GZIP;
+	    itPtr->conn->flags |= NS_CONN_GZIP;
 	}
 	status = Ns_ConnFlush(itPtr->conn,
 			      bufPtr->string, bufPtr->length, stream);
