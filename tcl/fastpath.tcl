@@ -28,7 +28,7 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/fastpath.tcl,v 1.6 2002/02/08 07:56:16 hobbs Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/fastpath.tcl,v 1.7 2003/01/29 01:09:32 shmooved Exp $
 #
 
 #
@@ -42,7 +42,7 @@
 #   handle directory listings and AOLpress MiniWeb top pages.
 #
 
-set path "ns/server/[ns_info server]"
+set path "ns/server/[ns_info server]/fastpath"
 nsv_set _ns_fastpath type [ns_config $path directorylisting none]
 nsv_set _ns_fastpath hidedot [ns_config -bool $path hidedotfiles 1]
 nsv_set _ns_fastpath toppage [ns_config -bool $path returnmwtoppage 0]
