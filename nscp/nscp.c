@@ -35,7 +35,7 @@
  *  	Tcl commands.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscp/nscp.c,v 1.19 2003/01/17 22:33:36 shmooved Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscp/nscp.c,v 1.20 2003/01/19 14:40:15 shmooved Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 
@@ -153,7 +153,7 @@ Ns_ModuleInit(char *server, char *module)
     }
 
     if (!Ns_ConfigGetBool(path, "cpcmdlogging", &modPtr->commandLogging)) {
-        modPtr->commandLogging = 1; /* Default to on */
+        modPtr->commandLogging = 0; /* Default to off */
     }
 
     /*
