@@ -2,7 +2,7 @@
 # The contents of this file are subject to the AOLserver Public License
 # Version 1.1 (the "License"); you may not use this file except in
 # compliance with the License. You may obtain a copy of the License at
-# http://aolserver.lcs.mit.edu/.
+# http://aolserver.com/.
 #
 # Software distributed under the License is distributed on an "AS IS"
 # basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
@@ -28,7 +28,7 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/form.tcl,v 1.2 2000/05/02 14:39:31 kriston Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/form.tcl,v 1.3 2000/08/01 20:36:17 kriston Exp $
 #
 
 #
@@ -96,9 +96,14 @@ proc ns_getform { }  {
 
     if ![info exists _ns_form] {
 	set _ns_form ""
+	set method [ns_conn method]
 	set type [ns_set iget [ns_conn headers] content-type]
-	if ![string match *multipart/form-data* [string tolower $type]] {
-
+	
+	## MSIE redirected POST bug workaround.
+	if {![string match "POST" [ns_conn method]] || \
+		![string match "*multipart/form-data*" \
+		      [string tolower $type]] } {
+	    
 	    # Return ordinary or non-existant form.
 	    set _ns_form [ns_conn form]
 
@@ -106,7 +111,7 @@ proc ns_getform { }  {
 
 	    # Spool content into a temporary read/write file.
 	    # ns_openexcl can fail, hence why we keep spinning
-
+	    
 	    set fp ""
 	    while {$fp == ""} {
 		set tmpfile [ns_tmpnam]
