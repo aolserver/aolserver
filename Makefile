@@ -31,7 +31,7 @@ include $(NSHOME)/include/Makefile.global
 #   nspd        -- Archive library for building an external driver
 #
 
-MODULES   =  nssock nscgi nscp nslog nsperm nsext nspd nsunix nsvhr
+MODULES   =  nssock nscgi nscp nslog nsperm nsext nspd 
 
 #
 # AOLserver main executable statically-links the thread and tcl libraries.
