@@ -65,7 +65,7 @@
  *	the server core and close client connections.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nssock/Attic/sock.cpp,v 1.5 2000/11/03 00:36:55 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nssock/Attic/sock.cpp,v 1.6 2000/11/06 18:08:01 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 
@@ -108,6 +108,7 @@ typedef struct Driver {
     char        *address;	    /* Address in location. */
     int          port;		    /* Port in location. */
     char        *bindaddr;	    /* Numerical listen address. */
+    int		 backlog;	    /* listen() backlog. */
     SOCKET	 sock;		    /* Listening socket. */
     struct Conn *firstFreeConnPtr;  /* First free conn, per-driver for
 				     * per-driver bufsizes. */
@@ -373,6 +374,9 @@ Ns_ModuleInit(char *server, char *name)
     if (!Ns_ConfigGetInt(path, "port", &drvPtr->port)) {
 	drvPtr->port = DEFAULT_PORT;
     }
+    if (!Ns_ConfigGetInt(path, "backlog", &drvPtr->backlog)) {
+	drvPtr->backlog = 5;
+    }
     drvPtr->location = Ns_ConfigGet(path, "location");
     if (drvPtr->location != NULL) {
 	drvPtr->location = ns_strdup(drvPtr->location);
@@ -429,7 +433,8 @@ SockStart(char *server, char *label, void **drvDataPtr)
      * Create the listening socket and add to the Ports list.
      */
 
-    drvPtr->sock = Ns_SockListen(drvPtr->bindaddr, drvPtr->port);
+    drvPtr->sock = Ns_SockListenEx(drvPtr->bindaddr, drvPtr->port,
+	drvPtr->backlog);
     if (drvPtr->sock == INVALID_SOCKET) {
 	Ns_Log(Error, "%s: failed to listen on %s:%d: %s",
 	    drvPtr->name, drvPtr->address ? drvPtr->address : "*",
