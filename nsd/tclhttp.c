@@ -33,7 +33,7 @@
  *	Support for the ns_http command.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclhttp.c,v 1.16 2003/03/28 21:39:43 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclhttp.c,v 1.17 2003/11/23 16:46:18 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -147,20 +147,6 @@ NsTclHttpObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST obj
         else {
             body = NULL;
             hdrs = NULL;
-        }
-
-        if (strcasecmp(method, METHOD_GET) == 0) {
-            method = METHOD_GET;
-        }
-        else if (strcasecmp(method, METHOD_POST) == 0) {
-            method = METHOD_POST;
-        }
-        else {
-            Tcl_AppendStringsToObj(Tcl_GetObjResult(interp),
-                                   "method must be one of ",
-                                   METHOD_GET ", " METHOD_POST,
-                                   NULL);
-            return TCL_ERROR;
         }
 
         httpPtr = HttpOpen(method, url, hdrs, body);
@@ -318,7 +304,9 @@ HttpOpen(char *method, char *url, Ns_Set *hdrs, char *body)
         if (file != NULL) {
             *file = '/';
         }
-        Ns_DStringVarAppend(&httpPtr->ds, method, " ", file ? file : "/", " HTTP/1.0\r\n", NULL);
+        Ns_DStringAppend(&httpPtr->ds, method);
+        Ns_StrToUpper(Ns_DStringValue(&httpPtr->ds));
+        Ns_DStringVarAppend(&httpPtr->ds, " ", file ? file : "/", " HTTP/1.0\r\n", NULL);
         if (file != NULL) {
             *file = '\0';
         }
