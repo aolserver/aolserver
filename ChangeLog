@@ -1,5 +1,44 @@
 2005-01-17  Jim Davidson <jgdavidson@aol.com>
 
+	Some work fixing up the new thread pools and limits code.
+	Quick background:
+
+	Pools are designed to allow certain requests to be handled
+	by specific collections of threads.  This could, for example,
+	ensure multiple long running requests don't block other
+	short running requests.  Pools are selected based on
+	method/url pairs using url-specific data.  By default, all
+	requests are handled by a single unlimited "default" pool.
+	There is also an "error" pool described below.  You can
+	create and configure additional pools with the ns_pools
+	command.
+
+	Limits are designed to manage resources before the connection
+	is ready to run.  They are also keyed on the method/url
+	pair and include such items as max concurrent connections,
+	max file upload size, and timeouts for I/O and run wait.
+	When limits are exceeded, the driver thread will dispatch
+	the connection to the "error" pool to generate a quick
+	response.  By default all requests share the same default
+	limits.  You can create and configure additional limits
+	with the ns_limits command.
+
+	* nsd/nsd.h:
+	* nsd/driver.c: Renamed NsGetLimits and NsGetPool to
+	NsGetRequestLimits and NsGetConnPool for a bit of clarity.
+
+	* nsd/queue.c: Re-enabled ns_server command, now with
+	optional thread arg to specify the thread pool to query
+	(default is "default").
+
+	* nsd/pools.c:
+	* nsd/limits.c: Cleaned up code and added comments.
+
+	* nsd/encoding.c: Bug fix.
+
+
+2005-01-17  Jim Davidson <jgdavidson@aol.com>
+
 	* include/ns.h:
 	* nsd/connio.c:
 	* nsd/conn.c: Added new Ns_ConnSetStatus and Ns_ConnGetStatus
