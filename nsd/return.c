@@ -34,7 +34,7 @@
  *	Functions that return data to a browser. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.5 2000/10/13 22:51:26 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.6 2000/10/13 23:17:30 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -996,8 +996,7 @@ Ns_ConnReturnInternalError(Ns_Conn *conn)
     }
     return Ns_ReturnNotice(conn, 500, "Server Error",
 			   "The requested URL cannot be accessed "
-			   "due to a system error.")
-
+			   "due to a system error.");
 }
 
 
