@@ -34,7 +34,7 @@
  *	Various sundry logging functions. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nspd/log.c,v 1.4 2000/08/15 20:24:33 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nspd/log.c,v 1.4.6.1 2002/03/19 20:03:13 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "pd.h"
 
@@ -206,9 +206,9 @@ Ns_PdLog(Ns_PdLogMsgType errtype, char *format,...)
             char msgbuf[4096];
 
             va_start(ap, format);
-            vsprintf(msgbuf, format, ap);
+            vsnprintf(msgbuf, sizeof (msgbuf), format, ap);
             va_end(ap);
-            syslog(priority, msgbuf);
+            syslog(priority, "%s", msgbuf);
         }
     }
 }
