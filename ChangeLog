@@ -1,6 +1,13 @@
 2000-10-09  Kriston J. Rehberg  <Kriston@AOL.NET>
 
-	* tests/:  Moved from its hiding place in scripts/test
+	* General: Files were re-arranged and some were renamed.  The
+	sample SSL key/cert files are sample-certfile, sample-keyfile.
+	The nsd.tcl is now called sample-config.tcl (so that existing
+	installations always have a current reference copy of the
+	configuration).  Other minor changes.
+
+	* tests/:  Moved from its hiding place in scripts/test.  Install
+	them with "gmake install-tests".
 
 	* nsd/tclxkeylist.c, nsd/tclcmds.c, nsd/Makefile: Re-added TclX
 	keyl* commands that were in AOLserver 2.x.
