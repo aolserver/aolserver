@@ -2,6 +2,8 @@
 
 	* nsd/tclimg.c: Use binary channel to read img (Thanks to Dossy).
         Eliminate double error string; Corrrect compiler warning on Seek.
+        * tcl/form.c: Fix to ns_querygetall to suppress null sublists.  Also,
+        make the defaulting semantics work as described.
 
 2003-05-24  Zoran Vasiljevic <zoran@archiware.com>
 
