@@ -33,7 +33,7 @@
  * 	Connect Tcl command names to the functions that implement them
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.37 2003/04/03 19:45:40 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.38 2003/04/04 13:17:04 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -72,7 +72,6 @@ extern Tcl_ObjCmdProc
     NsTclCritSecObjCmd,
     NsTclDummyObjCmd,
     NsTclICtlObjCmd,
-    NsTclRegisterInterpTraceObjCmd,
     NsTclFTruncateObjCmd,
     NsTclGetAddrObjCmd,
     NsTclGetHostObjCmd,
@@ -390,7 +389,6 @@ static Cmd cmds[] = {
     {"ns_init", NULL, NsTclDummyObjCmd},
     {"ns_cleanup", NULL, NsTclDummyObjCmd},
     {"ns_markfordelete", NULL, NsTclMarkForDeleteObjCmd},
-    {"ns_register_interptrace", NULL, NsTclRegisterInterpTraceObjCmd},
 
     /*
      * encoding.c

@@ -33,7 +33,7 @@
  *	Initialization routines for Tcl.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.33 2003/04/03 19:45:35 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.34 2003/04/04 13:17:03 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -857,14 +857,16 @@ NsTclICtlObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
     NsInterp *itPtr = arg;
     static CONST char *opts[] = {
 	"addmodule", "cleanup", "epoch", "get", "getmodules", "save",
-	"update", NULL
+	"update", "oncreate", "oncleanup", "oninit", NULL
     };
     enum {
 	IAddModuleIdx, ICleanupIdx, IEpochIdx, IGetIdx, IGetModulesIdx,
-	ISaveIdx, IUpdateIdx
+	ISaveIdx, IUpdateIdx, IOnCreateIdx, IOnCleanupIdx, IOnInitIdx
     } opt;
     char *script;
     int length, result;
+    int status;
+    Tcl_Obj   *objPtr;
 
     if (objc < 2) {
         Tcl_WrongNumArgs(interp, 1, objv, "option ?arg?");
@@ -956,94 +958,54 @@ NsTclICtlObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
     	NsFreeAtClose(itPtr);
 	break;
 
+    case IOnCreateIdx:
+    case IOnCleanupIdx:
+    case IOnInitIdx:
+        if (objc != 3) {
+            Tcl_WrongNumArgs(interp, 1, objv, "when script");
+	    return TCL_ERROR;
+        }
+        objPtr = objv[2];
+        Tcl_IncrRefCount(objPtr);
+        switch (opt) {
+        case IOnCreateIdx:
+            status = Ns_TclRegisterAtCreate(TclScriptTraceCB, objPtr);
+            break;
+        case IOnCleanupIdx:
+            status = Ns_TclRegisterAtCreate(TclScriptTraceCB, objPtr);
+            break;
+        case IOnInitIdx:
+            status = Ns_TclInitInterps(itPtr->servPtr->server, 
+                                       TclInitScriptCB, objPtr);
+            break;
+        default:
+            status = NS_ERROR;
+            break;
+        }
+        if( status != NS_OK ) {
+            Tcl_AppendResult(interp, "Failed ", opts[opt], "-time registration", NULL );
+            /*
+             * There is a restriction imposed from the Ns_TclRegisterAtxx
+             * funcs that this can only be called during server init.
+             * Check for this case, so that I can produce a reasonable 
+             * diagnostic.
+             */
+            if( (opt != IOnInitIdx) && (NsGetInitServer() == NULL) ) {
+                Tcl_AppendResult(interp,
+                                 ", this can only be used during server init.",
+                                 NULL );
+            }
+            Tcl_DecrRefCount(objPtr);
+            result = TCL_ERROR;
+        } else {
+            result = TCL_OK;
+        }
+        break;
     }
 
     return result;
 }
 
-
-/*
- *----------------------------------------------------------------------
- *
- * NsTclRegisterInterpTraceObjCmd --
- *
- *      Implements ns_register_interptrace command to establish tcl
- *      scripts to be invoked at points around the lifetime of Tcl interpreters.
- *      Note that this function does not provide when == destroy, since the
- *      destroy traces are run after the interp is deallocated.
- *
- *      This function can only be called during server startup.  It will return
- *      an error if called after server startup.
- *
- *      Ex: ns_register_interptrace create { rename foo _foo }
- *
- * Results:
- *      Standard Tcl result.
- *
- * Side effects:
- *	May update current saved server Tcl state.
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclRegisterInterpTraceObjCmd(ClientData arg, Tcl_Interp *interp,
-                               int objc, Tcl_Obj **objv)
-{
-    Tcl_Obj   *objPtr;
-    NsInterp  *itPtr = arg;
-    static CONST char *opts[] = {
-	"create", "cleanup", "init", NULL
-    };
-    enum {
-	ICreateIdx, ICleanupIdx, IInitIdx
-    }          opt;
-    int        status = NS_ERROR;
-
-
-    if (objc != 3) {
-        Tcl_WrongNumArgs(interp, 1, objv, "when script");
-	return TCL_ERROR;
-    }
-
-    if (Tcl_GetIndexFromObj(interp, objv[1], opts, "when", 0,
-			    (int *) &opt) != TCL_OK) {
-	return TCL_ERROR;
-    }
-
-    objPtr = objv[2];
-    Tcl_IncrRefCount(objPtr);
-
-    switch( opt ) {
-        case ICreateIdx:
-            status = Ns_TclRegisterAtCreate(TclScriptTraceCB, objPtr);
-            break;
-        case ICleanupIdx:
-            status = Ns_TclRegisterAtCleanup(TclScriptTraceCB, objPtr);
-            break;
-        case IInitIdx:
-            status = Ns_TclInitInterps(itPtr->servPtr->server,
-                                       TclInitScriptCB, objPtr);
-    }
-
-    if( status != NS_OK ) {
-        Tcl_AppendResult(interp, "Failed ", opts[opt], "-time registration", NULL );
-        /*
-         * There is a restriction imposed from the Ns_TclRegisterAtxx
-         * funcs that this can only be called during server init.
-         * Check for this case, so that I can produce a reasonable 
-         * diagnostic.
-         */
-        if( (opt != IInitIdx) && (NsGetInitServer() == NULL) ) {
-            Tcl_AppendResult(interp,
-                             ", this can only be used during server init.",
-                             NULL );
-        }
-        Tcl_DecrRefCount(objPtr);
-        return TCL_ERROR;
-    }
-    return TCL_OK;
-}
 
 /*
  *----------------------------------------------------------------------
