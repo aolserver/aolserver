@@ -33,7 +33,7 @@
  *	AOLserver Ns_Main() startup routine.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.13 2000/10/16 15:06:53 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.14 2000/10/16 15:09:39 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -284,7 +284,6 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 	    break;
 	case 'K':
 	case 'k':
-	    fprintf(stderr, "\nWARNING: -k and -K are deprecated.\n\n");
 	    if (kill != 0) {
 		UsageError("only one of -k or -K may be specified");
 	    }
@@ -1289,7 +1288,7 @@ StatusMsg(int state)
 #define UOPTS   ""
 #else
 #define SOPTS	""
-#define UOPTS	"[-d] [-k|-K] [-r root] [-u user] [-g group] "
+#define UOPTS	"[-d] [-r root] [-u user] [-g group] "
 #endif
 
 static void
