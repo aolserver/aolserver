@@ -848,6 +848,7 @@ extern int  NsGetLastPid(char *service);
 
 extern void NsLogOpen(void);
 extern void NsConfInit(void);
+extern void NsTclInitObjs(void);
 extern void NsInitMimeTypes(void);
 extern void NsInitEncodings(void);
 extern void NsDbInitPools(void);
@@ -927,9 +928,6 @@ extern Ns_TclInterpInitProc NsTclCreateCmds;
 extern char 	  *NsTclConnId(Ns_Conn *conn);
 extern int 	   NsIsIdConn(char *inID);
 extern int 	   NsTclEval(Tcl_Interp *interp, char *script);
-extern void 	   NsTclCreateGenericCmds(Tcl_Interp *);
-extern int	   NsTclShareVar(Tcl_Interp *interp, char *varName);
-extern int	   NsTclGetTime(Tcl_Interp *interp, char *time, Ns_Time *timePtr);
 
 /*
  * Callback routines.

@@ -34,7 +34,7 @@
  *	Implements a lot of Tcl API commands. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclmisc.c,v 1.18 2001/05/18 12:29:53 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclmisc.c,v 1.19 2001/05/19 21:37:49 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -460,7 +460,7 @@ NsTclHTUUDecodeCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 /*
  *----------------------------------------------------------------------
  *
- * NsTclTimeCmd --
+ * NsTclTimeObjCmd --
  *
  *	Implements ns_time. 
  *
@@ -473,51 +473,17 @@ NsTclHTUUDecodeCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
  *----------------------------------------------------------------------
  */
 
-#define TIME_SEP ':'
-
-int
-NsTclGetObjTime(Tcl_Interp *interp, Tcl_Obj *obj, Ns_Time *timePtr)
-{
-    return NsTclGetTime(interp, Tcl_GetString(obj), timePtr);
-}
-
-int
-NsTclGetTime(Tcl_Interp *interp, char *time, Ns_Time *timePtr)
-{
-    int result, sec, usec;
-    char *sep;
-
-    sep = strchr(time, TIME_SEP);
-    if (sep != NULL) {
-	*sep = '\0';
-    }
-    result = Tcl_GetInt(interp, time, &sec);
-    if (sep != NULL) {
-	*sep++ = TIME_SEP;
-    }
-    if (result == TCL_OK) {
-	if (sep == NULL) {
-	    usec = 0;
-	} else {
-	    result = Tcl_GetInt(interp, sep, &usec);
-	}
-	if (result == TCL_OK) {
-	    timePtr->sec = (time_t) sec;
-	    timePtr->usec = (long) usec;
-	}
-    }
-    return result;
-}
-
 int
 NsTclTimeObjCmd(ClientData dummy, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 {
-    char buf[100], *cmd;
+    char *cmd;
     Ns_Time result, t1, t2;
-    int sec, usec, n;
+    int sec, usec;
+    Tcl_Obj *resultPtr;
 
+    resultPtr = Tcl_GetObjResult(interp);
     if (objc < 2) {
-	Tcl_SetLongObj(Tcl_GetObjResult(interp), time(NULL));
+	Tcl_SetLongObj(resultPtr, time(NULL));
     } else {
 	cmd = Tcl_GetString(objv[1]);
 	if (STREQ(cmd, "get")) {
@@ -529,7 +495,7 @@ NsTclTimeObjCmd(ClientData dummy, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 		return TCL_ERROR;
 	    }
 	    usec = 0;
-	    if (NsTclGetObjTime(interp, objv[2], &result) != TCL_OK ||
+	    if (Ns_TclGetTimeFromObj(interp, objv[2], &result) != TCL_OK ||
 		Tcl_GetIntFromObj(interp, objv[3], &sec) != TCL_OK ||
 		(objc == 5 && Tcl_GetIntFromObj(interp, objv[4], &usec) != TCL_OK)) {
 		return TCL_ERROR;
@@ -541,18 +507,19 @@ NsTclTimeObjCmd(ClientData dummy, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 		    cmd, " diff t1 t2\"", NULL);
 		return TCL_ERROR;
 	    }
-	    if (NsTclGetObjTime(interp, objv[2], &t1) != TCL_OK ||
-		NsTclGetObjTime(interp, objv[3], &t2) != TCL_OK) {
+	    if (Ns_TclGetTimeFromObj(interp, objv[2], &t1) != TCL_OK ||
+		Ns_TclGetTimeFromObj(interp, objv[3], &t2) != TCL_OK) {
 		return TCL_ERROR;
 	    }
 	    Ns_DiffTime(&t1, &t2, &result);
+
 	} else if (STREQ(cmd, "adj")) {
 	    if (objc != 3) {
 		Tcl_AppendResult(interp, "wrong # args: should be \"",
 		    cmd, " adj time\"", NULL);
 		return TCL_ERROR;
 	    }
-	    if (NsTclGetObjTime(interp, objv[2], &result) != TCL_OK) {
+	    if (Ns_TclGetTimeFromObj(interp, objv[2], &result) != TCL_OK) {
 		return TCL_ERROR;
 	    }
 	    Ns_AdjTime(&result);
@@ -561,8 +528,7 @@ NsTclTimeObjCmd(ClientData dummy, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 		"\": should be get, incr, diff, or adj", NULL);
 	    return TCL_ERROR;
 	}
-	sprintf(buf, "%ld%c%ld", (long) result.sec, TIME_SEP, result.usec);
-        Tcl_SetResult(interp, buf, TCL_VOLATILE);
+	Ns_TclSetTimeObj(resultPtr, &result);
     }
     return TCL_OK;
 }

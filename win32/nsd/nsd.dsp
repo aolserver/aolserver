@@ -352,6 +352,10 @@ SOURCE=..\..\nsd\tclmisc.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\nsd\tclobj.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\nsd\tclrequest.c
 # End Source File
 # Begin Source File

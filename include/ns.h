@@ -33,7 +33,7 @@
  *      All the public types and function declarations for the core
  *	AOLserver.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.29 2001/05/10 08:55:55 jgdavidson Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.30 2001/05/19 21:37:49 jgdavidson Exp $
  */
 
 #ifndef NS_H
@@ -822,6 +822,13 @@ NS_EXTERN Ns_List *Ns_ListMapcar(Ns_List *lPtr, Ns_ElemValProc *valProc);
  * Ns_ListFirst(list)
  * Ns_ListRest(list)
  */
+
+/*
+ * tclobj.c:
+ */
+
+NS_EXTERN void Ns_TclSetTimeObj(Tcl_Obj *objPtr, Ns_Time *timePtr);
+NS_EXTERN int Ns_TclGetTimeFromObj(Tcl_Interp *interp, Tcl_Obj *objPtr, Ns_Time *timePtr);
 
 /*
  * tclxkeylist.c:
