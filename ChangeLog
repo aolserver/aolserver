@@ -1,3 +1,10 @@
+2003-05-12  Mark Page  <mpagenva@aol.com>
+
+	* nsd/urlencode.c : (bug fix) urlencode was passing through too
+        many characters unencoded.  In particular, the '+' was getting
+        passed through, which causes unsymmetric encode/decode since
+        '+' in encoded string translates to ' '(space).
+
 2003-04-25  Mark Page  <mpagenva@aol.com>
 
 	* nsd/tclvar.c (NsTclNsvArrayObjCmd): (bug fix) nsv_array exists
