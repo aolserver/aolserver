@@ -34,7 +34,7 @@
  *	Manage the server log file.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/log.c,v 1.12 2002/06/10 22:35:32 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/log.c,v 1.13 2002/06/12 23:08:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -323,6 +323,32 @@ NsTclLogRollCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 /*
  *----------------------------------------------------------------------
  *
+ * NsTclLogRollObjCmd --
+ *
+ *	Implements ns_logroll as obj command. 
+ *
+ * Results:
+ *	Tcl result. 
+ *
+ * Side effects:
+ *	See docs. 
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+NsTclLogRollObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    if (Ns_LogRoll() != NS_OK) {
+		Tcl_SetResult(interp, "could not roll server log", TCL_STATIC);
+    }
+    return TCL_OK;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  * NsTclLogCmd --
  *
  *	Implements ns_log.
@@ -373,6 +399,69 @@ NsTclLogCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
     if (LogStart(&ds, severity)) {
 	for (i = 2; i < argc; ++i) {
 	    Ns_DStringVarAppend(&ds, argv[i], i > 2 ? " " : NULL, NULL);
+	}
+	LogEnd(&ds);
+    }
+    Ns_DStringFree(&ds);
+    return TCL_OK;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsTclLogObjCmd --
+ *
+ *	Implements ns_log as obj command.
+ *
+ * Results:
+ *	Tcl result. 
+ *
+ * Side effects:
+ *	See docs. 
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+NsTclLogObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    Ns_LogSeverity severity;
+    Ns_DString ds;
+    int i;
+    char *cmd = Tcl_GetString(objv[1]);
+
+    if (objc < 3) {
+        Tcl_WrongNumArgs(interp, 1, objv, "severity string ?string ...?");
+    	return TCL_ERROR;
+    }
+    if (STRIEQ(cmd, "notice")) {
+	severity = Notice;
+    } else if (STRIEQ(cmd, "warning")) {
+	severity = Warning;
+    } else if (STRIEQ(cmd, "error")) {
+	severity = Error;
+    } else if (STRIEQ(cmd, "fatal")) {
+	severity = Fatal;
+    } else if (STRIEQ(cmd, "bug")) {
+	severity = Bug;
+    } else if (STRIEQ(cmd, "debug")) {
+	severity = Debug;
+    } else if (Tcl_GetIntFromObj(interp, objv[1], &i) == TCL_OK) {
+	severity = i;
+    } else {
+        Tcl_Obj *result = Tcl_NewObj();
+        Tcl_AppendStringsToObj(result, "unknown severity \"",
+                         Tcl_GetString(objv[1]), "\":  should be one of: ",
+			 "fatal, error, warning, bug, notice, or debug.",
+			 NULL);
+        Tcl_SetObjResult(interp, result);
+    	return TCL_ERROR;
+    }
+    Ns_DStringInit(&ds);
+    if (LogStart(&ds, severity)) {
+	for (i = 2; i < objc; ++i) {
+	    Ns_DStringVarAppend(&ds, Tcl_GetString(objv[i]), i > 2 ? " " : NULL, NULL);
 	}
 	LogEnd(&ds);
     }

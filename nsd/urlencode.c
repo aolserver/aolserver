@@ -34,7 +34,7 @@
  *	Encode and decode URLs, as described in RFC 1738.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/urlencode.c,v 1.7 2001/11/25 22:31:08 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/urlencode.c,v 1.8 2002/06/12 23:08:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -273,6 +273,43 @@ EncodeCmd(Tcl_Interp *interp, int argc, char **argv, int encode)
     return TCL_OK;
 }
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsTclUrlEncodeObjCmd, NsTclUrlDecodeObjCmd --
+ *
+ *	Implments ns_urlencode and ns_urldecode.
+ *
+ * Results:
+ *	Tcl result. 
+ *
+ * Side effects:
+ *	See docs. 
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+EncodeObjCmd(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[], int encode)
+{
+    Ns_DString ds;
+
+    if (objc != 2) {
+        Tcl_WrongNumArgs(interp, 1, objv, "url");
+        return TCL_ERROR;
+    }
+    Ns_DStringInit(&ds);
+    if (encode) {
+	Ns_EncodeUrl(&ds, Tcl_GetString(objv[1]));
+    } else {
+	Ns_DecodeUrl(&ds, Tcl_GetString(objv[1]));
+    }
+    Tcl_SetResult(interp, ds.string, TCL_VOLATILE);
+    Ns_DStringFree(&ds);
+    return TCL_OK;
+}
+
 int
 NsTclUrlDecodeCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 {
@@ -280,7 +317,19 @@ NsTclUrlDecodeCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 }
 
 int
+NsTclUrlDecodeObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    return EncodeObjCmd(interp, objc, objv, 0);
+}
+
+int
 NsTclUrlEncodeCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 {
     return EncodeCmd(interp, argc, argv, 1);
+}
+
+int
+NsTclUrlEncodeObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    return EncodeObjCmd(interp, objc, objv, 1);
 }

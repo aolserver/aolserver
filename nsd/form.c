@@ -33,7 +33,7 @@
  *      Routines for dealing with HTML FORM's.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/form.c,v 1.6 2001/11/05 20:23:49 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/form.c,v 1.7 2002/06/12 23:08:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -158,6 +158,50 @@ NsTclParseQueryCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
     if (Ns_QueryToSet(argv[1], set) != NS_OK) {
 	Tcl_AppendResult(interp, argv[0], ": could not parse: \"",
 	    argv[1], "\"", (char *) NULL);
+	Ns_SetFree(set);
+	return TCL_ERROR;
+    }
+    return Ns_TclEnterSet(interp, set, NS_TCL_SET_DYNAMIC);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsTclParseQueryObjCmd --
+ *
+ *	This procedure implements the AOLserver Tcl
+ *
+ *	    ns_parsequery querystring
+ *
+ *	command.
+ *
+ * Results:
+ *	The Tcl result is a Tcl set with the parsed name-value pairs from
+ *	the querystring argument
+ *
+ * Side effects:
+ *	None external.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+NsTclParseQueryObjCmd(ClientData dummy, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
+{
+    Ns_Set *set;
+
+    if (objc != 2) {
+        Tcl_WrongNumArgs(interp, 1, objv, "querystring");
+	return TCL_ERROR;
+    }
+    set = Ns_SetCreate(NULL);
+    if (Ns_QueryToSet(Tcl_GetString(objv[1]), set) != NS_OK) {
+	Tcl_Obj *result = Tcl_NewObj();
+	Tcl_AppendStringsToObj(result, Tcl_GetString(objv[0]), 
+			": could not parse: \"",
+	    	Tcl_GetString(objv[1]), "\"", (char *) NULL);
+	Tcl_SetObjResult(interp, result);
 	Ns_SetFree(set);
 	return TCL_ERROR;
     }

@@ -34,7 +34,7 @@
  *	Defines standard default mime types. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/mimetypes.c,v 1.8 2002/06/10 22:35:32 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/mimetypes.c,v 1.9 2002/06/12 23:08:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #define TYPE_DEFAULT "*/*"
@@ -298,6 +298,38 @@ NsTclGuessTypeCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
         return TCL_ERROR;
     }
     type = Ns_GetMimeType(argv[1]);
+    Tcl_SetResult(interp, type, TCL_VOLATILE);
+    
+    return TCL_OK;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsTclGuessTypeObjCmd --
+ *
+ *	Implements ns_guesstype. 
+ *
+ * Results:
+ *	Tcl result. 
+ *
+ * Side effects:
+ *	See docs. 
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+NsTclGuessTypeObjCmd(ClientData dummy, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    char *type;
+
+    if (objc != 2) {
+        Tcl_WrongNumArgs(interp, 1, objv, "filename");
+        return TCL_ERROR;
+    }
+    type = Ns_GetMimeType(Tcl_GetString(objv[1]));
     Tcl_SetResult(interp, type, TCL_VOLATILE);
     
     return TCL_OK;

@@ -34,7 +34,7 @@
  *	This file implements the "ns_rand" command.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/random.c,v 1.9 2001/12/05 22:46:21 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/random.c,v 1.10 2002/06/12 23:08:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -115,6 +115,61 @@ NsTclRandCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
     }
     d = Ns_DRand();
     if (argc == 1) {
+	Tcl_SetObjResult(interp, Tcl_NewDoubleObj(d));
+    } else {
+	Tcl_SetObjResult(interp, Tcl_NewIntObj((int) (d * max)));
+    }
+    return TCL_OK;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsTclRandObjCmd --
+ *
+ *	This procedure implements the AOLserver Tcl 
+ *
+ *	    ns_rand ?maximum?
+ *
+ *	command.  
+ *
+ * Results:
+ *	The Tcl result string contains a random number, either a
+ *	double >= 0.0 and < 1.0 or a integer >= 0 and < max.
+ *
+ * Side effects:
+ *	None external.
+ *
+ * Note:
+ *	Interpreters share the static variables which randomizes the
+ *	the random numbers even more.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+NsTclRandObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    double d;
+    int max;
+
+    if (objc > 2) {
+        Tcl_WrongNumArgs(interp, 1, objv, "?maximum?");
+	return TCL_ERROR;
+    }
+    if (objc == 2) {
+    	if (Tcl_GetIntFromObj(interp, objv[1], &max) != TCL_OK) {
+	    return TCL_ERROR;
+	} else if (max <= 0) {
+	    Tcl_Obj *result = Tcl_NewObj();
+	    Tcl_AppendStringsToObj(result, "invalid max \"", 
+		    Tcl_GetString(objv[1]), "\": must be > 0", NULL);
+	    Tcl_SetObjResult(interp, result);
+	    return TCL_ERROR;
+	}
+    }
+    d = Ns_DRand();
+    if (objc == 1) {
 	Tcl_SetObjResult(interp, Tcl_NewDoubleObj(d));
     } else {
 	Tcl_SetObjResult(interp, Tcl_NewIntObj((int) (d * max)));

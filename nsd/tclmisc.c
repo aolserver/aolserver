@@ -34,7 +34,7 @@
  *	Implements a lot of Tcl API commands. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclmisc.c,v 1.20 2001/12/05 22:46:21 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclmisc.c,v 1.21 2002/06/12 23:08:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -152,6 +152,37 @@ NsTclCryptCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
         return TCL_ERROR;
     }
     Tcl_SetResult(interp, Ns_Encrypt(argv[1], argv[2], buf), TCL_VOLATILE);
+
+    return TCL_OK;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsTclCryptObjCmd --
+ *
+ *	Implements ns_crypt as ObjCommand. 
+ *
+ * Results:
+ *	Tcl result. 
+ *
+ * Side effects:
+ *	See docs. 
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+NsTclCryptObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    char buf[NS_ENCRYPT_BUFSIZE];
+
+    if (objc != 3) {
+        Tcl_WrongNumArgs(interp, 1, objv, "key salt");
+        return TCL_ERROR;
+    }
+    Tcl_SetResult(interp, Ns_Encrypt(Tcl_GetString(objv[1]), Tcl_GetString(objv[2]), buf), TCL_VOLATILE);
 
     return TCL_OK;
 }
@@ -327,6 +358,123 @@ TmCmd(ClientData isgmt, Tcl_Interp *interp, int argc, char **argv)
     return TCL_OK;
 }
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsTclLocalTimeObjCmd, NsTclGmTimeObjCmd --
+ *
+ *	Implements the ns_gmtime and ns_localtime commands. 
+ *
+ * Results:
+ *	Tcl result. 
+ *
+ * Side effects:
+ *	See docs. 
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+TmObjCmd(ClientData isgmt, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
+{
+    time_t     tt_now = time(NULL);
+    char       buf[10];
+    struct tm *ptm;
+    Tcl_Obj   *result;
+
+    if (isgmt) {
+        if (objc != 1) {
+            Tcl_WrongNumArgs(interp, 1, objv, "");
+            return TCL_ERROR;
+        }
+        ptm = ns_gmtime(&tt_now);
+    } else {
+        static Ns_Mutex lock;
+        char *oldTimezone = NULL;
+
+        if (objc > 2) {
+            Tcl_WrongNumArgs(interp, 1, objv, "?tz?");
+            return TCL_ERROR;
+        }
+
+        Ns_MutexLock(&lock);
+
+        if (objc == 2) {
+            Ns_DString dsNewTimezone;
+            Ns_DStringInit(&dsNewTimezone);
+
+            oldTimezone = getenv("TZ");
+            Ns_DStringAppend(&dsNewTimezone, "TZ=");
+            Ns_DStringAppend(&dsNewTimezone, Tcl_GetString(objv[1]));
+
+            putenv(dsNewTimezone.string);
+            tzset();
+
+            Ns_DStringFree(&dsNewTimezone);
+        }
+
+        ptm = ns_localtime(&tt_now);
+
+        if (oldTimezone != NULL) {
+            Ns_DString dsNewTimezone;
+            Ns_DStringInit(&dsNewTimezone);
+
+            Ns_DStringAppend(&dsNewTimezone, "TZ=");
+            Ns_DStringAppend(&dsNewTimezone, oldTimezone);
+
+            putenv(dsNewTimezone.string);
+
+            Ns_DStringFree(&dsNewTimezone);
+        }
+
+        Ns_MutexUnlock(&lock);
+    }
+
+    result = Tcl_NewObj();
+    sprintf(buf, "%d", ptm->tm_sec);
+    if (Tcl_ListObjAppendElement(interp, result, Tcl_NewStringObj(buf, -1)) != TCL_OK) {
+        return TCL_ERROR;
+    }
+    sprintf(buf, "%d", ptm->tm_min);
+    Tcl_AppendElement(interp, buf);
+    if (Tcl_ListObjAppendElement(interp, result, Tcl_NewStringObj(buf, -1)) != TCL_OK) {
+        return TCL_ERROR;
+    }
+    sprintf(buf, "%d", ptm->tm_hour);
+    if (Tcl_ListObjAppendElement(interp, result, Tcl_NewStringObj(buf, -1)) != TCL_OK) {
+        return TCL_ERROR;
+    }
+    sprintf(buf, "%d", ptm->tm_mday);
+    if (Tcl_ListObjAppendElement(interp, result, Tcl_NewStringObj(buf, -1)) != TCL_OK) {
+        return TCL_ERROR;
+    }
+    sprintf(buf, "%d", ptm->tm_mon);
+    if (Tcl_ListObjAppendElement(interp, result, Tcl_NewStringObj(buf, -1)) != TCL_OK) {
+        return TCL_ERROR;
+    }
+    sprintf(buf, "%d", ptm->tm_year);
+    if (Tcl_ListObjAppendElement(interp, result, Tcl_NewStringObj(buf, -1)) != TCL_OK) {
+        return TCL_ERROR;
+    }
+    sprintf(buf, "%d", ptm->tm_wday);
+    if (Tcl_ListObjAppendElement(interp, result, Tcl_NewStringObj(buf, -1)) != TCL_OK) {
+        return TCL_ERROR;
+    }
+    sprintf(buf, "%d", ptm->tm_yday);
+    if (Tcl_ListObjAppendElement(interp, result, Tcl_NewStringObj(buf, -1)) != TCL_OK) {
+        return TCL_ERROR;
+    }
+    sprintf(buf, "%d", ptm->tm_isdst);
+    if (Tcl_ListObjAppendElement(interp, result, Tcl_NewStringObj(buf, -1)) != TCL_OK) {
+        return TCL_ERROR;
+    }
+
+    Tcl_SetObjResult(interp, result);
+
+    return TCL_OK;
+}
+
 int
 NsTclGmTimeCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 {
@@ -334,9 +482,21 @@ NsTclGmTimeCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 }
 
 int
+NsTclGmTimeObjCmd(ClientData dummy, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
+{
+    return TmObjCmd((ClientData) 1, interp, objc, objv);
+}
+
+int
 NsTclLocalTimeCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 {
     return TmCmd(NULL, interp, argc, argv);
+}
+
+int
+NsTclLocalTimeObjCmd(ClientData dummy, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
+{
+    return TmObjCmd(NULL, interp, objc, objv);
 }
 
 
@@ -374,6 +534,51 @@ NsTclSleepCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 	    "\": shoudl be >= 0", NULL);
         return TCL_ERROR;
     }
+    sleep(seconds);
+    return TCL_OK;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsTclSleepObjCmd --
+ *
+ *	Tcl result. 
+ *
+ * Results:
+ *	See docs. 
+ *
+ * Side effects:
+ *	See docs. 
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+NsTclSleepObjCmd(ClientData dummy, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
+{
+    int seconds;
+    Tcl_Obj *result;
+
+    if (objc != 2) {
+        Tcl_WrongNumArgs(interp, 1, objv, "seconds");
+        return TCL_ERROR;
+    }
+
+    if (Tcl_GetIntFromObj(interp, objv[1], &seconds) != TCL_OK) {
+        return TCL_ERROR;
+    }
+
+    if (seconds < 0) {
+	result = Tcl_NewObj();
+        Tcl_AppendStringsToObj(result, "invalid sections \"", 
+            Tcl_GetString(objv[1]),
+	        "\": should be >= 0", NULL);
+        Tcl_SetObjResult(interp, result);
+        return TCL_ERROR;
+    }
+
     sleep(seconds);
     return TCL_OK;
 }
@@ -422,6 +627,48 @@ NsTclHTUUEncodeCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 /*
  *----------------------------------------------------------------------
  *
+ * NsTclHTUUEncodeObjCmd --
+ *
+ *	Implements ns_uuencode as obj command.
+ *
+ * Results:
+ *	Tcl result. 
+ *
+ * Side effects:
+ *	See docs. 
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+NsTclHTUUEncodeObjCmd(ClientData dummy, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
+{
+    char bufcoded[1 + (4 * 48) / 2];
+    int  nbytes;
+
+    if (objc != 2) {
+        Tcl_WrongNumArgs(interp, 1, objv, "string");
+        return TCL_ERROR;
+    }
+    nbytes = Tcl_GetCharLength(objv[1]);
+    if (nbytes > 48) {
+        Tcl_Obj *result = Tcl_NewObj();
+        Tcl_AppendStringsToObj(result, "invalid string \"",
+                         Tcl_GetString(objv[1]), 
+                         "\": must be less than 48 characters", NULL);
+        Tcl_SetObjResult(interp, result);
+        return TCL_ERROR;
+    }
+    Ns_HtuuEncode((unsigned char *) Tcl_GetString(objv[1]), nbytes, bufcoded);
+    Tcl_SetResult(interp, bufcoded, TCL_VOLATILE);
+    
+    return TCL_OK;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  * HTUUDecodecmd --
  *
  *	Implements ns_uudecode. 
@@ -449,6 +696,42 @@ NsTclHTUUDecodeCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
     n = strlen(argv[1]) + 3;
     decoded = ns_malloc(n);
     n = Ns_HtuuDecode(argv[1], (unsigned char *) decoded, n);
+    decoded[n] = '\0';
+    Tcl_SetResult(interp, decoded, (Tcl_FreeProc *) ns_free);
+    
+    return TCL_OK;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HTUUDecodeObjcmd --
+ *
+ *	Implements ns_uudecode as obj command. 
+ *
+ * Results:
+ *	Tcl result. 
+ *
+ * Side effects:
+ *	See docs. 
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+NsTclHTUUDecodeObjCmd(ClientData dummy, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
+{
+    int   n;
+    char *decoded;
+
+    if (objc != 2) {
+        Tcl_WrongNumArgs(interp, 1, objv, "string");
+        return TCL_ERROR;
+    }
+    n = Tcl_GetCharLength(objv[1]) + 3;
+    decoded = ns_malloc(n);
+    n = Ns_HtuuDecode(Tcl_GetString(objv[1]), (unsigned char *) decoded, n);
     decoded[n] = '\0';
     Tcl_SetResult(interp, decoded, (Tcl_FreeProc *) ns_free);
     
@@ -575,6 +858,56 @@ NsTclStrftimeCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
         return TCL_ERROR;
     }
     Tcl_SetResult(interp, buf, TCL_VOLATILE);
+    return TCL_OK;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsTclStrftimeObjCmd --
+ *
+ *	Implements ns_fmttime. 
+ *
+ * Results:
+ *	Tcl result. 
+ *
+ * Side effects:
+ *	See docs. 
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+NsTclStrftimeObjCmd(ClientData dummy, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
+{
+    char   *fmt, buf[200];
+    time_t  time;
+    int     i;
+    Tcl_Obj *result;
+
+    if (objc != 2 && objc != 3) {
+        Tcl_WrongNumArgs(interp, 1, objv, "string");
+        return TCL_ERROR;
+    }
+    if (Tcl_GetIntFromObj(interp, objv[1], &i) != TCL_OK) {
+        return TCL_ERROR;
+    }
+    if (objv[2] != NULL) {
+        fmt = Tcl_GetString(objv[2]);
+    } else {
+        fmt = "%c";
+    }
+    time = i;
+    if (strftime(buf, sizeof(buf), fmt, ns_localtime(&time)) == 0) {
+	result = Tcl_NewObj();
+        Tcl_AppendStringsToObj(result, "invalid time: ", 
+            Tcl_GetString(objv[1]), NULL);
+        return TCL_ERROR;
+    }
+    result = Tcl_NewObj();
+    Tcl_AppendStringsToObj(result, buf, NULL);
+    Tcl_SetObjResult(interp, result);
     return TCL_OK;
 }
 

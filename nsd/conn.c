@@ -34,7 +34,7 @@
  *      Manage the Ns_Conn structure
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.19 2002/06/08 14:49:12 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.20 2002/06/12 23:08:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -353,7 +353,7 @@ Ns_SetLocationProc(char *server, Ns_LocationProc *procPtr)
     NsServer *servPtr = NsGetServer(server);
 
     if (servPtr != NULL) {
-    	servPtr->locationProc = procPtr;
+	servPtr->locationProc = procPtr;
     }
 }
 
@@ -686,7 +686,7 @@ NsTclConnCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
     if (STREQ(argv[1], "urlv")) {
 	if (argc == 2 || (argc == 3 && NsIsIdConn(argv[2]))) {
 	    for (idx = 0; idx < request->urlc; idx++) {
-	        Tcl_AppendElement(interp, request->urlv[idx]);
+		Tcl_AppendElement(interp, request->urlv[idx]);
 	    }
 	} else if (Tcl_GetInt(interp, argv[2], &idx) != TCL_OK) {
 	    return TCL_ERROR;
@@ -752,10 +752,10 @@ NsTclConnCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 	} else {
             form = Ns_ConnGetQuery(conn);
             if (form == NULL) {
-        	itPtr->nsconn.form[0] = '\0';
+		itPtr->nsconn.form[0] = '\0';
 	    } else {
                 Ns_TclEnterSet(interp, form, NS_TCL_SET_STATIC);
-        	strcpy(itPtr->nsconn.form, Tcl_GetStringResult(interp));
+		strcpy(itPtr->nsconn.form, Tcl_GetStringResult(interp));
 	    }
 	    itPtr->nsconn.flags |= CONN_TCLFORM;
 	}
@@ -937,6 +937,57 @@ NsTclWriteContentCmd(ClientData arg, Tcl_Interp *interp, int argc,
     if (Ns_ConnCopyToChannel(itPtr->conn, itPtr->conn->contentLength, chan) != NS_OK) {
         Tcl_SetResult(interp, "could not copy content (likely client disconnect)",
 	    TCL_STATIC);
+        return TCL_ERROR;
+    }
+    
+    return TCL_OK;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsTclWriteContentObjCmd --
+ *
+ *	Implments ns_writecontent as obj command. 
+ *
+ * Results:
+ *	Tcl result. 
+ *
+ * Side effects:
+ *	See docs. 
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+NsTclWriteContentObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
+{
+    NsInterp	*itPtr = arg;
+    Tcl_Channel  chan;
+
+    if (objc != 2 && objc != 3) {
+        Tcl_WrongNumArgs(interp, 1, objv, "?connid? channel");
+        return TCL_ERROR;
+    }
+    if (objc == 3 && !NsIsIdConn(Tcl_GetString(objv[1]))) {
+	Tcl_Obj *result = Tcl_NewObj();
+	Tcl_AppendStringsToObj(result, "bad connid: \"", 
+		Tcl_GetString(objv[1]), "\"", NULL);
+	Tcl_SetObjResult(interp, result);
+	return TCL_ERROR;
+    }
+    if (itPtr->conn == NULL) {
+	Tcl_SetResult(interp, "no connection", TCL_STATIC);
+        return TCL_ERROR;
+    }
+    if (GetChan(interp, Tcl_GetString(objv[objc-1]), &chan) != TCL_OK) {
+	return TCL_ERROR;
+    }
+    Tcl_Flush(chan);
+    if (Ns_ConnCopyToChannel(itPtr->conn, itPtr->conn->contentLength, chan) != NS_OK) {
+        Tcl_SetResult(interp, "could not copy content (likely client disconnect)",
+		TCL_STATIC);
         return TCL_ERROR;
     }
     

@@ -33,7 +33,7 @@
  *	URL level HTTP authorization support.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/auth.c,v 1.6 2001/03/12 22:06:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/auth.c,v 1.7 2002/06/12 23:08:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -149,6 +149,73 @@ NsTclRequestAuthorizeCmd(ClientData arg, Tcl_Interp *interp, int argc,
         Tcl_AppendResult(interp, "Could not check ", argv[2],
                          " permission of URL ", argv[1], NULL);
         return TCL_ERROR;
+    }
+    
+    return TCL_OK;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsTclRequestAuthorizeObjCmd --
+ *
+ *	Implments ns_requestauthorize as obj command. 
+ *
+ * Results:
+ *	Tcl result. 
+ *
+ * Side effects:
+ *	See docs. 
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+NsTclRequestAuthorizeObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    NsInterp   *itPtr = arg;
+    int         status;
+    Tcl_Obj    *result;
+
+    if ((objc != 5) && (objc != 6)) {
+        Tcl_WrongNumArgs(interp, 1, objv, 
+			"method url authuser authpasswd [ipaddr]");
+        return TCL_ERROR;
+    }
+
+    status = Ns_AuthorizeRequest(itPtr->servPtr->server, 
+			Tcl_GetString(objv[1]), 
+			Tcl_GetString(objv[2]),
+			Tcl_GetString(objv[3]), 
+			Tcl_GetString(objv[4]), 
+			Tcl_GetString(objv[5]));
+
+    switch (status) {
+	case NS_OK:
+	    Tcl_SetResult(interp, "OK", TCL_STATIC);
+	    break;
+	
+	case NS_ERROR:
+	    Tcl_SetResult(interp, "ERROR", TCL_STATIC);
+	    break;
+		
+	case NS_FORBIDDEN:
+	    Tcl_SetResult(interp, "FORBIDDEN", TCL_STATIC);
+	    break;
+	
+	case NS_UNAUTHORIZED:
+	    Tcl_SetResult(interp, "UNAUTHORIZED", TCL_STATIC);
+	    break;
+	
+	default:
+	    result = Tcl_NewObj();
+	    Tcl_AppendStringsToObj(result, "Could not check ", 
+			Tcl_GetString(objv[2]),
+			" permission of URL ", 
+			Tcl_GetString(objv[1]), NULL);
+	    Tcl_SetObjResult(interp, result);
+	    return TCL_ERROR;
     }
     
     return TCL_OK;

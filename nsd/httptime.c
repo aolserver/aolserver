@@ -35,7 +35,7 @@
  *	by HTSUtils.c from CERN. See also RFC 1123.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/httptime.c,v 1.4 2001/12/05 22:46:21 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/httptime.c,v 1.5 2002/06/12 23:08:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -297,6 +297,37 @@ NsTclParseHttpTimeCmd(ClientData dummy, Tcl_Interp *interp, int argc,
 /*
  *----------------------------------------------------------------------
  *
+ * NsTclParseHttpTimeObjCmd --
+ *
+ *	Implements ns_parsehttptime as obj command. 
+ *
+ * Results:
+ *	Tcl result. 
+ *
+ * Side effects:
+ *	See docs. 
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+NsTclParseHttpTimeObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    time_t t;
+
+    if (objc != 2) {
+        Tcl_WrongNumArgs(interp, 1, objv, "httptime");
+        return TCL_ERROR;
+    }
+    t = Ns_ParseHttpTime(Tcl_GetString(objv[1]));
+    Tcl_SetObjResult(interp, Tcl_NewIntObj((int) t));
+    return TCL_OK;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  * NsTclHttpTimeCmd --
  *
  *	Implements ns_httptime. 
@@ -323,6 +354,45 @@ NsTclHttpTimeCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
         return TCL_ERROR;
     }
     if (Tcl_GetInt(interp, argv[1], &itime) != TCL_OK) {
+        return TCL_ERROR;
+    }
+    time = (time_t) itime;
+    Ns_DStringInit(&ds);
+    Ns_HttpTime(&ds, &time);
+    Tcl_SetResult(interp, Ns_DStringExport(&ds), (Tcl_FreeProc *) ns_free);
+    Ns_DStringFree(&ds);
+    return TCL_OK;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsTclHttpTimeObjCmd --
+ *
+ *	Implements ns_httptime as obj command. 
+ *
+ * Results:
+ *	Tcl result. 
+ *
+ * Side effects:
+ *	See docs. 
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+NsTclHttpTimeObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    Ns_DString ds;
+    int        itime;
+    time_t     time;
+
+    if (objc != 2) {
+        Tcl_WrongNumArgs(interp, 1, objv, "time");
+        return TCL_ERROR;
+    }
+    if (Tcl_GetIntFromObj(interp, objv[1], &itime) != TCL_OK) {
         return TCL_ERROR;
     }
     time = (time_t) itime;

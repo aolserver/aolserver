@@ -33,7 +33,7 @@
  *	Commands for image files.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclimg.c,v 1.3 2001/11/05 20:23:11 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclimg.c,v 1.4 2002/06/12 23:08:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -47,6 +47,7 @@ static int JpegNextMarker(Tcl_Channel chan);
 static int JpegSize(Tcl_Channel chan, int *wPtr, int *hPtr);
 static unsigned int JpegRead2Bytes(Tcl_Channel chan);
 static void AppendDims(Tcl_Interp *interp, int w, int h);
+static int AppendObjDims(Tcl_Interp *interp, int w, int h);
 
 
 /*
@@ -160,6 +161,125 @@ done:
 /*
  *----------------------------------------------------------------------
  *
+ * NsTclGifSizeObjCmd --
+ *
+ *	Implements ns_gifsize, returning a list of width and height.
+ *
+ * Results:
+ *	Tcl result. 
+ *
+ * Side effects:
+ *	See docs. 
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+NsTclGifSizeObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    int fd;
+    unsigned char  buf[0x300];
+    int depth, colormap, dx, dy, status;
+    Tcl_Obj *result;
+
+    if (objc != 2) {
+        Tcl_WrongNumArgs(interp, 1, objv, "gif");
+        return TCL_ERROR;
+    }
+    fd = open(Tcl_GetString(objv[1]), O_RDONLY);
+    if (fd == -1) {
+	result = Tcl_NewObj();
+        Tcl_AppendStringsToObj(result, "could not open \"", 
+            Tcl_GetString(objv[1]),
+	        "\": ", Tcl_PosixError(interp), NULL);
+        Tcl_SetObjResult(interp, result);
+        return TCL_ERROR;
+    }
+    status = TCL_ERROR;
+
+    /*
+     * Read the GIF version number
+     */
+    
+    if (read(fd, buf, 6) == -1) {
+readfail:
+	result = Tcl_NewObj();
+        Tcl_AppendStringsToObj(result, "could not read \"", 
+            Tcl_GetString(objv[1]),
+            "\": ", Tcl_PosixError(interp), NULL);
+        Tcl_SetObjResult(interp, result);
+	goto done;
+    }
+
+    if (strncmp((char *) buf, "GIF87a", 6) && 
+	strncmp((char *) buf, "GIF89a", 6)) {
+badfile:
+	result = Tcl_NewObj();
+        Tcl_AppendStringsToObj(result, "invalid gif file: ", 
+                Tcl_GetString(objv[1]), NULL);
+        Tcl_SetObjResult(interp, result);
+        goto done;
+    }
+
+    if (read(fd, buf, 7) == -1) {
+	goto readfail;
+    }
+
+    depth = 1 << ((buf[4] & 0x7) + 1);
+    colormap = (buf[4] & 0x80 ? 1 : 0);
+
+    if (colormap) {
+        if (read(fd,buf,3*depth) == -1) {
+            goto readfail;
+        }
+    }
+
+  outerloop:
+    if (read(fd, buf, 1) == -1) {
+        goto readfail;
+    }
+
+    if (buf[0] == '!') {
+        unsigned char count;
+	
+        if (read(fd, buf, 1) == -1) {
+            goto readfail;
+        }
+      innerloop:
+        if (read(fd, (char *) &count, 1) == -1) {
+            goto readfail;
+        }
+        if (count == 0) {
+            goto outerloop;
+        }
+        if (read(fd, buf, count) == -1) {
+            goto readfail;
+        }
+        goto innerloop;
+    } else if (buf[0] != ',') {
+        goto badfile;
+    }
+
+    if (read(fd,buf,9) == -1) {
+        goto readfail;
+    }
+
+    dx = 0x100 * buf[5] + buf[4];
+    dy = 0x100 * buf[7] + buf[6];
+    if(AppendObjDims(interp, dx, dy) != TCL_OK) {
+		return TCL_ERROR;
+	};
+    status = TCL_OK;
+
+done:
+    close(fd);
+    return status;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  * NsTclJpegSizeCmd --
  *
  *	Implements ns_jpegsize. 
@@ -198,6 +318,58 @@ NsTclJpegSizeCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 	return TCL_ERROR;
     }
     AppendDims(interp, w, h);
+    return TCL_OK;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsTclJpegSizeObjCmd --
+ *
+ *	Implements ns_jpegsize as obj command. 
+ *
+ * Results:
+ *	Tcl result. 
+ *
+ * Side effects:
+ *	See docs. 
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+NsTclJpegSizeObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    int   code, w, h;
+    Tcl_Channel chan;
+
+    if (objc != 2) {
+        Tcl_WrongNumArgs(interp, 1, objv, "file");
+	return TCL_ERROR;
+    }
+
+    chan = Tcl_OpenFileChannel(interp, Tcl_GetString(objv[1]), "r", 0);
+	if (chan == NULL) {
+	    Tcl_Obj *result = Tcl_NewObj();
+	    Tcl_AppendStringsToObj(result, "could not open \"",
+		    Tcl_GetString(objv[1]), "\": ", 
+		    Tcl_PosixError(interp), NULL);
+	    Tcl_SetObjResult(interp, result);
+	    return TCL_ERROR;
+    }
+    code = JpegSize(chan, &w, &h);
+    Tcl_Close(interp, chan);
+    if (code != TCL_OK) {
+	Tcl_Obj *result = Tcl_NewObj();
+	Tcl_AppendStringsToObj(result, "invalid jpeg file: ", 
+		Tcl_GetString(objv[1]), NULL);
+	Tcl_SetObjResult(interp, result);
+	return TCL_ERROR;
+    }
+    if(AppendObjDims(interp, w, h) != TCL_OK) {
+	return TCL_ERROR;
+    };
     return TCL_OK;
 }
 
@@ -370,4 +542,41 @@ AppendDims(Tcl_Interp *interp, int w, int h)
     Tcl_AppendElement(interp, buf);
     sprintf(buf, "%d", h);
     Tcl_AppendElement(interp, buf);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * AppendObjDims --
+ *
+ *	Format and append width and height dimensions.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	List elements appended to interp result.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+AppendObjDims(Tcl_Interp *interp, int w, int h)
+{
+    char buf[20];
+    Tcl_Obj *result = Tcl_NewObj();
+
+    sprintf(buf, "%d", w);
+    if (Tcl_ListObjAppendElement(interp, result, Tcl_NewStringObj(buf, -1))) {
+        return TCL_ERROR;
+    }
+    sprintf(buf, "%d", h);
+    if (Tcl_ListObjAppendElement(interp, result, Tcl_NewStringObj(buf, -1))) {
+        return TCL_ERROR;
+    }
+
+    Tcl_SetObjResult(interp, result);
+
+    return TCL_OK;
 }

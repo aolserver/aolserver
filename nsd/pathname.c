@@ -34,7 +34,7 @@
  *	Functions that manipulate or return paths. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/pathname.c,v 1.8 2002/05/15 23:38:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/pathname.c,v 1.9 2002/06/12 23:08:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -321,6 +321,52 @@ Ns_MakePath(&ds, argv[1], argv[2], argv[3], argv[4], argv[5], NULL);
         Ns_ModulePath(&ds, argv[1], NULL, NULL);
     }
 }
+    Tcl_SetResult(interp, ds.string, TCL_VOLATILE);
+    Ns_DStringFree(&ds);
+    return TCL_OK;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsTclModulePathObjCmd --
+ *
+ *	Implements ns_modulepath as obj command; basically a wrapper around 
+ *	Ns_ModulePath. 
+ *
+ * Results:
+ *	Tcl result. 
+ *
+ * Side effects:
+ *	None (deprecated) 
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+NsTclModulePathObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    Ns_DString      ds;
+
+    Ns_DStringInit(&ds);
+
+    if (0/*(argc < 2) || (argc > 3)*/) {
+        Tcl_WrongNumArgs(interp, 1, objv, "server ?module?");
+        return TCL_ERROR;
+    }
+    if (1) {
+        Ns_MakePath(&ds, Tcl_GetString(objv[1]), Tcl_GetString(objv[2]), 
+                Tcl_GetString(objv[3]), Tcl_GetString(objv[4]), 
+                Tcl_GetString(objv[5]), NULL);
+    } else {
+        if (objc == 3) {
+            Ns_ModulePath(&ds, Tcl_GetString(objv[1]), Tcl_GetString(objv[2]), 
+                    NULL);
+        } else {
+            Ns_ModulePath(&ds, Tcl_GetString(objv[1]), NULL, NULL);
+        }
+    }
     Tcl_SetResult(interp, ds.string, TCL_VOLATILE);
     Ns_DStringFree(&ds);
     return TCL_OK;

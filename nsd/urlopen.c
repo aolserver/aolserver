@@ -33,7 +33,7 @@
  *	Make outgoing HTTP requests.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/urlopen.c,v 1.11 2001/12/05 22:46:21 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/urlopen.c,v 1.12 2002/06/12 23:08:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -276,6 +276,74 @@ NsTclGetUrlCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
     if (argc == 3) {
         Ns_TclEnterSet(interp, headers, NS_TCL_SET_DYNAMIC);
         if (Tcl_SetVar(interp, argv[2], Tcl_GetStringResult(interp),
+		TCL_LEAVE_ERR_MSG) == NULL) {
+	    goto done;
+	}
+    }
+    Tcl_SetResult(interp, ds.string, TCL_VOLATILE);
+    code = TCL_OK;
+
+done:
+    Ns_DStringFree(&ds);
+    return code;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsTclGetUrlObjCmd --
+ *
+ *	Implements ns_geturl. 
+ *
+ * Results:
+ *	Tcl result.
+ *
+ * Side effects:
+ *	See docs. 
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+NsTclGetUrlObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    NsInterp *itPtr = arg;
+    Ns_DString  ds;
+    Ns_Set     *headers;
+    int         status, code;
+    char       *url;
+
+    if ((objc != 3) && (objc != 2)) {
+        Tcl_WrongNumArgs(interp, 1, objv, "url ?headersSetIdVar?");
+        return TCL_ERROR;
+    }
+
+    code = TCL_ERROR;
+    if (objc == 2) {
+        headers = NULL;
+    } else {
+        headers = Ns_SetCreate(NULL);
+    }
+    Ns_DStringInit(&ds);
+	url = Tcl_GetString(objv[1]);
+    if (url[1] == '/') {
+	status = Ns_FetchPage(&ds, Tcl_GetString(objv[1]), itPtr->servPtr->server);
+    } else {
+        status = Ns_FetchURL(&ds, Tcl_GetString(objv[1]), headers);
+    }
+    if (status != NS_OK) {
+	Tcl_Obj *result = Tcl_NewObj();
+	Tcl_AppendStringsToObj(result, "could not fetch: ", 
+		Tcl_GetString(objv[1]), NULL);
+	if (headers != NULL) {
+	    Ns_SetFree(headers);
+	}
+	goto done;
+    }
+    if (objc == 3) {
+        Ns_TclEnterSet(interp, headers, NS_TCL_SET_DYNAMIC);
+        if (Tcl_SetVar(interp, Tcl_GetString(objv[2]), Tcl_GetStringResult(interp),
 		TCL_LEAVE_ERR_MSG) == NULL) {
 	    goto done;
 	}

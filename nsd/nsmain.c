@@ -33,7 +33,7 @@
  *	AOLserver Ns_Main() startup routine.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.38 2002/06/10 22:35:32 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.39 2002/06/12 23:08:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -587,6 +587,45 @@ NsTclShutdownCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 	timeout = nsconf.shutdowntimeout;
     } else  if (Tcl_GetInt(interp, argv[1], &timeout) != TCL_OK) {
 	return TCL_ERROR;
+    }
+    Tcl_SetObjResult(interp, Tcl_NewIntObj(timeout));
+    Ns_MutexLock(&nsconf.state.lock);
+    nsconf.shutdowntimeout = timeout;
+    Ns_MutexUnlock(&nsconf.state.lock);
+    NsSendSignal(SIGTERM);
+    return TCL_OK;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsTclShutdownObjCmd --
+ *
+ *	Implements ns_shutdown as obj command. 
+ *
+ * Results:
+ *	Tcl result. 
+ *
+ * Side effects:
+ *	See docs. 
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+NsTclShutdownObjCmd(ClientData dummy, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
+{
+    int timeout;
+
+    if (objc != 1 && objc != 2) {
+        Tcl_WrongNumArgs(interp, 1, objv, "?timeout?");
+		return TCL_ERROR;
+    }
+    if (objc == 1) {
+		timeout = nsconf.shutdowntimeout;
+    } else  if (Tcl_GetIntFromObj(interp, objv[1], &timeout) != TCL_OK) {
+		return TCL_ERROR;
     }
     Tcl_SetObjResult(interp, Tcl_NewIntObj(timeout));
     Ns_MutexLock(&nsconf.state.lock);

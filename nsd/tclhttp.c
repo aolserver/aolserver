@@ -33,7 +33,7 @@
  *	Support for the ns_http command.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclhttp.c,v 1.7 2002/06/08 14:49:12 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclhttp.c,v 1.8 2002/06/12 23:08:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -215,6 +215,156 @@ NsTclHttpCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
     } else {
     	Tcl_AppendResult(interp, "unknown command \"", cmd,
 	    "\": should be queue, wait, or cancel", NULL);
+    }
+
+    return TCL_OK;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsTclHttpObjCmd --
+ *
+ *	Implements ns_http to handle async HTTP requests.
+ *
+ * Results:
+ *	Standard Tcl result.
+ *
+ * Side effects:
+ *	May queue an HTTP request.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+NsTclHttpObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    NsInterp *itPtr = arg;
+    Http *httpPtr;
+    char *cmd, buf[20], *result;
+    int new, status, n;
+    Ns_Time timeout;
+    Ns_Set *hdrs;
+    Tcl_HashEntry *hPtr;
+    Tcl_HashSearch search;
+
+    if (objc < 2) {
+        Tcl_WrongNumArgs(interp, 1, objv, "command ?args ...?");
+    	return TCL_ERROR;
+    }
+
+    cmd = Tcl_GetString(objv[1]);
+    if (STREQ(cmd, "queue")) {
+	if (objc != 3 && objc != 4) {
+	    Tcl_WrongNumArgs(interp, 2, objv, "url ?headers ...?");
+	    return TCL_ERROR;
+	}
+	if (objc == 3) {
+	    hdrs = NULL;
+	} else if (Ns_TclGetSet2(interp, Tcl_GetString(objv[3]), &hdrs) != TCL_OK) {
+	    return TCL_ERROR;
+	}
+	httpPtr = HttpOpen(Tcl_GetString(objv[2]), hdrs);
+	if (httpPtr == NULL) {
+	    Tcl_Obj *tclresult = Tcl_NewObj();
+	    Tcl_AppendStringsToObj(tclresult, "could not connect to : ", 
+		    Tcl_GetString(objv[2]), NULL);
+	    Tcl_SetObjResult(interp, tclresult);
+	    return TCL_ERROR;
+	}
+    	Ns_SockCallback(httpPtr->sock, HttpSend, httpPtr, NS_SOCK_WRITE);
+	n = itPtr->https.numEntries;
+	do {
+    	    sprintf(buf, "http%d", n++);
+	    hPtr = Tcl_CreateHashEntry(&itPtr->https, buf, &new);
+	} while (!new);
+	Tcl_SetHashValue(hPtr, httpPtr);
+	Tcl_SetResult(interp, buf, TCL_VOLATILE);
+
+    } else if (STREQ(cmd, "cancel")) {
+	if (objc != 3) {
+        Tcl_WrongNumArgs(interp, 2, objv, "cancel id");
+	    return TCL_ERROR;
+	}
+	hPtr = Tcl_FindHashEntry(&itPtr->https, Tcl_GetString(objv[2]));
+	if (hPtr == NULL) {
+	    Tcl_Obj *tclresult = Tcl_NewObj();
+	    Tcl_AppendStringsToObj(tclresult, "no such request: ", 
+		    Tcl_GetString(objv[2]), NULL);
+	    Tcl_SetObjResult(interp, tclresult);
+	    return TCL_ERROR;
+	}
+	httpPtr = Tcl_GetHashValue(hPtr);
+	Tcl_DeleteHashEntry(hPtr);
+	sprintf(buf, "%d", HttpAbort(httpPtr));
+	Tcl_SetResult(interp, buf, TCL_VOLATILE);
+
+    } else if (STREQ(cmd, "wait")) {
+	if (objc < 4 || objc > 6) {
+	    Tcl_WrongNumArgs(interp, 2, objv, "wait id resultsVar ?timeout? ?headers?");
+	    return TCL_ERROR;
+	}
+	if (objc < 5) {
+	    n = 2;
+	} else if (Tcl_GetIntFromObj(interp, objv[4], &n) != TCL_OK) {
+	    return TCL_ERROR;
+	}
+	Ns_GetTime(&timeout);
+	Ns_IncrTime(&timeout, n, 0);
+	if (objc < 6) {
+	    hdrs = NULL;
+	} else if (Ns_TclGetSet2(interp, Tcl_GetString(objv[5]), &hdrs) != TCL_OK) {
+	    return TCL_ERROR;
+	}
+	hPtr = Tcl_FindHashEntry(&itPtr->https, Tcl_GetString(objv[2]));
+	if (hPtr == NULL) {
+	    Tcl_Obj *tclresult = Tcl_NewObj();
+	    Tcl_AppendStringsToObj(tclresult, "no such request: ", 
+		    Tcl_GetString(objv[2]), NULL);
+	    Tcl_SetObjResult(interp, tclresult);
+	    return TCL_ERROR;
+	}
+	httpPtr= Tcl_GetHashValue(hPtr);
+	status = NS_OK;
+	Ns_MutexLock(&lock);
+    	while (status == NS_OK && !(httpPtr->state & REQ_DONE)) {
+	    status = Ns_CondTimedWait(&cond, &lock, &timeout);
+    	}
+	Ns_MutexUnlock(&lock);
+	if (status != NS_OK) {
+	    httpPtr = NULL;
+	    result = "timeout";
+	} else {
+	    if (httpPtr->state & REQ_EOF) {
+		result = HttpResult(httpPtr->ds.string, hdrs);
+	    } else {
+		status = NS_ERROR;
+		result = "error";
+	    }
+	}
+	result = Tcl_SetVar(interp, Tcl_GetString(objv[3]), result, TCL_LEAVE_ERR_MSG);
+	if (httpPtr != NULL) {
+	    Tcl_DeleteHashEntry(hPtr);
+	    HttpClose(httpPtr, 0);
+	} 
+	if (result == NULL) {
+	    return TCL_ERROR;
+	}
+	Tcl_SetResult(interp, status == NS_OK ? "1" : "0", TCL_STATIC);
+
+    } else if (STREQ(cmd, "cleanup")) {
+	hPtr = Tcl_FirstHashEntry(&itPtr->https, &search);
+	while (hPtr != NULL) {
+	    httpPtr = Tcl_GetHashValue(hPtr);
+	    (void) HttpAbort(httpPtr);
+	    hPtr = Tcl_NextHashEntry(&search);
+	}
+	Tcl_DeleteHashTable(&itPtr->https);
+	Tcl_InitHashTable(&itPtr->https, TCL_STRING_KEYS);
+
+    } else {
+        Tcl_WrongNumArgs(interp, 2, objv, "should be queue, wait, or cancel");
     }
 
     return TCL_OK;
