@@ -43,6 +43,7 @@ static Ns_DriverProc SockProc;
 #define sys_buf	buf
 #define sys_len	len
 #else
+#include <sys/uio.h>
 #define SYSBUF	struct iovec
 #define sys_buf iov_base
 #define sys_len iov_len
@@ -131,14 +132,13 @@ SockProc(Ns_DriverCmd cmd, Ns_Sock *sock, Ns_Buf *bufs, int nbufs)
 	    n = -1;
 	}
 #else
+	memset(&msg, 0, sizeof(msg));
 	msg.msg_iov = sysbufs;
 	msg.msg_iovlen = nbufs;
-	msg.msg_name = msg.msg_accrights = NULL;
-	msg.msg_namelen = msg.msg_accrightslen = 0;
 	if (cmd == DriverSend) {
-	    n = sendmsg(sock, &msg, 0);
+	    n = sendmsg(sock->sock, &msg, 0);
 	} else {
-	    n = recvmsg(sock, &msg, 0);
+	    n = recvmsg(sock->sock, &msg, 0);
 	}
 #endif
 	if (sysbufs != staticBufs) {
