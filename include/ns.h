@@ -33,11 +33,16 @@
  *      All the public types and function declarations for the core
  *	AOLserver.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.12 2000/12/18 01:43:23 jgdavidson Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.13 2001/03/12 22:05:17 jgdavidson Exp $
  */
 
 #ifndef NS_H
 #define NS_H
+
+#ifndef _CLIENTDATA
+typedef void *ClientData;
+#define _CLIENTDATA
+#endif
 
 #include "nsthread.h"
 #include "tcl.h"
@@ -51,7 +56,6 @@
 #endif
 #endif
 
-
 /*
  * Various constants.
  */
@@ -100,9 +104,34 @@ typedef long long INT64;
 #define NS_INT_64_FORMAT_STRING "%lld"
 #endif
 #endif
-#define NS_TCL_SET_TEMPORARY      0
+
+/*
+ * The following flags define how Ns_Set's
+ * are managed by Tcl:
+ *
+ * NS_TCL_SET_STATIC:	Underlying Ns_Set managed
+ * 			elsewhere, only maintain a
+ * 			Tcl reference.
+ *
+ * NS_TCL_SET_DYNAMIC:	Ownership of Ns_Set is given
+ * 			entirely to Tcl, free the set
+ * 			when no longer referenced in Tcl.
+ *
+ * In addition, the NS_TCL_SET_SHARED flag can be set
+ * to make the set available to all interps.
+ */
+
+#define NS_TCL_SET_STATIC      	  0
 #define NS_TCL_SET_DYNAMIC        1
-#define NS_TCL_SET_PERSISTENT     2
+#define NS_TCL_SET_SHARED	  2
+
+/*
+ * Backwards compatible (and confusing) names.
+ */
+
+#define NS_TCL_SET_PERSISTENT     NS_TCL_SET_SHARED
+#define NS_TCL_SET_TEMPORARY      NS_TCL_SET_STATIC
+
 #define NS_DSTRING_STATIC_SIZE    512
 #define NS_DSTRING_PRINTF_MAX	  2048
 
@@ -144,7 +173,6 @@ NS_EXTERN int			kill(int pid, int sig);
 #define closesocket		close
 #endif
 
-
 /*
  * C API macros.
  */
@@ -163,13 +191,6 @@ NS_EXTERN int			kill(int pid, int sig);
 #define Ns_DStringLength(dsPtr)        ((dsPtr)->length)
 #define Ns_DStringValue(dsPtr)         ((dsPtr)->string)
 #define Ns_DStringAppend(dsPtr,string) Ns_DStringNAppend(dsPtr, string, -1)
-
-
-/*
- *==========================================================================
- * Typedefs of enums.
- *==========================================================================
- */
 
 /*
  * This is used for logging messages.
@@ -248,7 +269,6 @@ typedef enum {
     Ns_DrvIdPeerPort
 } Ns_DrvId;
 
-
 /*
  * Typedefs of functions
  */
@@ -269,14 +289,6 @@ typedef int   (Ns_ModuleInitProc) (char *server, char *module);
 typedef int   (Ns_ServerInitProc) (char *server);
 typedef int   (Ns_RequestAuthorizeProc) (char *server, char *method,
 			char *url, char *user, char *pass, char *peer);
-typedef int   (Ns_UserAuthorizeProc) (char *user, char *passwd);
-
-
-/*
- *==========================================================================
- * Typedefs of data structures.
- *==========================================================================
- */
 
 /*
  * The string data type.
@@ -407,7 +419,6 @@ typedef struct {
     Ns_Set **columns;
 } Ns_DbTableInfo;
 
-
 /*
  * More typedefs of functions 
  */
@@ -420,7 +431,6 @@ typedef int   (Ns_UrlToFileProc) (Ns_DString *dsPtr, char *server, char *url);
 typedef char *(Ns_LocationProc) (Ns_Conn *conn);
 typedef void  (Ns_AdpParserProc)(Ns_DString *, char *);
 
-
 /*
  * Typedefs of variables
  */
@@ -430,32 +440,28 @@ typedef void 	       Ns_Entry;
 typedef Tcl_HashSearch Ns_CacheSearch;
 typedef void 	      *Ns_OpContext;
 
-
 /*
  * Typedefs for a modular socket driver.
  */
 
-typedef void    (Ns_FreeAuthCtxProc) (void *pAuthCtx);
-
-typedef int     (Ns_DriverStartProc) (char *hServer, char *hDriver,
-				      void **ppDriverCtx);
-typedef int     (Ns_DriverAcceptProc) (void *pDriverCtx, void **ppConnCtx);
-typedef void    (Ns_DriverStopProc) (void *pDriverCtx);
-typedef int     (Ns_ConnInitProc) (void *pConnCtx);
-typedef int     (Ns_ConnReadProc) (void *pConnCtx, void *pvBuf, int iToRead);
-typedef int     (Ns_ConnWriteProc) (void *pConnCtx, void *pvBuf, int iToWrite);
-typedef int     (Ns_ConnCloseProc) (void *pConnCtx);
-typedef void   *(Ns_ConnDetachProc) (void *pConnCtx);
-typedef void    (Ns_ConnFreeProc) (void *pConnCtx);
-typedef char   *(Ns_ConnPeerProc) (void *pConnCtx);
-typedef int     (Ns_ConnPeerPortProc) (void *pConnCtx);
-typedef char   *(Ns_ConnLocationProc) (void *pConnCtx);
-typedef char   *(Ns_ConnHostProc) (void *pConnCtx);
-typedef int     (Ns_ConnPortProc) (void *pConnCtx);
-typedef char   *(Ns_ConnDriverNameProc) (void *pConnCtx);
-typedef int     (Ns_ConnSendFdProc) (void *pConnCtx, int fd, int nsend);
-typedef int     (Ns_ConnSendFileProc) (void *pConnCtx, char *file);
-typedef int	(Ns_ConnConnectionFdProc) (void *pConnCtx);
+typedef int     (Ns_DriverStartProc) (char *server, char *driver, void **dargPtr);
+typedef int     (Ns_DriverAcceptProc) (void *darg, void **cargPtr);
+typedef void    (Ns_DriverStopProc) (void *carg);
+typedef int     (Ns_ConnInitProc) (void *carg);
+typedef int     (Ns_ConnReadProc) (void *carg, void *buf, int nread);
+typedef int     (Ns_ConnWriteProc) (void *carg, void *buf, int nwrite);
+typedef int     (Ns_ConnCloseProc) (void *carg);
+typedef void   *(Ns_ConnDetachProc) (void *carg);
+typedef void    (Ns_ConnFreeProc) (void *carg);
+typedef char   *(Ns_ConnPeerProc) (void *carg);
+typedef int     (Ns_ConnPeerPortProc) (void *carg);
+typedef char   *(Ns_ConnLocationProc) (void *carg);
+typedef char   *(Ns_ConnHostProc) (void *carg);
+typedef int     (Ns_ConnPortProc) (void *carg);
+typedef char   *(Ns_ConnDriverNameProc) (void *carg);
+typedef int     (Ns_ConnSendFdProc) (void *carg, int fd, int nsend);
+typedef int     (Ns_ConnSendFileProc) (void *carg, char *file);
+typedef int	(Ns_ConnConnectionFdProc) (void *carg);
 
 typedef struct Ns_DrvProc {
     Ns_DrvId        id;
@@ -464,21 +470,13 @@ typedef struct Ns_DrvProc {
 
 typedef struct Ns_Driver_ *Ns_Driver;
 
-
-/*
- *==========================================================================
- * C API functions
- *==========================================================================
- */
-
 /*
  * adp.c:
  */
 
-NS_EXTERN int Ns_AdpRegisterParser(char *mapKey,
-				   Ns_AdpParserProc *newParserProc);
+NS_EXTERN int Ns_AdpRegisterParser(char *map, Ns_AdpParserProc *proc);
 NS_EXTERN int Ns_AdpRequest(Ns_Conn *conn, char *file);
-    
+
 /*
  * auth.c:
  */
@@ -487,10 +485,8 @@ NS_EXTERN void Ns_GenSeeds(unsigned long *seedsPtr, int nseeds);
 NS_EXTERN double Ns_DRand(void);
 NS_EXTERN int Ns_AuthorizeRequest(char *server, char *method, char *url,
 			       char *user, char *passwd, char *peer);
-NS_EXTERN int Ns_AuthorizeUser(char *user, char *passwd);
 NS_EXTERN void Ns_SetRequestAuthorizeProc(char *server,
     				       Ns_RequestAuthorizeProc *procPtr);
-NS_EXTERN void Ns_SetUserAuthorizeProc(Ns_UserAuthorizeProc *procPtr);
 
 /*
  * cache.c:
@@ -531,7 +527,7 @@ NS_EXTERN void Ns_CacheBroadcast(Ns_Cache *cache);
 NS_EXTERN void *Ns_RegisterAtStartup(Ns_Callback *proc, void *arg);
 NS_EXTERN void *Ns_RegisterAtPreStartup(Ns_Callback *proc, void *arg);
 NS_EXTERN void *Ns_RegisterAtSignal(Ns_Callback *proc, void *arg);
-NS_EXTERN void *Ns_RegisterServerShutdown(char *ignored, Ns_Callback *proc,
+NS_EXTERN void *Ns_RegisterServerShutdown(char *server, Ns_Callback *proc,
 				       void *arg);
 NS_EXTERN void *Ns_RegisterShutdown(Ns_Callback *proc, void *arg);
 NS_EXTERN void *Ns_RegisterAtServerShutdown(Ns_Callback *proc, void *arg);
@@ -587,7 +583,7 @@ NS_EXTERN Ns_Set *Ns_ConnOutputHeaders(Ns_Conn *conn);
 NS_EXTERN char *Ns_ConnAuthUser(Ns_Conn *conn);
 NS_EXTERN char *Ns_ConnAuthPasswd(Ns_Conn *conn);
 NS_EXTERN int Ns_ConnContentLength(Ns_Conn *conn);
-NS_EXTERN char *Ns_ConnServer(Ns_Conn *ignored);
+NS_EXTERN char *Ns_ConnServer(Ns_Conn *conn);
 NS_EXTERN int Ns_ConnResponseStatus(Ns_Conn *conn);
 NS_EXTERN int Ns_ConnContentSent(Ns_Conn *conn);
 NS_EXTERN int Ns_ConnResponseLength(Ns_Conn *conn);
@@ -635,9 +631,9 @@ NS_EXTERN Ns_Set *Ns_DbSpGetParams(Ns_DbHandle *handle);
  */
 
 NS_EXTERN char *Ns_DbPoolDescription(char *pool);
-NS_EXTERN char *Ns_DbPoolDefault(char *hServer);
-NS_EXTERN char *Ns_DbPoolList(char *hServer);
-NS_EXTERN int Ns_DbPoolAllowable(char *hServer, char *pool);
+NS_EXTERN char *Ns_DbPoolDefault(char *server);
+NS_EXTERN char *Ns_DbPoolList(char *server);
+NS_EXTERN int Ns_DbPoolAllowable(char *server, char *pool);
 NS_EXTERN void Ns_DbPoolPutHandle(Ns_DbHandle *handle);
 NS_EXTERN Ns_DbHandle *Ns_DbPoolTimedGetHandle(char *pool, int wait);
 NS_EXTERN Ns_DbHandle *Ns_DbPoolGetHandle(char *pool);
@@ -675,9 +671,10 @@ NS_EXTERN int Ns_GetAddrByHost(Ns_DString *dsPtr, char *host);
  * drv.c:
  */
 
-NS_EXTERN Ns_Driver Ns_RegisterDriver(char *hServer, char *hDriver,
+NS_EXTERN Ns_Driver Ns_RegisterDriver(char *server, char *name,
 				   Ns_DrvProc *procs, void *ctx);
-NS_EXTERN void *Ns_GetDriverContext(Ns_Driver drv);
+NS_EXTERN void *Ns_GetDriverContext(Ns_Driver driver);
+NS_EXTERN char *Ns_GetDriverServer(Ns_Driver driver);
 
 /*
  * dstring.c:
@@ -722,7 +719,7 @@ NS_EXTERN int Ns_WaitForProcess(int pid, int *statusPtr);
  * fastpath.c:
  */
 
-NS_EXTERN char *Ns_PageRoot(char *ignored);
+NS_EXTERN char *Ns_PageRoot(char *server);
 NS_EXTERN void Ns_SetUrlToFileProc(char *server, Ns_UrlToFileProc *procPtr);
 NS_EXTERN int Ns_UrlToFile(Ns_DString *dsPtr, char *server, char *url);
 NS_EXTERN int Ns_UrlIsFile(char *server, char *url);
@@ -732,11 +729,11 @@ NS_EXTERN int Ns_UrlIsDir(char *server, char *url);
  * filter.c:
  */
 
-NS_EXTERN void *Ns_RegisterFilter(char *hServer, char *method, char *URL,
+NS_EXTERN void *Ns_RegisterFilter(char *server, char *method, char *URL,
 			       Ns_FilterProc *proc, int when, void *args);
-NS_EXTERN void *Ns_RegisterServerTrace(char *hServer, Ns_TraceProc *proc,
+NS_EXTERN void *Ns_RegisterServerTrace(char *server, Ns_TraceProc *proc,
 				    void *context);
-NS_EXTERN void *Ns_RegisterCleanup(Ns_TraceProc *proc, void *context);
+NS_EXTERN void *Ns_RegisterCleanup(char *server, Ns_TraceProc *proc, void *context);
 
 /*
  * htuu.c
@@ -854,6 +851,12 @@ NS_EXTERN int   Ns_RollFileByDate(char *file, int max);
  */
 
 NS_EXTERN int Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc);
+NS_EXTERN int Ns_WaitForStartup(void);
+
+/*
+ * info.c:
+ */
+
 NS_EXTERN char *Ns_InfoHomePath(void);
 NS_EXTERN char *Ns_InfoServerName(void);
 NS_EXTERN char *Ns_InfoServerVersion(void);
@@ -866,13 +869,11 @@ NS_EXTERN int Ns_InfoBootTime(void);
 NS_EXTERN char *Ns_InfoHostname(void);
 NS_EXTERN char *Ns_InfoAddress(void);
 NS_EXTERN char *Ns_InfoBuildDate(void);
-NS_EXTERN int Ns_WaitForStartup(void);
 NS_EXTERN int Ns_InfoShutdownPending(void);
 NS_EXTERN int Ns_InfoStarted(void);
 NS_EXTERN int Ns_InfoServersStarted(void);
 NS_EXTERN char *Ns_InfoLabel(void);
 NS_EXTERN char *Ns_InfoTag(void);
-NS_EXTERN void Ns_StopServer(char *server);
 
 /*
  * mimetypes.c:
@@ -887,7 +888,6 @@ NS_EXTERN char *Ns_GetMimeType(char *file);
 NS_EXTERN int Ns_ModuleLoad(char *server, char *module, char *file, char *init);
 NS_EXTERN void *Ns_ModuleSymbol(char *file, char *name);
 NS_EXTERN void *Ns_ModuleGetSymbol(char *name);
-NS_EXTERN void  Ns_RegisterModule(char *name, Ns_ModuleInitProc *prco);
 
 /*
  * nsthread.c:
@@ -903,7 +903,7 @@ NS_EXTERN char *Ns_GetThreadServer(void);
 NS_EXTERN void Ns_RegisterRequest(char *server, char *method, char *url,
 			       Ns_OpProc *procPtr, Ns_Callback *deleteProcPtr,
 			       void *arg, int flags);
-NS_EXTERN void Ns_GetRequest(char *ignored, char *method, char *url,
+NS_EXTERN void Ns_GetRequest(char *server, char *method, char *url,
     			  Ns_OpProc **procPtrPtr,
 			  Ns_Callback **deleteProcPtrPtr, void **argPtr,
 			  int *flagsPtr);
@@ -918,11 +918,10 @@ NS_EXTERN int Ns_ConnRedirect(Ns_Conn *conn, char *url);
 
 NS_EXTERN int Ns_PathIsAbsolute(char *path);
 NS_EXTERN char *Ns_NormalizePath(Ns_DString *dsPtr, char *path);
-NS_EXTERN char *Ns_MakePath(Ns_DString *dest, ...);
-NS_EXTERN char *Ns_LibPath(Ns_DString *dest, ...);
-NS_EXTERN char *Ns_HomePath(Ns_DString *dest, ...);
-NS_EXTERN char *Ns_ModulePath(Ns_DString *dest, char *hServer, char *hModule,
-			   ...);
+NS_EXTERN char *Ns_MakePath(Ns_DString *dsPtr, ...);
+NS_EXTERN char *Ns_LibPath(Ns_DString *dsPtr, ...);
+NS_EXTERN char *Ns_HomePath(Ns_DString *dsPtr, ...);
+NS_EXTERN char *Ns_ModulePath(Ns_DString *dsPtr, char *server, char *module, ...);
 
 /*
  * quotehtml.c:
@@ -1007,9 +1006,7 @@ NS_EXTERN void Ns_UnscheduleProc(int id);
  * serv.c:
  */
 
-NS_EXTERN int Ns_RegisterLocation(char *name, char *location, char *address,
-			       int port);
-NS_EXTERN int Ns_QueueConn(void *drvPtr, void *ctx);
+NS_EXTERN int Ns_QueueConn(Ns_Driver driver, void *ctx);
 
 /*
  * set.c:
@@ -1106,41 +1103,21 @@ NS_EXTERN int Ns_TclGetOpenFd(Tcl_Interp *interp, char *chanId, int write,
  * tclinit.c:
  */
 
-NS_EXTERN int Ns_TclInitInterps(char *hServer, Ns_TclInterpInitProc *initProc,
-			     void *arg);
-NS_EXTERN int Ns_TclInitModule(char *server, char *module);
-NS_EXTERN int Ns_TclRegisterAtCreate(Ns_TclTraceProc *proc, void *arg);
-NS_EXTERN int Ns_TclRegisterAtCleanup(Ns_TclTraceProc *proc, void *arg);
-NS_EXTERN int Ns_TclRegisterAtDelete(Ns_TclTraceProc *proc, void *arg);
-NS_EXTERN void Ns_TclRegisterDeferred(Tcl_Interp *interp,
-				   Ns_TclDeferProc *procPtr, void *arg);
+NS_EXTERN int Ns_TclInitInterps(char *server, Ns_TclInterpInitProc *proc, void *arg);
+NS_EXTERN void Ns_TclRegisterDeferred(Tcl_Interp *interp, Ns_TclDeferProc *proc, void *arg);
 NS_EXTERN void Ns_TclMarkForDelete(Tcl_Interp *interp);
-NS_EXTERN void Ns_TclDestroyInterp(Tcl_Interp *interp);
-NS_EXTERN Tcl_Interp *Ns_TclAllocateInterp(char *ignored);
-NS_EXTERN void Ns_TclDeAllocateInterp(Tcl_Interp *ignored);
-NS_EXTERN char *Ns_TclLibrary(void);
-NS_EXTERN char *Ns_TclInterpServer(Tcl_Interp *ignored);
-NS_EXTERN Ns_Conn *Ns_TclGetConn(Tcl_Interp *ignored);
-NS_EXTERN Ns_Conn *Ns_GetConn(void);
-
-/*
- * tclnsd76.c:
- */
-
-NS_EXTERN void Ns_TclAppendInt(Tcl_Interp *interp, int value);
-
-/*
- * tclnsd81.c:
- */
-
-NS_EXTERN void Ns_TclAppendInt(Tcl_Interp *interp, int value);
+NS_EXTERN Tcl_Interp *Ns_TclAllocateInterp(char *server);
+NS_EXTERN void Ns_TclDeAllocateInterp(Tcl_Interp *interp);
+NS_EXTERN char *Ns_TclLibrary(char *server);
+NS_EXTERN char *Ns_TclInterpServer(Tcl_Interp *interp);
+NS_EXTERN Ns_Conn *Ns_TclGetConn(Tcl_Interp *interp);
 
 /*
  * tclop.c:
  */
 
 NS_EXTERN int Ns_TclRequest(Ns_Conn *conn, char *proc);
-NS_EXTERN int Ns_TclEval(Ns_DString *pds, char *hServer, char *script);
+NS_EXTERN int Ns_TclEval(Ns_DString *pds, char *server, char *script);
 NS_EXTERN char *Ns_TclLogError(Tcl_Interp *interp);
 NS_EXTERN char *Ns_TclLogErrorRequest(Tcl_Interp *interp, Ns_Conn *conn);
 NS_EXTERN Tcl_Interp *Ns_GetConnInterp(Ns_Conn *conn);
@@ -1188,7 +1165,7 @@ NS_EXTERN char *Ns_DecodeUrl(Ns_DString *pds, char *string);
  * urlopen.c:
  */
 
-NS_EXTERN int Ns_FetchPage(Ns_DString *pds, char *url, char *hServer);
+NS_EXTERN int Ns_FetchPage(Ns_DString *pds, char *url, char *server);
 NS_EXTERN int Ns_FetchURL(Ns_DString *pds, char *url, Ns_Set *headers);
 
 /*
@@ -1226,13 +1203,6 @@ NS_EXTERN int Ns_DupHigh(int *fdPtr);
 
 NS_EXTERN int			ns_sockpair(SOCKET *socks);
 NS_EXTERN int			ns_pipe(int *fds);
-
-/*
- * Exported variables.
- */
-
-NS_EXTERN char	*nsServer;
-NS_EXTERN char	*nsTclVersion;	/* Compiled Tcl version. */
 
 /*
  * Compatibility macros.

@@ -37,7 +37,7 @@ LDSO	     =   $(CC) -shared -nostartfiles
 #GCCOPTIMIZE  =   -O2
 GCCOPTIMIZE  =   -g
 GCCOPT       =   $(GCCOPTIMIZE) -fPIC -Wall -Wno-unused
-CFLAGS       +=  -I$(NSHOME)/include -D_REENTRANT=1 -DNDEBUG=1
+CFLAGS       +=  -I$(NSHOME)/include -D_REENTRANT=1 -DNDEBUG=1 -DTCL_THREADS=1
 LIBNSTHREAD  =   $(NSHOME)/thread/libnsthread.a
 LIBS         +=  
 MKDIR        =   mkdir -p
@@ -98,6 +98,7 @@ ifneq (,$(findstring Linux,$(PLAT)))
     NSDLIBS=-lm
     LIBS+=-ldl -lpthread 
     CFLAGS+=-DHAVE_CMMSG=1 -DUSE_FIONREAD=1 -DHAVE_COND_EINTR=1
+    CFLAGS+=$(GCCOPT)
 endif
 
 
@@ -259,19 +260,9 @@ endif
 #
 # Set the names of the Tcl libraries
 #
-#    Note:  Tcl 7.6 on *BSD has a different name for no apparent reason.
-#
-TCL8X_DIR=tcl8.3.2
-TCL8X_LIB=libtcl8.3g.a
-TCL76_DIR=tcl7.6
-ifeq (bsd, $(findstring bsd, $(PLATFORM)))
-  TCL76_LIB=libtcl76.a
-else
-  TCL76_LIB=libtcl7.6.a
-endif
-
-LIBTCL76=$(NSHOME)/$(TCL76_DIR)/unix/$(TCL76_LIB)
-LIBTCL8X=$(NSHOME)/$(TCL8X_DIR)/unix/$(TCL8X_LIB)
+TCL_DIR=tcl8.3.2
+TCL_LIB=libtcl8.3g.a
+LIBTCL=$(NSHOME)/$(TCL_DIR)/unix/$(TCL_LIB)
 
 #
 # Rules for library dependencies.
@@ -282,17 +273,11 @@ all:
 libnspd:
 	(cd $(NSHOME)/nspd && $(MAKE) all)
 
-libtcl76:
-	(cd $(NSHOME)/$(TCL76_DIR) && $(MAKE) all)
+libtcl:
+	(cd $(NSHOME)/$(TCL_DIR) && $(MAKE) all)
 
-libtcl76-clean:
-	(cd $(NSHOME)/$(TCL76_DIR) && $(MAKE) clean)
-
-libtcl8x:
-	(cd $(NSHOME)/$(TCL8X_DIR) && $(MAKE) all)
-
-libtcl8x-clean:
-	(cd $(NSHOME)/$(TCL8X_DIR) && $(MAKE) clean)
+libtcl-clean:
+	(cd $(NSHOME)/$(TCL_DIR) && $(MAKE) clean)
 
 libnsthread:
 	(cd $(NSHOME)/thread && $(MAKE) all)
