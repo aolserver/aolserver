@@ -1,5 +1,7 @@
 2003-10-07  Mark Page  <mpagenva@aol.com>
 
+        * TAG aolserver_v4_r0_beta_16
+	
 	* nsd/init.tcl (ns_eval): The early 4.0 ns_eval had been
 	waiting for the completion of integrating script changes into the
 	server's init script.  This change adds the ability to return
@@ -11,6 +13,13 @@
 	* nsd/adpeval.c (LogError): Limit the amount of script text added
 	into the errorInfo string, to keep from flowing adp script texts
 	of unlimited length into the server log.
+
+2003-10-06  Paul Moosman <pwmoosman@aol.com>
+
+	* nsd/tcljob.c: Replaced ctime_r with ns_ctime to fix a win32
+	compile problem. This change should fix bug #811802.
+	Fixed a potential deadlock case.
+	Fixed a problem where the maxthreads option was getting ignored.
 
 2003-10-01  Elizabeth Thomas <eathomas93@aol.com>
 
