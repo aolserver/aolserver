@@ -33,7 +33,7 @@
  *      All the public types and function declarations for the core
  *	AOLserver.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.63 2004/07/29 23:05:48 dossy Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.64 2004/07/30 12:38:46 dossy Exp $
  */
 
 #ifndef NS_H
@@ -967,6 +967,7 @@ NS_EXTERN int Ns_ConnReturnNotFound(Ns_Conn *conn);
 NS_EXTERN int Ns_ConnReturnNotModified(Ns_Conn *conn);
 NS_EXTERN int Ns_ConnReturnNotImplemented(Ns_Conn *conn);
 NS_EXTERN int Ns_ConnReturnInternalError(Ns_Conn *conn);
+NS_EXTERN int Ns_ConnReturnServiceUnavailable(Ns_Conn *conn);
 NS_EXTERN int Ns_ConnReturnStatus(Ns_Conn *conn, int status);
 NS_EXTERN int Ns_ConnReturnOpenChannel(Ns_Conn *conn, int status, char *type,
 				    Tcl_Channel chan, int len);
@@ -1241,7 +1242,7 @@ NS_EXTERN void Ns_ConnClearQuery(Ns_Conn *conn);
  */
 
 #ifndef NS_NOCOMPAT
-#define DllExport           NS_EXPORT
+#define DllExport               NS_EXPORT
 #define Ns_Select	        select
 #define Ns_InfoHome()		Ns_InfoHomePath()
 #define Ns_InfoServer()		Ns_InfoServerName()
@@ -1262,6 +1263,7 @@ NS_EXTERN void Ns_ConnClearQuery(Ns_Conn *conn);
 #define Ns_ReturnForbidden(c)	Ns_ConnReturnForbidden(c)
 #define Ns_ReturnNotFound(c)	Ns_ConnReturnNotFound(c)
 #define Ns_ReturnInternalError(c) Ns_ConnReturnInternalError(c)
+#define Ns_ReturnServiceUnavailable(c) Ns_ConnReturnServiceUnavailable(c)
 #define Ns_ReturnNotImplemented(c) Ns_ConnReturnNotImplemented(c)
 #define Ns_ReturnStatus(c,s)	Ns_ConnReturnStatus(c,s)
 #define Ns_TypeHeader(c,t)      Ns_ConnSetTypeHeader(c,t)

@@ -34,7 +34,7 @@
  *  	routines (previously known as "op procs").
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/op.c,v 1.12 2004/07/14 00:32:17 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/op.c,v 1.13 2004/07/30 12:38:47 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -214,19 +214,24 @@ int
 Ns_ConnRunRequest(Ns_Conn *conn)
 {
     Req *reqPtr;
+    Conn *connPtr = (Conn *) conn;
     int  status;
     char *server = Ns_ConnServer(conn);
+
+    if (connPtr->responseStatus != 0) {
+        switch (connPtr->responseStatus) {
+        case 400: return Ns_ConnReturnBadRequest(conn, NULL);
+        case 503: return Ns_ConnReturnServiceUnavailable(conn);
+        default:  return Ns_ConnReturnStatus(conn, connPtr->responseStatus);
+        }
+    }
 
     Ns_MutexLock(&ulock);
     reqPtr = Ns_UrlSpecificGet(server, conn->request->method,
     	    	    	       conn->request->url, uid);
     if (reqPtr == NULL) {
     	Ns_MutexUnlock(&ulock);
-	if (STREQ(conn->request->method, "BAD")) {
-	    return Ns_ConnReturnBadRequest(conn, NULL);
-	} else {
-	    return Ns_ConnReturnNotFound(conn);
-	}
+        return Ns_ConnReturnNotFound(conn);
     }
     ++reqPtr->refcnt;
     Ns_MutexUnlock(&ulock);

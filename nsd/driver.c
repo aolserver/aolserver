@@ -34,7 +34,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.25 2004/07/30 00:35:25 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.26 2004/07/30 12:38:46 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -1191,8 +1191,17 @@ DriverThread(void *arg)
                 ++limitsPtr->nrunning;
                 sockPtr->state = SOCK_RUNNING;
             } else if (sockPtr->state != SOCK_RUNWAIT) {
-                ++limitsPtr->nwaiting;
-                sockPtr->state = SOCK_RUNWAIT;
+                if (limitsPtr->nwaiting < limitsPtr->maxwait) {
+                    ++limitsPtr->nwaiting;
+                    sockPtr->state = SOCK_RUNWAIT;
+                } else {
+                    Ns_Log(Warning, "%s: dropping connection, "
+                            "limit %s maxwait %u reached", drvPtr->name,
+                            limitsPtr->name, limitsPtr->maxwait);
+                    connPtr->responseStatus = 503;
+                    ++limitsPtr->nrunning;
+                    sockPtr->state = SOCK_RUNNING;
+                }
             }
             Ns_MutexUnlock(&limitsPtr->lock);
             if (sockPtr->state != SOCK_RUNNING) {
@@ -1749,7 +1758,6 @@ SetupConn(Conn *connPtr)
     Tcl_HashEntry *hPtr;
     int len, nbuf;
     char *hdr;
-    int status = 1;
 
     /*
      * Determine the virtual server and driver location.
@@ -1759,7 +1767,7 @@ SetupConn(Conn *connPtr)
     connPtr->location = connPtr->drvPtr->location;
     hdr = Ns_SetIGet(connPtr->headers, "host");
     if (hdr == NULL && connPtr->request->version >= 1.1) {
-	status = 0;
+        connPtr->responseStatus = 400;
     }
     if (connPtr->servPtr == NULL) {
 	if (hdr != NULL) {
@@ -1776,7 +1784,7 @@ SetupConn(Conn *connPtr)
 	    connPtr->location = mapPtr->location;
 	}
         if (connPtr->servPtr == NULL) {
-            status = 0;
+            connPtr->responseStatus = 400;
         }
     }
     connPtr->server = connPtr->servPtr->server;
@@ -1794,11 +1802,6 @@ SetupConn(Conn *connPtr)
      
     connPtr->limitsPtr = NsGetLimits(connPtr->server,
             connPtr->request->method, connPtr->request->url);
-
-    if (status == 0) {
-	ns_free(connPtr->request->method);
-	connPtr->request->method = ns_strdup("BAD");
-    }
 
     hdr = Ns_SetIGet(connPtr->headers, "content-length");
     if (hdr == NULL) {
@@ -1886,7 +1889,7 @@ SetupConn(Conn *connPtr)
         Tcl_DStringSetLength(bufPtr, connPtr->roff);
     }
 
-    return status;
+    return 1;
 }
 
 
@@ -1935,6 +1938,7 @@ AllocConn(Driver *drvPtr, Sock *sockPtr)
     connPtr->port = ntohs(sockPtr->sa.sin_port);
     strcpy(connPtr->peer, ns_inet_ntoa(sockPtr->sa.sin_addr));
     connPtr->times.accept = sockPtr->acceptTime;
+    connPtr->responseStatus = 0;
     connPtr->sockPtr = sockPtr;
     return connPtr;
 }
@@ -2004,6 +2008,7 @@ FreeConn(Driver *drvPtr, Conn *connPtr)
     }
     Tcl_DeleteHashTable(&connPtr->files);
     Tcl_InitHashTable(&connPtr->files, TCL_STRING_KEYS);
+    connPtr->responseStatus = 0;
 
     /*
      * Cleanup content buffers.

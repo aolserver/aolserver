@@ -33,7 +33,7 @@
  *  Routines for the managing the connection thread pools.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/pools.c,v 1.1 2004/07/29 23:05:49 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/pools.c,v 1.2 2004/07/30 12:38:47 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -53,7 +53,7 @@ static int GetPool(Tcl_Interp *interp, Tcl_Obj *objPtr, Pool **poolPtrPtr);
  */
 
 static int            poolid;
-static Pool       defpool;
+static Pool           defpool;
 static Tcl_HashTable  pools;
 
 
@@ -76,9 +76,17 @@ static Tcl_HashTable  pools;
 void
 NsInitPools(void)
 {
-    Tcl_InitHashTable(&pools, TCL_STRING_KEYS);
+    Tcl_HashEntry *hPtr;
+    int new;
+
     poolid = Ns_UrlSpecificAlloc();
+    Tcl_InitHashTable(&pools, TCL_STRING_KEYS);
     InitPool(&defpool);
+    defpool.name = ns_strdup("default");
+    hPtr = Tcl_CreateHashEntry(&pools, "default", &new);
+    if (new) {
+        Tcl_SetHashValue(hPtr, &pools);
+    }
 }
 
 Pool *
@@ -167,11 +175,12 @@ WaitPool(Pool *poolPtr, void *arg)
     status = NS_OK;
     Ns_MutexLock(&poolPtr->lock);
     while (status == NS_OK &&
-    (poolPtr->queue.wait.firstPtr != NULL || poolPtr->threads.current > 0)) {
-    status = Ns_CondTimedWait(&poolPtr->cond, &poolPtr->lock, timePtr);
+            (poolPtr->queue.wait.firstPtr != NULL ||
+             poolPtr->threads.current > 0)) {
+        status = Ns_CondTimedWait(&poolPtr->cond, &poolPtr->lock, timePtr);
     }
     if (status != NS_OK) {
-    Ns_Log(Warning, "timeout waiting for connection thread exit");
+        Ns_Log(Warning, "timeout waiting for connection thread exit");
     }
 }
 
@@ -183,8 +192,8 @@ IteratePools(PoolFunc *func, void *arg)
 
     hPtr = Tcl_FirstHashEntry(&pools, &search);
     while (hPtr != NULL) {
-    (*func)(Tcl_GetHashValue(hPtr), arg);
-    hPtr = Tcl_NextHashEntry(&search);
+        (*func)(Tcl_GetHashValue(hPtr), arg);
+        hPtr = Tcl_NextHashEntry(&search);
     }
 }
 
@@ -214,118 +223,118 @@ NsTclPoolsObjCmd(ClientData data, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
     char *pool, *pattern;
     int i, val, new;
     static CONST char *opts[] = {
-    "get", "set", "list", "register", NULL
+        "get", "set", "list", "register", NULL
     };
     enum {
-    PGetIdx, PSetIdx, PListIdx, PRegisterIdx
+        PGetIdx, PSetIdx, PListIdx, PRegisterIdx
     } opt;
     static CONST char *cfgs[] = {
-    "maxthreads", "minthreads", "maxconns", "timeout", NULL
+        "maxthreads", "minthreads", "maxconns", "timeout", NULL
     };
     enum {
-    PCMaxThreadsIdx, PCMinThreadsIdx, PCMaxConnsIdx, PCTimeoutIdx
+        PCMaxThreadsIdx, PCMinThreadsIdx, PCMaxConnsIdx, PCTimeoutIdx
     } cfg;
 
     if (objc < 2) {
-    Tcl_WrongNumArgs(interp, 1, objv, "option ?args?");
-    return TCL_ERROR;
+        Tcl_WrongNumArgs(interp, 1, objv, "option ?args?");
+        return TCL_ERROR;
     }
     if (Tcl_GetIndexFromObj(interp, objv[1], opts, "option", 1,
                 (int *) &opt) != TCL_OK) {
-    return 0;
+        return 0;
     }
     switch (opt) {
     case PListIdx:
-    if (objc != 2 && objc != 3) {
-        Tcl_WrongNumArgs(interp, 2, objv, "?pattern?");
-        return TCL_ERROR;
-    }
-    if (objc == 2) {
-        pattern = NULL;
-    } else {
-        pattern = Tcl_GetString(objv[2]);
-    }
-    hPtr = Tcl_FirstHashEntry(&pools, &search);
-    while (hPtr != NULL) {
-        pool = Tcl_GetHashKey(&pools, hPtr);
-        if (pattern == NULL || Tcl_StringMatch(pool, pattern)) {
-            Tcl_AppendElement(interp, pool);
+        if (objc != 2 && objc != 3) {
+            Tcl_WrongNumArgs(interp, 2, objv, "?pattern?");
+            return TCL_ERROR;
         }
-        hPtr = Tcl_NextHashEntry(&search);
-    }
-    break;
+        if (objc == 2) {
+            pattern = NULL;
+        } else {
+            pattern = Tcl_GetString(objv[2]);
+        }
+        hPtr = Tcl_FirstHashEntry(&pools, &search);
+        while (hPtr != NULL) {
+            pool = Tcl_GetHashKey(&pools, hPtr);
+            if (pattern == NULL || Tcl_StringMatch(pool, pattern)) {
+                Tcl_AppendElement(interp, pool);
+            }
+            hPtr = Tcl_NextHashEntry(&search);
+        }
+        break;
 
     case PGetIdx:
-    if (objc != 3) {
-        Tcl_WrongNumArgs(interp, 2, objv, "pool");
-        return TCL_ERROR;
-    }
-    if (GetPool(interp, objv[2], &poolPtr) != TCL_OK) {
-        return TCL_ERROR;
-    }
-    if (PoolResult(interp, poolPtr) != TCL_OK) {
-        return TCL_ERROR;
-    }
-    break;
+        if (objc != 3) {
+            Tcl_WrongNumArgs(interp, 2, objv, "pool");
+            return TCL_ERROR;
+        }
+        if (GetPool(interp, objv[2], &poolPtr) != TCL_OK) {
+            return TCL_ERROR;
+        }
+        if (PoolResult(interp, poolPtr) != TCL_OK) {
+            return TCL_ERROR;
+        }
+        break;
 
     case PSetIdx:
-    if (objc < 3 || (((objc - 3) % 2) != 0)) {
-        Tcl_WrongNumArgs(interp, 2, objv, "limit ?opt val opt val...?");
-        return TCL_ERROR;
-    }
-    pool = Tcl_GetString(objv[2]);
-    hPtr = Tcl_CreateHashEntry(&pools, pool, &new);
-    if (!new) {
-        poolPtr = Tcl_GetHashValue(hPtr);
-    } else {
-        poolPtr = ns_malloc(sizeof(Pool));
-        InitPool(poolPtr);
-        Tcl_SetHashValue(hPtr, poolPtr);
-    }
-    savedPool = *poolPtr;
-    for (i = 3; i < objc; i += 2) {
-        if (Tcl_GetIndexFromObj(interp, objv[i], cfgs, "cfg", 0,
-                (int *) &cfg) != TCL_OK || 
-            Tcl_GetIntFromObj(interp, objv[i+1], &val) != TCL_OK) {
-        *poolPtr = savedPool;
-        return TCL_ERROR;
+        if (objc < 3 || (((objc - 3) % 2) != 0)) {
+            Tcl_WrongNumArgs(interp, 2, objv, "limit ?opt val opt val...?");
+            return TCL_ERROR;
         }
-        switch (cfg) {
-        case PCMinThreadsIdx:
-        poolPtr->threads.min = val;
-        break;
-
-        case PCMaxThreadsIdx:
-        poolPtr->threads.max = val;
-        break;
-
-        case PCTimeoutIdx:
-        poolPtr->threads.timeout = val;
-        break;
-
-        case PCMaxConnsIdx:
-        poolPtr->threads.maxconns = val;
-        break;
-
+        pool = Tcl_GetString(objv[2]);
+        hPtr = Tcl_CreateHashEntry(&pools, pool, &new);
+        if (!new) {
+            poolPtr = Tcl_GetHashValue(hPtr);
+        } else {
+            poolPtr = ns_malloc(sizeof(Pool));
+            InitPool(poolPtr);
+            poolPtr->name = ns_strdup(pool);
+            Tcl_SetHashValue(hPtr, poolPtr);
         }
-    }
-    if (PoolResult(interp, poolPtr) != TCL_OK) {
-        return TCL_ERROR;
-    }
-    break;
+        savedPool = *poolPtr;
+        for (i = 3; i < objc; i += 2) {
+            if (Tcl_GetIndexFromObj(interp, objv[i], cfgs, "cfg", 0,
+                        (int *) &cfg) != TCL_OK || 
+                    Tcl_GetIntFromObj(interp, objv[i+1], &val) != TCL_OK) {
+                *poolPtr = savedPool;
+                return TCL_ERROR;
+            }
+            switch (cfg) {
+            case PCMinThreadsIdx:
+                poolPtr->threads.min = val;
+                break;
+
+            case PCMaxThreadsIdx:
+                poolPtr->threads.max = val;
+                break;
+
+            case PCTimeoutIdx:
+                poolPtr->threads.timeout = val;
+                break;
+
+            case PCMaxConnsIdx:
+                poolPtr->threads.maxconns = val;
+                break;
+            }
+        }
+        if (PoolResult(interp, poolPtr) != TCL_OK) {
+            return TCL_ERROR;
+        }
+        break;
 
     case PRegisterIdx:
-    if (objc != 6) {
-        Tcl_WrongNumArgs(interp, 2, objv, "pool server method url");
-        return TCL_ERROR;
-    }
-    if (GetPool(interp, objv[2], &poolPtr) != TCL_OK) {
-        return TCL_ERROR;
-    }
-    Ns_UrlSpecificSet(Tcl_GetString(objv[3]),
-              Tcl_GetString(objv[4]),
-              Tcl_GetString(objv[5]), poolid, poolPtr, 0, NULL);
-    break;
+        if (objc != 6) {
+            Tcl_WrongNumArgs(interp, 2, objv, "pool server method url");
+            return TCL_ERROR;
+        }
+        if (GetPool(interp, objv[2], &poolPtr) != TCL_OK) {
+            return TCL_ERROR;
+        }
+        Ns_UrlSpecificSet(Tcl_GetString(objv[3]),
+                Tcl_GetString(objv[4]),
+                Tcl_GetString(objv[5]), poolid, poolPtr, 0, NULL);
+        break;
 
     }
     return TCL_OK;

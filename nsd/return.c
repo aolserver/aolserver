@@ -34,7 +34,7 @@
  *	Functions that return data to a browser. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.40 2004/07/29 20:53:35 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.41 2004/07/30 12:38:47 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -1160,6 +1160,37 @@ Ns_ConnReturnInternalError(Ns_Conn *conn)
     return Ns_ConnReturnNotice(conn, 500, "Server Error",
 	"The requested URL cannot be accessed "
 	"due to a system error on this server.");
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_ConnReturnServiceUnavailable --
+ *
+ *	Return a 503 Service Unavailable response. 
+ *
+ * Results:
+ *	NS_OK/NS_ERROR 
+ *
+ * Side effects:
+ *	Will close the connection. 
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Ns_ConnReturnServiceUnavailable(Ns_Conn *conn)
+{
+    int result;
+
+    if (ReturnRedirect(conn, 503, &result)) {
+	return result;
+    }
+    return Ns_ConnReturnNotice(conn, 503, "Service Unavailable",
+	"The requested URL cannot be accessed "
+	"because the server is temporarily unable "
+        "to fulfill your request.  Please try again later.");
 }
 
 

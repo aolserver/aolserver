@@ -34,7 +34,7 @@
  *	and service threads.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/queue.c,v 1.25 2004/07/29 23:05:49 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/queue.c,v 1.26 2004/07/30 12:38:47 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -148,7 +148,7 @@ Ns_GetConn(void)
  *	None.
  *
  * Side effects:
- *	Conneciton will run shortly.
+ *	Connection will run shortly.
  *
  *----------------------------------------------------------------------
  */

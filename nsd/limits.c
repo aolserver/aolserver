@@ -33,7 +33,7 @@
  *  Routines to manage resource limits.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/limits.c,v 1.1 2004/07/29 23:05:49 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/limits.c,v 1.2 2004/07/30 12:38:47 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -45,7 +45,7 @@ static void InitLimits(Limits *limitsPtr);
 static int LimitsResult(Tcl_Interp *interp, Limits *limitsPtr);
 static int AppendLimit(Tcl_Interp *interp, char *limit, int val);
 static int GetLimits(Tcl_Interp *interp, Tcl_Obj *objPtr,
-             Limits **limitsPtrPtr, int create);
+        Limits **limitsPtrPtr, int create);
 
 /*
  * Static variables defined in this file.
@@ -75,9 +75,17 @@ static Tcl_HashTable  limtable;
 void
 NsInitLimits(void)
 {
-    limid    = Ns_UrlSpecificAlloc();
-    InitLimits(&deflimits);
+    Tcl_HashEntry *hPtr;
+    int new;
+
+    limid = Ns_UrlSpecificAlloc();
     Tcl_InitHashTable(&limtable, TCL_STRING_KEYS);
+    InitLimits(&deflimits);
+    deflimits.name = ns_strdup("default");
+    hPtr = Tcl_CreateHashEntry(&limtable, "default", &new);
+    if (new) {
+        Tcl_SetHashValue(hPtr, &deflimits);
+    }
 }
 
 Limits *
@@ -87,7 +95,7 @@ NsGetLimits(char *server, char *method, char *url)
 
     limitsPtr = Ns_UrlSpecificGet(server, method, url, limid);
     if (limitsPtr == NULL) {
-    limitsPtr = &deflimits;
+        limitsPtr = &deflimits;
     }
     return limitsPtr;
 }
@@ -96,6 +104,7 @@ static void
 InitLimits(Limits *limitsPtr)
 {
     Ns_MutexInit(&limitsPtr->lock);
+    limitsPtr->name = NULL;
     limitsPtr->nrunning = limitsPtr->nwaiting = 0;
     limitsPtr->maxrun = limitsPtr->maxwait = INT_MAX;
     limitsPtr->maxupload = limitsPtr->timeout = INT_MAX;
@@ -127,105 +136,105 @@ NsTclLimitsObjCmd(ClientData data, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
     char *limits, *pattern;
     int i, val;
     static CONST char *opts[] = {
-    "get", "set", "list", "register", NULL
+        "get", "set", "list", "register", NULL
     };
     enum {
-    LGetIdx, LSetIdx, LListIdx, LRegisterIdx
+        LGetIdx, LSetIdx, LListIdx, LRegisterIdx
     } opt;
     static CONST char *cfgs[] = {
-    "-maxrun", "-maxwait", "-maxupload", NULL
+        "-maxrun", "-maxwait", "-maxupload", NULL
     };
     enum {
-    LCRunIdx, LCWaitIdx, LCUploadIdx
+        LCRunIdx, LCWaitIdx, LCUploadIdx
     } cfg;
 
     if (objc < 2) {
-    Tcl_WrongNumArgs(interp, 1, objv, "option ?args?");
-    return TCL_ERROR;
+        Tcl_WrongNumArgs(interp, 1, objv, "option ?args?");
+        return TCL_ERROR;
     }
     if (Tcl_GetIndexFromObj(interp, objv[1], opts, "option", 1,
                 (int *) &opt) != TCL_OK) {
-    return TCL_ERROR;
+        return TCL_ERROR;
     }
 
     switch (opt) {
     case LListIdx:
-    if (objc != 2 && objc != 3) {
-        Tcl_WrongNumArgs(interp, 2, objv, "?pattern?");
-        return TCL_ERROR;
-    }
-    if (objc == 2) {
-        pattern = NULL;
-    } else {
-        pattern = Tcl_GetString(objv[2]);
-    }
-    hPtr = Tcl_FirstHashEntry(&limtable, &search);
-    while (hPtr != NULL) {
-        limits = Tcl_GetHashKey(&limtable, hPtr);
-        if (pattern == NULL || Tcl_StringMatch(limits, pattern)) {
-            Tcl_AppendElement(interp, limits);
-        }
-        hPtr = Tcl_NextHashEntry(&search);
-    }
-    break;
-
-    case LGetIdx:
-    if (objc != 3) {
-        Tcl_WrongNumArgs(interp, 2, objv, "limit");
-        return TCL_ERROR;
-    }
-    if (GetLimits(interp, objv[2], &limitsPtr, 0) != TCL_OK ||
-        LimitsResult(interp, limitsPtr) != TCL_OK) {
-        return TCL_ERROR;
-    }
-    break;
-
-    case LSetIdx:
-    if (objc < 3 || (((objc - 3) % 2) != 0)) {
-        Tcl_WrongNumArgs(interp, 2, objv, "limit ?opt val opt val...?");
-        return TCL_ERROR;
-    }
-    (void) GetLimits(interp, objv[2], &limitsPtr, 1);
-    saveLimits = *limitsPtr;
-    for (i = 3; i < objc; i += 2) {
-        if (Tcl_GetIndexFromObj(interp, objv[i], cfgs, "cfg", 0,
-                (int *) &cfg) != TCL_OK || 
-            Tcl_GetIntFromObj(interp, objv[i+1], &val) != TCL_OK) {
-        *limitsPtr = saveLimits;
+        if (objc != 2 && objc != 3) {
+            Tcl_WrongNumArgs(interp, 2, objv, "?pattern?");
             return TCL_ERROR;
         }
-        switch (cfg) {
-        case LCRunIdx:
-        limitsPtr->maxrun = val;
-        break;
-
-        case LCWaitIdx:
-        limitsPtr->maxwait = val;
-        break;
-
-        case LCUploadIdx:
-        limitsPtr->maxupload = val;
-        break;
-
+        if (objc == 2) {
+            pattern = NULL;
+        } else {
+            pattern = Tcl_GetString(objv[2]);
         }
-    }
-    if (LimitsResult(interp, limitsPtr) != TCL_OK) {
-        return TCL_ERROR;
-    }
-    break;
+        hPtr = Tcl_FirstHashEntry(&limtable, &search);
+        while (hPtr != NULL) {
+            limits = Tcl_GetHashKey(&limtable, hPtr);
+            if (pattern == NULL || Tcl_StringMatch(limits, pattern)) {
+                Tcl_AppendElement(interp, limits);
+            }
+            hPtr = Tcl_NextHashEntry(&search);
+        }
+        break;
+
+    case LGetIdx:
+        if (objc != 3) {
+            Tcl_WrongNumArgs(interp, 2, objv, "limit");
+            return TCL_ERROR;
+        }
+        if (GetLimits(interp, objv[2], &limitsPtr, 0) != TCL_OK ||
+                LimitsResult(interp, limitsPtr) != TCL_OK) {
+            return TCL_ERROR;
+        }
+        break;
+
+    case LSetIdx:
+        if (objc < 3 || (((objc - 3) % 2) != 0)) {
+            Tcl_WrongNumArgs(interp, 2, objv, "limit ?opt val opt val...?");
+            return TCL_ERROR;
+        }
+        (void) GetLimits(interp, objv[2], &limitsPtr, 1);
+        saveLimits = *limitsPtr;
+        for (i = 3; i < objc; i += 2) {
+            if (Tcl_GetIndexFromObj(interp, objv[i], cfgs, "cfg", 0,
+                        (int *) &cfg) != TCL_OK || 
+                    Tcl_GetIntFromObj(interp, objv[i+1], &val) != TCL_OK) {
+                *limitsPtr = saveLimits;
+                return TCL_ERROR;
+            }
+            switch (cfg) {
+                case LCRunIdx:
+                    limitsPtr->maxrun = val;
+                    break;
+
+                case LCWaitIdx:
+                    limitsPtr->maxwait = val;
+                    break;
+
+                case LCUploadIdx:
+                    limitsPtr->maxupload = val;
+                    break;
+
+            }
+        }
+        if (LimitsResult(interp, limitsPtr) != TCL_OK) {
+            return TCL_ERROR;
+        }
+        break;
 
     case LRegisterIdx:
-    if (objc != 6) {
-        Tcl_WrongNumArgs(interp, 2, objv, "limit server method url");
-        return TCL_ERROR;
-    }
-    if (GetLimits(interp, objv[2], &limitsPtr, 0) != TCL_OK) {
-        return TCL_ERROR;
-    }
-    Ns_UrlSpecificSet(Tcl_GetString(objv[3]),
-              Tcl_GetString(objv[4]),
-              Tcl_GetString(objv[5]), limid, limitsPtr, 0, NULL);
-    break;
+        if (objc != 6) {
+            Tcl_WrongNumArgs(interp, 2, objv, "limit server method url");
+            return TCL_ERROR;
+        }
+        if (GetLimits(interp, objv[2], &limitsPtr, 0) != TCL_OK) {
+            return TCL_ERROR;
+        }
+        Ns_UrlSpecificSet(Tcl_GetString(objv[3]),
+                Tcl_GetString(objv[4]),
+                Tcl_GetString(objv[5]), limid, limitsPtr, 0, NULL);
+        break;
     }
     return TCL_OK;
 }
@@ -270,18 +279,19 @@ GetLimits(Tcl_Interp *interp, Tcl_Obj *objPtr, Limits **limitsPtrPtr,
     Tcl_HashEntry *hPtr;
 
     if (!create) {
-    hPtr = Tcl_FindHashEntry(&limtable, limits);
+        hPtr = Tcl_FindHashEntry(&limtable, limits);
     } else {
-    hPtr = Tcl_CreateHashEntry(&limtable, limits, &new);
-    if (new) {
-        limitsPtr = ns_malloc(sizeof(Limits));
-        InitLimits(limitsPtr);
-        Tcl_SetHashValue(hPtr, limitsPtr);
-    }
+        hPtr = Tcl_CreateHashEntry(&limtable, limits, &new);
+        if (new) {
+            limitsPtr = ns_malloc(sizeof(Limits));
+            InitLimits(limitsPtr);
+            limitsPtr->name = ns_strdup(limits);
+            Tcl_SetHashValue(hPtr, limitsPtr);
+        }
     }
     if (hPtr == NULL) {
-    Tcl_AppendResult(interp, "no such limits: ", limits, NULL);
-    return TCL_ERROR;
+        Tcl_AppendResult(interp, "no such limits: ", limits, NULL);
+        return TCL_ERROR;
     }
     *limitsPtrPtr = Tcl_GetHashValue(hPtr);
     return TCL_OK;

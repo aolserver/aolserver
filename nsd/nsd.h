@@ -392,6 +392,7 @@ typedef struct FormFile {
 
 typedef struct Limits {
     Ns_Mutex        lock;
+    char           *name;
     int             maxrun;
     int             maxwait;
     int             nrunning;
@@ -501,6 +502,7 @@ typedef struct Conn {
 typedef struct Pool {
     Ns_Mutex        lock;
     Ns_Cond         cond;
+    char           *name;
     int             shutdown;
 
     /*
