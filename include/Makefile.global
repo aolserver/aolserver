@@ -87,13 +87,7 @@ ifneq (,$(findstring Linux,$(PLAT)))
     PLATFORM=linux
     LDFLAGS+=-Wl,-E
 
-    ## We optimize for either i686 or i586 -- they really are very different.
-    ifneq (,$(findstring "i686",$(PLAT)))
-        CFLAGS+=$(GCCOPT) -mcpu=i686
-    endif
-    ifneq (,$(findstring "i586",$(PLAT)))
-        CFLAGS+=$(GCCOPT) -mcpu=i586
-    endif
+    CFLAGS+=$(GCCOPT) -mcpu=$(shell uname -m)
 
     NSDLIBS=-lm
     LIBS+=-ldl -lpthread 
