@@ -33,7 +33,7 @@
  *      All the public types and function declarations for the core
  *	AOLserver.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.23 2001/04/02 19:36:12 jgdavidson Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.24 2001/04/13 19:51:01 jgdavidson Exp $
  */
 
 #ifndef NS_H
@@ -736,7 +736,7 @@ NS_EXTERN int Ns_UrlIsDir(char *server, char *url);
 NS_EXTERN void *Ns_RegisterFilter(char *server, char *method, char *URL,
 			       Ns_FilterProc *proc, int when, void *args);
 NS_EXTERN void *Ns_RegisterServerTrace(char *server, Ns_TraceProc *proc, void *arg);
-NS_EXTERN void *Ns_RegisterCleanup(char *server, Ns_TraceProc *proc, void *arg);
+NS_EXTERN void *Ns_RegisterConnCleanup(char *server, Ns_TraceProc *proc, void *arg);
 
 /*
  * htuu.c

@@ -33,12 +33,12 @@
  * Support for connection filters, traces, and cleanups.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/filter.c,v 1.7 2001/04/10 23:22:27 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/filter.c,v 1.8 2001/04/13 19:51:01 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
 static Trace *NewTrace(Ns_TraceProc *proc, void *arg);
-static void RunTraces(Ns_Conn *conn, int trace);
+static void RunTraces(Ns_Conn *conn, Trace *firstPtr);
 
 
 /*
@@ -169,7 +169,7 @@ Ns_RegisterServerTrace(char *server, Ns_TraceProc * proc, void *arg)
 
 /*
  *----------------------------------------------------------------------
- * Ns_RegisterCleanup --
+ * Ns_RegisterConnCleanup --
  *
  *      Register a connection cleanup trace procedure.  Traces
  *  	registered with this procedure are always called in LIFO
@@ -187,7 +187,7 @@ Ns_RegisterServerTrace(char *server, Ns_TraceProc * proc, void *arg)
  */
 
 void *
-Ns_RegisterCleanup(char *server, Ns_TraceProc *proc, void *arg)
+Ns_RegisterConnCleanup(char *server, Ns_TraceProc *proc, void *arg)
 {
     NsServer *servPtr = NsGetServer(server);
     Trace *tracePtr;
@@ -220,26 +220,22 @@ Ns_RegisterCleanup(char *server, Ns_TraceProc *proc, void *arg)
 void
 NsRunTraces(Ns_Conn *conn)
 {
-    RunTraces(conn, 1);
+    Conn *connPtr = (Conn *) conn;
+
+    RunTraces(conn, connPtr->servPtr->filter.firstTracePtr);
 }
 
 void
 NsRunCleanups(Ns_Conn *conn)
 {
-    RunTraces(conn, 0);
+    Conn *connPtr = (Conn *) conn;
+
+    RunTraces(conn, connPtr->servPtr->filter.firstCleanupPtr);
 }
 
 static void
-RunTraces(Ns_Conn *conn, int trace)
+RunTraces(Ns_Conn *conn, Trace *tracePtr)
 {
-    Conn *connPtr = (Conn *) conn;
-    Trace *tracePtr;
-
-    if (trace) {
-	tracePtr = connPtr->servPtr->filter.firstTracePtr;
-    } else {
-	tracePtr = connPtr->servPtr->filter.firstCleanupPtr;
-    }
     while (tracePtr != NULL) {
     	(*tracePtr->proc)(tracePtr->arg, conn);
 	tracePtr = tracePtr->nextPtr;
