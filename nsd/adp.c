@@ -57,7 +57,7 @@
  * ns_param   "ParserName" "utf8"
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/adp.c,v 1.13 2001/01/16 18:14:27 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/adp.c,v 1.13.2.1 2001/04/03 20:21:54 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -310,12 +310,14 @@ AdpData *
 NsAdpGetData(void)
 {
     AdpData *adPtr;
+    static volatile int initialized = 0;
     static Ns_Tls tls;
 
-    if (tls == NULL) {
+    if (!initialized) {
 	Ns_MasterLock();
-	if (tls == NULL) {
+	if (!initialized) {
 	    Ns_TlsAlloc(&tls, DelAdpData);
+	    initialized = 1;
 	}
 	Ns_MasterUnlock();
     }

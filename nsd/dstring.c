@@ -35,7 +35,7 @@
  *	with Tcl_DString's.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/dstring.c,v 1.9 2001/01/10 18:35:25 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/dstring.c,v 1.9.2.1 2001/04/03 20:21:54 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -472,13 +472,15 @@ Ns_DStringValue(Ns_DString *dsPtr)
 Ns_DString *
 Ns_DStringPop(void)
 {
+    static volatile int initialized = 0;
     Stack *sPtr;
     Ns_DString *dsPtr;
 
-    if (tls == NULL) {
+    if (!initialized) {
 	Ns_MasterLock();
-	if (tls == NULL) {
+	if (!initialized) {
 	    Ns_TlsAlloc(&tls, FlushDStrings);
+	    initialized = 1;
 	}
 	Ns_MasterUnlock();
     }

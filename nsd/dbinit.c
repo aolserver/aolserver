@@ -35,7 +35,7 @@
  *	pools of database handles.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/dbinit.c,v 1.6 2001/01/16 18:14:27 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/dbinit.c,v 1.6.2.1 2001/04/03 20:21:54 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -1139,13 +1139,15 @@ IncrCount(Pool *poolPtr, int incr)
 {
     Tcl_HashTable *tablePtr;
     Tcl_HashEntry *hPtr;
+    static volatile int initialized = 0;
     static Ns_Tls tls;
     int prev, count, new;
 
-    if (tls == NULL) {
+    if (!initialized) {
 	Ns_MasterLock();
-	if (tls == NULL) {
+	if (!initialized) {
 	    Ns_TlsAlloc(&tls, FreeCounts);
+	    initialized = 1;
 	}
 	Ns_MasterUnlock();
     }

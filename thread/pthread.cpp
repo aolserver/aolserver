@@ -963,7 +963,7 @@ static pthread_key_t
 GetKey(void)
 {
     static pthread_key_t key;
-    static int initialized;
+    static volatile int initialized;
     int err;
 
     if (!initialized) {

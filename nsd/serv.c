@@ -33,7 +33,7 @@
  *	Routines for the core server connection threads.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/serv.c,v 1.15.2.1 2001/03/14 21:51:14 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/serv.c,v 1.15.2.2 2001/04/03 20:21:54 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -260,13 +260,15 @@ Ns_GetConn(void)
 void
 NsGetBuf(char **bufPtr, int *sizePtr)
 {
-    char *buf;
+    static volatile int initialized = 0;
     static Ns_Tls tls;
+    char *buf;
 
-    if (tls == NULL) {
+    if (!initialized) {
 	Ns_MasterLock();
-	if (tls == NULL) {
+	if (!initialized) {
 	    Ns_TlsAlloc(&tls, ns_free);
+	    initialized = 1;
 	}
 	Ns_MasterUnlock();
     }

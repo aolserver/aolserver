@@ -35,7 +35,7 @@
  *  	fixed size blocks from block caches.  
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/pool.c,v 1.14 2001/01/10 18:26:04 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/pool.c,v 1.14.2.1 2001/04/03 20:23:25 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "thread.h"
 
@@ -135,7 +135,7 @@ static void  *Block2Ptr(Block *blockPtr, int bucket, int reqsize);
  * startup.
  */
 
-static int	initialized;
+static volatile int initialized;
 static int	nbuckets;  /* Number of buckets. */
 static size_t	maxalloc;  /* Max block allocation size. */
 static Pool    *sharedPtr; /* Pool to which blocks are flushed. */

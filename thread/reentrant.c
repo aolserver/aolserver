@@ -35,7 +35,7 @@
  *	data buffers.  See the corresponding manual page for details.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/reentrant.c,v 1.6 2000/11/06 17:53:50 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/reentrant.c,v 1.6.2.1 2001/04/03 20:23:25 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "thread.h"
 
@@ -291,12 +291,14 @@ static Tls *
 GetTls(void)
 {
     static Ns_Tls tls;
+    static volatile int initialized;
     Tls *tlsPtr;
 
-    if (tls == NULL) {
+    if (!initialized) {
 	Ns_MasterLock();
-	if (tls == NULL) {
+	if (!initialized) {
 	    Ns_TlsAlloc(&tls, NsFree);
+	    initialized = 1;
 	}
 	Ns_MasterUnlock();
     }

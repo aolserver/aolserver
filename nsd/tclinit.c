@@ -34,7 +34,7 @@
  *	Initialization routines for Tcl.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.11 2001/03/08 18:49:03 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.11.2.1 2001/04/03 20:21:54 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -853,12 +853,14 @@ static TclData *
 GetData(Tcl_Interp *interp)
 {
     TclData *tdPtr;
+    static volatile int initialized = 0;
     static Ns_Tls tls;
 
-    if (tls == NULL) {
+    if (!initialized) {
 	Ns_MasterLock();
-	if (tls == NULL) {
+	if (!initialized) {
 	    Ns_TlsAlloc(&tls, FreeData);
+	    initialized = 1;
 	}
 	Ns_MasterUnlock();
     }
