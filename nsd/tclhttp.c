@@ -33,7 +33,7 @@
  *	Support for the ns_http command.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclhttp.c,v 1.2 2001/04/25 19:56:44 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclhttp.c,v 1.3 2001/04/25 21:05:03 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -51,7 +51,6 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
 #define REQ_ANY		(0xff)
 
 typedef struct {
-    NsServer *servPtr;
     SOCKET sock;
     int state;
     char *next;
@@ -67,9 +66,12 @@ static Ns_SockProc HttpSend;
 static Ns_SockProc HttpRecv;
 static Ns_SockProc HttpCancel;
 static int HttpDone(SOCKET sock, Http *httpPtr, int state);
-static Http *HttpOpen(NsServer *servPtr, char *url, Ns_Set *hdrs);
+static Http *HttpOpen(char *url, Ns_Set *hdrs);
 static void HttpClose(Http *httpPtr, int nb);
+static int HttpAbort(Http *httpPtr);
 static char *HttpResult(char *response, Ns_Set *hdrs);
+static Ns_Mutex lock;
+static Ns_Cond cond;
 
 
 /*
@@ -92,13 +94,13 @@ int
 NsTclHttpCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 {
     NsInterp *itPtr = arg;
-    NsServer *servPtr = itPtr->servPtr;
     Http *httpPtr;
     char *cmd, buf[20], *result;
-    int state, new, status, seconds;
+    int state, new, status, seconds, n;
     Ns_Time timeout;
     Ns_Set *hdrs;
     Tcl_HashEntry *hPtr;
+    Tcl_HashSearch search;
 
     if (argc < 2) {
     	Tcl_AppendResult(interp, "wrong # args: should be \"",
@@ -118,19 +120,18 @@ NsTclHttpCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 	} else if (Ns_TclGetSet2(interp, argv[3], &hdrs) != TCL_OK) {
 	    return TCL_ERROR;
 	}
-	httpPtr = HttpOpen(servPtr, argv[2], hdrs);
+	httpPtr = HttpOpen(argv[2], hdrs);
 	if (httpPtr == NULL) {
 	    Tcl_AppendResult(interp, "could not connect to : ", argv[2], NULL);
 	    return TCL_ERROR;
 	}
     	Ns_SockCallback(httpPtr->sock, HttpSend, httpPtr, NS_SOCK_WRITE);
-	Ns_MutexLock(&servPtr->http.lock);
+	n = itPtr->https.numEntries;
 	do {
-    	    sprintf(buf, "http%d", servPtr->http.next++);
-	    hPtr = Tcl_CreateHashEntry(&servPtr->http.ids, buf, &new);
+    	    sprintf(buf, "http%d", n++);
+	    hPtr = Tcl_CreateHashEntry(&itPtr->https, buf, &new);
 	} while (!new);
 	Tcl_SetHashValue(hPtr, httpPtr);
-	Ns_MutexUnlock(&servPtr->http.lock);
 	Tcl_SetResult(interp, buf, TCL_VOLATILE);
 
     } else if (STREQ(cmd, "cancel")) {
@@ -139,26 +140,14 @@ NsTclHttpCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 		argv[0], " cancel id\"", NULL);
 	    return TCL_ERROR;
 	}
-	Ns_MutexLock(&servPtr->http.lock);
-	hPtr = Tcl_FindHashEntry(&servPtr->http.ids, argv[2]);
-	if (hPtr != NULL) {
-	    httpPtr= Tcl_GetHashValue(hPtr);
-	    Tcl_DeleteHashEntry(hPtr);
-	    state = httpPtr->state;
-	    if (!(state & REQ_DONE)) {
-    		Ns_SockCallback(httpPtr->sock, HttpCancel, httpPtr, NS_SOCK_WRITE|NS_SOCK_READ);
-    		while (!(httpPtr->state & REQ_DONE)) {
-		    Ns_CondWait(&servPtr->http.cond, &servPtr->http.lock);
-    		}
-	    }
-	}
-	Ns_MutexUnlock(&servPtr->http.lock);
+	hPtr = Tcl_FindHashEntry(&itPtr->https, argv[2]);
 	if (hPtr == NULL) {
 	    Tcl_AppendResult(interp, "no such request: ", argv[2], NULL);
 	    return TCL_ERROR;
 	}
-	HttpClose(httpPtr, 1);
-	sprintf(buf, "%d", state);
+	httpPtr = Tcl_GetHashValue(hPtr);
+	Tcl_DeleteHashEntry(hPtr);
+	sprintf(buf, "%d", HttpAbort(httpPtr));
 	Tcl_SetResult(interp, buf, TCL_VOLATILE);
 
     } else if (STREQ(cmd, "wait") || STREQ(cmd, "abswait")) {
@@ -184,24 +173,18 @@ NsTclHttpCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 	    Ns_GetTime(&timeout);
 	    Ns_IncrTime(&timeout, seconds, 0);
 	}
-	Ns_MutexUnlock(&servPtr->http.lock);
-	hPtr = Tcl_FindHashEntry(&servPtr->http.ids, argv[2]);
-	if (hPtr != NULL) {
-	    httpPtr= Tcl_GetHashValue(hPtr);
-	    status = NS_OK;
-    	    while (status == NS_OK && !(httpPtr->state & REQ_DONE)) {
-		status = Ns_CondTimedWait(&servPtr->http.cond,
-					  &servPtr->http.lock, &timeout);
-    	    }
-	    if (status == NS_OK) {
-		Tcl_DeleteHashEntry(hPtr);
-	    }
-	}
-	Ns_MutexUnlock(&servPtr->http.lock);
+	hPtr = Tcl_FindHashEntry(&itPtr->https, argv[2]);
 	if (hPtr == NULL) {
 	    Tcl_AppendResult(interp, "no such request: ", argv[2], NULL);
 	    return TCL_ERROR;
 	}
+	httpPtr= Tcl_GetHashValue(hPtr);
+	status = NS_OK;
+	Ns_MutexLock(&lock);
+    	while (status == NS_OK && !(httpPtr->state & REQ_DONE)) {
+	    status = Ns_CondTimedWait(&cond, &lock, &timeout);
+    	}
+	Ns_MutexUnlock(&lock);
 	if (status != NS_OK) {
 	    httpPtr = NULL;
 	    result = "timeout";
@@ -215,12 +198,23 @@ NsTclHttpCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 	}
 	result = Tcl_SetVar(interp, argv[3], result, TCL_LEAVE_ERR_MSG);
 	if (httpPtr != NULL) {
+	    Tcl_DeleteHashEntry(hPtr);
 	    HttpClose(httpPtr, 0);
-	}
+	} 
 	if (result == NULL) {
 	    return TCL_ERROR;
 	}
 	Tcl_SetResult(interp, status == NS_OK ? "1" : "0", TCL_STATIC);
+
+    } else if (STREQ(cmd, "cleanup")) {
+	hPtr = Tcl_FirstHashEntry(&itPtr->https, &search);
+	while (hPtr != NULL) {
+	    httpPtr = Tcl_GetHashValue(hPtr);
+	    (void) HttpAbort(httpPtr);
+	    hPtr = Tcl_NextHashEntry(&search);
+	}
+	Tcl_DeleteHashTable(&itPtr->https);
+	Tcl_InitHashTable(&itPtr->https, TCL_STRING_KEYS);
 
     } else {
     	Tcl_AppendResult(interp, "unknown command \"", cmd,
@@ -249,7 +243,7 @@ NsTclHttpCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
  */
 
 Http *
-HttpOpen(NsServer *servPtr, char *url, Ns_Set *hdrs)
+HttpOpen(char *url, Ns_Set *hdrs)
 {
     Http *httpPtr = NULL;
     SOCKET sock;
@@ -277,7 +271,6 @@ HttpOpen(NsServer *servPtr, char *url, Ns_Set *hdrs)
     }
     if (sock != INVALID_SOCKET) {
     	httpPtr = ns_malloc(sizeof(Http));
-	httpPtr->servPtr = servPtr;
 	httpPtr->state = REQ_SEND;
 	httpPtr->sock = sock;
     	Tcl_DStringInit(&httpPtr->ds);
@@ -398,9 +391,9 @@ HttpSend(SOCKET sock, void *arg, int why)
     if (httpPtr->len == 0) {
 	shutdown(sock, 1);
 	Tcl_DStringTrunc(&httpPtr->ds, 0);
-	Ns_MutexLock(&httpPtr->servPtr->http.lock);
+	Ns_MutexLock(&lock);
 	httpPtr->state = REQ_RECV;
-	Ns_MutexUnlock(&httpPtr->servPtr->http.lock);
+	Ns_MutexUnlock(&lock);
     	Ns_SockCallback(sock, HttpRecv, arg, NS_SOCK_READ);
     }
     return NS_TRUE;
@@ -441,9 +434,28 @@ HttpCancel(SOCKET sock, void *arg, int why)
 static int
 HttpDone(SOCKET sock, Http *httpPtr, int state)
 {
-    Ns_MutexLock(&httpPtr->servPtr->http.lock);
+    Ns_MutexLock(&lock);
     httpPtr->state = state;
-    Ns_CondBroadcast(&httpPtr->servPtr->http.cond);
-    Ns_MutexUnlock(&httpPtr->servPtr->http.lock);
+    Ns_MutexUnlock(&lock);
+    Ns_CondBroadcast(&cond);
     return NS_FALSE;
+}
+
+
+static int
+HttpAbort(Http *httpPtr)
+{
+    int state;
+
+    Ns_MutexLock(&lock);
+    state = httpPtr->state;
+    if (!(state & REQ_DONE)) {
+	Ns_SockCallback(httpPtr->sock, HttpCancel, httpPtr, NS_SOCK_WRITE|NS_SOCK_READ);
+        while (!(httpPtr->state & REQ_DONE)) {
+	    Ns_CondWait(&cond, &lock);
+	}
+    }
+    Ns_MutexUnlock(&lock);
+    HttpClose(httpPtr, 1);
+    return state;
 }
