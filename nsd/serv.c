@@ -33,7 +33,7 @@
  *	Routines for the core server connection threads.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/serv.c,v 1.15 2001/01/16 18:14:27 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/serv.c,v 1.15.2.1 2001/03/14 21:51:14 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -933,7 +933,7 @@ static void
 ParseAuth(Conn *connPtr, char *auth)
 {
     register char *p, *q;
-    char           buf[0x100];
+    char           *decoded;
     int            n;
     char    	   save;
     
@@ -949,14 +949,17 @@ ParseAuth(Conn *connPtr, char *auth)
             while (*q != '\0' && isspace(UCHAR(*q))) {
                 ++q;
             }
-            n = Ns_HtuuDecode(q, (unsigned char *) buf, sizeof(buf));
-            buf[n] = '\0';
-            q = strchr(buf, ':');
+            n = strlen(q) + 3;
+            decoded = ns_malloc(n);
+            n = Ns_HtuuDecode(q, (unsigned char *) decoded, n);
+            decoded[n] = '\0';
+            q = strchr(decoded, ':');
             if (q != NULL) {
                 *q++ = '\0';
                 connPtr->authPasswd = ns_strdup(q);
             }
-            connPtr->authUser = ns_strdup(buf);
+            connPtr->authUser = ns_strdup(decoded);
+            ns_free(decoded);
         }
 	*p = save;
     }

@@ -1,18 +1,52 @@
-2001-03-14  Dossy Shiobara  <dossy@panoptic.com>
+2001-03-14  Kris Rehberg  <kriston@aol.com>
+	
+	* nsd/serv.c: [ #232139 ] Buffer overflow in ParseAuth().
+	ParseAuth() uses a 256-byte buffer for decoding authentication
+	data. Unfortunately, Ns_HtuuDecode() does not do an adequate job
+	in preventing data overflow due to the way it tries to loop unroll
+	4-bytes per iteration.  To reproduce: Using IE 5.xxx, navigate to
+	a page that challenges (ie 401 return). Fill the user/pwd fields
+	with as much data as possible. Hit return, and watch AOLserver die
+	due to stack corruption (on Linux, at least). It is preferable to
+	allocate the storage dynamically.  Thanks to Adam Zell for the bug
+	report and patch!!
 
-	* nsd/nsmain.c: Segmentation fault when using -g <group> flag
-	(reproducing this change from HEAD into the nsd_v3_r3_p0 branch)
-	line 316 should read Ns_GetGid(garg) instead of Ns_GetGid(optarg).
+	* generic/tclCmdIL.c (InfoProcsCmd): [ #230640 ] memory leak in
+	"info procs" command.  Arsdigita plus-patches fixed a memory leak
+	in "info procs" command (in Tcl library). It neglects to free
+	memory after the "info procs" command is executed. nsd8x only.
+	Fixed via hack to Tcl8.3.2 in AOLserver 3.3 (Jim Davidson).
+	
+	* thread/tcl8x.c: [ #406708 ] Tcl TSD data leaks on
+	thread-exit. Added new, custom per-thread Tcl_Obj allocator for
+	NsTclFinalizeThread().  Fixed is in 3.31 and 4.x.  Check
+	thread/tcl8x.c for detailed comments.  Thanks to Zoran Vasiljevic
+	for the bug report and suggesting a fix.
+	
+	* tcl/namespace.tcl: [ #230624 ] Namespaces are not used properly.
+	There is a problem with current modules/tcl/namespace.tcl Instead
+	of correctly using namespace import/export capabilities, it just
+	makes a copy of each procedure found within a namespace, even it
+	is imported from a foreign namespace. This adds unnecessary heap
+	space to have each exported procedure body replicated in more than
+	one namespaces but what is worst, all imported procedures, instead
+	of running within their declaring namespace, as standard TCL does,
+	they will run in their caller namespaces. Thanks to Petrica
+	Clement for this fix!
+
+2001-03-14  Dossy Shiobara  <dossy@panoptic.com>
+	
+	* nsd/nsmain.c: [ #230646 ] Specifying user/group dumps core
+	on Linux.  Segmentation fault when using -g <group> flag
+	(reproducing this change from HEAD into the nsd_v3_r3_p0
+	branch) line 316 should read Ns_GetGid(garg) instead of
+	Ns_GetGid(optarg). Thanks to Scott G and Dossy for this one.
 
 2001-03-12  Kris Rehberg  <kriston@aol.com>
 
-	* Build rules for nsd76 are turned off -- nsd76 is not supported
-	anymore.  The build rules and targets still exist, but we no
-	longer use them.  The binary named "nsd" is now nsd8x.
-
 	*** nsd_v3_r3_p0 (AOLserver 3.3.0) BRANCH BEGINS ***
 
-2001-03-08  Kris Rehberg
+2001-03-08  Kris Rehberg  <kriston@aol.com>
 
 	*** AOLserver 3.3 RELEASED ***
 
@@ -22,7 +56,7 @@
 	finalize Tcl 8.x thread data.  This fix was the last hurdle for
 	finalizing nsd8x.
 
-2001-01-31  Kris Rehberg 
+2001-01-31  Kris Rehberg  <kriston@aol.com> 
 
 	* Makefile (MODULES): nsunix, nsvhr, and nsodbc moved to the
 	Module Collection.
@@ -31,12 +65,12 @@
 
 	* Cleaned up sloppy use of the nsServer global wherever it's used.
 
-2001-01-04  Kris Rehberg 
+2001-01-04  Kris Rehberg  <kriston@aol.com> 
 
 	* nsd/tclmisc.c: Ticket 13090.  ns_striphtml crashing-bug in nsd8x
 	fixed.
 
-2000-12-14  Kris Rehberg 
+2000-12-14  Kris Rehberg  <kriston@aol.com> 
 
 	* tcl/http.tcl: Corrected typo _ns_ns_http_readable.
 
@@ -48,7 +82,7 @@
 	12764. If-Modified-Since (304) works with keepalive now. Thanks to
 	Jim "??".
 
-2000-12-13  Kris Rehberg 
+2000-12-13  Kris Rehberg  <kriston@aol.com> 
 
 	* include/Makefile.global: Builds with architecture-specific
 	optimization options. Auto-detects architecture for most
@@ -67,7 +101,7 @@
 	* nsd/sample-config.tcl: Added some tuning parameters for easy
 	reference.
 
-2000-12-12  Kris Rehberg 
+2000-12-12  Kris Rehberg  <kriston@aol.com> 
 
 	* nsvhr/nsvhr.c (UDSProxy): More type changes.
 
@@ -199,7 +233,7 @@
 
 	* nsd/binder.c: Added Ns_SockListenEx.
 
-2000-12-12  Kris Rehberg 
+2000-12-12  Kris Rehberg  <kriston@aol.com> 
 	
 	* nsvhr/nsvhr.c (VHRProc): Matches hostnames regardless of case.
 
@@ -212,7 +246,7 @@
 	very less glib.  SUNWspro dumped core on usage message due to
 	nsconf.argv0 quigglyness.
 	
-2000-10-20  Kris Rehberg 
+2000-10-20  Kris Rehberg  <kriston@aol.com> 
 
 	*** AOLserver 3.2 RELEASED ***
 
@@ -225,7 +259,7 @@
 	Added/use ns_pipe which set's close-on-exec like ns_sockpair.
 	
 
-2000-10-17  Kris Rehberg 
+2000-10-17  Kris Rehberg  <kriston@aol.com> 
 
 	* nssock/sock.cpp: extra padding on Server Busy message to defeat
 	MSIE friendly error messages.
@@ -274,7 +308,7 @@
 	
 	* nsd/adp.c: Sundry ArsDigita changes.
 
-2000-10-16  Kris Rehberg 
+2000-10-16  Kris Rehberg  <kriston@aol.com> 
 
 	* tcl/init.tcl:  Initialize errorCode and errorInfo like tclsh
 	does.  From ArsDigita.
@@ -295,7 +329,7 @@
 	server from starting up.  Sigh.
 	(Ns_Main): Took out little note about -k|-K being deprecated.
 
-2000-10-13  Kris Rehberg 
+2000-10-13  Kris Rehberg  <kriston@aol.com> 
 
 	* nsd/nsmain.c (Ns_Main): gid of the specified user is set even if
 	it's not specified.
@@ -345,7 +379,7 @@
 	112 bytes each time a file descriptor is closed.  Thanks to Rob
 	Mayoff for finding this and proposing a solution.
 
-2000-10-09  Kris Rehberg 
+2000-10-09  Kris Rehberg  <kriston@aol.com> 
 
 	* sample-config.tcl: nsd.tcl is now sample-config.tcl so that
 	existing users can look at the new reference configuration.
@@ -398,7 +432,7 @@
 	* thread/pthread.cpp: Stopped using pthread_once as it appears to
 	require a lock.
 	
-2000-10-04  Kris Rehberg 
+2000-10-04  Kris Rehberg  <kriston@aol.com> 
 
 	* win32/nsssl/nsssl.dsp: nsssl project for win32.
 
@@ -410,7 +444,7 @@
 	* nssock/ssltcl.c: Changed name of ReadFile adn WriteFile to avoid
 	Win32 naming conflicts.
 	
-2000-09-28  Kris Rehberg 
+2000-09-28  Kris Rehberg  <kriston@aol.com> 
 
 	* scripts/tests/nstelemetry.adp: added "Expires: now" header to
 	ensure it gets run each time it's visitted.
@@ -428,12 +462,12 @@
 	in a big performance boost and system load reduction.  Special
 	thanks to Zachary Girouard.
 
-2000-09-05  Kris Rehberg 
+2000-09-05  Kris Rehberg  <kriston@aol.com> 
 
 	*** AOLserver 3.1 Released *** 
 
 2000-09-05  (various: Jerry Asher, Jim Davidson, "Dossy," Curtis Galloway,
-	Scott S. Goodwin, Rob Mayoff, Kris Rehberg)
+	Scott S. Goodwin, Rob Mayoff, Kris Rehberg  <kriston@aol.com>)
 
 	* thread/win32.cpp: Sets thread stack size as on other platforms.
 
@@ -496,7 +530,7 @@
 	though it can be enabled by setting "echopassword" in the nscp
 	module section of nsd.tcl.
 	
-2000-08-21  Kris Rehberg 
+2000-08-21  Kris Rehberg  <kriston@aol.com> 
 
 	* nscp/nscp.c: Makes some attempt to recognize and handle telnet
 	IAC codes like CTRL-C and CTRL-D to force a logout.  This
@@ -505,7 +539,7 @@
 	completely disabled because the client is too chatty with its IAC
 	codes.
 
-2000-08-20  Kris Rehberg 
+2000-08-20  Kris Rehberg  <kriston@aol.com> 
 
 	* nsftp, nspostgres, nssolid, nssybpd moved to $TOP level.
 
@@ -525,7 +559,7 @@
 	ns_info threads.  Also, moved read of firstPtr in Ns_ThreadEnum
 	inside lock.
 	
-2000-08-17  Kris Rehberg 
+2000-08-17  Kris Rehberg  <kriston@aol.com> 
 	
 	* nssock/sock.c (SockThread): warning sent to log when Server Busy
 	is returned.
@@ -540,7 +574,7 @@
 	* Irix now builds as -o32 using the native compiler by default.
 	See Makefile.global on how to change.
 
-2000-08-15  Kris Rehberg 
+2000-08-15  Kris Rehberg  <kriston@aol.com> 
 
 	* include/Makefile.global (INSTLOG): should have pointed to
 	$(INST)/lib, not $(INST)/modules/lib.
@@ -566,7 +600,7 @@
 	intelligenly-administered system.  New rule for libnspd.a.
 	
 	
-2000-08-14  Kris Rehberg 
+2000-08-14  Kris Rehberg  <kriston@aol.com> 
 
 	* Makefile: nsvhr has been resurrected and enjoys our full
 	support.
@@ -581,7 +615,7 @@
 	* thread/pool.c: A spiffy range-checker added to the Zippy (-z)
 	memory allocator.
 
-2000-08-11  Kris Rehberg 
+2000-08-11  Kris Rehberg  <kriston@aol.com> 
 
 	* nsvhr/nsvhr.c: Always add "Connection: close" to the request
 	line to satisfy HTTP 1.1 RFC -- this would break MSIE in HTTP 1.1
@@ -592,7 +626,7 @@
 	special thanks to Wanda G. at AOL for adding a CNAME in DNS so
 	quickly.
 
-2000-08-09  Kris Rehberg 
+2000-08-09  Kris Rehberg  <kriston@aol.com> 
 
 	* nsd/serv.c: A whole lot less chatty about conns starting and
 	exiting.  If you want to see them, turn on the Debug flag.
@@ -643,7 +677,7 @@
 	Makefile and take out all the "SSL=1" text. The files changed were
 	nssock/Makefile and nssock/t_stdlib.c.
 
-2000-08-02  Kris Rehberg 
+2000-08-02  Kris Rehberg  <kriston@aol.com> 
 
 	* Build process is a little more rule-oriented.  The cleaning
 	rules "distclean" and "clobber" were removed.  The Tcl libraries
@@ -667,7 +701,7 @@
 	* nsd/tclmisc.c (NsTclInfoCmd): ns_info pid added to return the
 	process id.
 
-2000-08-01  Kris Rehberg 
+2000-08-01  Kris Rehberg  <kriston@aol.com> 
 
 	* nsd/adp.c (Ns_AdpRequest): The enableexpire option was putting
 	an Expires header even if it already existed.
@@ -694,7 +728,7 @@
 	* tcl7.6/generic/tclPosixStr.c (Tcl_SignalMsg): Patch to Tcl 7.6
 	for Red Hat on SPARC architectures.  Contributed by Mike Chan.
 
-2000-07-13  Kris Rehberg 
+2000-07-13  Kris Rehberg  <kriston@aol.com> 
 
 	* scripts/nsd.tcl: nssslmodule names the nsssl/nsssle binary's
 	filename.  nscp_port tells nscp what port to listen.
@@ -705,11 +739,11 @@
 	
 	* nsssl2: directory removed; nsssl is in the nssock directory now.
 
-2000-05-09  Kris Rehberg 
+2000-05-09  Kris Rehberg  <kriston@aol.com> 
 
 	* Re-added doc directory which has had the online docs removed.
 
-2000-05-02  Kris Rehberg 
+2000-05-02  Kris Rehberg  <kriston@aol.com> 
 
 	* Makefile, include/Makefile.global, include/Makefile.module,
 	nsexample/Makefile: Now uses NSHOME variable to locate AOLserver.
@@ -721,7 +755,7 @@
 
 	* nsftp module added.  Contributed by Eric O'Laughlen.
 
-2000-04-12  Kris Rehberg 
+2000-04-12  Kris Rehberg  <kriston@aol.com> 
 
 	*** AOLserver 3.0 FINAL Released ***
 	
