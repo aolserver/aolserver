@@ -33,7 +33,7 @@
  *	ADP string and file eval.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.15 2002/07/05 23:28:27 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.16 2002/08/25 19:55:59 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -395,7 +395,7 @@ NsAdpDebug(NsInterp *itPtr, char *host, char *port, char *procs)
 	Tcl_DStringAppendElement(&ds, procs ? procs : "");
 	Tcl_DStringAppendElement(&ds, host ? host : "");
 	Tcl_DStringAppendElement(&ds, port ? port : "");
-	code = NsTclEval(interp, ds.string);
+	code = Tcl_EvalEx(interp, ds.string, ds.length, 0);
         Tcl_DStringFree(&ds);
 	if (code != TCL_OK) {
 	    Ns_TclLogError(interp);
@@ -739,7 +739,7 @@ AdpEval(NsInterp *itPtr, AdpCode *codePtr, Tcl_Obj **objs)
     Tcl_Interp *interp = itPtr->interp;
     Tcl_Obj *objPtr;
     int nscript, result, len, i;
-    char *ptr, save;
+    char *ptr;
 
     ptr = codePtr->base;
     nscript = 0;
@@ -753,10 +753,7 @@ AdpEval(NsInterp *itPtr, AdpCode *codePtr, Tcl_Obj **objs)
 	    if (itPtr->adp.debugLevel > 0) {
     	        result = AdpDebug(itPtr, ptr, len, nscript);
 	    } else if (objs == NULL) {
-		save = ptr[len];
-		ptr[len] = '\0';
-		result = NsTclEval(interp, ptr);
-		ptr[len] = save;
+		result = Tcl_EvalEx(interp, ptr, len, 0);
 	    } else {
 		objPtr = objs[nscript];
 		if (objPtr != NULL) {
@@ -843,11 +840,11 @@ AdpDebug(NsInterp *itPtr, char *ptr, int len, int nscript)
 	    } else {
 		Ns_DStringTrunc(&ds, 0);
 		Ns_DStringVarAppend(&ds, "source ", debugfile, NULL);
-		code = NsTclEval(interp, ds.string);
+		code = Tcl_EvalEx(interp, ds.string, ds.length, 0);
 	    }
 	    close(fd);
+	    unlink(debugfile);
 	}
-	unlink(debugfile);
     }
     Ns_DStringFree(&ds);
     return code;
