@@ -32,7 +32,7 @@
  *
  *	Core threading and system headers.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/nsthread.h,v 1.7 2000/10/18 15:36:11 jgdavidson Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/nsthread.h,v 1.8 2000/10/20 21:55:39 jgdavidson Exp $
  */
 
 #ifndef NSTHREAD_H
@@ -403,6 +403,7 @@ NS_EXTERN void Ns_ThreadSelf(Ns_Thread *thrPtr);
 NS_EXTERN int Ns_CheckStack(void);
 NS_EXTERN char *Ns_ThreadGetName(void);
 NS_EXTERN char *Ns_ThreadGetParent(void);
+NS_EXTERN void  Ns_ThreadMemStats(FILE *fp);
 
 /*
  * time.c:
