@@ -267,7 +267,7 @@ NsLockAlloc(void)
     	NsThreadFatal(func, "ptread_mutexattr_destroy", err);
     }
 #endif
-    return lockPtr;
+    return (void *) lockPtr;
 }
 
 
@@ -297,7 +297,7 @@ NsLockFree(void *lock)
     if (err != 0) {
         NsThreadFatal("NsMutexDestroy", "ptread_mutex_destroy", err);
     }
-    NsFree(lockPtr);
+    NsFree(lock);
 }
 
 
@@ -474,7 +474,7 @@ Ns_CondDestroy(Ns_Cond *condPtr)
     if (err != 0) {
     	NsThreadFatal("Ns_CondDestroy", "pthread_cond_destroy", err);
     }
-    NsFree(cond);
+    NsFree(condPtr);
     *condPtr = NULL;
 }
 

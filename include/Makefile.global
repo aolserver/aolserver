@@ -145,7 +145,7 @@ endif
 ifneq (,$(findstring OSF1,$(PLAT)))
     PLATFORM=osf
     CC=$(PURIFY) cc
-    CFLAGS+=$(GGCCOPT) -std1 -pthread
+    CFLAGS+=$(GGCCOPT) -std1 -pthread -DNO_VSNPRINTF
     LDFLAGS+=-pthread
     LDSO=$(LD) -shared -expect_unresolved '*'
     NSDLIBS=-lm
