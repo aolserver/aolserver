@@ -221,7 +221,6 @@ struct _nsconf {
 
     struct {
         char         *outputCharset;
-        Tcl_Encoding  outputEncoding;
         bool          hackContentTypeP;
         char         *urlCharset;
         Tcl_Encoding  urlEncoding;
@@ -863,13 +862,15 @@ extern void NsInitUrlSpace(void);
 extern void NsInitRequests(void);
 
 extern void NsQueueConn(Conn *connPtr);
+extern int NsCheckQuery(Ns_Conn *conn);
 extern void NsAppendConn(Tcl_DString *bufPtr, Conn *connPtr, char *state);
 extern void NsAppendRequest(Tcl_DString *dsPtr, Ns_Request *request);
 extern int  NsSockSend(Sock *sockPtr, struct iovec *bufs, int nbufs);
 extern void NsSockClose(Sock *sockPtr, int keep);
 extern int  NsPoll(struct pollfd *pfds, int nfds, Ns_Time *timeoutPtr);
 extern void NsFreeConn(Conn *connPtr);
-
+extern Tcl_Encoding NsGetTypeEncoding(NsServer *servPtr, char **typePtr,
+				      Ns_DString *dsPtr);
 extern NsServer *NsGetServer(char *server);
 extern NsServer *NsGetInitServer(void);
 extern NsInterp *NsGetInterp(Tcl_Interp *interp);
