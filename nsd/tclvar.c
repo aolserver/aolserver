@@ -35,7 +35,7 @@
 
 #include "nsd.h"
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclvar.c,v 1.11 2002/06/25 17:51:53 scottg Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclvar.c,v 1.12 2002/07/08 02:51:40 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 /*
  * The following structure maintains the context for each variable
@@ -52,13 +52,11 @@ typedef struct Array {
  * Forward declarations for coommands and routines defined in this file.
  */
 
-#define FLAGS_CREATE 1
-#define FLAGS_NOERRMSG 2
-
-static void SetVar(Array *, const char *key, const char *value);
-static void UpdateVar(Tcl_HashEntry *hPtr, const char *value);
+static void SetVar(Array *, Tcl_Obj *key, Tcl_Obj *value);
+static void UpdateVar(Tcl_HashEntry *hPtr, Tcl_Obj *obj);
 static void FlushArray(Array *arrayPtr);
-static Array *LockArray(void *arg, Tcl_Interp *, char *array, int flags);
+static Array *LockArray(void *arg, Tcl_Interp *interp, Tcl_Obj *array,
+			int create);
 #define UnlockArray(arrayPtr) \
 	Ns_MutexUnlock(&((arrayPtr)->bucketPtr->lock));
 
@@ -66,71 +64,9 @@ static Array *LockArray(void *arg, Tcl_Interp *, char *array, int flags);
 /*
  *----------------------------------------------------------------------
  *
- * Get2Cmd --
+ * NsTclNsvGetObjCmd --
  *
- *	Implements nsv_get, nsv_exists.
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	See docs. 
- *
- *----------------------------------------------------------------------
- */
-
-static int
-Get2Cmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv, int get)
-{
-    Tcl_HashEntry *hPtr;
-    Array *arrayPtr;
-
-    if (argc != 3) {
-    	Tcl_AppendResult(interp, "wrong # args: should be \"",
-	    argv[0], " array key\"", NULL);
-	return TCL_ERROR;
-    }
-    arrayPtr = LockArray(arg, interp, argv[1], 0);
-    if (arrayPtr == NULL) {
-    	if (get) {
-	    return TCL_ERROR;
-	}
-	Tcl_SetResult(interp, "0", TCL_STATIC);
-	return TCL_OK;
-    }
-    hPtr = Tcl_FindHashEntry(&arrayPtr->vars, argv[2]);
-    if (hPtr != NULL && get) {
-    	Tcl_SetResult(interp, Tcl_GetHashValue(hPtr), TCL_VOLATILE);
-    }
-    UnlockArray(arrayPtr);
-    if (!get) {
-	Tcl_SetResult(interp, hPtr ? "1" : "0", TCL_STATIC);
-    } else if (hPtr == NULL) {
-    	Tcl_AppendResult(interp, "no such key: ", argv[2], NULL);
-	return TCL_ERROR;
-    }
-    return TCL_OK;
-}
-
-int
-NsTclNsvGetCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
-{
-    return Get2Cmd(arg, interp, argc, argv, 1);
-}
-
-int
-NsTclNsvExistsCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
-{
-    return Get2Cmd(arg, interp, argc, argv, 0);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Get2ObjCmd --
- *
- *	Implements nsv_get, nsv_exists as an obj command.
+ *	Implements nsv_get.
  *
  * Results:
  *	Tcl result. 
@@ -141,8 +77,8 @@ NsTclNsvExistsCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
  *----------------------------------------------------------------------
  */
 
-static int
-Get2ObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv, int get)
+int
+NsTclNsvGetObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 {
     Tcl_HashEntry *hPtr;
     Array *arrayPtr;
@@ -151,48 +87,29 @@ Get2ObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv, int get
     	Tcl_WrongNumArgs(interp, 1, objv, "array key");
 	return TCL_ERROR;
     }
-    arrayPtr = LockArray(arg, interp, Tcl_GetString(objv[1]), 0);
+    arrayPtr = LockArray(arg, interp, objv[1], 0);
     if (arrayPtr == NULL) {
-    	if (get) {
-	    return TCL_ERROR;
-	}
-	Tcl_SetObjResult(interp, Tcl_NewStringObj("0", -1));
-	return TCL_OK;
+	return TCL_ERROR;
     }
     hPtr = Tcl_FindHashEntry(&arrayPtr->vars, Tcl_GetString(objv[2]));
-    if (hPtr != NULL && get) {
-	Tcl_SetObjResult(interp, Tcl_NewStringObj(Tcl_GetHashValue(hPtr), -1));
+    if (hPtr != NULL) {
+	Tcl_SetStringObj(Tcl_GetObjResult(interp), Tcl_GetHashValue(hPtr), -1);
     }
     UnlockArray(arrayPtr);
-    if (!get) {
-	Tcl_SetObjResult(interp, Tcl_NewStringObj((hPtr ? "1" : "0"), -1));
-    } else if (hPtr == NULL) {
-	Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "no such key: ",
-            Tcl_GetString(objv[2]), NULL);
+    if (hPtr == NULL) {
+	Tcl_AppendResult(interp, "no such key: ", Tcl_GetString(objv[2]), NULL);
 	return TCL_ERROR;
     }
     return TCL_OK;
-}
-
-int
-NsTclNsvGetObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
-{
-    return Get2ObjCmd(arg, interp, objc, objv, 1);
-}
-
-int
-NsTclNsvExistsObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
-{
-    return Get2ObjCmd(arg, interp, objc, objv, 0);
 }
 
 
 /*
  *----------------------------------------------------------------------
  *
- * NsTclNsvSetCmd --
+ * NsTclNsvExistsObjCmd --
  *
- *	Implements nsv_set.
+ *	Implements nsv_exists.
  *
  * Results:
  *	Tcl result. 
@@ -204,22 +121,24 @@ NsTclNsvExistsObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **obj
  */
 
 int
-NsTclNsvSetCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
+NsTclNsvExistsObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 {
     Array *arrayPtr;
+    int exists;
 
-    if (argc != 3 && argc != 4) {
-    	Tcl_AppendResult(interp, "wrong # args: should be \"",
-	    argv[0], " array key ?value?\"", NULL);
+    if (objc != 3) {
+    	Tcl_WrongNumArgs(interp, 1, objv, "array key");
 	return TCL_ERROR;
     }
-    if (argc == 3) {
-    	return NsTclNsvGetCmd(arg, interp, argc, argv);
+    exists = 0;
+    arrayPtr = LockArray(arg, NULL, objv[1], 0);
+    if (arrayPtr != NULL) {
+    	if (Tcl_FindHashEntry(&arrayPtr->vars, Tcl_GetString(objv[2])) != NULL) {
+	    exists = 1;
+	}
+    	UnlockArray(arrayPtr);
     }
-    arrayPtr = LockArray(arg, interp, argv[1], FLAGS_CREATE);
-    SetVar(arrayPtr, argv[2], argv[3]);
-    UnlockArray(arrayPtr);
-    Tcl_SetResult(interp, argv[3], TCL_VOLATILE);
+    Tcl_SetBooleanObj(Tcl_GetObjResult(interp), exists);
     return TCL_OK;
 }
 
@@ -229,7 +148,7 @@ NsTclNsvSetCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
  *
  * NsTclNsvSetObjCmd --
  *
- *	Implelments nsv_set as an obj command.
+ *	Implelments nsv_set.
  *
  * Results:
  *	Tcl result. 
@@ -245,75 +164,17 @@ NsTclNsvSetObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 {
     Array *arrayPtr;
 
-    if (objc != 3 && objc != 4) {
+    if (objc == 3) {
+    	return NsTclNsvGetObjCmd(arg, interp, objc, objv);
+    } else if (objc != 4) {
     	Tcl_WrongNumArgs(interp, 1, objv, "array key ?value?");
 	return TCL_ERROR;
     }
-    if (objc == 3) {
-    	return NsTclNsvGetObjCmd(arg, interp, objc, objv);
-    }
-    arrayPtr = LockArray(arg, interp, Tcl_GetString(objv[1]), FLAGS_CREATE);
-    SetVar(arrayPtr, Tcl_GetString(objv[2]), Tcl_GetString(objv[3]));
+    arrayPtr = LockArray(arg, interp, objv[1], 1);
+    SetVar(arrayPtr, objv[2], objv[3]);
     UnlockArray(arrayPtr);
     Tcl_SetObjResult(interp, objv[3]);
     return TCL_OK;
-
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsTclNsvIncrCmd --
- *
- *	Implements nsv_incr. 
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	See docs. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclNsvIncrCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
-{
-    Array *arrayPtr;
-    int count, current, result, new;
-    char buf[20], *value;
-    Tcl_HashEntry *hPtr;
-
-    if (argc != 3 && argc != 4) {
-    	Tcl_AppendResult(interp, "wrong # args: should be \"",
-	    argv[0], " array key ?count?\"", NULL);
-	return TCL_ERROR;
-    }
-    if (argc == 3)  {
-	count = 1;
-    } else if (Tcl_GetInt(interp, argv[3], &count) != TCL_OK) {
-	return TCL_ERROR;
-    }
-    arrayPtr = LockArray(arg, interp, argv[1], FLAGS_CREATE);
-    hPtr = Tcl_CreateHashEntry(&arrayPtr->vars, argv[2], &new);
-    if (new) {
-	current = 0;
-	result = TCL_OK;
-    } else {
-    	value = Tcl_GetHashValue(hPtr);
-	result = Tcl_GetInt(interp, value, &current);
-    }
-    if (result == TCL_OK) {
-    	current += count;
-    	sprintf(buf, "%d", current);
-    	UpdateVar(hPtr, buf);
-    }
-    UnlockArray(arrayPtr);
-    if (result == TCL_OK) {
-    	Tcl_SetResult(interp, buf, TCL_VOLATILE);
-    }
-    return result;
 }
 
 
@@ -338,7 +199,7 @@ NsTclNsvIncrObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 {
     Array *arrayPtr;
     int count, current, result, new;
-    char buf[20], *value;
+    char *value;
     Tcl_HashEntry *hPtr;
 
     if (objc != 3 && objc != 4) {
@@ -350,7 +211,7 @@ NsTclNsvIncrObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
     } else if (Tcl_GetIntFromObj(interp, objv[3], &count) != TCL_OK) {
 	return TCL_ERROR;
     }
-    arrayPtr = LockArray(arg, interp, Tcl_GetString(objv[1]), FLAGS_CREATE);
+    arrayPtr = LockArray(arg, interp, objv[1], 1);
     hPtr = Tcl_CreateHashEntry(&arrayPtr->vars, Tcl_GetString(objv[2]), &new);
     if (new) {
 	current = 0;
@@ -360,14 +221,12 @@ NsTclNsvIncrObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 	result = Tcl_GetInt(interp, value, &current);
     }
     if (result == TCL_OK) {
+	Tcl_Obj *obj = Tcl_GetObjResult(interp);
     	current += count;
-    	sprintf(buf, "%d", current);
-    	UpdateVar(hPtr, buf);
+	Tcl_SetIntObj(obj, current);
+    	UpdateVar(hPtr, obj);
     }
     UnlockArray(arrayPtr);
-    if (result == TCL_OK) {
-	Tcl_SetObjResult(interp, Tcl_NewStringObj(buf, -1));
-    }
     return result;
 }
 
@@ -375,70 +234,9 @@ NsTclNsvIncrObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 /*
  *----------------------------------------------------------------------
  *
- * Append2Cmd --
+ * NsTclNsvLappendObjCmd --
  *
- *	Implements nsv_append, nsv_lappend.
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	See docs. 
- *
- *----------------------------------------------------------------------
- */
-
-static int
-Append2Cmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv, int lappend)
-{
-    Array *arrayPtr;
-    int i;
-    Tcl_HashEntry *hPtr;
-
-    if (argc < 4) {
-    	Tcl_AppendResult(interp, "wrong # args: should be \"",
-	    argv[0], " array key string ?string ...?\"", NULL);
-	return TCL_ERROR;
-    }
-    arrayPtr = LockArray(arg, interp, argv[1], 0);
-    if (arrayPtr == NULL) {
-	return TCL_ERROR;
-    }
-    hPtr = Tcl_CreateHashEntry(&arrayPtr->vars, argv[2], &i);
-    if (!i) {
-    	Tcl_SetResult(interp, Tcl_GetHashValue(hPtr), TCL_VOLATILE);
-    }
-    for (i = 3; i < argc; ++i) {
-   	if (lappend) {
-    	    Tcl_AppendElement(interp, argv[i]);
-	} else {
-    	    Tcl_AppendResult(interp, argv[i], NULL);
-	}
-    }
-    UpdateVar(hPtr, Tcl_GetStringResult(interp));
-    UnlockArray(arrayPtr);
-    return TCL_OK;
-}
-
-int
-NsTclNsvAppendCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
-{
-    return Append2Cmd(arg, interp, argc, argv, 0);
-}
-
-int
-NsTclNsvLappendCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
-{
-    return Append2Cmd(arg, interp, argc, argv, 1);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Append2ObjCmd --
- *
- *	Implements nsv_append, nsv_lappend as obj commands.
+ *	Implements nsv_lappend command.
  *
  * Results:
  *	Tcl result. 
@@ -449,161 +247,69 @@ NsTclNsvLappendCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
  *----------------------------------------------------------------------
  */
 
-static int
-Append2ObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv, int lappend)
+int
+NsTclNsvLappendObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 {
     Array *arrayPtr;
-    int i;
+    int i, new;
     Tcl_HashEntry *hPtr;
 
     if (objc < 4) {
     	Tcl_WrongNumArgs(interp, 1, objv, "array key string ?string ...?");
 	return TCL_ERROR;
     }
-    arrayPtr = LockArray(arg, interp, Tcl_GetString(objv[1]), 0);
-    if (arrayPtr == NULL) {
-	return TCL_ERROR;
-    }
-    hPtr = Tcl_CreateHashEntry(&arrayPtr->vars, Tcl_GetString(objv[2]), &i);
-    if (!i) {
-	Tcl_SetObjResult(interp, Tcl_NewStringObj(Tcl_GetHashValue(hPtr), -1));
-    }
-    for (i = 3; i < objc; ++i) {
-   	if (lappend) {
-	    Tcl_ListObjAppendElement(interp, Tcl_GetObjResult(interp), objv[i]);
-	} else {
-	    Tcl_AppendStringsToObj(Tcl_GetObjResult(interp),
-                Tcl_GetString(objv[i]), NULL);
+    arrayPtr = LockArray(arg, interp, objv[1], 1);
+    hPtr = Tcl_CreateHashEntry(&arrayPtr->vars, Tcl_GetString(objv[2]), &new);
+    if (new) {
+	Tcl_SetListObj(Tcl_GetObjResult(interp), objc-3, objv+3);
+    } else {
+	Tcl_SetResult(interp, Tcl_GetHashValue(hPtr), TCL_VOLATILE);
+    	for (i = 3; i < objc; ++i) {
+	    Tcl_AppendElement(interp, Tcl_GetString(objv[i]));
 	}
     }
-    UpdateVar(hPtr, Tcl_GetStringResult(interp));
+    UpdateVar(hPtr, Tcl_GetObjResult(interp));
     UnlockArray(arrayPtr);
     return TCL_OK;
-}
-
-int
-NsTclNsvAppendObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
-{
-    return Append2ObjCmd(arg, interp, objc, objv, 0);
-}
-
-int
-NsTclNsvLappendObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
-{
-    return Append2ObjCmd(arg, interp, objc, objv, 1);
 }
 
 
 /*
  *----------------------------------------------------------------------
  *
- * NsTclNsvArrayCmd --
+ * NsTclNsvAppendObjCmd --
  *
- *	Implements nsv_array command.
+ *	Implements nsv_append command.
  *
  * Results:
- *	Tcl result.
+ *	Tcl result. 
  *
  * Side effects:
- *	None.
+ *	See docs. 
  *
  *----------------------------------------------------------------------
  */
 
 int
-NsTclNsvArrayCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
+NsTclNsvAppendObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 {
     Array *arrayPtr;
+    int i, new;
     Tcl_HashEntry *hPtr;
-    Tcl_HashSearch search;
-    CONST char **largv = NULL;
-    char *pattern, *key;
-    int i, cmd, largc;
 
-    if (argc < 2) {
-    	Tcl_AppendResult(interp, "wrong # args: should be \"",
-	    argv[0], " command ...\"", NULL);
+    if (objc < 4) {
+    	Tcl_WrongNumArgs(interp, 1, objv, "array key string ?string ...?");
 	return TCL_ERROR;
     }
-
-    cmd = argv[1][0];
-    if (STREQ(argv[1], "set") || STREQ(argv[1], "reset")) {
-	if (argc != 4) {
-	    Tcl_AppendResult(interp, "wrong # args: should be \"",
-		argv[0], " ", argv[1], " array valueList\"", NULL);
-	    return TCL_ERROR;
-	}
-    	if (Tcl_SplitList(NULL, argv[3], &largc, &largv) != TCL_OK) {
-	    return TCL_ERROR;
-    	}
-    	if (largc & 1) {
-	    Tcl_AppendResult(interp, "invalid list: ", argv[3], NULL);
-	    ckfree((char *) largv);
-	    return TCL_ERROR;
-	}
-    	arrayPtr = LockArray(arg, interp, argv[2], FLAGS_CREATE);
-    } else {
-    	if (STREQ(argv[1], "get") || STREQ(argv[1], "names")) {
-	    if (argc != 3 && argc != 4) {
-		Tcl_AppendResult(interp, "wrong # args: should be \"",
-		    argv[0], " ", argv[1], " array ?pattern?\"", NULL);
-		return TCL_ERROR;
-	    }
-	    pattern = argv[3];
-	} else if (STREQ(argv[1], "size") || STREQ(argv[1], "exists")) {
-	    if (argc != 3) {
-		Tcl_AppendResult(interp, "wrong # args: should be \"",
-		    argv[0], " ", argv[1], " array\"", NULL);
-		return TCL_ERROR;
-	    }
-	    if (cmd == 's') {
-		cmd = 'z';
-	    }
-	} else {
-	    Tcl_AppendResult(interp, "unkown command \"", argv[1],
-		"\": should be exists, get, names, set, or size", NULL);
-	    return TCL_ERROR;
-	}
-	arrayPtr = LockArray(arg, interp, argv[2], FLAGS_NOERRMSG);
-	if (arrayPtr == NULL) {
-	    if (cmd == 'z' || cmd == 'e') {
-	    	Tcl_SetResult(interp, "0", TCL_STATIC);
-	    }
-	    return TCL_OK;
-	}
+    arrayPtr = LockArray(arg, interp, objv[1], 1);
+    hPtr = Tcl_CreateHashEntry(&arrayPtr->vars, Tcl_GetString(objv[2]), &new);
+    if (!new) {
+	Tcl_SetResult(interp, Tcl_GetHashValue(hPtr), TCL_VOLATILE);
     }
-
-    switch (cmd) {
-    case 'e':
-	Tcl_SetResult(interp, "1", TCL_STATIC);
-	break;
-    case 'z':
-	Tcl_SetObjResult(interp, Tcl_NewIntObj(arrayPtr->vars.numEntries));
-	break;
-    case 'r':
-	FlushArray(arrayPtr);
-	/* FALLTHROUGH */
-    case 's':
-    	for (i = 0; i < largc; i += 2) {
-	    SetVar(arrayPtr, largv[i], largv[i+1]);
-	}
-    	ckfree((char *) largv);
-	break;
-    case 'g':
-    case 'n':
-	hPtr = Tcl_FirstHashEntry(&arrayPtr->vars, &search);
-	while (hPtr != NULL) {
-	    key = Tcl_GetHashKey(&arrayPtr->vars, hPtr);
-	    if (pattern == NULL || Tcl_StringMatch(key, pattern)) {
-		Tcl_AppendElement(interp, key);
-	    	if (cmd == 'g') {
-	    	    Tcl_AppendElement(interp, Tcl_GetHashValue(hPtr));
-		}
-	    }
-	    hPtr = Tcl_NextHashEntry(&search);
-	}
-	break;
+    for (i = 3; i < objc; ++i) {
+	Tcl_AppendResult(interp, Tcl_GetString(objv[i]), NULL);
     }
+    UpdateVar(hPtr, Tcl_GetObjResult(interp));
     UnlockArray(arrayPtr);
     return TCL_OK;
 }
@@ -631,161 +337,95 @@ NsTclNsvArrayObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv
     Array *arrayPtr;
     Tcl_HashEntry *hPtr;
     Tcl_HashSearch search;
-    CONST char **largv = NULL;
-    char *pattern = NULL;
-    char *key;
-    int i, largc;
+    char *pattern, *key;
+    int i, lobjc, size;
+    Tcl_Obj *result, **lobjv;
 
-    static CONST char *subCmds[] = {
-	"set", "reset", "get", "names", "size", "exists",
-	(char *) NULL};
-
+    static CONST char *opts[] = {
+	"set", "reset", "get", "names", "size", "exists", NULL
+    };
     enum ISubCmdIdx {
 	CSetIdx, CResetIdx, CGetIdx, CNamesIdx, CSizeIdx, CExistsIdx
-    };
-    int index, result;
-
+    } opt;
 
     if (objc < 2) {
-    	Tcl_WrongNumArgs(interp, 1, objv, "command ...");
+    	Tcl_WrongNumArgs(interp, 1, objv, "option ...");
 	return TCL_ERROR;
     }
-
-    result = Tcl_GetIndexFromObj(interp, objv[1], subCmds, "cmd", 0,
-	     (int *) &index);
-    if (result != TCL_OK) {
-	return result;
+    if (Tcl_GetIndexFromObj(interp, objv[1], opts, "option", 0,
+			    (int *) &opt) != TCL_OK) {
+	return TCL_ERROR;
     }
-
-    if (index == CSetIdx || index == CResetIdx) {
+    result = Tcl_GetObjResult(interp);
+    switch (opt) {
+    case CSetIdx:
+    case CResetIdx:
 	if (objc != 4) {
 	    Tcl_WrongNumArgs(interp, 2, objv, "array valueList");
 	    return TCL_ERROR;
 	}
-    	if (Tcl_SplitList(NULL, Tcl_GetString(objv[3]), &largc, &largv) != TCL_OK) {
+	if (Tcl_ListObjGetElements(interp, objv[3], &lobjc,
+	    	    	    	   &lobjv) != TCL_OK) {
 	    return TCL_ERROR;
     	}
-    	if (largc & 1) {
-	    Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "invalid list: ",
-                Tcl_GetString(objv[3]), NULL);
-	    ckfree((char *) largv);
+    	if (lobjc & 1) {
+	    Tcl_AppendResult(interp, "invalid list: ",
+		    	     Tcl_GetString(objv[3]), NULL);
 	    return TCL_ERROR;
 	}
-    	arrayPtr = LockArray(arg, interp, Tcl_GetString(objv[2]), FLAGS_CREATE);
-    } else {
-    	if (index == CGetIdx || index == CNamesIdx) {
-	    if (objc != 3 && objc != 4) {
-		Tcl_WrongNumArgs(interp, 2, objv, "array ?pattern?");
-		return TCL_ERROR;
-	    }
-	    pattern = (objc < 4 ? NULL : Tcl_GetString(objv[3]));
-	} else if (index == CSizeIdx || index == CExistsIdx) {
-	    if (objc != 3) {
-		Tcl_WrongNumArgs(interp, 2, objv, "array");
-		return TCL_ERROR;
-	    }
-	} else {
-	    Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "unknown command \"",
-                Tcl_GetString(objv[1]),
-                    "\": should be exists, get, names, set, or size", NULL);
-	    return TCL_ERROR;
+    	arrayPtr = LockArray(arg, interp, objv[2], 1);
+	if (opt == CResetIdx) {
+	    FlushArray(arrayPtr);
 	}
-	arrayPtr = LockArray(arg, interp, Tcl_GetString(objv[2]), FLAGS_NOERRMSG);
-	if (arrayPtr == NULL) {
-	    if (index == CSizeIdx || index == CExistsIdx) {
-		Tcl_SetObjResult(interp, Tcl_NewStringObj("0", -1));
-	    }
-	    return TCL_OK;
+    	for (i = 0; i < lobjc; i += 2) {
+	    SetVar(arrayPtr, lobjv[i], lobjv[i+1]);
 	}
-    }
+	UnlockArray(arrayPtr);
+	break;
 
-    switch (index) {
-    case CExistsIdx:
-	Tcl_SetObjResult(interp, Tcl_NewStringObj("1", -1));
-	break;
     case CSizeIdx:
-	Tcl_SetObjResult(interp, Tcl_NewIntObj(arrayPtr->vars.numEntries));
-	break;
-    case CResetIdx:
-	FlushArray(arrayPtr);
-	/* FALLTHROUGH */
-    case CSetIdx:
-    	for (i = 0; i < largc; i += 2) {
-	    SetVar(arrayPtr, largv[i], largv[i+1]);
+    case CExistsIdx:
+	if (objc != 3) {
+	    Tcl_WrongNumArgs(interp, 2, objv, "array");
+	    return TCL_ERROR;
 	}
-    	ckfree((char *) largv);
+	arrayPtr = LockArray(arg, NULL, objv[2], 0);
+	if (arrayPtr == NULL) {
+	    size = 0;
+	} else {
+	    size = arrayPtr->vars.numEntries;
+	    UnlockArray(arrayPtr);
+	}
+	if (opt == CExistsIdx) {
+	    Tcl_SetBooleanObj(result, size);
+	} else {
+	    Tcl_SetIntObj(result, size);
+	}
 	break;
+
     case CGetIdx:
     case CNamesIdx:
-	hPtr = Tcl_FirstHashEntry(&arrayPtr->vars, &search);
-	while (hPtr != NULL) {
-	    key = Tcl_GetHashKey(&arrayPtr->vars, hPtr);
-	    if (pattern == NULL || Tcl_StringMatch(key, pattern)) {
-
-		Tcl_ListObjAppendElement(interp, Tcl_GetObjResult(interp),
-                    Tcl_NewStringObj(key, -1));
-	    	if (index == CGetIdx) {
-		    Tcl_ListObjAppendElement(interp, Tcl_GetObjResult(interp),
-                        Tcl_NewStringObj(Tcl_GetHashValue(hPtr), -1));
+	if (objc != 3 && objc != 4) {
+	    Tcl_WrongNumArgs(interp, 2, objv, "array ?pattern?");
+	    return TCL_ERROR;
+	}
+	arrayPtr = LockArray(arg, NULL, objv[2], 0);
+	if (arrayPtr != NULL) {
+	    pattern = (objc > 3) ? Tcl_GetString(objv[3]) : NULL;
+	    hPtr = Tcl_FirstHashEntry(&arrayPtr->vars, &search);
+	    while (hPtr != NULL) {
+	        key = Tcl_GetHashKey(&arrayPtr->vars, hPtr);
+	        if (pattern == NULL || Tcl_StringMatch(key, pattern)) {
+		    Tcl_AppendElement(interp, key);
+	    	    if (opt == CGetIdx) {
+		        Tcl_AppendElement(interp, Tcl_GetHashValue(hPtr));
+		    }
 		}
+	    	hPtr = Tcl_NextHashEntry(&search);
 	    }
-	    hPtr = Tcl_NextHashEntry(&search);
+	    UnlockArray(arrayPtr);
 	}
 	break;
-    }
-    UnlockArray(arrayPtr);
-    return TCL_OK;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsTclNsvUnsetCmd --
- *
- *	Implements nsv_unset. 
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	See docs. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclNsvUnsetCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
-{
-    Tcl_HashEntry *hPtr;
-    Array *arrayPtr;
-
-    if (argc != 2 && argc != 3) {
-    	Tcl_AppendResult(interp, "wrong # args: should be \"",
-	    argv[0], " array ?key?\"", NULL);
-	return TCL_ERROR;
-    }
-    arrayPtr = LockArray(arg, interp, argv[1], 0);
-    if (arrayPtr == NULL) {
-	return TCL_ERROR;
-    }
-    if (argc == 2) {
-    	Tcl_DeleteHashEntry(arrayPtr->entryPtr);
-    } else {
-    	hPtr = Tcl_FindHashEntry(&arrayPtr->vars, argv[2]);
-	if (hPtr != NULL) {
-	    ns_free(Tcl_GetHashValue(hPtr));
-	    Tcl_DeleteHashEntry(hPtr);
-	}
-    }
-    UnlockArray(arrayPtr);
-    if (argc == 2) {
-	FlushArray(arrayPtr);
-	Tcl_DeleteHashTable(&arrayPtr->vars);
-	ns_free(arrayPtr);
-    } else if (hPtr == NULL) {
-    	Tcl_AppendResult(interp, "no such key: ", argv[2], NULL);
-	return TCL_ERROR;
     }
     return TCL_OK;
 }
@@ -817,7 +457,7 @@ NsTclNsvUnsetObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv
     	Tcl_WrongNumArgs(interp, 1, objv, "array ?key?");
 	return TCL_ERROR;
     }
-    arrayPtr = LockArray(arg, interp, Tcl_GetString(objv[1]), 0);
+    arrayPtr = LockArray(arg, interp, objv[1], 0);
     if (arrayPtr == NULL) {
 	return TCL_ERROR;
     }
@@ -836,64 +476,8 @@ NsTclNsvUnsetObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv
 	Tcl_DeleteHashTable(&arrayPtr->vars);
 	ns_free(arrayPtr);
     } else if (hPtr == NULL) {
-	Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "no such key: ",
-            Tcl_GetString(objv[2]), NULL);
+	Tcl_AppendResult(interp, "no such key: ", Tcl_GetString(objv[2]), NULL);
 	return TCL_ERROR;
-    }
-    return TCL_OK;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsTclNsvNamesCmd --
- *
- *      Implements nsv_names.
- *
- * Results:
- *      Tcl result.
- *
- * Side effects:
- *      See docs.
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclNsvNamesCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
-{
-    NsInterp *itPtr = arg;
-    NsServer *servPtr = itPtr->servPtr;
-    Tcl_HashEntry *hPtr;
-    Tcl_HashSearch search;
-    Bucket *bucketPtr;
-    char *pattern, *key;
-    int i;
-    
-    if (argc != 1 && argc !=2) {
-        Tcl_AppendResult(interp, "wrong # args: should be \"",
-			 argv[0], " ?pattern?\"", NULL);
-        return TCL_ERROR;
-    }
-    pattern = argv[1];
-
-    /* 
-     * Walk the bucket list for each array.
-     */
-
-    for (i = 0; i < servPtr->nsv.nbuckets; i++) {
-    	bucketPtr = &servPtr->nsv.buckets[i];
-        Ns_MutexLock(&bucketPtr->lock);
-        hPtr = Tcl_FirstHashEntry(&bucketPtr->arrays, &search);
-        while (hPtr != NULL) {
-            key = Tcl_GetHashKey(&bucketPtr->arrays, hPtr);
-            if (pattern == NULL || Tcl_StringMatch(key, pattern)) {
-                Tcl_AppendElement(interp, key);
-            }
-            hPtr = Tcl_NextHashEntry(&search);
-        }
-        Ns_MutexUnlock(&bucketPtr->lock);
     }
     return TCL_OK;
 }
@@ -922,6 +506,7 @@ NsTclNsvNamesObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv
     NsServer *servPtr = itPtr->servPtr;
     Tcl_HashEntry *hPtr;
     Tcl_HashSearch search;
+    Tcl_Obj *result;
     Bucket *bucketPtr;
     char *pattern, *key;
     int i;
@@ -936,6 +521,7 @@ NsTclNsvNamesObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv
      * Walk the bucket list for each array.
      */
 
+    result = Tcl_GetObjResult(interp);
     for (i = 0; i < servPtr->nsv.nbuckets; i++) {
     	bucketPtr = &servPtr->nsv.buckets[i];
         Ns_MutexLock(&bucketPtr->lock);
@@ -943,8 +529,8 @@ NsTclNsvNamesObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv
         while (hPtr != NULL) {
             key = Tcl_GetHashKey(&bucketPtr->arrays, hPtr);
             if (pattern == NULL || Tcl_StringMatch(key, pattern)) {
-		Tcl_ListObjAppendElement(interp, Tcl_GetObjResult(interp),
-                    Tcl_NewStringObj(key, -1));
+		Tcl_ListObjAppendElement(NULL, result,
+					 Tcl_NewStringObj(key, -1));
             }
             hPtr = Tcl_NextHashEntry(&search);
         }
@@ -974,17 +560,19 @@ NsTclNsvNamesObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv
  */
 
 static Array *
-LockArray(void *arg, Tcl_Interp *interp, char *array, int flags)
+LockArray(void *arg, Tcl_Interp *interp, Tcl_Obj *arrayObj, int create)
 {
     NsInterp *itPtr = arg;
     Bucket *bucketPtr;
     Tcl_HashEntry *hPtr;
     Array *arrayPtr;
+    char *array;
     register char *p;
     register unsigned int result;
     register int i;
     int new;
    
+    array = Tcl_GetString(arrayObj);
     p = array;
     result = 0;
     while (1) {
@@ -999,7 +587,7 @@ LockArray(void *arg, Tcl_Interp *interp, char *array, int flags)
     bucketPtr = &itPtr->servPtr->nsv.buckets[i];
 
     Ns_MutexLock(&bucketPtr->lock);
-    if (flags & FLAGS_CREATE) {
+    if (create) {
     	hPtr = Tcl_CreateHashEntry(&bucketPtr->arrays, array, &new);
 	if (!new) {
 	    arrayPtr = Tcl_GetHashValue(hPtr);
@@ -1014,7 +602,7 @@ LockArray(void *arg, Tcl_Interp *interp, char *array, int flags)
     	hPtr = Tcl_FindHashEntry(&bucketPtr->arrays, array);
 	if (hPtr == NULL) {
 	    Ns_MutexUnlock(&bucketPtr->lock);
-	    if (!(flags & FLAGS_NOERRMSG)) {
+	    if (interp != NULL) {
 	    	Tcl_AppendResult(interp, "no such array: ", array, NULL);
 	    }
 	    return NULL;
@@ -1042,19 +630,15 @@ LockArray(void *arg, Tcl_Interp *interp, char *array, int flags)
  */
 
 static void
-UpdateVar(Tcl_HashEntry *hPtr, const char *value)
+UpdateVar(Tcl_HashEntry *hPtr, Tcl_Obj *obj)
 {
-    char *old, *new;
-    size_t size;
-    
-    size = strlen(value) + 1;
+    char *str, *old, *new;
+    int len;
+
+    str = Tcl_GetStringFromObj(obj, &len);
     old = Tcl_GetHashValue(hPtr);
-    if (old == NULL) {
-    	new = ns_malloc(size);
-    } else {
-    	new = ns_realloc(old, size);
-    }
-    memcpy(new, value, size);
+    new = ns_realloc(old, len+1);
+    memcpy(new, str, len+1);
     Tcl_SetHashValue(hPtr, new);
 }
 
@@ -1076,12 +660,12 @@ UpdateVar(Tcl_HashEntry *hPtr, const char *value)
  */
 
 static void
-SetVar(Array *arrayPtr, const char *key, const char *value)
+SetVar(Array *arrayPtr, Tcl_Obj *key, Tcl_Obj *value)
 {
     Tcl_HashEntry *hPtr;
     int new;
-    
-    hPtr = Tcl_CreateHashEntry(&arrayPtr->vars, key, &new);
+
+    hPtr = Tcl_CreateHashEntry(&arrayPtr->vars, Tcl_GetString(key), &new);
     UpdateVar(hPtr, value);
 }
 
@@ -1120,7 +704,7 @@ FlushArray(Array *arrayPtr)
 /*
  *----------------------------------------------------------------------
  *
- * NsTclVarCmd --
+ * NsTclVarObjCmd --
  *
  *	Implements ns_var (deprecated)
  *
@@ -1134,7 +718,8 @@ FlushArray(Array *arrayPtr)
  */
 
 int
-NsTclVarCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
+NsTclVarObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
+	       Tcl_Obj **objv)
 {
     NsInterp		 *itPtr = arg;
     NsServer		 *servPtr;
@@ -1142,74 +727,76 @@ NsTclVarCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
     Tcl_HashEntry        *hPtr;
     Tcl_HashSearch        search;
     int                   new, code;
+    char		 *var, *val;
+    static CONST char *opts[] = {
+	"exists", "get", "list", "set", "unset", NULL
+    };
+    enum {
+	VExistsIdx, VGetIdx, VListIdx, VSetIdx, VUnsetIdx
+    } opt; 
 
-    if (argc < 2) {
-        Tcl_AppendResult(interp, "wrong # args:  should be \"",
-                         argv[0], " command ?args?", NULL);
+    if (objc < 2) {
+	Tcl_WrongNumArgs(interp, 1, objv, "option ?args?");
         return TCL_ERROR;
+    }
+    if (Tcl_GetIndexFromObj(interp, objv[1], opts, "option", 0,
+			    (int *) &opt) != TCL_OK) {
+	return TCL_ERROR;
     }
     servPtr = itPtr->servPtr;
     tablePtr = &servPtr->var.table;
     code = TCL_OK;
-
+    if (objc > 2) {
+	var = Tcl_GetString(objv[2]);
+    }
     Ns_MutexLock(&servPtr->var.lock);
-    if (STREQ(argv[1], "get") ||
-	STREQ(argv[1], "exists") ||
-	STREQ(argv[1], "unset")) {
-	
-        if (argc != 3) {
-            Tcl_AppendResult(interp, "wrong # args:  should be \"",
-                             argv[0], " ", argv[1], " var\"", NULL);
+    switch (opt) {
+    case VExistsIdx:
+    case VGetIdx:
+    case VUnsetIdx:
+        if (objc != 3) {
+	    Tcl_WrongNumArgs(interp, 2, objv, "var");
             code = TCL_ERROR;
-        } else {
-            hPtr = Tcl_FindHashEntry(tablePtr, argv[2]);
-            if (hPtr == NULL) {
-                if (argv[1][0] == 'e') {
-                    Tcl_SetResult(interp, "0", TCL_STATIC);
-                } else {
-                    Tcl_AppendResult(interp, "no such variable \"", argv[2],
+	} else {
+	    hPtr = Tcl_FindHashEntry(tablePtr, var);
+	    if (opt == VExistsIdx) {
+		Tcl_SetBooleanObj(Tcl_GetObjResult(interp), hPtr ? 1 : 0);
+	    } else if (hPtr == NULL) {
+	    	Tcl_AppendResult(interp, "no such variable \"", var, 
 				     "\"", NULL);
-                    code = TCL_ERROR;
-                }
-            } else {
-                if (argv[1][0] == 'e') {
-                    Tcl_SetResult(interp, "1", TCL_STATIC);
-                } else if (argv[1][0] == 'g') {
-                    Tcl_SetResult(interp, (char *) Tcl_GetHashValue(hPtr),
-				  TCL_VOLATILE);
-                } else {
-                    ns_free(Tcl_GetHashValue(hPtr));
-                    Tcl_DeleteHashEntry(hPtr);
-                }
-            }
-        }
-    } else if (STREQ(argv[1], "set")) {
-        if (argc != 4) {
-            Tcl_AppendResult(interp, "wrong # args:  should be \"",
-                             argv[0], " ", argv[1], " var value\"", NULL);
+            	code = TCL_ERROR;
+	    } else if (opt == VGetIdx) {
+	        Tcl_SetResult(interp, Tcl_GetHashValue(hPtr), TCL_VOLATILE);
+	    } else {
+            	ns_free(Tcl_GetHashValue(hPtr));
+            	Tcl_DeleteHashEntry(hPtr);
+	    }
+	}
+	break;
+
+    case VSetIdx:
+        if (objc != 4) {
+	    Tcl_WrongNumArgs(interp, 2, objv, "var value");
             code = TCL_ERROR;
         } else {
-            hPtr = Tcl_CreateHashEntry(tablePtr, argv[2], &new);
+            hPtr = Tcl_CreateHashEntry(tablePtr, var, &new);
             if (!new) {
                 ns_free(Tcl_GetHashValue(hPtr));
             }
-            Tcl_SetHashValue(hPtr, ns_strdup(argv[3]));
-            Tcl_SetResult(interp, argv[3], TCL_VOLATILE);
+	    val = Tcl_GetString(objv[3]);
+            Tcl_SetHashValue(hPtr, ns_strdup(val));
+            Tcl_SetResult(interp, val, TCL_VOLATILE);
         }
-    } else if (STREQ(argv[1], "list")) {
+	break;
+
+    case VListIdx:
         hPtr = Tcl_FirstHashEntry(tablePtr, &search);
         while (hPtr != NULL) {
             Tcl_AppendElement(interp, Tcl_GetHashKey(tablePtr, hPtr));
             hPtr = Tcl_NextHashEntry(&search);
         }
-    } else {
-        Tcl_AppendResult(interp, "unknown command \"",
-                         argv[1],
-			 "\": should be get, set, unset, exists, or list",
-			 NULL);
-        code = TCL_ERROR;
+	break;
     }
     Ns_MutexUnlock(&servPtr->var.lock);
     return code;
 }
-
