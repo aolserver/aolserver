@@ -1,3 +1,14 @@
+2005-03-04  Nathan Folkman <shmooved@aol.com>
+
+        * nsd/limits.c: Fixed bug where limitsPtr->name was 
+        incorrectly being set to NULL. Updated FindLimits() to 
+        initialize all values in Limits structure. Renamed keys
+        returned by LimitsResult() to distinguish between items 
+        which are counts (ntimeout, ndropped, noverflow, etc.) 
+        and items which are configuration parameters (maxwait, 
+        timeout, maxrun, etc.)
+
+
 2005-01-18  Nathan Folkman <shmooved@aol.com>
 
         * nsd/tcljob.c: Minor clean up to "cannot wait on job" error
