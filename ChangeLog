@@ -1,3 +1,13 @@
+2004-09-08  Dossy Shiobara <dossy@panoptic.com>
+
+	* nslog/nslog.html (1.1.10.1): Updated nslog module documentation.
+	  Closes SF Bug #466236.  Backported from HEAD.
+
+2004-09-08  Dossy Shiobara <dossy@panoptic.com>
+
+	* nscgi/nscgi.html (1.1.10.2): Add datatype for config options to
+	  doc.	Backported from HEAD.
+
 2004-09-07  Dossy Shiobara <dossy@panoptic.com>
 
 	* include/ns.h (1.55.2.10): BUMP: 4.0.9a
