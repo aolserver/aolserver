@@ -40,7 +40,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nssock/Attic/sock.c,v 1.3 2000/08/17 18:48:20 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nssock/Attic/sock.c,v 1.4 2000/08/17 18:56:35 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 
@@ -563,7 +563,8 @@ SockThread(void *ignored)
 		    if (Ns_QueueConn(sdPtr->driver, cdPtr) != NS_OK) {
 #ifndef SSL
 			(void) send(sock, BUSY, sizeof(BUSY), 0);
-			Ns_Log(Warning, "%s: server too busy (peer '%s')",
+			Ns_Log(Warning, "%s: server too busy: "
+			       "request failed for peer %s",
 			       DRIVER_NAME, cdPtr->peer);
 #endif
 			(void) SockClose(cdPtr);
