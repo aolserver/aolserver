@@ -1,3 +1,49 @@
+2002-10-14  Jim Davidson <jgdavidson@aol.com>
+
+	* doc/install-doc (new):  New script to install and cross
+	link the man pages.
+
+	* Makefile:
+	* include/Makefile.module:  Added .PHONY targets and man
+	page install target.
+
+	* nsd/conn.c:  Made "ns_conn copy" use Tcl_Write instead
+	of Tcl_WriteChars to fix binary file upload bug.
+
+	* nsd/form.c:  Fixed bug where Ns_ConnGetQuery (i.e.,
+	ns_conn form) could not handle binary data in multpart file
+	uploads.  Also, "ns_conn files" now returns file type.
+	
+	* nsd/log.c:  Thread ids are now formatted as unsigned
+	long.
+
+	* include/ns.h:
+	* nsd/config.c:
+	* nsd/tclinit.c:
+	* nsd/tclcmd.c:
+	* nsd/tclsock.c:
+	* nsd/main.c:  Added support for libnsd.so to be loaded
+	into a standard (thread enabled) tclsh or linked into a
+	custom tclsh.  Calling Ns_TclInit from a custom tclsh or
+	loading libnsd.so via the load command will add many
+	non-server AOLserver commands (e.g., adds ns_set but not
+	ns_adp_puts).
+
+	* nsd/server.c:
+	* nsd/tcljob.c:  Changed ns_job command to create and queue
+	jobs to named queues instead of per-server queues.
+
+	* nsd/tclthread.c:  Added a special Tcl address object type
+	to speed access to the object id's.
+
+	* nsd/sched.c:  Threaded events now use a thread pool
+	instead of create/delete each time.
+
+	* tcl/form.tcl:  Fixed bug accessing uploaded binary files
+	with the ns_getform proc and added ns_getformfile proc to
+	address the ".tmpfile" security issue.
+
+
 2002-09-28  Jim Davidson <jgdavidson@aol.com>
 
 	* nsd/adpparse.c:
