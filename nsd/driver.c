@@ -34,7 +34,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.17.2.8 2004/08/25 19:51:29 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.17.2.9 2004/09/17 15:30:58 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -100,7 +100,7 @@ static Request *firstReqPtr;/* Free list of request structures. */
 static Ns_Mutex reqLock;    /* Lock around request free list. */
 static Sock *firstSockPtr;  /* Free list of Sock structures. */
 static int shutdownPending; /* Flag to indicate shutdown. */
-static int stopped = 1;	    /* Flag to indicate running. */
+static int stopped;	    /* Flag to indicate driver thread stopped. */
 static int nactive;	    /* Active sockets. */
 static Ns_Thread driverThread;/* Running DriverThread. */
 static SOCKET trigPipe[2];  /* Trigger to wakeup DriverThread. */
