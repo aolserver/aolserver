@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Makefile,v 1.39 2002/09/21 17:07:36 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Makefile,v 1.40 2004/07/29 23:05:48 dossy Exp $
 #
 
 INSTALL = install-init
@@ -41,15 +41,15 @@ LOBJS = adpcmds.o adpeval.o adpparse.o adprequest.o auth.o binder.o \
 	cache.o callbacks.o cls.o config.o conn.o connio.o crypt.o \
 	dns.o driver.o dsprintf.o dstring.o encoding.o exec.o \
 	fastpath.o fd.o filter.o form.o httptime.o index.o info.o \
-	init.o lisp.o listen.o log.o mimetypes.o modload.o nsconf.o \
-	nsmain.o nsthread.o op.o pathname.o pidfile.o proc.o queue.o \
-	quotehtml.o random.o request.o return.o rollfile.o sched.o \
-	server.o set.o sock.o sockcallback.o str.o tclatclose.o \
-	tclcmds.o tclconf.o tclenv.o tclfile.o tclhttp.o tclimg.o \
-	tclinit.o tcljob.o tclmisc.o tclobj.o tclrequest.o tclresp.o \
-	tclsched.o tclset.o tclshare.o tclsock.o tclthread.o tclvar.o \
-	tclxkeylist.o unix.o url.o urlencode.o urlopen.o urlspace.o \
-	uuencode.o
+	init.o limits.o lisp.o listen.o log.o mimetypes.o modload.o \
+	nsconf.o nsmain.o nsthread.o op.o pathname.o pidfile.o pools.o \
+	proc.o queue.o quotehtml.o random.o request.o return.o \
+	rollfile.o sched.o server.o set.o sock.o sockcallback.o str.o \
+	tclatclose.o tclcmds.o tclconf.o tclenv.o tclfile.o tclhttp.o \
+	tclimg.o tclinit.o tcljob.o tclmisc.o tclobj.o tclrequest.o \
+	tclresp.o tclsched.o tclset.o tclshare.o tclsock.o tclthread.o \
+	tclvar.o tclxkeylist.o unix.o url.o urlencode.o urlopen.o \
+	urlspace.o uuencode.o
 
 LIBOBJS=$(LOBJS) stamp.o
 

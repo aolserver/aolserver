@@ -33,7 +33,7 @@
  *	AOLserver libnsd entry.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/init.c,v 1.8 2004/07/19 13:41:43 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/init.c,v 1.9 2004/07/29 23:05:49 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -78,6 +78,8 @@ NsdInit(void)
     	NsInitDrivers();
     	NsInitUrlSpace();
     	NsInitQueue();
+        NsInitLimits();
+        NsInitPools();
     	NsInitSched();
     	NsInitTcl();
     	NsInitRequests();

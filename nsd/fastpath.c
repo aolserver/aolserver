@@ -34,12 +34,9 @@
  *      Get page possibly from a file cache.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/fastpath.c,v 1.19 2004/07/02 16:14:14 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/fastpath.c,v 1.20 2004/07/29 23:05:49 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
-#ifndef _WIN32
-#include <sys/mman.h>
-#endif
 
 /*
  * The following constants are defined for this file

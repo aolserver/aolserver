@@ -33,7 +33,7 @@
  *	Routines for managing NsServer structures.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.28 2003/11/16 15:04:43 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.29 2004/07/29 23:05:49 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -41,7 +41,6 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
  * Static variables defined in this file. 
  */
 
-static void CreatePool(NsServer *servPtr, char *pool);
 static NsServer *initServPtr; /* Holds currently initializing server. */
 
 
@@ -96,76 +95,6 @@ NsServer *
 NsGetInitServer(void)
 {
     return initServPtr;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsStartServers --
- *
- *	Start all configured servers.
- *
- * Results:
- *	None.
- *
- * Side effects:
- *	See NsStartServer.
- *
- *----------------------------------------------------------------------
- */
-
-void
-NsStartServers(void)
-{
-    NsServer *servPtr;
-    Tcl_HashEntry *hPtr;
-    Tcl_HashSearch search;
-
-    hPtr = Tcl_FirstHashEntry(&nsconf.servertable, &search);
-    while (hPtr != NULL) {
-	servPtr = Tcl_GetHashValue(hPtr);
-	NsStartServer(servPtr);
-	hPtr = Tcl_NextHashEntry(&search);
-    }
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsStopServers --
- *
- *	Signal stop and wait for all configured servers.
- *
- * Results:
- *	None.
- *
- * Side effects:
- *	See NsStopServer and NsWaitServer.
- *
- *----------------------------------------------------------------------
- */
-
-void
-NsStopServers(Ns_Time *toPtr)
-{
-    NsServer *servPtr;
-    Tcl_HashEntry *hPtr;
-    Tcl_HashSearch search;
-
-    hPtr = Tcl_FirstHashEntry(&nsconf.servertable, &search);
-    while (hPtr != NULL) {
-	servPtr = Tcl_GetHashValue(hPtr);
-	NsStopServer(servPtr);
-	hPtr = Tcl_NextHashEntry(&search);
-    }
-    hPtr = Tcl_FirstHashEntry(&nsconf.servertable, &search);
-    while (hPtr != NULL) {
-	servPtr = Tcl_GetHashValue(hPtr);
-	NsWaitServer(servPtr, toPtr);
-	hPtr = Tcl_NextHashEntry(&search);
-    }
 }
 
 
@@ -243,8 +172,9 @@ NsInitServer(char *server, Ns_ServerInitProc *initProc)
     }
 
     /*
-     * Encoding defaults for the server
+     * Encoding defaults for the server.
      */
+
     servPtr->encoding.outputCharset = Ns_ConfigGetValue(path, "outputCharset");
     if (servPtr->encoding.outputCharset != NULL) {
 
@@ -280,25 +210,12 @@ NsInitServer(char *server, Ns_ServerInitProc *initProc)
         servPtr->encoding.urlEncoding = nsconf.encoding.urlEncoding;
     }
 
-
     /*
      * Set some server limits.
      */
      
-    if (!Ns_ConfigGetInt(path, "sendfdthreshold", &servPtr->limits.sendfdmin)) {
-    	servPtr->limits.sendfdmin = 2048;
-    }
     if (!Ns_ConfigGetInt(path, "errorminsize", &servPtr->limits.errorminsize)) {
     	servPtr->limits.errorminsize = 514;
-    }
-    if (!Ns_ConfigGetInt(path, "maxline", &servPtr->limits.maxline)) {
-    	servPtr->limits.maxline = 16 * 1024;	/* 16k */
-    }
-    if (!Ns_ConfigGetInt(path, "maxheaders", &servPtr->limits.maxheaders)) {
-    	servPtr->limits.maxheaders = 64 * 1024;	/* 64k */
-    }
-    if (!Ns_ConfigGetInt(path, "maxpost", &servPtr->limits.maxpost)) {
-    	servPtr->limits.maxpost = 256 * 1024;	/* 256k */
     }
     if (!Ns_ConfigGetInt(path, "connsperthread", &servPtr->limits.connsperthread)) {
     	servPtr->limits.connsperthread = 0;	/* Unlimited */
@@ -495,99 +412,7 @@ NsInitServer(char *server, Ns_ServerInitProc *initProc)
      * Load modules and initialize Tcl.  The order is significant.
      */
 
-    Ns_MutexSetName2(&servPtr->pools.lock, "nsd:queue:", server);
-    CreatePool(servPtr, "");
-    path = Ns_ConfigGetPath(server, NULL, "pools", NULL);
-    set = Ns_ConfigGetSection(path);
-    for (i = 0; set != NULL && i < Ns_SetSize(set); ++i) {
-	CreatePool(servPtr, Ns_SetKey(set, i));
-    }
     NsLoadModules(server);
     NsTclInitServer(server);
     initServPtr = NULL;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * CreatePool --
- *
- *	Create a connection thread pool.
- *
- * Results:
- *	None.
- *
- * Side effects:
- *	Requests for specified URL's will be handled by given pool.
- *
- *----------------------------------------------------------------------
- */
-
-static void
-CreatePool(NsServer *servPtr, char *pool)
-{
-    ConnPool *poolPtr;
-    int i;
-    char *path;
-    Ns_Set *set;
-
-    poolPtr = ns_calloc(1, sizeof(ConnPool));
-    poolPtr->pool = pool;
-    poolPtr->servPtr = servPtr;
-    if (*pool == '\0') {
-	/* NB: Default options from pre-4.0 ns/server/server1 section. */
-    	path = Ns_ConfigGetPath(servPtr->server, NULL, NULL);
-	servPtr->pools.defaultPtr= poolPtr;
-    } else {
-	/*
-	 * Map requested method/URL's to this pool.
-	 */
-
-    	path = Ns_ConfigGetPath(servPtr->server, NULL, "pool", pool, NULL);
-    	set = Ns_ConfigGetSection(path);
-	for (i = 0; set != NULL && i < Ns_SetSize(set); ++i) {
-	    if (!strcasecmp(Ns_SetKey(set, i), "map")) {
-		NsMapPool(poolPtr, Ns_SetValue(set, i));
-	    }
-	}
-    }
-    poolPtr->nextPtr = servPtr->pools.firstPtr;
-    servPtr->pools.firstPtr = poolPtr;
-    if (!Ns_ConfigGetInt(path, "minthreads", &poolPtr->threads.min)) {
-	poolPtr->threads.min = 0;
-    }
-    if (!Ns_ConfigGetInt(path, "maxthreads", &poolPtr->threads.max)) {
-	poolPtr->threads.max = 10;
-    }
-    if (!Ns_ConfigGetInt(path, "threadtimeout", &poolPtr->threads.timeout)) {
-	poolPtr->threads.timeout = 120;
-    }
-    if (!Ns_ConfigGetInt(path, "maxconns", &poolPtr->threads.maxconns)) {
-    	poolPtr->threads.maxconns = servPtr->limits.connsperthread;
-    }
-
-    /*
-     * Determine the minimum and maximum number of threads, adjusting the
-     * values as needed.  The threadtimeout value is the maximum number of
-     * seconds a thread will wait for a connection before exiting if the
-     * current number of threads is above the minimum.
-     */
-
-    if (poolPtr->threads.min > poolPtr->threads.max) {
-	Ns_Log(Warning, "serv: cannot have more minthreads than maxthreads: "
-	       "%d min threads adjusted down to %d max threads",
-	       poolPtr->threads.min, poolPtr->threads.max);
-	poolPtr->threads.min = poolPtr->threads.max;
-    }
-
-    if (!Ns_ConfigGetInt(path, "minthreads", &poolPtr->threads.min)) {
-	poolPtr->threads.min = 0;
-    }
-    if (!Ns_ConfigGetInt(path, "maxthreads", &poolPtr->threads.max)) {
-	poolPtr->threads.max = 10;
-    }
-    if (!Ns_ConfigGetInt(path, "threadtimeout", &poolPtr->threads.timeout)) {
-	poolPtr->threads.timeout = 120;
-    }
 }

@@ -37,6 +37,7 @@
 #include "ns.h"
 #ifndef _WIN32
 #include <pthread.h>
+#include <sys/mman.h>
 #endif
 #include <assert.h>
 
@@ -99,6 +100,9 @@
 #define NS_SIGTERM  SIGTERM
 #define NS_SIGHUP   SIGHUP
 #endif
+
+#define _MAX(x,y) ((x) > (y) ? (x) : (y))
+#define _MIN(x,y) ((x) > (y) ? (y) : (x))
 
 /*
  * constants
@@ -298,38 +302,44 @@ typedef struct Driver {
     int		 opts;		    /* Driver options. */
     int     	 closewait;	    /* Graceful close timeout. */
     int     	 keepwait;	    /* Keepalive timeout. */
-    SOCKET  	 sock;		    /* Listening socket. */
     int		 pidx;		    /* poll() index. */
     char        *bindaddr;	    /* Numerical listen address. */
     int          port;		    /* Port in location. */
     int		 backlog;	    /* listen() backlog. */
     
+    int          maxline;           /* Maximum request line length to read. */
+    int          maxheader;         /* Maximum total header length to read. */
     int		 maxinput;	    /* Maximum request bytes to read. */
     int     	 maxsock;	    /* Maximum open Sock's. */
     int     	 nactive;	    /* Number of active Sock's. */
-    struct Sock *firstFreePtr;	    /* Sock free list. */
-    struct Sock *firstClosePtr;     /* Sock's returning to driver thread. */
+
+    struct Sock *freeSockPtr;       /* Sock free list. */
 
     int		 maxreaders;	    /* Max reader threads. */
     Ns_Thread   *readers;	    /* Array of reader Ns_Thread's. */
     int		 nreaders;	    /* Current num reader threads. */
     int		 idlereaders;	    /* Idle reader threads. */
-    struct Sock *firstReadPtr;	    /* Sock's waiting for reader threads. */
-    struct Sock *firstReadyPtr;	    /* Sock's returning from reader threads. */
+
+    struct Sock *readSockPtr;       /* Sock's waiting for reader threads. */
+    struct Sock *runSockPtr;        /* Sock's returning from reader threads. */
+    struct Sock *closeSockPtr;      /* Sock's returning to the driver thread. */
+
+    struct Conn *firstConnPtr;      /* First Conn waiting to run. */
+    struct Conn *lastConnPtr;       /* Last Conn waiting to run. */
+    struct Conn *freeConnPtr;       /* Conn's returning to the driver thread. */
 
     int     	 trigger[2];	    /* Wakeup trigger pipe. */
-    int     	 started;  	    /* Startup complete. */
-    int     	 shutdown;  	    /* Shutdown pending. */
-    int     	 stopped;	    /* Shutdown complete. */
+    int          flags;             /* Driver state flags. */
 
     Ns_Mutex	 lock;
     Ns_Cond 	 cond;
     Ns_Time 	 now;		    /* Current time updated each spin. */
     Ns_Thread	 thread;
 
-    unsigned  	 nfds;
-    unsigned 	 maxfds;
     struct pollfd *pfds;
+    int          nfds;
+    int          maxfds;
+    Ns_Time      timeout;
 
     struct QueWait *freeQueWaitPtr;
     
@@ -343,7 +353,6 @@ typedef struct Driver {
  */
 
 typedef struct Sock {
-
     /*
      * Visible in Ns_Sock.
      */
@@ -378,12 +387,25 @@ typedef struct FormFile {
 } FormFile;
 
 /*
+ * The following structure defines a per-request limits.
+ */
+
+typedef struct Limits {
+    Ns_Mutex        lock;
+    int             maxrun;
+    int             maxwait;
+    int             nrunning;
+    int             nwaiting;
+    int             maxupload;
+    int             timeout;
+} Limits;
+
+/*
  * The following structure maintains state for a connection
  * being processed.
  */
 
 typedef struct Conn {
-
     /*
      * Visible in an Ns_Conn:
      */
@@ -400,9 +422,10 @@ typedef struct Conn {
      * Visible only in a Conn:
      */
     
-    struct Conn *prevPtr;
     struct Conn *nextPtr;
+    struct Conn *prevPtr;
     struct Sock *sockPtr;
+    struct Limits *limitsPtr;
 
     /*
      * The following are copied from sockPtr so they're valid
@@ -455,18 +478,17 @@ typedef struct Conn {
      */
 
     char	   *next;	/* Next read offset. */
-    int		    avail;	/* Bytes avail in buffer. */
+    size_t          avail;	/* Bytes avail in buffer. */
     char	   *content;	/* Start of content. */
+    int             tfd;        /* Temp fd for file-based content. */
+    size_t          mlen;       /* Length of mmap'ed region. */
 
     /*
      * The following offsets are used to manage the 
      * buffer read-ahead process.
      */
 
-    int		    woff;	/* Next write buffer offset. */
     int		    roff;	/* Next read buffer offset. */
-    int		    coff;	/* Content buffer offset. */
-
     Tcl_DString	    ibuf;	/* Request and content input buffer. */
     Tcl_DString	    obuf;	/* Output buffer for queued headers. */
 
@@ -476,10 +498,10 @@ typedef struct Conn {
  * The following structure maintains a connection thread pool.
  */
 
-typedef struct ConnPool {
-    char 	    *pool;
-    struct ConnPool *nextPtr;
-    struct NsServer *servPtr;
+typedef struct Pool {
+    Ns_Mutex        lock;
+    Ns_Cond         cond;
+    int             shutdown;
 
     /*
      * The following struct maintains the active and waiting connection
@@ -489,14 +511,13 @@ typedef struct ConnPool {
     struct {
 	struct {
 	    int     	    num;
-    	    Conn    	   *firstPtr;
-    	    Conn    	   *lastPtr;
-	} wait;
-	struct {
-    	    Conn    	   *firstPtr;
-	    Conn    	   *lastPtr;
+            struct Conn    *firstPtr;
+            struct Conn    *lastPtr;
+        } wait;
+        struct {
+            struct Conn    *firstPtr;
+            struct Conn    *lastPtr;
 	} active;
-	Ns_Cond     	    cond;
     } queue;
 
     /*
@@ -519,7 +540,7 @@ typedef struct ConnPool {
 	int		    maxconns;
     } threads;
 
-} ConnPool;
+} Pool;
 
 /*
  * The following structure is allocated for each virtual server.
@@ -530,19 +551,6 @@ typedef struct NsServer {
     Ns_LocationProc 	   *locationProc;
     struct PreQueue 	   *firstPreQuePtr;
 
-    /*
-     * The following struct maintains the connection pool(s).
-     */
-
-    struct {
-	Ns_Mutex    	    lock;
-	int		    nextconnid;
-	bool		    shutdown;
-    	ConnPool	   *firstPtr;
-    	ConnPool	   *defaultPtr;
-	Ns_Thread   	    joinThread;
-    } pools;
-    
     /* 
      * The following struct maintains various server options.
      */
@@ -557,14 +565,15 @@ typedef struct NsServer {
     } opts;
     
     /*
-     * Encoding defaults for the server
+     * Encoding defaults for the server.
      */
+
     struct {
-        char         *outputCharset;
-        Tcl_Encoding  outputEncoding;
-        bool          hackContentTypeP;
-        char         *urlCharset;
-        Tcl_Encoding  urlEncoding;
+        char               *outputCharset;
+        Tcl_Encoding        outputEncoding;
+        bool                hackContentTypeP;
+        char               *urlCharset;
+        Tcl_Encoding        urlEncoding;
     } encoding;
 
     /* 
@@ -572,10 +581,6 @@ typedef struct NsServer {
      */
 
     struct {
-    	int 	    	    maxheaders;
-	int 	    	    maxline;
-	int 	    	    maxpost;
-	int	    	    sendfdmin;
     	int 	    	    errorminsize;
 	int		    connsperthread;
     } limits;
@@ -810,6 +815,8 @@ extern void NsInitMimeTypes(void);
 extern void NsInitModLoad(void);
 extern void NsInitProcInfo(void);
 extern void NsInitQueue(void);
+extern void NsInitLimits(void);
+extern void NsInitPools(void);
 extern void NsInitDrivers(void);
 extern void NsInitSched(void);
 extern void NsInitTcl(void);
@@ -817,8 +824,8 @@ extern void NsInitUrlSpace(void);
 extern void NsInitRequests(void);
 
 extern void NsQueueConn(Conn *connPtr);
-extern void NsMapPool(ConnPool *poolPtr, char *map);
-extern int NsSockSend(Sock *sockPtr, struct iovec *bufs, int nbufs);
+extern void NsMapPool(Pool *poolPtr, char *map);
+extern int  NsSockSend(Sock *sockPtr, struct iovec *bufs, int nbufs);
 extern void NsSockClose(Sock *sockPtr, int keep);
 extern void NsFreeConn(Conn *connPtr);
 
@@ -836,7 +843,7 @@ extern void NsFreeAtClose(NsInterp *itPtr);
 
 extern void NsRunAtClose(Tcl_Interp *interp);
 
-extern int NsUrlToFile(Ns_DString *dsPtr, NsServer *servPtr, char *url);
+extern int  NsUrlToFile(Ns_DString *dsPtr, NsServer *servPtr, char *url);
 
 /*
  * External callback functions.
@@ -860,9 +867,9 @@ extern void NsGetSockCallbacks(Tcl_DString *dsPtr);
 extern void NsGetScheduled(Tcl_DString *dsPtr);
 
 #ifdef _WIN32
-extern int NsConnectService(void);
-extern int NsInstallService(char *service);
-extern int NsRemoveService(char *service);
+extern int  NsConnectService(void);
+extern int  NsInstallService(char *service);
+extern int  NsRemoveService(char *service);
 #endif
 
 extern void NsCreatePidFile(char *service);
@@ -874,7 +881,6 @@ extern void NsUpdateMimeTypes(void);
 extern void NsUpdateEncodings(void);
 extern void NsUpdateUrlEncode(void);
 extern void NsRunPreStartupProcs(void);
-extern void NsStartServers(void);
 extern void NsBlockSignals(int debug);
 extern void NsHandleSignals(void);
 extern void NsStopDrivers(void);
@@ -885,11 +891,10 @@ extern char *NsConfigRead(char *file);
 extern void NsConfigEval(char *config, int argc, char **argv, int optind);
 extern void NsConfUpdate(void);
 extern void NsEnableDNSCache(int timeout, int maxentries);
-extern void NsStopServers(Ns_Time *toPtr);
-extern void NsStartServer(NsServer *servPtr);
-extern void NsStopServer(NsServer *servPtr);
-extern void NsWaitServer(NsServer *servPtr, Ns_Time *toPtr);
-extern void NsStartDrivers(void);
+extern void NsStartPools(void);
+extern void NsStopPools(Ns_Time *timeoutPtr);
+extern void NsCreateConnThread(Pool *poolPtr);
+extern int  NsStartDrivers(void);
 extern void NsWaitDriversShutdown(Ns_Time *toPtr);
 extern void NsStartSchedShutdown(void);
 extern void NsWaitSchedShutdown(Ns_Time *toPtr);
@@ -912,6 +917,13 @@ extern void NsTclAddServerCmds(Tcl_Interp *interp, NsInterp *itPtr);
 
 extern void NsRestoreSignals(void);
 extern void NsSendSignal(int sig);
+
+/*
+ * Conn routines.
+ */
+
+extern Limits *NsGetLimits(char *server, char *method, char *url);
+extern Pool *NsGetPool(char *server, char *method, char *url);
 
 /*
  * ADP routines.

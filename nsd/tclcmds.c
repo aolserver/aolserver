@@ -33,7 +33,7 @@
  * 	Connect Tcl command names to the functions that implement them
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.39 2004/06/20 10:28:51 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.40 2004/07/29 23:05:49 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -88,6 +88,8 @@ extern Tcl_ObjCmdProc
     NsTclJobObjCmd,
     NsTclJpegSizeObjCmd,
     NsTclKillObjCmd,
+    NsTclLimitsObjCmd,
+    NsTclPoolsObjCmd,
     NsTclLinkObjCmd,
     NsTclLocalTimeObjCmd,
     NsTclLogObjCmd,
@@ -239,6 +241,8 @@ static Cmd cmds[] = {
 
     {"ns_info", NULL, NsTclInfoObjCmd},
     {"ns_modulepath", NULL, NsTclModulePathObjCmd},
+    {"ns_limits", NULL, NsTclLimitsObjCmd},
+    {"ns_pools", NULL, NsTclPoolsObjCmd},
 
     /*
      * log.c

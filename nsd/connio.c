@@ -34,7 +34,7 @@
  *      Handle connection I/O.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/connio.c,v 1.14 2004/06/15 00:28:55 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/connio.c,v 1.15 2004/07/29 23:05:48 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #define IOBUFSZ 2048
@@ -44,9 +44,9 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
  */
 
 static int ConnSend(Ns_Conn *conn, int nsend, Tcl_Channel chan,
-    	    	    FILE *fp, int fd);
-static int ConnCopy(Ns_Conn *conn, size_t ncopy, Tcl_Channel chan,
-		    FILE *fp, int fd);
+        FILE *fp, int fd);
+static int ConnCopy(Ns_Conn *conn, size_t ncopy, Ns_DString *dsPtr,
+        Tcl_Channel chan, FILE *fp, int fd);
  
 
 /*
@@ -550,13 +550,13 @@ int
 Ns_ConnReadLine(Ns_Conn *conn, Ns_DString *dsPtr, int *nreadPtr)
 {
     Conn	   *connPtr = (Conn *) conn;
-    NsServer	   *servPtr = connPtr->servPtr;
+    Driver         *drvPtr = connPtr->drvPtr;
     char           *eol;
     int             nread, ncopy;
 
     if (connPtr->sockPtr == NULL
 	|| (eol = strchr(connPtr->next, '\n')) == NULL
-	|| (nread = (eol - connPtr->next)) > servPtr->limits.maxline) {
+        || (nread = (eol - connPtr->next)) > drvPtr->maxline) {
 	return NS_ERROR;
     }
     ncopy = nread;
@@ -600,7 +600,7 @@ Ns_ConnReadHeaders(Ns_Conn *conn, Ns_Set *set, int *nreadPtr)
 
     Ns_DStringInit(&ds);
     nread = 0;
-    maxhdr = servPtr->limits.maxheaders;
+    maxhdr = connPtr->drvPtr->maxinput;
     status = NS_OK;
     while (nread < maxhdr && status == NS_OK) {
         Ns_DStringTrunc(&ds, 0);
@@ -628,67 +628,41 @@ Ns_ConnReadHeaders(Ns_Conn *conn, Ns_Set *set, int *nreadPtr)
 /*
  *----------------------------------------------------------------------
  *
- * Ns_ConnCopyToDString --
+ * Ns_ConnCopyToDString, File, Fd, Channel --
  *
- *	Copy data from a connection to a dstring.
+ *      Copy data from a connection to a DString, channel, FILE, or fd. 
  *
  * Results:
  *	NS_OK or NS_ERROR 
  *
  * Side effects:
- *	None.
+ *      See ConnCopy().
  *
  *----------------------------------------------------------------------
  */
 
 int
-Ns_ConnCopyToDString(Ns_Conn *conn, size_t tocopy, Ns_DString *dsPtr)
+Ns_ConnCopyToDString(Ns_Conn *conn, size_t ncopy, Ns_DString *dsPtr)
 {
-    Conn *connPtr = (Conn *) conn;
-    int ncopy = (int) tocopy;
-
-    if (connPtr->sockPtr == NULL || connPtr->avail < ncopy) {
-	return NS_ERROR;
-    }
-    Ns_DStringNAppend(dsPtr, connPtr->next, ncopy);
-    connPtr->next  += ncopy;
-    connPtr->avail -= ncopy;
-    return NS_OK;
+    return ConnCopy(conn, ncopy, dsPtr, NULL, NULL, -1);
 }
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Ns_ConnCopyToFile, Fd, Channel --
- *
- *	Copy data from a connection to a channel, FILE, or fd. 
- *
- * Results:
- *	NS_OK or NS_ERROR 
- *
- * Side effects:
- *	See ConnCopy().
- *
- *----------------------------------------------------------------------
- */
 
 int
 Ns_ConnCopyToChannel(Ns_Conn *conn, size_t ncopy, Tcl_Channel chan)
 {
-    return ConnCopy(conn, ncopy, chan, NULL, -1);
+    return ConnCopy(conn, ncopy, NULL, chan, NULL, -1);
 }
 
 int
 Ns_ConnCopyToFile(Ns_Conn *conn, size_t ncopy, FILE *fp)
 {
-    return ConnCopy(conn, ncopy, NULL, fp, -1);
+    return ConnCopy(conn, ncopy, NULL, NULL, fp, -1);
 }
 
 int
 Ns_ConnCopyToFd(Ns_Conn *conn, size_t ncopy, int fd)
 {
-    return ConnCopy(conn, ncopy, NULL, NULL, fd);
+    return ConnCopy(conn, ncopy, NULL, NULL, NULL, fd);
 }
 
 
@@ -697,7 +671,7 @@ Ns_ConnCopyToFd(Ns_Conn *conn, size_t ncopy, int fd)
  *
  * ConnCopy --
  *
- *	Copy connection content to a channel, FILE, or fd.
+ *      Copy connection content to a DString, channel, FILE, or fd.
  *
  * Results:
  *  	NS_OK or NS_ERROR if not all content could be read.
@@ -709,7 +683,8 @@ Ns_ConnCopyToFd(Ns_Conn *conn, size_t ncopy, int fd)
  */
 
 static int
-ConnCopy(Ns_Conn *conn, size_t tocopy, Tcl_Channel chan, FILE *fp, int fd)
+ConnCopy(Ns_Conn *conn, size_t tocopy, Ns_DString *dsPtr, Tcl_Channel chan,
+    FILE *fp, int fd)
 {
     Conn       *connPtr = (Conn *) conn;
     int		nwrote;
@@ -719,7 +694,10 @@ ConnCopy(Ns_Conn *conn, size_t tocopy, Tcl_Channel chan, FILE *fp, int fd)
 	return NS_ERROR;
     }
     while (ncopy > 0) {
-	if (chan != NULL) {
+        if (dsPtr != NULL) {
+            Ns_DStringNAppend(dsPtr, connPtr->next, ncopy);
+            nwrote = ncopy;
+        } else if (chan != NULL) {
 	    nwrote = Tcl_Write(chan, connPtr->next, ncopy);
     	} else if (fp != NULL) {
             nwrote = fwrite(connPtr->next, 1, (size_t)ncopy, fp);
