@@ -28,7 +28,7 @@
  */
 
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscgi/nscgi.c,v 1.6.4.4 2003/04/04 21:16:46 scottg Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscgi/nscgi.c,v 1.6.4.3 2003/03/11 06:01:10 scottg Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 #include <sys/stat.h>
@@ -823,6 +823,7 @@ CgiExec(Cgi *cgiPtr, Ns_Conn *conn)
      * Set all the CGI specified variables.
      */
 
+    Ns_DStringInit(dsPtr);
     SetUpdate(cgiPtr->env, "SCRIPT_NAME", cgiPtr->name);
     if (cgiPtr->pathinfo != NULL && *cgiPtr->pathinfo != '\0') {
     	Ns_DString tmp;
