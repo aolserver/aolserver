@@ -34,7 +34,7 @@
  *	Routines for creating, exiting, and joining threads.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/thread.c,v 1.3 2002/06/12 11:32:56 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/thread.c,v 1.4 2002/09/10 23:19:30 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "thread.h"
 #include <sched.h>		/* sched_yield() */
@@ -176,24 +176,20 @@ Ns_ThreadCreate(Ns_ThreadProc *proc, void *arg, long stack,
     if (err != 0) {
         NsThreadFatal(func, "pthread_attr_init", err);
     }
-    err = pthread_attr_setstacksize(&attr, stack); 
+    err = pthread_attr_setstacksize(&attr, (size_t) stack); 
     if (err != 0) {
         NsThreadFatal(func, "pthread_attr_setstacksize", err);
     }
 
     /*
-     * System scope threads are used by default on Solaris and UnixWare.
-     * Other platforms are either already system scope (Linux, HP11), 
-     * support only process scope (SGI), user-level thread libraries
-     * anyway (FreeBSD), or found to be unstable with this setting (OSF).
+     * System scope always preferred, ignore any unsupported error.
      */
 
-#ifdef USE_PTHREAD_SYSSCOPE
     err = pthread_attr_setscope(&attr, PTHREAD_SCOPE_SYSTEM);
-    if (err != 0) {
-        NsThreadFatal(func, "pthread_attr_setscope",err);
+    if (err != 0 && err != ENOTSUP) {
+        NsThreadFatal(func, "pthread_setscope", err);
     }
-#endif
+
     err = pthread_create(&pid, &attr, ThreadMain, thrPtr);
     if (err != 0) {
         NsThreadFatal(func, "pthread_create", err);
