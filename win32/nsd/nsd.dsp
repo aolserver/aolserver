@@ -164,6 +164,10 @@ SOURCE=..\..\nsd\driver.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\nsd\dsprintf.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\nsd\dstring.c
 # End Source File
 # Begin Source File
