@@ -33,7 +33,7 @@
  *      All the public types and function declarations for the core
  *	AOLserver.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.68 2004/09/30 19:46:55 dossy Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.69 2004/10/06 18:49:29 jgdavidson Exp $
  */
 
 #ifndef NS_H
@@ -108,13 +108,17 @@
 #define NS_SCHED_WEEKLY		  8
 #define NS_SCHED_PAUSED		 16 
 #define NS_SCHED_RUNNING	 32 
-#define NS_SOCK_READ		  1
-#define NS_SOCK_WRITE		  2
-#define NS_SOCK_EXCEPTION	  4
-#define NS_SOCK_EXIT		  8
-#define NS_SOCK_DROP		 16
-#define NS_SOCK_CANCEL		 32
-#define NS_SOCK_ANY		255
+
+#define NS_SOCK_READ	 	0x01 
+#define NS_SOCK_WRITE		0x02
+#define NS_SOCK_EXCEPTION	0x04
+#define NS_SOCK_EXIT		0x08
+#define NS_SOCK_DROP		0x10
+#define NS_SOCK_CANCEL		0x20
+#define NS_SOCK_TIMEOUT		0x40
+#define NS_SOCK_INIT		0x80
+#define NS_SOCK_ANY		(NS_SOCK_READ|NS_SOCK_WRITE|NS_SOCK_EXCEPTION)
+
 #define NS_ENCRYPT_BUFSIZE 	 16
 #define NS_DRIVER_ASYNC		  1	/* Use async read-ahead. */
 #define NS_DRIVER_SSL		  2	/* Use SSL port, protocol defaults. */
@@ -252,6 +256,18 @@ NS_EXTERN int			kill(int pid, int sig);
 #define Ns_DStringSetLength	Tcl_DStringSetLength
 
 /*
+ * Typedefs of variables
+ */
+
+typedef struct _Ns_Cache	*Ns_Cache;
+typedef struct _Ns_Entry	*Ns_Entry;
+typedef Tcl_HashSearch 		 Ns_CacheSearch;
+typedef struct _Ns_Cls 		*Ns_Cls;
+typedef void 	      		*Ns_OpContext;
+typedef struct _Ns_TaskQueue 	*Ns_TaskQueue;
+typedef struct _Ns_Task 	*Ns_Task;
+
+/*
  * This is used for logging messages.
  */
 
@@ -289,6 +305,7 @@ typedef int   (Ns_TclInterpInitProc) (Tcl_Interp *interp, void *arg);
 typedef int   (Ns_TclTraceProc) (Tcl_Interp *interp, void *arg);
 typedef void  (Ns_TclDeferProc) (Tcl_Interp *interp, void *arg);
 typedef int   (Ns_SockProc) (SOCKET sock, void *arg, int why);
+typedef void  (Ns_TaskProc) (Ns_Task *task, SOCKET sock, void *arg, int why);
 typedef void  (Ns_SchedProc) (void *arg, int id);
 typedef int   (Ns_ServerInitProc) (char *server);
 typedef int   (Ns_ModuleInitProc) (char *server, char *module);
@@ -460,17 +477,6 @@ typedef int   (Ns_FilterProc) (void *arg, Ns_Conn *conn, int why);
 typedef int   (Ns_UrlToFileProc) (Ns_DString *dsPtr, char *server, char *url);
 typedef char *(Ns_LocationProc) (Ns_Conn *conn);
 typedef void  (Ns_QueueWaitProc) (Ns_Conn *conn, SOCKET sock, void *arg, int why);
-
-/*
- * Typedefs of variables
- */
-
-typedef struct _Ns_Cache	*Ns_Cache;
-typedef struct _Ns_Entry	*Ns_Entry;
-typedef Tcl_HashSearch 		 Ns_CacheSearch;
-
-typedef struct _Ns_Cls 		*Ns_Cls;
-typedef void 	      		*Ns_OpContext;
 
 /*
  * adpparse.c:
@@ -769,6 +775,22 @@ NS_EXTERN Ns_List *Ns_ListMapcar(Ns_List *lPtr, Ns_ElemValProc *valProc);
 
 NS_EXTERN void Ns_GenSeeds(unsigned long *seedsPtr, int nseeds);
 NS_EXTERN double Ns_DRand(void);
+
+/* 
+ * task.c: 
+ */
+
+NS_EXTERN Ns_TaskQueue *Ns_CreateTaskQueue(char *name);
+NS_EXTERN void Ns_DestroyTaskQueue(Ns_TaskQueue *queue);
+NS_EXTERN Ns_Task *Ns_TaskCreate(SOCKET sock, Ns_TaskProc *proc, void *arg);
+NS_EXTERN int  Ns_TaskEnqueue(Ns_Task *task, Ns_TaskQueue *queue);
+NS_EXTERN void  Ns_TaskRun(Ns_Task *task);
+NS_EXTERN void Ns_TaskCallback(Ns_Task *task, int when, Ns_Time *timeoutPtr);
+NS_EXTERN void Ns_TaskDone(Ns_Task *task);
+NS_EXTERN int  Ns_TaskCancel(Ns_Task *task);
+NS_EXTERN int  Ns_TaskWait(Ns_Task *task, Ns_Time *timeoutPtr);
+NS_EXTERN SOCKET Ns_TaskFree(Ns_Task *task);
+
 /*
  * tclobj.c:
  */
