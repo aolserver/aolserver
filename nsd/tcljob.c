@@ -33,7 +33,7 @@
  *	Tcl job queueing routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tcljob.c,v 1.8 2002/10/14 23:20:42 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tcljob.c,v 1.9 2003/01/20 23:15:13 shmooved Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -230,10 +230,10 @@ NsTclJobObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
     Tcl_HashEntry *hPtr;
     Tcl_HashSearch search;
     static CONST char *opts[] = {
-        "cancel", "create", "jobs", "queue", "wait", NULL
+        "cancel", "create", "jobs", "queue", "queues", "wait", NULL
     };
     enum {
-        JCancelIdx, JCreateIdx, JJobsIdx, JQueueIdx, JWaitIdx
+        JCancelIdx, JCreateIdx, JJobsIdx, JQueueIdx, JQueuesIdx, JWaitIdx 
     } opt;
 
     if (objc < 2) {
@@ -386,7 +386,17 @@ NsTclJobObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 	}
 	Ns_MutexUnlock(&queuePtr->lock);
 	break;
+
+    case JQueuesIdx:
+        hPtr = Tcl_FirstHashEntry(&queues, &search);
+        while (hPtr != NULL) {
+            queuePtr = Tcl_GetHashValue(hPtr);
+            Tcl_AppendElement(interp, queuePtr->name);
+            hPtr = Tcl_NextHashEntry(&search);
+        }
+        break; 
     }
+    
     return code;
 }
 
@@ -628,3 +638,5 @@ SetQueueInternalRep(Tcl_Obj *objPtr, Queue *queuePtr)
     objPtr->internalRep.otherValuePtr = queuePtr;
     Tcl_InvalidateStringRep(objPtr);
 }
+
+
