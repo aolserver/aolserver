@@ -34,7 +34,7 @@
  *      DNS lookup routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/dns.c,v 1.7.2.1 2004/08/14 04:19:49 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/dns.c,v 1.7.2.2 2004/08/14 16:51:53 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -263,15 +263,13 @@ GetHost(Ns_DString *dsPtr, char *addr)
     int status = NS_FALSE;
 
     sa.sin_addr.s_addr = inet_addr(addr);
-    if (sa.sin_addr.s_addr != INADDR_NONE) {
-        hePtr = gethostbyaddr_r(addr, strlen(addr), AF_INET, &he,
-                buf, sizeof(buf), &h_errnop);
-	if (he == NULL) {
-	    LogError("gethostbyaddr_r", h_errnop);
-	} else if (he.h_name != NULL) {
-	    Ns_DStringAppend(dsPtr, he.h_name);
-	    status = NS_TRUE;
-	}
+    hePtr = gethostbyaddr_r((char *) &sa.sin_addr, sizeof(struct in_addr),
+            AF_INET, &he, buf, sizeof(buf), &h_errnop);
+    if (hePtr == NULL) {
+        LogError("gethostbyaddr_r", h_errnop);
+    } else if (he.h_name != NULL) {
+        Ns_DStringAppend(dsPtr, he.h_name);
+        status = NS_TRUE;
     }
     return status;
 }
@@ -352,7 +350,11 @@ GetAddr(Ns_DString *dsPtr, char *host)
 #if defined(HAVE_GETHOSTBYNAME_R_6)
     result = gethostbyname_r(host, &he, buf, sizeof(buf), &res, &h_errnop);
 #elif defined(HAVE_GETHOSTBYNAME_R_5)
-    result = gethostbyname_r(host, &he, buf, sizeof(buf), &h_errnop);
+    result = 0;
+    res = gethostbyname_r(host, &he, buf, sizeof(buf), &h_errnop);
+    if (res == NULL) {
+        result = -1;
+    }
 #elif defined(HAVE_GETHOSTBYNAME_R_3)
     result = gethostbyname_r(host, &he, &data);
     h_errnop = h_errno;
