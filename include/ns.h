@@ -33,7 +33,7 @@
  *      All the public types and function declarations for the core
  *	AOLserver.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.54 2003/08/05 19:56:05 elizthom Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.55 2003/09/25 12:40:54 pmoosman Exp $
  */
 
 #ifndef NS_H
@@ -177,6 +177,7 @@ NS_EXTERN int			kill(int pid, int sig);
 #define strcasecmp		_stricmp
 #define strncasecmp		_strnicmp
 #define vsnprintf		_vsnprintf
+#define snprintf		_snprintf
 #define mkdir(d,m)		_mkdir((d))
 #define ftruncate(f,s)		chsize((f),(s))
 #define EINPROGRESS		WSAEINPROGRESS
