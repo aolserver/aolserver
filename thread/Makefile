@@ -28,6 +28,10 @@ $(LIBNSTHREAD): $(OBJS)
 $(TEST):  $(TEST_OBJS) $(LIBNSTHREAD)
 	$(CC) $(LDFLAGS) -o $(TEST) $(TEST_OBJS) $(LIBS) $(LIBNSTHREAD) 
 
+#
+# Special dependency for the OS interfaces.
+#
+osthread.o: pthread.cpp sproc.cpp cthread.cpp
 
 #
 # Installs to the lib/ directory of the binary distribution.
