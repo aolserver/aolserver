@@ -34,7 +34,7 @@
  *      Handle connection I/O.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/connio.c,v 1.12 2003/03/07 18:08:17 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/connio.c,v 1.12.2.1 2004/06/15 00:40:41 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #define IOBUFSZ 2048
@@ -766,6 +766,14 @@ ConnSend(Ns_Conn *conn, int nsend, Tcl_Channel chan, FILE *fp, int fd)
     int             toread, nread, status;
     char            buf[IOBUFSZ];
 
+    /*
+     * Even if nsend is 0, ensure all queued data (like HTTP response
+     * headers) get flushed.
+     */
+    if (nsend == 0) {
+        Ns_WriteConn(conn, NULL, 0);
+    }
+
     status = NS_OK;
     while (status == NS_OK && nsend > 0) {
         toread = nsend;
@@ -790,5 +798,6 @@ ConnSend(Ns_Conn *conn, int nsend, Tcl_Channel chan, FILE *fp, int fd)
             nsend -= nread;
 	}
     }
+
     return status;
 }
