@@ -34,7 +34,7 @@
  *	Wrappers and convenience functions for TCP/IP stuff. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sock.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sock.c,v 1.4 2000/10/03 18:01:40 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -579,8 +579,6 @@ Ns_ClearSockErrno(void)
 {
 #ifdef WIN32
     SetLastError(0);
-#elif defined(USE_CTHREADS)
-    cthread_set_errno_self(0);
 #else
     errno = 0;
 #endif
@@ -601,8 +599,6 @@ Ns_SetSockErrno(int err)
 {
 #ifdef WIN32
     SetLastError((DWORD) err);
-#elif defined(USE_CTHREADS)
-    cthread_set_errno_self(err);
 #else
     errno = err;
 #endif
