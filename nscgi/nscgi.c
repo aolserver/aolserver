@@ -28,7 +28,7 @@
  */
 
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscgi/nscgi.c,v 1.14 2001/11/05 20:30:38 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscgi/nscgi.c,v 1.15 2001/11/05 21:12:19 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 #include <sys/stat.h>
@@ -765,7 +765,7 @@ CgiExec(Cgi *cgiPtr, Ns_Conn *conn)
     if (cgiPtr->pathinfo != NULL && *cgiPtr->pathinfo != '\0') {
     	Ns_DString tmp;
 	
-        if (Ns_UrlDecode(dsPtr, cgiPtr->pathinfo) != NULL) {
+        if (Ns_DecodeUrl(dsPtr, cgiPtr->pathinfo) != NULL) {
             SetUpdate(cgiPtr->env, "PATH_INFO", dsPtr->string);
         } else {
             SetUpdate(cgiPtr->env, "PATH_INFO", cgiPtr->pathinfo);
@@ -773,7 +773,7 @@ CgiExec(Cgi *cgiPtr, Ns_Conn *conn)
 	Ns_DStringTrunc(dsPtr, 0);
 	Ns_DStringInit(&tmp);
         Ns_UrlToFile(dsPtr, modPtr->server, cgiPtr->pathinfo);
-        if (Ns_UrlDecode(&tmp, dsPtr->string) != NULL) {
+        if (Ns_DecodeUrl(&tmp, dsPtr->string) != NULL) {
             SetUpdate(cgiPtr->env, "PATH_TRANSLATED", tmp.string);
         } else {
             SetUpdate(cgiPtr->env, "PATH_TRANSLATED", dsPtr->string);
