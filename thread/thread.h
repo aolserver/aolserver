@@ -33,7 +33,7 @@
  *
  *	Internal nsthread definitions.
  *
- * RCS: $Id: thread.h,v 1.7 2000/10/22 20:35:45 jgdavidson Exp $
+ * RCS: $Id: thread.h,v 1.8 2000/11/06 17:53:50 jgdavidson Exp $
  *
  */
 
@@ -41,18 +41,6 @@
 #define THREAD_H
 
 #include "nsthread.h"
-
-extern int nsMemPools;
-
-#define NBUCKETS 11
-
-struct Block;
-
-typedef struct Pool {
-    int     nfree[NBUCKETS];
-    int     nused[NBUCKETS];
-    struct Block *firstPtr[NBUCKETS];
-} Pool;
 
 /*
  * The following structure maintains all state for a thread
@@ -62,6 +50,7 @@ typedef struct Pool {
 typedef struct Thread {
     struct Thread  *nextPtr;	/* Next in list of all threads. */
     time_t	    ctime;	/* Thread structure create time. */
+    time_t	    etime;	/* Thread structure exit time. */
     int		    flags;	/* Detached, joined, etc. */
     Ns_ThreadProc  *proc;	/* Thread startup routine. */ 
     void           *arg;	/* Argument to startup proc. */
@@ -72,61 +61,77 @@ typedef struct Thread {
     long	    stackSize;	/* Stack size in bytes for this thread. */
     void	   *stackBase;	/* Approximate stack base for Ns_CheckStack. */
     void	   *exitarg;	/* Return code from Ns_ExitThread. */
-    Pool      	    memPool; 	/* Fast memory block cache pool. */
     void           *tlsPtr[NS_THREAD_MAXTLS]; /* TLS slots. */
 }               Thread;
 
 /*
- * The following structure defines a metered mutex.
+ * The following structure defines a metered mutex with
+ * a platform specific lock.
  */
 
 typedef struct Mutex {
-    struct Mutex *nextPtr;
-    struct Thread *ownerPtr;
-    char name[NS_THREAD_NAMESIZE+1];
-    int id;
-    unsigned long nlock;
-    unsigned long nbusy;
-    void *lock;
+    struct Mutex    *nextPtr;
+    struct Thread   *ownerPtr;
+    void	    *lock;
+    int		     id;
+    unsigned long    nlock;
+    unsigned long    nbusy;
+    char	     name[NS_THREAD_NAMESIZE+1];
 } Mutex;
 
 /*
- * Global functions used within the nsthread core.
+ * The following platform specific routines are provided by
+ * interface code.
  */
 
+extern void    *NsLockAlloc(void);
+extern void	NsLockFree(void *lock);
+extern void	NsLockSet(void *lock);
+extern int	NsLockTry(void *lock);
+extern void	NsLockUnset(void *lock);
 extern Thread  *NsGetThread(void);
 extern void     NsSetThread(Thread *thrPtr);
-extern void     NsInitThread(Thread *thrPtr, int tid);
-extern Thread  *NsNewThread(void);
-extern Thread  *NsNewThread2(Ns_ThreadProc *proc, void *arg, long stack, int flags);
-extern void     NsCleanupThread(Thread *thrPtr);
-extern void	NsCleanupTls(Thread *thrPtr);
 extern void     NsThreadCreate(Thread *thrPtr);
 extern void     NsThreadExit(void);
+
+/*
+ * The following routines are platform independent core API's.
+ */
+
+extern Thread  *NsNewThread(void);
+extern void     NsCleanupThread(Thread *thrPtr);
+extern void	NsCleanupTls(Thread *thrPtr);
 extern void     NsThreadMain(void *arg);
 extern void     NsThreadError(char *fmt, ...);
 extern void     NsThreadAbort(char *fmt, ...);
 extern void     NsThreadFatal(char *nsFuncName, char *osFuncName, int errNum);
-extern void	NsMutexInit(void **lockPtr);
-extern void	NsMutexDestroy(void **lockPtr);
-extern void	NsMutexLock(void **lockPtr);
-extern int	NsMutexTryLock(void **lockPtr);
-extern void	NsMutexUnlock(void **lockPtr);
-extern Mutex   *NsGetMutex(Ns_Mutex *mutexPtr);
-extern void    *NsGetCond(Ns_Cond *condPtr);
+
+/*
+ * The following macros and API's are for self-initializing
+ * statically allocated mutex and condition objects.
+ */
 
 #define GETMUTEX(mPtr)	(*(mPtr)?((Mutex *)*(mPtr)):NsGetMutex((mPtr)))
 #define GETCOND(cPtr)	(*(cPtr)?((void *)*(cPtr)):NsGetCond((cPtr)))
+extern Mutex   *NsGetMutex(Ns_Mutex *mutexPtr);
+extern void    *NsGetCond(Ns_Cond *condPtr);
 
 /*
- * Pools
+ * The following routines are for allocating thread objects,
+ * bypassing the Pool API's.
  */
 
-extern void	NsInitPools(void);
+extern void    *NsAlloc(size_t size);
+extern void     NsFree(void *);
+
+/*
+ * Fast Pool memory allocator API's.
+ */
+
 extern void    *NsPoolRealloc(void *ptr, size_t size);
 extern void    *NsPoolMalloc(size_t size);
 extern void     NsPoolFree(void *ptr);
-extern void	NsPoolFlush(Pool *poolPtr);
-extern void	NsPoolDump(Pool *poolPtr, FILE *fp);
+extern void	NsPoolFlush(void *poolPtr);
+extern void	NsPoolDump(void *poolPtr, FILE *fp);
 
 #endif /* THREAD_H */

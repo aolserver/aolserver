@@ -129,6 +129,18 @@ static int      shutdownPending;
 
 #define GETSPROC()	(*prdaPtrPtr ? *prdaPtrPtr : InitSproc())
 
+/*
+ * The following structure defines the single critical section lock.
+ */
+
+struct {
+    ulock_t  lock;	/* Lock around structure. */
+    int      owner;	/* Current owner. */
+    int	     count;	/* Recursive lock depth. */
+    usema_t *sema;	/* Semaphore to wakeup waiters. */
+    int      nwait;	/* # of waiters. */
+} master;
+
 
 /*
  *----------------------------------------------------------------------
@@ -156,21 +168,110 @@ NsThreadLibName(void)
 /*
  *----------------------------------------------------------------------
  *
- * NsMutexInit --
+ * Ns_MasterLock --
  *
- *	Allocate and initialize a mutex in the arena.
+ *	Enter the single master critical section, initializing
+ *	it the first time.
  *
  * Results:
  *	None.
  *
  * Side effects:
- *	Allocated uslock is stored in given lockPtr.
+ *	None.
  *
  *----------------------------------------------------------------------
  */
 
 void
-NsMutexInit(void **lockPtr)
+Ns_MasterLock(void)
+{
+    static int initialized;
+    int self = getpid();
+
+    /*
+     * Initialize the critical section on first use.  This is safe
+     * because the first new thread can't be created without entering 
+     * the master lock once.
+     */
+
+    if (!initialized) {
+    	usptr_t *arena = GetArena();
+
+	master.lock = usnewlock(arena);
+	if (master.lock == NULL) {
+    	    NsThreadFatal("Ns_MasterLock", "usnewlock", errno);
+	}
+	master.sema = usnewsema(arena, 0);
+	if (master.sema == NULL) {
+    	    NsThreadFatal("Ns_MasterLock", "usnewlock", errno);
+	}
+	initialized = 1;
+    }
+
+    ussetlock(master.lock);
+    while (master.owner != self && master.count > 0) {
+	++master.nwait;
+	usunsetlock(master.lock);
+	uspsema(master.sema);
+	ussetlock(master.lock);
+    }
+    master.owner = self;
+    ++master.count;
+    usunsetlock(master.lock);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_MasterUnlock --
+ *
+ *	Leave the single master critical section.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+Ns_MasterUnlock(void)
+{
+    int self = getpid();
+
+    ussetlock(master.lock);
+    if (master.owner == self && --master.count == 0) {
+	master.owner = -1;
+	if (master.nwait > 0) {
+	    --master.nwait;
+	    usvsema(master.sema);
+	}
+    }
+    usunsetlock(master.lock);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsLockAlloc --
+ *
+ *	Allocate and initialize a mutex lock in the arena.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void *
+NsLockAlloc(void)
 {
     ulock_t         lock;
     usptr_t	   *arena = GetArena();
@@ -180,17 +281,16 @@ NsMutexInit(void **lockPtr)
     	NsThreadFatal("Ns_MutexInit", "usnewlock", errno);
     }
     usinitlock(lock);
-    *lockPtr = (void *) lock;
+    return lock;
 }
 
 
 /*
  *----------------------------------------------------------------------
  *
- * NsMutexDestroy --
+ * NsLockFree --
  *
- *	Destroy a mutex in the arena.  Note this function is almost never
- *	used as mutexes typically exist until the process exits.
+ *	Free a mutex lock in the arena.
  *
  * Results:
  *	None.
@@ -202,34 +302,34 @@ NsMutexInit(void **lockPtr)
  */
 
 void
-NsMutexDestroy(void **lockPtr)
+NsLockFree(void *lock)
 {
     usptr_t	   *arena = GetArena();
 
-    usfreelock((ulock_t) *lockPtr, arena);
+    usfreelock((ulock_t) lock, arena);
 }
 
 
 /*
  *----------------------------------------------------------------------
  *
- * NsMutexLock --
+ * NsLockSet --
  *
- *	Lock a mutex in the arena.
+ *	Set a mutex lock.
  *
  * Results:
  *	None.
  *
  * Side effects:
- *  	Thread may wait.
+ *  	None.
  *
  *----------------------------------------------------------------------
  */
 
 void
-NsMutexLock(void **lockPtr)
+NsLockSet(void *lock)
 {
-    if (ussetlock((ulock_t) *lockPtr) == -1) {
+    if (ussetlock((ulock_t) lock) == -1) {
 	NsThreadFatal("Ns_MutexLock", "ussetlock", errno);
     }
 }
@@ -238,25 +338,25 @@ NsMutexLock(void **lockPtr)
 /*
  *----------------------------------------------------------------------
  *
- * NsMutexTryLock --
+ * NsLockTry --
  *
- *	Try once to aquire a mutex in the arena.
+ *	Try once to set a mutex lock.
  *
  * Results:
  *	NS_OK if locked, NS_TIMEOUT otherwise.
  *
  * Side effects:
- *  	See NsMutexLock.
+ *  	None.
  *
  *----------------------------------------------------------------------
  */
 
 int
-NsMutexTryLock(void **lockPtr)
+NsLockTry(void *lock)
 {
     int locked;
 
-    locked = uscsetlock((ulock_t) *lockPtr, 1);
+    locked = uscsetlock((ulock_t) lock, 1);
     if (locked == -1) {
     	NsThreadFatal("Ns_MutexTryLock", "uscsetlock", errno);
     } else if (locked == 0) {
@@ -269,7 +369,7 @@ NsMutexTryLock(void **lockPtr)
 /*
  *----------------------------------------------------------------------
  *
- * NsMutexUnlock --
+ * NsLockUnset --
  *
  *	Unlock a mutex in the arena.
  *
@@ -283,9 +383,9 @@ NsMutexTryLock(void **lockPtr)
  */
 
 void
-NsMutexUnlock(void **lockPtr)
+NsLockUnset(void *lock)
 {
-    if (usunsetlock((ulock_t) *lockPtr) != 0) {
+    if (usunsetlock((ulock_t) lock) != 0) {
 	NsThreadFatal("Ns_MutexUnlock", "usunsetlock", errno);
     }
 }
@@ -317,7 +417,7 @@ Ns_CondInit(Ns_Cond *condPtr)
     static unsigned long nextid;
 
     sprintf(name, "%lu", test_then_add(&nextid, 1));
-    cPtr = ns_malloc(sizeof(Cond));
+    cPtr = NsAlloc(sizeof(Cond));
     Ns_MutexInit(&cPtr->lock);
     Ns_MutexSetName2(&cPtr->lock, "nsthread:cond", name);
     cPtr->waitPtr = NULL;
@@ -351,7 +451,7 @@ Ns_CondDestroy(Ns_Cond *condPtr)
 
     	Ns_MutexDestroy(&cPtr->lock);
 	cPtr->waitPtr = NULL;
-    	ns_free(cPtr);
+    	NsFree(cPtr);
     	*condPtr = NULL;
     }
 }
@@ -694,7 +794,9 @@ NsThreadCreate(Thread *thrPtr)
         fcntl(mgrPipe[0], F_SETFD, 1);
         fcntl(mgrPipe[1], F_SETFD, 1);
 	ns_signal(SIGCLD, CatchCLD);	/* NB: Trap exit of manager. */
-	mgrSproc.thrPtr = NsNewThread2(MgrThread, NULL, 8192, NS_THREAD_DETACHED);
+	mgrSproc.thrPtr = NsNewThread();
+	mgrSproc.thrPtr->proc = MgrThread;
+	mgrSproc.thrPtr->stackSize = 8192;
 	mgrSproc.state = SprocRunning;
 	mgrPid = StartSproc(&mgrSproc);
     }
@@ -704,7 +806,7 @@ NsThreadCreate(Thread *thrPtr)
      * wakeup if necessary.
      */
      
-    sPtr = ns_calloc(1, sizeof(Sproc));
+    sPtr = NsAlloc(sizeof(Sproc));
     sPtr->thrPtr = thrPtr;
     sPtr->state = SprocRunning;
 
@@ -778,7 +880,7 @@ NsSetThread(Thread *thrPtr)
     Sproc *sPtr = GETSPROC();
 
     sPtr->thrPtr = thrPtr;
-    NsInitThread(thrPtr, sPtr->pid);
+    thrPtr->tid = sPtr->pid;
 }
 
 
@@ -1252,7 +1354,7 @@ MgrThread(void *arg)
 		_exit(1);
 	    }
 	    Ns_MutexUnlock(&mgrLock);
-	    ns_free(sPtr);
+	    NsFree(sPtr);
         }
 
         /*

@@ -103,7 +103,7 @@ Tcl_CreateThread(idPtr, proc, clientData, stackSize, flags)
     } else {
 	flags = NS_THREAD_DETACHED;
     }
-    argPtr = ns_malloc(sizeof(ThreadArg));
+    argPtr = NsAlloc(sizeof(ThreadArg));
     argPtr->proc = proc;
     argPtr->clientData = clientData;
     Ns_ThreadCreate2(TclNsThread, argPtr, (long) stackSize, flags, &tid);
@@ -120,7 +120,7 @@ TclNsThread(void *arg)
 
     proc = argPtr->proc;
     clientData = argPtr->clientData;
-    ns_free(argPtr);
+    NsFree(argPtr);
     (*proc)(clientData);
 }
 
@@ -432,7 +432,7 @@ TclpThreadDataKeyInit(keyPtr)
 
     MASTER_LOCK;
     if (*keyPtr == NULL) {
-	pkeyPtr = (Ns_Tls *)ns_malloc(sizeof(Ns_Tls));
+	pkeyPtr = (Ns_Tls *)NsAlloc(sizeof(Ns_Tls));
 	Ns_TlsAlloc(pkeyPtr, NULL);
 	*keyPtr = (Tcl_ThreadDataKey)pkeyPtr;
     }
@@ -523,7 +523,7 @@ TclpFinalizeThreadData(keyPtr)
 	pkeyPtr = *(Ns_Tls **)keyPtr;
 	result = (VOID *)Ns_TlsGet(pkeyPtr);
 	if (result != NULL) {
-	    ns_free((char *)result);
+	    NsFree((char *)result);
 	    Ns_TlsSet(pkeyPtr, (void *)NULL);
 	}
     }
@@ -556,7 +556,7 @@ TclpFinalizeThreadDataKey(keyPtr)
     Ns_Tls *pkeyPtr;
     if (*keyPtr != NULL) {
 	pkeyPtr = *(Ns_Tls **)keyPtr;
-	ns_free((char *)pkeyPtr);
+	NsFree((char *)pkeyPtr);
 	*keyPtr = NULL;
     }
 }

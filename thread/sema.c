@@ -42,7 +42,7 @@
  *	more fundamental synchronization object. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/sema.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/sema.c,v 1.4 2000/11/06 17:53:50 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "thread.h"
 
@@ -81,7 +81,7 @@ Ns_SemaInit(Ns_Sema *semaPtr, int initCount)
 {
     Sema *sPtr;
 
-    sPtr = ns_malloc(sizeof(Sema));
+    sPtr = NsAlloc(sizeof(Sema));
     sPtr->count = initCount;
     Ns_MutexInit2(&sPtr->lock, "nsthread:sema");
     Ns_CondInit(&sPtr->cond);
@@ -114,7 +114,7 @@ Ns_SemaDestroy(Ns_Sema *semaPtr)
 
     	Ns_MutexDestroy(&sPtr->lock);
     	Ns_CondDestroy(&sPtr->cond);
-    	ns_free(sPtr);
+    	NsFree(sPtr);
     	*semaPtr = NULL;
     }
 }

@@ -30,22 +30,31 @@
 /* 
  * pool.c --
  *
- *	Support for pools-based replacement for ns_malloc/ns_free.
- *  	The goal of this dynamic memory allocator is to avoid lock
+ *	Fast pool memory allocator designed to avoid lock
  *  	contention.  The basic strategy is to allocate memory in
- *  	fixed size blocks from per-thread block caches.  
+ *  	fixed size blocks from block caches.  
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/pool.c,v 1.9 2000/10/23 15:38:34 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/pool.c,v 1.10 2000/11/06 17:53:50 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "thread.h"
 #include <assert.h>
+
+#ifndef RCHECK
+#ifdef  NDEBUG
+#define RCHECK		0
+#else
+#define RCHECK		1
+#endif
+#endif
 
 /*
  * The following structure specifies various per-bucket runtime
  * limits.  The values are statically defined to avoid calculating
  * them repeatedly.
  */
+
+#define NBUCKETS 11
 
 struct {
     size_t  blocksize;
@@ -69,21 +78,6 @@ struct {
 #define BLOCKSZ(i)  	(limits[i].blocksize)
 #define MAXBLOCKS(i)	(limits[i].maxblocks)
 #define NMOVE(i)    	(limits[i].nmove)
-
-#if 0
-
-/*
- * Calculated equivalent of the limits above.  Using these macros
- * instead appears to slow the code down about 20%.
- */
-
-#define MAXALLOC    	(1<<(NBUCKETS+3))
-#define BLOCKSZ(i)	(1<<(i+4))
-#define MAXBLOCKS(i)	((MAXALLOC/BLOCKSZ(i)) * 2)
-#define NMOVE(i)	(MAXBLOCKS(i)/2)
-
-#endif
-
 
 /*
  * The following union stores accounting information for
@@ -112,20 +106,19 @@ typedef struct Block {
 #define MAGIC		0xef
 #define SYSBUCKET	0xff
 
+typedef struct Pool {
+    char    name[NS_THREAD_NAMESIZE];
+    int     nfree[NBUCKETS];
+    int     nused[NBUCKETS];
+    Block  *firstPtr[NBUCKETS];
+} Pool;
+
 /*
  * Local variables and inlined macros defined in this file
  */
 
 static void PutBlocks(Pool *poolPtr, int bucket, int nmove);
 static int GetBlocks(Pool *poolPtr, int bucket);
-static Pool 	sharedPool;
-static int	initialized;
-static Ns_Mutex bucketLocks[NBUCKETS];
-
-#define GETTHREADPOOL()	(&(NsGetThread())->memPool)
-#define GETPOOL()	(initialized ? GETTHREADPOOL() : &sharedPool)
-#define BLOCK2PTR(bp)	((void *) (bp + 1))
-#define PTR2BLOCK(ptr)	(((Block *) ptr) - 1)
 
 /*
  * If range checking is enabled, an additional byte will be allocated
@@ -133,14 +126,6 @@ static Ns_Mutex bucketLocks[NBUCKETS];
  * CHECKBLOCK and SETBLOCK will then verify this byte to detect
  * possible overwrite.
  */
-
-#ifndef RCHECK
-#ifdef NDEBUG
-#define RCHECK		0
-#else
-#define RCHECK		1
-#endif
-#endif
 
 #if RCHECK
 
@@ -178,55 +163,65 @@ static Ns_Mutex bucketLocks[NBUCKETS];
     ++pp->nfree[i];\
     --pp->nused[i]
 
+#define BLOCK2PTR(bp)	((void *) (bp + 1))
+#define PTR2BLOCK(ptr)	(((Block *) ptr) - 1)
 #define UNLOCKBUCKET(i) Ns_MutexUnlock(&bucketLocks[i])
 #define LOCKBUCKET(i)	Ns_MutexLock(&bucketLocks[i])
+
+static Pool 	sharedPool;
+static Ns_Mutex bucketLocks[NBUCKETS];
 
 
 /*
  *----------------------------------------------------------------------
  *
- *  NsInitPools ---
+ *  Ns_PoolCreate ---
  *
- *	Initialize the memory pools on first call to CreateThread.
+ *	Create a new memory pool
  *
  * Results:
- *	None.
+ *	Pointer to pool.
  *
  * Side effects:
- *	All further ns_malloc/ns_free will be through per-thread pools.
+ *	Buckets locks are initialized on first call.
  *
  *----------------------------------------------------------------------
  */
 
-void
-NsInitPools(void)
+Ns_Pool *
+Ns_PoolCreate(char *name)
 {
+    static int initialized;
+    Pool *poolPtr;
+    char lockname[32];
     int i;
 
     if (!initialized) {
-	char name[32];
-
-    	/*
-	 * Call Ns_MutexInit's before setting initialized because
-	 * Ns_MutexInit will call ns_malloc().
-	 */
-    	
-	for (i = 0; i < NBUCKETS; ++i) {
-	    Ns_MutexInit(&bucketLocks[i]);
-	    sprintf(name, "%d", i);
-	    Ns_MutexSetName2(&bucketLocks[i], "nsmalloc", name);
+	Ns_MasterLock();
+	if (!initialized) {
+	    for (i = 0; i < NBUCKETS; ++i) {
+		sprintf(lockname, "nspool:%d", i);
+		Ns_MutexInit(&bucketLocks[i]);
+		Ns_MutexSetName(&bucketLocks[i], lockname);
+	    }
+	    initialized = 1;
 	}
-	initialized = 1;
+	Ns_MasterUnlock();
     }
+    poolPtr = NsAlloc(sizeof(Pool));
+    if (name != NULL) {
+	strncpy(poolPtr->name, name, sizeof(poolPtr->name)-1);
+    }
+    return (Ns_Pool *) poolPtr;
 }
 
 
 /*
  *----------------------------------------------------------------------
  *
- *  NsPoolFlush --
+ *  Ns_PoolDestroy --
  *
- *	Return all free blocks to the shared pool at thread exit.
+ *	Return all free blocks to the shared pool.
  *
  * Results:
  *	None.
@@ -238,62 +233,24 @@ NsInitPools(void)
  */
 
 void
-NsPoolFlush(Pool *poolPtr)
+Ns_PoolDestroy(Ns_Pool *pool)
 {
     register int   bucket;
+    Pool *poolPtr = (Pool *) pool;
 
     for (bucket = 0; bucket < NBUCKETS; ++bucket) {
 	if (poolPtr->nfree[bucket] > 0) {
 	    PutBlocks(poolPtr, bucket, poolPtr->nfree[bucket]);
 	}
     }
+    NsFree(poolPtr);
 }
 
 
 /*
  *----------------------------------------------------------------------
  *
- * NsPoolDump --
- *
- *	Dump stats about current pool to open file.
- *
- * Results:
- *	None.
- *
- * Side effects:
- *	None.
- *
- *----------------------------------------------------------------------
- */
-
-void
-NsPoolDump(Pool *poolPtr, FILE *fp)
-{
-    int nfree[NBUCKETS], nused[NBUCKETS];
-    int i, size;
-    unsigned long nbused;
-    unsigned long nbfree;
-
-    if (poolPtr == NULL) {
-	poolPtr = &sharedPool;
-    }
-    nbused = nbfree = 0;
-    memcpy(nfree, poolPtr->nfree, sizeof(nfree));
-    memcpy(nused, poolPtr->nused, sizeof(nused));
-    for (i = 0; i < NBUCKETS; ++i) {
-	size = BLOCKSZ(i);
-	fprintf(fp, " %d:%d:%d", size, nused[i], nfree[i]);
-	nbused += nused[i] * size;
-	nbfree += nfree[i] * size;
-    }
-    fprintf(fp, " %ld:%ld\n", nbused, nbfree);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- *  NsPoolMalloc --
+ *  Ns_PoolAlloc --
  *
  *	Allocate memory.
  *
@@ -307,9 +264,9 @@ NsPoolDump(Pool *poolPtr, FILE *fp)
  */
 
 void *
-NsPoolMalloc(size_t reqsize)
+Ns_PoolAlloc(Ns_Pool *pool, size_t reqsize)
 {
-    Pool          *poolPtr;
+    Pool          *poolPtr = (Pool *) pool;
     Block         *blockPtr;
     register int   bucket;
     size_t  	   size;
@@ -331,7 +288,6 @@ NsPoolMalloc(size_t reqsize)
 	bucket = SYSBUCKET;
     	blockPtr = malloc(size);
     } else {
-    	poolPtr = GETPOOL();
     	bucket = 0;
     	while (BLOCKSZ(bucket) < size) {
     	    ++bucket;
@@ -351,7 +307,7 @@ NsPoolMalloc(size_t reqsize)
 /*
  *----------------------------------------------------------------------
  *
- *  NsPoolFree --
+ *  Ns_PoolFree --
  *
  *	Return blocks to the thread block pool.
  *
@@ -365,9 +321,9 @@ NsPoolMalloc(size_t reqsize)
  */
 
 void
-NsPoolFree(void *ptr)
+Ns_PoolFree(Ns_Pool *pool, void *ptr)
 {
-    Pool *poolPtr;
+    Pool  *poolPtr = (Pool *) pool;
     Block *blockPtr;
     int bucket;
  
@@ -391,7 +347,6 @@ NsPoolFree(void *ptr)
     if (bucket == SYSBUCKET) {
 	free(blockPtr);
     } else {
-    	poolPtr = GETPOOL();
     	PUSHBLOCK(poolPtr, blockPtr, bucket);
     	if (poolPtr != &sharedPool &&
 	    poolPtr->nfree[bucket] > MAXBLOCKS(bucket)) {
@@ -404,7 +359,7 @@ NsPoolFree(void *ptr)
 /*
  *----------------------------------------------------------------------
  *
- *  NsPoolRealloc --
+ *  Ns_PoolRealloc --
  *
  *	Re-allocate memory to a larger or smaller size.
  *
@@ -418,7 +373,7 @@ NsPoolFree(void *ptr)
  */
 
 void *
-NsPoolRealloc(void *ptr, size_t reqsize)
+Ns_PoolRealloc(Ns_Pool *pool, void *ptr, size_t reqsize)
 {
     Block *blockPtr;
     void *new;
@@ -473,15 +428,122 @@ NsPoolRealloc(void *ptr, size_t reqsize)
      * Finally, perform an expensive malloc/copy/free.
      */
 
-    new = NsPoolMalloc(reqsize);
+    new = Ns_PoolAlloc(pool, reqsize);
     if (new != NULL) {
 	if (reqsize > blockPtr->b_size) {
 	    reqsize = blockPtr->b_size;
 	}
     	memcpy(new, ptr, reqsize);
-    	NsPoolFree(ptr);
+    	Ns_PoolFree(pool, ptr);
     }
     return new;
+}
+
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_PoolCalloc --
+ *
+ *	Allocate zero-filled memory from a pool.
+ *
+ * Results:
+ *	Pointer to allocated, zero'ed memory.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void *
+Ns_PoolCalloc(Ns_Pool *pool, size_t nelem, size_t elsize)
+{
+    size_t size;
+    void *ptr;
+
+    size = nelem * elsize;
+    ptr = Ns_PoolAlloc(pool, size);
+    memset(ptr, 0, size);
+    return ptr;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_PoolStrDup, Ns_PoolStrCopy --
+ *
+ *	Dup (copy) a string.
+ *
+ * Results:
+ *	Pointer string dup (copy).
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+char *
+Ns_PoolStrDup(Ns_Pool *pool, char *old)
+{
+    char *new;
+    size_t size;
+
+    size = strlen(old) + 1;
+    new = Ns_PoolAlloc(pool, size);
+    strcpy(new, old);
+    return new;
+}
+
+
+char *
+Ns_PoolStrCopy(Ns_Pool *pool, char *old)
+{
+    return (old != NULL ? Ns_PoolStrDup(pool, old) : NULL);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_PoolStats --
+ *
+ *	Dump stats about current pool to open file.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+Ns_PoolStats(Ns_Pool *pool, FILE *fp)
+{
+    int nfree[NBUCKETS], nused[NBUCKETS];
+    int i, size;
+    unsigned long nbused;
+    unsigned long nbfree;
+    Pool *poolPtr = (Pool *) pool;
+
+    if (poolPtr == NULL) {
+	poolPtr = &sharedPool;
+    }
+    nbused = nbfree = 0;
+    memcpy(nfree, poolPtr->nfree, sizeof(nfree));
+    memcpy(nused, poolPtr->nused, sizeof(nused));
+    for (i = 0; i < NBUCKETS; ++i) {
+	size = BLOCKSZ(i);
+	fprintf(fp, " %d:%d:%d", size, nused[i], nfree[i]);
+	nbused += nused[i] * size;
+	nbfree += nfree[i] * size;
+    }
+    fprintf(fp, " %ld:%ld\n", nbused, nbfree);
 }
 
 

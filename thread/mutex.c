@@ -33,11 +33,11 @@
  *	Mutex routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/mutex.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/mutex.c,v 1.4 2000/11/06 17:53:50 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "thread.h"
 
-static Mutex list;
+static Mutex *firstMutexPtr;
 int nsThreadMutexMeter = 0;
 
 
@@ -60,31 +60,29 @@ int nsThreadMutexMeter = 0;
  */
 
 void
+Ns_MutexInit(Ns_Mutex *mutexPtr)
+{
+    Ns_MutexInit2(mutexPtr, NULL);
+}
+
+void
 Ns_MutexInit2(Ns_Mutex *mutexPtr, char *prefix)
 {
     Mutex	   *mPtr;
     int		    next;
     char	    buf[10];
+    static int	    nextid;
 
-    mPtr = ns_calloc(1, sizeof(Mutex));
-    NsMutexInit(&mPtr->lock);
-    if (list.lock == NULL) {
-	NsMutexInit(&list.lock);
-    }
-    NsMutexLock(&list.lock);
-    mPtr->nextPtr = list.nextPtr;
-    list.nextPtr = mPtr;
-    next = mPtr->id = list.id++;
-    NsMutexUnlock(&list.lock);
+    mPtr = NsAlloc(sizeof(Mutex));
+    mPtr->lock = NsLockAlloc();
+    Ns_MasterLock();
+    mPtr->nextPtr = firstMutexPtr;
+    firstMutexPtr = mPtr;
+    next = mPtr->id = nextid++;
     *mutexPtr = (Ns_Mutex) mPtr;
     sprintf(buf, "%d", next);
     Ns_MutexSetName2(mutexPtr, prefix ? prefix : "m", buf);
-}
-
-void
-Ns_MutexInit(Ns_Mutex *mutexPtr)
-{
-    Ns_MutexInit2(mutexPtr, NULL);
+    Ns_MasterUnlock();
 }
 
 
@@ -105,6 +103,12 @@ Ns_MutexInit(Ns_Mutex *mutexPtr)
  */
 
 void
+Ns_MutexSetName(Ns_Mutex *mutexPtr, char *name)
+{
+    Ns_MutexSetName2(mutexPtr, name, NULL);
+}
+
+void
 Ns_MutexSetName2(Ns_Mutex *mutexPtr, char *prefix, char *name)
 {
     Mutex *mPtr = GETMUTEX(mutexPtr);
@@ -121,21 +125,14 @@ Ns_MutexSetName2(Ns_Mutex *mutexPtr, char *prefix, char *name)
 	    nlen = NS_THREAD_NAMESIZE - plen - 1;
 	}
     }
-    NsMutexLock(&list.lock);
+    Ns_MasterLock();
     p = strncpy(mPtr->name, prefix, plen) + plen;
     if (nlen > 0) {
 	*p++ = ':';
 	p = strncpy(p, name, nlen) + nlen;
     }
     *p = '\0';
-    NsMutexUnlock(&list.lock);
-}
-
-
-void
-Ns_MutexSetName(Ns_Mutex *mutexPtr, char *name)
-{
-    Ns_MutexSetName2(mutexPtr, name, NULL);
+    Ns_MasterUnlock();
 }
 
 
@@ -163,15 +160,15 @@ Ns_MutexDestroy(Ns_Mutex *mutexPtr)
     Mutex      **mPtrPtr;
 
     if (mPtr != NULL) {
-	NsMutexDestroy(&mPtr->lock);
-	NsMutexLock(&list.lock);
-	mPtrPtr = &list.nextPtr; 
+	NsLockFree(mPtr->lock);
+	Ns_MasterLock();
+	mPtrPtr = &firstMutexPtr;
 	while ((*mPtrPtr) != mPtr) {
 	    mPtrPtr = &(*mPtrPtr)->nextPtr;
         }
 	*mPtrPtr = mPtr->nextPtr;
-	NsMutexUnlock(&list.lock);
-    	ns_free(mPtr);
+	Ns_MasterUnlock();
+    	NsFree(mPtr);
     	*mutexPtr = NULL;
     }
 }
@@ -201,11 +198,11 @@ Ns_MutexLock(Ns_Mutex *mutexPtr)
     Thread *thisPtr;
 
     if (!nsThreadMutexMeter) {
-	NsMutexLock(&mPtr->lock);
+	NsLockSet(mPtr->lock);
     } else {
 	thisPtr = NsGetThread();
-    	if (NsMutexTryLock(&mPtr->lock) != NS_OK) {
-	    NsMutexLock(&mPtr->lock);
+    	if (NsLockTry(mPtr->lock) != NS_OK) {
+	    NsLockSet(mPtr->lock);
 	    ++mPtr->nbusy;
     	}
     	mPtr->ownerPtr = thisPtr;
@@ -238,10 +235,10 @@ Ns_MutexTryLock(Ns_Mutex *mutexPtr)
     int status;
 
     if (!nsThreadMutexMeter) {
-	status = NsMutexTryLock(&mPtr->lock);
+	status = NsLockTry(mPtr->lock);
     } else {
     	thisPtr = NsGetThread();
-    	status = NsMutexTryLock(&mPtr->lock);
+    	status = NsLockTry(mPtr->lock);
 	if (status == NS_OK) {
 	    mPtr->ownerPtr = thisPtr;
 	}
@@ -275,7 +272,7 @@ Ns_MutexUnlock(Ns_Mutex *mutexPtr)
     Mutex	*mPtr = (Mutex *) *mutexPtr;
 
     mPtr->ownerPtr = NULL;
-    NsMutexUnlock(&mPtr->lock);
+    NsLockUnset(mPtr->lock);
 }
 
 
@@ -301,8 +298,8 @@ Ns_MutexEnum(Ns_MutexInfoProc *proc, void *arg)
     Mutex *mPtr;
     Ns_MutexInfo info;
 
-    NsMutexLock(&list.lock);
-    mPtr = list.nextPtr;
+    Ns_MasterLock();
+    mPtr = firstMutexPtr;
     while (mPtr != NULL) {
 	info.mutexPtr = (Ns_Mutex *) mPtr;
 	info.id = mPtr->id;
@@ -314,7 +311,7 @@ Ns_MutexEnum(Ns_MutexInfoProc *proc, void *arg)
 	(*proc)(&info, arg);
 	mPtr = mPtr->nextPtr;
     }
-    NsMutexUnlock(&list.lock);
+    Ns_MasterUnlock();
 }
 
 

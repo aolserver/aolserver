@@ -49,7 +49,7 @@
  *	read/write lock you probably need to rethink your problem.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/rwlock.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/rwlock.c,v 1.4 2000/11/06 17:53:50 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "thread.h"
 
@@ -122,7 +122,7 @@ Ns_RWLockInit(Ns_RWLock *lockPtr)
 {
     Lock *lPtr;
     
-    lPtr = ns_malloc(sizeof(Lock));
+    lPtr = NsAlloc(sizeof(Lock));
     Ns_MutexInit2(&lPtr->mutex, "nsthread:rwlock");
     Ns_CondInit(&lPtr->rdCond);
     Ns_CondInit(&lPtr->wrCond);
@@ -159,7 +159,7 @@ Ns_RWLockDestroy(Ns_RWLock *lockPtr)
     	Ns_MutexDestroy(&lPtr->mutex);
     	Ns_CondDestroy(&lPtr->rdCond);
     	Ns_CondDestroy(&lPtr->wrCond);
-    	ns_free(lPtr);
+    	NsFree(lPtr);
     	*lockPtr = NULL;
     }
 }

@@ -44,7 +44,7 @@
  * 	probably haven't solved your problem correctly.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/cs.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/cs.c,v 1.4 2000/11/06 17:53:50 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "thread.h"
 
@@ -83,7 +83,7 @@ Ns_CsInit(Ns_Cs *csPtr)
 {
     Cs       *cPtr;
 
-    cPtr = ns_malloc(sizeof(Cs));
+    cPtr = NsAlloc(sizeof(Cs));
     Ns_MutexInit2(&cPtr->lock, "nsthread:cs");
     Ns_CondInit(&cPtr->cond);
     cPtr->count = 0;
@@ -127,7 +127,7 @@ Ns_CsDestroy(Ns_Cs *csPtr)
     	Ns_CondDestroy(&cPtr->cond);
     	cPtr->ownerPtr = NULL;
     	cPtr->count = 0;
-    	ns_free(cPtr);
+    	NsFree(cPtr);
     	*csPtr = NULL;
     }
 }

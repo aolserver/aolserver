@@ -6,7 +6,7 @@ include $(NSHOME)/include/Makefile.global
 
 OBJS      = compat.o cs.o rwlock.o reentrant.o \
             sema.o thread.o tls.o time.o memory.o debug.o \
-            master.o pool.o error.o signal.o oldpools.o \
+            pool.o error.o signal.o \
             mutex.o cond.o osthread.o fork.o tcl8x.o
 
 TEST      = test
