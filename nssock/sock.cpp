@@ -65,7 +65,7 @@
  *	the server core and close client connections.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nssock/Attic/sock.cpp,v 1.6 2000/11/06 18:08:01 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nssock/Attic/sock.cpp,v 1.7 2000/11/17 13:45:18 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 
@@ -112,9 +112,13 @@ typedef struct Driver {
     SOCKET	 sock;		    /* Listening socket. */
     struct Conn *firstFreeConnPtr;  /* First free conn, per-driver for
 				     * per-driver bufsizes. */
-    int     	 timeout;	    /* send()/recv() I/O timeout. */
+    int		 sndbuf;	    /* setsockopt() SNDBUF option. */
+    int		 rcvbuf;	    /* setsockopt() RCVBUF option. */
+    int     	 sendwait;	    /* send() I/O timeout. */
+    int     	 recvwait;	    /* recv() I/O timeout. */
+    int     	 sockwait;	    /* Old send/recv I/O timeout. */
     int     	 closewait;	    /* Graceful close timeout. */
-    int		 bufsize;	    /* Bufsize (0 for SSL) */
+    int		 bufsize;	    /* Conn bufsize (0 for SSL) */
 #ifdef SSL
     void        *dssl;		    /* SSL per-driver context. */
 #endif
@@ -128,7 +132,7 @@ typedef struct Conn {
     int		port;		    /* Client port. */
     int		nrecv;		    /* Num bytes received. */
     int		nsend;		    /* Num bytes sent. */
-    time_t	timeout;	    /* Graceful close absolute timeout. */
+    time_t	closetimeout;	    /* Graceful close absolute timeout. */
 #ifdef SSL
     void       *cssl;		    /* SSL per-client context. */
 #else
@@ -204,6 +208,7 @@ static Ns_Thread sockThread;/* Running SockThread. */
 static SOCKET trigPipe[2];  /* Trigger to wakeup SockThread select(). */
 static int shutdownPending; /* Flag to indicate shutdown. */
 static Ns_Mutex lock;	    /* Lock around close list and shutdown flag. */
+static int ndrivers;	    /* Number of driver loads. */
 
 NS_EXPORT int Ns_ModuleVersion = 1;
 
@@ -230,7 +235,7 @@ NS_EXPORT int
 Ns_ModuleInit(char *server, char *name)
 {
     char *path,*address, *host, *bindaddr;
-    int n;
+    int n, def;
     Ns_DString ds;
     struct in_addr  ia;
     struct hostent *he;
@@ -284,7 +289,7 @@ Ns_ModuleInit(char *server, char *name)
         /*
 	 * If the lookup suceeded but the resulting hostname does not
 	 * appear to be fully qualified, attempt a reverse lookup on the
-	 * address which often return the fully qualified name.
+	 * address which often returns the fully qualified name.
 	 *
 	 * NB: This is a common, but sloppy configuration for a Unix
 	 * network.
@@ -354,10 +359,26 @@ Ns_ModuleInit(char *server, char *name)
     drvPtr->bufsize = n;
 #endif 
     drvPtr->name = name;
+    if (!Ns_ConfigGetInt(path, "rcvbuf", &n)) {
+	n = 0;		/* NB: Use OS default. */
+    }
+    drvPtr->rcvbuf = n;
+    if (!Ns_ConfigGetInt(path, "sndbuf", &n)) {
+	n = 0;		/* NB: Use OS default. */
+    }
+    drvPtr->sndbuf = n;
     if (!Ns_ConfigGetInt(path, "socktimeout", &n) || n < 1) {
 	n = 30;		/* NB: 30 seconds. */
     }
-    drvPtr->timeout = n;
+    drvPtr->sockwait = n;
+    if (!Ns_ConfigGetInt(path, "sendwait", &n) || n < 1) {
+	n = drvPtr->sockwait; /* NB: Old socktimeout. */
+    }
+    drvPtr->sendwait = n;
+    if (!Ns_ConfigGetInt(path, "recvwait", &n) || n < 1) {
+	n = drvPtr->sockwait; /* NB: Old socktimeout. */
+    }
+    drvPtr->recvwait = n;
     if (!Ns_ConfigGetInt(path, "closewait", &n) || n < 0) {
 	n = 2;		/* NB: 2 seconds */
     }
@@ -403,6 +424,7 @@ Ns_ModuleInit(char *server, char *name)
     }
     drvPtr->nextPtr = firstDrvPtr;
     firstDrvPtr = drvPtr;
+    ++ndrivers;
     return NS_OK;
 }
 
@@ -428,36 +450,38 @@ static int
 SockStart(char *server, char *label, void **drvDataPtr)
 {
     Driver *drvPtr = *((Driver **) drvDataPtr);
+    static int nstarted;
 
     /*
-     * Create the listening socket and add to the Ports list.
+     * Create the listening socket.
      */
 
     drvPtr->sock = Ns_SockListenEx(drvPtr->bindaddr, drvPtr->port,
 	drvPtr->backlog);
     if (drvPtr->sock == INVALID_SOCKET) {
 	Ns_Log(Error, "%s: failed to listen on %s:%d: %s",
-	    drvPtr->name, drvPtr->address ? drvPtr->address : "*",
-	    drvPtr->port, ns_sockstrerror(ns_sockerrno));
-	return NS_ERROR;
+	    drvPtr->name, drvPtr->address, drvPtr->port,
+	    ns_sockstrerror(ns_sockerrno));
+    } else {
+    	Ns_Log(Notice, "%s: listening on %s:%d",
+	    drvPtr->name, drvPtr->address, drvPtr->port);
+    	Ns_SockSetNonBlocking(drvPtr->sock);
     }
-    Ns_SockSetNonBlocking(drvPtr->sock);
 
     /*
-     * Start the SockThread if necessary.
+     * Create the socket thread on the last start.
      */
 
-    Ns_MutexLock(&lock);
-    if (sockThread == NULL) {
+    if (++nstarted == ndrivers) {
 	if (ns_sockpair(trigPipe) != 0) {
 	    Ns_Fatal("%s: ns_sockpair() failed: %s",
-		     DRIVER_NAME, ns_sockstrerror(ns_sockerrno));
+		DRIVER_NAME, ns_sockstrerror(ns_sockerrno));
 	}
 	Ns_ThreadCreate(SockThread, NULL, 0, &sockThread);
 	Ns_RegisterAtReady(SockReady, NULL);
     }
-    Ns_MutexUnlock(&lock);
-    return NS_OK;
+
+    return (drvPtr->sock == INVALID_SOCKET ? NS_ERROR : NS_OK);
 }
 
 
@@ -619,8 +643,6 @@ SockThread(void *ignored)
     char drain[1024];
     
     Ns_ThreadSetName("-" DRIVER_NAME "-");
-    Ns_Log(Notice, "%s: waiting for startup", DRIVER_NAME);
-    Ns_WaitForStartup();
     Ns_Log(Notice, "%s: starting", DRIVER_NAME);
 
     /*
@@ -692,8 +714,8 @@ SockThread(void *ignored)
 		if (max < connPtr->sock) {
 		    max = connPtr->sock;
 		}
-		if (timeout > connPtr->timeout) {
-		    timeout = connPtr->timeout;
+		if (timeout > connPtr->closetimeout) {
+		    timeout = connPtr->closetimeout;
 		}
 		connPtr = connPtr->nextPtr;
 	    }
@@ -736,10 +758,10 @@ SockThread(void *ignored)
 		if (FD_ISSET(connPtr->sock, &set)) {
 		    n = recv(connPtr->sock, drain, sizeof(drain), 0);
 		    if (n <= 0) {
-			connPtr->timeout = now;
+			connPtr->closetimeout = now;
 		    }
 		}
-		if (connPtr->timeout <= now) {
+		if (connPtr->closetimeout <= now) {
 		    SockRelease(connPtr);
 		} else {
 		    connPtr->nextPtr = closePtr;
@@ -813,6 +835,19 @@ SockThread(void *ignored)
 		    Ns_SockSetNonBlocking(connPtr->sock);
 
 		    /*
+		     * Set the send/recv socket bufsizes if required.
+		     */
+
+		    if (drvPtr->sndbuf > 0) {
+			setsockopt(connPtr->sock, SOL_SOCKET, SO_SNDBUF,
+			    &drvPtr->sndbuf, sizeof(drvPtr->sndbuf));
+		    }
+		    if (drvPtr->rcvbuf > 0) {
+			setsockopt(connPtr->sock, SOL_SOCKET, SO_RCVBUF,
+			    &drvPtr->rcvbuf, sizeof(drvPtr->rcvbuf));
+		    }
+
+		    /*
 		     * Attempt to queue the socket, holding it if
 		     * necessary to try again later.
 		     */
@@ -868,7 +903,7 @@ SockThread(void *ignored)
 	    } else {
 		connPtr->nextPtr = closePtr;
 		closePtr = connPtr;
-		connPtr->timeout = now + connPtr->drvPtr->closewait;
+		connPtr->closetimeout = now + connPtr->drvPtr->closewait;
 	    }
 	    connPtr = nextPtr;
 	}
@@ -969,8 +1004,7 @@ SockInit(void *arg)
 #ifdef SSL 
     if (connPtr->cssl == NULL) { 
         connPtr->cssl = NsSSLCreateConn(connPtr->sock,
-			    connPtr->drvPtr->timeout,
-			    connPtr->drvPtr->dssl); 
+	    connPtr->drvPtr->sockwait, connPtr->drvPtr->dssl); 
         if (connPtr->cssl == NULL) { 
             return NS_ERROR; 
         } 
@@ -1078,7 +1112,7 @@ SockRead(void *arg, void *vbuf, int len)
 
             connPtr->base = connPtr->buf;
 	    connPtr->cnt = Ns_SockRecv(connPtr->sock, connPtr->buf,
-		connPtr->drvPtr->bufsize, connPtr->drvPtr->timeout);
+		connPtr->drvPtr->bufsize, connPtr->drvPtr->recvwait);
 	    if (connPtr->cnt <= 0) {
 		return -1;
 	    }
@@ -1126,7 +1160,7 @@ SockWrite(void *arg, void *vbuf, int len)
     buf = vbuf;
     while (len > 0) {
 	n = Ns_SockSend(connPtr->sock, buf, len,
-	    connPtr->drvPtr->timeout);
+	    connPtr->drvPtr->sendwait);
 	if (n < 0) {
 	    return -1;
 	}
@@ -1424,7 +1458,8 @@ SockSendFd(void *arg, int fd, int nsend)
         vec[0].sendv_len = len;
         n = sendv(connPtr->sock, vec, 1);
         if (n < 0 && ns_sockerrno == EWOULDBLOCK
-	    && Ns_SockWait(connPtr->sock, NS_SOCK_WRITE, connPtr->drvPtr->timeout) == NS_OK) {
+	    && Ns_SockWait(connPtr->sock, NS_SOCK_WRITE,
+		connPtr->drvPtr->sendwait) == NS_OK) {
             n = sendv(connPtr->sock, vec, 1);
         }   
         if (n <= 0) {
