@@ -34,7 +34,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.3 2001/04/25 19:56:44 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.4 2001/04/26 18:40:37 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -469,7 +469,7 @@ NsFreeRequest(Request *reqPtr)
  *	# of bytes sent or -1 on error.
  *
  * Side effects:
- *	May wait for send buffer space if necessary.
+ *	Depends on driver proc.
  *
  *----------------------------------------------------------------------
  */
@@ -478,16 +478,8 @@ int
 NsSockSend(Sock *sockPtr, Ns_Buf *bufs, int nbufs)
 {
     Ns_Sock *sock = (Ns_Sock *) sockPtr;
-    int n;
 
-    n = (*sockPtr->drvPtr->proc)(DriverSend, sock, bufs, nbufs);
-    if (n < 0
-	&& (sockPtr->drvPtr->opts & NS_DRIVER_ASYNC)
-	&& ns_sockerrno == EWOULDBLOCK
-	&& Ns_SockWait(sockPtr->sock, NS_SOCK_WRITE, sockPtr->drvPtr->sendwait) == NS_OK) {
-	n = (*sockPtr->drvPtr->proc)(DriverSend, sock, bufs, nbufs);
-    }
-    return n;
+    return (*sockPtr->drvPtr->proc)(DriverSend, sock, bufs, nbufs);
 }
 
 
@@ -1062,7 +1054,7 @@ SockRead(Sock *sockPtr)
 {
     Ns_Sock *sock = (Ns_Sock *) sockPtr;
     NsServer *servPtr = sockPtr->drvPtr->servPtr;
-    Ns_Buf nbuf;
+    Ns_Buf buf;
     Request *reqPtr;
     Tcl_DString *bufPtr;
     char *s, *e, save;
@@ -1109,9 +1101,9 @@ SockRead(Sock *sockPtr)
 
     len = bufPtr->length;
     Tcl_DStringSetLength(bufPtr, len + nread);
-    nbuf.buf = bufPtr->string + reqPtr->woff;
-    nbuf.len = nread;
-    n = (*sockPtr->drvPtr->proc)(DriverRecv, sock, &nbuf, 1);
+    buf.ns_buf = bufPtr->string + reqPtr->woff;
+    buf.ns_len = nread;
+    n = (*sockPtr->drvPtr->proc)(DriverRecv, sock, &buf, 1);
     if (n <= 0) {
 	return SOCK_ERROR;
     }

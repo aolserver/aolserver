@@ -37,18 +37,8 @@
 #include "ns.h"
 
 static Ns_DriverProc SockProc;
-
-#ifdef WIN32
-#define SYSBUF	WSABUF
-#define sys_buf	buf
-#define sys_len	len
-#else
-#include <sys/uio.h>
-#define SYSBUF	struct iovec
-#define sys_buf iov_base
-#define sys_len iov_len
-#endif
-#define NUM_STATIC_BUFS	16
+static int SockRecv(SOCKET sock, Ns_Buf *bufs, int nbufs);
+static int SockSend(SOCKET sock, Ns_Buf *bufs, int nbufs);
 
 NS_EXPORT int Ns_ModuleVersion = 1;
 
@@ -88,11 +78,12 @@ Ns_ModuleInit(char *server, char *module)
  * SockProc --
  *
  *	Socket driver callback proc.  This driver attempts efficient
- *	scatter/gatter I/O if requested and never blocks.
+ *	scatter/gatter I/O if requested and only blocks for the
+ *	driver configured time once if no bytes are available.
  *
  * Results:
  *	For close and keep, always 0.  For send and recv, # of bytes
- *	processed or -1 on error.
+ *	processed or -1 on error or timeout.
  *
  * Side effects:
  *	None.
@@ -103,46 +94,24 @@ Ns_ModuleInit(char *server, char *module)
 static int
 SockProc(Ns_DriverCmd cmd, Ns_Sock *sock, Ns_Buf *bufs, int nbufs)
 {
-    int i, flags, n;
-    SYSBUF *sysbufs, staticBufs[NUM_STATIC_BUFS];
-#ifndef WIN32
-    struct msghdr msg;
-#endif
+    int n;
 
     switch (cmd) {
     case DriverRecv:
+	n = SockRecv(sock->sock, bufs, nbufs);
+	if (n < 0
+	    && ns_sockerrno == EWOULDBLOCK
+	    && Ns_SockWait(sock->sock, NS_SOCK_READ, sock->driver->recvwait) == NS_OK) {
+	    n = SockRecv(sock->sock, bufs, nbufs);
+	}
+	break;
+
     case DriverSend:
-	if (nbufs > NUM_STATIC_BUFS) {
-	    sysbufs = ns_malloc(sizeof(SYSBUF) * nbufs);
-	} else {
-	    sysbufs = staticBufs;
-	}
-	for (i = 0; i < nbufs; ++i) {
-	    sysbufs[i].sys_buf = bufs[i].buf;
-	    sysbufs[i].sys_len = bufs[i].len;
-	}
-#ifdef WIN32
-	if (cmd == DriverSend) {
-	    i = WSASend(sock->sock, sysbufs, nbufs, &n, 0, NULL, NULL);
-	} else {
-	    flags = 0;
-	    i = WSARecv(sock->sock, sysbufs, nbufs, &n, &flags, NULL, NULL);
-	}
-	if (i != 0) {
-	    n = -1;
-	}
-#else
-	memset(&msg, 0, sizeof(msg));
-	msg.msg_iov = sysbufs;
-	msg.msg_iovlen = nbufs;
-	if (cmd == DriverSend) {
-	    n = sendmsg(sock->sock, &msg, 0);
-	} else {
-	    n = recvmsg(sock->sock, &msg, 0);
-	}
-#endif
-	if (sysbufs != staticBufs) {
-	    ns_free(sysbufs);
+	n = SockSend(sock->sock, bufs, nbufs);
+	if (n < 0
+	    && ns_sockerrno == EWOULDBLOCK
+	    && Ns_SockWait(sock->sock, NS_SOCK_WRITE, sock->driver->sendwait) == NS_OK) {
+	    n = SockSend(sock->sock, bufs, nbufs);
 	}
 	break;
 
@@ -158,4 +127,47 @@ SockProc(Ns_DriverCmd cmd, Ns_Sock *sock, Ns_Buf *bufs, int nbufs)
 	break;
     }
     return n;
+}
+
+
+static int
+SockRecv(SOCKET sock, Ns_Buf *bufs, int nbufs)
+{
+#ifdef WIN32
+    int n, flags;
+
+    flags = 0;
+    if (WSARecv(sock, bufs, nbufs, &n, &flags, NULL, NULL) != 0) {
+	n = -1;
+    }
+    return n;
+#else
+    struct msghdr msg;
+
+    memset(&msg, 0, sizeof(msg));
+    msg.msg_iov = bufs;
+    msg.msg_iovlen = nbufs;
+    return recvmsg(sock, &msg, 0);
+#endif
+}
+
+
+static int
+SockSend(SOCKET sock, Ns_Buf *bufs, int nbufs)
+{
+#ifdef WIN32
+    int n;
+
+    if (WSASend(sock, bufs, nbufs, &n, 0, NULL, NULL) != 0) {
+	n = -1;
+    }
+    return n;
+#else
+    struct msghdr msg;
+
+    memset(&msg, 0, sizeof(msg));
+    msg.msg_iov = bufs;
+    msg.msg_iovlen = nbufs;
+    return sendmsg(sock, &msg, 0);
+#endif
 }
