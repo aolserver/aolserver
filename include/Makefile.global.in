@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Attic/Makefile.global.in,v 1.7 2002/09/19 21:35:52 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Attic/Makefile.global.in,v 1.8 2002/09/19 22:27:55 jgdavidson Exp $
 #
 
 #
@@ -81,8 +81,6 @@ uname = $(shell uname -a)
 # Solaris 2.7+
 ifneq (,$(findstring SunOS,$(uname)))
     AR=/usr/ccs/bin/ar
-    CCRPATH += $(CCRFLAG)/usr/lib/lwp
-    LDRPATH += $(LDRFLAG)/usr/lib/lwp
     LIBS+=-lrt
 endif
 
