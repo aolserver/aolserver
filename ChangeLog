@@ -1,3 +1,8 @@
+2004-06-30 01:16  Dossy Shiobara <dossy@panoptic.com>
+
+	* include/ns.h: Fix build on alpha arch, removing extra INT64
+	  typedef.  Closes bug #896962.
+
 2004-06-23  Zoran Vasiljevic <zv@archiware.com>
 
 	* nsd/tclxkeylist.c: fixed improper handling of objects
