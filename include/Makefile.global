@@ -167,7 +167,7 @@ ifneq (,$(findstring IRIX,$(PLAT)))
     LDFLAGS += -$(ABI)
     LDSO=$(LD) -$(ABI) -shared
     NSDLIBS=-lm
-    CFLAGS+=-DUSE_SPROC=1 -D_SGI_MP_SOURCE=1
+    CFLAGS+=-DUSE_SPROC=1 -D_SGI_MP_SOURCE=1 -DNO_VSNPRINTF
 
 endif
 
