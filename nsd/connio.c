@@ -34,7 +34,7 @@
  *      Handle connection I/O.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/connio.c,v 1.6 2001/05/10 09:57:34 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/connio.c,v 1.7 2001/11/05 20:23:34 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #define IOBUFSZ 2048
@@ -103,11 +103,11 @@ Ns_ConnClose(Ns_Conn *conn)
  */
 
 int
-Ns_ConnSend(Ns_Conn *conn, Ns_Buf *bufs, int nbufs)
+Ns_ConnSend(Ns_Conn *conn, struct iovec *bufs, int nbufs)
 {
     Conn	   *connPtr = (Conn *) conn;
     int             nwrote, towrite, i, n;
-    Ns_Buf	    sbufs[16];
+    struct iovec    sbufs[16];
 
     if (connPtr->sockPtr == NULL) {
 	return -1;
@@ -121,16 +121,16 @@ Ns_ConnSend(Ns_Conn *conn, Ns_Buf *bufs, int nbufs)
     towrite = 0;
     n = 0;
     if (connPtr->queued.length > 0) {
-	sbufs[n].ns_buf = connPtr->queued.string;
-	sbufs[n].ns_len = connPtr->queued.length;
-	towrite += sbufs[n].ns_len;
+	sbufs[n].iov_base = connPtr->queued.string;
+	sbufs[n].iov_len = connPtr->queued.length;
+	towrite += sbufs[n].iov_len;
 	++n;
     }
     for (i = 0; i < nbufs && n < 16; ++i) {
-	if (bufs[i].ns_len > 0 && bufs[i].ns_buf != NULL) {
-	    sbufs[n].ns_buf = bufs[i].ns_buf;
-	    sbufs[n].ns_len = bufs[i].ns_len;
-	    towrite += bufs[i].ns_len;
+	if (bufs[i].iov_len > 0 && bufs[i].iov_base != NULL) {
+	    sbufs[n].iov_base = bufs[i].iov_base;
+	    sbufs[n].iov_len = bufs[i].iov_len;
+	    towrite += bufs[i].iov_len;
 	    ++n;
 	}
     }
@@ -146,13 +146,13 @@ Ns_ConnSend(Ns_Conn *conn, Ns_Buf *bufs, int nbufs)
 	nwrote  += n;
 	if (towrite > 0) {
 	    for (i = 0; i < nbufs && n > 0; ++i) {
-		if (n > (int) bufs[i].ns_len) {
-		    n -= bufs[i].ns_len;
-		    bufs[i].ns_buf = NULL;
-		    bufs[i].ns_len = 0;
+		if (n > (int) bufs[i].iov_len) {
+		    n -= bufs[i].iov_len;
+		    bufs[i].iov_base = NULL;
+		    bufs[i].iov_len = 0;
 		} else {
-		    bufs[i].ns_buf = (char *) bufs[i].ns_buf + n;
-		    bufs[i].ns_len -= n;
+		    bufs[i].iov_base = (char *) bufs[i].iov_base + n;
+		    bufs[i].iov_len -= n;
 		    n = 0;
 		}
 	    }
@@ -196,10 +196,10 @@ Ns_ConnSend(Ns_Conn *conn, Ns_Buf *bufs, int nbufs)
 int
 Ns_ConnWrite(Ns_Conn *conn, void *vbuf, int towrite)
 {
-    Ns_Buf buf;
+    struct iovec buf;
 
-    buf.ns_buf = vbuf;
-    buf.ns_len = towrite;
+    buf.iov_base = vbuf;
+    buf.iov_len = towrite;
     return Ns_ConnSend(conn, &buf, 1);
 }
 
