@@ -29,12 +29,12 @@
 
 
 /*
- * tclcmds.c --
+ * tclmisc.c --
  *
  *	Implements a lot of Tcl API commands. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclmisc.c,v 1.27 2003/01/18 19:24:20 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclmisc.c,v 1.28 2003/02/03 16:07:09 jrasmuss23 Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -161,7 +161,7 @@ NsTclCryptObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST ob
  *
  * NsTclHrefsCmd --
  *
- *	Implments ns_hrefs. 
+ *	Implements ns_hrefs. 
  *
  * Results:
  *	Tcl result. 

@@ -34,7 +34,7 @@
  *	Encode and decode URLs, as described in RFC 1738.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/urlencode.c,v 1.11 2003/01/31 22:47:30 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/urlencode.c,v 1.12 2003/02/03 16:07:09 jrasmuss23 Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -376,7 +376,7 @@ NsUpdateUrlEncode(void)
  *
  * NsTclUrlEncodeObjCmd, NsTclUrlDecodeObjCmd --
  *
- *	Implments ns_urlencode and ns_urldecode.
+ *	Implements ns_urlencode and ns_urldecode.
  *
  * Results:
  *	Tcl result. 

@@ -28,7 +28,7 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/http.tcl,v 1.12 2002/02/08 07:56:16 hobbs Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/http.tcl,v 1.13 2003/02/03 16:07:10 jrasmuss23 Exp $
 #
 
 # http.tcl -
@@ -104,7 +104,7 @@ proc ns_httpopen {method url {rqset ""} {timeout 30} {pdata ""}} {
 	
 	if {$rqset != ""} {
 	    #
-	    # There are rqeuest headers
+	    # There are request headers
 	    #
 	    
 	    for {set i 0} {$i < [ns_set size $rqset]} {incr i} {

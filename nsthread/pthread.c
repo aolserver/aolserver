@@ -28,7 +28,7 @@
  */
 
 /* 
- * pthead.c --
+ * pthread.c --
  *
  *	Interface routines for nsthreads using pthreads.
  *

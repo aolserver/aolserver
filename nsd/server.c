@@ -33,7 +33,7 @@
  *	Routines for managing NsServer structures.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.24 2003/01/18 18:24:43 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.25 2003/02/03 16:07:08 jrasmuss23 Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -174,7 +174,7 @@ NsStopServers(Ns_Time *toPtr)
  *
  * NsInitServer --
  *
- *	Initialize a virtual server and all it's crazy state.
+ *	Initialize a virtual server and all its crazy state.
  *
  * Results:
  *	None.

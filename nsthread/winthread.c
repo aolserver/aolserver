@@ -730,7 +730,7 @@ NsCreateThread(void *arg, long stacksize, Ns_Thread *resultPtr)
  * Ns_ThreadExit --
  *
  *	Terminate a thread.  Note the use of _endthreadex instead of
- *	ExitThread which, as mentioned above, is corrent.
+ *	ExitThread which, as mentioned above, is correct.
  *
  * Results:
  *	None.

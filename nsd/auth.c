@@ -33,7 +33,7 @@
  *	URL level HTTP authorization support.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/auth.c,v 1.11 2003/01/18 19:24:19 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/auth.c,v 1.12 2003/02/03 16:07:07 jrasmuss23 Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -109,7 +109,7 @@ Ns_SetRequestAuthorizeProc(char *server, Ns_RequestAuthorizeProc *proc)
  *
  * NsTclRequestAuthorizeObjCmd --
  *
- *	Implments ns_requestauthorize as obj command. 
+ *	Implements ns_requestauthorize as obj command. 
  *
  * Results:
  *	Tcl result. 
