@@ -1,5 +1,11 @@
 2004-09-21  Dossy Shiobara <dossy@panoptic.com>
 
+	* configure (1.21), configure.in (1.16): Ensure we use the compiler
+	  from the Tcl build during AOLserver configure process, unless
+	  it's explicitly overrided during the AOLserver build.
+
+2004-09-21  Dossy Shiobara <dossy@panoptic.com>
+
 	* aclocal.m4 (1.4): Make detection of gethostby{addr,name}_r more
 	  robust.  Closes SF Bug #1032231.
 
