@@ -33,7 +33,7 @@
  *	ADP parser.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpparse.c,v 1.8 2002/06/05 23:46:55 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpparse.c,v 1.9 2002/09/28 19:23:00 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -69,6 +69,29 @@ static void AppendBlock(AdpParse *parsePtr, char *s, char *e, int type);
 static void Parse(AdpParse *parsePtr, NsServer *servPtr, char *utf);
 static int RegisterCmd(ClientData arg, Tcl_Interp *interp, int argc,
 		char **argv, int type);
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_AdpRegisterParser --
+ *
+ *	Register an ADP parser (no longer supported).
+ *
+ * Results:
+ *	NS_ERROR.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Ns_AdpRegisterParser(char *extension, Ns_AdpParserProc *proc)
+{
+    return NS_ERROR;
+}
 
 
 /*
