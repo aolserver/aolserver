@@ -27,7 +27,7 @@
 '\" version of this file under either the License or the GPL.
 '\" 
 '\"
-'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_sock.n,v 1.1.2.4 2002/11/21 03:49:18 scottg Exp $
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_sock.n,v 1.1.2.5 2002/12/03 15:51:37 scottg Exp $
 '\"
 '\" 
 .so man.macros
@@ -56,7 +56,7 @@ ns_sockaccept, ns_sockblocking, ns_sockcallback, ns_sockcheck, ns_socketpair, ns
 .sp
 \fBns_socknread \fIsockid\fR
 .sp
-\fBns_sockopen \fR?\fI-nonblock | -timeout \fIseconds\fR? \fIhost port\fR
+\fBns_sockopen \fR?\fI-nonblock\fR | \fI-timeout seconds\fR? \fIhost port\fR
 .sp
 \fBns_sockselect \fR?\fI-timeout \fIseconds\fR? \fIrfds wfds efds\fR
 .BE
@@ -64,8 +64,7 @@ ns_sockaccept, ns_sockblocking, ns_sockcallback, ns_sockcheck, ns_socketpair, ns
 .SH DESCRIPTION
 .PP
 Performs one of several network socket operations, providing a means to 
-manipulate and use sockets from directly within AOLserver. 
-
+manipulate and use sockets directly within AOLserver. 
 .TP
 \fBns_sockaccept \fIsockid\fR
 
@@ -74,8 +73,7 @@ returns a list containing the read and write file descriptors for the
 socket, respectively.
 
 The file descriptors can be used with Tcl's \fBputs\fR, \fBgets\fR,
-\fBread\fR or any other Tcl commands to read from and write to the
-socket.
+\fBread\fR or any other Tcl socket manipulation commands.
 
 \fBns_sockaccept\fR does not create a socket for you. It is normally
 used in conjunction with \fBns_sockcallback\fR, \fBns_socklisten\fR,
@@ -83,20 +81,15 @@ and \fBns_socklistencallback\fR.
 
 You can use \fBns_sockcheck\fR to see if the socket is valid before
 using \fBns_sockaccept\fR on it.
-
 .TP
 \fBns_sockblocking \fIsockid\fR
 
-Sets the socket specified by \fIsockid\fR to blocking mode.
-
-In blocking mode, an operation on a socket must complete before the
+Sets the socket specified by \fIsockid\fR to blocking mode. In
+blocking mode, an operation on a socket must complete before the
 command can return. This can cause your process or thread to block
-forever if the operation does not complete. For example, a read or
-write must fully complete before the command performing the read or
-write can return. If that happens in an ADP, the page may never
-complete until the socket is interrupted, closed or a TCP timeout
-occurs.
-
+forever if the operation does not complete. If that happens in an ADP,
+the page may never complete until the socket is interrupted, closed or
+a TCP timeout occurs.
 .TP
 \fBns_sockcallback \fIsockid script when\fR
 
@@ -116,36 +109,30 @@ If the same \fIscript\fR will handle all \fIwhen\fR values, you must
 still register the script four separate times, once for each type of
 \fIwhen\fR value.
 
-The \fIwhen\fR value used to register the \fIscript\fR and that is
-passed to \fIscript\fR when the callback is triggered is one of:
+The \fIwhen\fR value is passed to \fIscript\fR when \fIscript\fR is invoked.
+The \fIwhen\fR value is one of:
 .IP "" 10
-\fIr\fR - the socket is readable 
+\fIr\fR - the socket is readable
 .IP
 \fIw\fR - the socket is writeable
 .IP
 \fIe\fR - the socket has an exceptional condition
 .IP
 \fIx\fR - the server is shutting down
-
 .TP
 \fBns_sockcheck \fIfileid\fR
 
 Uses recv() or send() calls to check if a socket is still connected. The
 \fIfileid\fR is the read or write file id returned by \fBns_sockopen\fR.
 
-
 This function is useful if you used the \fI-nonblock\fR option with
 \fBns_sockopen\fR after calling \fBns_sockselect\fR.
-
 .TP
 \fBns_socketpair\fR
-
 Creates a pair of connected sockets and returns a list of file ids: the
 first one for reads and the second one for writes.
-
 .TP
 \fBns_socklisten \fIaddress port\fR
-
 Creates a new socket and listens for connections at the
 specified \fIaddress\fR and \fIport\fR. An asterisk (*) can be used as
 the \fIaddress\fR argument to specify all addresses.
@@ -153,7 +140,6 @@ the \fIaddress\fR argument to specify all addresses.
 The socket id is returned.
 
 You must use \fBns_sockaccept\fR to accept connections on the socket.
-
 .TP
 \fBns_socklistencallback \fIaddress port script\fR
 
@@ -163,32 +149,32 @@ the \fIaddress\fR argument to specify all addresses.
 
 Runs \fIscript\fR when a new connection is received. The \fIscript\fR
 must use \fBns_sockaccept\fR on the
-
 .TP
 \fBns_socknonblocking \fIsockid\fR
-Sets the socket specified by \fIsockid\fR to nonblocking.
 
+Sets the socket specified by \fIsockid\fR to nonblocking.
 .TP
 \fBns_socknread \fIsockid\fR
+
 Returns the number of bytes waiting to be read from the socket
 specified by \fIsockid\fR.
-
 .TP
-\fBns_sockopen \fR?\fI-nonblock | -timeout \fIseconds\fR? \fIhost port\fR
+\fBns_sockopen \fR?\fI-nonblock\fR | \fI-timeout seconds\fR? \fIhost port\fR
+
 Uses the socket(), bind() and connect() calls to connect to the
 remote \fIhost\fR on the specified \fIport\fR. \fBns_sockopen\fR returns a
 list containing the read and write fileids, respectively.
 
 The \fI-nonblock\fR option causes \fBns_sockopen\fR to return immediately,
-while the connect is still in progress by the operating system; use
+while the connect is still in progress by the operating system. Use
 \fBns_sockcheck\fR with the write fileid to see if the connect has
-completed before using the socket.
+completed before attempting to read from or write to the socket.
 
 The \fI-timeout\fR option specifies how long to wait for the connect to 
 be made in \fIseconds\fR before timing out.
-
 .TP
 \fBns_sockselect\fR ?\fI-timeout \fIseconds\fR? \fIrfds wfds efds\fR
+
 Uses a call to select() to determine which fileids are readable, writable or
 have exceptional conditions. \fBns_sockselect\fR returns a list of three lists:
 readable fileids, writable fileids, and the fileids with exceptions.
@@ -203,7 +189,7 @@ writeable fileids, and fileids with exceptions, respectively.
 Be careful using these socket commands in an ADP or a
 procedure called by an
 ADP. If a socket command hangs, the page may not finish being served to the
-user until the socket command times out, which is typically 3.09 minutes.
+user until the TCP connection times out, typically several minutes later.
 
 .SH "SEE ALSO"
 nsd(1), info(n)
