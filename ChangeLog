@@ -1,3 +1,7 @@
+2003-05-20  Mark Page <mpagenva@aol.com>
+
+	* nsd/tclimg.c: Addition error checks in gif size read.
+
 2003-05-19  Mark Page <mpagenva@aol.com>
 
 	* nsd/tclinit.c: suppress byte-compile for interp init scripts
