@@ -4,7 +4,7 @@ README:  AOLserver
     This is the AOLserver 4.0.0 source distribution.  AOLserver is
     available at http://aolserver.com, a SourceForge hosted site.
 
-RCS: @(#) $Id: README,v 1.3 2002/09/28 19:37:58 jgdavidson Exp $
+RCS: @(#) $Id: README,v 1.4 2003/01/24 18:49:23 elizthom Exp $
 
 
 Contents
@@ -111,6 +111,13 @@ be easy.  To compile and install AOLserver:
 		program, man page, and runtime files (e.g., log
 		files) will be install or updated within this
 		directory.
+
+
+        To make AOLserver with purify, set the variable $PURIFY to 
+        your purify executable along with any options you desire, e.g.,
+
+        make PURIFY="purify -cache-dir=/home/joe/my-cache-dir" install
+ 
 
 3d.     Create and edit a config file, nsd.tcl by convention.  A
 	sample is provided to get started:
