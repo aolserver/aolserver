@@ -34,7 +34,7 @@
  *	Manage the server log file.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/log.c,v 1.25 2004/06/08 19:28:15 rcrittenden0569 Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/log.c,v 1.26 2004/06/23 15:18:59 rcrittenden0569 Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -180,18 +180,7 @@ Ns_Log(Ns_LogSeverity severity, char *fmt, ...)
     va_list ap;
 
     va_start(ap, fmt);
-    if (nslogProcPtr == NULL) {
-	Log(severity, fmt, ap);
-    } else {
-	Cache *cachePtr;
-
-	cachePtr = LogGetCache();
-	(*nslogProcPtr)(&cachePtr->buffer, severity, fmt, ap);
-	++cachePtr->count;
-	if (!cachePtr->hold) {
-	    LogFlush(cachePtr);
-	}
-    }
+    Log(severity, fmt, ap);
     va_end(ap);
 }
 
@@ -442,6 +431,7 @@ NsTclLogObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
     Cache *cachePtr;
     char *severitystr;
     int i;
+    Ns_DString ds;
 
     if (objc < 3) {
         Tcl_WrongNumArgs(interp, 1, objv, "severity string ?string ...?");
@@ -469,13 +459,17 @@ NsTclLogObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
 	    "fatal, bug, debug or integer value", NULL);
 	return TCL_ERROR;
     }
-    if (LogStart(cachePtr, severity)) {
-	for (i = 2; i < objc; ++i) {
-	    Ns_DStringVarAppend(&cachePtr->buffer,
-		Tcl_GetString(objv[i]), i < (objc-1) ? " " : NULL, NULL);
-	}
-	LogEnd(cachePtr);
+
+    Ns_DStringInit(&ds);
+
+    for (i = 2; i < objc; ++i) {
+	Ns_DStringVarAppend(&ds,
+	Tcl_GetString(objv[i]), i < (objc-1) ? " " : NULL, NULL);
     }
+
+    Ns_Log(severity, "%s", ds.string);
+    Ns_DStringFree(&ds);
+
     return TCL_OK;
 }
 
@@ -486,6 +480,8 @@ NsTclLogObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
  * Log --
  *
  *	Add an entry to the log file if the severity is not surpressed.
+ *	Or call a custom log procedure and let that worry about the
+ *	severity.
  *
  * Results:
  *	None. 
@@ -502,9 +498,17 @@ Log(Ns_LogSeverity severity, char *fmt, va_list ap)
     Cache *cachePtr;
 
     cachePtr = LogGetCache();
-    if (LogStart(cachePtr, severity)) {
-	Ns_DStringVPrintf(&cachePtr->buffer, fmt, ap);
-	LogEnd(cachePtr);
+    if (nslogProcPtr == NULL) {
+	if (LogStart(cachePtr, severity)) {
+	    Ns_DStringVPrintf(&cachePtr->buffer, fmt, ap);
+	    LogEnd(cachePtr);
+	}
+    } else {
+	(*nslogProcPtr)(&cachePtr->buffer, severity, fmt, ap);
+	++cachePtr->count;
+	if (!cachePtr->hold) {
+	    LogFlush(cachePtr);
+	}
     }
 }
 
@@ -640,7 +644,7 @@ LogFlush(Cache *cachePtr)
     if (flushProcPtr == NULL) {
 	(void) write(2, dsPtr->string, (size_t)dsPtr->length);
     } else {
-	 (*flushProcPtr)(dsPtr->string, (size_t)dsPtr->length);
+	(*flushProcPtr)(dsPtr->string, (size_t)dsPtr->length);
     }
     Ns_MutexUnlock(&lock);
     Ns_DStringFree(dsPtr);
@@ -834,7 +838,7 @@ LogFreeCache(void *arg)
     ns_free(cachePtr);
 }
 
-      
+
 /*
  *----------------------------------------------------------------------
  *      
@@ -852,7 +856,7 @@ LogFreeCache(void *arg)
  *
  *----------------------------------------------------------------------
  */ 
-
+    
 void
 Ns_SetLogFlushProc(Ns_LogFlushProc *procPtr)
 {
@@ -885,11 +889,11 @@ Ns_SetLogFlushProc(Ns_LogFlushProc *procPtr)
  *
  * Side effects:
  *	None.
- *
+ * 
  *----------------------------------------------------------------------
- */
+ */     
  
-void
+void    
 Ns_SetNsLogProc(Ns_LogProc *procPtr)
 {
     nslogProcPtr = procPtr;
