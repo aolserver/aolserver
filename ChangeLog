@@ -1,5 +1,8 @@
 2000-10-17  Kriston J. Rehberg  <Kriston@AOL.NET>
 
+	* Makefile (install): Tcl library for nsd8x is now installed into
+	$(PREFIX)/lib/tcl8.3.
+
 	* tcl/http.tcl (ns_httpopen): Host:port is now sent to remote host
 	if != 80.  Suggested by Jerry Asher.
 

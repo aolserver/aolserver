@@ -55,6 +55,8 @@ install:
 	$(MKDIR)                    $(INSTLOG)
 	$(MKDIR)                    $(INSTTCL)
 	$(MKDIR)                    $(INSTLIB)
+	$(MKDIR)                    $(INSTLIB)/tcl8.3
+	( cd tcl8.3.2/library && $(CP) -r . $(INSTLIB)/tcl8.3 || exit 1; )
 	$(MKDIR)                    $(INSTSRVMOD)
 	$(MKDIR)                    $(INSTSRVPAG)
 	$(CP) -r tcl                $(INSTMOD)
