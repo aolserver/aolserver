@@ -1,3 +1,9 @@
+2004-02-19 13:22  Dossy Shiobara <dossy@panoptic.com>
+
+	* nsdb/: dbinit.c, dbtcl.c: fix "ns_db gethandle -timeout" so that
+	  when timeout < 0 it blocks forever, timeout == 0 is poll, and
+	  timeout > 0 times out after timeout seconds
+
 2004-02-18 11:35  Dossy Shiobara <dossy@panoptic.com>
 
 	* nsperm/nsperm.c: fixed bug #899364, restoring old nsperm
