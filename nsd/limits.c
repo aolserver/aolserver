@@ -33,7 +33,7 @@
  *  Routines to manage resource limits.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/limits.c,v 1.4 2004/08/12 14:26:35 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/limits.c,v 1.5 2004/08/20 23:31:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -266,6 +266,9 @@ LimitsResult(Tcl_Interp *interp, Limits *limitsPtr)
             !AppendLimit(interp, "nwaiting", limitsPtr->nwaiting) ||
             !AppendLimit(interp, "maxwait", limitsPtr->maxwait) ||
             !AppendLimit(interp, "maxupload", limitsPtr->maxupload) ||
+            !AppendLimit(interp, "dropped", limitsPtr->ndropped) ||
+            !AppendLimit(interp, "timeout", limitsPtr->ntimeout) ||
+            !AppendLimit(interp, "overflow", limitsPtr->noverflow) ||
             !AppendLimit(interp, "maxrun", limitsPtr->maxrun)) {
         return TCL_ERROR;
     }
