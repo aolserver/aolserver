@@ -33,7 +33,7 @@
  *	ADP connection request support.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adprequest.c,v 1.15 2003/08/27 16:30:41 elizthom Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adprequest.c,v 1.16 2003/09/19 18:14:24 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -122,6 +122,7 @@ Ns_AdpRequest(Ns_Conn *conn, char *file)
     Tcl_DStringInit(&rds);
     Tcl_DStringInit(&tds);
     itPtr->adp.responsePtr = &rds;
+    itPtr->adp.outputPtr = itPtr->adp.responsePtr;
     itPtr->adp.typePtr = &tds;
 
     /*

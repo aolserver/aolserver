@@ -33,7 +33,7 @@
  *	ADP string and file eval.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.26 2003/07/18 13:47:33 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.27 2003/09/19 18:14:23 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -242,14 +242,14 @@ int
 NsAdpInclude(NsInterp *itPtr, char *file, int objc, Tcl_Obj *objv[])
 {
     /*
-     * Direct output to the ADP response buffer.
+     * Direct output to the current ADP output buffer.
      */
 
-    if (itPtr->adp.responsePtr == NULL) {
+    if (itPtr->adp.outputPtr == NULL) {
 	Tcl_SetResult(itPtr->interp, "no connection", TCL_STATIC);
 	return TCL_ERROR;
     }
-    return AdpRun(itPtr, file, objc, objv, itPtr->adp.responsePtr);
+    return AdpRun(itPtr, file, objc, objv, itPtr->adp.outputPtr);
 }
 
 static int
