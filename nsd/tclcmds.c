@@ -33,7 +33,7 @@
  * 	Connect Tcl command names to the functions that implement them
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.16 2001/04/13 22:14:58 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.17 2001/04/25 00:25:58 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -209,6 +209,7 @@ extern Tcl_CmdProc
     NsTclNsvUnsetCmd,
     NsTclNsvNamesCmd,
     NsTclVarCmd,
+    NsTclHttpCmd,
     NsTclShareCmd;
 
 /*
@@ -365,6 +366,12 @@ static Cmd servCmds[] = {
      */
 
     {"ns_job", NsTclJobCmd, NULL},
+
+    /*
+     * tclhttp.c
+     */
+
+    {"ns_http", NsTclHttpCmd, NULL},
 
     /*
      * tclfile.c
