@@ -219,13 +219,6 @@ struct _nsconf {
         bool lockoninit;
     } tcl;
 
-    struct {
-        char         *outputCharset;
-        bool          hackContentTypeP;
-        char         *urlCharset;
-        Tcl_Encoding  urlEncoding;
-    } encoding;
-
 };
 
 extern struct _nsconf nsconf;
@@ -456,6 +449,13 @@ typedef struct Conn {
     struct Limits *limitsPtr;
 
     /*
+     * Start and end of request line for later parsing.
+     */
+
+    char *rstart;
+    char *rend;
+
+    /*
      * The following are copied from sockPtr so they're valid
      * after the connection is closed (e.g., within traces).
      */
@@ -476,16 +476,16 @@ typedef struct Conn {
         Ns_Time  close;
         Ns_Time  done;
     } times;
-    Tcl_Interp  *interp;
-    Tcl_Encoding encoding;
-    Tcl_Encoding urlEncoding;
+    struct NsInterp *itPtr;
     char	*type;
+    Tcl_Encoding outputEncoding;
+    Tcl_Encoding urlEncoding;
+    Tcl_Encoding queryEncoding;
     int          nContentSent;
-    int          responseStatus;
+    int          status;
     int          responseLength;
     int          recursionCount;
     Ns_Set      *query;
-    Tcl_Encoding queryEncoding;
     Tcl_HashTable files;
 
     /*
@@ -511,7 +511,6 @@ typedef struct Conn {
     size_t          avail;	/* Bytes avail in buffer. */
     char	   *content;	/* Start of content. */
     int             tfd;        /* Temp fd for file-based content. */
-    size_t          mlen;       /* Length of mmap'ed region. */
 
     /*
      * The following offsets are used to manage the 
@@ -588,6 +587,29 @@ typedef struct NsServer {
     char    	    	   *server;
     Ns_LocationProc 	   *locationProc;
 
+    /*
+     * Default charset for text/ types.
+     */
+
+    char		  *defcharset;
+
+    /*
+     * The following encoding is used for decoding request URL's.
+     * This is a server-wide config as the request must be read
+     * and parsed before the URL can be determined to identify
+     * a possible alternate encoding.
+     */
+
+    Tcl_Encoding           urlEncoding;
+
+    /*
+     * The following encoding is used for decoding input
+     * query strings and forms unless a more specific encoding
+     * is set via ns_register_encoding.
+     */
+
+    Tcl_Encoding           inputEncoding;
+
     /* 
      * The following struct maintains various server options.
      */
@@ -600,18 +622,6 @@ typedef struct NsServer {
 	Ns_HeaderCaseDisposition hdrcase;
     } opts;
     
-    /*
-     * Encoding defaults for the server.
-     */
-
-    struct {
-        char               *outputCharset;
-        Tcl_Encoding        outputEncoding;
-        bool                hackContentTypeP;
-        char               *urlCharset;
-        Tcl_Encoding        urlEncoding;
-    } encoding;
-
     /* 
      * The following struct maintains conn-related limits.
      */
@@ -869,21 +879,17 @@ extern int  NsSockSend(Sock *sockPtr, struct iovec *bufs, int nbufs);
 extern void NsSockClose(Sock *sockPtr, int keep);
 extern int  NsPoll(struct pollfd *pfds, int nfds, Ns_Time *timeoutPtr);
 extern void NsFreeConn(Conn *connPtr);
-extern Tcl_Encoding NsGetTypeEncoding(NsServer *servPtr, char **typePtr,
-				      Ns_DString *dsPtr);
 extern NsServer *NsGetServer(char *server);
 extern NsServer *NsGetInitServer(void);
-extern NsInterp *NsGetInterp(Tcl_Interp *interp);
-
+extern NsInterp *NsGetInterpData(Tcl_Interp *interp);
+extern void NsFreeConnInterp(Conn *connPtr);
 extern Ns_OpProc NsFastGet;
 extern Ns_OpProc NsAdpProc;
 
 extern Ns_Cache *NsFastpathCache(char *server, int size);
 
 extern void NsFreeAdp(NsInterp *itPtr);
-extern void NsFreeAtClose(NsInterp *itPtr);
-
-extern void NsRunAtClose(Tcl_Interp *interp);
+extern void NsTclRunAtClose(NsInterp *itPtr);
 
 extern int  NsUrlToFile(Ns_DString *dsPtr, NsServer *servPtr, char *url);
 
@@ -921,7 +927,6 @@ extern void NsLogOpen(void);
 extern void NsTclInitObjs(void);
 extern void NsUpdateMimeTypes(void);
 extern void NsUpdateEncodings(void);
-extern void NsUpdateUrlEncode(void);
 extern void NsRunPreStartupProcs(void);
 extern void NsBlockSignals(int debug);
 extern void NsHandleSignals(void);
@@ -1030,10 +1035,8 @@ extern int  Ns_TclGetOpenFd(Tcl_Interp *, char *, int write, int *fp);
 #endif
 extern void NsStopSockCallbacks(void);
 extern void NsStopScheduledProcs(void);
-extern void NsGetBuf(char **bufPtr, int *sizePtr);
-extern Tcl_Encoding NsGetTypeEncodingWithDef(char *type, int *used_default);
-extern void NsComputeEncodingFromType(char *type, Tcl_Encoding *enc,
-                                      int *new_type, Tcl_DString *type_ds);
+extern Tcl_Encoding NsGetInputEncoding(Conn *connPtr);
+extern Tcl_Encoding NsGetOutputEncoding(Conn *connPtr);
 
 /*
  * Proxy support
