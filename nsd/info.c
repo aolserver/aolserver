@@ -33,7 +33,7 @@
  *	Ns_Info* API and ns_info command support.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/info.c,v 1.8 2002/07/05 23:30:08 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/info.c,v 1.9 2002/07/06 16:25:53 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -635,29 +635,29 @@ NsTclInfoObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
     NsInterp *itPtr = arg;
     char *elog;
     Tcl_DString ds;
-    static CONST char *cmds[] = {
-	"address", "argv0", "builddate", "callbacks", "config",
-	"hostname", "label", "locks", "log", "name", "pageroot",
-	"pid", "platform", "scheduled", "server", "servers",
-	"sockcallbacks", "tag", "tcllib", "threads", "version",
-	"winnt", "nsd", "pools", "major", "minor", 
-	"uptime", "boottime", "patchlevel", "home", NULL
+    static CONST char *opts[] = {
+	"address", "argv0", "boottime", "builddate", "callbacks",
+	"config", "home", "hostname", "label", "locks", "log",
+	"major", "minor", "name", "nsd", "pageroot", "patchlevel",
+	"pid", "platform", "pools", "scheduled", "server", "servers",
+	"sockcallbacks", "tag", "tcllib", "threads", "uptime",
+	"version", "winnt", NULL
     };
     enum {
-	addressidx, argv0idx, builddateidx, callbacksidx, configidx,
-	hostnameidx, labelidx, locksidx, logidx, nameidx, pagerootidx,
-	pididx, platformidx, scheduledidx, serveridx, serversidx,
-	sockcallbacksidx, tagidx, tcllibidx, threadsidx, versionidx,
-	winntidx, nsdidx, poolsidx, majoridx, minoridx,
-	uptimeidx, boottimeidx, patchlevelidx, homeidx
+	addressidx, argv0idx, boottimeidx, builddateidx, callbacksidx,
+	configidx, homeidx, hostnameidx, labelidx, locksidx, logidx,
+	majoridx, minoridx, nameidx, nsdidx, pagerootidx, patchlevelidx,
+	pididx, platformidx, poolsidx, scheduledidx, serveridx, serversidx,
+	sockcallbacksidx, tagidx, tcllibidx, threadsidx, uptimeidx,
+	versionidx, winntidx,
     };
     int idx;
 
     if (objc != 2) {
-	Tcl_WrongNumArgs(interp, 1, objv, "command");
+	Tcl_WrongNumArgs(interp, 1, objv, "option");
         return TCL_ERROR;
     }
-    if (Tcl_GetIndexFromObj(interp, objv[1], cmds, "command", 0, &idx) != TCL_OK) {
+    if (Tcl_GetIndexFromObj(interp, objv[1], opts, "option", 0, &idx) != TCL_OK) {
 	return TCL_ERROR;
     }
 
