@@ -1,5 +1,17 @@
 2004-08-11  Dossy Shiobara <dossy@panoptic.com>
 
+	* nsd/driver.c (1.31): Ensure defMapPtr is initialized.
+
+2004-08-11  Dossy Shiobara <dossy@panoptic.com>
+
+	* nsd/driver.c (1.30): Fixed crash bug when virtual servers are
+	  configured, but the "hostname" parameter didn't match any of the
+	  virtual servers.  Fixed by introducing new "defaultserver"
+	  parameter in the comm. config that must refer to one of the
+	  virtual servers being defined.
+
+2004-08-11  Dossy Shiobara <dossy@panoptic.com>
+
 	* sample-config.tcl (1.14): Add "defaultserver" parameter in sample
 	  config.
 
