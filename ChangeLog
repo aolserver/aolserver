@@ -1,3 +1,7 @@
+2004-06-23  Rob Crittenden <rcrittenden0569@aol.com>
+
+	* nsd/log.c: ns_log now logs to a custom logger as well.
+
 2004-06-22  Zoran Vasiljevic <zv@archiware.com>
 
 	* nsd/tclxkeylist.c: added compatiblity layer for the following
