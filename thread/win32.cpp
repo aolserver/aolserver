@@ -40,14 +40,11 @@
 
 /*
  * The following structure maintains the Win32-specific state of a
- * process thread including queue pointers for startup, exit, and
- * condition wait and the process id.
+ * process thread for mutex and condition waits.
  */
 
 typedef struct WinThread {
     HANDLE event;
-    unsigned tid;
-    struct WinThread *prevPtr;
     struct WinThread *nextPtr;
     struct Thread *thrPtr;
     enum {
@@ -57,20 +54,27 @@ typedef struct WinThread {
 } WinThread;
 
 /*
- * The following structure defines a queue of threads in a condition wait.
+ * The following structure defines a condition variable as
+ * a mutex and wait queue.
  */
 
 typedef struct {
-    Ns_Mutex      lock;
-    WinThread      *firstPtr;
-    WinThread      *lastPtr;
+    LONG	  lock;
+    WinThread	 *waitPtr;
 } Cond;
+
+/*
+ * The following structure defines a mutex as a spinlock and
+ * wait queue.  The custom lock code provides the speed of
+ * a Win32 CriticalSection with the TryLock of a Mutex handle
+ * (TryEnterCriticalSection is not yet available on all Win32
+ * platforms).
+ */
 
 typedef struct WinMutex {
     LONG spinlock;
     int locked;
-    int nwait;
-    HANDLE event;
+    WinThread *waitPtr;
 } WinMutex;
   
 /*
@@ -78,10 +82,22 @@ typedef struct WinMutex {
  */
 
 static void	WinThreadMain(void *arg);
-static void	CondWakeup(Cond *cPtr);
-static Cond    *GetCond(Ns_Cond *condPtr);
 static WinThread *GetWinThread(void);
-static DWORD	tlskey;
+static void	CondWakeup(Cond *cPtr);
+static void	Wakeup(WinThread *wPtr, char *func);
+static void	Queue(WinThread **waitPtrPtr, WinThread *wPtr);
+
+#define SPINLOCK(lPtr) \
+    while(InterlockedExchange(lPtr, 1)) Sleep(0)
+#define SPINUNLOCK(lPtr) \
+    InterlockedExchange(lPtr, 0)
+
+/*
+ * The following single Tls key is used to store the nsthread
+ * structure.  It's initialized in DllMain.
+ */
+
+static DWORD		tlskey;
 
 
 /*
@@ -90,8 +106,8 @@ static DWORD	tlskey;
  * DllMain --
  *
  *	Thread library DLL main.  Allocates the single TLS key at
- *	process attached and then allocates/frees the per-thread
- *	WinThread strcuture on thread attach/detach.
+ *	process attached and frees the per-thread WinThread strcuture
+ *	on thread detach if allocated.
  *
  * Results:
  *	TRUE or FALSE.
@@ -113,23 +129,6 @@ DllMain(HANDLE hModule, DWORD why, LPVOID lpReserved)
 	if (tlskey == 0xFFFFFFFF) {
 	    return FALSE;
 	}
-	/* FALLTHROUGH */
-
-    case DLL_THREAD_ATTACH:
-	/* NB: Can't use ns_calloc yet. */
-	wPtr = calloc(1, sizeof(WinThread));
-	if (wPtr == NULL) {
-	    NsThreadAbort("calloc() failed");
-	}
-	wPtr->state = WinThreadRunning;
-	wPtr->tid = GetCurrentThreadId();
-	wPtr->event = CreateEvent(NULL, TRUE, FALSE, NULL);
-	if (wPtr->event == NULL) {
-	    NsThreadFatal("DllMain", "CreateEvent", GetLastError());
-	}
-	if (!TlsSetValue(tlskey, wPtr)) {
-	    NsThreadFatal("DllMain", "TlsSetValue", GetLastError());
-	}
 	break;
 
     case DLL_THREAD_DETACH:
@@ -143,6 +142,9 @@ DllMain(HANDLE hModule, DWORD why, LPVOID lpReserved)
 		NsThreadFatal("DllMain", "TlsSetValue", GetLastError());
 	    }
 	    free(wPtr);
+	}
+	if (why == DLL_PROCESS_DETACH && !TlsFree(tlskey)) {
+	    NsThreadFatal("DllMain", "TlsFree", GetLastError());
 	}
 	break;
     }
@@ -171,14 +173,10 @@ DllMain(HANDLE hModule, DWORD why, LPVOID lpReserved)
 void
 NsMutexInit(void **lockPtr)
 {
-    WinMutex *wmPtr;
+    WinMutex *mutexPtr;
 
-    wmPtr = ns_calloc(1, sizeof(WinMutex));
-    wmPtr->event = CreateEvent(NULL, FALSE, FALSE, NULL);
-    if (wmPtr->event == NULL) {
-	NsThreadFatal("NsMutexInit", "CreateEvent", GetLastError());
-    }
-    *lockPtr = wmPtr;
+    mutexPtr = ns_calloc(1, sizeof(WinMutex));
+    *lockPtr = mutexPtr;
 }
 
 
@@ -202,13 +200,10 @@ NsMutexInit(void **lockPtr)
 void
 NsMutexDestroy(void **lockPtr)
 {
-    WinMutex *wmPtr;
+    WinMutex *mutexPtr;
 
-    wmPtr = (WinMutex *) *lockPtr;
-    if (!CloseHandle(wmPtr->event)) {
-	NsThreadFatal("NsMutexDestroy", "CloseHandle", GetLastError());
-    }
-    ns_free(wmPtr);
+    mutexPtr = (WinMutex *) *lockPtr;
+    ns_free(mutexPtr);
     *lockPtr = NULL;
 }
 
@@ -232,22 +227,23 @@ NsMutexDestroy(void **lockPtr)
 void
 NsMutexLock(void **lockPtr)
 {
-    WinMutex *wmPtr = (WinMutex *) *lockPtr;
+    WinThread *wPtr = NULL;
+    WinMutex *mutexPtr = (WinMutex *) *lockPtr;
     int locked;
 
     do {
-	while(InterlockedExchange(&wmPtr->spinlock, 1)) {
-	   Ns_ThreadYield();
-	}
-	locked = wmPtr->locked;
+	SPINLOCK(&mutexPtr->spinlock);
+	locked = mutexPtr->locked;
 	if (!locked) {
-	    wmPtr->locked = 1;
+	    mutexPtr->locked = 1;
 	} else {
-	    ResetEvent(wmPtr->event);
-	    ++wmPtr->nwait;
+	    if (wPtr == NULL) {
+		wPtr = GetWinThread();
+	    }
+	    Queue(&mutexPtr->waitPtr, wPtr);
 	}
-	InterlockedExchange(&wmPtr->spinlock, 0);
-	if (locked && WaitForSingleObject(wmPtr->event, INFINITE) != WAIT_OBJECT_0) {
+	SPINUNLOCK(&mutexPtr->spinlock);
+	if (locked && WaitForSingleObject(wPtr->event, INFINITE) != WAIT_OBJECT_0) {
 	    NsThreadFatal("NsMutexLock", "WaitForSingleObject", GetLastError());
 	}
     } while (locked);
@@ -273,17 +269,15 @@ NsMutexLock(void **lockPtr)
 int
 NsMutexTryLock(void **lockPtr)
 {
-    WinMutex *wmPtr = (WinMutex *) *lockPtr;
+    WinMutex *mutexPtr = (WinMutex *) *lockPtr;
     int locked;
 
-    while(InterlockedExchange(&wmPtr->spinlock, 1)) {
-       Ns_ThreadYield();
-    }
-    locked = wmPtr->locked;
+    SPINLOCK(&mutexPtr->spinlock);
+    locked = mutexPtr->locked;
     if (!locked) {
-	wmPtr->locked = 1;
+	mutexPtr->locked = 1;
     }
-    InterlockedExchange(&wmPtr->spinlock, 0);
+    SPINUNLOCK(&mutexPtr->spinlock);
     if (locked) {
 	return NS_TIMEOUT;
     }
@@ -310,20 +304,19 @@ NsMutexTryLock(void **lockPtr)
 void
 NsMutexUnlock(void **lockPtr)
 {
-    WinMutex *wmPtr = (WinMutex *) *lockPtr;
-    int nwait;
+    WinMutex *mutexPtr = (WinMutex *) *lockPtr;
+    WinThread *wPtr;
 
-    while (InterlockedExchange(&wmPtr->spinlock, 1)) {
-       Ns_ThreadYield();
+    SPINLOCK(&mutexPtr->spinlock);
+    mutexPtr->locked = 0;
+    wPtr = mutexPtr->waitPtr;
+    if (wPtr != NULL) {
+	mutexPtr->waitPtr = wPtr->nextPtr;
+	wPtr->nextPtr = NULL;
     }
-    wmPtr->locked = 0;
-    nwait = wmPtr->nwait;
-    if (nwait > 0) {
-	--wmPtr->nwait;
-    }
-    InterlockedExchange(&wmPtr->spinlock, 0);
-    if (nwait > 0 && !SetEvent(wmPtr->event)) {
-	NsThreadFatal("NsMutexUnlock", "SetEvent", GetLastError());
+    SPINUNLOCK(&mutexPtr->spinlock);
+    if (wPtr != NULL) {
+	Wakeup(wPtr, "NsMutexUnlock");
     }
 }
 
@@ -351,9 +344,7 @@ Ns_CondInit(Ns_Cond *condPtr)
 {
     Cond          *cPtr;
 
-    cPtr = ns_malloc(sizeof(Cond));
-    cPtr->firstPtr = cPtr->lastPtr = NULL;
-    Ns_MutexInit2(&cPtr->lock, "nsthread:cond");
+    cPtr = ns_calloc(1, sizeof(Cond));
     *condPtr = (Ns_Cond) cPtr;
 }
 
@@ -382,7 +373,6 @@ Ns_CondDestroy(Ns_Cond *condPtr)
     if (*condPtr != NULL) {
     	Cond *cPtr = (Cond *) *condPtr;
 
-    	Ns_MutexDestroy(&cPtr->lock);
     	ns_free(cPtr);
     	*condPtr = NULL;
     }
@@ -411,11 +401,11 @@ Ns_CondSignal(Ns_Cond *condPtr)
 {
     Cond         *cPtr = GETCOND(condPtr);
 
-    Ns_MutexLock(&cPtr->lock);
-    if (cPtr->firstPtr != NULL) {
+    SPINLOCK(&cPtr->lock);
+    if (cPtr->waitPtr != NULL) {
 	CondWakeup(cPtr);
     }
-    Ns_MutexUnlock(&cPtr->lock);
+    SPINUNLOCK(&cPtr->lock);
 }
 
 
@@ -440,11 +430,11 @@ Ns_CondBroadcast(Ns_Cond *condPtr)
 {
     Cond         *cPtr = GETCOND(condPtr);
 
-    Ns_MutexLock(&cPtr->lock);
-    while (cPtr->firstPtr != NULL) {
+    SPINLOCK(&cPtr->lock);
+    while (cPtr->waitPtr != NULL) {
 	CondWakeup(cPtr);
     }
-    Ns_MutexUnlock(&cPtr->lock);
+    SPINUNLOCK(&cPtr->lock);
 }
 
 
@@ -497,7 +487,7 @@ Ns_CondTimedWait(Ns_Cond *condPtr, Ns_Mutex *lockPtr, Ns_Time *timePtr)
 {
     int status;
     Cond           *cPtr;
-    WinThread	   *wPtr;
+    WinThread	   *wPtr, **waitPtrPtr;
     Ns_Time 	    now, wait;
     DWORD	    msec, w;
 
@@ -518,54 +508,57 @@ Ns_CondTimedWait(Ns_Cond *condPtr, Ns_Mutex *lockPtr, Ns_Time *timePtr)
     }
 
     /*
-     * Lock the condition, queue this thread, and wait for wakeup
-     * or timeout.
+     * Lock the condition and add this thread to the end of
+     * the wait list.
      */
 
     cPtr = GETCOND(condPtr);
     wPtr = GetWinThread();
+    SPINLOCK(&cPtr->lock);
     wPtr->state = WinThreadCondWait;
-    wPtr->nextPtr = NULL;
-    ResetEvent(wPtr->event);
+    Queue(&cPtr->waitPtr, wPtr);
+    SPINUNLOCK(&cPtr->lock);
 
-    Ns_MutexLock(&cPtr->lock);
-    wPtr->prevPtr = cPtr->lastPtr;
-    cPtr->lastPtr = wPtr;
-    if (wPtr->prevPtr != NULL) {
-        wPtr->prevPtr->nextPtr = wPtr;
-    }
-    if (cPtr->firstPtr == NULL) {
-        cPtr->firstPtr = wPtr;
-    }
+    /*
+     * Release the outer mutex and wait for the signal to arrive
+     * or timeout.
+     */
+
     Ns_MutexUnlock(lockPtr);
-    Ns_MutexUnlock(&cPtr->lock);
     w = WaitForSingleObject(wPtr->event, msec);
-    Ns_MutexLock(&cPtr->lock);
     if (w != WAIT_OBJECT_0 && w != WAIT_TIMEOUT) {
 	NsThreadFatal("Ns_CondTimedWait", "WaitForSingleObject", GetLastError());
     }
+
+    /*
+     * Lock the condition and check if wakeup was signalled.  Note
+     * that the signal may have arrived as the event was timing
+     * out so the return of WaitForSingleObject can't be relied on.
+     * If there was no wakeup, remove this thread from the list.
+     */
+
+    SPINLOCK(&cPtr->lock);
     if (wPtr->state == WinThreadRunning) {
 	status = NS_OK;
     } else {
 	status = NS_TIMEOUT;
-        if (cPtr->firstPtr == wPtr) {
-            cPtr->firstPtr = wPtr->nextPtr;
-        } else {
-            wPtr->prevPtr->nextPtr = wPtr->nextPtr;
-        }
-        if (cPtr->lastPtr == wPtr) {
-            cPtr->lastPtr = wPtr->prevPtr;
-        } else {
-            wPtr->nextPtr->prevPtr = wPtr->prevPtr;
-        }
+	waitPtrPtr = &cPtr->waitPtr;
+	while (*waitPtrPtr != wPtr) {
+	    waitPtrPtr = &(*waitPtrPtr)->nextPtr;
+	}
+	*waitPtrPtr = wPtr->nextPtr;
+	wPtr->nextPtr = NULL;
 	wPtr->state = WinThreadRunning;
     }
-    Ns_MutexUnlock(&cPtr->lock);
-    Ns_MutexLock(lockPtr);
+    SPINUNLOCK(&cPtr->lock);
 
+    /*
+     * Re-aquire the outer lock and return.
+     */
+
+    Ns_MutexLock(lockPtr);
     return status;
 }
-
 
 
 /*
@@ -685,7 +678,7 @@ NsSetThread(Thread *thisPtr)
 {
     WinThread *wPtr = GetWinThread();
 
-    thisPtr->tid = (int) wPtr->tid;
+    thisPtr->tid = GetCurrentThreadId();
     wPtr->thrPtr = thisPtr;
     NsSetThread2(thisPtr);
 }
@@ -713,41 +706,6 @@ NsGetThread(void)
     WinThread *wPtr = GetWinThread();
     
     return (wPtr->thrPtr ? wPtr->thrPtr : NsGetThread2());
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * CondWakeup --
- *
- *	Wakeup a process sleeping on a condition variable queue.
- *
- * Results:
- *	None.
- *
- * Side effects:
- *	First thread is removed from the queue, marked running and
- *	signaled with SetEvent().
- *
- *----------------------------------------------------------------------
- */
-
-static void
-CondWakeup(Cond *cPtr)
-{
-    WinThread *wPtr;
-
-    wPtr = cPtr->firstPtr;
-    cPtr->firstPtr = wPtr->nextPtr;
-    if (cPtr->lastPtr == wPtr) {
-	cPtr->lastPtr = NULL;
-    }
-    wPtr->state = WinThreadRunning;
-    wPtr->nextPtr = NULL;
-    if (!SetEvent(wPtr->event)) {
-	NsThreadFatal("CondWakeup", "SetEvent", GetLastError());
-    }
 }
 
 
@@ -802,7 +760,88 @@ GetWinThread(void)
 
     wPtr = TlsGetValue(tlskey);
     if (wPtr == NULL) {
-	NsThreadFatal("GetWinThread", "TlsGetValue", GetLastError());
+	/* NB: Can't use ns_calloc yet. */
+	wPtr = calloc(1, sizeof(WinThread));
+	if (wPtr == NULL) {
+	    NsThreadAbort("calloc() failed");
+	}
+	wPtr->state = WinThreadRunning;
+	wPtr->event = CreateEvent(NULL, TRUE, FALSE, NULL);
+	if (wPtr->event == NULL) {
+	    NsThreadFatal("GetWinThread", "CreateEvent", GetLastError());
+	}
+	if (!TlsSetValue(tlskey, wPtr)) {
+	    NsThreadFatal("GetWinThread", "TlsSetValue", GetLastError());
+	}
     }
     return wPtr;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Queue --
+ *
+ *	Add a thread on a mutex or condition wait queue.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	Thread wakeup event is reset in case it's holding
+ *	a lingering wakeup.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+Queue(WinThread **waitPtrPtr, WinThread *wPtr)
+{
+    while (*waitPtrPtr != NULL) {
+	waitPtrPtr = &(*waitPtrPtr)->nextPtr;
+    }
+    *waitPtrPtr = wPtr;
+    wPtr->nextPtr = NULL;
+    if (!ResetEvent(wPtr->event)) {
+	NsThreadFatal("Queue", "ResetEvent", GetLastError());
+    }
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Wakeup, CondWakeup --
+ *
+ *	Wakeup a thread waiting on a mutex or condition queue.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	Thread wakeup event is set and state is set to running
+ *	for condition waits.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+Wakeup(WinThread *wPtr, char *func)
+{
+    if (!SetEvent(wPtr->event)) {
+	NsThreadFatal(func, "SetEvent", GetLastError());
+    }
+}
+
+static void
+CondWakeup(Cond *cPtr)
+{
+    WinThread *wPtr;
+
+    wPtr = cPtr->waitPtr;
+    cPtr->waitPtr = wPtr->nextPtr;
+    wPtr->nextPtr = NULL;
+    wPtr->state = WinThreadRunning;
+    Wakeup(wPtr, "Ns_CondBroadcast");
 }
