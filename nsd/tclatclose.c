@@ -33,47 +33,21 @@
  *	Routines for the ns_atclose command.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/tclatclose.c,v 1.5 2002/08/10 16:22:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/tclatclose.c,v 1.6 2002/08/25 19:53:31 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
-static void RunAtClose(NsInterp *itPtr, int run);
-
-
-
 /*
- *----------------------------------------------------------------------
- *
- * Ns_TclRegisterDeferred --
- *
- *	Register a procedure to be called when the interp is cleaned up.
- *
- * Results:
- *	None.
- *
- * Side effects:
- *	Procedure will be called later.
- *
- *----------------------------------------------------------------------
+ * The following structure maintains script to execute when the
+ * connection is closed.
  */
 
-void
-Ns_TclRegisterDeferred(Tcl_Interp *interp, Ns_TclDeferProc *procPtr,
-	void *arg)
-{
-    NsInterp   *itPtr = NsGetInterp(interp);
-    AtCleanup  *cleanupPtr, **nextPtrPtr;
+typedef struct AtClose {
+    struct AtClose *nextPtr;
+    char script[1];
+} AtClose;
 
-    cleanupPtr = ns_malloc(sizeof(AtCleanup));
-    cleanupPtr->procPtr = procPtr;
-    cleanupPtr->arg = arg;
-    cleanupPtr->nextPtr = NULL;
-    nextPtrPtr = &itPtr->firstAtCleanupPtr;
-    while (*nextPtrPtr != NULL) {
-	nextPtrPtr = &((*nextPtrPtr)->nextPtr);
-    }
-    *nextPtrPtr = cleanupPtr;
-}
+static void RunAtClose(NsInterp *itPtr, int run);
 
 
 /*
