@@ -83,7 +83,7 @@ BSC32=bscmake.exe
 # ADD BSC32 /nologo
 LINK32=link.exe
 # ADD BASE LINK32 kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /nologo /dll /debug /machine:I386 /pdbtype:sept
-# ADD LINK32 kernel32.lib tcl84td.lib /nologo /dll /debug /machine:I386 /pdbtype:sept /libpath:"..\..\tcl8.4\win\Debug"
+# ADD LINK32 kernel32.lib tcl84tg.lib /nologo /dll /debug /machine:I386 /pdbtype:sept /libpath:"..\..\tcl8.4\win\Debug"
 # Begin Special Build Tool
 SOURCE="$(InputPath)"
 PostBuild_Cmds=if not exist ..\debug mkdir ..\debug	for %%m in (dll pdb) do copy debug\nsthread.%%m ..\debug\nsthread.%%m	for %%m in (dll pdb) do copy ..\..\tcl8.4\win\Debug\tcl84td.%%m ..\debug\tcl84td.%%m	for %%m in (exe pdb) do copy ..\..\tcl8.4\win\Debug\tclsh84td.%%m ..\debug\tclsh84td.%%m
