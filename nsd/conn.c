@@ -34,7 +34,7 @@
  *      Manage the Ns_Conn structure
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.21 2002/06/13 00:04:54 jcollins Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.22 2002/06/13 04:47:29 jcollins Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -1253,10 +1253,8 @@ NsTclWriteContentObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **
         return TCL_ERROR;
     }
     if (objc == 3 && !NsIsIdConn(Tcl_GetString(objv[1]))) {
-	Tcl_Obj *result = Tcl_NewObj();
-	Tcl_AppendStringsToObj(result, "bad connid: \"", 
+	Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "bad connid: \"", 
 		Tcl_GetString(objv[1]), "\"", NULL);
-	Tcl_SetObjResult(interp, result);
 	return TCL_ERROR;
     }
     if (itPtr->conn == NULL) {
