@@ -34,7 +34,7 @@
  *	Implement the PID file routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/pidfile.c,v 1.6 2001/03/12 22:06:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/pidfile.c,v 1.7 2001/11/05 20:23:56 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -44,49 +44,18 @@ static char *GetFile(char *procname);
 /*
  *----------------------------------------------------------------------
  *
- * NsCreatePidFile --
+ * NsCreatePidFile, NsRemovePidFile --
  *
- *	Create a pid file and optionally kill a running process whose 
- *	pid is in that file. 
+ *	Create/remove file with current pid.
  *
  * Results:
- *	Previous pid (if any).
+ *	None.
  *
  * Side effects:
- *	May terminate, also registers a realm.
+ *	None.
  *
  *----------------------------------------------------------------------
  */
-
-int
-NsGetLastPid(char *procname)
-{
-    char buf[10];
-    int fd, pid, n;
-    char *file = GetFile(procname);
-    
-    pid = -1;
-    fd = open(file, O_RDONLY|O_TEXT);
-    if (fd >= 0) {
-	n = read(fd, buf, sizeof(buf)-1);
-	if (n < 0) {
-	    Ns_Log(Warning, "pidfile: pid file read() failed: '%s'",
-		   strerror(errno));
-	} else {
-	    buf[n] = '\0';
-	    if (sscanf(buf, "%d", &pid) != 1) {
-		Ns_Log(Warning, "pidfile: invalid pid file '%s'", file);
-	    	pid = -1;
-	    }
-	}
-	close(fd);
-    } else if (errno != ENOENT) {
-	Ns_Log(Error, "pidfile: failed to open pid file '%s': '%s'",
-	       file, strerror(errno));
-    }
-    return pid;
-}
-
 
 void
 NsCreatePidFile(char *procname)
@@ -95,7 +64,7 @@ NsCreatePidFile(char *procname)
     char  buf[10];
     char *file = GetFile(procname);
 
-    fd = open(file, O_WRONLY|O_TRUNC|O_CREAT|O_TEXT, 0644);
+    fd = open(file, O_WRONLY|O_TRUNC|O_CREAT, 0644);
     if (fd < 0) {
     	Ns_Log(Error, "pidfile: failed to open pid file '%s': '%s'",
 	       file, strerror(errno));
@@ -109,7 +78,6 @@ NsCreatePidFile(char *procname)
     }
 }
 
-
 void
 NsRemovePidFile(char *procname)
 {
@@ -121,14 +89,13 @@ NsRemovePidFile(char *procname)
     }
 }
 
-
 static char *
 GetFile(char *procname)
 {
     static char *file;
     
     if (file == NULL) {
-    	file = Ns_ConfigGet(NS_CONFIG_PARAMETERS, "pidfile");
+    	file = Ns_ConfigGetValue(NS_CONFIG_PARAMETERS, "pidfile");
 	if (file == NULL) {
     	    Ns_DString ds;
 

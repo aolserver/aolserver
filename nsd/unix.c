@@ -34,15 +34,13 @@
  *	Unix specific routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/unix.c,v 1.10 2001/03/12 22:06:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/unix.c,v 1.11 2001/11/05 20:23:56 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #include <pwd.h>
 #include <grp.h>
 
 static Ns_Mutex lock;
-static int Kill(int pid, int sig);
-static int Wait(int pid, int seconds);
 static int debugMode;
 
 
@@ -230,7 +228,7 @@ Pipe(int *fds, int sockpair)
 }
 
 int
-ns_sockpair(SOCKET *socks)
+ns_sockpair(int *socks)
 {
     return Pipe(socks, 1);
 }
@@ -239,98 +237,6 @@ int
 ns_pipe(int *fds)
 {
     return Pipe(fds, 0);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsKillPid --
- *
- *	Kill a process and wait for exit.
- *
- * Results:
- *	None.
- *
- * Side effects:
- *	None.
- *
- *----------------------------------------------------------------------
- */
-
-void
-NsKillPid(int pid)
-{
-    int timeout, err;
-    
-    if (!Kill(pid, SIGTERM)) {
-	Ns_Log(Warning, "unix: failed to kill process %d: "
-	       "pid %d does not exist", pid, pid);
-    } else if (!Wait(pid, 10)) {
-    	Ns_Log(Warning, "unix: "
-	       "attempting again to kill process %d after waiting 10 seconds",pid);
-	if (Kill(pid, SIGKILL) && !Wait(pid, 5)) {
-	    Ns_Fatal("unix: failed to kill process %d: '%s'",pid,strerror(errno));
-	}
-    }
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Kill --
- *
- *	Send a signal, tolerating only a "no such process" error.
- *
- * Results:
- *	None.
- *
- * Side effects:
- *	None.
- *
- *----------------------------------------------------------------------
- */
-
-static int
-Kill(int pid, int sig)
-{
-    int err;
-    
-    err = kill(pid, sig);
-    if (err != 0 && errno != ESRCH) {
-    	Ns_Fatal("unix: kill(%d, %d) failed: '%s'", pid, sig, strerror(errno));
-    }
-    return (err == 0 ? 1 : 0);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Wait --
- *
- *	Wait for a process to die by polling for existance and sleeping.
- *
- * Results:
- *	None.
- *
- * Side effects:
- *	None.
- *
- *----------------------------------------------------------------------
- */
-
-static int
-Wait(int pid, int seconds)
-{
-    int alive;
-    
-    while ((alive = Kill(pid, 0)) && seconds-- >= 0) {
-	Ns_Log(Notice, "unix: waiting for killed process %d to die...", pid);
-    	sleep(1);
-    }
-    return (alive ? 0 : 1);
 }
 
 
