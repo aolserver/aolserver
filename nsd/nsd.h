@@ -207,6 +207,7 @@ struct _nsconf {
 	char *sharedlibrary;
 	bool autoclose;
 	bool debug;
+	int  nseval;
 	int  statlevel;
 	int  statmaxbuf;
 	int  nsvbuckets;

@@ -34,7 +34,7 @@
  *	Various core configuration.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsconf.c,v 1.8 2000/10/17 19:09:17 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsconf.c,v 1.9 2000/10/20 21:53:07 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #include "nsconf.h"
@@ -326,6 +326,7 @@ NsConfInit(void)
     nsconf.tcl.statlevel = GetInt(path, "statlevel", TCL_STATLEVEL_INT);
     nsconf.tcl.statmaxbuf = GetInt(path, "statmaxbuf", TCL_STATMAXBUF_INT);
     nsconf.tcl.nsvbuckets = GetInt(path, "nsvbuckets", TCL_NSVBUCKETS_INT);
+    nsconf.tcl.nseval = GetBool(path, "enablenseval", 0);
 
     /*
      * adp.c, adpfancy.c

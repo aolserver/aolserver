@@ -34,7 +34,7 @@
  *	Unix specific routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/unix.c,v 1.6 2000/10/13 18:10:30 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/unix.c,v 1.7 2000/10/20 21:53:07 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -79,7 +79,9 @@ NsBlockSignals(int debug)
     sigaddset(&set, SIGPIPE);
     sigaddset(&set, SIGTERM);
     sigaddset(&set, NS_SIGHUP);
-    sigaddset(&set, NS_SIGTCL);
+    if (nsconf.tcl.nseval) {
+    	sigaddset(&set, NS_SIGTCL);
+    }
     if (!debugMode) {
         /* NB: Don't block SIGINT in debug mode for Solaris dbx. */
         sigaddset(&set, SIGINT);
@@ -149,7 +151,9 @@ NsHandleSignals(void)
     sigemptyset(&set);
     sigaddset(&set, SIGTERM);
     sigaddset(&set, SIGHUP);
-    sigaddset(&set, NS_SIGTCL);
+    if (nsconf.tcl.nseval) {
+    	sigaddset(&set, NS_SIGTCL);
+    }
     if (!debugMode) {
         sigaddset(&set, SIGINT);
     }
@@ -173,7 +177,9 @@ NsHandleSignals(void)
 
     sigemptyset(&set);
     sigaddset(&set, SIGHUP);
-    sigaddset(&set, SIGTERM);
+    if (nsconf.tcl.nseval) {
+    	sigaddset(&set, NS_SIGTCL);
+    }
     if (!debugMode) {
         sigaddset(&set, SIGINT);
     }
