@@ -1,7 +1,12 @@
+2003-02-04  Nathan Folkman <shmooved@aol.com>
+
+        * nsd/tclmisc.c: (bug fix) Fixed arg checking bug in
+        NsTclStrftimeObjCmd (ns_fmttime) API.
+
 2003-02-03  Jamie Rasmussen <jrasmuss@mle.ie>
 
-        * tcl/sendmail.tcl: Fix bug #632265
-        * Fix minor spelling errors in comments
+        * tcl/sendmail.tcl: (bug fix) SF bug 632265.
+        * Fixed minor spelling errors in comments.
 
 2003-02-01  Nathan Folkman <shmooved@aol.com>
 
