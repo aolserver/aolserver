@@ -34,7 +34,7 @@
  *	Routines for creating, exiting, and joining threads.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/thread.c,v 1.12 2000/11/06 17:53:50 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/thread.c,v 1.13 2000/11/06 17:59:25 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "thread.h"
 
@@ -584,7 +584,6 @@ NsCleanupThread(Thread *thrPtr)
 
     Ns_MutexLock(&lock);
     if (!(thrPtr->flags & NS_THREAD_DETACHED)) {
-    	thrPtr->etime = time(NULL);
 	thrPtr->arg = NULL;
 	thrPtr->flags |= NS_THREAD_EXITED;
 	thrPtr = NULL;
