@@ -35,7 +35,7 @@ OUTDIRNAME	= $(TMPDIRNAME)
 OUTDIR		= $(TMPDIR)
 
 LIBNSTHREAD     = $(NSHOME)\win32\nsthread\Release\nsthread.lib
-LIBTCL8X        = $(NSHOME)\tcl8.3.2\win\Release\tcl83.lib
+LIBTCL8X        = $(NSHOME)\win32\nstcl\Release\tcl83.lib
 LIBNSD8X        = $(NSHOME)\win32\nsd\Release\nsd8x.lib
 
 optlibs         = wsock32.lib
