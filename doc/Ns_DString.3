@@ -28,7 +28,7 @@
 '\" version of this file under either the License or the GPL.
 '\" 
 '\"
-'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_DString.3,v 1.1.2.3 2002/12/05 20:19:43 scottg Exp $
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_DString.3,v 1.1.2.4 2002/12/10 16:00:26 scottg Exp $
 '\"
 '\" 
 .so man.macros
@@ -42,34 +42,49 @@ Ns_DStringAppend, Ns_DStringAppendArg, Ns_DStringAppendElement, Ns_DStringExport
 .nf
 \fB#include "ns.h"\fR
 .sp
+char *
 \fBNs_DStringAppend\fR(\fINs_DString *dsPtr, char *string\fR)
 .sp
+char *
 \fBNs_DStringAppendArg\fR(\fINs_DString *dsPtr, char *string\fR)
 .sp
+char *
 \fBNs_DStringAppendElement\fR(\fINs_DString *dsPtr, char *string\fR)
 .sp
+char *
 \fBNs_DStringExport\fR(\fINs_DString *dsPtr\fR)
 .sp
+void
 \fBNs_DStringFree\fR(\fINs_DString *dsPtr\fR)
 .sp
+void
 \fBNs_DStringInit\fR(\fINs_DString *dsPtr\fR)
 .sp
+int
 \fBNs_DStringLength\fR(\fINs_DString *dsPtr\fR)
 .sp
+char *
 \fBNs_DStringNAppend\fR(\fINs_DString *dsPtr, char *string, int length\fR)
 .sp
+Ns_DString *
 \fBNs_DStringPop\fR(\fIvoid\fR)
 .sp
+char *
 \fBNs_DStringPrintf\fR(\fINs_DString *dsPtr, char *fmt,...\fR)
 .sp
+void
 \fBNs_DStringPush\fR(\fINs_DString *dsPtr\fR)
 .sp
+void
 \fBNs_DStringSetLength\fR(\fINs_DString *dsPtr, int length\fR)
 .sp
+void
 \fBNs_DStringTrunc\fR(\fINs_DString *dsPtr, int length\fR)
 .sp
+char *
 \fBNs_DStringValue\fR(\fINs_DString *dsPtr\fR)
 .sp
+char *
 \fBNs_DStringVarAppend\fR(\fINs_DString *dsPtr, ...\fR)
 .BE
 

@@ -28,7 +28,7 @@
 '\" version of this file under either the License or the GPL.
 '\" 
 '\"
-'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_ThreadAlloc.3,v 1.1.2.3 2002/12/05 18:08:09 scottg Exp $
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_ThreadAlloc.3,v 1.1.2.4 2002/12/10 16:00:27 scottg Exp $
 '\"
 '\" 
 .so man.macros
@@ -42,20 +42,28 @@ Ns_ThreadAlloc, Ns_ThreadCalloc, Ns_ThreadFree, Ns_ThreadMalloc, Ns_ThreadPool, 
 .nf
 \fB#include "ns.h"\fR
 .sp
+void *
 \fBNs_ThreadAlloc\fR(\fIsize_t size\fR)
 .sp
+void *
 \fBNs_ThreadCalloc\fR(\fIsize_t nelem, size_t elsize\fR)
 .sp
+void
 \fBNs_ThreadFree\fR(\fIvoid *ptr\fR)
 .sp
+void *
 \fBNs_ThreadMalloc\fR(\fIsize_t size\fR)
 .sp
+Ns_Pool *
 \fBNs_ThreadPool\fR(\fIvoid\fR)
 .sp
+void *
 \fBNs_ThreadRealloc\fR(\fIvoid *ptr, size_t size\fR)
 .sp
+char *
 \fBNs_ThreadStrCopy\fR(\fIchar *str\fR)
 .sp
+char *
 \fBNs_ThreadStrDup\fR(\fIchar *str\fR)
 .BE
 

@@ -28,7 +28,7 @@
 '\" version of this file under either the License or the GPL.
 '\" 
 '\"
-'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_UrlToFile.3,v 1.1.2.3 2002/12/05 18:08:10 scottg Exp $
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_UrlToFile.3,v 1.1.2.4 2002/12/10 16:00:27 scottg Exp $
 '\"
 '\" 
 .so man.macros
@@ -42,12 +42,16 @@ Ns_SetUrlToFileProc, Ns_UrlIsDir, Ns_UrlIsFile, Ns_UrlToFile \- URL to file mapp
 .nf
 \fB#include "ns.h"\fR
 .sp
+void
 \fBNs_SetUrlToFileProc\fR(\fIchar *server, Ns_UrlToFileProc *procPtr\fR)
 .sp
+int
 \fBNs_UrlIsDir\fR(\fIchar *server, char *url\fR)
 .sp
+int
 \fBNs_UrlIsFile\fR(\fIchar *server, char *url\fR)
 .sp
+int
 \fBNs_UrlToFile\fR(\fINs_DString *dsPtr, char *server, char *url\fR)
 .BE
 

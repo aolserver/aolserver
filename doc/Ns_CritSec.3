@@ -28,7 +28,7 @@
 '\" version of this file under either the License or the GPL.
 '\" 
 '\"
-'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_CritSec.3,v 1.1.2.4 2002/12/05 18:08:01 scottg Exp $
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_CritSec.3,v 1.1.2.5 2002/12/10 16:00:26 scottg Exp $
 '\"
 '\" 
 .so man.macros
@@ -42,12 +42,16 @@
 .nf
 \fB#include "ns.h"\fR
 .sp
+void
 \fBNs_CsDestroy\fR(\fINs_Cs *csPtr\fR)
 .sp
+void
 \fBNs_CsEnter\fR(\fINs_Cs *csPtr\fR)
 .sp
+void
 \fBNs_CsInit\fR(\fINs_Cs *csPtr\fR)
 .sp
+void
 \fBNs_CsLeave\fR(\fINs_Cs *csPtr\fR)
 .BE
 
