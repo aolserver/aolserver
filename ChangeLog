@@ -2,7 +2,8 @@
 
         * nsd/init.tcl: Fix to _ns_lzproc_load to handle subtle behavior with
         respect to namespaces and the test to see if the proc will be successfully
-        recognized.
+        recognized. Also, fix to protect against infinite loop on unknown processing
+        if null command is executed.
 
 2003-09-22  Mark Page  <mpagenva@aol.com>
 
