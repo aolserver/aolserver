@@ -165,6 +165,10 @@ SOURCE=..\..\nsd\dstring.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\nsd\encoding.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\nsd\exec.c
 # End Source File
 # Begin Source File
