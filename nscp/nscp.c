@@ -35,7 +35,7 @@
  *  	Tcl commands.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscp/nscp.c,v 1.5 2000/08/21 17:53:02 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscp/nscp.c,v 1.6 2000/08/21 17:58:52 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 
@@ -351,6 +351,8 @@ static int
 GetLine(SOCKET sock, char *prompt, Tcl_DString *dsPtr, int echo)
 {
 
+#ifndef WIN32
+
 #define TN_IAC  255
 #define TN_WILL 251
 #define TN_WONT 252
@@ -366,11 +368,13 @@ GetLine(SOCKET sock, char *prompt, Tcl_DString *dsPtr, int echo)
     char dont_echo[]  = {TN_IAC, TN_DONT, TN_ECHO};
     char will_echo[]  = {TN_IAC, TN_WILL, TN_ECHO};
     char wont_echo[]  = {TN_IAC, TN_WONT, TN_ECHO};
+#endif
 
     unsigned char buf[2048];
     int n;
     int result = 0;
 
+#ifndef WIN32
     /*
      * Suppress output on things like password prompts.
      */
@@ -379,6 +383,7 @@ GetLine(SOCKET sock, char *prompt, Tcl_DString *dsPtr, int echo)
 	send(sock, dont_echo, 3, 0);
 	recv(sock, buf, sizeof(buf), 0); /* flush client ack thingies */
     }
+#endif
 
     n = strlen(prompt);
     if (send(sock, prompt, n, 0) != n) {
@@ -404,6 +409,7 @@ GetLine(SOCKET sock, char *prompt, Tcl_DString *dsPtr, int echo)
 	    goto bail;
 	}
 	
+#ifndef WIN32
 	/*
 	 * Deal with telnet IAC commands in some sane way.
 	 */
@@ -416,11 +422,13 @@ GetLine(SOCKET sock, char *prompt, Tcl_DString *dsPtr, int echo)
 		goto bail;
 	    } else {
 		Ns_Log(Warning, "nscp: "
-		       "unsupported telnet code received from client");
+		       "unsupported telnet IAC code received from client");
 		result = 0;
 		goto bail;
 	    }
 	}
+#endif
+
 	
 	Tcl_DStringAppend(dsPtr, buf, n);
 	result = 1;
@@ -429,11 +437,13 @@ GetLine(SOCKET sock, char *prompt, Tcl_DString *dsPtr, int echo)
 
  bail:
 
+#ifndef WIN32
     if (!echo) {
 	send(sock, wont_echo, 3, 0);
 	send(sock, do_echo, 3, 0);
 	recv(sock, buf, sizeof(buf), 0); /* flush client ack thingies */
     }
+#endif
 
     return result;
 }

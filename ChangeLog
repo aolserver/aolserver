@@ -1,13 +1,11 @@
 2000-08-21  Kriston J. Rehberg  <Kriston@AOL.NET>
 
-	* nscp/nscp.c: Makes some attempt to recognize and handle telnet
-	IAC codes.  This allows CTRL-C and CTRL-D to work from the client
-	for people who get stuck and don't want to use CTRL-].  It's a
-	very dirt-simple implementation of the telnet protocol so only
-	standard Unix telnet is supported.  The win32 telnet client sends
-	too many IAC's that I do not care to handle at this time, so they
-	are just dropped with a warning sent to the server.log.
-	(GetLine): password is no longer echoed back to the client.
+	* nscp/nscp.c: password is no longer echoed back to the client.
+	Makes some attempt to recognize and handle telnet IAC codes like
+	CTRL-C and CTRL-D to force a logout.  This implementation of the
+	telnet protocol is dirt-cheap, so only standard Unix telnet is
+	supported.  On Win32, IAC handling is completely disabled because
+	the client is too chatty with its IAC codes.
 
 2000-08-20  Kriston J. Rehberg  <Kriston@AOL.NET>
 
