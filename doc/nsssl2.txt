@@ -1,5 +1,5 @@
 
-$Header: /Users/dossy/Desktop/cvs/aolserver/doc/Attic/nsssl2.txt,v 1.1 2000/05/09 21:42:31 kriston Exp $
+$Header: /Users/dossy/Desktop/cvs/aolserver/doc/Attic/nsssl2.txt,v 1.2 2000/06/19 23:46:26 scottg Exp $
 
 
 The nsssl2 Socket Driver
@@ -20,8 +20,8 @@ List).
 
 The nsssl2 driver supports SSL v2 according to the Netscape SSL
 documentation, which you can find at http://developer.netscape.com/.
-It was developed using the BSAFE 3 libraries from RSA Data Security at
-http://www.rsa.com/.
+It was developed using the BSAFE 3, 4 or 5 libraries from RSA Data
+Security at http://www.rsa.com/.
 
 While fully functional for providing security over the internet using
 the "HTTPS" protocol, this initial public release of nsssl2 does
@@ -35,6 +35,50 @@ intended for.  Likewise, in virtually all cases, MD5 is the message
 digest requested by all browsers and is fully supported.  In any
 event, we always welcome contributions to add these features to
 nsssl2.
+
+
+
+Compiling and Installing
+------------------------
+
+To compile the default exportable nsssle.so module by doing a:
+
+   make BSAFE4=1 BSAFEDIR=/path/to/bsafe/library
+
+
+To compile the 128-bit/1024-bit version of nsssl.so:
+
+   make DOMESTIC=1 BSAFE4=1 BSAFEDIR=/path/to/bsafe/library
+
+
+An example:
+
+   make DOMESTIC=1 BSAFE4=1 BSAFEDIR=/rsa/cryptoc43/linux/i386-libc6/library
+
+
+Installing is a bit iffy. Easiest to just manually copy the
+nsssle.so or nsssl.so module to the /bin directory of the server. 
+
+
+
+NOTES:
+
+1. GNU Make is required. If you don't have it, get it from
+   http://www.gnu.org.
+
+2. When compiling the 128-bit/1024-bit version, an export notice
+   banner will be displayed that you must answer y or n to.
+
+3. A 'make clean' is done automatically before every compile -- I know
+   this contradicts one of the reasons for having a Makefile, but it's
+   there to prevent confusion. There are three source files that have
+   SSL_EXPORT ifdef's, and if you compile once with DOMESTIC set, and
+   then again without DOMESTIC set but you haven't done a 'make clean'
+   in between, then the objects you built with DOMESTIC will be
+   compiled into the final object when you compile without
+   DOMESTIC. If you're developing, just take out the reference to
+	 'clean' in the 'all' target of the Makefile.
+
 
 
 Key Pair and Certificate Request Generation
@@ -78,12 +122,12 @@ RC2, and some other algorithms, the 40-bit/512-bit export version is
 the only binary of nsssl2 that America Online is permitted to
 distribute from http://aolserver.com/.  If you wish to use the
 128-bit/1024-bit domestic version of nsssl2, you will have to obtain
-RSA BSAFE 3 libraries from http://www.rsa.com/ and build nsssl2 on
-your own.  Unfortunately, we are forbidden to distribute a binary
-build of nsssl2 with 128-bit/1024-bit domestic encryption for the
-reasons stated above.  We are permitted to distribute a binary build
-with 40-bit/512-bit encryption, and we are also allowed to distribute
-the nsssl2 source code itself.
+RSA BSAFE 3, 4 or 5 libraries from http://www.rsa.com/ and build
+nsssl2 on your own.  Unfortunately, we are forbidden to distribute a
+binary build of nsssl2 with 128-bit/1024-bit domestic encryption for
+the reasons stated above.  We are permitted to distribute a binary
+build with 40-bit/512-bit encryption, and we are also allowed to
+distribute the nsssl2 source code itself.
 
 The "keyfile.pem" is a very sensitive document!  Do not let it out of
 your hands, do not send it out over the network, and don't delete it.
