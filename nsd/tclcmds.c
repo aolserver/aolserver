@@ -34,102 +34,11 @@
  * 	Connect Tcl command names to the functions that implement them
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.7 2001/01/12 22:46:01 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.8 2001/01/16 22:57:31 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
 static TclCmd serverCmds[ ] = {
-
-    /*
-     * tclset.c
-     */
-
-    {
-        "ns_parseheader", NsTclParseHeaderCmd, NULL
-    },
-
-    /*
-     * tclsched.c
-     */
-
-    {
-        "ns_schedule_proc", NsTclSchedCmd, NULL
-    },
-    {
-        "ns_schedule_daily", NsTclSchedDailyCmd, NULL
-    },
-    {
-        "ns_schedule_weekly", NsTclSchedWeeklyCmd, NULL
-    },
-    {
-        "ns_atsignal", NsTclAtSignalCmd, NULL
-    },
-    {
-        "ns_atshutdown", NsTclAtShutdownCmd, NULL
-    },
-    {
-        "ns_atexit", NsTclAtExitCmd, NULL
-    },
-    {
-        "ns_after", NsTclAfterCmd, NULL
-    },
-    {
-        "ns_cancel", NsTclCancelCmd, (ClientData) 'c'
-    },
-    {
-        "ns_pause", NsTclCancelCmd, (ClientData) 'p'
-    },
-    {
-        "ns_resume", NsTclCancelCmd, (ClientData) 'r'
-    },
-    {
-        "ns_unschedule_proc", NsTclCancelCmd, (ClientData) 'u'
-    },
-
-    /*
-     * tclsock.c
-     */
-
-    {
-        "ns_sockblocking", NsTclSockSetBlockingCmd, NULL
-    },
-    {
-        "ns_socknonblocking", NsTclSockSetNonBlockingCmd, NULL
-    },
-    {
-        "ns_socknread", NsTclSockNReadCmd, NULL
-    },
-    {
-        "ns_sockopen", NsTclSockOpenCmd, NULL
-    },
-    {
-        "ns_socklisten", NsTclSockListenCmd, NULL
-    },
-    {
-        "ns_sockaccept", NsTclSockAcceptCmd, NULL
-    },
-    {
-        "ns_sockcallback", NsTclSockCallbackCmd, NULL
-    },
-    {
-        "ns_socklistencallback", NsTclSockListenCallbackCmd, NULL
-    },
-    {
-        "ns_sockcheck", NsTclSockCheckCmd, NULL
-    },
-    {
-        "ns_sockselect", NsTclSelectCmd, NULL
-    },
-    {
-        "ns_hostbyaddr", NsTclGetByCmd, NULL
-    },
-    {
-        "ns_addrbyhost", NsTclGetByCmd, (ClientData) 1
-    },
-    {
-	"ns_socketpair", NsTclSocketPairCmd, NULL
-    },
-
 
     /*
      * tclop.c
@@ -231,13 +140,7 @@ static TclCmd serverCmds[ ] = {
         "ns_writecontent", NsTclWriteContentCmd, NULL
     },
     {
-        "ns_striphtml", NsTclStripHtmlCmd, NULL
-    },
-    {
         "ns_conn", NsTclConnCmd, NULL
-    },
-    {
-        "ns_quotehtml", NsTclQuoteHtmlCmd, NULL
     },
     {
         "ns_checkurl", NsTclRequestAuthorizeCmd, NULL
@@ -246,37 +149,16 @@ static TclCmd serverCmds[ ] = {
         "ns_requestauthorize", NsTclRequestAuthorizeCmd, NULL
     },
     {
-        "ns_hrefs", NsTclHrefsCmd, NULL
-    },
-    {
         "ns_module", NsTclModuleCmd, NULL
     },
     {
         "ns_modulepath", NsTclModulePathCmd, NULL
     },
     {
-        "ns_uuencode", NsTclHTUUEncodeCmd, NULL
-    },
-    {
-        "ns_uudecode", NsTclHTUUDecodeCmd, NULL
-    },
-    {
-        "ns_httptime", NsTclHttpTimeCmd, NULL
-    },
-    {
-        "ns_parsehttptime", NsTclParseHttpTimeCmd, NULL
-    },
-    {
         "ns_get_multipart_formdata", NsTclGetMultipartFormdataCmd, NULL
     },
     {
-	"ns_gifsize", NsTclGifSizeCmd, NULL
-    },
-    {
 	"ns_markfordelete", NsTclMarkForDeleteCmd, NULL
-    },
-    {
-	"ns_jpegsize", NsTclJpegSizeCmd, NULL
     },
 
     /*
@@ -417,6 +299,15 @@ static TclCmd serverCmds[ ] = {
     {
     	"ns_stats", NsTclStatsCmd, NULL
     },
+
+    /*
+     * tclthread.c
+     */
+
+    {
+        "ns_thread", NsTclThreadCmd, NULL
+    },
+
     {
         NULL, NULL, NULL
     }
@@ -491,9 +382,6 @@ static TclCmd genericCmds[ ] = {
      * tclthread.c
      */
 
-    {
-        "ns_thread", NsTclThreadCmd, NULL
-    },
     {
         "ns_mutex", NsTclMutexCmd, NULL
     },
@@ -578,12 +466,59 @@ static TclCmd genericCmds[ ] = {
     },
 
     /*
-     * tclconf.c
+     * tclset.c
      */
 
     {
+        "ns_parseheader", NsTclParseHeaderCmd, NULL
+    },
+    {
         "ns_set", NsTclSetCmd, NULL
     },
+
+
+    /*
+     * tclsched.c
+     */
+
+    {
+        "ns_schedule_proc", NsTclSchedCmd, NULL
+    },
+    {
+        "ns_schedule_daily", NsTclSchedDailyCmd, NULL
+    },
+    {
+        "ns_schedule_weekly", NsTclSchedWeeklyCmd, NULL
+    },
+    {
+        "ns_atsignal", NsTclAtSignalCmd, NULL
+    },
+    {
+        "ns_atshutdown", NsTclAtShutdownCmd, NULL
+    },
+    {
+        "ns_atexit", NsTclAtExitCmd, NULL
+    },
+    {
+        "ns_after", NsTclAfterCmd, NULL
+    },
+    {
+        "ns_cancel", NsTclCancelCmd, (ClientData) 'c'
+    },
+    {
+        "ns_pause", NsTclCancelCmd, (ClientData) 'p'
+    },
+    {
+        "ns_resume", NsTclCancelCmd, (ClientData) 'r'
+    },
+    {
+        "ns_unschedule_proc", NsTclCancelCmd, (ClientData) 'u'
+    },
+
+    /*
+     * tclconf.c
+     */
+
     {
         "ns_config", NsTclConfigCmd, NULL
     },
@@ -602,6 +537,78 @@ static TclCmd genericCmds[ ] = {
     },
     {
         "ns_log", NsTclLogCmd, NULL
+    },
+
+    {
+        "ns_striphtml", NsTclStripHtmlCmd, NULL
+    },
+    {
+        "ns_quotehtml", NsTclQuoteHtmlCmd, NULL
+    },
+    {
+        "ns_hrefs", NsTclHrefsCmd, NULL
+    },
+    {
+        "ns_uuencode", NsTclHTUUEncodeCmd, NULL
+    },
+    {
+        "ns_uudecode", NsTclHTUUDecodeCmd, NULL
+    },
+    {
+        "ns_httptime", NsTclHttpTimeCmd, NULL
+    },
+    {
+        "ns_parsehttptime", NsTclParseHttpTimeCmd, NULL
+    },
+    {
+	"ns_gifsize", NsTclGifSizeCmd, NULL
+    },
+    {
+	"ns_jpegsize", NsTclJpegSizeCmd, NULL
+    },
+
+    /*
+     * tclsock.c
+     */
+
+    {
+        "ns_sockblocking", NsTclSockSetBlockingCmd, NULL
+    },
+    {
+        "ns_socknonblocking", NsTclSockSetNonBlockingCmd, NULL
+    },
+    {
+        "ns_socknread", NsTclSockNReadCmd, NULL
+    },
+    {
+        "ns_sockopen", NsTclSockOpenCmd, NULL
+    },
+    {
+        "ns_socklisten", NsTclSockListenCmd, NULL
+    },
+    {
+        "ns_sockaccept", NsTclSockAcceptCmd, NULL
+    },
+    {
+        "ns_sockcallback", NsTclSockCallbackCmd, NULL
+    },
+    {
+        "ns_socklistencallback", NsTclSockListenCallbackCmd, NULL
+    },
+    {
+        "ns_sockcheck", NsTclSockCheckCmd, NULL
+    },
+    {
+        "ns_sockselect", NsTclSelectCmd, NULL
+    },
+    {
+	"ns_socketpair", NsTclSocketPairCmd, NULL
+    },
+    {
+        "ns_hostbyaddr", NsTclGetByCmd, NULL
+    },
+    {
+        "ns_addrbyhost", NsTclGetByCmd, (ClientData) 1
     },
 
     /*
