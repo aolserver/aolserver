@@ -1,5 +1,11 @@
 2004-11-19  Dossy Shiobara <dossy@panoptic.com>
 
+	* include/nsthread.h (1.24.2.4): Need to include <inttypes.h> on
+	  some platforms (OS X, Solaris 10) to get C99 "uint32_t" and other
+	  types.  Backport from HEAD.
+
+2004-11-19  Dossy Shiobara <dossy@panoptic.com>
+
 	* configure (1.15.2.7), configure.in (1.13.2.5),
 	  include/Makefile.global.in (1.16.2.1), nsd/compress.c (1.1.2.2):
 	  Add --with-zlib configure option (on by default) and add ifdef's
