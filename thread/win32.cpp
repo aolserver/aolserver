@@ -40,28 +40,19 @@
 
 /*
  * The following structure maintains the Win32-specific state of a
- * process thread for mutex and condition waits.
+ * process thread and mutex and condition waits pointers.
  */
 
 typedef struct WinThread {
     HANDLE event;
     struct WinThread *nextPtr;
+    struct WinThread *wakeupPtr;
     struct Thread *thrPtr;
     enum {
 	WinThreadRunning,
 	WinThreadCondWait,
     } state;
 } WinThread;
-
-/*
- * The following structure defines a condition variable as
- * a mutex and wait queue.
- */
-
-typedef struct {
-    LONG	  lock;
-    WinThread	 *waitPtr;
-} Cond;
 
 /*
  * The following structure defines a mutex as a spinlock and
@@ -71,19 +62,28 @@ typedef struct {
  * platforms).
  */
 
-typedef struct WinMutex {
-    LONG spinlock;
-    int locked;
-    WinThread *waitPtr;
+typedef struct {
+    int		locked;
+    LONG	spinlock;
+    WinThread  *waitPtr;
 } WinMutex;
   
+/*
+ * The following structure defines a condition variable as
+ * a spinlock and wait queue.
+ */
+
+typedef struct {
+    LONG	  spinlock;
+    WinThread	 *waitPtr;
+} Cond;
+
 /*
  * Static functions defined in this file.
  */
 
 static void	WinThreadMain(void *arg);
 static WinThread *GetWinThread(void);
-static void	CondWakeup(Cond *cPtr);
 static void	Wakeup(WinThread *wPtr, char *func);
 static void	Queue(WinThread **waitPtrPtr, WinThread *wPtr);
 
@@ -319,6 +319,12 @@ NsMutexUnlock(void **lockPtr)
 	wPtr->nextPtr = NULL;
     }
     SPINUNLOCK(&mutexPtr->spinlock);
+
+    /*
+     * NB: It's safe to send the Wakeup() signal after spin unlock
+     * because the waiting thread is in an infiniate wait.
+     */
+
     if (wPtr != NULL) {
 	Wakeup(wPtr, "NsMutexUnlock");
     }
@@ -404,12 +410,24 @@ void
 Ns_CondSignal(Ns_Cond *condPtr)
 {
     Cond         *cPtr = GETCOND(condPtr);
+    WinThread	 *wPtr;
 
-    SPINLOCK(&cPtr->lock);
-    if (cPtr->waitPtr != NULL) {
-	CondWakeup(cPtr);
+    SPINLOCK(&cPtr->spinlock);
+    wPtr = cPtr->waitPtr;
+    if (wPtr != NULL) {
+	cPtr->waitPtr = wPtr->nextPtr;
+	wPtr->nextPtr = NULL;
+	wPtr->state = WinThreadRunning;
+
+	/*
+	 * NB: Unlike with MutexUnlock, the Wakeup() must be done
+	 * before the spin unlock as the other thread may have 
+	 * been in a timed wait which timed out.
+	 */
+
+	Wakeup(wPtr, "Ns_CondSignal");
     }
-    SPINUNLOCK(&cPtr->lock);
+    SPINUNLOCK(&cPtr->spinlock);
 }
 
 
@@ -433,12 +451,23 @@ void
 Ns_CondBroadcast(Ns_Cond *condPtr)
 {
     Cond         *cPtr = GETCOND(condPtr);
+    WinThread	 *wPtr;
 
-    SPINLOCK(&cPtr->lock);
-    while (cPtr->waitPtr != NULL) {
-	CondWakeup(cPtr);
+    SPINLOCK(&cPtr->spinlock);
+    wPtr = cPtr->waitPtr;
+    while (wPtr != NULL) {
+	wPtr->wakeupPtr = wPtr->nextPtr;
+	wPtr->nextPtr = NULL;
+	wPtr->state = WinThreadRunning;
+	wPtr = wPtr->wakeupPtr;
     }
-    SPINUNLOCK(&cPtr->lock);
+    wPtr = cPtr->waitPtr;
+    if (wPtr != NULL) {
+	cPtr->waitPtr = NULL;
+	/* NB: See Wakeup() comment in Ns_CondSignal(). */
+	Wakeup(wPtr, "Ns_CondBroadcast");
+    }
+    SPINUNLOCK(&cPtr->spinlock);
 }
 
 
@@ -518,10 +547,10 @@ Ns_CondTimedWait(Ns_Cond *condPtr, Ns_Mutex *lockPtr, Ns_Time *timePtr)
 
     cPtr = GETCOND(condPtr);
     wPtr = GetWinThread();
-    SPINLOCK(&cPtr->lock);
+    SPINLOCK(&cPtr->spinlock);
     wPtr->state = WinThreadCondWait;
     Queue(&cPtr->waitPtr, wPtr);
-    SPINUNLOCK(&cPtr->lock);
+    SPINUNLOCK(&cPtr->spinlock);
 
     /*
      * Release the outer mutex and wait for the signal to arrive
@@ -541,7 +570,7 @@ Ns_CondTimedWait(Ns_Cond *condPtr, Ns_Mutex *lockPtr, Ns_Time *timePtr)
      * If there was no wakeup, remove this thread from the list.
      */
 
-    SPINLOCK(&cPtr->lock);
+    SPINLOCK(&cPtr->spinlock);
     if (wPtr->state == WinThreadRunning) {
 	status = NS_OK;
     } else {
@@ -554,7 +583,11 @@ Ns_CondTimedWait(Ns_Cond *condPtr, Ns_Mutex *lockPtr, Ns_Time *timePtr)
 	wPtr->nextPtr = NULL;
 	wPtr->state = WinThreadRunning;
     }
-    SPINUNLOCK(&cPtr->lock);
+    if (wPtr->wakeupPtr != NULL) {
+	Wakeup(wPtr->wakeupPtr, "Ns_CondTimedWait");
+	wPtr->wakeupPtr = NULL;
+    }
+    SPINUNLOCK(&cPtr->spinlock);
 
     /*
      * Re-aquire the outer lock and return.
@@ -811,7 +844,7 @@ Queue(WinThread **waitPtrPtr, WinThread *wPtr)
 	waitPtrPtr = &(*waitPtrPtr)->nextPtr;
     }
     *waitPtrPtr = wPtr;
-    wPtr->nextPtr = NULL;
+    wPtr->nextPtr = wPtr->wakeupPtr = NULL;
     if (!ResetEvent(wPtr->event)) {
 	NsThreadFatal("Queue", "ResetEvent", GetLastError());
     }
@@ -821,7 +854,7 @@ Queue(WinThread **waitPtrPtr, WinThread *wPtr)
 /*
  *----------------------------------------------------------------------
  *
- * Wakeup, CondWakeup --
+ * Wakeup --
  *
  *	Wakeup a thread waiting on a mutex or condition queue.
  *
@@ -829,8 +862,7 @@ Queue(WinThread **waitPtrPtr, WinThread *wPtr)
  *	None.
  *
  * Side effects:
- *	Thread wakeup event is set and state is set to running
- *	for condition waits.
+ *	Thread wakeup event is set.
  *
  *----------------------------------------------------------------------
  */
@@ -841,16 +873,4 @@ Wakeup(WinThread *wPtr, char *func)
     if (!SetEvent(wPtr->event)) {
 	NsThreadFatal(func, "SetEvent", GetLastError());
     }
-}
-
-static void
-CondWakeup(Cond *cPtr)
-{
-    WinThread *wPtr;
-
-    wPtr = cPtr->waitPtr;
-    cPtr->waitPtr = wPtr->nextPtr;
-    wPtr->nextPtr = NULL;
-    wPtr->state = WinThreadRunning;
-    Wakeup(wPtr, "Ns_CondBroadcast");
 }
