@@ -34,7 +34,7 @@
  *	Implement the "ns_env" command.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclenv.c,v 1.5 2001/03/28 00:32:15 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclenv.c,v 1.6 2001/03/28 01:08:33 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include	"nsd.h"
 
@@ -51,7 +51,8 @@ static Ns_Mutex lock;
  *
  * Ns_GetEnvironment --
  *
- *	Copy the environment to the given dstring.
+ *	Copy the environment to the given dstring along with
+ *	an argv vector.
  *
  * Results:
  *	Pointer to dsPtr->string.
@@ -62,7 +63,7 @@ static Ns_Mutex lock;
  *----------------------------------------------------------------------
  */
 
-char *
+char **
 Ns_GetEnvironment(Ns_DString *dsPtr)
 {
     char *s;
@@ -73,7 +74,7 @@ Ns_GetEnvironment(Ns_DString *dsPtr)
 	Ns_DStringNAppend(dsPtr, s, strlen(s)+1);
     }
     Ns_MutexUnlock(&lock);
-    return dsPtr->string;
+    return Ns_DStringAppendArgv(dsPtr);
 }
 
 

@@ -35,7 +35,7 @@
  *	with Tcl_DString's.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/dstring.c,v 1.12 2001/03/26 15:32:05 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/dstring.c,v 1.13 2001/03/28 01:08:33 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -158,6 +158,63 @@ Ns_DStringPrintf(Ns_DString *dsPtr, char *fmt,...)
 #endif
     va_end(ap);
     return Ns_DStringAppend(dsPtr, buf);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ * Ns_DStringAppendArgv --
+ *
+ *      Append an argv vector pointing to the null terminated
+ *	strings in the given dstring.
+ *
+ * Results:
+ *	Pointer char ** vector appended to end of dstring.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+char **
+Ns_DStringAppendArgv(Ns_DString *dsPtr)
+{
+    char *s, **argv;
+    int i, argc, len, size;
+
+    /* 
+     * Determine the number of strings.
+     */
+
+    argc = 0;
+    s = dsPtr->string;
+    while (*s != '\0') {
+	++argc;
+	s += strlen(s) + 1;
+    }
+
+    /*
+     * Resize the dstring with space for the argv aligned
+     * on an 8 byte boundry.
+     */
+
+    len = ((dsPtr->length / 8) + 1) * 8;
+    size = len + (sizeof(char *) * (argc + 1));
+    Ns_DStringSetLength(dsPtr, size);
+
+    /*
+     * Set the argv elements to the strings.
+     */
+
+    s = dsPtr->string;
+    argv = (char **) (s + len);
+    for (i = 0; i < argc; ++i) {
+	argv[i] = s;
+	s += strlen(s) + 1;
+    }
+    argv[i] = NULL;
+    return argv;
 }
 
 

@@ -28,7 +28,7 @@
  */
 
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/exec.c,v 1.10 2001/03/28 00:32:15 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/exec.c,v 1.11 2001/03/28 01:08:33 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -41,8 +41,8 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
 #else
 static void     ExecFailed(int errPipe, char *errBuf, char *fmt, ...);
 #endif
-static char   **Args2Vec(Ns_DString *dsPtr, char *args);
-static char    *Set2Args(Ns_DString *dsPtr, Ns_Set *set);
+static char   **Args2Argv(Ns_DString *dsPtr, char *args);
+static char   **Set2Argv(Ns_DString *dsPtr, Ns_Set *set);
 static int  	WaitForProcess(int pid, int *statusPtr);
 
 
@@ -233,7 +233,7 @@ Ns_ExecArgblk(char *exec, char *dir, int fdin, int fdout,
 
     Ns_DStringInit(&vds);
     if (args != NULL) {
-        argv = Args2Vec(&vds, args);
+        argv = Args2Argv(&vds, args);
     } else {
         argv = NULL;
     }
@@ -326,7 +326,8 @@ Ns_ExecArgblk(char *exec, char *dir, int fdin, int fdout,
     if (env == NULL) {
         envp = NULL;
     } else {
-        envp = Set2Args(&eds, env);
+        Set2Argv(&eds, env);
+	envp = eds.string;
     }
     if (CreateProcess(exec, cds.string, NULL, NULL, TRUE, 0, envp, dir, &si, &pi) != TRUE) {
         Ns_Log(Error, "exec: failed to create process: %s: %s",
@@ -423,11 +424,10 @@ Ns_ExecArgv(char *exec, char *dir, int fdin, int fdout,
     Ns_DStringInit(&eds);
     Ns_DStringInit(&vds);
     if (env == NULL) {
-	Ns_GetEnvironment(&eds);
+	envp = Ns_GetEnvironment(&eds);
     } else {
-	Set2Args(&eds, env);
+	envp = Set2Argv(&eds, env);
     }
-    envp = Args2Vec(&vds, eds.string);
 
     /*
      * By default, input and output are the same as the server.
@@ -516,7 +516,7 @@ Ns_ExecArgv(char *exec, char *dir, int fdin, int fdout,
 
 /*
  *----------------------------------------------------------------------
- * Args2Vec --
+ * Args2Argv --
  *
  *      Build an argv vector from a sequence of character strings
  *
@@ -530,7 +530,7 @@ Ns_ExecArgv(char *exec, char *dir, int fdin, int fdout,
  */
 
 static char **
-Args2Vec(Ns_DString *dsPtr, char *arg)
+Args2Argv(Ns_DString *dsPtr, char *arg)
 {
     while (*arg != '\0') {
         Ns_DStringNAppend(dsPtr, (char *) &arg, sizeof(arg));
@@ -544,7 +544,7 @@ Args2Vec(Ns_DString *dsPtr, char *arg)
 
 /*
  *----------------------------------------------------------------------
- * Set2Args --
+ * Set2Argv --
  *
  *      Convert an Ns_Set containing key-value pairs into a character
  *	array containing a sequence of name-value pairs with their 
@@ -560,8 +560,8 @@ Args2Vec(Ns_DString *dsPtr, char *arg)
  *----------------------------------------------------------------------
  */
 
-static char *
-Set2Args(Ns_DString *dsPtr, Ns_Set *env)
+static char **
+Set2Argv(Ns_DString *dsPtr, Ns_Set *env)
 {
     int        i;
 
@@ -571,7 +571,7 @@ Set2Args(Ns_DString *dsPtr, Ns_Set *env)
         Ns_DStringNAppend(dsPtr, "", 1);
     }
     Ns_DStringNAppend(dsPtr, "", 1);
-    return dsPtr->string;
+    return Ns_DStringAppendArgv(dsPtr);
 }
 
 

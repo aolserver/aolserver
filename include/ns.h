@@ -33,7 +33,7 @@
  *      All the public types and function declarations for the core
  *	AOLserver.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.21 2001/03/28 00:22:49 jgdavidson Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.22 2001/03/28 01:08:33 jgdavidson Exp $
  */
 
 #ifndef NS_H
@@ -695,6 +695,7 @@ NS_EXTERN char *Ns_GetDriverServer(Ns_Driver driver);
  * dstring.c:
  */
 
+NS_EXTERN char **Ns_DStringAppendArgv(Ns_DString *dsPtr);
 NS_EXTERN char *Ns_DStringVarAppend(Ns_DString *dsPtr, ...);
 NS_EXTERN char *Ns_DStringExport(Ns_DString *dsPtr);
 NS_EXTERN char *Ns_DStringPrintf(Ns_DString *dsPtr, char *fmt,...);
@@ -1099,7 +1100,7 @@ NS_EXTERN char *Ns_StrNStr(char *pattern, char *expression);
  * tclenv.c:
  */
 
-NS_EXTERN char *Ns_GetEnvironment(Ns_DString *dsPtr);
+NS_EXTERN char **Ns_GetEnvironment(Ns_DString *dsPtr);
 
 /*
  * tclfile.c:
