@@ -34,7 +34,7 @@
  *	Unix specific routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/unix.c,v 1.7 2000/10/20 21:53:07 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/unix.c,v 1.8 2001/01/16 18:13:49 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -79,9 +79,6 @@ NsBlockSignals(int debug)
     sigaddset(&set, SIGPIPE);
     sigaddset(&set, SIGTERM);
     sigaddset(&set, NS_SIGHUP);
-    if (nsconf.tcl.nseval) {
-    	sigaddset(&set, NS_SIGTCL);
-    }
     if (!debugMode) {
         /* NB: Don't block SIGINT in debug mode for Solaris dbx. */
         sigaddset(&set, SIGINT);
@@ -136,54 +133,97 @@ NsRestoreSignals(void)
  *----------------------------------------------------------------------
  */
 
+static int trigger[2];
+
+static void Wakeup(int sig)
+{
+    unsigned char c = (unsigned char) sig;
+
+    if (write(trigger[1], &c, 1) != 1) {
+	Ns_Fatal("signal: wakeup trigger write() failed: %s",
+	    strerror(errno));
+    }
+}
+
 void
 NsHandleSignals(void)
 {
     sigset_t set;
-    int err, sig;
+    int err, sig, done;
+    fd_set rset;
+    unsigned char c;
     
     /*
-     * Once the server is started, the initial thread will just
-     * endlessly wait for Unix signals, calling NsRunSignalProcs()
-     * or NsTclRunInits() when requested.
+     * Create the trigger pipe.
+     */
+
+    if (ns_pipe(trigger) != 0) {
+	Ns_Fatal("signal: pipe() failed: %s", strerror(errno));
+    }
+
+    /*
+     * Install trigger wakeup handler and unblock signals.
      */
 
     sigemptyset(&set);
     sigaddset(&set, SIGTERM);
     sigaddset(&set, SIGHUP);
-    if (nsconf.tcl.nseval) {
-    	sigaddset(&set, NS_SIGTCL);
-    }
+    ns_signal(SIGHUP, Wakeup);
+    ns_signal(SIGTERM, Wakeup);
     if (!debugMode) {
         sigaddset(&set, SIGINT);
-    }
-    do {
-        sig = 0;
-        err = ns_sigwait(&set, &sig);
-        if (err != 0 && err != EINTR) {
-            Ns_Fatal("unix: sigwait() error: '%s'", strerror(err));
-        } else if (sig == NS_SIGHUP) {
-	    NsRunSignalProcs();
-	} else if (sig == NS_SIGTCL) {
-	    NsTclRunInits();
-	}
-    } while (sig != SIGTERM && sig != SIGINT);
-
-    /*
-     * At this point the server is shutting down.  First reset
-     * the default signal handlers so if the user is impatient
-     * they can send another SIGTERM and cause immediate shutdown.
-     */
-
-    sigemptyset(&set);
-    sigaddset(&set, SIGHUP);
-    if (nsconf.tcl.nseval) {
-    	sigaddset(&set, NS_SIGTCL);
-    }
-    if (!debugMode) {
-        sigaddset(&set, SIGINT);
+	ns_signal(SIGINT, Wakeup);
     }
     ns_sigmask(SIG_UNBLOCK, &set, NULL);
+
+    /*
+     * Wait endlessly for trigger wakeups.
+     */
+
+    done = 0;
+    do {
+	do {
+	    FD_ZERO(&rset);
+	    FD_SET(trigger[0], &rset);
+	    err = select(trigger[0]+1, &rset, NULL, NULL, NULL);
+	} while (err < 0 && errno == EINTR);
+	if (err < 0) {
+	    Ns_Fatal("signal: select() failed: %s", strerror(errno));
+	}
+	if (!FD_ISSET(trigger[0], &rset)) {
+	    continue;
+	}
+	if (read(trigger[0], &c, 1) != 1) {
+	    Ns_Fatal("signal: wakupe trigger read() failed: %s",
+		strerror(errno));
+	}
+	sig = (int) c;
+	switch (sig) {
+	case SIGHUP:
+	    NsRunSignalProcs();
+	    break;
+	case NS_SIGTCL:
+	    NsTclRunInits();
+	    break;
+	case SIGTERM:
+	case SIGINT:
+	    done = 1;
+	    break;
+	default:
+	    Ns_Fatal("signal: unexpected wakeup signal: %d", sig);
+	    break;
+	}
+    } while (!done);
+
+    /*
+     * Restore the default signal handlers and exit.
+     */
+
+    ns_signal(SIGHUP, SIG_DFL);
+    ns_signal(SIGTERM, SIG_DFL);
+    if (!debugMode) {
+	ns_signal(SIGINT, SIG_DFL);
+    }
 }
 
 
@@ -206,7 +246,9 @@ NsHandleSignals(void)
 void
 NsSendSignal(int sig)
 {
-    if (kill(Ns_InfoPid(),  sig) != 0) {
+    if (sig == NS_SIGTCL) {
+	Wakeup(NS_SIGTCL);
+    } else if (kill(Ns_InfoPid(),  sig) != 0) {
     	Ns_Fatal("unix: kill() failed: '%s'", strerror(errno));
     }
 }
