@@ -1,5 +1,11 @@
 2004-07-30  Dossy Shiobara <dossy@panoptic.com>
 
+	* nsd/: limits.c (1.3), pools.c (1.3): Fixed mistake adding
+	  "default" pool to pools hashtable.  Change ns_pools set options
+	  to include leading "-" just like ns_limits.
+
+2004-07-30  Dossy Shiobara <dossy@panoptic.com>
+
 	* nsd/driver.c (1.27): Fixes nslog logging incorrect number of
 	  bytes sent in access.log.
 
