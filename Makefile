@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/Makefile,v 1.47 2004/06/29 22:04:15 dossy Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/Makefile,v 1.48 2004/08/13 15:01:50 dossy Exp $
 #
 
 NSBUILD=1
@@ -60,6 +60,12 @@ install-binaries: all
 
 install-tests:
 	$(CP) -r tests $(INSTSRVPAG)
+
+install-tests-new:
+	$(MKDIR) $(INSTSRVPAG)/tests
+	for i in tests/new/*; do \
+		$(INSTALL_DATA) $$i $(INSTSRVPAG)/tests/; \
+	done
 
 install-doc:
 	cd doc && /bin/sh ./install-doc $(AOLSERVER)
