@@ -29,6 +29,12 @@
 	* nsthread/tls.c:  Added WIN32 support in nsthreads similar
 	to prior implemention.
 
+	* win32/README: 
+	* win32/nsthread:
+	* win32/nsd:
+	* win32/...:  Restore most of the previous WIN32 build environment.
+	The README includes updated notes on how to build and test.
+
 
 2002-10-28  Jim Davidson <jgdavidson@aol.com>
 
