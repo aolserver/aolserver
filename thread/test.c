@@ -36,11 +36,18 @@
  */
 
 #include "nsthread.h"
+#define PTHREAD_TEST 0
 #ifndef USE_SPROC
+#ifndef WIN32
+#define PTHREAD_TEST 1
+#endif
+#endif
+
+#if PTHREAD_TEST
 #include <pthread.h>
 #endif
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/test.c,v 1.8 2000/10/22 20:39:34 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/test.c,v 1.9 2000/10/22 20:44:55 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 /*
  * Collection of synchronization objects for tests.
@@ -333,7 +340,7 @@ DumperThread(void *arg)
     Ns_MutexUnlock(&block);
 }
 
-#ifndef USE_SPROC
+#if PTHREAD_TEST
 
 /*
  * Routines to test compatibility with pthread-created
@@ -400,7 +407,7 @@ int main(int argc, char *argv[])
     Ns_Thread       self, dumper;
     extern int      nsMemPools;
     void *arg;
-#ifndef USE_SPROC
+#if PTHREAD_TEST
     pthread_t tids[10];
 #endif
 
@@ -449,7 +456,7 @@ int main(int argc, char *argv[])
 	Ns_ThreadJoin(&threads[i], (void **) &code);
 	Msg("thread %d exited - code: %d", i, code);
     }
-#ifndef USE_SPROC
+#if PTHREAD_TEST
     for (i = 0; i < 10; ++i) {
 	pthread_create(&tids[i], NULL, Pthread, (void *) i);
 	printf("pthread: create %d = %d\n", i, tids[i]);
