@@ -208,6 +208,14 @@ struct _nsconf {
 	char *version;
     } tcl;
 
+    struct {
+        char         *outputCharset;
+        Tcl_Encoding  outputEncoding;
+        bool          hackContentTypeP;
+        char         *urlCharset;
+        Tcl_Encoding  urlEncoding;
+    } encoding;
+
 };
 
 extern struct _nsconf nsconf;
@@ -511,6 +519,17 @@ typedef struct NsServer {
 	Ns_HeaderCaseDisposition hdrcase;
     } opts;
     
+    /*
+     * Encoding defaults for the server
+     */
+    struct {
+        char         *outputCharset;
+        Tcl_Encoding  outputEncoding;
+        bool          hackContentTypeP;
+        char         *urlCharset;
+        Tcl_Encoding  urlEncoding;
+    } encoding;
+
     /* 
      * The following struct maintains conn-related limits.
      */

@@ -28,7 +28,7 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/form.tcl,v 1.7 2002/10/30 00:02:26 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/form.tcl,v 1.8 2003/03/06 19:41:23 mpagenva Exp $
 #
 
 #
@@ -126,8 +126,16 @@ proc ns_queryexists { key } {
 #	into temp files if necessary.
 #
 
-proc ns_getform { }  {
+proc ns_getform {{charset ""}}  {
     global _ns_form _ns_formfiles
+
+    #
+    # If a charset has been specified, use ns_urlcharset to
+    # alter the current conn's urlcharset.
+    # This can cause cached formsets to get flushed.
+    if {$charset != ""} {
+	ns_urlcharset $charset
+    }
 
     if {![info exists _ns_form]} {
 	set _ns_form [ns_conn form]
@@ -188,3 +196,38 @@ proc ns_openexcl file {
     }
     return $fp
 }
+
+
+#
+# ns_resetcachedform --
+#
+#	Reset the http form set currently cached (if any),
+#       optionally to be replaced by the given form set.
+#
+
+proc ns_resetcachedform { { newform "" } } {
+    global _ns_form
+
+    if {[info exists _ns_form]} {
+	unset _ns_form
+    }
+    if {[string compare $newform ""] != 0} {
+        set _ns_form $newform
+    }
+}
+
+
+#
+# ns_isformcached --
+#
+#	Predicate function to answer whether there is
+#       a http form set currently cached.
+#
+
+proc ns_isformcached { } {
+    global _ns_form
+    return [info exists _ns_form]
+}
+
+
+

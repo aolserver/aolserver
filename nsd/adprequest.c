@@ -33,7 +33,7 @@
  *	ADP connection request support.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adprequest.c,v 1.11 2002/07/05 23:27:27 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adprequest.c,v 1.12 2003/03/06 19:39:09 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -279,6 +279,7 @@ NsAdpSetMimeType(NsInterp *itPtr, char *type)
 	encoding = Ns_GetTypeEncoding(type);
 	if (encoding != NULL) {
 	    Ns_ConnSetEncoding(itPtr->conn, encoding);
+            Ns_ConnSetUrlEncoding(itPtr->conn, encoding);
 	}
     }
 }

@@ -33,7 +33,7 @@
  *	Defines standard default charset to encoding mappings.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/encoding.c,v 1.11 2003/02/04 23:10:47 jrasmuss23 Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/encoding.c,v 1.12 2003/03/06 19:39:11 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -49,6 +49,9 @@ static void AddExtension(char *name, char *charset);
 static void AddCharset(char *name, char *charset);
 static Tcl_Encoding GetCharsetEncoding(char *charset, int len);
 static char *RebuildCharsetList(void);
+static int GetDefaultHackContentTypeP(void);
+static Tcl_Encoding GetDefaultCharset(void);
+static Tcl_Encoding GetDefaultEncoding(void);
 
 /*
  * Static variables defined in this file.
@@ -62,10 +65,11 @@ static Ns_Cond		cond;
 #define ENC_LOCKED	((Tcl_Encoding) (-1))
 
 static char            *charsetList = NULL;
+/*
 static Tcl_Encoding     defaultEncoding;
 static char            *defaultCharset;
 static int              hackContentTypeP;
-
+*/
 
 /*
  * The default table maps file extension to Tcl encodings.
@@ -386,24 +390,25 @@ NsUpdateEncodings(void)
      * configuration specification is not present, the default
      * behavior will be to do not encoding transformation.
      */
-    defaultCharset = Ns_ConfigGetValue(NS_CONFIG_PARAMETERS,
+    nsconf.encoding.outputCharset = Ns_ConfigGetValue(NS_CONFIG_PARAMETERS,
                                        DEFAULT_CHARSET_CONFIG);
-    if (defaultCharset != NULL) {
+    if (nsconf.encoding.outputCharset != NULL) {
 
-        defaultEncoding = Ns_GetCharsetEncoding(defaultCharset);
-        if (defaultEncoding == NULL) {
+        nsconf.encoding.outputEncoding =
+            Ns_GetCharsetEncoding(nsconf.encoding.outputCharset);
+        if (nsconf.encoding.outputEncoding == NULL) {
             Ns_Fatal("could not find encoding for default output charset \"%s\"",
-                     defaultCharset);
+                     nsconf.encoding.outputCharset);
         }
 
         /* Initialize hackContentTypeP. */
 
-        hackContentTypeP = NS_TRUE;
+        nsconf.encoding.hackContentTypeP = NS_TRUE;
         Ns_ConfigGetBool(NS_CONFIG_PARAMETERS, HACK_CONTENT_TYPE_CONFIG,
-                         &hackContentTypeP);
+                         &nsconf.encoding.hackContentTypeP);
     } else {
-        defaultEncoding = NULL;
-        hackContentTypeP = NS_FALSE;
+        nsconf.encoding.outputEncoding = NULL;
+        nsconf.encoding.hackContentTypeP = NS_FALSE;
     }
 }
 
@@ -437,6 +442,8 @@ Tcl_Encoding
 NsGetTypeEncodingWithDef(char *type, int *used_default)
 {
     char *s, *e;
+    Tcl_Encoding ret_enc = NULL;
+    Conn *connPtr;
 
     s = Ns_StrCaseFind(type, "charset");
     if (s != NULL) {
@@ -449,16 +456,16 @@ NsGetTypeEncodingWithDef(char *type, int *used_default)
 	    while (*e && !isspace(UCHAR(*e))) {
 		++e;
 	    }
-	    return GetCharsetEncoding(s, e-s);
+	    ret_enc = GetCharsetEncoding(s, e-s);
         }
-    } else if ((defaultEncoding != NULL) &&
-               (strncasecmp(type, "text/", 5) == 0)) {
+    } else if (strncasecmp(type, "text/", 5) == 0) {
         *used_default = NS_TRUE;
-        return defaultEncoding;
+        ret_enc = GetDefaultEncoding();
+    } else {
+        *used_default = NS_FALSE;
     }
 
-    *used_default = NS_FALSE;
-    return NULL;
+    return ret_enc;
 }
 
 /*
@@ -492,11 +499,11 @@ NsComputeEncodingFromType(char *type, Tcl_Encoding *enc,
     int          used_default;
 
     *enc = NsGetTypeEncodingWithDef(type, &used_default);
-    if( used_default && hackContentTypeP ) {
+    if( used_default && GetDefaultHackContentTypeP() ) {
         Tcl_DStringInit(type_ds);
         Tcl_DStringAppend(type_ds, type, -1);
         Tcl_DStringAppend(type_ds, "; charset=", -1);
-        Tcl_DStringAppend(type_ds, defaultCharset, -1);
+        Tcl_DStringAppend(type_ds, GetDefaultCharset(), -1);
         *new_type = NS_TRUE;
     } else {
         *new_type = NS_FALSE;
@@ -695,4 +702,95 @@ RebuildCharsetList(void)
     charsetList = ns_strdup( Tcl_DStringValue(&ds) );
     Tcl_DStringFree(&ds);
     return charsetList;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * GetDefaultEncoding --
+ *
+ *	Locate the appropriate default encoding value from within
+ *      the current context.
+ *
+ * Results:
+ *	Tcl_Encoding encoding reference
+ *
+ * Side effects:
+ *	none.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static Tcl_Encoding
+GetDefaultEncoding(void)
+{
+    Conn         *connPtr;
+
+    if ( ((connPtr = (Conn *)Ns_GetConn()) != NULL) &&
+         (connPtr->servPtr != NULL) ) {
+        return connPtr->servPtr->encoding.outputEncoding;
+    } else {
+        return nsconf.encoding.outputEncoding;
+    }
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * GetDefaultCharset --
+ *
+ *	Locate the appropriate default output charset value from within
+ *      the current context.
+ *
+ * Results:
+ *	char * 
+ *
+ * Side effects:
+ *	none.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static Tcl_Encoding
+GetDefaultCharset(void)
+{
+    Conn         *connPtr;
+
+    if ( ((connPtr = (Conn *)Ns_GetConn()) != NULL) &&
+         (connPtr->servPtr != NULL) ) {
+        return connPtr->servPtr->encoding.outputCharset;
+    } else {
+        return nsconf.encoding.outputCharset;
+    }
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * GetDefaultHackContentTypeP --
+ *
+ *	Locate the appropriate default encoding value from within
+ *      the current context.
+ *
+ * Results:
+ *	default HackContentTypeP flag.
+ *
+ * Side effects:
+ *	none.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+GetDefaultHackContentTypeP(void)
+{
+    Conn         *connPtr;
+
+    if ( ((connPtr = (Conn *)Ns_GetConn()) != NULL) &&
+         (connPtr->servPtr != NULL) ) {
+        return connPtr->servPtr->encoding.hackContentTypeP;
+    } else {
+        return nsconf.encoding.hackContentTypeP;
+    }
 }

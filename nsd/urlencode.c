@@ -34,7 +34,7 @@
  *	Encode and decode URLs, as described in RFC 1738.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/urlencode.c,v 1.13 2003/02/04 23:10:51 jrasmuss23 Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/urlencode.c,v 1.14 2003/03/06 19:39:10 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -357,16 +357,18 @@ void
 NsUpdateUrlEncode(void)
 {
 
-    defaultUrlCharset = Ns_ConfigGetValue(NS_CONFIG_PARAMETERS, "URLCharset");
-    if (defaultUrlCharset != NULL) {
-        defaultUrlEncoding = Ns_GetCharsetEncoding(defaultUrlCharset);
-        if( defaultUrlEncoding == NULL ) {
+    nsconf.encoding.urlCharset = Ns_ConfigGetValue(NS_CONFIG_PARAMETERS,
+                                                   "URLCharset");
+    if (nsconf.encoding.urlCharset != NULL) {
+        nsconf.encoding.urlEncoding =
+            Ns_GetCharsetEncoding(nsconf.encoding.urlCharset);
+        if( nsconf.encoding.urlEncoding == NULL ) {
             Ns_Log(Warning,
                    "no encoding found for charset \"%s\" from config",
-                   defaultUrlCharset);
+                   nsconf.encoding.urlCharset);
         }
     } else {
-        defaultUrlEncoding = NULL;
+        nsconf.encoding.urlEncoding = NULL;
     }
 }
 
@@ -463,17 +465,17 @@ GetUrlEncoding(char *charset)
 		charset);
 	}
     }
-
+    /*
+     * The conn urlEncoding field is initialized from the config default
+     * url encoding.  This implements the fallback described above in
+     * a single step.
+     */
     if (encoding == NULL) {
 	Conn *connPtr = (Conn *) Ns_GetConn();
 	if (connPtr != NULL) {
 	    encoding = connPtr->urlEncoding;
 	}
 
-    }
-
-    if ((encoding == NULL) && (defaultUrlEncoding != NULL)) {
-        encoding = defaultUrlEncoding;
     }
 
     return encoding;

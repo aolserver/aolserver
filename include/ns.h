@@ -33,7 +33,7 @@
  *      All the public types and function declarations for the core
  *	AOLserver.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.46 2003/02/04 22:59:50 jrasmuss23 Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.47 2003/03/06 19:40:15 mpagenva Exp $
  */
 
 #ifndef NS_H
@@ -539,11 +539,14 @@ NS_EXTERN int Ns_ConnCopyToFd(Ns_Conn *conn, size_t ncopy, int fd);
 NS_EXTERN int Ns_ConnFlushContent(Ns_Conn *conn);
 NS_EXTERN void Ns_ConnSetEncoding(Ns_Conn *conn, Tcl_Encoding encoding);
 NS_EXTERN Tcl_Encoding Ns_ConnGetEncoding(Ns_Conn *conn);
+NS_EXTERN void Ns_ConnSetUrlEncoding(Ns_Conn *conn, Tcl_Encoding encoding);
+NS_EXTERN Tcl_Encoding Ns_ConnGetUrlEncoding(Ns_Conn *conn);
 NS_EXTERN int Ns_ConnModifiedSince(Ns_Conn *conn, time_t inTime);
 NS_EXTERN char *Ns_ConnGets(char *outBuffer, size_t inSize, Ns_Conn *conn);
 NS_EXTERN int Ns_ConnReadHeaders(Ns_Conn *conn, Ns_Set *set, int *nreadPtr);
 NS_EXTERN int Ns_ParseHeader(Ns_Set *set, char *header, Ns_HeaderCaseDisposition disp);
 NS_EXTERN Ns_Set  *Ns_ConnGetQuery(Ns_Conn *conn);
+NS_EXTERN void Ns_ConnClearQuery(Ns_Conn *conn);
 NS_EXTERN int Ns_QueryToSet(char *query, Ns_Set *qset);
 NS_EXTERN Ns_Set *Ns_ConnHeaders(Ns_Conn *conn);
 NS_EXTERN Ns_Set *Ns_ConnOutputHeaders(Ns_Conn *conn);

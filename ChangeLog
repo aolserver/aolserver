@@ -1,3 +1,18 @@
+2003-03-06  Mark Page  <mpagenva@aol.com>
+
+	* nsd/urlencode.c: 
+	* nsd/queue.c:
+	* nsd/server.c:
+	* nsd/urlencode.c:
+	* nsd/encoding.c:
+	* nsd/nsd.h:
+	* nsd/form.c:
+	* nsd/conn.c:
+	* include/ns.h:
+	* tcl/form.tcl:
+	* tcl/charsets.tcl(new): Added Tcl I18N support functions from
+	OACS, with some changes to work within 4.0.
+
 2003-03-05  Zoran Vasiljevic <zoran@archiware.com>
 
 	* nsd/init.tcl: added handling of commands imported from

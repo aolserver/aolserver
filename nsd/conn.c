@@ -34,7 +34,7 @@
  *      Manage the Ns_Conn structure
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.35 2003/02/03 16:07:08 jrasmuss23 Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.36 2003/03/06 19:39:11 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -611,7 +611,7 @@ Ns_ConnModifiedSince(Ns_Conn *conn, time_t since)
  * Ns_ConnGetEncoding, Ns_ConnSetEncoding --
  *
  *	Get (set) the Tcl_Encoding for the connection which is used
- *	to convert input forms to proper UTF.
+ *	to convert from UTF to specified output character set.
  *
  * Results:
  *	Pointer to Tcl_Encoding (get) or NULL (set).
@@ -636,6 +636,41 @@ Ns_ConnSetEncoding(Ns_Conn *conn, Tcl_Encoding encoding)
     Conn *connPtr = (Conn *) conn;
 
     connPtr->encoding = encoding;
+}
+
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_ConnGetUrlEncoding, Ns_ConnSetUrlEncoding --
+ *
+ *	Get (set) the Tcl_Encoding for the connection which is used
+ *	to convert input forms to proper UTF.
+ *
+ * Results:
+ *	Pointer to Tcl_Encoding (get) or NULL (set).
+ *
+ * Side effects:
+ *	See Ns_ConnGetQuery().
+ *
+ *----------------------------------------------------------------------
+ */
+
+Tcl_Encoding
+Ns_ConnGetUrlEncoding(Ns_Conn *conn)
+{
+    Conn *connPtr = (Conn *) conn;
+
+    return connPtr->urlEncoding;
+}
+
+void
+Ns_ConnSetUrlEncoding(Ns_Conn *conn, Tcl_Encoding encoding)
+{
+    Conn *connPtr = (Conn *) conn;
+
+    connPtr->urlEncoding = encoding;
 }
 
 
@@ -866,6 +901,16 @@ NsTclConnObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 			Tcl_GetString(objv[2]), NULL);
 		    return TCL_ERROR;
 		}
+                /*
+                 * Check to see if form data has already been parsed.
+                 * If so, and the urlEncoding is changing, then clear
+                 * the previous form data.
+                 */
+                if ((connPtr->urlEncoding != encoding) &&
+                    (itPtr->nsconn.flags & CONN_TCLFORM)) {
+                    Ns_ConnClearQuery(conn);
+                    itPtr->nsconn.flags ^= CONN_TCLFORM;
+                }
 		connPtr->urlEncoding = encoding;
 	    }
 	    if (connPtr->urlEncoding != NULL) {

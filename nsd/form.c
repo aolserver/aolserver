@@ -33,7 +33,7 @@
  *      Routines for dealing with HTML FORM's.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/form.c,v 1.13 2003/01/31 22:47:30 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/form.c,v 1.14 2003/03/06 19:39:11 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -74,12 +74,12 @@ Ns_ConnGetQuery(Ns_Conn *conn)
 	if (!STREQ(connPtr->request->method, "POST")) {
 	    form = connPtr->request->query;
 	    if (form != NULL) {
-		ParseQuery(form, connPtr->query, connPtr->encoding);
+		ParseQuery(form, connPtr->query, connPtr->urlEncoding);
 	    }
 	} else if ((form = connPtr->reqPtr->content) != NULL) {
 	    Tcl_DStringInit(&bound);
 	    if (!GetBoundary(&bound, conn)) {
-		ParseQuery(form, connPtr->query, connPtr->encoding);
+		ParseQuery(form, connPtr->query, connPtr->urlEncoding);
 	    } else {
 	    	formend = form + connPtr->reqPtr->length;
 		s = NextBoundry(&bound, form, formend);
@@ -98,6 +98,53 @@ Ns_ConnGetQuery(Ns_Conn *conn)
 	}
     }
     return connPtr->query;
+}
+
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_ConnClearQuery --
+ *
+ *	Release the any query set cached up from a previous call
+ *      to Ns_ConnGetQuery.  Useful if the query data requires
+ *      reparsing, as when the encoding changes.
+ *
+ * Results:
+ *	Query data or NULL if error 
+ *
+ * Side effects:
+ *	
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+Ns_ConnClearQuery(Ns_Conn *conn)
+{
+    Conn           *connPtr = (Conn *) conn;
+    Tcl_HashEntry *hPtr;
+    Tcl_HashSearch search;
+    FormFile	  *filePtr;
+
+    if ((conn == NULL) ||
+        (connPtr->query == NULL)) {
+        return;
+    }
+    
+    Ns_SetFree(connPtr->query);
+    connPtr->query = NULL;
+
+    hPtr = Tcl_FirstHashEntry(&connPtr->files, &search);
+    while (hPtr != NULL) {
+	filePtr = Tcl_GetHashValue(hPtr);
+	Ns_SetFree(filePtr->hdrs);
+	ns_free(filePtr);
+	hPtr = Tcl_NextHashEntry(&search);
+    }
+    Tcl_DeleteHashTable(&connPtr->files);
+    Tcl_InitHashTable(&connPtr->files, TCL_STRING_KEYS);
 }
 
 
@@ -239,7 +286,7 @@ ParseQuery(char *form, Ns_Set *set, Tcl_Encoding encoding)
 static void
 ParseMultiInput(Conn *connPtr, char *start, char *end)
 {
-    Tcl_Encoding encoding = connPtr->encoding;
+    Tcl_Encoding encoding = connPtr->urlEncoding;
     Tcl_DString kds, vds;
     Tcl_HashEntry *hPtr;
     FormFile	  *filePtr;

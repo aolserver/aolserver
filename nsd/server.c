@@ -33,7 +33,7 @@
  *	Routines for managing NsServer structures.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.26 2003/02/04 23:10:49 jrasmuss23 Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.27 2003/03/06 19:39:10 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -241,6 +241,45 @@ NsInitServer(char *server, Ns_ServerInitProc *initProc)
     } else {
     	servPtr->opts.hdrcase = Preserve;
     }
+
+    /*
+     * Encoding defaults for the server
+     */
+    servPtr->encoding.outputCharset = Ns_ConfigGetValue(path, "outputCharset");
+    if (servPtr->encoding.outputCharset != NULL) {
+
+        servPtr->encoding.outputEncoding =
+            Ns_GetCharsetEncoding(servPtr->encoding.outputCharset);
+        if (servPtr->encoding.outputEncoding == NULL) {
+            Ns_Fatal("could not find encoding for default output charset \"%s\"",
+                     servPtr->encoding.outputCharset);
+        }
+    } else {
+        servPtr->encoding.outputCharset = nsconf.encoding.outputCharset;
+        servPtr->encoding.outputEncoding = nsconf.encoding.outputEncoding;
+        nsconf.encoding.hackContentTypeP = nsconf.encoding.hackContentTypeP;
+    }
+    if (servPtr->encoding.outputEncoding != NULL) {
+        servPtr->encoding.hackContentTypeP = NS_TRUE;
+        Ns_ConfigGetBool(path, "HackContentType",
+                         &servPtr->encoding.hackContentTypeP);
+    } else {
+        nsconf.encoding.hackContentTypeP = NS_FALSE;
+    }
+    servPtr->encoding.urlCharset = Ns_ConfigGetValue(path, "urlCharset");
+    if (servPtr->encoding.urlCharset != NULL) {
+        servPtr->encoding.urlEncoding =
+            Ns_GetCharsetEncoding(servPtr->encoding.urlCharset);
+        if( servPtr->encoding.urlEncoding == NULL ) {
+            Ns_Log(Warning,
+                   "no encoding found for charset \"%s\" from config",
+                   servPtr->encoding.urlCharset);
+        }
+    } else {
+        servPtr->encoding.urlCharset = nsconf.encoding.urlCharset;
+        servPtr->encoding.urlEncoding = nsconf.encoding.urlEncoding;
+    }
+
 
     /*
      * Set some server limits.
