@@ -1,8 +1,19 @@
 2003-01-28  Nathan Folkman <shmooved@aol.com>
 
+        * nsd/server.c:
+        * tcl/fastpath.tcl: (bug fix) Tcl code was updated to reflect a
+        a change made earlier to server.c, in which all fast path related
+        configuration was moved from ns/server/<server> to
+        ns/server/<server>/fastpath. This change will require you to
+        update your configuration file to reflect the new configuration
+        path for any fast path options.
+        *** INCOMPATIBILITY ***
+
+2003-01-28  Nathan Folkman <shmooved@aol.com>
+
         * nsd/init.tcl: (bug fix) Updated ns_eval command to mark Tcl interp for
         deletion in the case of a TCL_ERROR only. Updated ns_eval to properly
-        handle an arbitrarly long number of args. SF Bug 675506.
+        handle an arbitrarly long number of args. SF bug 675506.
 
 2003-01-24  Elizabeth Thomas <eathomas93@aol.com>
 
