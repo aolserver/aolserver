@@ -34,7 +34,7 @@
  *	Encode and decode URLs, as described in RFC 1738.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/urlencode.c,v 1.5 2001/03/19 15:45:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/urlencode.c,v 1.6 2001/11/25 22:03:11 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -56,9 +56,9 @@ struct {
     {-1, 3, "14"}, {-1, 3, "15"}, {-1, 3, "16"}, {-1, 3, "17"}, 
     {-1, 3, "18"}, {-1, 3, "19"}, {-1, 3, "1a"}, {-1, 3, "1b"}, 
     {-1, 3, "1c"}, {-1, 3, "1d"}, {-1, 3, "1e"}, {-1, 3, "1f"}, 
-    {-1, 3, "20"}, {-1, 3, "21"}, {-1, 3, "22"}, {-1, 3, "23"}, 
+    {-1, 1, NULL}, {-1, 3, "21"}, {-1, 3, "22"}, {-1, 3, "23"}, 
     {-1, 3, "24"}, {-1, 3, "25"}, {-1, 3, "26"}, {-1, 3, "27"}, 
-    {-1, 3, "28"}, {-1, 3, "29"}, {-1, 3, "2a"}, {-1, 3, "2b"}, 
+    {-1, 3, "28"}, {-1, 3, "29"}, {-1, 3, "2a"}, {-1, 1, NULL}, 
     {-1, 3, "2c"}, {-1, 3, "2d"}, {-1, 3, "2e"}, {-1, 3, "2f"}, 
     { 0, 1, NULL}, { 1, 1, NULL}, { 2, 1, NULL}, { 3, 1, NULL}, 
     { 4, 1, NULL}, { 5, 1, NULL}, { 6, 1, NULL}, { 7, 1, NULL}, 
@@ -159,7 +159,9 @@ Ns_EncodeUrl(Ns_DString *dsPtr, char *string)
     q = dsPtr->string + i;
     p = string;
     while ((i = UCHAR(*p)) != 0) {
-	if (enc[i].str == NULL) {
+	if (UCHAR(*p) == ' ') {
+	    *q++ = '+';
+	} else if (enc[i].str == NULL) {
 	    *q++ = *p;
 	} else {
 	    *q++ = '%';
@@ -216,6 +218,9 @@ Ns_DecodeUrl(Ns_DString *dsPtr, char *string)
 	    (j = enc[UCHAR(p[2])].hex) >= 0) {
 	    *q++ = (unsigned char) ((i << 4) + j);
 	    p += 3;
+	} else if (UCHAR(*p) == '+') {
+	    *q++ = ' ';
+	    ++p;
 	} else {
 	    *q++ = *p++;
 	}
