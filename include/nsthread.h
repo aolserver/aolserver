@@ -32,7 +32,7 @@
  *
  *	Core threading and system headers.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/nsthread.h,v 1.11 2000/11/09 00:49:10 jgdavidson Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/nsthread.h,v 1.12 2000/11/10 12:40:45 jgdavidson Exp $
  */
 
 #ifndef NSTHREAD_H
@@ -138,7 +138,6 @@ NS_EXTERN int closedir(DIR *dp);
 #define PATH_MAX 1024
 #endif
 
-
 /*
  * Various constants.
  */
@@ -152,13 +151,6 @@ NS_EXTERN int closedir(DIR *dp);
 #define NS_THREAD_EXITED	4
 
 #define NS_THREAD_NAMESIZE	32
-
-
-/*
- *==========================================================================
- * Typedefs
- *==========================================================================
- */
 
 /*
  * The following objects are defined as pointers to dummy structures
@@ -188,19 +180,19 @@ typedef void (Ns_ThreadProc) (void *arg);
 typedef void (Ns_TlsCleanup) (void *arg);
 
 typedef struct Ns_PoolBucketInfo {
-    unsigned int blocksize;
-    unsigned int nrequest;
-    unsigned int nget;
-    unsigned int nput;
-    unsigned int nfree;
-    unsigned int nlock;
-    unsigned int nwait;
+    size_t blocksize;
+    int nrequest;
+    int nfree;
+    int nget;
+    int nput;
+    int nlock;
+    int nwait;
 } Ns_PoolBucketInfo;
 
 typedef struct Ns_PoolInfo {
-    char	 *name;
-    unsigned int  nsysalloc;
-    int		  nbuckets;
+    char *name;
+    int   nsysalloc;
+    int   nbuckets;
     Ns_PoolBucketInfo buckets[1];
 } Ns_PoolInfo;
 
@@ -226,12 +218,6 @@ typedef struct Ns_MutexInfo {
 
 typedef void (Ns_ThreadInfoProc) (Ns_ThreadInfo *infoPtr, void *arg);
 typedef void (Ns_MutexInfoProc) (Ns_MutexInfo *infoPtr, void *arg);
-
-/*
- *==========================================================================
- * C API functions
- *==========================================================================
- */
 
 /*
  * compat.c:
@@ -327,11 +313,11 @@ NS_EXTERN void Ns_MutexSetName(Ns_Mutex *mutexPtr, char *name);
 NS_EXTERN void Ns_MutexSetName2(Ns_Mutex *mutexPtr, char *prefix, char *name);
 NS_EXTERN void Ns_MutexEnum(Ns_MutexInfoProc *proc, void *arg);
 
-
 /*
- * oldpool.c:
+ * pool.c:
  */
 
+NS_EXTERN int nsMemNumBuckets;
 NS_EXTERN Ns_Pool *Ns_PoolCreate(char *name);
 NS_EXTERN void Ns_PoolFlush(Ns_Pool *pool);
 NS_EXTERN void Ns_PoolDestroy(Ns_Pool *pool);
@@ -347,7 +333,6 @@ NS_EXTERN void *Ns_ThreadMalloc(size_t size);
 NS_EXTERN void *Ns_ThreadAlloc(size_t size);
 NS_EXTERN void *Ns_ThreadRealloc(void *ptr, size_t size);
 NS_EXTERN void Ns_ThreadFree(void *ptr);
-#define Ns_ThreadAlloc	Ns_ThreadMalloc
 NS_EXTERN void *Ns_ThreadCalloc(size_t nelem, size_t elsize);
 NS_EXTERN char *Ns_ThreadStrDup(char *old);
 NS_EXTERN char *Ns_ThreadStrCopy(char *old);
@@ -472,6 +457,7 @@ NS_EXTERN int nsMemPools;		/* Fast pool API's enabled? */
 #define Ns_Calloc ns_calloc
 #define Ns_StrDup ns_strdup
 #define Ns_StrCopy ns_strcopy
+#define Ns_ThreadAlloc Ns_ThreadMalloc
 #define Ns_Fork ns_fork
 
 #endif /* NSTHREAD_H */
