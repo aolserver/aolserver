@@ -33,7 +33,7 @@
  *      All the public types and function declarations for the core
  *	AOLserver.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.15 2001/03/15 15:00:50 dossy Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.16 2001/03/19 15:46:49 jgdavidson Exp $
  */
 
 #ifndef NS_H
@@ -881,6 +881,12 @@ NS_EXTERN char *Ns_InfoTag(void);
  */
 
 NS_EXTERN char *Ns_GetMimeType(char *file);
+
+/*
+ * encoding.c:
+ */
+
+NS_EXTERN Tcl_Encoding Ns_GetEncoding(char *charset);
 
 /*
  * modload.c:
