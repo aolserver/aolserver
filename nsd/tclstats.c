@@ -33,7 +33,7 @@
  * 	Tcl command usage stats routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/tclstats.c,v 1.4 2000/08/17 06:09:49 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/tclstats.c,v 1.5 2000/10/13 01:16:44 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -245,7 +245,7 @@ StatsTrace(ClientData clientData, Tcl_Interp *interp, int level,
     } else {
     	bufPtr = Ns_TlsGet(&tls);
     	if (bufPtr == NULL) {
-	    bufPtr = ns_malloc(sizeof(Tcl_HashTable));
+	    bufPtr = ns_malloc(sizeof(Buf));
 	    bufPtr->nbuf = 0;
 	    Tcl_InitHashTable(&bufPtr->table, TCL_STRING_KEYS);
 	    Ns_TlsSet(&tls, bufPtr);
