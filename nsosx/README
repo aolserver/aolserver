@@ -1,0 +1,39 @@
+nsosx/README
+------------
+
+The routines in nsosx.c are Unix API's missing from Apple OS/X
+required by Tcl and/or AOLserver.  To build on OS/X (AOLSERVER is
+your AOLserver source directory):
+
+1.	Build nsosx.o:
+
+	cd $(AOLSERVER)/nsosx
+	make
+
+2.      Download Tcl as expected, e.g., into ../tcl8.4 relative to
+	$(AOLSERVER).
+
+3.	Configure Tcl using AOLserver's Makefile to get the right flags:
+
+	cd $(AOLSERVER)
+	make ../tcl8.4/unix/Makefile
+
+4.      Edit ../tcl8.4/unix/Makefile to add the full location of nsosx.o to
+	the COMPAT_OBJS list, e.g.:
+
+	change:
+		COMPAT_OBJS =  strtoll.o strtoull.o
+
+	to:
+		COMPAT_OBJS =  strtoll.o strtoull.o ../../aolserver/nsosx/libnsosx.a
+
+5.	Build everything normally:
+
+	cd $(AOLSERVER)
+	make
+
+
+Yes, this is a hack but reasonably isolated.  Enjoy! -Jim
+
+jgdavidson@aol.com
+Wed Jun  5 19:07:52 EDT 2002
