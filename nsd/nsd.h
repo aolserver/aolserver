@@ -672,7 +672,6 @@ extern Tcl_CmdProc NsTclQueryResolveCmd;
 extern Tcl_CmdProc NsTclServerCmd;
 extern Tcl_CmdProc NsTclSetExpiresCmd;
 extern Tcl_CmdProc NsTclShutdownCmd;
-extern Tcl_CmdProc TclUnsupported0Cmd;
 extern Tcl_CmdProc Tcl_KeyldelCmd;
 extern Tcl_CmdProc Tcl_KeylgetCmd;
 extern Tcl_CmdProc Tcl_KeylkeysCmd;
