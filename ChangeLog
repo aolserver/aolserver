@@ -1,3 +1,9 @@
+2004-08-17  Dossy Shiobara <dossy@panoptic.com>
+
+	* nsd/fastpath.c (1.18.2.2): Minor change to eliminate Win32
+	  compile-time warning.  Closes SF Bug #696806.  Backported from
+	  HEAD.
+
 2004-08-14  Dossy Shiobara <dossy@panoptic.com>
 
 	* aclocal.m4 (1.1.4.2), configure (1.15.2.3), nsd/dns.c (1.7.2.2):
