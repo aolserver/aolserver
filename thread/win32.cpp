@@ -763,7 +763,7 @@ NsSetThread(Thread *thrPtr)
     WinThread *wPtr = GetWinThread();
 
     wPtr->thrPtr = thrPtr;
-    NsInitThread(thrPtr, GetCurrentThreadId());
+    thrPtr->tid = GetCurrentThreadId();
 }
 
 
