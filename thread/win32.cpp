@@ -79,7 +79,6 @@ typedef struct {
  * Static functions defined in this file.
  */
 
-static WinThread *GetWinThread(void);
 static void	Wakeup(WinThread *wPtr, char *func);
 static void	Queue(WinThread **waitPtrPtr, WinThread *wPtr);
 
@@ -87,7 +86,7 @@ static void	Queue(WinThread **waitPtrPtr, WinThread *wPtr);
     while(InterlockedExchange(lPtr, 1)) Sleep(0)
 #define SPINUNLOCK(lPtr) \
     InterlockedExchange(lPtr, 0)
-
+#define GETWINTHREAD()	TlsGetValue(tlskey)
 /*
  * The following single Tls key is used to store the nsthread
  * structure.  It's initialized in DllMain.
@@ -108,12 +107,11 @@ static CRITICAL_SECTION masterLock;
  *
  * DllMain --
  *
- *	Thread library DLL main.  Allocates the single TLS key at
- *	process attached and frees the per-thread WinThread strcuture
- *	on thread detach if allocated.
+ *	Thread library DLL main, managing each thread's WinThread
+ *	structure and the master critical section lock.
  *
  * Results:
- *	TRUE or FALSE.
+ *	TRUE.
  *
  * Side effects:
  *	On error will abort process.
@@ -133,30 +131,45 @@ DllMain(HANDLE hModule, DWORD why, LPVOID lpReserved)
 	    return FALSE;
 	}
 	InitializeCriticalSection(&masterLock);
+	/* FALLTHROUGH */
+
+    case DLL_THREAD_ATTACH:
+	wPtr = NsAlloc(sizeof(WinThread));
+	wPtr->event = CreateEvent(NULL, TRUE, FALSE, NULL);
+	if (wPtr->event == NULL) {
+	    NsThreadFatal("DllMain", "CreateEvent", GetLastError());
+	}
+	if (!TlsSetValue(tlskey, wPtr)) {
+	    NsThreadFatal("DllMain", "TlsSetValue", GetLastError());
+	}
 	break;
 
     case DLL_THREAD_DETACH:
-    case DLL_PROCESS_DETACH:
+	/*
+	 * Note this code does not execute for the final thread on
+	 * exit because the TLS callbacks may invoke code from an
+	 * unloaded DLL, e.g., Tcl.
+	 */
+
 	wPtr = TlsGetValue(tlskey);
-	if (wPtr != NULL) {
-	    if (wPtr->thrPtr != NULL) {
-		NsCleanupThread(wPtr->thrPtr);
-		wPtr->thrPtr = NULL;
-	    }
-	    if (!CloseHandle(wPtr->event)) {
-		NsThreadFatal("DllMain", "CloseHandle", GetLastError());
-	    }
-	    if (!TlsSetValue(tlskey, NULL)) {
-		NsThreadFatal("DllMain", "TlsSetValue", GetLastError());
-	    }
-	    NsFree(wPtr);
+	if (wPtr->thrPtr != NULL) {
+	    NsCleanupThread(wPtr->thrPtr);
+	    wPtr->thrPtr = NULL;
 	}
-	if (why == DLL_PROCESS_DETACH) {
-	    if (!TlsFree(tlskey)) {
-		NsThreadFatal("DllMain", "TlsFree", GetLastError());
-	    }
-	    DeleteCriticalSection(&masterLock);
+	if (!CloseHandle(wPtr->event)) {
+	    NsThreadFatal("DllMain", "CloseHandle", GetLastError());
 	}
+	if (!TlsSetValue(tlskey, NULL)) {
+	    NsThreadFatal("DllMain", "TlsSetValue", GetLastError());
+	}
+	NsFree(wPtr);
+	break;
+
+    case DLL_PROCESS_DETACH:
+	if (!TlsFree(tlskey)) {
+	    NsThreadFatal("DllMain", "TlsFree", GetLastError());
+	}
+	DeleteCriticalSection(&masterLock);
 	break;
     }
     return TRUE;
@@ -293,7 +306,7 @@ NsLockSet(void *lock)
 	    lockPtr->locked = 1;
 	} else {
 	    if (wPtr == NULL) {
-		wPtr = GetWinThread();
+		wPtr = GETWINTHREAD();
 	    }
 	    Queue(&lockPtr->waitPtr, wPtr);
 	}
@@ -612,7 +625,7 @@ Ns_CondTimedWait(Ns_Cond *condPtr, Ns_Mutex *lockPtr, Ns_Time *timePtr)
      */
 
     cPtr = GETCOND(condPtr);
-    wPtr = GetWinThread();
+    wPtr = GETWINTHREAD();
     SPINLOCK(&cPtr->spinlock);
     wPtr->condwait = 1;
     Queue(&cPtr->waitPtr, wPtr);
@@ -760,7 +773,7 @@ NsThreadExit(void)
 void
 NsSetThread(Thread *thrPtr)
 {
-    WinThread *wPtr = GetWinThread();
+    WinThread *wPtr = GETWINTHREAD();
 
     wPtr->thrPtr = thrPtr;
     thrPtr->tid = GetCurrentThreadId();
@@ -786,7 +799,7 @@ NsSetThread(Thread *thrPtr)
 Thread      *
 NsGetThread(void)
 {
-    WinThread *wPtr = GetWinThread();
+    WinThread *wPtr = GETWINTHREAD();
     Thread    *thrPtr;
     
     thrPtr = wPtr->thrPtr;
@@ -795,43 +808,6 @@ NsGetThread(void)
 	NsSetThread(thrPtr);
     }
     return thrPtr;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * GetWinThread --
- *
- *	Retrieve this threads WinThread which was allocated and
- *	set in DllMain.
- *
- * Results:
- *	Pointer to WinThread.
- *
- * Side effects:
- *	None.
- *
- *----------------------------------------------------------------------
- */
-
-static WinThread *
-GetWinThread(void)
-{
-    WinThread *wPtr;
-
-    wPtr = TlsGetValue(tlskey);
-    if (wPtr == NULL) {
-	wPtr = NsAlloc(sizeof(WinThread));
-	wPtr->event = CreateEvent(NULL, TRUE, FALSE, NULL);
-	if (wPtr->event == NULL) {
-	    NsThreadFatal("GetWinThread", "CreateEvent", GetLastError());
-	}
-	if (!TlsSetValue(tlskey, wPtr)) {
-	    NsThreadFatal("GetWinThread", "TlsSetValue", GetLastError());
-	}
-    }
-    return wPtr;
 }
 
 
