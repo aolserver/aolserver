@@ -34,7 +34,7 @@
  *	Routines for a simple cache used by fastpath and Adp.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/cache.c,v 1.5 2000/08/25 13:49:57 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/cache.c,v 1.6 2001/01/12 22:43:18 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -65,6 +65,7 @@ typedef struct Cache {
     Entry *firstEntryPtr;
     Entry *lastEntryPtr;
     Tcl_HashEntry *hPtr;
+    Ns_Pool *pool;
     int keys;
     time_t timeout;
     int schedId;
@@ -97,6 +98,7 @@ static void Push(Entry *ePtr);
 
 static Tcl_HashTable cachesTable;	/* a hash table of hash tables */
 static Ns_Mutex lock;
+static int initialized;
 
 
 /*
@@ -148,6 +150,71 @@ Ns_CacheCreateSz(char *name, int keys, size_t maxSize, Ns_Callback *freeProc)
 /*
  *----------------------------------------------------------------------
  *
+ * Ns_CacheDestroy
+ *
+ *	Flush all entries and delete a cache.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	Cache no longer usable.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+Ns_CacheDestroy(Ns_Cache *cache)
+{
+    Cache *cachePtr = (Cache *) cache;
+
+    /*
+     * Unschedule the flusher if time-based cache.
+     */
+
+    if (cachePtr->schedId >= 0) {
+    	Ns_MutexLock(&cachePtr->lock);
+	cachePtr->schedStop = 1;
+    	if (Ns_Cancel(cachePtr->schedId)) {
+	    cachePtr->schedId = -1;
+	}
+
+	/*
+	 * Wait for currently running flusher to exit.
+	 */
+
+	while (cachePtr->schedId >= 0) {
+	    Ns_CondWait(&cachePtr->cond, &cachePtr->lock);
+	}
+    	Ns_MutexUnlock(&cachePtr->lock);
+    }
+
+    /*
+     * Flush all entries.
+     */
+
+    Ns_CacheFlush(cache);
+
+    /*
+     * Remove from cache table and free cache structure.
+     */
+
+    Ns_MutexLock(&lock);
+    Tcl_DeleteHashEntry(cachePtr->hPtr);
+    Ns_MutexUnlock(&lock);
+    Ns_MutexDestroy(&cachePtr->lock);
+    Ns_CondDestroy(&cachePtr->cond);
+    Tcl_DeleteHashTable(&cachePtr->entriesTable);
+    if (cachePtr->pool != NULL) {
+	Ns_PoolDestroy(cachePtr->pool);
+    }
+    ns_free(cachePtr);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  * Ns_CacheFind --
  *
  *	Find a cache by name.
@@ -169,12 +236,13 @@ Ns_CacheFind(char *name)
     
     cache = NULL;
     Ns_MutexLock(&lock);
-    hPtr = Tcl_FindHashEntry(&cachesTable, name);
-    if (hPtr != NULL) {
-    	cache = (Ns_Cache *) Tcl_GetHashValue(hPtr);
+    if (initialized) {
+    	hPtr = Tcl_FindHashEntry(&cachesTable, name);
+        if (hPtr != NULL) {
+    	    cache = (Ns_Cache *) Tcl_GetHashValue(hPtr);
+	}
     }
     Ns_MutexUnlock(&lock);
-    
     return cache;
 }
 
@@ -190,7 +258,7 @@ Ns_CacheFind(char *name)
  *	A pointer to new memory.
  *
  * Side effects:
- *	See Ns_PoolAlloc 
+ *	None.
  *
  *----------------------------------------------------------------------
  */
@@ -198,7 +266,12 @@ Ns_CacheFind(char *name)
 void *
 Ns_CacheMalloc(Ns_Cache *cache, size_t len)
 {
-    return ns_malloc(len);
+    Cache *cachePtr = (Cache *) cache;
+
+    if (cachePtr->pool == NULL) {
+	Ns_PoolCreate(cachePtr->name);
+    }
+    return Ns_PoolAlloc(cachePtr->pool, len);
 }
 
 
@@ -213,15 +286,17 @@ Ns_CacheMalloc(Ns_Cache *cache, size_t len)
  *	None. 
  *
  * Side effects:
- *	See Ns_PoolFree 
+ *	None.
  *
  *----------------------------------------------------------------------
  */
 
 void
-Ns_CacheFree(Ns_Cache *cache, void *bytes)
+Ns_CacheFree(Ns_Cache *cache, void *ptr)
 {
-    ns_free(bytes);
+    Cache *cachePtr = (Cache *) cache;
+
+    Ns_PoolFree(cachePtr->pool, ptr);
 }
 
 
@@ -253,7 +328,6 @@ Ns_CacheFindEntry(Ns_Cache *cache, char *key)
 	++cachePtr->nmiss;
 	return NULL;
     }
-    
     ++cachePtr->nhit;
     ePtr = Tcl_GetHashValue(hPtr);
     Delink(ePtr);
@@ -472,7 +546,7 @@ Ns_CacheUnsetValue(Ns_Entry *entry)
 	cachePtr = ePtr->cachePtr;
 	cachePtr->currentSize -= ePtr->size;
 	if (cachePtr->freeProc == NS_CACHE_FREE) {
-	    ns_free(ePtr->value);
+	    Ns_CacheFree((Ns_Cache *) cachePtr, ePtr->value);
 	} else if (cachePtr->freeProc != NULL) {
     	    (*cachePtr->freeProc)(ePtr->value);
 	}
@@ -596,7 +670,6 @@ Ns_CacheNextEntry(Ns_CacheSearch *search)
     if (hPtr == NULL) {
 	return NULL;
     }
-    
     return (Ns_Entry *) Tcl_GetHashValue(hPtr);
 }
 
@@ -789,15 +862,15 @@ Ns_CacheBroadcast(Ns_Cache *cache)
 /*
  *----------------------------------------------------------------------
  *
- * NsCacheInit --
+ * NsCacheArgProc --
  *
- *	Initailize the cache
+ *	Info proc for timed cache schedule procedure callback.
  *
  * Results:
- *	NS_OK.
+ *	None.
  *
  * Side effects:
- *	Allocate some memory, create some Tcl commands
+ *	Adds name of cache to given dstring.
  *
  *----------------------------------------------------------------------
  */
@@ -808,13 +881,6 @@ NsCacheArgProc(Tcl_DString *dsPtr, void *arg)
     Cache *cachePtr = arg;
 
     Tcl_DStringAppendElement(dsPtr, cachePtr->name);
-}
-
-void
-NsCacheInit(void)
-{
-    Ns_MutexSetName2(&lock, "ns", "cache");
-    Tcl_InitHashTable(&cachesTable, TCL_STRING_KEYS);
 }
 
 
@@ -847,10 +913,12 @@ NsTclCacheNamesCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
     }
 
     Ns_MutexLock(&lock);
-    hPtr = Tcl_FirstHashEntry(&cachesTable, &search);
-    while (hPtr != NULL) {
-	Tcl_AppendElement(interp, Tcl_GetHashKey(&cachesTable, hPtr));
-	hPtr = Tcl_NextHashEntry(&search);
+    if (initialized) {
+    	hPtr = Tcl_FirstHashEntry(&cachesTable, &search);
+    	while (hPtr != NULL) {
+	    Tcl_AppendElement(interp, Tcl_GetHashKey(&cachesTable, hPtr));
+	    hPtr = Tcl_NextHashEntry(&search);
+	}
     }
     Ns_MutexUnlock(&lock);
 
@@ -889,7 +957,6 @@ NsTclCacheStatsCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
     if (GetCache(interp, argv[1], &cachePtr) != TCL_OK) {
     	return TCL_ERROR;
     }
-
     Ns_MutexLock(&cachePtr->lock);
     entries = cachePtr->entriesTable.numEntries;
     flushed = cachePtr->nflush;
@@ -938,7 +1005,7 @@ NsTclCacheStatsCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 /*
  *----------------------------------------------------------------------
  *
- * NsTclFlushCmd --
+ * NsTclCacheFlushCmd --
  *
  *	Wipe out a cache entry
  *
@@ -954,25 +1021,37 @@ NsTclCacheStatsCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 int
 NsTclCacheFlushCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 {
+    Cache *cachePtr;
     Ns_Cache *cache;
     Ns_Entry *entry;
     
-    if (argc != 3) {
+    if (argc != 2 && argc != 3) {
 	Tcl_AppendResult(interp, "wrong # args: should be \"",
-	    argv[0], " cache key?\"", NULL);
+	    argv[0], " cache ?key?\"", NULL);
 	return TCL_ERROR;
     }
-    if (GetCache(interp, argv[1], (Cache **) &cache) != TCL_OK) {
+    if (GetCache(interp, argv[1], &cachePtr) != TCL_OK) {
     	return TCL_ERROR;
     }
-
+    if (argc > 2 && cachePtr->keys != TCL_STRING_KEYS) {
+	Tcl_AppendResult(interp, "cache keys not strings: ",
+	    argv[1], NULL);
+	return TCL_ERROR;
+    }
+    cache = (Ns_Cache *) cachePtr;
     Ns_CacheLock(cache);
-    entry = Ns_CacheFindEntry(cache, argv[2]);
-    if (entry != NULL) {
-	Ns_CacheFlushEntry(entry);
+    if (argc == 2) {
+	Ns_CacheFlush(cache);
+    } else {
+    	entry = Ns_CacheFindEntry(cache, argv[2]);
+    	if (entry == NULL) {
+    	    Tcl_SetResult(interp, "0", TCL_STATIC);
+	} else {
+    	    Tcl_SetResult(interp, "1", TCL_STATIC);
+	    Ns_CacheFlushEntry(entry);
+    	}
     }
     Ns_CacheUnlock(cache);
-
     return TCL_OK;
 }
 
@@ -980,7 +1059,7 @@ NsTclCacheFlushCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 /*
  *----------------------------------------------------------------------
  *
- * NsTclSizeCmd --
+ * NsTclCacheSizeCmd --
  *
  *	Returns current size of a cache.
  *
@@ -1013,6 +1092,73 @@ NsTclCacheSizeCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
     Ns_MutexUnlock(&cachePtr->lock);
     sprintf(interp->result, "%ld %ld", (long) maxSize, (long) currentSize);
 
+    return TCL_OK;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsTclCacheKeysCmd --
+ *
+ *	Get cache keys.
+ *
+ * Results:
+ *	TCL result.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+NsTclCacheKeysCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
+{
+    Ns_Cache *cache;
+    Cache *cachePtr;
+    Ns_Entry *entry;
+    Ns_CacheSearch search;
+    char *pattern, *key, *fmt, onebuf[20];
+    int i, *iPtr;
+    Ns_DString ds;
+    
+    if (argc != 2 && argc != 3) {
+	Tcl_AppendResult(interp, "wrong # args: should be \"",
+	    argv[0], " cache ?pattern?\"", NULL);
+	return TCL_ERROR;
+    }
+    pattern = argv[2];
+    if (GetCache(interp, argv[1], &cachePtr) != TCL_OK) {
+	return TCL_ERROR;
+    }
+    Ns_DStringInit(&ds);
+    cache = (Ns_Cache *) cachePtr;
+    Ns_CacheLock(cache);
+    entry = Ns_CacheFirstEntry(cache, &search);
+    while (entry != NULL) {
+	key = Ns_CacheKey(entry);
+	if (cachePtr->keys == TCL_ONE_WORD_KEYS) {
+	    sprintf(onebuf, "%p", key);
+	    key = onebuf;
+	} else if (cachePtr->keys != TCL_STRING_KEYS) {
+	    iPtr = (int *) key;
+	    fmt = "%u";
+	    Ns_DStringTrunc(&ds, 0);
+	    for (i = 0; i < cachePtr->keys; ++i) {
+		Ns_DStringPrintf(&ds, fmt, *iPtr);
+		++iPtr;
+		fmt = ".%u";
+	    }
+	    key = ds.string;
+	}
+	if (pattern == NULL || Tcl_StringMatch(key, pattern)) {
+	    Tcl_AppendElement(interp, key);
+	}
+	entry = Ns_CacheNextEntry(&search);
+    }
+    Ns_CacheUnlock(cache);
+    Ns_DStringFree(&ds);
     return TCL_OK;
 }
 
@@ -1058,39 +1204,16 @@ CacheCreate(char *name, int keys, time_t timeout, size_t maxSize,
     	cachePtr->schedId = -1;
     }
     cachePtr->schedStop = 0;
+    Ns_MutexLock(&lock);
+    if (!initialized) {
+    	Ns_MutexSetName2(&lock, "ns", "cache");
+    	Tcl_InitHashTable(&cachesTable, TCL_STRING_KEYS);
+	initialized = 1;
+    }
     cachePtr->hPtr = Tcl_CreateHashEntry(&cachesTable, name, &new);
     Tcl_SetHashValue(cachePtr->hPtr, cachePtr);
-    
-    return (Ns_Cache *) cachePtr;
-}
-
-
-void
-Ns_CacheDestroy(Ns_Cache *cache)
-{
-    Cache *cachePtr = (Cache *) cache;
-
-    Ns_MutexLock(&lock);
-    Tcl_DeleteHashEntry(cachePtr->hPtr);
     Ns_MutexUnlock(&lock);
-
-    if (cachePtr->schedId >= 0) {
-    	Ns_MutexLock(&cachePtr->lock);
-	cachePtr->schedStop = 1;
-    	if (Ns_Cancel(cachePtr->schedId)) {
-	    cachePtr->schedId = -1;
-	}
-	while (cachePtr->schedId >= 0) {
-	    Ns_CondWait(&cachePtr->cond, &cachePtr->lock);
-	}
-    	Ns_MutexUnlock(&cachePtr->lock);
-    }
-    
-    Ns_CacheFlush(cache);
-    Ns_MutexDestroy(&cachePtr->lock);
-    Ns_CondDestroy(&cachePtr->cond);
-    Tcl_DeleteHashTable(&cachePtr->entriesTable);
-    ns_free(cachePtr);
+    return (Ns_Cache *) cachePtr;
 }
 
 
