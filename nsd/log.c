@@ -34,7 +34,7 @@
  *	Manage the server log file.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/log.c,v 1.11 2001/12/05 22:46:21 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/log.c,v 1.12 2002/06/10 22:35:32 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -72,8 +72,34 @@ static Ns_DString buffer;
 static int buffered = 0;
 static int flushing = 0;
 static int nbuffered = 0;
-static int initialized = 0;
 static Ns_Tls tls;
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsInitLog --
+ *
+ *	Initialize the log API and TLS slot.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	None. 
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+NsInitLog(void)
+{
+    Ns_MutexInit(&lock);
+    Ns_CondInit(&cond);
+    Ns_MutexSetName(&lock, "ns:log");
+    Ns_DStringInit(&buffer);
+    Ns_TlsAlloc(&tls, ns_free);
+}
 
 
 /*
@@ -246,10 +272,6 @@ NsLogOpen(void)
      * Initialize log buffering.
      */
 
-    Ns_MutexInit(&lock);
-    Ns_CondInit(&cond);
-    Ns_MutexSetName(&lock, "ns:log");
-    Ns_DStringInit(&buffer);
     if (nsconf.log.flags & LOG_BUFFER) {
 	buffered = 1;
 	Ns_RegisterAtShutdown(LogFlush, (void *) 1);
@@ -663,15 +685,6 @@ LogTime(int gmtoff)
     struct tm *ptm;
     int gmtoffset, n, sign;
     char *bp;
-
-    if (!initialized) {
-	Ns_MasterLock();
-	if (!initialized) {
-	    Ns_TlsAlloc(&tls, ns_free);
-	    initialized = 1;
-	}
-	Ns_MasterUnlock();
-    }
 
     cachePtr = Ns_TlsGet(&tls);
     if (cachePtr == NULL) {

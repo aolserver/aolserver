@@ -33,7 +33,7 @@
  *	Routines for creating and waiting for child processes.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/exec.c,v 1.14 2002/05/15 20:14:39 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/exec.c,v 1.15 2002/06/10 22:35:32 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -524,12 +524,11 @@ CallWaitPid(int pid, int *statusPtr, int *errPtr)
     return args.result;
 }
 
+static volatile int initialized = 0;
 
 static void
 CallProcThread(Args *argsPtr)
 {
-    static int initialized = 0;
-
     Ns_MutexLock(&lock);
     if (!initialized) {
     	Ns_ThreadCreate(ProcThread, NULL, 0, NULL);

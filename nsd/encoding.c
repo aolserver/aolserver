@@ -33,7 +33,7 @@
  *	Defines standard default charset to encoding mappings.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/encoding.c,v 1.8 2001/04/12 17:50:32 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/encoding.c,v 1.9 2002/06/10 22:35:32 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -301,7 +301,7 @@ Ns_GetEncoding(char *name)
  *
  * NsInitEncodings --
  *
- *	Add default and configured encodings.
+ *	Add compiled-in default encodings.
  *
  * Results:
  *	None. 
@@ -315,7 +315,6 @@ Ns_GetEncoding(char *name)
 void
 NsInitEncodings(void)
 {
-    Ns_Set *set;
     int     i;
 
     /*
@@ -337,6 +336,30 @@ NsInitEncodings(void)
     for (i = 0; builtinExt[i].extension != NULL; ++i) {
 	AddExtension(builtinExt[i].extension, builtinExt[i].name);
     }
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsUpdateEncodings --
+ *
+ *	Add additional configured encodings.
+ *
+ * Results:
+ *	None. 
+ *
+ * Side effects:
+ *	None. 
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+NsUpdateEncodings(void)
+{
+    Ns_Set *set;
+    int     i;
 
     /*
      * Add configured charsets and file mappings.

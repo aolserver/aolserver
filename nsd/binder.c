@@ -34,7 +34,7 @@
  *Support for pre-bound privileged ports.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/binder.c,v 1.12 2001/11/27 00:26:04 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/binder.c,v 1.13 2002/06/10 22:35:32 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -99,7 +99,30 @@ Ns_SockListenEx(char *address, int port, int backlog)
  *
  * NsInitBinder --
  *
- *	Initialize the binder, pre-binding to any requested ports.
+ *	Initialize the pre-bind table.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+NsInitBinder(void)
+{
+    Tcl_InitHashTable(&prebound, sizeof(struct sockaddr_in)/sizeof(int));
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsPreBind --
+ *
+ *	Pre-bind any requested ports, called from Ns_Main at startup.
  *
  * Results:
  *	None.
@@ -111,17 +134,11 @@ Ns_SockListenEx(char *address, int port, int backlog)
  */
 
 void
-NsInitBinder(char *args, char *file)
+NsPreBind(char *args, char *file)
 {
     char line[1024];
     FILE *fp;
 
-    /*
-     * Pre-bound to requested ports from the command line and/or
-     * simple pre-bind file.
-     */
-
-    Tcl_InitHashTable(&prebound, sizeof(struct sockaddr_in)/sizeof(int));
     if (args != NULL) {
 	PreBind(args);
     }

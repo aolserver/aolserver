@@ -33,11 +33,9 @@
  *	Routines for managing NsServer structures.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.15 2002/06/05 23:26:24 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.16 2002/06/10 22:35:32 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
-
-static Tcl_HashTable servers;
 
 
 /*
@@ -61,7 +59,7 @@ NsGetServer(char *server)
 {
     Tcl_HashEntry *hPtr;
 
-    hPtr = Tcl_FindHashEntry(&servers, server);
+    hPtr = Tcl_FindHashEntry(&nsconf.servertable, server);
     return (hPtr ? Tcl_GetHashValue(hPtr) : NULL);
 }
 
@@ -89,7 +87,7 @@ NsStartServers(void)
     Tcl_HashEntry *hPtr;
     Tcl_HashSearch search;
 
-    hPtr = Tcl_FirstHashEntry(&servers, &search);
+    hPtr = Tcl_FirstHashEntry(&nsconf.servertable, &search);
     while (hPtr != NULL) {
 	servPtr = Tcl_GetHashValue(hPtr);
 	NsStartServer(servPtr);
@@ -121,14 +119,14 @@ NsStopServers(Ns_Time *toPtr)
     Tcl_HashEntry *hPtr;
     Tcl_HashSearch search;
 
-    hPtr = Tcl_FirstHashEntry(&servers, &search);
+    hPtr = Tcl_FirstHashEntry(&nsconf.servertable, &search);
     while (hPtr != NULL) {
 	servPtr = Tcl_GetHashValue(hPtr);
 	NsStopServer(servPtr);
 	NsTclStopJobs(servPtr);
 	hPtr = Tcl_NextHashEntry(&search);
     }
-    hPtr = Tcl_FirstHashEntry(&servers, &search);
+    hPtr = Tcl_FirstHashEntry(&nsconf.servertable, &search);
     while (hPtr != NULL) {
 	servPtr = Tcl_GetHashValue(hPtr);
 	NsWaitServer(servPtr, toPtr);
@@ -159,7 +157,6 @@ NsInitServer(char *server)
 {
     Tcl_HashEntry *hPtr;
     Ns_DString ds;
-    static int initialized = 0;
     NsServer *servPtr;
     Conn *connBufPtr, *connPtr;
     Bucket *buckPtr;
@@ -168,12 +165,7 @@ NsInitServer(char *server)
     Ns_Set *set;
     int i, n, maxconns, status;
 
-    if (!initialized) {
-	Tcl_InitHashTable(&servers, TCL_STRING_KEYS);
-    	Tcl_DStringInit(&nsconf.servers);   
-	initialized = 1;
-    }
-    hPtr = Tcl_CreateHashEntry(&servers, server, &n);
+    hPtr = Tcl_CreateHashEntry(&nsconf.servertable, server, &n);
     if (!n) {
 	Ns_Log(Error, "duplicate server: %s", server);
 	return;

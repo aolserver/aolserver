@@ -45,8 +45,7 @@
 #ifndef __APPLE__
   #include <poll.h>
 #else
-  #include "osxcompat.h"
-  #undef panic
+  #include "../nsthread/osxcompat.h"
 #endif
 #ifdef __hp
   #define seteuid(i)     setresuid((-1),(i),(-1))
@@ -115,8 +114,21 @@ struct _nsconf {
     char	    address[16];
     int             shutdowntimeout;
     int             backlog;
-    long	    stacksize;
+
+    /*
+     * The following table holds the configured virtual servers.  The
+     * dstring maintains a Tcl list of the names.
+     */
+
+    Tcl_HashTable   servertable;
     Tcl_DString     servers;
+
+    /*
+     * The following table holds config section sets from
+     * the config file.
+     */
+
+    Tcl_HashTable   sections;
 
     /*
      * The following struct maintains server state.
@@ -739,15 +751,21 @@ typedef struct NsInterp {
 } NsInterp;
 
 /*
- * Thread related routines.
+ * Libnsd initialization routines.
  */
 
-extern void NsInitMaster(void);
-extern void NsInitReentrant(void);
-extern void NsInitThreads(void);
-extern void NsLockInfo(Ns_DString *dsPtr);
-extern void NsThreadFatal(char *func, char *osfunc, int err);
-extern void NsThreadInfo(Ns_DString *dsPtr);
+extern void NsInitBinder(void);
+extern void NsInitCache(void);
+extern void NsInitConf(void);
+extern void NsInitEncodings(void);
+extern void NsInitListen(void);
+extern void NsInitLog(void);
+extern void NsInitMimeTypes(void);
+extern void NsInitModLoad(void);
+extern void NsInitProcInfo(void);
+extern void NsInitSched(void);
+extern void NsInitTcl(void);
+extern void NsInitUrlSpace(void);
 
 extern int NsQueueConn(Sock *sockPtr, time_t now);
 extern int NsSockSend(Sock *sockPtr, struct iovec *bufs, int nbufs);
@@ -796,21 +814,20 @@ extern void NsCreatePidFile(char *service);
 extern void NsRemovePidFile(char *service);
 
 extern void NsLogOpen(void);
-extern void NsConfInit(void);
 extern void NsTclInitObjs(void);
-extern void NsInitMimeTypes(void);
-extern void NsInitEncodings(void);
+extern void NsUpdateMimeTypes(void);
+extern void NsUpdateEncodings(void);
 extern void NsRunPreStartupProcs(void);
 extern void NsStartServers(void);
-extern void NsForkBinder(void);
 extern void NsStopBinder(void);
 extern void NsBlockSignals(int debug);
 extern void NsHandleSignals(void);
 extern void NsStopDrivers(void);
-extern void NsInitBinder(char *bindargs, char *bindfile);
+extern void NsPreBind(char *bindargs, char *bindfile);
 extern void NsInitServer(char *server);
 extern char *NsConfigRead(char *file);
 extern void NsConfigEval(char *config, int argc, char **argv, int optind);
+extern void NsConfUpdate(void);
 extern void NsEnableDNSCache(int timeout, int maxentries);
 extern void NsStopServers(Ns_Time *toPtr);
 extern void NsStartServer(NsServer *servPtr);

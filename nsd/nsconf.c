@@ -33,7 +33,7 @@
  *	Various core configuration.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsconf.c,v 1.23 2002/05/15 20:07:48 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsconf.c,v 1.24 2002/06/10 22:35:32 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #include "nsconf.h"
@@ -46,9 +46,58 @@ struct _nsconf nsconf;
 /*
  *----------------------------------------------------------------------
  *
- * NsConfInit --
+ * NsInitConf --
  *
- *	Initialize various elements of the nsconf structure now that
+ *	Initialize core elements of the nsconf structure at startup.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+NsInitConf(void)
+{
+    Ns_DString addr;
+    char cwd[PATH_MAX];
+    extern char *nsBuildDate; /* NB: Declared in stamp.c */
+
+    Ns_MutexInit(&nsconf.state.lock);
+    Ns_MutexSetName(&nsconf.state.lock, "nsd:conf");
+    Ns_ThreadSetName("-main-");
+
+    nsconf.build	 = nsBuildDate;
+    nsconf.name          = NSD_NAME;
+    nsconf.version       = NSD_VERSION;
+    nsconf.tcl.version	 = TCL_VERSION;
+    time(&nsconf.boot_t);
+    nsconf.pid = getpid();
+    nsconf.home = getcwd(cwd, sizeof(cwd));
+    if (gethostname(nsconf.hostname, sizeof(nsconf.hostname)) != 0) {
+        strcpy(nsconf.hostname, "localhost");
+    }
+    Ns_DStringInit(&addr);
+    if (Ns_GetAddrByHost(&addr, nsconf.hostname)) {
+    	strcpy(nsconf.address, addr.string);
+    }
+    Ns_DStringFree(&addr);
+
+    Tcl_InitHashTable(&nsconf.sections, TCL_STRING_KEYS);
+    Tcl_DStringInit(&nsconf.servers);
+    Tcl_InitHashTable(&nsconf.servertable, TCL_STRING_KEYS);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsConfUpdate --
+ *
+ *	Update various elements of the nsconf structure now that
  *	the config script has been evaluated.
  *
  * Results:
@@ -61,23 +110,24 @@ struct _nsconf nsconf;
  */
 
 void
-NsConfInit(void)
+NsConfUpdate(void)
 {
     int i;
     Ns_DString ds;
     
+    NsUpdateEncodings();
+    NsUpdateMimeTypes();
+
     Ns_DStringInit(&ds);
-    Ns_MutexSetName(&nsconf.state.lock, "nsd:config");
-    Tcl_DStringInit(&nsconf.servers);
 
     /*
-     * libnsthread.a
+     * libnsthread
      */
 
     if (!Ns_ConfigGetInt(NS_CONFIG_THREADS, "stacksize", &i)) {
     	i = GetInt("stacksize", THREAD_STACKSIZE_INT);
     }
-    nsconf.stacksize = i;
+    Ns_ThreadStackSize(i);
 
     /*
      * log.c
@@ -204,5 +254,3 @@ GetBool(char *key, int def)
     }
     return i;
 }
-
-

@@ -33,7 +33,7 @@
  *	Support for the configuration file
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/config.c,v 1.12 2002/06/05 23:46:55 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/config.c,v 1.13 2002/06/10 22:35:32 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #define ISSLASH(c)      ((c) == '/' || (c) == '\\')
@@ -46,13 +46,6 @@ static Tcl_CmdProc SectionCmd;
 static Tcl_CmdProc ParamCmd;
 static Ns_Set     *GetSection(char *section, int create);
 static char       *ConfigGet(char *section, char *key, int exact);
-
-/*
- * Global variables defined in this file.
- */
-
-static Tcl_HashTable configSections;
-static int initialized;
 
 
 /*
@@ -288,19 +281,15 @@ Ns_ConfigGetSections(void)
     Tcl_HashSearch  search;
     int     	    n;
     
-    if (!initialized) {
-	sets = ns_calloc(1, sizeof(Ns_Set *));
-    } else {
-	n = configSections.numEntries + 1;
-        sets = ns_malloc(sizeof(Ns_Set *) * n);
-	n = 0;
-        hPtr = Tcl_FirstHashEntry(&configSections, &search);
-    	while (hPtr != NULL) {
-    	    sets[n++] = Tcl_GetHashValue(hPtr);
-    	    hPtr = Tcl_NextHashEntry(&search);
-        }
-        sets[n] = NULL;
+    n = nsconf.sections.numEntries + 1;
+    sets = ns_malloc(sizeof(Ns_Set *) * n);
+    n = 0;
+    hPtr = Tcl_FirstHashEntry(&nsconf.sections, &search);
+    while (hPtr != NULL) {
+    	sets[n++] = Tcl_GetHashValue(hPtr);
+    	hPtr = Tcl_NextHashEntry(&search);
     }
+    sets[n] = NULL;
     return sets;
 }
 
@@ -567,11 +556,6 @@ GetSection(char *section, int create)
     Ns_Set *set;
     char *s;
 
-    if (!initialized) {
-	Tcl_InitHashTable(&configSections, TCL_STRING_KEYS);
-	initialized = 1;
-    }
-
     /*
      * Clean up section name to all lowercase, trimming space
      * and swapping silly backslashes.
@@ -603,9 +587,9 @@ GetSection(char *section, int create)
  
     set = NULL;
     if (!create) {
-	hPtr = Tcl_FindHashEntry(&configSections, section);
+	hPtr = Tcl_FindHashEntry(&nsconf.sections, section);
     } else {
-    	hPtr = Tcl_CreateHashEntry(&configSections, section, &new);
+    	hPtr = Tcl_CreateHashEntry(&nsconf.sections, section, &new);
     	if (new) {
 	    set = Ns_SetCreate(section);
 	    Tcl_SetHashValue(hPtr, set);

@@ -34,7 +34,7 @@
  *	callbacks, scheduled procs, etc.).
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/proc.c,v 1.8 2002/05/15 20:13:45 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/proc.c,v 1.9 2002/06/10 22:35:32 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -72,8 +72,38 @@ struct proc {
  */
 
 static void AppendAddr(Tcl_DString *dsPtr, char *prefix, void *addr);
-static Tcl_HashTable *GetTable(void);
+static Tcl_HashTable info;
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsInitProcInfo --
+ *
+ *	Initialize the proc info API and default compiled-in callbacks.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+NsInitProcInfo(void)
+{
+    struct proc *procPtr;
+
+    Tcl_InitHashTable(&info, TCL_ONE_WORD_KEYS);
+    procPtr = procs;
+    while (procPtr->procAddr != NULL) {
+	Ns_RegisterProcInfo(procPtr->procAddr, procPtr->desc,
+			    procPtr->argProc);
+	++procPtr;
+    }
+}
 
 
 /*
@@ -101,7 +131,7 @@ Ns_RegisterProcInfo(void *procAddr, char *desc, Ns_ArgProc *argProc)
     Info *iPtr;
     int new;
 
-    hPtr = Tcl_CreateHashEntry(GetTable(), (char *) procAddr, &new);
+    hPtr = Tcl_CreateHashEntry(&info, (char *) procAddr, &new);
     if (!new) {
 	iPtr = Tcl_GetHashValue(hPtr);
     } else {
@@ -137,7 +167,7 @@ Ns_GetProcInfo(Tcl_DString *dsPtr, void *procAddr, void *arg)
     Info *iPtr;
     static Info nullInfo = {NULL, NULL};
 
-    hPtr = Tcl_FindHashEntry(GetTable(), (char *) procAddr);
+    hPtr = Tcl_FindHashEntry(&info, (char *) procAddr);
     if (hPtr != NULL) {
 	iPtr = Tcl_GetHashValue(hPtr);
     } else {
@@ -183,41 +213,4 @@ AppendAddr(Tcl_DString *dsPtr, char *prefix, void *addr)
 	sprintf(buf, "%s:%p", prefix, addr);
     }
     Tcl_DStringAppendElement(dsPtr, buf);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * GetTable --
- *
- *	Return the proc info table, initializing if needed.
- *
- * Results:
- *	Pointer to Tcl_HashTable.
- *
- * Side effects:
- *	None.
- *
- *----------------------------------------------------------------------
- */
-
-static Tcl_HashTable *
-GetTable(void)
-{
-    static Tcl_HashTable table;
-    static int initialized;
-    struct proc *procPtr;
-
-    if (!initialized) {
-    	Tcl_InitHashTable(&table, TCL_ONE_WORD_KEYS);
-	initialized = 1;
-    	procPtr = procs;
-    	while (procPtr->procAddr != NULL) {
-	    Ns_RegisterProcInfo(procPtr->procAddr, procPtr->desc,
-		procPtr->argProc);
-	    ++procPtr;
-	}
-    }
-    return &table;
 }

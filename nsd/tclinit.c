@@ -33,7 +33,7 @@
  *	Initialization routines for Tcl.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.20 2002/06/08 14:49:12 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.21 2002/06/10 22:35:32 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -50,8 +50,30 @@ static Ns_TlsCleanup DeleteInterps;
 
 static char initServer[] = "_ns_initserver";
 static char cleanupInterp[] = "ns_cleanup";
-static int initialized = 0;
 static Ns_Tls tls;
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsInitTcl --
+ *
+ *	Initialize the Tcl interp interface.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+NsInitTcl(void)
+{
+    Ns_TlsAlloc(&tls, DeleteInterps);
+}
 
 
 /*
@@ -185,14 +207,6 @@ Ns_TclAllocateInterp(char *server)
     NsInterp *itPtr;
     int new;
 
-    if (!initialized) {
-	Ns_MasterLock();
-	if (!initialized) {
-	    Ns_TlsAlloc(&tls, DeleteInterps);
-	    initialized = 1;
-	}
-	Ns_MasterUnlock();
-    }
     tablePtr = Ns_TlsGet(&tls);
     if (tablePtr == NULL) {
 	tablePtr = ns_malloc(sizeof(Tcl_HashTable));

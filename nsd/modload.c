@@ -34,7 +34,7 @@
  *	Load .so files into the server and initialize them. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/modload.c,v 1.9 2002/05/15 23:38:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/modload.c,v 1.10 2002/06/10 22:35:32 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -67,6 +67,29 @@ static Tcl_HashTable modulesTable;
 static void *DlOpen(char *file);
 static void *DlSym(void *handle, char *name);
 static char *DlError(void);
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsInitModLoad --
+ *
+ *	Initialize module table.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	None. 
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+NsInitModLoad(void)
+{
+    Tcl_InitHashTable(&modulesTable, FILE_KEYS);
+}
 
 
 /*
@@ -133,14 +156,8 @@ Ns_ModuleSymbol(char *file, char *name)
     int		   new;
     void	  *module;
     void          *symbol;
-    static int     initialized = 0;
     struct stat    st;
     FileKey	   key;
-
-    if (initialized == 0) {
-    	Tcl_InitHashTable(&modulesTable, FILE_KEYS);
-	initialized = 1;
-    }
 
     symbol = NULL;
     Ns_DStringInit(&ds);

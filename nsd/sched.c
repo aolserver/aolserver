@@ -27,7 +27,7 @@
  * version of this file under either the License or the GPL.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sched.c,v 1.9 2002/06/05 23:46:55 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sched.c,v 1.10 2002/06/10 22:35:32 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 /*
  * sched.c --
@@ -88,7 +88,6 @@ static Ns_Cond  cond;		/* Condition to wakeup AfterThread. */
 static Event  **queue;		/* Heap priority queue (dynamically re-sized). */
 static int      nqueue;		/* Number of events in queue. */
 static int      maxqueue;	/* Max queue events (dynamically re-sized). */
-static int      initialized;
 static int      running;
 static int  	shutdownPending;
 static Ns_Thread schedThread;
@@ -107,6 +106,31 @@ static int	neventThreads;
 	queue[(i)]->qid = (i), queue[(j)]->qid = (j);\
     }
     
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsInitSched -- 
+ *
+ *	Initialize scheduler API.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+NsInitSched(void)
+{
+    Ns_MutexInit(&lock);
+    Ns_MutexSetName(&lock, "ns:sched");
+    Tcl_InitHashTable(&eventsTable, TCL_ONE_WORD_KEYS);
+}
+
 
 /*
  *----------------------------------------------------------------------
@@ -278,11 +302,6 @@ Ns_ScheduleProcEx(Ns_SchedProc *proc, void *arg, int flags,
     	id = NS_ERROR;
     	ns_free(ePtr);
     } else {
-	if (!initialized) {
-	    Ns_MutexSetName(&lock, "ns:sched");
-    	    Tcl_InitHashTable(&eventsTable, TCL_ONE_WORD_KEYS);
-	    initialized = 1;
-	}
 	do {
 	    id = nextId++;
 	    if (nextId < 0) {
@@ -332,7 +351,7 @@ Ns_Cancel(int id)
 
     cancelled = 0;
     Ns_MutexLock(&lock);
-    if (!shutdownPending && initialized) {
+    if (!shutdownPending) {
     	hPtr = Tcl_FindHashEntry(&eventsTable, (char *) id);
     	if (hPtr != NULL) {
 	    ePtr = Tcl_GetHashValue(hPtr);
@@ -377,7 +396,7 @@ Ns_Pause(int id)
 
     paused = 0;
     Ns_MutexLock(&lock);
-    if (!shutdownPending && initialized) {
+    if (!shutdownPending) {
     	hPtr = Tcl_FindHashEntry(&eventsTable, (char *) id);
     	if (hPtr != NULL) {
 	    ePtr = Tcl_GetHashValue(hPtr);
@@ -421,7 +440,7 @@ Ns_Resume(int id)
 
     resumed = 0;
     Ns_MutexLock(&lock);
-    if (!shutdownPending && initialized) {
+    if (!shutdownPending) {
     	hPtr = Tcl_FindHashEntry(&eventsTable, (char *) id);
     	if (hPtr != NULL) {
 	    ePtr = Tcl_GetHashValue(hPtr);
@@ -830,20 +849,17 @@ NsGetScheduled(Tcl_DString *dsPtr)
 
     time(&now);
     Ns_MutexLock(&lock);
-    if (initialized) {
-    	hPtr = Tcl_FirstHashEntry(&eventsTable, &search);
-	while (hPtr != NULL) {
-	    ePtr = Tcl_GetHashValue(hPtr);
-	    Tcl_DStringStartSublist(dsPtr);
-	    sprintf(buf, "%d %d %d %ld %ld %ld %ld",
-		    ePtr->id, ePtr->flags, ePtr->interval,
-		    ePtr->nextqueue,
-		    ePtr->lastqueue, ePtr->laststart, ePtr->lastend);
-	    Tcl_DStringAppend(dsPtr, buf, -1);
-	    Ns_GetProcInfo(dsPtr, (void *) ePtr->proc, ePtr->arg);
-	    Tcl_DStringEndSublist(dsPtr);
-	    hPtr = Tcl_NextHashEntry(&search);
-	}
+    hPtr = Tcl_FirstHashEntry(&eventsTable, &search);
+    while (hPtr != NULL) {
+	ePtr = Tcl_GetHashValue(hPtr);
+	Tcl_DStringStartSublist(dsPtr);
+	sprintf(buf, "%d %d %d %ld %ld %ld %ld",
+		ePtr->id, ePtr->flags, ePtr->interval, ePtr->nextqueue,
+		ePtr->lastqueue, ePtr->laststart, ePtr->lastend);
+	Tcl_DStringAppend(dsPtr, buf, -1);
+	Ns_GetProcInfo(dsPtr, (void *) ePtr->proc, ePtr->arg);
+	Tcl_DStringEndSublist(dsPtr);
+	hPtr = Tcl_NextHashEntry(&search);
     }
     Ns_MutexUnlock(&lock);
 }

@@ -33,11 +33,9 @@
  *	AOLserver Ns_Main() startup routine.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.37 2002/05/15 20:10:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.38 2002/06/10 22:35:32 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
-
-extern char *nsBuildDate;
 
 /*
  * Local functions defined in this file.
@@ -79,8 +77,7 @@ Ns_Main(int argc, char **argv)
     int            i, fd;
     char          *config;
     Ns_Time 	   timeout;
-    char	   cwd[PATH_MAX];
-    Ns_DString	   addr;
+    char	   buf[PATH_MAX];
     int		   uid = 0;
     int		   gid = 0;
     int		   debug = 0;
@@ -92,7 +89,7 @@ Ns_Main(int argc, char **argv)
     char	  *bindfile = NULL;
     char	  *procname = NULL;
     char	  *server = NULL;
-    Ns_Set *servers;
+    Ns_Set	  *servers;
     struct rlimit  rl;
 
     /*
@@ -100,10 +97,6 @@ Ns_Main(int argc, char **argv)
      */
 
     nsconf.argv0         = argv[0];
-    nsconf.build	 = nsBuildDate;
-    nsconf.name          = NSD_NAME;
-    nsconf.version       = NSD_VERSION;
-    nsconf.tcl.version	 = TCL_VERSION;
 
     /*
      * AOLserver requires file descriptor 0 be open on /dev/null to
@@ -143,8 +136,8 @@ Ns_Main(int argc, char **argv)
     while ((i = getopt(argc, argv, "hpzifVl:s:t:kKdr:u:g:b:B:")) != -1) {
         switch (i) {
 	case 'l':
-	    sprintf(cwd, "TCL_LIBRARY=%s", optarg);
-	    putenv(cwd);
+	    sprintf(buf, "TCL_LIBRARY=%s", optarg);
+	    putenv(buf);
 	    break;
 	case 'h':
 	    UsageError(NULL);
@@ -193,12 +186,12 @@ Ns_Main(int argc, char **argv)
 	    uarg = optarg;
 	    break;
 	case ':':
-	    sprintf(cwd, "option -%c requires a parameter", optopt);
-            UsageError(cwd);
+	    sprintf(buf, "option -%c requires a parameter", optopt);
+            UsageError(buf);
 	    break;
         default:
-	    sprintf(cwd, "invalid option: -%c", optopt);
-            UsageError(cwd);
+	    sprintf(buf, "invalid option: -%c", optopt);
+            UsageError(buf);
             break;
         }
     }
@@ -212,26 +205,6 @@ Ns_Main(int argc, char **argv)
     } else if (nsconf.config == NULL) {
         UsageError("required -t <config> option not specified");
     }
-
-    /*
-     * Now that zippy malloc may have been set, it's safe to call
-     * some API's to initialize various info useful during config eval.
-     */
-
-    NsInitThreads();
-    Ns_ThreadSetName("-main-");
-
-    time(&nsconf.boot_t);
-    nsconf.pid = getpid();
-    nsconf.home = getcwd(cwd, sizeof(cwd));
-    if (gethostname(nsconf.hostname, sizeof(nsconf.hostname)) != 0) {
-        strcpy(nsconf.hostname, "localhost");
-    }
-    Ns_DStringInit(&addr);
-    if (Ns_GetAddrByHost(&addr, nsconf.hostname)) {
-    	strcpy(nsconf.address, addr.string);
-    }
-    Ns_DStringFree(&addr);
 
     /*
      * Find the absolute config pathname and read the config data
@@ -301,7 +274,7 @@ Ns_Main(int argc, char **argv)
      * pre-bind file.
      */
 
-    NsInitBinder(bindargs, bindfile);
+    NsPreBind(bindargs, bindfile);
 
     /*
      * Chroot() if requested before setuid from root.
@@ -414,7 +387,7 @@ Ns_Main(int argc, char **argv)
      * Update core config values.
      */
 
-    NsConfInit();
+    NsConfUpdate();
 
     /*
      * Open the log file now that the home directory and runtime
@@ -449,10 +422,7 @@ Ns_Main(int argc, char **argv)
      * Initialize the core.
      */
 
-    NsInitMimeTypes();
-    NsInitEncodings();
     NsCreatePidFile(procname);
-    /*NsDbInitPools();*/
 
     /*
      * Initialize the virtual servers.

@@ -35,7 +35,7 @@
  *	connections. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/listen.c,v 1.5 2002/05/15 20:07:47 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/listen.c,v 1.6 2002/06/10 22:35:32 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -65,6 +65,31 @@ static Ns_Mutex      lock;            /* Lock around portsTable. */
 /*
  *----------------------------------------------------------------------
  *
+ * NsInitListen --
+ *
+ *	Initialize listen callback API.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	None. 
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+NsInitListen(void)
+{
+    Ns_MutexInit(&lock);
+    Ns_MutexSetName(&lock, "ns:listencallbacks");
+    Tcl_InitHashTable(&portsTable, TCL_ONE_WORD_KEYS);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  * Ns_SockListenCallback --
  *
  *	Listen on an address/port and register a callback to be run 
@@ -88,7 +113,6 @@ Ns_SockListenCallback(char *addr, int port, Ns_SockProc *proc, void *arg)
     ListenData          *ldPtr;
     int                 status;
     struct sockaddr_in  sa;
-    static int          initialized = 0;
 
     if (Ns_GetSockAddr(&sa, addr, port) != NS_OK) {
         return NS_ERROR;
@@ -107,11 +131,6 @@ Ns_SockListenCallback(char *addr, int port, Ns_SockProc *proc, void *arg)
     }
     status = NS_OK;
     Ns_MutexLock(&lock);
-    if (!initialized) {
-        Tcl_InitHashTable(&portsTable, TCL_ONE_WORD_KEYS);
-	Ns_MutexSetName(&lock, "ns:listencallbacks");
-	initialized = 1;
-    }
 
     /*
      * Update the global hash table that keeps track of which ports

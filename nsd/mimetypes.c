@@ -34,9 +34,10 @@
  *	Defines standard default mime types. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/mimetypes.c,v 1.7 2001/04/02 19:37:36 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/mimetypes.c,v 1.8 2002/06/10 22:35:32 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
+#define TYPE_DEFAULT "*/*"
 
 /*
  * Local functions defined in this file.
@@ -50,9 +51,8 @@ static char *LowerDString(Ns_DString *dsPtr, char *ext);
  */
 
 static Tcl_HashTable    types;
-static char            *defaultType;
-static char            *noextType;
-
+static char            *defaultType = TYPE_DEFAULT;
+static char            *noextType = TYPE_DEFAULT;
 /*
  * The default extension matching table.  This should be kept up to date with
  * the client.  Case in the extension is ignored.
@@ -196,7 +196,7 @@ Ns_GetMimeType(char *file)
  *
  * NsInitMimeTypes --
  *
- *	Add default and configured mime types. 
+ *	Add compiled-in default mime types. 
  *
  * Results:
  *	None. 
@@ -210,37 +210,63 @@ Ns_GetMimeType(char *file)
 void
 NsInitMimeTypes(void)
 {
-    Ns_Set *setPtr;
     int     i;
 
     /*
      * Initialize hash table of file extensions.
      */
+
     Tcl_InitHashTable(&types, TCL_STRING_KEYS);
 
-    /* Add default system types first from above */
+    /*
+     * Add default system types first from above
+     */
+
     for (i = 0; typetab[i].ext != NULL; ++i) {
         AddType(typetab[i].ext, typetab[i].type);
     }
+}
 
-    setPtr = Ns_ConfigGetSection("ns/mimetypes");
-    if (setPtr == NULL) {
-	defaultType = noextType = "*/*";
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsUpdateMimeTypes --
+ *
+ *	Add configured mime types. 
+ *
+ * Results:
+ *	None. 
+ *
+ * Side effects:
+ *	None. 
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+NsUpdateMimeTypes(void)
+{
+    Ns_Set *set;
+    int     i;
+
+    set = Ns_ConfigGetSection("ns/mimetypes");
+    if (set == NULL) {
 	return;
     }
 
-    defaultType = Ns_SetIGet(setPtr, "default");
+    defaultType = Ns_SetIGet(set, "default");
     if (defaultType == NULL) {
-	defaultType = "*/*";
+	defaultType = TYPE_DEFAULT;
     }
 
-    noextType = Ns_SetIGet(setPtr, "noextension");
+    noextType = Ns_SetIGet(set, "noextension");
     if (noextType == NULL) {
 	noextType = defaultType;
     }
 
-    for (i=0; i < Ns_SetSize(setPtr); i++) {
-        AddType(Ns_SetKey(setPtr, i), Ns_SetValue(setPtr, i));
+    for (i=0; i < Ns_SetSize(set); i++) {
+        AddType(Ns_SetKey(set, i), Ns_SetValue(set, i));
     }
 }
 

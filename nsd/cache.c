@@ -34,7 +34,7 @@
  *	Routines for a simple cache used by fastpath and Adp.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/cache.c,v 1.11 2002/05/15 20:07:47 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/cache.c,v 1.12 2002/06/10 22:35:32 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -97,7 +97,31 @@ static void Push(Entry *ePtr);
 
 static Tcl_HashTable caches;
 static Ns_Mutex lock;
-static volatile int initialized;
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsInitCache --
+ *
+ *	Initialize the cache API.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+NsInitCache(void)
+{
+    Ns_MutexInit(&lock);
+    Ns_MutexSetName(&lock, "ns:caches");
+    Tcl_InitHashTable(&caches, TCL_STRING_KEYS);
+}
 
 
 /*
@@ -235,11 +259,9 @@ Ns_CacheFind(char *name)
     
     cache = NULL;
     Ns_MutexLock(&lock);
-    if (initialized) {
-    	hPtr = Tcl_FindHashEntry(&caches, name);
-        if (hPtr != NULL) {
-    	    cache = (Ns_Cache *) Tcl_GetHashValue(hPtr);
-	}
+    hPtr = Tcl_FindHashEntry(&caches, name);
+    if (hPtr != NULL) {
+    	cache = (Ns_Cache *) Tcl_GetHashValue(hPtr);
     }
     Ns_MutexUnlock(&lock);
     return cache;
@@ -901,12 +923,10 @@ NsTclCacheNamesCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
     }
 
     Ns_MutexLock(&lock);
-    if (initialized) {
-    	hPtr = Tcl_FirstHashEntry(&caches, &search);
-    	while (hPtr != NULL) {
-	    Tcl_AppendElement(interp, Tcl_GetHashKey(&caches, hPtr));
-	    hPtr = Tcl_NextHashEntry(&search);
-	}
+    hPtr = Tcl_FirstHashEntry(&caches, &search);
+    while (hPtr != NULL) {
+	Tcl_AppendElement(interp, Tcl_GetHashKey(&caches, hPtr));
+	hPtr = Tcl_NextHashEntry(&search);
     }
     Ns_MutexUnlock(&lock);
 
@@ -1195,11 +1215,6 @@ CacheCreate(char *name, int keys, time_t timeout, size_t maxSize,
     }
     cachePtr->schedStop = 0;
     Ns_MutexLock(&lock);
-    if (!initialized) {
-    	Ns_MutexSetName(&lock, "ns:caches");
-    	Tcl_InitHashTable(&caches, TCL_STRING_KEYS);
-	initialized = 1;
-    }
     cachePtr->hPtr = Tcl_CreateHashEntry(&caches, name, &new);
     if (!new) {
 	Cache *prevPtr;
