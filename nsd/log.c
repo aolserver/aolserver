@@ -34,7 +34,7 @@
  *	Manage the server log file.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/log.c,v 1.17 2002/09/10 23:32:07 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/log.c,v 1.18 2002/09/28 19:23:55 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -221,9 +221,9 @@ Ns_Fatal(char *fmt, ...)
 /*
  *----------------------------------------------------------------------
  *
- * Ns_LogTime --
+ * Ns_LogTime2, Ns_LogTime --
  *
- *	Copy a GMT date and time string useful for common log
+ *	Copy a local or GMT date and time string useful for common log
  *	format enties (e.g., nslog).
  *
  * Results:
@@ -237,10 +237,16 @@ Ns_Fatal(char *fmt, ...)
  */
 
 char *
+Ns_LogTime2(char *timeBuf, int gmt)
+{
+    strcpy(timeBuf, LogTime(LogGetCache(), gmt, NULL));
+    return timeBuf;
+}
+
+char *
 Ns_LogTime(char *timeBuf)
 {
-    strcpy(timeBuf, LogTime(LogGetCache(), 1, NULL));
-    return timeBuf;
+    return Ns_LogTime2(timeBuf, 1);
 }
 
 
