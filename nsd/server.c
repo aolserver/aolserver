@@ -33,9 +33,16 @@
  *	Routines for managing NsServer structures.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.35 2005/01/17 14:04:48 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.36 2005/03/25 00:37:32 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
+
+/*
+ * Static functions defined in this file. 
+ */
+
+static void GetCharsetEncoding(char *path, char *config, char **charsetPtr,
+		   	       Tcl_Encoding *encodingPtr);
 
 /*
  * Static variables defined in this file. 
@@ -117,6 +124,7 @@ NsGetInitServer(void)
 void
 NsInitServer(char *server, Ns_ServerInitProc *initProc)
 {
+    Tcl_Encoding outputEncoding;
     Tcl_HashEntry *hPtr;
     Ns_DString ds;
     NsServer *servPtr;
@@ -184,30 +192,30 @@ NsInitServer(char *server, Ns_ServerInitProc *initProc)
     servPtr->opts.gziplevel = i;
 
     /*
-     * Encoding defaults for the server.
+     * Set the default URL encoding used to decode the request.  The default
+     * is no encoding, i.e., assume UTF-8.
      */
 
-    servPtr->encoding.outputCharset = Ns_ConfigGetValue(path, "outputCharset");
-    if (servPtr->encoding.outputCharset == NULL) {
-        servPtr->encoding.outputCharset = nsconf.encoding.outputCharset;
-    }
-    if (servPtr->encoding.outputCharset != NULL &&
-	    !Ns_ConfigGetBool(path, "HackContentType",
-                              &servPtr->encoding.hackContentTypeP)) {
-        nsconf.encoding.hackContentTypeP = NS_TRUE;
-    }
-    servPtr->encoding.urlCharset = Ns_ConfigGetValue(path, "urlCharset");
-    if (servPtr->encoding.urlCharset != NULL) {
-        servPtr->encoding.urlEncoding =
-            Ns_GetCharsetEncoding(servPtr->encoding.urlCharset);
-        if( servPtr->encoding.urlEncoding == NULL ) {
-            Ns_Log(Warning,
-                   "no encoding found for charset \"%s\" from config",
-                   servPtr->encoding.urlCharset);
-        }
-    } else {
-        servPtr->encoding.urlCharset = nsconf.encoding.urlCharset;
-        servPtr->encoding.urlEncoding = nsconf.encoding.urlEncoding;
+    GetCharsetEncoding(path, "urlcharset", NULL, &servPtr->urlEncoding);
+
+    /*
+     * Set the default charset for text/ types which do not
+     * include the charset= specification, e.g., legacy code with
+     * just "text/html".  The Ns_ConnInit routine will update
+     * output types with the default charset if needed.
+     */
+
+    GetCharsetEncoding(path, "outputcharset", &servPtr->defcharset,
+		       &outputEncoding);
+
+    /*
+     * Set the default input encoding used to decode the query string
+     * or form post.  The default is the output encoding, if any, set above.
+     */
+
+    GetCharsetEncoding(path, "inputcharset", NULL, &servPtr->inputEncoding);
+    if (servPtr->inputEncoding == NULL) {
+	servPtr->inputEncoding = outputEncoding;
     }
 
     /*
@@ -456,4 +464,50 @@ NsInitServer(char *server, Ns_ServerInitProc *initProc)
     NsLoadModules(server);
     NsTclInitServer(server);
     initServPtr = NULL;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * GetCharsetEncoding --
+ *
+ *	Get the charset and/or encoding for given server config.
+ *	Will use process-wide config if no server config is present.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	Will set charsetPtr and/or encodingPtr if not NULL.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+GetCharsetEncoding(char *path, char *config, char **charsetPtr,
+		   Tcl_Encoding *encodingPtr)
+{
+    Tcl_Encoding encoding;
+    char *charset;
+
+    charset = Ns_ConfigGetValue(path, config);
+    if (charset == NULL) {
+	charset = Ns_ConfigGetValue(NS_CONFIG_PARAMETERS, config);
+    }
+    if (charset == NULL) {
+	Ns_Log(Warning, "missing charset: %s[%s]", path, config);
+	encoding = NULL;
+    } else {
+	encoding = Ns_GetCharsetEncoding(charset);
+	if (encoding == NULL) {
+	    Ns_Log(Warning, "no encoding for charset: %s", charset);
+	}
+    }
+    if (charsetPtr != NULL) {
+    	*charsetPtr = charset;
+    }
+    if (encodingPtr != NULL) {
+	*encodingPtr = encoding;
+    }
 }
