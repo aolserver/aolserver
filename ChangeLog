@@ -1,5 +1,12 @@
-2000-08-17  Kriston J. Rehberg  <Kriston@AOL.NET>
+2000-08-17  Jim Davidson
 
+	* thread: NULL out thread arg at exit to avoid Ns_ThreadEnum
+	checking arg info for possibly deallocated context as seen in
+	ns_info threads.  Also, moved read of firstPtr in Ns_ThreadEnum
+	inside lock.
+	
+2000-08-17  Kriston J. Rehberg  <Kriston@AOL.NET>
+	
 	* nssock/sock.c (SockThread): warning sent to log when Server Busy
 	is returned.
 
