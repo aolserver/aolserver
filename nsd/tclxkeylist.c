@@ -1,45 +1,16 @@
-/*
- * The contents of this file are subject to the AOLserver Public License
- * Version 1.1 (the "License"); you may not use this file except in
- * compliance with the License. You may obtain a copy of the License at
- * http://aolserver.com/.
- *
- * Software distributed under the License is distributed on an "AS IS"
- * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
- * the License for the specific language governing rights and limitations
- * under the License.
- *
- * The Original Code is AOLserver Code and related documentation
- * distributed by AOL.
- * 
- * The Initial Developer of the Original Code is America Online,
- * Inc. Portions created by AOL are Copyright (C) 1999 America Online,
- * Inc. All Rights Reserved.
- *
- * Alternatively, the contents of this file may be used under the terms
- * of the GNU General Public License (the "GPL"), in which case the
- * provisions of GPL are applicable instead of those above.  If you wish
- * to allow use of your version of this file only under the terms of the
- * GPL and not to allow others to use your version of this file under the
- * License, indicate your decision by deleting the provisions above and
- * replace them with the notice and other provisions required by the GPL.
- * If you do not delete the provisions above, a recipient may use your
- * version of this file under either the License or the GPL.
- */
-
-
-/*
+/* 
  * tclxkeylist.c --
- * 
- * Extended Tcl keyed list commands and interfaces from TclX.
  *
- * NB: Don't use these keyl* commands -- ns_set should be used
- * instead.
+ *	Keyed list support, modified from the original
+ *	Tcl7.x based TclX and Tcl source.
+ *
+ * Copyright (c) 1995-1998 America Online Inc.
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclxkeylist.c,v 1.1 2000/10/09 20:08:46 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static char rcsid[] = "$Id: tclxkeylist.c,v 1.2 2000/10/12 17:25:11 jgdavidson Exp $";
 
+#include "nsd.h"
 
 /*
  * tclXkeylist.c --
@@ -55,25 +26,40 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
  * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  * ---------------------------------------------------------------------------
- * -- $Id: tclxkeylist.c,v 1.1 2000/10/09 20:08:46 kriston Exp $
+ * -- $Id: tclxkeylist.c,v 1.2 2000/10/12 17:25:11 jgdavidson Exp $
  * ---------------------------------------------------------------------------
  * --
  * 
- * November 9, 1995 modified for use in AOLserver.
- * October 9, 2000 modified for use in AOLserver 3.2.
+ * November 9, 1995 modified for use in the AOLserver.
+ * November, 1998 modified for Tcl81 compatibility.
+ * October, 2000 modified for AOLserver 3.2 compatibility.
  */
 
 /* #include "tclExtdInt.h" */
-
 #define _ANSI_ARGS_(x) x
+#ifndef CONST
 #define CONST
+#endif
 #define ISSPACE(c) (isspace ((unsigned char) c))
+#define UCHAR(c) ((unsigned char) (c))
 #define STRNEQU(str1, str2, cnt) \
         (((str1) [0] == (str2) [0]) && (strncmp (str1, str2, cnt) == 0))
 static char    *tclXWrongArgs = "wrong # args: ";
 
+/*
+ * The following routines where copied from the Tcl 7.6 source and inlined
+ * here to ensure this file has no dependencies on internal Tcl procedures
+ * to avoid any changes in the future (e.g., the TclFindElement routine
+ * was changed between 7.6 and 8.1).
+ */
 
-#include "ns.h"
+static int	FindElement(Tcl_Interp *interp, char *list,
+	char **elementPtr, char **nextPtr, int *sizePtr, int *bracePtr);
+static void	CopyAndCollapse(int count, char *src, char *dst);
+#define TclFindElement FindElement
+#define TclCopyAndCollapse CopyAndCollapse
+extern Tcl_CmdProc Tcl_KeylkeysCmd;
+
 
 /*
  * Type used to return information about a field that was found in a keyed
@@ -90,27 +76,13 @@ typedef struct fieldInfo_t {
 /*
  * Prototypes of internal functions.
  */
-static int
-                CompareKeyListField
-_ANSI_ARGS_((Tcl_Interp *interp,
-        CONST char *fieldName,
-        CONST char *field,
-        char **valuePtr,
-        int *valueSizePtr,
-        int *bracedPtr));
+static int CompareKeyListField _ANSI_ARGS_((Tcl_Interp *interp,
+        CONST char *fieldName, CONST char *field, char **valuePtr,
+        int *valueSizePtr, int *bracedPtr));
 
-    static int
-    SplitAndFindField _ANSI_ARGS_((Tcl_Interp *interp,
-                        CONST char *fieldName,
-                        CONST char *keyedList,
-                        fieldInfo_t * fieldInfoPtr));
-    int
-    Tcl_GetKeyedListField _ANSI_ARGS_((Tcl_Interp *interp,
-                        CONST char *fieldName,
-                        CONST char *keyedList,
-                        char **fieldValuePtr));
-
-
+static int SplitAndFindField _ANSI_ARGS_((Tcl_Interp *interp,
+        CONST char *fieldName, CONST char *keyedList,
+        fieldInfo_t * fieldInfoPtr));
 
 /*
  * ----------------------------------------------------------------------------
@@ -902,4 +874,272 @@ Tcl_KeylsetCmd(clientData, interp, argc, argv)
     ckfree((char *) newList);
 
     return (varPtr == NULL) ? TCL_ERROR : TCL_OK;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * FindElement --
+ *
+ *	Given a pointer into a Tcl list, locate the first (or next)
+ *	element in the list.
+ *
+ * Results:
+ *	The return value is normally TCL_OK, which means that the
+ *	element was successfully located.  If TCL_ERROR is returned
+ *	it means that list didn't have proper list structure;
+ *	interp->result contains a more detailed error message.
+ *
+ *	If TCL_OK is returned, then *elementPtr will be set to point
+ *	to the first element of list, and *nextPtr will be set to point
+ *	to the character just after any white space following the last
+ *	character that's part of the element.  If this is the last argument
+ *	in the list, then *nextPtr will point to the NULL character at the
+ *	end of list.  If sizePtr is non-NULL, *sizePtr is filled in with
+ *	the number of characters in the element.  If the element is in
+ *	braces, then *elementPtr will point to the character after the
+ *	opening brace and *sizePtr will not include either of the braces.
+ *	If there isn't an element in the list, *sizePtr will be zero, and
+ *	both *elementPtr and *termPtr will refer to the null character at
+ *	the end of list.  Note:  this procedure does NOT collapse backslash
+ *	sequences.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+FindElement(interp, list, elementPtr, nextPtr, sizePtr, bracePtr)
+    Tcl_Interp *interp;		/* Interpreter to use for error reporting. 
+				 * If NULL, then no error message is left
+				 * after errors. */
+    register char *list;	/* String containing Tcl list with zero
+				 * or more elements (possibly in braces). */
+    char **elementPtr;		/* Fill in with location of first significant
+				 * character in first element of list. */
+    char **nextPtr;		/* Fill in with location of character just
+				 * after all white space following end of
+				 * argument (i.e. next argument or end of
+				 * list). */
+    int *sizePtr;		/* If non-zero, fill in with size of
+				 * element. */
+    int *bracePtr;		/* If non-zero fill in with non-zero/zero
+				 * to indicate that arg was/wasn't
+				 * in braces. */
+{
+    register char *p;
+    int openBraces = 0;
+    int inQuotes = 0;
+    int size;
+
+    /*
+     * Skim off leading white space and check for an opening brace or
+     * quote.   Note:  use of "isascii" below and elsewhere in this
+     * procedure is a temporary hack (7/27/90) because Mx uses characters
+     * with the high-order bit set for some things.  This should probably
+     * be changed back eventually, or all of Tcl should call isascii.
+     */
+
+    while (isspace(UCHAR(*list))) {
+	list++;
+    }
+    if (*list == '{') {
+	openBraces = 1;
+	list++;
+    } else if (*list == '"') {
+	inQuotes = 1;
+	list++;
+    }
+    if (bracePtr != 0) {
+	*bracePtr = openBraces;
+    }
+    p = list;
+
+    /*
+     * Find the end of the element (either a space or a close brace or
+     * the end of the string).
+     */
+
+    while (1) {
+	switch (*p) {
+
+	    /*
+	     * Open brace: don't treat specially unless the element is
+	     * in braces.  In this case, keep a nesting count.
+	     */
+
+	    case '{':
+		if (openBraces != 0) {
+		    openBraces++;
+		}
+		break;
+
+	    /*
+	     * Close brace: if element is in braces, keep nesting
+	     * count and quit when the last close brace is seen.
+	     */
+
+	    case '}':
+		if (openBraces == 1) {
+		    char *p2;
+
+		    size = p - list;
+		    p++;
+		    if (isspace(UCHAR(*p)) || (*p == 0)) {
+			goto done;
+		    }
+		    for (p2 = p; (*p2 != 0) && (!isspace(UCHAR(*p2)))
+			    && (p2 < p+20); p2++) {
+			/* null body */
+		    }
+		    if (interp != NULL) {
+			Tcl_ResetResult(interp);
+			sprintf(interp->result,
+				"list element in braces followed by \"%.*s\" instead of space",
+				(int) (p2-p), p);
+		    }
+		    return TCL_ERROR;
+		} else if (openBraces != 0) {
+		    openBraces--;
+		}
+		break;
+
+	    /*
+	     * Backslash:  skip over everything up to the end of the
+	     * backslash sequence.
+	     */
+
+	    case '\\': {
+		int size;
+
+		(void) Tcl_Backslash(p, &size);
+		p += size - 1;
+		break;
+	    }
+
+	    /*
+	     * Space: ignore if element is in braces or quotes;  otherwise
+	     * terminate element.
+	     */
+
+	    case ' ':
+	    case '\f':
+	    case '\n':
+	    case '\r':
+	    case '\t':
+	    case '\v':
+		if ((openBraces == 0) && !inQuotes) {
+		    size = p - list;
+		    goto done;
+		}
+		break;
+
+	    /*
+	     * Double-quote:  if element is in quotes then terminate it.
+	     */
+
+	    case '"':
+		if (inQuotes) {
+		    char *p2;
+
+		    size = p-list;
+		    p++;
+		    if (isspace(UCHAR(*p)) || (*p == 0)) {
+			goto done;
+		    }
+		    for (p2 = p; (*p2 != 0) && (!isspace(UCHAR(*p2)))
+			    && (p2 < p+20); p2++) {
+			/* null body */
+		    }
+		    if (interp != NULL) {
+			Tcl_ResetResult(interp);
+			sprintf(interp->result,
+				"list element in quotes followed by \"%.*s\" %s", (int) (p2-p), p,
+				"instead of space");
+		    }
+		    return TCL_ERROR;
+		}
+		break;
+
+	    /*
+	     * End of list:  terminate element.
+	     */
+
+	    case 0:
+		if (openBraces != 0) {
+		    if (interp != NULL) {
+			Tcl_SetResult(interp, "unmatched open brace in list",
+				TCL_STATIC);
+		    }
+		    return TCL_ERROR;
+		} else if (inQuotes) {
+		    if (interp != NULL) {
+			Tcl_SetResult(interp, "unmatched open quote in list",
+				TCL_STATIC);
+		    }
+		    return TCL_ERROR;
+		}
+		size = p - list;
+		goto done;
+
+	}
+	p++;
+    }
+
+    done:
+    while (isspace(UCHAR(*p))) {
+	p++;
+    }
+    *elementPtr = list;
+    *nextPtr = p;
+    if (sizePtr != 0) {
+	*sizePtr = size;
+    }
+    return TCL_OK;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * CopyAndCollapse --
+ *
+ *	Copy a string and eliminate any backslashes that aren't in braces.
+ *
+ * Results:
+ *	There is no return value.  Count chars. get copied from src
+ *	to dst.  Along the way, if backslash sequences are found outside
+ *	braces, the backslashes are eliminated in the copy.
+ *	After scanning count chars. from source, a null character is
+ *	placed at the end of dst.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+CopyAndCollapse(count, src, dst)
+    int count;			/* Total number of characters to copy
+				 * from src. */
+    register char *src;		/* Copy from here... */
+    register char *dst;		/* ... to here. */
+{
+    register char c;
+    int numRead;
+
+    for (c = *src; count > 0; src++, c = *src, count--) {
+	if (c == '\\') {
+	    *dst = Tcl_Backslash(src, &numRead);
+	    dst++;
+	    src += numRead-1;
+	    count -= numRead-1;
+	} else {
+	    *dst = c;
+	    dst++;
+	}
+    }
+    *dst = 0;
 }

@@ -33,7 +33,7 @@
  *      All the public types and function declarations for the core
  *	AOLserver.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.5 2000/10/09 23:21:01 kriston Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.6 2000/10/12 17:25:11 jgdavidson Exp $
  */
 
 #ifndef NS_H
@@ -819,6 +819,19 @@ NS_EXTERN Ns_List *Ns_ListMapcar(Ns_List *lPtr, Ns_ElemValProc *valProc);
  * Ns_ListFirst(list)
  * Ns_ListRest(list)
  */
+
+/*
+ * tclxkeylist.c:
+ */
+
+NS_EXTERN char *Tcl_DeleteKeyedListField (Tcl_Interp  *interp, const char *fieldName,
+        const char *keyedList);
+NS_EXTERN int Tcl_GetKeyedListField (Tcl_Interp  *interp, const char *fieldName,
+        const char *keyedList, char **fieldValuePtr);
+NS_EXTERN int Tcl_GetKeyedListKeys (Tcl_Interp  *interp, char const *subFieldName,
+        const char *keyedList, int *keysArgcPtr, char ***keysArgvPtr);
+NS_EXTERN char *Tcl_SetKeyedListField (Tcl_Interp  *interp, const char *fieldName,
+        const char *fieldvalue, const char *keyedList);
 
 /*
  * listen.c:
