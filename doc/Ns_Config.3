@@ -27,7 +27,7 @@
 '\" version of this file under either the License or the GPL.
 '\" 
 '\"
-'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_Config.3,v 1.1.2.2 2002/12/04 19:51:00 scottg Exp $
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_Config.3,v 1.1.2.3 2002/12/04 19:56:53 scottg Exp $
 '\"
 '\" 
 .so man.macros
@@ -36,7 +36,7 @@
 .BS
 '\" Note:  do not modify the .SH NAME line immediately below!
 .SH NAME
-Ns_ConfigGetBool, Ns_ConfigGetInt, Ns_ConfigGetInt64, Ns_ConfigGetPath, Ns_ConfigGetSection, Ns_ConfigGetSections, Ns_ConfigGetValue, Ns_ConfigGetValueExact \- library procedures
+Ns_ConfigGetBool, Ns_ConfigGetInt, Ns_ConfigGetInt64, Ns_ConfigGetPath, Ns_ConfigGetSection, Ns_ConfigGetSections, Ns_ConfigGetValue, Ns_ConfigGetValueExact \- Extract information from the server configuration files
 .SH SYNOPSIS
 .nf
 \fB#include "ns.h"\fR
@@ -64,55 +64,46 @@ config files.
 .TP
 \fBNs_ConfigGetBool\fR(\fIchar *section, char *key, int *valuePtr\fR)
 
-Examines key in section and returns NS_TRUE for values 1, y, yes, 
-on, t, or true, case insensitive, and sets valuePtr to 1.
-Returns NS_FALSE for values 0, n, no, off, f, false, case 
-insensitive, and sets valuePtr to 0.
+Examines key in section and returns NS_TRUE for values 1, y, yes, on,
+t, or true, case insensitive, and sets valuePtr to 1.  Returns
+NS_FALSE for values 0, n, no, off, f, false, case insensitive, and
+sets valuePtr to 0.
 .TP
 \fBNs_ConfigGetInt\fR(\fIchar *section, char *key, int *valuePtr\fR)
 
-Examines key in section and attempts to convert to an integer value. 
-On success, returns NS_TRUE, otherwise NS_FALSE. The value of the integer
-is placed into valuePtr.
-
+Examines key in section and attempts to convert to an integer value.
+On success, returns NS_TRUE, otherwise NS_FALSE. The value of the
+integer is placed into valuePtr.
 .TP
 \fBNs_ConfigGetInt64\fR(\fIchar *section, char *key, INT64 *valuePtr\fR)
 
-Like Ns_ConfigGetInt, but with INT64 data instead of system-native int types.
-This function isn't available on WIN32.
-
+Like Ns_ConfigGetInt, but with INT64 data instead of system-native int
+types.  This function isn't available on WIN32.
 .TP
 \fBNs_ConfigGetPath\fR(\fIchar *server, char *module, ...\fR)
 
-Get the full name of a config file section if it exists. Returns a pointer 
-to to an ASCIIZ string of the full path name, or NULL if that path is not 
-in the config file.
-
+Get the full name of a config file section if it exists. Returns a
+pointer to to an ASCIIZ string of the full path name, or NULL if that
+path is not in the config file.
 .TP
 \fBNs_ConfigGetSection\fR(\fIchar *section\fR)
 
 Returns an Ns_Set of the section's parameters, or NULL if the section
 does not exist.
-
 .TP
 \fBNs_ConfigGetSections\fR(\fIvoid\fR)
 
-Returns a pointer to an array of pointers to Ns_Sets, one for 
-each config section. The result is a malloc'ed copy of the config 
-sections.
-
+Returns a pointer to an array of pointers to Ns_Sets, one for each
+config section. The result is a malloc'ed copy of the config sections.
 .TP
 \fBNs_ConfigGetValue\fR(\fIchar *section, char *key\fR)
 
-Returns a pointer to the value of the key in section, or NULL
-if the key doesn't exist.
-
+Returns a pointer to the value of the key in section, or NULL if the
+key doesn't exist.
 .TP
 \fBNs_ConfigGetValueExact\fR(\fIchar *section, char *key\fR)
 
 Case sensitive equivalent of Ns_ConfigGetValue. 
-
-
 .SH "SEE ALSO"
 nsd(1), info(n)
 
