@@ -34,7 +34,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.26 2004/07/30 12:38:46 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.27 2004/07/30 14:03:06 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -1939,6 +1939,7 @@ AllocConn(Driver *drvPtr, Sock *sockPtr)
     strcpy(connPtr->peer, ns_inet_ntoa(sockPtr->sa.sin_addr));
     connPtr->times.accept = sockPtr->acceptTime;
     connPtr->responseStatus = 0;
+    connPtr->nContentSent = 0;
     connPtr->sockPtr = sockPtr;
     return connPtr;
 }
@@ -2009,6 +2010,7 @@ FreeConn(Driver *drvPtr, Conn *connPtr)
     Tcl_DeleteHashTable(&connPtr->files);
     Tcl_InitHashTable(&connPtr->files, TCL_STRING_KEYS);
     connPtr->responseStatus = 0;
+    connPtr->nContentSent = 0;
 
     /*
      * Cleanup content buffers.
