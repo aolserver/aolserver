@@ -1,3 +1,8 @@
+2004-11-19  Dossy Shiobara <dossy@panoptic.com>
+
+	* nsd/Makefile (1.42), nsd/compress.c (1.1), include/ns.h (1.71):
+	  Add new Ns_Compress() function to gzip data using Zlib.
+
 2004-11-17  Dossy Shiobara <dossy@panoptic.com>
 
 	* nsd/adprequest.c (1.18): Don't send Content-Length if streaming
