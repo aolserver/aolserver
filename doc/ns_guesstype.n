@@ -28,7 +28,7 @@
 '\" version of this file under either the License or the GPL.
 '\" 
 '\"
-'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_guesstype.n,v 1.2 2002/09/28 19:58:27 jgdavidson Exp $
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_guesstype.n,v 1.3 2002/11/05 21:25:04 webdanb Exp $
 '\"
 '\" 
 .so man.macros
@@ -39,15 +39,97 @@
 .SH NAME
 ns_guesstype \- commands
 .SH SYNOPSIS
-\fBns_guesstype \fIoption \fR?\fIarg arg ...\fR?
+\fBns_guesstype \fIfilename
 .BE
 
 .SH DESCRIPTION
 .PP
-These commands...
+This command guesses and returns the MIME type of filename, based on the file extention.  It has an extensive set of default mappings.  You can also add your own mappings in the "ns/server/servername/mimetype" section of the config file.
+
+.SH MIMETYPES
+.PP
+The following extentions and mimetypes are the default maps.
+
+    .adp text/html
+    .ai application/postscript
+    .aif audio/aiff
+    .aifc audio/aiff
+    .aiff audio/aiff
+    .ani application/x-navi-animation
+    .art image/x-art
+    .au audio/basic
+    .avi video/x-msvideo
+    .bin application/x-macbinary
+    .bmp image/bmp
+    .css text/css
+    .csv application/csv
+    .dci text/html
+    .dcr application/x-director
+    .dir application/x-director
+    .dp application/commonground
+    .dxr application/x-director
+    .elm text/plain
+    .eml text/plain
+    .exe application/octet-stream
+    .gbt text/plain
+    .gif image/gif
+    .gz application/x-compressed
+    .hqx application/mac-binhex40
+    .htm text/html
+    .html text/html
+    .jfif image/jpeg
+    .jpe image/jpeg
+    .jpg image/jpeg
+    .jpeg image/jpeg
+    .js application/x-javascript
+    .ls application/x-javascript
+    .map application/x-navimap
+    .mid audio/x-midi
+    .midi audio/x-midi
+    .mocha application/x-javascript
+    .mov video/quicktime
+    .mpe video/mpeg
+    .mpeg video/mpeg
+    .mpg video/mpeg
+    .nvd application/x-navidoc
+    .nvm application/x-navimap
+    .pbm image/x-portable-bitmap
+    .pdf application/pdf
+    .pgm image/x-portable-graymap
+    .pic image/pict
+    .pict image/pict
+    .pnm image/x-portable-anymap
+    .png image/png
+    .ps application/postscript
+    .qt video/quicktime
+    .ra audio/x-pn-realaudio
+    .ram audio/x-pn-realaudio
+    .ras image/x-cmu-raster
+    .rgb image/x-rgb
+    .rtf application/rtf
+    .sht text/html
+    .shtml text/html
+    .sit application/x-stuffit
+    .snd audio/basic
+    .sql application/x-sql
+    .stl application/x-navistyle
+    .tar application/x-tar
+    .tcl text/plain
+    .text text/plain
+    .tgz application/x-compressed
+    .tif image/tiff
+    .tiff image/tiff
+    .txt text/plain
+    .xbm image/x-xbitmap
+    .xpm image/x-xpixmap
+    .vrml x-world/x-vrml
+    .wav audio/x-wav
+    .wrl x-world/x-vrml
+    .z application/x-compressed
+    .zip application/x-zip-compressed
 
 .SH "SEE ALSO"
-nsd(1), info(n)
+nsd(1), info(n), ns_return(n)
 
 .SH KEYWORDS
-
+mime
