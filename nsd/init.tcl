@@ -28,7 +28,7 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/init.tcl,v 1.24 2003/09/11 17:55:49 elizthom Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/init.tcl,v 1.25 2003/10/01 17:42:31 elizthom Exp $
 #
 
 #
@@ -724,7 +724,7 @@ if { $_ns_lazyprocdef == 1 } {
             }
         }
         # did we end up with a valid one for the current context?
-        if { [ uplevel 2 _ns_tclinfo proc $procName ] == "" } {
+        if { [ uplevel 2 _ns_tclinfo command $procName ] == "" } {
             set loaded 0
         } else {
             set loaded 1
