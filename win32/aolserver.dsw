@@ -1,0 +1,230 @@
+Microsoft Developer Studio Workspace File, Format Version 6.00
+# WARNING: DO NOT EDIT OR DELETE THIS WORKSPACE FILE!
+
+###############################################################################
+
+Project: "cgitest"=.\cgitest\cgitest.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name nscgi
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "main"=.\main\main.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name nscp
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name nslog
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name nssock
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name nscgi
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name nsperm
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name cgitest
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name nsodbc
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "nscgi"=.\nscgi\nscgi.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name nsd
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name nstcl
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "nscp"=.\nscp\nscp.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name nsd
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name nstcl
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "nsd"=.\nsd\nsd.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name tcl83
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name nstcl
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "nslog"=.\nslog\nslog.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name nsd
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name nstcl
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "nsodbc"=.\nsodbc\nsodbc.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name nsd
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "nsperm"=.\nsperm\nsperm.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name nsd
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name nstcl
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "nssock"=.\nssock\nssock.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name nsd
+    End Project Dependency
+    Begin Project Dependency
+    Project_Dep_Name nstcl
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "nstcl"=.\nstcl\nstcl.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name threadtest
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Project: "nsthread"=.\nsthread\nsthread.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+}}}
+
+###############################################################################
+
+Project: "threadtest"=.\threadtest\threadtest.dsp - Package Owner=<4>
+
+Package=<5>
+{{{
+}}}
+
+Package=<4>
+{{{
+    Begin Project Dependency
+    Project_Dep_Name nsthread
+    End Project Dependency
+}}}
+
+###############################################################################
+
+Global:
+
+Package=<5>
+{{{
+}}}
+
+Package=<3>
+{{{
+}}}
+
+###############################################################################
+

@@ -1,0 +1,887 @@
+2000-04-12  Kriston J. Rehberg  <Kriston@AOL.COM>
+
+	*** AOLserver 3.0 FINAL Released ***
+	
+2000-04-12  Kriston J. Rehberg  <Kriston@AOL.COM>
+
+	* tcl8.3.0/win/tclWinSock.c: In Win32 only, Tcl 8.3.0 deadlocked
+	when opening a socket.  This affected anything that used
+	ns_sockopen, e.g. ns_sendmail.  Many thanks to Curtis Galloway
+	<curtisg@arsdigita.com> for finding and fixing this bug which
+	should also find its way into the Tcl distribution.
+
+	* scripts/nsd.tcl: Now effects a new out-of-box experience.
+	Automatically figures out the home directory of AOLserver.
+	Figures out whether to load nscp based on whether a valid user and
+	password exist.  Only loads nsssl if cert/key files are present,
+	respectively.  The only thing that needs manual intervention now
+	is nsperm.  You can also start AOLserver from anywhere on your
+	system now -- not just from its home directory.
+	
+	* nsd/nsmain.c, nsd/tclstubs.cpp, nsd/tclmisc.c, nsd/nsd.h:
+	Locates the executable using NsTclFindExecutable on Tcl 7.6 and
+	8.x.  Tcl commands [ns_info argv0] and [ns_info nsd] added.
+	
+	* nsssl2/Makefile: The nsssl module's pathnames were getting lost.
+	It now installs into servers/server1/modules/nsssl directory
+	instead of nsssl2.
+
+2000-04-11  Pete Jansson <petej@clickvision.com>
+
+	* nssybpd/Makefile,nssybpd.c: Corrected to build on Linux.
+
+	* nsext/nsext.c (DbProxyTimedIO,DbProxyGetString): Fixed latent
+	bug in DbProxyTimedIO which impaired performance; changed
+	DbProxyGetString back to using DbProxyTimedIO.  If Shai Bentov
+	<shai@netscape.com> hadn't found the previous change, I don't
+	know how I would have figured this one out.  Also pass empty
+	strings to database proxy if parameters are not specified.
+
+2000-04-10  Kriston J. Rehberg  <Kriston@AOL.COM>
+
+	* nsext/nsext.c (DbProxyGetString): Uses its own version of
+	DbProxyTimedIO that grants a nearly 8x performance increase to
+	external database drivers.  Many thanks to Shai Bentov
+	<shai@netscape.com>.
+
+2000-04-07  Kriston J. Rehberg  <Kriston@AOL.COM>
+
+	*** AOLserver 3.0rc2 Released ***
+	
+2000-04-07  Kriston J. Rehberg  <Kriston@AOL.COM>
+
+	* nssolid/nssolid.c,Makefile: changed name to nssolid.c and
+	removed solid.h.  At the same time, I can't find the SOLID
+	database product this uses anywhere at http://www.solidtech.com/.
+
+2000-04-06  Kriston J. Rehberg  <Kriston@AOL.COM>
+
+	* nsext/nsext.c (AllDigits): casted argument to unsigned char per
+	"isdigit" man page.
+
+	* nsd/nsmain.c (Ns_Main): Ns_Log's parameters weren't initialized
+	before they were used by Ns_Log at server startup resulting in
+	incorrect behavior.
+
+	* nsd/tclmisc.c (NsTclInfoCmd): added [ns_info address] command.
+
+	* nsd/nsmain.c (Ns_InfoAddress): new command [ns_info address] to
+	return primary IP address of the machine running AOLserver.
+
+2000-04-05  Kriston J. Rehberg  <Kriston@AOL.COM>
+
+	* Makefile (all): "make clobber" lets you clean out everything
+	without destroying the CVS directories.
+
+	* thread/pthread.cpp (Ns_CondWait): Solaris ETIME bug workaround.
+	Solaris may inappropriately return ETIME to pthread_cond_wait.
+	(Ns_CondTimedWait): same problem
+
+2000-04-03  Kriston J. Rehberg  <Kriston@AOL.COM>
+
+	* scripts/tests/adp/: More confidence tests added.
+
+	* main.c, tclPosixStr.c: Now work on Alpha and Sparc Linux.  We
+	plan to get rid of these architecture-but-not-operating-system
+	dependencies soon.  Thanks to Brent Fulgham <bfulgham@debian.org>.
+
+	* tclstubs.cpp, adp.c: ADP_RETURN no longer unrolls all the
+	callers in both Tcl 8.x and Tcl 7.6.  Special thanks to Bob Terek
+	for the report and the Tcl 8.x solution <rterek@worldpages.com>.
+
+	* nsd/tclmisc.c: removed "interp" from the list of commands
+	supported by ns_info.  Thanks to Jerry Asher <asher@autobahn.org>.
+
+	* tcl/file.tcl: new parameter ErrorPage in
+	ns/server/servername/tcl allows a custom Tcl error pages to be
+	sourced.  It requires a full pathname and is sourced in the same
+	frame as the calling function, so you can use errorCode to find
+	out what happened.
+
+	* nsext.c: sets CloseOnExec on database internal driver to avoid
+	stuck-open connections on child freeze.  The nspd seems to already
+	do this in its own way for external drivers.
+
+	* ChangeLog: Started using Emacs ChangeLog file format and moved
+	it to the top-level directory.
+
+	* nssybpd: A completely rewritten Sybase database proxy daemon is
+	in the nssybpd directory.  You'll need the Sybase Client Libraries
+	fromhttp://www.sybase.com/ which you can obtain via a free
+	promotion for x86 Linux.  Contributed by Pete Jansson
+	<petej@clickvision.com>. 
+	
+	* nspostgres: The Postgres driver and its changes have now been
+	merged with the ACS/pg version.  There should no longer be a need
+	for a separate Postgres driver version.  The new nspostgres driver
+	now has support for the old ExtendedTableInfo
+	(ns_columns/ns_tables) from AOLserver 2.x, has clever BLOB
+	emulation for non-BLOBBy databases like Postgres, and works well
+	with ACS/pg.  Contributed by Don Baccus <dhogaza@pacifier.com>,
+	Lamar Owen <lamar.owen@wgcr.org>, Ben Adida <ben@mit.edu>, and Jan
+	Wieck <wieck@debis.com>.  Many thanks go out to all involved!
+
+	* conn.c: The normal Ns_ConnLocation can be replaced with your own
+	location generator with Ns_SetConnLocationProc.  In tandem with a
+	custom url2file function, this works extremely handily as a fast,
+	efficient virtual hosting mechanism without using nsvhr.
+	Contributed by Jay Ridgeway <jamesridge@aol.com>.
+
+	* nsd/tclstats.c: statmaxbuf/statlevel should be working again.
+
+	* tcl/fastpath.tcl: The _ns_dirlist directory-listing function now
+	sorts the directory.
+
+	* tcl/fastpath.tcl: The _ns_dirlist function no longer aborts when
+	encountering a symlink to a pathname that does not exist.
+	Instead, the "simple" version just prints the filename with a
+	link.  The "fancy" version displays the filename but lists "N/A"
+	for both Time and Data. Clicking on the filename, which is still
+	active, would return a "404 - Not Found" so that webmasters and
+	visitors can figure out what is going wrong.
+
+	* scripts/nsd.tcl: The standard ADP parser is now the default.
+	It's faster and more robust than the "fancy" parser.  You can
+	still use the "fancy" parser if you prefer, but it cannot handle a
+	construct like "<% ... %>" and some of the more useful features of
+	the fancy parser are limited (eg, ADP tags cannot be created after
+	server startup).
+	
+	* nsd/: nsd now increases max open files *before* threads
+	initialization. Ns_Main now returns the exit code to main to
+	satisfy Win32.
+
+	* nsd/return.c: The "Connection:" header is only inserted if not
+	already present (needed for applications that want to set their
+	own "Connection:" headers, like "Connection: keep-alive" or
+	"Connection: close").
+
+	* doc/: The doc/ has been re-arranged somewhat; HTML "guides" are
+	in their respective directories while stand-alone text files have
+	been moved back up to doc/.
+
+	* nsd/keepalive.c: A rare race condition in the HTTP keepalive
+	code during server shutdown has been fixed.
+
+	* (various): The database driver now checks if a datasource is
+	null before attempting to use it.
+
+	* nsd/urlencode.c: now works with character sets other than lower
+	US-ASCII and the accented characters in ISO-8859-1.  This was
+	breaking some internationalized applications on certain platforms.
+
+	* scripts/nsd.tcl: nsperm and nscp are disabled in the sample
+	nsd.tcl for security reasons.  It should be made clear that the
+	default passwords and/or permissions are well-known and should be
+	changed by the administrator before using nsperm or nscp.
+
+	* nsd/tclsock.c: ns_sockopen -nonblock was blocking anyway.
+
+	* win32/: There have been major enhancements to Win32 support; see
+	win32/ for the skinny.
+
+	* odbc/: The Win32 ODBC driver has returned to provide access to
+	ODBC databases.  See the nsodbc/ directory at the top level and
+	win32/nsodbc for the MSVC project file.  You can also use this to
+	connect to ODBC databases from Unix.
+
+	* nscgi/: nscgi has been rewritten and has the added benefit of
+	working well in Win32.
+
+	* nsperm/: nslog rolls its logs properly in Win32 now.
+
+	* nsd, Makefile: Reminder: "nsd82" is now called "nsd8x."  "nsd76"
+	will remain as "nsd76."  The installer will delete nsd82 from your
+	$INST/bin directory to help you out.
+
+	* tcl7.6, tcl8.3.0: Extraneous, unused code from the Tcl
+	distributions have been removed from the source directories,
+	greatly decreasing the distribution size by several megabytes.
+
+	* all: Even more amenable to the future Autoconf transition.
+	We're getting there!
+
+	* include/Makefile.module: Makefile.module and other specialty
+	Makefiles properly handle a module's custom list of libraries
+	(MODLIBS) and override the LIBS variable.
+
+	* include/Makefile.global: LDSO does not take LDFLAGS anymore.
+	LDSO is for making dynamic libraries and has special options of
+	its own.  This is important because some things can't work if
+	shared object creation flags are there (ie, libnsthread.a,
+	libnspd.a).  Furthermore, some platforms set LDSO to the C
+	compiler called with special flags.
+	
+	* include/Makefile.global: Irix has some new build variables that
+	allow the use of gcc for both tcl7.6 and tcl8.3.0.  It now forces
+	the linker to use n32 exclusively.  This was another annoying Irix
+	roadblock that had prevented use of gcc on Irix for tcl8.3.0 in
+	previous releases of AOLserver 3.  This doesn't fully work for the
+	native compiler, however.  This only affects those very few people
+	still using Irix.
+
+	* nsvhr/, nsunix/: The nsvhr and nsunix modules are now built
+	optionally; see the top-level Makefile.
+
+	* scripts/nsd.tcl: The sample nsd.tcl is much clearer.  Some notes
+	about the nsthread "stacksize" parameter has been added.  Some
+	modules have been commented-out for security reasons.  Clearer
+	documentation has been added.
+
+
+----------------------------------------------
+What's New in AOLserver 3 Release Candidate #1
+----------------------------------------------
+
+	* New build process is hopefully more self-contained and
+	straightforward.  The global Makefile is located in
+	include/Makefile.global.  The Makefile used for making modules is
+	located in include/Makefile.module.
+
+	* Threading model that is built is based on the -DUSE_threadmodel
+	variable.  This is determined by platform but defaults to pthreads
+	on all but a few platforms like Irix and OS/X.
+
+	* Dependencies for targets are checked.  You can invoke "gmake"
+	from any directory in which a target is found.
+
+	* The building, installation and cleaning processes now happens in
+	the Makefiles for each target (modules, server main, thread
+	library, tcl).
+	
+	* You can optionally build the Tcl 7.6 or Tcl 8.x versions of nsd,
+	or both.
+
+	* The Makefile for "nsd" is a lot smarter on which Tcl libraries
+	to use and which Tcl-specific code needs to be re-built between
+	Tcl versions.  This special trick is now handled by the tclstubs
+	and *.cpp files in the nsd directory.
+
+	* AOLserver is moving slightly closer towards using Autoconf and
+	forsaking GNU Make.
+
+	* SSL v2 is supported by the nsssl2 module for serving pages and
+	generating keys and certificate requests.  BSAFE 3 libraries are
+	required to build this module.
+
+	* The next-generation "nsperm" permissions module has returned.
+
+	* Documentation is now located in the doc/ directory.  Manual
+	pages have been removed.  This documentation will become the basis
+	for http://aolserver.com/doc/.
+
+	* Comprehensive documentation on nsd.tcl configuration options is
+	available in doc/admin/config.txt.
+
+	* The nspostgres database driver has been brought up-to-date and
+	moved up to the "nspostgres" directory.  These latest changes were
+	contributed by Jan Wieck <wieck@debis.com>.
+
+	* The "examples/" directory has been removed.  There is a simple
+	example in the nsexample/ directory and more examples can be found
+	in the documentation and the source code to simple modules like
+	"nscgi."
+
+	* Confidence tests are now in scripts/tests/.  We always
+	appreciate additions to this collection.
+
+	* OpenBSD is now supported.  Contributed by Michael Yoon
+	<michael@yoon.org>.
+
+	* "ns_conn connected" Tcl command has returned.  Contributed by
+	Mark Dalrymple <markd@arsdigita.com>.
+
+	* The EnableTclPages parameter for serving "*.tcl" pages has
+	returned thanks to Rob Mayoff <mayoff@dqd.com> and the folks at
+	ArsDigita.com. See doc/admin/config.txt for details.
+
+	* A ns_tcl_abort command added for *.tcl pages.  It works just
+	like ns_adp_abort.  Contributed by Rob Mayoff <mayoff@dqd.com>.
+
+	* AuxConfigDir no longer runs files with "." or "#" as the first
+	character.  Contributed by Mark Dalrymple <markd@arsdigita.com>.
+
+	* The simple /NS/Admin and /NS/About interfaces have been removed
+	in favor of a future ADP-based approach to web server
+	administration.
+
+	* Solaris now builds with -lresolv.
+
+	* AuxConfigDir works again.  Contributed by Greg Kimberly
+	<greg@GAK.COM>.
+
+	* MaxOpen, MaxIdle database parameters work again.  Contributed by
+	Rob Mayoff <mayoff@dqd.com>.
+
+	* The external database driver now runs more efficiently on some
+	Linux distributions using an ioctl.  Contributed by Paul Janzen
+	<pcj@photo.sez.to>.
+
+	* The former, correct behavior of manipulating the conn after an
+	ns_return has returned.  Contributed by Jonathan Salz
+	<jsalz@mit.edu>.
+
+	* NsConnThread (nsd/serv.c) no longer get hung up if a
+	Ns_CondTimedWait times out.  Contributed by Patrick Donohue
+	<pdonohue@tcloud.net>.
+
+	* Multithreading library (libnsthread.a) tuned up significantly.
+
+	* Tcl library updated to Tcl 8.3, the latest production release.
+
+	* nsd82 is now known as nsd8x.  nsd76 is still nsd76.
+
+	* nsd Tcl stubs for 8.x and 7.6 have been abstracted into "*.cpp"
+	files.
+
+	* Win32 support for Windows NT/2000 i386 machines in the win32/
+	directory.
+
+	* Ns_CloseOnExec is now called when forking (nsd/unix.c).  We had
+	a dilemma with forking processes and setting the close-on-exec
+	flag in a multithreaded environment due to the inherent race
+	condition between the fork, the exec, and the fcntl that sets the
+	F_CLOEXEC flag.  The Arsdigita folks encountered a problem where
+	the Oracle client libraries were forking, and this sometimes
+	prevented a terminated server to free the port to which it was
+	bound among other things.  So, before SockAccept, SockPipe, and
+	SockBind, Ns_CloseOnExec is called to set the close-on-exec flag.
+	Contributed by Mark Dalrymple <markd@arsdigita.com> and the
+	AOLserver development team.
+
+
+-----------------------------------
+What's New in AOLserver 3 beta6.1
+-----------------------------------
+
+	* The -u command line flag was added to nsd to sepcify the
+	username or uid at startup.  This replaces specifying the user in
+	the config file.  This change accomplished three things:
+
+           - Enhanced security ensuring the setuid() is performed at the
+	   earliest possible time.
+
+           - Provided a work around for a bug in the Linux pthread library
+	   which was causing servers to hang on startup.
+
+           - Allowed the interp used to evaluate nsd.tcl to be a regular,
+	   non-safe interp as nsd.tcl no longer must be evaluated as root'
+	   to determine the uid for the setuid() call.  This will allow
+	   you more flexibility in interogating the system at startup,
+	   e.g., using the exec command or sourcing additional files.
+
+	* As with -u, the -g command line flag was also added to specify
+	the group/gid to setgid() to after startup.  This replaces
+	specifying the group in the config file.
+
+	* Tcl 8.2 namespace procs and variables are now copied from the
+	initial interp.  This is done by overriding the simple
+	global-procs only copy procedure defined in nsd/tclinit.c with a
+	more complex procedure in tcl/namespace.tcl.  Namespaces which are
+	initialized at startup or through ns_eval should be copied as
+	expected but this has not been tested extensively.
+
+	* The .tcl dyanmic page format support from 2.x has returned via
+	the tcl/file.tcl init script.
+
+	* A few nsdb utilities from 2.x have returned in tcl/nsdb.tcl.
+
+	* AOLpress network publishing support from AOLserver 2.x has been
+	re-implemented in Tcl in tcl/fastpath.tcl.  The functionality was
+	moved to Tcl from C to ensure the C code remains simple and fast
+	for the ordinary case of returning static files.  Note that you
+	must enable and config the nsperm module to use these procedures
+	as the default configuration of the server is to disallow all HTTP
+	methods used by AOLpress (e.g., MKDIR, PUT, DELETE, etc.)
+
+	* Directory listings can be generated again in one of two ways.
+	You can either configure an ADP file to be executed with:
+	   	[ns/server/server1]
+		directoryadp=mydirlist.adp
+	Or config an ns_register_proc style procedure with:
+	    	[ns/server/server1]
+		directoryproc=myproc
+	    A simple directory listing proc, _ns_dirlist, is included in
+	    fastpath.tcl and is enabled by the AOLserver 2.x style config:
+	    	[ns/server/server1]
+		directorylisting=type
+	    where type is one of "simple" or "fancy".  If both an ADP and
+	    Tcl proc are defined the ADP will be used.
+	
+    	* Two new API's for executing Tcl procs and ADP's requests from
+	other requests have been added:
+	    	int Ns_AdpRequest(Ns_Conn *conn, char *adpfile);
+	    	int Ns_TclRequest(Ns_Conn *conn, char *proc);
+	    The directory listing support described above uses these
+	    interfaces in nsd/fastpath.c.
+
+	* The nscp module now replaces the standard "exit" command with a
+	command which simply drops the connection instead of stopping the
+	server.
+
+	* The server can now maintain detailed timing statistics for each
+	request.  When enabled, the server will record a high resolution
+	time when the connection is queued, service starts, the connection
+	is closed, and service is complete (i.e., after logging and such).
+	The intervals between these times is then kept in a global and/or
+	per-url counters.  To enable use, for example:
+		[ns/server/server1]
+		globalstats=on
+		urlstats=on
+		maxurlstats=100
+	    This will maintain both global and per-url stats.  Only
+	    statistics for the last 100 URLs will be kept.  To access
+	    these data use the new "stats" and "urlstats" options to the
+	    ns_server command.
+
+	* The ns_conn command now supports the "start" option to return
+	the time at which the connection was originally queued.
+	
+    	* There is a new framework for creating your own nsd binary which
+	can support static linking of a module.  This is useful if you
+	have to link against strange things like a messy C++ library.
+	Basically you can do module-like initialization in an
+	Ns_ServerInit() routine you provide, perhaps calling the new
+	Ns_RegisterModule API.  There's no documentation yet but the use
+	is straightforward - checkout the nsd/main.c and nsd/modload.c
+	files for details.
+
+	* Although actually new to beta5, the server now supports an ADP
+	"errorpage" configuration to allow you to trap errors in an ADP
+	page.  To use, point errorpage to a single ADP file, e.g.,:
+		[ns/server/server1/adp]
+		errorpage=/dir/showerrors.adp
+	    When the server encounters an ADP error, instead of just
+	    logging to the server log it will include your file, passing
+	    the error string as an argument. 
+
+	* The ns_share code for Tcl8.2 was fixed to avoid creating the
+	underlying trace on each call which was dramatically slowing down
+	the code.  This does not mean that ns_share is the preferred
+	interface for sharing variables between threads.  Instead, please
+	use the new nsv interface.  Nsv is both more efficient and will
+	include new and useful features in future releases.
+
+	* The Ns_QuoteHtml function and ns_quotehtml command now quote the
+	' and " characters properly.
+
+    	* New sockets are explicitly set non-blocking instead of assuming
+	the non-blocking attributed is inherited from the accept() socket
+	(as it should be).  This should correct problems of hanging
+	threads on Solaris.
+
+	* nsv_exists returns 0 instead of throwing an error on
+	non-existant arrays
+
+	* ADP now correctly sets the generally useless "conn" variable
+	with the same form as that expected by the ns_conn command.
+
+	* The default mimetype is now returned as "*/*" instead of NULL.
+	This fixed a potential crash bug in ADP.
+
+	* Keep-alive can now be disable by setting a timeout <= 0.
+
+	* ns_sockopen command now correctly handles the -timeout
+	parameter.
+
+	* Fixed crash bug in "fancy" adp where tags are specified without
+	values, e.g., <tag foo>.  Values default to the name of the tag,
+	i.e., <tag foo> is equivalent to <tag foo=foo>.
+
+	* Also in fancy adp, %'s and >'s within quoted attributes are now
+	handled properly, e.g., <tag foo="bar%bar"> and <tag
+	foo="bar>bar">.
+
+	* Potential crash bug in the "errorpage" feature of ADP fixed.
+
+
+----------------------------------------------------------------------
+
+What's New in AOLserver 3 beta5:
+---------------------------------
+
+AOLserver 3 beta5 is a major new beta release since beta3.  There are
+many changes to note, some of which may have been part of the beta4
+release but where not documented.  Unfortunately there has not been
+time to update the documentation on the http://www.aolserver.com/ web
+site so many of the new features only have the brief descriptions below
+(of course you can always check the source).
+
+This document includes information on:
+
+	*  New Features:  ns_share for 8.2 and much more.
+
+	*  New Platform:  Apple's OS/X and a few fixes.
+
+	*  Bug Fixes:  Several notable fixes.
+
+
+
+New Features:
+-------------
+
+The following is list of major new features in AOLserver 3:
+
+
+	*  Tcl 8.2 code upgraded to release 8.2.3.
+
+
+	*  Harry Moreau (hmoreau@online.ie) completed Brent Welch's
+(welch@acm.org) work on a trace-based ns_share command for Tcl 8.2.
+The latest Tcl 8.2 trace API's, along with some clever use of namespaces,
+allows ns_share to work without the extensive modifications of the Tcl
+core which was required for Tcl 7.6.  This new implementation appears
+to work well.  However...
+
+
+	*  ... a new "nsv" command interface based on code from a similar
+interface at Digital City has also been included as a preferred method
+of sharing data between threads in Tcl.  The nsv interface is both more
+efficient and supports many new features for race-free, multithreaded
+variables.  In future releases, nsv will include additional functionality
+from the Digital City code base including persistant backup files
+and network based operation.  Its use over over ns_share is highly
+encouraged.  If you're new to AOLserver please use the nsv interface.
+The ns_share command, especially in Tcl 8.2., should only be used while
+migrating legacy code to the new nsv interface.  Abbreviated documentation
+for nsv is included in the file README.NSV in this directory.
+
+
+	*  The ns_adp_parse command was made to operate as in AOLserver 2.x,
+supporting both the -string and -file options.
+
+
+	*  ADP will now return the mime type in the HTTP Content-type
+header based on the filename extension as with ordinary static files.
+As described in the AOLserver documentation, these types are configured
+in the [ns/server/<server-name>/mimetypes] section.  As part of this
+feature, the default types in the nsd/mimetypes.c file for .adp and
+.dci extensions have been set to text/html instead of the previous
+text/x-server-parsed-html values.  In addition...
+
+
+	*  ... a new command "ns_adp_mimetype ?newtype?" can be used to
+determine the mime type which will be sent to the client.  If the
+optional ?newtype? argument is specified, that type will be used instead.
+For example, and ADP file with a .adp extension could output plain text
+instead of the default text/html with:
+
+
+	<%
+	ns_adp_mimetype text/plain
+	ns_adp_puts " ... ordinary text with embedded HTML ... "
+	%>
+
+Note:  Setting the mime type with ns_adp_mimetype will have no effect
+if the ns_adp_stream command has already been used as ns_adp_stream will
+flush the headers and current mimetype.
+
+
+	*  The ns_info command supports several new subcommands to list various
+activities within the running server:
+
+
+	ns_info callbacks
+
+		Return all registered startup, pre-startup, shutdown,
+		server shutdown, exit, and SIGHUP signal procs (e.g.,
+		scripts registered for SIGHUP with ns_atsignal).
+
+	ns_info scheduled
+
+		Return all scheduled procedures (e.g., scripts scheduled
+		with ns_schedule_proc).
+
+	ns_info sockcallbacks
+
+		Return all socket callbacks (e.g., the socket listening
+		callback for the nscp module).
+
+
+	ns_info threads
+	
+		List all running threads.
+
+	ns_info locks
+
+		List all mutex locks on the system.
+
+The format of the result is a standard Tcl list-of-lists depending on
+the information requested. A new C API routine, Ns_RegisterProcInfo,
+can be used to help ns_info format the callback parameters.  The API
+is currently not documented but it's use and implementation should be
+clear by viewing the nsd/proc.c source file.
+
+The locks subcommand is particularly interesting.  Our experience at
+AOL is that a common performance problem with AOLserver sites is lock
+contention.  Lock contention occurs when too many threads are attempting
+to lock the same mutex.  The problem is difficult to detect in development
+before full production.  To ease locating such "hot" mutex locks, the
+locks subcommand fetches the name, total # of lock attempts, and the #
+of lock attempts which did not succeed immediately, thus indicating a
+possible lock contention problem.  However, the last value will always
+be zero unless the server is running in "mutex metering" mode by setting
+the following flag in the config file:
+
+	[ns/threads]
+	mutexmetering=on
+
+When enabled, the nsthread library monitors lock use by first calling
+Ns_MutexTryLock, calling Ns_MutexLock only if Ns_MutexTryLock does not
+succeed in which case the # of failed lock attempts is also incremented.
+Our experience at Digital City is that mutex metering adds no significant
+load to the server and the information is so interesting we just always
+have it enabled.
+
+
+	*  A new C API, Ns_PurgeFiles, and Tcl command, ns_purgefiles, can
+be used to purge like-named files from disk based on modified time.
+For those of you familiar with VMS it's somewhat like the DCL "purge"
+command.  For example, if you have a log file "foo" which some process
+rolls to "foo.{date}" so that you have files like "foo.20000105",
+"foo.20000106", etc., accumulating each day, you can purge all but the
+last 100 most files with:
+
+
+	ns_purgefiles /usr/local/as3/log/foo 1000
+
+Note that you must provide the full pathname to the "base" file.
+Those familar with the AOLserver 2.x API's may think this sounds familar
+to the old Ns_RollFileByDate routine.  In fact it's the same.  The name
+was changed because there is no actual "rolling" which happens with
+Ns_PurgeFiles; there is only deleting.
+
+
+	*  Using the Ns_PurgeFiles API, the nslog module now supports rolling
+log files using a strftime(3) format string as with AOLserver 2.x.
+This is enabled by setting the "rollfmt", "rollhour", and "maxbackup"
+config parameters, e.g.,:
+
+
+	[ns/server/server1/module/nslog]
+	rollfmt=%Y%m%d
+	maxbackup=100
+	rollhour=1
+
+This would roll the default file "access.log" to "access.log.YYYYMMDD"
+(e.g., access.log.20000106) at 1am local time everyday, allowing for up
+to 100 previous day's files.  Note that this configuration implies both
+file renaming and removing which can be dangerous if misconfigured.
+Please review the code in nslog/nslog.c and read the strftime(3) man
+page before enabling such configuration.
+
+	*  As an alternative, the ns_accesslog Tcl command has also returned
+as documented.  This allows you to write a special script and register
+it with ns_schedule_daily to roll and/or process your logs in any way
+you see fit.
+
+	*  The nslog module can also now be configured to buffer a configurable
+number of lines before writing to the log file.  On a busy server this
+can be used to significantly reduce the logging overhead as compared
+to appending entries on each request.  While nslog is very careful to
+flush any buffered entries before rolling or shutdown, there is still
+the possibility entries can be lost if the server crashes and so this
+feature is disabled by default.  To enable, set the "maxlines" config
+parameter to a value > 0, e.g.,:
+
+
+	[ns/server/server1/module/nslog]
+
+	maxlines=100
+
+This will buffer up to 100 lines before flushing to the log file.
+
+
+	*  The new Ns_After/Ns_Cancel C API's and ns_after/ns_cancel Tcl commands
+have been added for one-shot scheduled procecdures, e.g.:
+
+
+	set id [ns_after 10 "ns_log notice foo"]
+
+	ns_cancel $id
+
+This will schedule the "ns_log ..." script to run once in 10 seconds and
+then immediately cancel it so it never runs.  Note that the script may run
+sometime after the 10 second delay if the scheduler is overloaded with
+many stupid scripts which are not executing immediately as intended.
+ns_after is equivelant to "ns_schedule_proc -once" and ns_cancel is
+equivelant to ns_unschedule_proc (although ns_cancel will return 1 or 0
+depending on whether the procedure was actually cancelled before being
+run).  These API's and commands were added to encourage their frequent
+use as the scheduler underwent a major interal re-write to efficiently
+handle a large number of events (the previous scheduler was stupid).
+
+
+	*  The Ns_Pause/Ns_Resume C API's and ns_pause/ns_resume Tcl commands
+where also added to pause and resume scheduled procs.  Note that "pause"
+means "don't run when next scheduled", not "stop if running now" which
+would be very hard to implement.  Also, resume means allow running at next
+scheduled time, not immediately if last time was missed.  For example, if
+you ns_pause a script scheduled to run at midnight just before midnight
+and ns_resume it just after midnight it will run the following day,
+not immediately.  Here's another example:
+
+
+	set id [ns_after 10 foo]
+
+	ns_sleep 5
+
+	ns_pause $id
+
+	ns_sleep 30
+
+	ns_resume $id
+
+The script "foo" will execute in about 45 seconds, 35 seconds beyond the
+original 10 second delay.  The extra 35 seconds represents the 5 second
+and 30 second sleep time.  See the nsd/sched.c and nsd/tclsched.c source
+files for details.
+
+
+	*  Added the ns_addrybhost Tcl command which will return IP addresses
+for the given hostname as the ns_hostbyaddr command returns hostnames
+for the give IP addresss.  These routines cache their results using
+a time-based Ns_Cache which can be configured with the "dnscache" and
+"dnscachetimeout" parameters, e.g.,:
+
+
+	[ns/parameters]
+
+	dnscache=1;		# on by default
+
+	dnscachetime=60;	# 60 minutes by default
+
+See the nsd/dns.c source file for details.
+
+
+	*  The AOLserver 2.x support for preserving or modifying the keys in
+the HTTP header request has been re-enabled.  See the Ns_ParseHeader()
+routine in nsd/conn.c for details.
+
+
+	*  A common concern we hear from AOLserver skeptics is the issue of Tcl
+performance "problems".  Our experience at AOL is that Tcl is rarely
+a performance problem; the overall site architecture (in particular
+dependence on slow databases) and poor caching and/or RPC networking
+is normally the bottleneck.  The starting point of understanding where
+a system's performance bottleneck may lie includes understanding how
+often each command or procedure is executed.  To aid in this analysis,
+AOLserver now supports a method to trace and count the execution of Tcl
+commands across the server.  This feature is enabled with the "statlevel"
+and "statmaxbuf" Tcl config options, e.g.,:
+
+
+	[ns/server/server1/tcl]
+
+	statlevel=100;	
+
+	statmaxbuf=100;
+
+The "statlevel" parameter indicates the procedure nesting depth to trace.
+Either set it to something large, e.g., 100, to count everything or
+something very low like 1 or 2 to count just the first or second level
+commands.  The "statmaxbuf" command is the number of commands to count
+in the current thread before flushing to the global table of counts.
+This buffering is necessary to avoid lock contention around the global
+table on a busy server.
+
+To access the collected data use the "ns_stats" command:
+
+
+	ns_stats ?-sort? ?pattern?
+
+The -sort flag can be either "-count" or "-name" to sort the results
+by command name or total count and "pattern" is a glob-style pattern
+to select commands, e.g., the following will return a list of all ADP
+commands sorted by most used:
+
+
+	ns_stats -count ns_adp_*
+
+Note that commands never used will not show up in the list.  See the
+nsd/tclstats.c source file for more details.
+
+
+	*  The nscp module was simplified to be more portable and reduce the
+load on the server.  The downside is the fancy readline-like interactive
+features are now gone.  To use nscp, simply telnet to the configured port
+and enter interactive commands.  To log out simply drop the connection
+or press Ctrl-D on a new line.  Note that dropping the connection will
+not stop some long running script you entered such as "while 1 {set
+foo bar}" as the nscp thread will be busy executing your script and
+will not notice the connection is dropped.  Therefore, you should be
+careful with the sorts of scripts you execute with the nscp interface.
+See the nscp/nscp.c source file for details.
+
+
+	*  As suggested by Robert Ennals (roberte@sco.com), threads created on the
+Solaris and UnixWare are now all "system-scope".  System scope threads
+are created and scheduled directly by the kernel and not the 2-level
+thread library.  The kernel threads on these platforms, called "LWP's",
+can be observed by using the -L flag to ps, output that will look familar
+to someone who has used ps on a Linux or SGI-sproc platform and seen
+multiple AOLserver nsd processes.  A conversation with engineers at Sun on
+the issue convinced us that system-scope should be almost always right.
+See the thread/pthread.c source file for details.  See below for more
+information on thread scope issues.
+
+	*  Finally, much of the basic configuration code throughout the core
+server was consolidated into a single location in the nsconf.c source
+file.  This file collects most of the config data into a single global
+structure, nsconf.  It also logs the various config parameters to the
+server log at startup.  This dumps quite a few lines into the log but
+was done to address a long standing problem with the AOLserver which was
+understanding the large set, and often undocumented, set of configuration
+parameters.
+
+
+
+New Platforms:
+--------------
+
+Pete Jansson (petej@clickvision.com) contributed modifications to support
+Apple's new OS/X operating system.  This includes both a "cthread"
+threading interface and special dynamic loading code along with a few
+minor hacks because OS/X is still more BSD-like than SysV or Posix-like.
+See the thread/cthread.c and nsd/modload.c source files for much of the
+OS/X work.  The OS/X fixes also helped locate and correct a few problems
+with the FreeBSD port (e.g., GMT offsets in various time routines).
+BTW:  NetBSD was investigated but, unlike FreeBSD, was found to include
+no supported thread library which was somewhat surprising.
+
+In addition, the makefiles and makevars have been cleaned up and
+several small bugs where fixed (e.g., incorrect use of -lc on Linux,
+missing -pthread on FreeBSD).  The makevars file also now supports the
+GNU compiler by default which has been tested on most major platforms.
+This should allow AOLserver to be built without the expensive vendor
+compiler, a common and long standing complaint from the OpenSource
+community.
+
+Finally, much work was done to return, after being absent for several
+years, support for running AOLserver on Win32 (Windows NT, 2000, 98).
+These changes were not ready for this release but look for them in the
+next beta or final release of 3.
+
+
+
+Bug Fixes:
+----------
+
+The following notable bugs where fixed in this release:
+
+	*  Linux freezes on startup (explicit -lc masking fork and exec wrappers
+in -lpthread).
+
+	*  Can't POST to a Linux server (trailing \r\n must be read before
+closing socket).
+
+	*  HP/UX 10/11 freezes after spawning a process with Tcl "exec" (vfork()
+instead of fork() confusing thread library).
+
+	*  Tcl filters registered with ns_register_filter send the old "conn"
+argument (uninitialized filter structure).
+
+	*  Double counting of bytes sent for static files over 8k (SendFile and
+WriteConn both counting bytes).
+
+

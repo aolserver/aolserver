@@ -1,0 +1,76 @@
+
+AOLserver Win32 Port
+--------------------
+
+This directory is for building AOLserver on Win32.  The server appears
+to run on both Intel Windows 2000 and Windows 98 (other platforms have
+not been tested).  Included is a top-level Workspace for Visual C++
+which references individual Projects in the subdirectories.  All the
+project file pathnames are relative to the diretory in which the
+project resides, e.g., nsd/nsd.dsp will expect to compile
+../../nsd/nsmain.c for output in nsd/Debug.  Included directories:
+
+nsthread:	Thread library.
+nstcl:		Tcl 8.3 modified for nsthreads.
+nsd:		Core AOLserver DLL.
+main:		AOLserver nsd.exe program.
+cgitest:	Simple .exe CGI test program.
+threadtest:	Thread library test program.
+nscp:
+ nscgi:
+ nslog:
+ nsperm:
+ nssock:	Various modules.
+test:		Simple AOLserver directory for testing.
+
+Other modules (e.g., nsssl) have not yet been ported/tested.
+
+Building
+--------
+
+To build, simply open the aolserver.dsw project workspace file, select
+the "main" projects (which depends on all other projects), select
+release or debug build, and select "Rebuild All".  Output will be
+copied to the Debug or Release subdirectory in this directory.  The
+main project is also setup to run AOLserver in the debugger using the
+"test" directory above.  The test directory includes a simple index.adp
+which allows you to evaluate Tcl commands and has links to execute the
+cgitest.exe program and a cgitest.bat batch CGI.
+
+
+Installing
+----------
+
+To install, create an AOLserver installation directory as you would do
+on Unix and copy the binaries from Debug or Release to the bin
+subdirectory.  You may then run the server in a DOS window as on Unix:
+
+	bin/nsd -f -t nsd.tcl
+
+On NT, you can also install as an NT service with:
+
+	bin/nsd -I -f nsd.tcl
+
+Then start/stop the server with the Services control panel.  To remove
+an installed server use:
+
+	bin/nsd -R -f nsd.tcl
+
+
+General Notes
+-------------
+
+The Win32 port is very much a port from Unix, e.g., it does not use
+fancy WSA socket calls and relies on the libc library to be very much
+like Unix.  Pathnames are almost always translated explicitly to
+forward slash and it's very unlikely fancy UNC style names (e.g.,
+\\host\file) will ever work.  Some NT semantics may still cause
+problems, e.g., you probably cannot roll the server log file as files
+cannot be renamed while open on NT.  The server attempts to writes logs
+in "test" format (i.e., \r\n) but most other files are assumed binary
+which is normally fine.  The Tcl library is compiled as "nstcl.dll" to
+ensure nsd.exe uses it instead of a thread unsafe tcl83.dll which may
+be loaded because you're playing around with the Tk widget demo.
+
+
+Enjoy!

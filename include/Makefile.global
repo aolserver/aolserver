@@ -1,0 +1,277 @@
+#
+# Makefile.global --
+#
+#      This is the common Makefile that contains all variables and
+#      utilities used by AOLserver source code and modules.
+#
+
+
+#
+# Installation locations.
+#
+INST         =   /tmp/aolserver
+INSTBIN      =   $(INST)/bin
+INSTLOG      =   $(INST)/log
+INSTMOD      =   $(INST)/modules
+INSTTCL      =   $(INSTMOD)/tcl
+INSTSRV      =   $(INST)/servers/server1
+INSTSRVMOD   =   $(INSTSRV)/modules
+INSTSRVPAG   =   $(INSTSRV)/pages
+
+
+#
+# Common build variables.
+#
+CC           =   gcc
+LD           =   ld
+
+CFLAGS       +=  -g -I../include -D_REENTRANT
+
+LIBNSTHREAD  =   ../thread/libnsthread.a
+
+LIBS         +=  
+
+MKDIR        =   mkdir -p
+RM           =   /bin/rm -f
+CP           =   /bin/cp -fp
+FIND         =   find
+MV           =   /bin/mv
+LN           =   ln -s
+AR           =   ar
+ARFLAGS      =   rv
+RANLIB       =   true
+
+#
+# Auto-detect the platform
+#
+PLATFORM = unknown
+
+#
+# HP/UX 11 -- gcc
+#
+#  SMP is fully supported.
+#
+ifeq (HP-UXB.11.00, $(shell uname -s)$(shell uname -r))
+    PLATFORM=hp11
+    # CC=cc
+    # CFLAGS+=-Ae +DAportable +z
+    CFLAGS+=-D__hp11 -pipe -fPIC -Wall -Wno-unused
+    LDFLAGS=-Wl,-E
+    LIBS+=-lpthread 
+    #LDSO=$(LD) -b
+    LDSO=$(CC) -shared
+    CFLAGS+=-DUSE_DLSHL=1
+endif
+
+
+#
+# HP/UX 10 -- gcc
+#
+#  The optional DCE threads package must be installed.
+#  SMP is fully supported.
+#
+ifeq (HP-UXB.10.20, $(shell uname -s)$(shell uname -r))
+    PLATFORM=hp10
+    # CC=cc
+    # CFLAGS+=-Ae +DAportable +z
+    CFLAGS+=-D__hp10 -pipe -fPIC -Wall -Wno-unused
+    LDFLAGS=-Wl,-E
+    LIBS+=-ldce -lc_r
+    #LDSO=$(LD) -b
+    LDSO=$(CC) -shared
+    CFLAGS+=-DHAVE_PTHREAD_D4=1 -DUSE_DLSHL=1 -DNEED_HERRNO=1
+endif
+
+
+#
+# Linux -- gcc
+#
+#  Red Hat 6.1 is known to work -- it has working glibc 2.1 and Linuxthreads.
+#  glibc 2.1 (libc6) and its Linuxthreads component are absolutely required.
+#  glibc 2.0 (libc6) and BSD libc5 are obsolete on Linux and do not work.
+#  Linux supports SMP to some extent.  It will get better eventually.
+#  Some SMP systems accumulate zombie processes (this is a kernel issue).
+#  Note that we use the compiler to create shared objects, not the linker.
+#
+ifeq (Linux,$(shell uname))
+    PLATFORM=linux
+    LDFLAGS+=-Wl,-E
+    CFLAGS+=-pipe -fPIC -Wall -Wno-unused
+    LIBS+=-ldl -lpthread 
+    LDSO=$(CC) -shared
+    CFLAGS+=-DHAVE_CMMSG=1 -DUSE_FIONREAD=1 -DHAVE_COND_EINTR=1
+endif
+
+
+#
+# Sun Solaris SPARC and x86 -- gcc
+#
+#  Free Solaris distributions are available on promotion at http://sun.com/.
+#  The "-pipe" option to gcc does not work on some versions of Solaris.
+#  -lresolv is only needed by reverse-host lookup modules like nsperm.
+#  Solaris 7 binaries will not run on Solaris 2.6 (this is a Solaris problem).
+#  Cygnus "GNUPro" DOES NOT WORK.  Use GNU gcc and /usr/ccs/bin/ld.
+#  GNU gcc 2.8.1 and 2.95.2 from http://www.sunfreeware.com/ work fine.
+#  Solaris 7 pthreads sometimes report cond_wait timeouts (a Solaris bug).
+#  SMP is fully supported.
+#
+ifeq (SunOS,$(shell uname))
+    PLATFORM=solaris
+    # CC=/opt/SUNWspro/bin/cc
+    # CFLAGS+=-KPIC
+    CFLAGS+=-D_POSIX_PTHREAD_SEMANTICS -fPIC -Wall -Wno-unused
+    LIBS+=-lsocket -lnsl -ldl -lposix4 -lpthread -lresolv
+    LD=/usr/ccs/bin/ld
+    #LDSO=$(LD) -G
+    LDSO=$(CC) -shared
+    AR=/usr/ccs/bin/ar
+    CFLAGS+=-DUSE_PTHREAD_SYSSCOPE=1 -DUSE_DUPHIGH=1 -DHAVE_FORK1=1
+    # Flags for pshared mutexes and conditions.
+    CFLAGS+=-DUSE_PTHREAD_PSHARED=1 -DHAVE_ETIME_BUG=1
+endif
+
+
+#
+# DEC OSF/1, Digital UNIX, Tru64 UNIX -- gcc
+#
+#  This should be changed to gcc as soon as possible.
+#  This is a 64-bit platform.
+#  SMP is fully supported.
+#
+ifeq (OSF1,$(shell uname))
+    PLATFORM=osf
+    CC=cc
+    CFLAGS+=-std1 -pthread
+    LDFLAGS+=-pthread
+    LDSO=$(LD) -shared -expect_unresolved '*'
+    LIBS+=-lrt
+endif
+
+
+#
+# SGI Irix (6.4 or better) -- cc or gcc
+#
+#  GCC: unset ABI, set SGI_ABI env variable to n32 to force linker to behave.
+#  CC: unset SGI_ABI; set the ABI variable to "-n32".
+#  gcc only works if all third-party libraries are in the "n32" ABI.
+#  The "-pipe" option to gcc does not work on some versions of Irix.
+#  ABI can be -o32, -n32, or -64.  Only "-n32" has been tested.
+#  SMP is fully supported.  It works best with "sproc" threads, not "pthreads."
+#  Use "systune" command to set "maxuproc" and "nproc" to reasonable values.
+#  The gcc compiler might not work on Irix 6.4.  It does work on 6.5.7.
+#
+ifeq (IRIX, $(findstring IRIX, $(shell uname)))
+    PLATFORM=irix
+    SGI_ABI=n32
+    ABI=-$(SGI_ABI)
+    #CC=cc
+    #CFLAGS+=$(ABI) -D_SGI_MP_SOURCE -fullwarn
+    CFLAGS+=-D_SGI_MP_SOURCE -fPIC -Wall -Wno-unused
+    LDFLAGS+=$(ABI)
+    #LDSO=$(LD) $(ABI) -shared
+    LDSO=$(CC) -shared
+    #LIBS+=-lpthread
+    #CFLAGS+=-DUSE_PTHREADS=1
+    CFLAGS+=-DUSE_SPROC=1
+    ifeq (o32, $(ABI))
+	CFLAGS+=-DUSE_DUPHIGH=1
+    endif
+endif
+
+
+#
+# FreeBSD 3.x -- gcc
+#
+#  The pthread library that ships with FreeBSD 3.3 or better is required.
+#  FreeBSD does not yet support SMP -- evidently a FreeBSD 4.x release will.
+#
+ifeq (FreeBSD,$(shell uname))
+    PLATFORM=freebsd
+    CFLAGS+=-pthread -D_THREAD_SAFE
+    LDFLAGS+=-pthread -Wl,-E
+    LDSO=$(CC) -shared
+    RANLIB=ranlib
+    CFLAGS+=-DHAVE_CMMSG=1 -DNO_TIMEZONE=1 -DHAVE_TIMEGM
+endif
+
+
+#
+# OpenBSD 2.5 or better -- gcc
+#
+# Contributed by Michael Yoon <michael@yoon.org>
+# SMP is not supported.
+#
+ifeq (OpenBSD,$(shell uname))
+    PLATFORM=openbsd
+    CFLAGS+=-pthread -D_THREAD_SAFE
+    LDFLAGS+=-pthread -Wl,-E
+    LDSO=$(CC) -shared
+    RANLIB=ranlib
+    CFLAGS+=-DHAVE_CMMSG=1 -DUSE_DLSYMPREFIX=1 -DUSE_RTLD_LAZY=1
+    CFLAGS+=-DNO_TIMEZONE=1 -DHAVE_TIMEGM
+endif
+
+
+#
+# SCO Unixware 7.x -- cc
+#
+#  Free Unixware 7 is available free on promotion at http://sco.com/.
+#  This should be changed to gcc as soon as possible -- anybody?
+#  GNU gcc is on the Skunkware disc and at http://sco.com/.
+#  Both cc and gcc require the UnixWare Development Kit (UDK) version 7.x.
+#  The UDK is free on promotion -- it's needed the dev utils and libs.
+#  SMP support is not known.
+#  For best results use Unixware 7.1 or later with all patches applied.
+#  This is *not* "SCO OpenServer," which is the older Xenix-based product.
+#
+ifeq (UnixWare,$(shell uname))
+    PLATFORM=unixware
+    CC=cc
+    CFLAGS+=-D__unixware -Kpic -Kthread
+    LDFLAGS=-Wl,-B export
+    LDSO=$(LD) -G
+    LIBS+=-Kthread -lsocket
+    CLFAGS+=-DUSE_PTHREAD_SYSSCOPE=1 -DHAVE_SENDV=1 -DHAVE_CMMSG=1
+endif
+
+
+#
+# Mac OS X Server -- cc
+#
+#  The Mac OS X Server cc is gcc; the Mac OS X Server make is gmake.
+#  Tested under releases 1.0 and 1.02.
+#  No SMP support as of this writing.
+#
+ifeq (Rhapsody,$(shell uname))
+    PLATFORM=osx
+    CC=cc
+    LD=cc
+    CFLAGS+=-dynamic -traditional-cpp -pipe -Wall -Wno-unused
+    LDSO=$(LD) -bundle -undefined suppress
+    RANLIB=ranlib
+    CFLAGS+=-DUSE_CTHREADS=1 -DHAVE_CMMSG=1 -DUSE_DYLD -DUSE_DLSYMPREFIX=1
+    CFLAGS+=-DNO_RAND48=1 -DNO_TIMEZONE=1
+endif
+
+
+ifeq (unknown,$(PLATFORM))
+    error unknown platform
+endif
+
+
+#
+# Set the names of the Tcl libraries
+#
+#    Note:  Tcl 7.6 on *BSD has a different name for no apparent reason.
+#
+TCL8X_DIR=tcl8.3.0
+TCL8X_LIB=libtcl8.3g.a
+TCL76_DIR=tcl7.6
+ifeq (bsd, $(findstring bsd, $(PLATFORM)))
+  TCL76_LIB=libtcl76.a
+else
+  TCL76_LIB=libtcl7.6.a
+endif
+
+LIBTCL76=../$(TCL76_DIR)/unix/$(TCL76_LIB)
+LIBTCL8X=../$(TCL8X_DIR)/unix/$(TCL8X_LIB)

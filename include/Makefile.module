@@ -1,0 +1,36 @@
+#
+# Makefile.module --
+#
+#      This Makefile contains rules for building AOLserver modules.
+#      You include this file at the bottom of your module's Makefile.
+#
+#   Note: We override the LIBS variable because it is not appropriate
+#         for most shared objects.
+#
+
+include ../include/Makefile.global
+
+all: $(MOD)
+
+# Override LIBS variable
+LIBS=
+
+$(MOD): $(OBJS)
+	$(RM) $(MOD)
+	$(LDSO) -o $(MOD) $(OBJS) $(MODLIBS)
+
+$(OBJS): $(HDRS)
+
+install: all
+	$(RM) $(INSTBIN)/$(MOD)
+	$(CP) $(MOD) $(INSTBIN)
+
+clean:
+	$(RM) $(OBJS) $(MOD) so_locations
+
+clobber: clean
+	$(RM) *.so *.o *.a *~
+
+distclean: clobber
+	$(RM) TAGS core
+
