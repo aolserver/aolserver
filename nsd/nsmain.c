@@ -33,7 +33,7 @@
  *	AOLserver Ns_Main() startup routine.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.43 2002/07/14 23:22:43 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.44 2002/09/28 19:24:20 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -65,7 +65,7 @@ static char *FindConfig(char *config);
  */
 
 int
-Ns_Main(int argc, char **argv)
+Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 {
     int            i, fd;
     char          *config;
@@ -416,11 +416,11 @@ Ns_Main(int argc, char **argv)
      */
 
     if (server != NULL) {
-    	NsInitServer(server);
+    	NsInitServer(server, initProc);
     } else {
 	for (i = 0; i < Ns_SetSize(servers); ++i) {
 	    server = Ns_SetKey(servers, i);
-    	    NsInitServer(server);
+    	    NsInitServer(server, initProc);
 	}
     }
 
@@ -544,6 +544,30 @@ Ns_WaitForStartup(void)
     }
     Ns_MutexUnlock(&nsconf.state.lock);
     return NS_OK;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_StopSerrver --
+ *
+ *	Shutdown a server.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	Server will begin shutdown process. 
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+Ns_StopServer(char *server)
+{
+    Ns_Log(Warning, "nsmain: immediate server shutdown requested");
+    NsSendSignal(SIGTERM);
 }
 
 
