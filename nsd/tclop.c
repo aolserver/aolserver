@@ -35,7 +35,7 @@
  *	with registered procs and whatnot.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/tclop.c,v 1.6 2001/01/16 18:13:24 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/tclop.c,v 1.6.4.1 2002/10/28 23:15:50 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -71,7 +71,6 @@ typedef struct AtClose {
 
 static Ns_FilterProc TclFilterProc;
 static void AppendConnId(Tcl_DString *pds, Ns_Conn *conn);
-static void RunAtClose(Tcl_Interp *interp);
 static int TclDoOp(void *arg, Ns_Conn *conn);
 static Ns_Callback FreeCtx;
 static Ns_Callback FreeAtClose;
@@ -120,7 +119,6 @@ Ns_TclEval(Ns_DString *pds, char *server, char *script)
         } else {
             Ns_DStringAppend(pds, Ns_TclLogError(interp));
         }
-	RunAtClose(interp);
         Ns_TclDeAllocateInterp(interp);
     }
     return retcode;
@@ -591,7 +589,6 @@ TclDoOp(void *arg, Ns_Conn *conn)
             retval = Ns_ConnReturnInternalError(conn);
         }
     }
-    RunAtClose(interp);
     Tcl_DStringFree(&cmd);
     return retval;
 }
@@ -760,7 +757,7 @@ RegisterFilter(Tcl_Interp *interp, int when, char **args)
 /*
  *----------------------------------------------------------------------
  *
- * RunAtclose --
+ * NsTclRunAtclose --
  *
  *	Run the registered at-close scripts. 
  *
@@ -773,8 +770,8 @@ RegisterFilter(Tcl_Interp *interp, int when, char **args)
  *----------------------------------------------------------------------
  */
 
-static void
-RunAtClose(Tcl_Interp *interp)
+void
+NsTclRunAtClose(Tcl_Interp *interp)
 {
     AtClose       *atPtr, *firstPtr;
 
