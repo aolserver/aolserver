@@ -1,3 +1,17 @@
+2004-08-20  Jim Davidson <jgdavidson@aol.com>
+
+	* nsd/op.c: Handled error case requests based on overflow flag instead
+	of response status.
+	* nsd/limits.c: Added some more info returned with the get option.
+	* nsd/pools.c: Added "error" pool to handle overflows.
+	* nsd/nsd.h:
+	* nsd/queue.c:
+	* nsd/tclcmds.c:
+	* nsd/driver.c: Fixed shutdown bugs and further simplified code.
+	Also, added a query mechanism to peek into the state of a driver
+	via the new ns_driver command.
+
+
 2004-08-20  Dossy Shiobara <dossy@panoptic.com>
 
 	* Makefile (1.50), tests/new/all.tcl (1.1), tests/new/harness.tcl
