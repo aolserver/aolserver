@@ -34,7 +34,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.17.2.5 2004/07/14 00:36:52 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.17.2.6 2004/07/16 19:49:16 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -1107,7 +1107,8 @@ SetServer(Sock *sockPtr)
     }
 
     if (!status && sockPtr->reqPtr) {
-	sockPtr->reqPtr->request->method = "BAD";
+	ns_free(sockPtr->reqPtr->request->method);
+	sockPtr->reqPtr->request->method = ns_strdup("BAD");
     }
     return 1;
     // return status;
