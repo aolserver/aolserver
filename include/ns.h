@@ -33,7 +33,7 @@
  *      All the public types and function declarations for the core
  *	AOLserver.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.55.2.18 2004/12/06 16:33:42 dossy Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.55.2.19 2005/01/18 21:10:07 dossy Exp $
  */
 
 #ifndef NS_H
@@ -46,7 +46,7 @@
                                 + NS_MINOR_VERSION * 100 \
                                 + NS_RELEASE_SERIAL)
 #define NS_VERSION		"4.0"
-#define NS_PATCH_LEVEL		"4.0.10a"
+#define NS_PATCH_LEVEL		"4.0.10"
 
 #define NS_ALPHA_RELEASE	0
 #define NS_BETA_RELEASE		1
@@ -57,7 +57,7 @@
  * finished with non-production stages.
  */
 
-#define NS_RELEASE_LEVEL	NS_ALPHA_RELEASE
+#define NS_RELEASE_LEVEL	NS_FINAL_RELEASE
 
 #include "nsthread.h"
 
@@ -543,6 +543,7 @@ NS_EXTERN void Ns_ClsSet(Ns_Cls *clsPtr, Ns_Conn *conn, void *data);
  */
 
 NS_EXTERN int Ns_Compress(char *buf, int len, Tcl_DString *outPtr, int level);
+NS_EXTERN int Ns_CompressGzip(char *buf, int len, Tcl_DString *outPtr, int level);
 
 /*
  * config.c:
