@@ -28,7 +28,7 @@
  */
 
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscgi/nscgi.c,v 1.8 2001/03/23 23:33:31 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscgi/nscgi.c,v 1.9 2001/03/24 18:21:06 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 #include <sys/stat.h>
@@ -36,6 +36,7 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsc
 #include <stdlib.h>	/* environ */
 
 #define BUFSIZE	    4096
+#define NDSTRINGS   5
 #define UCHAR(c)	((unsigned char) (c))
 #define DEFAULT_MAXINPUT    1024000
 #define CGI_NPH	    1
@@ -101,11 +102,6 @@ typedef struct Tmp {
 static Ns_Mutex tmpLock;
 static Tmp *firstTmpPtr;
 
-typedef struct DsBuf {
-    struct DsBuf *nextPtr;
-    Ns_DString *dsPtr;
-} DsBuf;
-
 /*
  * The following structure, allocated on the stack of CgiRequest, is used
  * to accumulate all the resources of a CGI.  CGI is a very messy interface
@@ -126,11 +122,12 @@ typedef struct Cgi {
     char           *exec;
     char           *interp;
     Ns_Set         *interpEnv;
-    DsBuf	   *firstBufPtr;
     Tmp		   *tmpPtr;
     int		    ofd;
     int		    cnt;
     char	   *ptr;
+    int		    nextds;
+    Tcl_DString	    ds[NDSTRINGS];
     char	    buf[BUFSIZE];
 } Cgi;
 
@@ -448,18 +445,22 @@ CgiInit(Cgi *cgiPtr, Map *mapPtr, Ns_Conn *conn)
 {
     Mod		   *modPtr;
     Ns_DString     *dsPtr;
-    int             ulen, plen;
+    int             ulen, plen, i;
     struct stat     st;
     char           *s, *e;
     char    	   *url = conn->request->url;
     char	   *server = Ns_ConnServer(conn);
     
     modPtr = mapPtr->modPtr;
-    memset(cgiPtr, 0, sizeof(Cgi));
+    memset(cgiPtr, 0, ((char *) &cgiPtr->ds[0]) - (char *) cgiPtr);
+    cgiPtr->buf[0] = '\0';
     cgiPtr->modPtr = modPtr;
     cgiPtr->pid = -1;
     cgiPtr->ofd = -1;
     cgiPtr->ptr = cgiPtr->buf;
+    for (i = 0; i < NDSTRINGS; ++i) {
+	Ns_DStringInit(&cgiPtr->ds[i]);
+    }
 
     /*
      * Determine the executable or script to run.
@@ -678,13 +679,13 @@ CgiSpool(Cgi *cgiPtr, Ns_Conn *conn)
  *
  * CgiDs -
  *
- *	Pop another dstring for a CGI context.
+ *	Return the next available dstring in the CGI context.
  *
  * Results:
  *	Pointer to DString.
  *
  * Side effects:
- *	DString is pushed on stack to be freed with CgiFree.
+ *	None.
  *
  *----------------------------------------------------------------------
  */
@@ -692,13 +693,7 @@ CgiSpool(Cgi *cgiPtr, Ns_Conn *conn)
 static Ns_DString *
 CgiDs(Cgi *cgiPtr)
 {
-    DsBuf *bufPtr;
-
-    bufPtr = ns_malloc(sizeof(DsBuf));
-    bufPtr->dsPtr = Ns_DStringPop();
-    bufPtr->nextPtr = cgiPtr->firstBufPtr;
-    cgiPtr->firstBufPtr = bufPtr;
-    return bufPtr->dsPtr;
+    return &cgiPtr->ds[cgiPtr->nextds++];
 }
 
 
@@ -721,9 +716,6 @@ CgiDs(Cgi *cgiPtr)
 static void
 CgiFree(Cgi *cgiPtr)
 {
-    DsBuf *bufPtr;
-    Ns_DString *dsPtr;
-
     /*
      * Close the pipe.
      */
@@ -749,13 +741,11 @@ CgiFree(Cgi *cgiPtr)
     }
 
     /*
-     * Push back all dstrings.
+     * Free all dstrings.
      */
 
-    while ((bufPtr = cgiPtr->firstBufPtr) != NULL) {
-	cgiPtr->firstBufPtr = bufPtr->nextPtr;
-	Ns_DStringPush(bufPtr->dsPtr);
-	ns_free(bufPtr);
+    while (cgiPtr->nextds-- > 0) {
+	Ns_DStringFree(&cgiPtr->ds[cgiPtr->nextds]);
     }
     
     /*
