@@ -33,7 +33,7 @@
  *	AOLserver Ns_Main() startup routine.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.56 2004/07/29 23:05:49 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.57 2004/09/01 20:50:25 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #ifdef _WIN32
@@ -204,7 +204,7 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 	    if (server != NULL) {
 		UsageError("multiple -s <server> options");
 	    }
-	    server = optarg;
+	    nsconf.server = server = optarg;
             break;
 	case 't':
 	    if (nsconf.config != NULL) {

@@ -33,7 +33,7 @@
  *	Ns_Info* API and ns_info command support.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/info.c,v 1.16 2003/06/02 14:51:33 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/info.c,v 1.17 2004/09/01 20:50:25 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -494,6 +494,7 @@ int
 NsTclInfoObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 {
     NsInterp *itPtr = arg;
+    char *server;
     char *elog;
     Tcl_DString ds;
     static CONST char *opts[] = {
@@ -645,20 +646,29 @@ NsTclInfoObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 	Tcl_SetResult(interp, nsconf.servers.string, TCL_STATIC);
 	break;
 
+    case IServerIdx:
+        server = itPtr->servPtr ? itPtr->servPtr->server : nsconf.server;
+        if (server == NULL) {
+            Tcl_SetResult(interp, "no server", TCL_STATIC);
+            return TCL_ERROR;
+        }
+
+        Tcl_SetResult(interp, server, TCL_STATIC);
+        break;
+
     case ITclLibIdx:
     case IPageRootIdx:
-    case IServerIdx:
 	if (itPtr->servPtr == NULL) {
 	    Tcl_SetResult(interp, "no server", TCL_STATIC);
 	    return TCL_ERROR;
 	}
-	if (opt == IServerIdx) {
-            Tcl_SetResult(interp, itPtr->servPtr->server, TCL_STATIC);
-	} else if (opt == ITclLibIdx) {
+
+	if (opt == ITclLibIdx) {
 	    Tcl_SetResult(interp, itPtr->servPtr->tcl.library, TCL_STATIC);
 	} else {
 	    Tcl_SetResult(interp, itPtr->servPtr->fastpath.pageroot, TCL_STATIC);
 	}
+        break;
     }
     return TCL_OK;
 }

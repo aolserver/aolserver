@@ -163,6 +163,7 @@ struct _nsconf {
 
     Tcl_HashTable   servertable;
     Tcl_DString     servers;
+    char           *server;
 
     /*
      * The following table holds config section sets from
