@@ -474,7 +474,7 @@ Ns_CondDestroy(Ns_Cond *condPtr)
     if (err != 0) {
     	NsThreadFatal("Ns_CondDestroy", "pthread_cond_destroy", err);
     }
-    NsFree(condPtr);
+    NsFree(*condPtr);
     *condPtr = NULL;
 }
 
