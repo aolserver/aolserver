@@ -34,7 +34,7 @@
  *	Implements a lot of Tcl API commands. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclmisc.c,v 1.16 2001/04/26 00:11:00 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclmisc.c,v 1.17 2001/04/28 20:48:18 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -263,6 +263,7 @@ TmCmd(ClientData isgmt, Tcl_Interp *interp, int argc, char **argv)
         }
         ptm = ns_gmtime(&tt_now);
     } else {
+        static Ns_Mutex lock;
         char *oldTimezone = NULL;
 
         if (argc > 2) {
@@ -270,6 +271,8 @@ TmCmd(ClientData isgmt, Tcl_Interp *interp, int argc, char **argv)
                  argv[0], " ?tz?\"", NULL);
             return TCL_ERROR;
         }
+
+        Ns_MutexLock(&lock);
 
         if (argc == 2) {
             Ns_DString dsNewTimezone;
@@ -298,6 +301,8 @@ TmCmd(ClientData isgmt, Tcl_Interp *interp, int argc, char **argv)
 
             Ns_DStringFree(&dsNewTimezone);
         }
+
+        Ns_MutexUnlock(&lock);
     }
 
     sprintf(buf, "%d", ptm->tm_sec);
