@@ -1,3 +1,13 @@
+2004-06-19  Zoran Vasiljevic <zv@archiware.com>
+	
+	* nsd/tclsock.c: Improved NsTclSockOpenObjCmd() to accept
+	  two optional parameters: -localhost and -localport as
+	  per patch #815889 from Vlad Seryakov.  The patch itself
+	  was used as a starting point but the implementation is
+	  different i.e. the command-option parsing is rewritten
+	  to be much more tight than in the patch and also in the
+	  previous implementation.
+
 2004-06-14 20:28  Dossy Shiobara <dossy@panoptic.com>
 
 	* nsd/connio.c: If nsend == 0, we would never call Ns_WriteConn to
