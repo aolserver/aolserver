@@ -34,7 +34,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.4 2001/04/26 18:40:37 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.5 2001/05/07 21:50:37 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -1189,7 +1189,7 @@ SockRead(Sock *sockPtr)
 	reqPtr->content = bufPtr->string + reqPtr->coff;
 	reqPtr->next = reqPtr->content;
 	reqPtr->avail = reqPtr->length;
-	return SOCK_READY;
+	return (reqPtr->request ? SOCK_READY : SOCK_ERROR);
     }
 
     /*
