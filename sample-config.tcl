@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/Attic/sample-config.tcl,v 1.8 2003/02/25 17:12:03 shmooved Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/Attic/sample-config.tcl,v 1.9 2003/03/06 20:12:33 mpagenva Exp $
 #
 
 #
@@ -85,9 +85,11 @@ ns_param   debug           false
                                        # This defaults to True.
 ns_param  OutputCharset  iso8859-1    ;# Default output charset.  When none specified,
                                        # no character encoding of output is performed.
-#ns_param  URLCharset     utf-8       ;# Default Charset for Url Encode/Decode.
+ns_param  URLCharset     iso8859-1    ;# Default Charset for Url Encode/Decode.
                                        # When none specified, no character set encoding
                                        # is performed.
+#ns_param  PreferredCharsets { utf-8 iso8859-1 } ;# This parameter supports output
+                                       # encoding arbitration.
 
 #
 # MIME types.
@@ -103,6 +105,9 @@ ns_param   noextension     "*/*"     ;# MIME type for missing extension.
 #
 #   I18N Mime-types; define content-type header values
 #                    to be mapped from these file-types.
+#                    Note that you can map file-types of adp files to control
+#                    the output encoding through mime-type specificaion.
+#                    Remember to add an adp mapping for that extension.
 #
 ns_param   .adp            "text/html; charset=iso-8859-1"
 ns_param   .u_adp          "text/html; charset=UTF-8"
@@ -121,6 +126,14 @@ ns_param   .sjis_html      "shiftjis"
 ns_param   .gb_html        "gb2312"
 ns_param   .big5_html      "big5"
 ns_param   .euc-cn_html    "euc-cn"
+#
+# Note: you will need to include file-type to encoding mappings
+#       for ANY source files that are to be used, to allow the
+#       server to handle them properly.  E.g., the following
+#       asserts that the GB-producing .adp files are themselves
+#       encoded in GB2312 (this is not simply assumed).
+#
+ns_param   .gb_adp         "gb2312"
 
 
 #
@@ -151,7 +164,14 @@ ns_section "ns/server/${servername}"
 ns_param   directoryfile   $directoryfile
 ns_param   pageroot        $pageroot
 ns_param   enabletclpages  false     ;# Parse *.tcl files in pageroot.
-
+#
+#         Server-level I18N Parameters can be specified here, to override
+#         the global ones for this server.  These are:
+#              HackContentType
+#              OutputCharset
+#              URLCharset
+#         See the global parameter I18N section for a description of these.
+#
 
 #
 # Scaling and Tuning Options
