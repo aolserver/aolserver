@@ -34,7 +34,7 @@
  *	Commands for manipulating lists. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/lisp.c,v 1.4 2000/08/25 13:49:57 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/lisp.c,v 1.5 2001/03/13 16:46:02 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -261,8 +261,6 @@ Ns_StringPrint(char *s)
 void
 Ns_ListPrint(Ns_List *lPtr, Ns_ElemVoidProc *printProc)
 {
-    assert(printProc != NULL);
-    
     Ns_StringPrint("(");
     for (; lPtr != NULL; lPtr = lPtr->rest) {
         (*printProc) (lPtr->first);

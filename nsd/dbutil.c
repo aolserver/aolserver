@@ -34,7 +34,7 @@
  *	Utility db routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/dbutil.c,v 1.4 2000/08/25 13:49:57 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/dbutil.c,v 1.5 2001/03/13 16:46:02 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -299,10 +299,6 @@ Ns_DbInterpretSqlFile(Ns_DbHandle *handle, char *filename)
 void
 Ns_DbSetException(Ns_DbHandle *handle, char *code, char *msg)
 {
-    assert(handle != NULL);
-    assert(code != NULL);
-    assert(strlen(code) <= 5);
-
     strcpy(handle->cExceptionCode, code);
     Ns_DStringFree(&(handle->dsExceptionMsg));
     Ns_DStringAppend(&(handle->dsExceptionMsg), msg);

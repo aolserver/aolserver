@@ -34,7 +34,7 @@
  *	Parse URLs.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/url.c,v 1.4 2000/08/25 13:49:57 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/url.c,v 1.5 2001/03/13 16:46:02 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -111,8 +111,6 @@ Ns_ParseUrl(char *url, char **pprotocol, char **phost,
 	    char **pport, char **ppath, char **ptail)
 {
     char           *end;
-
-    assert(url != NULL);
 
     *pprotocol = NULL;
     *phost = NULL;
@@ -299,28 +297,20 @@ Ns_ParseUrl(char *url, char **pprotocol, char **phost,
  */
 
 int
-Ns_AbsoluteUrl(Ns_DString *pds, char *url, char *baseurl)
+Ns_AbsoluteUrl(Ns_DString *dsPtr, char *url, char *base)
 {
     char           *protocol, *host, *port, *path, *tail, *baseprotocol,
-                   *basehost, *baseport, *basepath, *basetail, *urlcopy,
-                   *baseurlcopy;
+                   *basehost, *baseport, *basepath, *basetail;
+    int             status = NS_OK;
 
-    int             status;
+    /*
+     * Copy the URL's to allow Ns_ParseUrl to destory them.
+     */
 
-    assert(url != NULL);
-    assert(baseurl != NULL);
-
-    status = NS_OK;
-
-    urlcopy = ns_strdup(url);
-
-    Ns_ParseUrl(urlcopy, &protocol, &host, &port, &path, &tail);
-
-    baseurlcopy = ns_strdup(baseurl);
-
-    Ns_ParseUrl(baseurlcopy, &baseprotocol, &basehost, &baseport,
-        &basepath, &basetail);
-
+    url = ns_strdup(url);
+    base = ns_strdup(base);
+    Ns_ParseUrl(url, &protocol, &host, &port, &path, &tail);
+    Ns_ParseUrl(base, &baseprotocol, &basehost, &baseport, &basepath, &basetail);
     if (baseprotocol == NULL || basehost == NULL || basepath == NULL) {
         status = NS_ERROR;
         goto done;
@@ -335,17 +325,17 @@ Ns_AbsoluteUrl(Ns_DString *pds, char *url, char *baseurl)
     if (path == NULL) {
         path = basepath;
     }
-    Ns_DStringVarAppend(pds, protocol, "://", host, NULL);
+    Ns_DStringVarAppend(dsPtr, protocol, "://", host, NULL);
     if (port != NULL) {
-        Ns_DStringVarAppend(pds, ":", port, NULL);
+        Ns_DStringVarAppend(dsPtr, ":", port, NULL);
     }
     if (*path == '\0') {
-        Ns_DStringVarAppend(pds, "/", tail, NULL);
+        Ns_DStringVarAppend(dsPtr, "/", tail, NULL);
     } else {
-        Ns_DStringVarAppend(pds, "/", path, "/", tail, NULL);
+        Ns_DStringVarAppend(dsPtr, "/", path, "/", tail, NULL);
     }
 done:
-    ns_free(urlcopy);
-    ns_free(baseurlcopy);
+    ns_free(url);
+    ns_free(base);
     return status;
 }

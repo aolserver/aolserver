@@ -34,7 +34,7 @@
  *	Defines standard default mime types. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/mimetypes.c,v 1.5 2000/08/25 18:44:33 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/mimetypes.c,v 1.6 2001/03/13 16:46:02 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -323,8 +323,6 @@ AddType(char *ext, char *type)
 static char *
 LowerDString(Ns_DString *dsPtr, char *ext)
 {
-    assert(ext != NULL);
-
     Ns_DStringAppend(dsPtr, ext);
     ext = dsPtr->string;
     while (*ext != '\0') {
