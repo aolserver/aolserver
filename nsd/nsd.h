@@ -317,6 +317,7 @@ typedef struct Driver {
     struct Sock *firstReadyPtr;	    /* Sock's returning from reader threads. */
 
     int     	 trigger[2];	    /* Wakeup trigger pipe. */
+    int     	 started;  	    /* Startup complete. */
     int     	 shutdown;  	    /* Shutdown pending. */
     int     	 stopped;	    /* Shutdown complete. */
 

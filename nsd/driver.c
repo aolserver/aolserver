@@ -34,7 +34,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.19 2004/02/15 16:29:01 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.20 2004/02/24 12:15:58 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -564,6 +564,47 @@ NsStartDrivers(void)
 /*
  *----------------------------------------------------------------------
  *
+ * NsWaitDriversStartup --
+ *
+ *	Wait for startup of all DriverThreads.  Current behavior is to
+ *	just wait until all sockets are bound to.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+NsWaitDriversStartup(void)
+{
+    Driver *drvPtr = firstDrvPtr;
+    int status = NS_OK;
+    Ns_Time timeout;
+
+    Ns_GetTime(&timeout);
+    Ns_IncrTime(&timeout, 10, 0);
+
+    while (drvPtr != NULL) {
+	Ns_MutexLock(&drvPtr->lock);
+	while (!drvPtr->started && status == NS_OK) {
+	    status = Ns_CondTimedWait(&drvPtr->cond, &drvPtr->lock, &timeout);
+	}
+	Ns_MutexUnlock(&drvPtr->lock);
+	if (status != NS_OK) {
+	    Ns_Log(Warning, "driver: startup timeout: %s", drvPtr->module);
+	}
+	drvPtr = drvPtr->nextPtr;
+    }
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  * NsStopDrivers --
  *
  *	Trigger the DriverThread to begin shutdown.
@@ -784,6 +825,10 @@ DriverThread(void *arg)
 	    drvPtr->address, drvPtr->port, ns_sockstrerror(ns_sockerrno));
     }
     Ns_SockSetNonBlocking(drvPtr->sock);
+    Ns_MutexLock(&drvPtr->lock);
+    drvPtr->started = 1;
+    Ns_CondBroadcast(&drvPtr->cond);
+    Ns_MutexUnlock(&drvPtr->lock);
 
     /*
      * Pre-allocate Sock structures.
