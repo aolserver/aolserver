@@ -34,7 +34,7 @@
  *Support for pre-bound privileged ports.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/binder.c,v 1.11 2001/11/05 20:23:05 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/binder.c,v 1.12 2001/11/27 00:26:04 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -171,6 +171,7 @@ NsStopBinder(void)
 	hPtr = Tcl_NextHashEntry(&search);
     }
     Tcl_DeleteHashTable(&prebound);
+    Tcl_InitHashTable(&prebound, sizeof(struct sockaddr_in)/sizeof(int));
     Ns_MutexUnlock(&lock);
 }
 
