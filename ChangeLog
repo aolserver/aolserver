@@ -1,5 +1,13 @@
 2003-10-07  Mark Page  <mpagenva@aol.com>
 
+	* nsd/init.tcl (ns_eval): The early 4.0 ns_eval had been
+	waiting for the completion of integrating script changes into the
+	server's init script.  This change adds the ability to return
+	without waiting for the init script integration completion (as the
+	default).  A new switch modifies this behavior to force it to wait
+	for the completion of init script integration.  Added another
+	switch to request a report of ns_eval backlog.
+
 	* nsd/adpeval.c (LogError): Limit the amount of script text added
 	into the errorInfo string, to keep from flowing adp script texts
 	of unlimited length into the server log.
