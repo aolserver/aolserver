@@ -73,6 +73,7 @@ install:
 		$(ECHO) "installing \"$$i\""; \
 		( cd $$i && $(MAKE) install) || exit 1; \
 	done
+	(cd thread && $(MAKE) install)
 	(cd nssock && $(MAKE) SSL=1 install)
 
 #
