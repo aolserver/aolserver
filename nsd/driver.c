@@ -34,7 +34,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.17.2.1 2003/11/20 02:13:16 pkhincha Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.17.2.2 2003/11/20 02:32:11 pkhincha Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -492,7 +492,6 @@ NsWaitDriversShutdown(Ns_Time *toPtr)
 	Ns_Log(Warning, "driver: timeout waiting for shutdown");
     } else {
 	Ns_Log(Notice, "driver: shutdown complete");
-	Ns_ThreadJoin(&driverThread, NULL);
 	driverThread = NULL;
 	ns_sockclose(trigPipe[0]);
 	ns_sockclose(trigPipe[1]);

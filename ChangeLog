@@ -1,6 +1,7 @@
 2003-11-19  pkhincha <pkhincha@aol.com>
         * maxinput to throttle the # of bytes
         * on request.  
+        * Removed ThreadJoin of driver thread.
 
 2003-11-03  pkhincha <pkhincha@aol.com>
 
