@@ -33,7 +33,7 @@
  * 	Connect Tcl command names to the functions that implement them
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.26 2002/07/05 23:30:41 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.27 2002/07/06 16:26:18 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -127,6 +127,7 @@ extern Tcl_ObjCmdProc
     NsTclRmdirObjCmd,
     NsTclRollFileObjCmd,
     NsTclSelectObjCmd,
+    NsTclServerObjCmd,
     NsTclShutdownObjCmd,
     NsTclSleepObjCmd,
     NsTclSockAcceptObjCmd,
@@ -618,7 +619,7 @@ static Cmd servCmds[] = {
      * serv.c
      */
 
-    {"ns_server", NsTclServerCmd, NULL},
+    {"ns_server", NsTclServerCmd, NsTclServerObjCmd},
 
     /*
      * Add more server Tcl commands here.
