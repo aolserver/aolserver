@@ -59,7 +59,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tcljob.c,v 1.16 2003/09/19 14:20:19 pmoosman Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tcljob.c,v 1.17 2003/09/22 22:32:03 pmoosman Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -1121,6 +1121,7 @@ JobThread(void *arg)
  *
  *----------------------------------------------------------------------
  */
+
 static Job*
 getNextJob(void)
 {
@@ -1149,19 +1150,10 @@ getNextJob(void)
             tmp = jobPtr;
             if (jobPtr == tp.firstPtr) {
                 tp.firstPtr = jobPtr->nextPtr;
-                prev = tp.firstPtr;
             } else {
                 prev->nextPtr = jobPtr->nextPtr;
             }
-
-            /*
-             * Advance the list pointer.
-             */
-            if (prev == NULL) {
-                jobPtr = NULL;
-            } else {
-                jobPtr = prev->nextPtr;
-            }
+            jobPtr = jobPtr->nextPtr;
 
             /*
              * Remove cancelled job from the queue and free it.
@@ -1177,7 +1169,6 @@ getNextJob(void)
              */
             if (jobPtr == tp.firstPtr) {
                 tp.firstPtr = jobPtr->nextPtr;
-                prev = tp.firstPtr;
             } else {
                 prev->nextPtr = jobPtr->nextPtr;
             }
