@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Makefile.global,v 1.52 2002/05/15 23:07:31 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Makefile.global,v 1.53 2002/05/15 23:38:40 jgdavidson Exp $
 #
 
 #
@@ -70,7 +70,7 @@ endif
 ifeq (1,$(NSGCC))
     CC       	=  gcc -pipe
     LDSO     	=  gcc -shared -nostartfiles
-    CFLAGS	+= -fPIC
+    CFLAGS	+= -fPIC -Wall
 else
     CC	     =   $(PURIFY) cc
 endif
