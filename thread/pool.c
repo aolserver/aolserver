@@ -36,7 +36,7 @@
  *  	fixed size blocks from per-thread block caches.  
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/pool.c,v 1.5 2000/10/20 21:54:09 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/pool.c,v 1.6 2000/10/22 20:35:45 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "thread.h"
 #include <assert.h>
@@ -52,25 +52,38 @@ struct {
     int     maxblocks;
     int     nmove;
 } limits[NBUCKETS] = {
-    {16, 8192, 4096},
-    {32, 4096, 2048},
-    {64, 2048, 1024},
-    {128, 1024, 512},
-    {256, 512, 256},
-    {512, 256, 128},
-    {1024, 128, 64},
-    {2048, 64, 32},
-    {4096, 32, 16},
-    {8192, 16, 8},
-    {16384, 8, 4},
-    {32768, 4, 2},
-    {65526, 2, 1}
+    {16, 2048, 1024},
+    {32, 1024, 512},
+    {64, 512, 256},
+    {128, 256, 128},
+    {256, 128, 64},
+    {512, 64, 32},
+    {1024, 32, 16},
+    {2048, 16, 8},
+    {4096, 8, 4},
+    {8192, 4, 2},
+    {16384, 2, 1}
 };
 
-#define MAXALLOC    	65526
+#define MAXALLOC	16384
 #define BLOCKSZ(i)  	(limits[i].blocksize)
 #define MAXBLOCKS(i)	(limits[i].maxblocks)
 #define NMOVE(i)    	(limits[i].nmove)
+
+#if 0
+
+/*
+ * Calculated equivalent of the limits above.  Using these macros
+ * instead appears to slow the code down about 20%.
+ */
+
+#define MAXALLOC    	(1<<(NBUCKETS+3))
+#define BLOCKSZ(i)	(1<<(i+4))
+#define MAXBLOCKS(i)	((MAXALLOC/BLOCKSZ(i)) * 2)
+#define NMOVE(i)	(MAXBLOCKS(i)/2)
+
+#endif
+
 
 /*
  * The following union stores accounting information for
@@ -257,17 +270,23 @@ void
 NsPoolDump(Pool *poolPtr, FILE *fp)
 {
     int nfree[NBUCKETS], nused[NBUCKETS];
-    int i;
+    int i, size;
+    unsigned long nbused;
+    unsigned long nbfree;
 
     if (poolPtr == NULL) {
 	poolPtr = &sharedPool;
     }
+    nbused = nbfree = 0;
     memcpy(nfree, poolPtr->nfree, sizeof(nfree));
     memcpy(nused, poolPtr->nused, sizeof(nused));
     for (i = 0; i < NBUCKETS; ++i) {
-	fprintf(fp, " %d:%d", nfree[i], nused[i]);
+	size = BLOCKSZ(i);
+	fprintf(fp, " %d:%d:%d", size, nused[i], nfree[i]);
+	nbused += nused[i] * size;
+	nbfree += nfree[i] * size;
     }
-    fprintf(fp, "\n");
+    fprintf(fp, " %ld:%ld\n", nbused, nbfree);
 }
 
 
@@ -586,6 +605,7 @@ GetBlocks(Pool *poolPtr, int bucket)
     	    if (poolPtr->nfree[n] > 0) {
 		size = BLOCKSZ(n);
 		POPBLOCK(poolPtr, n, blockPtr);
+		--poolPtr->nused[n]; /* NB: Not really in use. */
 		break;
 	    }
 	}

@@ -33,7 +33,7 @@
  *
  *	Internal nsthread definitions.
  *
- * RCS: $Id: thread.h,v 1.6 2000/10/20 22:45:41 jgdavidson Exp $
+ * RCS: $Id: thread.h,v 1.7 2000/10/22 20:35:45 jgdavidson Exp $
  *
  */
 
@@ -44,7 +44,7 @@
 
 extern int nsMemPools;
 
-#define NBUCKETS 13
+#define NBUCKETS 11
 
 struct Block;
 
@@ -56,8 +56,7 @@ typedef struct Pool {
 
 /*
  * The following structure maintains all state for a thread
- * including thread local storage keys and condition queue pointers
- * on Sproc.
+ * including thread local storage slots.
  */
 
 typedef struct Thread {
@@ -84,8 +83,8 @@ typedef struct Thread {
 typedef struct Mutex {
     struct Mutex *nextPtr;
     struct Thread *ownerPtr;
-    int id;
     char name[NS_THREAD_NAMESIZE+1];
+    int id;
     unsigned long nlock;
     unsigned long nbusy;
     void *lock;
