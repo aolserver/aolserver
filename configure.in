@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/configure.in,v 1.15 2004/08/14 03:56:58 dossy Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/configure.in,v 1.16 2004/09/22 01:01:20 dossy Exp $
 #
 
 #
@@ -69,6 +69,11 @@ AC_SUBST(TCL_CFLAGS_WARNING)
 AC_SUBST(TCL_EXTRA_CFLAGS)
 AC_SUBST(TCL_SHLIB_CFLAGS)
 AC_SUBST(TCL_DEFS)
+
+if test "${CC+set}" != "set"; then
+    CC=$TCL_CC
+fi
+AC_PROG_CC
 
 #
 # TCL_SHLIB_LD from tclConfig.sh is not quite right for aolserver.
