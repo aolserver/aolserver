@@ -34,7 +34,7 @@
  *	Tcl commands for returning data to the user agent. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclresp.c,v 1.16 2003/01/31 22:47:30 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclresp.c,v 1.16.2.1 2004/07/02 16:24:21 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -159,7 +159,7 @@ NsTclRespondObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST 
     Tcl_Channel	 chan;
     int          length;
     Ns_Conn     *conn;
-    int          retval;
+    int		 retval;
     int          i;
 
     status = 200;
@@ -170,11 +170,14 @@ NsTclRespondObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST 
     length = -1;
 
     if (objc < 3) {
-        Tcl_WrongNumArgs(interp, 1, objv, "?-status status? ?-type type? { ?-string string?"
-			" | ?-file filename? | ?-fileid fileid? }"
-			" ?-length length? ?-headers setid?");
+error:
+        Tcl_WrongNumArgs(interp, 1, objv,
+		"?-status status? ?-type type? { ?-string string?"
+		" | ?-file filename? | ?-fileid fileid? }"
+		" ?-length length? ?-headers setid?");
         return TCL_ERROR;
     }
+
     if (GetConn(arg, interp, &conn) != TCL_OK) {
 	return TCL_ERROR;
     }
@@ -183,65 +186,50 @@ NsTclRespondObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST 
      * Loop over every argument and set the appropriate options.
      */
     
-    retval = TCL_OK;
-    for (i = 0; (i < objc) && (retval == TCL_OK); i++) {
-		char *carg = Tcl_GetString(objv[i]);
-        if (*carg == '-') {
-            if (strcasecmp(carg, "-status") == 0) {
-                if (!((++i < objc) &&
-                        (Tcl_GetIntFromObj(interp, objv[i], &status) == TCL_OK))) {
-                    retval = TCL_ERROR;
-                }
+    for (i = 0; i < objc; i++) {
+	char *carg = Tcl_GetString(objv[i]);
+        if (*carg != '-') {
+	    continue;
+	}
+	if (++i >= objc) {
+	    goto error;
+	}
 
-            } else if (strcasecmp(carg, "-type") == 0) {
-                if (++i >= objc) {
-                    retval = TCL_ERROR;
-                } else {
-                    type = Tcl_GetString(objv[i]);
-                }
+	if (STRIEQ(carg, "-status")) {
+	    if (Tcl_GetIntFromObj(interp, objv[i], &status) != TCL_OK) {
+		goto error;
+	    }
 
-            } else if (strcasecmp(carg, "-string") == 0) {
-                if (++i >= objc) {
-                    retval = TCL_ERROR;
-                } else {
-                    string = Tcl_GetString(objv[i]);
-                }
+	} else if (STRIEQ(carg, "-type")) {
+	    type = Tcl_GetString(objv[i]);
 
-            } else if (strcasecmp(carg, "-file") == 0) {
-                if (++i >= objc) {
-                    retval = TCL_ERROR;
-                } else {
-                    filename = Tcl_GetString(objv[i]);
-                }
+	} else if (STRIEQ(carg, "-string")) {
+	    string = Tcl_GetString(objv[i]);
 
-            } else if (strcasecmp(carg, "-fileid") == 0) {
-                if (!((++i < objc) &&
-                        (Ns_TclGetOpenChannel(interp, carg, 0, 1,
-					      &chan) == TCL_OK))) {
-                    retval = TCL_ERROR;
-                }
+	} else if (STRIEQ(carg, "-file")) {
+	    filename = Tcl_GetString(objv[i]);
 
-            } else if (strcasecmp(carg, "-length") == 0) {
-                if (!((++i < objc) &&
-                        (Tcl_GetIntFromObj(interp, objv[i], &length) == TCL_OK))) {
-                    retval = TCL_ERROR;
-                }
+	} else if (STRIEQ(carg, "-fileid")) {
+	    if (Ns_TclGetOpenChannel(interp, carg, 0, 1, &chan) != TCL_OK) {
+		goto error;
+	    }
 
-            } else if (strcasecmp(carg, "-headers") == 0) {
-                if (++i >= objc) {
-                    retval = TCL_ERROR;
-                } else {
-                    Ns_Set         *set;
+	} else if (STRIEQ(carg, "-length")) {
+	    if (Tcl_GetIntFromObj(interp, objv[i], &length) != TCL_OK) {
+		goto error;
+	    }
 
-                    set = Ns_TclGetSet(interp, Tcl_GetString(objv[i]));
-                    if (set == NULL) {
-			Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "Illegal ns_set id: \"",
-				Tcl_GetString(objv[i]), "\"", NULL);
-                        return TCL_ERROR;
-                    }
-                    Ns_ConnReplaceHeaders(conn, set);
-                }
-            }
+	} else if (STRIEQ(carg, "-headers")) {
+	    Ns_Set         *set;
+
+	    set = Ns_TclGetSet(interp, Tcl_GetString(objv[i]));
+	    if (set == NULL) {
+		Tcl_AppendStringsToObj(Tcl_GetObjResult(interp),
+			"Illegal ns_set id: \"", Tcl_GetString(objv[i]), "\"",
+			NULL);
+		return TCL_ERROR;
+	    }
+	    Ns_ConnReplaceHeaders(conn, set);
         }
     }
 
@@ -249,40 +237,28 @@ NsTclRespondObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST 
      * Exactly one of chan, filename, string must be specified.
      */
     
-    i = (chan != NULL ? 1 : 0) +
-	(filename != NULL ? 1 : 0) +
-	(string != NULL ? 1 : 0);
-    if (i != 1) {
-	Tcl_SetResult(interp, "must specify at least one of -string, -file, "
-			      "or -type \n", TCL_STATIC);
-        retval = TCL_ERROR;
-    }
-
-    /*
-     * If an error has been set prior to now, complain and return.
-     */
-    
-    if (retval == TCL_ERROR) {
-        Tcl_WrongNumArgs(interp, 1, objv, "?-status status? ?-type type? { ?-string string?"
-			" | ?-file filename? | ?-fileid fileid? }"
-			" ?-length length? ?-headers setid?");
+    if ((chan != NULL) + (filename != NULL) + (string != NULL) != 1) {
+	Tcl_SetResult(interp, "must specify only one of -string, -file, "
+		"or -type", TCL_STATIC);
         return TCL_ERROR;
     }
+
     if (chan != NULL) {
 	/*
 	 * We'll be returning an open channel
 	 */
 	
         if (length < 0) {
-	    Tcl_SetResult(interp, "length required when -fileid is used.", 
+	    Tcl_SetResult(interp, "length required when -fileid is used", 
 		    TCL_STATIC);
 	    return TCL_ERROR;
         }
+
 	retval = Ns_ConnReturnOpenChannel(conn, status, type, chan, length);
 
     } else if (filename != NULL) {
 	/*
-	 * We'll be returining a file by name
+	 * We'll be returning a file by name
 	 */
 	
         retval = Ns_ConnReturnFile(conn, status, type, filename);
