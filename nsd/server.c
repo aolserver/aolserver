@@ -33,7 +33,7 @@
  *	Routines for managing NsServer structures.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.31 2004/10/06 18:50:38 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.32 2004/10/26 19:52:27 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -122,7 +122,7 @@ NsInitServer(char *server, Ns_ServerInitProc *initProc)
     NsServer *servPtr;
     char *path, *spath, *map, *key, *dirf, *p;
     Ns_Set *set;
-    int i, n, status;
+    int i, j, n, status;
 
     hPtr = Tcl_CreateHashEntry(&nsconf.servertable, server, &n);
     if (!n) {
@@ -399,13 +399,29 @@ NsInitServer(char *server, Ns_ServerInitProc *initProc)
 
     set = Ns_ConfigGetSection(path);
     for (i = 0; set != NULL && i < Ns_SetSize(set); ++i) {
+	char **largv;
+	int largc, ttl;
+	char *methods[] = {"GET", "HEAD", "POST"};
+
 	key = Ns_SetKey(set, i);
 	if (!strcasecmp(key, "map")) {
 	    map = Ns_SetValue(set, i);
-	    Ns_RegisterRequest(server, "GET", map, NsAdpProc, NULL, servPtr, 0);
-	    Ns_RegisterRequest(server, "HEAD", map, NsAdpProc, NULL, servPtr, 0);
-	    Ns_RegisterRequest(server, "POST", map, NsAdpProc, NULL, servPtr, 0);
-	    Ns_Log(Notice, "adp[%s]: mapped %s", server, map);
+	    if (Tcl_SplitList(NULL, map, &largc, &largv) == TCL_OK) {
+		if (largc == 1) {
+		    ttl = -1;
+		} else if (largc == 2) {
+		    (void) Tcl_GetInt(NULL, largv[1], &ttl);
+		} else {
+		    Ns_Log(Error, "adp[%s]: invalid map: %s", server, map);
+		    continue;
+		}
+		for (j = 0; j < 3; ++j) {
+	    	    Ns_RegisterRequest(server, methods[j], largv[0],
+					NsAdpProc, NULL, (void *) ttl, 0);
+		}
+	    	Ns_Log(Notice, "adp[%s]: mapped %s %d", server, map, ttl);
+		Tcl_Free((char *) largv);
+	    }
 	}
     }
 

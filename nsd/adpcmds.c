@@ -33,7 +33,7 @@
  *	ADP commands.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpcmds.c,v 1.14 2003/05/21 00:47:29 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpcmds.c,v 1.15 2004/10/26 19:52:25 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -108,11 +108,46 @@ int
 NsTclAdpIncludeObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
 		      Tcl_Obj **objv)
 {
+    NsInterp *itPtr = arg;
+    int i, skip;
+    Ns_Time *ttlPtr, ttl;
+    char *file;
+
     if (objc < 2) {
-	Tcl_WrongNumArgs(interp, 1, objv, "file ?args ...?");
+badargs:
+	Tcl_WrongNumArgs(interp, 1, objv, "?-ttl seconds? file ?args ...?");
 	return TCL_ERROR;
     }
-    return NsAdpInclude(arg, Tcl_GetString(objv[1]), objc-1, objv+1);
+    ttlPtr = NULL;
+    skip = 1;
+    file = Tcl_GetString(objv[1]);
+    if (STREQ(file, "-ttl")) {
+	if (objc < 4) {
+	    goto badargs;
+	}
+	if (Tcl_GetIntFromObj(interp, objv[2], &ttl) != TCL_OK) {
+	    return TCL_ERROR;
+	}
+	Ns_AdjTime(&ttl);
+	if (ttl.sec < 0) {
+	    Tcl_AppendResult(interp, "invalid ttl: ", Tcl_GetString(objv[2]),
+			     NULL);
+	    return TCL_ERROR;
+	}
+	ttlPtr = &ttl;
+	file = Tcl_GetString(objv[3]);
+	skip = 3;
+    }
+    if (itPtr->adp.ncache > 0) {
+    	Tcl_DStringAppend(itPtr->adp.outputPtr, "<% ns_adp_include", -1);
+    	for (i = 1; i < objc; ++i) {
+	    Tcl_DStringAppendElement(itPtr->adp.outputPtr,
+					Tcl_GetString(objv[i]));
+    	}
+    	Tcl_DStringAppend(itPtr->adp.outputPtr, "%>", -1);
+	return TCL_OK;
+    }
+    return NsAdpInclude(arg, file, objc-skip, objv+skip, ttlPtr);
 }
 
 

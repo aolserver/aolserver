@@ -33,7 +33,7 @@
  *	ADP connection request support.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adprequest.c,v 1.16 2003/09/19 18:14:24 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adprequest.c,v 1.17 2004/10/26 19:52:27 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -61,10 +61,18 @@ NsAdpProc(void *arg, Ns_Conn *conn)
 {
     Ns_DString file;
     int status;
+    Ns_Time *ttlPtr, ttl;
 
+    ttl.sec = (time_t) arg;
+    ttl.usec = 0;
+    if (ttl.sec > 0) {
+	ttlPtr = &ttl;
+    } else {
+	ttlPtr = NULL;
+    }
     Ns_DStringInit(&file);
     Ns_UrlToFile(&file, Ns_ConnServer(conn), conn->request->url);
-    status = Ns_AdpRequest(conn, file.string);
+    status = Ns_AdpRequestEx(conn, file.string, ttlPtr);
     Ns_DStringFree(&file);
     return status;
 }
@@ -88,6 +96,12 @@ NsAdpProc(void *arg, Ns_Conn *conn)
 
 int
 Ns_AdpRequest(Ns_Conn *conn, char *file)
+{
+    return Ns_AdpRequestEx(conn, file, 0);
+}
+
+int
+Ns_AdpRequestEx(Ns_Conn *conn, char *file, Ns_Time *ttlPtr)
 {
     Conn	     *connPtr = (Conn *) conn;
     Tcl_Interp       *interp;
@@ -162,7 +176,7 @@ Ns_AdpRequest(Ns_Conn *conn, char *file)
     objv[1] = Tcl_NewStringObj(file, -1);
     Tcl_IncrRefCount(objv[0]);
     Tcl_IncrRefCount(objv[1]);
-    if (NsAdpInclude(itPtr, start, 2, objv) != TCL_OK &&
+    if (NsAdpInclude(itPtr, start, 2, objv, ttlPtr) != TCL_OK &&
         itPtr->adp.exception != ADP_RETURN &&
         itPtr->adp.exception != ADP_BREAK &&
         itPtr->adp.exception != ADP_ABORT) {

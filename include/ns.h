@@ -33,7 +33,7 @@
  *      All the public types and function declarations for the core
  *	AOLserver.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.69 2004/10/06 18:49:29 jgdavidson Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.70 2004/10/26 19:52:15 jgdavidson Exp $
  */
 
 #ifndef NS_H
@@ -489,6 +489,7 @@ NS_EXTERN int Ns_AdpRegisterParser(char *extension, Ns_AdpParserProc *proc);
  */
 
 NS_EXTERN int Ns_AdpRequest(Ns_Conn *conn, char *file);
+NS_EXTERN int Ns_AdpRequestEx(Ns_Conn *conn, char *file, Ns_Time *ttlPtr);
 
 /*
  * auth.c:

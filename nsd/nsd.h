@@ -790,6 +790,7 @@ typedef struct NsInterp {
     struct {
 	bool               stream;
 	int	           exception;
+	int		   ncache;
 	int                depth;
 	int                objc;
 	Tcl_Obj		 **objv;
@@ -850,8 +851,7 @@ extern void NsInitUrlSpace(void);
 extern void NsInitRequests(void);
 
 extern void NsQueueConn(Conn *connPtr);
-extern void NsAppendConn(Tcl_DString *bufPtr, Ns_Time *now, Conn *connPtr,
-			 char *state);
+extern void NsAppendConn(Tcl_DString *bufPtr, Conn *connPtr, char *state);
 extern int  NsSockSend(Sock *sockPtr, struct iovec *bufs, int nbufs);
 extern void NsSockClose(Sock *sockPtr, int keep);
 extern int  NsPoll(struct pollfd *pfds, int nfds, Ns_Time *timeoutPtr);
@@ -967,7 +967,8 @@ extern int NsAdpEval(NsInterp *itPtr, int objc, Tcl_Obj *objv[], int safe,
                      char *resvar);
 extern int NsAdpSource(NsInterp *itPtr, int objc, Tcl_Obj *objv[],
                        char *resvar);
-extern int NsAdpInclude(NsInterp *itPtr, char *file, int objc, Tcl_Obj *objv[]);
+extern int NsAdpInclude(NsInterp *itPtr, char *file, int objc,
+			Tcl_Obj *objv[], Ns_Time *ttlPtr);
 extern void NsAdpParse(AdpParse *parsePtr, NsServer *servPtr, char *utf, int safe);
 
 /*
