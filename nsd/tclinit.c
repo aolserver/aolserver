@@ -33,7 +33,7 @@
  *	Initialization routines for Tcl.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.34 2003/04/04 13:17:03 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.35 2003/05/20 04:32:57 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -1057,8 +1057,16 @@ TclInitScriptCB(Tcl_Interp *interp, void *arg)
     Tcl_Obj *objPtr = (Tcl_Obj *)arg;
     int status = NS_OK;
 
+    /*
+     * Note we are inhibiting the bytecode compiler in this case.  By their
+     * nature, these scripts are run just once during an interp's init.
+     * Tcl will not reuse the bytecode produced within one interp
+     * in another interp; it will discard the previous and recompile.
+     * So, better just to interpret the script.
+     */
     if( (objPtr != NULL) &&
-        (Tcl_EvalObjEx(interp, objPtr, 0) != TCL_OK) ) {
+        (Tcl_EvalObjEx(interp, objPtr, 
+                       TCL_EVAL_DIRECT | TCL_EVAL_GLOBAL) != TCL_OK) ) {
         status = NS_ERROR;
     }
     return status;

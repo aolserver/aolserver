@@ -34,7 +34,7 @@
  *	Tcl wrappers around all thread objects 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclthread.c,v 1.20 2003/05/14 20:13:31 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclthread.c,v 1.21 2003/05/20 04:32:57 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
 
 #ifdef NS_NOCOMPAT
 #undef NS_NOCOMPAT
@@ -662,8 +662,9 @@ NsTclThread(void *arg)
 {
     ThreadArg *argPtr = arg;
     Ns_DString ds, *dsPtr;
+    int        detached = argPtr->detached;
 
-    if (argPtr->detached) {
+    if (detached) {
 	dsPtr = NULL;
     } else {
 	Ns_DStringInit(&ds);
@@ -678,7 +679,7 @@ NsTclThread(void *arg)
 
     (void) Ns_TclEval(dsPtr, argPtr->server, argPtr->script);
     ns_free(argPtr);
-    if (!argPtr->detached) {
+    if (!detached) {
 	Ns_ThreadExit(Ns_DStringExport(&ds));
     }
 }
