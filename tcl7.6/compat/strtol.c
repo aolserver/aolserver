@@ -12,7 +12,7 @@
  * SCCS: @(#) strtol.c 1.4 96/02/15 12:08:23
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/tcl7.6/compat/Attic/strtol.c,v 1.1.1.1 2000/05/02 13:48:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/tcl7.6/compat/Attic/strtol.c,v 1.2 2000/05/02 14:39:31 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include <ctype.h>
 

@@ -23,7 +23,7 @@
  * ways in order to work properly with Tcl.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/tcl7.6/unix/Attic/tclLoadAix.c,v 1.1.1.1 2000/05/02 13:48:29 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/tcl7.6/unix/Attic/tclLoadAix.c,v 1.2 2000/05/02 14:39:31 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 /*
  * @(#)dlfcn.c	1.7 revision of 95/08/14  19:08:38

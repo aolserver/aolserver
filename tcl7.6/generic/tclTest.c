@@ -15,7 +15,7 @@
  * SCCS: @(#) tclTest.c 1.83 96/10/03 14:56:36
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/tcl7.6/generic/Attic/tclTest.c,v 1.1.1.1 2000/05/02 13:48:28 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/tcl7.6/generic/Attic/tclTest.c,v 1.2 2000/05/02 14:39:31 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #define TCL_TEST
 

@@ -33,7 +33,7 @@
  *      All the public types and function declarations for the core
  *	AOLserver.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.1.1.1 2000/05/02 13:48:22 kriston Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.2 2000/05/02 14:39:30 kriston Exp $
  */
 
 #ifndef NS_H

@@ -12,7 +12,7 @@
  * SCCS: @(#) tclUnixTime.c 1.11 96/07/23 16:17:21
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/tcl7.6/unix/Attic/tclUnixTime.c,v 1.1.1.1 2000/05/02 13:48:29 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/tcl7.6/unix/Attic/tclUnixTime.c,v 1.2 2000/05/02 14:39:31 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "tclInt.h"
 #include "tclPort.h"

@@ -34,7 +34,7 @@
  *	Routines for creating, exiting, and joining threads.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/thread.c,v 1.1.1.1 2000/05/02 13:48:40 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/thread.c,v 1.2 2000/05/02 14:39:33 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "thread.h"
 

@@ -42,7 +42,7 @@
 #define ExtDbCodeOk(code) ((code >= (Ns_ExtDbCommandCode)0) && \
                            (code <= (Ns_ExtDbCommandCode)NUM_EXTDB_COMMANDS))
 
-static char     rcsid[] = "$Id: nsextmsg.c,v 1.1.1.1 2000/05/02 13:48:23 kriston Exp $";
+static char     rcsid[] = "$Id: nsextmsg.c,v 1.2 2000/05/02 14:39:30 kriston Exp $";
 
 #include "ns.h"
 #include "nsextmsg.h"

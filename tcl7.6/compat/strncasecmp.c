@@ -12,7 +12,7 @@
  * SCCS: @(#) strncasecmp.c 1.6 96/09/13 15:21:37
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/tcl7.6/compat/Attic/strncasecmp.c,v 1.1.1.1 2000/05/02 13:48:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/tcl7.6/compat/Attic/strncasecmp.c,v 1.2 2000/05/02 14:39:31 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "tclPort.h"
 

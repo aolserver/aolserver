@@ -6,7 +6,7 @@
 # Copyright (c) 1998-1999 by Scriptics Corporation.
 # All rights reserved.
 #
-# RCS: @(#) $Id: prodebug.tcl,v 1.1.1.1 2000/05/02 13:48:25 kriston Exp $
+# RCS: @(#) $Id: prodebug.tcl,v 1.2 2000/05/02 14:39:31 kriston Exp $
 
 
 #

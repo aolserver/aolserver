@@ -11,7 +11,7 @@
  * SCCS: @(#) tclIOSock.c 1.19 97/01/21 15:36:22
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/tcl7.6/generic/Attic/tclIOSock.c,v 1.1.1.1 2000/05/02 13:48:27 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/tcl7.6/generic/Attic/tclIOSock.c,v 1.2 2000/05/02 14:39:31 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "tclInt.h"
 #include "tclPort.h"

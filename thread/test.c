@@ -31,7 +31,7 @@
 #include "nsthread.h"
 #undef Ns_ThreadMalloc
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/test.c,v 1.1.1.1 2000/05/02 13:48:40 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/test.c,v 1.2 2000/05/02 14:39:33 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 static Ns_Mutex block;
 static Ns_Mutex mlock;

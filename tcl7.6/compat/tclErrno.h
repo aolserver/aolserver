@@ -14,7 +14,7 @@
  * SCCS: @(#) tclErrno.h 1.1 96/04/29 15:25:31
  */
 
-static const char *RCSID_tclErrno_h = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/tcl7.6/compat/Attic/tclErrno.h,v 1.1.1.1 2000/05/02 13:48:25 kriston Exp $, compiled: " __DATE__;
+static const char *RCSID_tclErrno_h = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/tcl7.6/compat/Attic/tclErrno.h,v 1.2 2000/05/02 14:39:31 kriston Exp $, compiled: " __DATE__;
 
 extern int errno;			/* global error number */
 

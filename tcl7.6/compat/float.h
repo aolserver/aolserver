@@ -15,5 +15,5 @@
  * SCCS: @(#) float.h 1.3 96/02/15 14:43:52
  */
 
-static const char *RCSID_float_h = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/tcl7.6/compat/Attic/float.h,v 1.1.1.1 2000/05/02 13:48:25 kriston Exp $, compiled: " __DATE__;
+static const char *RCSID_float_h = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/tcl7.6/compat/Attic/float.h,v 1.2 2000/05/02 14:39:31 kriston Exp $, compiled: " __DATE__;
 

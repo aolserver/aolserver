@@ -13,7 +13,7 @@
  * SCCS: @(#) tclEnv.c 1.39 96/08/22 10:47:09
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/tcl7.6/generic/Attic/tclEnv.c,v 1.1.1.1 2000/05/02 13:48:26 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/tcl7.6/generic/Attic/tclEnv.c,v 1.2 2000/05/02 14:39:31 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 /*
  * The putenv and setenv definitions below cause any system prototypes for

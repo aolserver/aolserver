@@ -35,7 +35,7 @@
 
 #include "nsd.h"
 
-static char rcsid[] = "$Id: tclvar.c,v 1.1.1.1 2000/05/02 13:48:22 kriston Exp $";
+static char rcsid[] = "$Id: tclvar.c,v 1.2 2000/05/02 14:39:30 kriston Exp $";
 
 /*
  * The following structure defines a collection of arrays.  

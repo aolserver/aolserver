@@ -38,7 +38,7 @@
 #ifndef THREAD_H
 #define THREAD_H
 
-static const char *RCSID_THREAD_H = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/thread.h,v 1.1.1.1 2000/05/02 13:48:40 kriston Exp $, compiled: " __DATE__;
+static const char *RCSID_THREAD_H = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/thread.h,v 1.2 2000/05/02 14:39:33 kriston Exp $, compiled: " __DATE__;
 
 #include "nsthread.h"
 

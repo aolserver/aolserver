@@ -16,7 +16,7 @@
  * SCCS: @(#) limits.h 1.7 96/02/15 14:43:55
  */
 
-static const char *RCSID_limits_h = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/tcl7.6/compat/Attic/limits.h,v 1.1.1.1 2000/05/02 13:48:25 kriston Exp $, compiled: " __DATE__;
+static const char *RCSID_limits_h = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/tcl7.6/compat/Attic/limits.h,v 1.2 2000/05/02 14:39:31 kriston Exp $, compiled: " __DATE__;
 
 #define LONG_MIN		0x80000000
 #define LONG_MAX		0x7fffffff
