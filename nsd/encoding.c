@@ -34,9 +34,24 @@
  *	Defines standard default charset to encoding mappings.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/encoding.c,v 1.1 2001/03/19 15:46:15 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/encoding.c,v 1.2 2001/03/20 21:43:17 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
+
+/*
+ * The following structure maintains Tcl encoder information for
+ * each charset.
+ */
+
+#define ENC_NEW 0
+#define ENC_LOADED 1
+#define ENC_LOADING 2
+
+typedef struct Enc {
+    Tcl_Encoding encoding;
+    int	status;
+    char name[1];
+} Enc;
 
 /*
  * Local functions defined in this file.
@@ -49,7 +64,8 @@ static void AddEncoding(char *charset, char *enc);
  */
 
 static Tcl_HashTable    encodingTable;;
-static char            *defaultEncoding;
+static Ns_Mutex lock;
+static Ns_Cond cond;
 
 /*
  * The default encoding matching table.  This should be kept up to date with
@@ -179,9 +195,31 @@ Tcl_Encoding
 Ns_GetEncoding(char *charset)
 {
     Tcl_HashEntry *hPtr;
+    Enc *encPtr;
 
+    Ns_MutexLock(&lock);
     hPtr = Tcl_FindHashEntry(&encodingTable, charset);
-    return (hPtr ? Tcl_GetHashValue(hPtr) : NULL);
+    if (hPtr != NULL) {
+	encPtr = Tcl_GetHashValue(hPtr);
+	while (encPtr->status == ENC_LOADING) {
+	    Ns_CondWait(&cond, &lock);
+	}
+	if (encPtr->status != ENC_LOADED) {
+	    encPtr->status = -1;
+	    Ns_MutexUnlock(&lock);
+	    encPtr->encoding = Tcl_GetEncoding(NULL, encPtr->name);
+	    if (encPtr->encoding == NULL) {
+		Ns_Log(Warning, "encoding: could not load %s", encPtr->name);
+	    } else {
+		Ns_Log(Notice, "encoding: loaded: %s", encPtr->name);
+	    }
+	    Ns_MutexLock(&lock);
+	    encPtr->status = ENC_LOADED;
+	    Ns_CondBroadcast(&cond);
+	}
+    }
+    Ns_MutexUnlock(&lock);
+    return (hPtr ? encPtr->encoding : NULL);
 }
 
 
@@ -211,6 +249,7 @@ NsInitEncodings(void)
      * Initialize hash table of encodings.
      */
 
+    Ns_MutexSetName(&lock, "ns:encodings");
     Tcl_InitHashTable(&encodingTable, TCL_STRING_KEYS);
 
     /*
@@ -249,21 +288,20 @@ NsInitEncodings(void)
  */
 
 static void
-AddEncoding(char *charset, char *enc)
+AddEncoding(char *charset, char *name)
 {
-    Tcl_Encoding encoding;
+    Enc		   *encPtr;
     Tcl_HashEntry  *hPtr;
     int             new;
 
-    encoding = Tcl_GetEncoding(NULL, enc);
-    if (encoding == NULL) {
-	Ns_Log(Error, "no such encoding: %s", enc);
-    } else {
-	hPtr = Tcl_CreateHashEntry(&encodingTable, charset, &new);
-	if (!new) {
-	    Ns_Log(Warning, "duplicate charset: %s", charset);
-	    Tcl_FreeEncoding(Tcl_GetHashValue(hPtr));
-	}
-	Tcl_SetHashValue(hPtr, encoding);
+    hPtr = Tcl_CreateHashEntry(&encodingTable, charset, &new);
+    if (!new) {
+	Ns_Log(Warning, "duplicate charset: %s", charset);
+	ns_free(Tcl_GetHashValue(hPtr));
     }
+    encPtr = ns_malloc(sizeof(Enc) + strlen(name));
+    encPtr->status = ENC_NEW;
+    strcpy(encPtr->name, name);
+    encPtr->encoding = NULL;
+    Tcl_SetHashValue(hPtr, encPtr);
 }
