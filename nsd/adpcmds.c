@@ -33,7 +33,7 @@
  *	ADP commands.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpcmds.c,v 1.15 2004/10/26 19:52:25 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpcmds.c,v 1.16 2004/10/27 15:45:36 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -109,23 +109,30 @@ NsTclAdpIncludeObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
 		      Tcl_Obj **objv)
 {
     NsInterp *itPtr = arg;
-    int i, skip;
+    int i, skip, cache;
     Ns_Time *ttlPtr, ttl;
     char *file;
 
     if (objc < 2) {
 badargs:
-	Tcl_WrongNumArgs(interp, 1, objv, "?-ttl seconds? file ?args ...?");
+	Tcl_WrongNumArgs(interp, 1, objv, "?-cache ttl | -nocache? "
+					  "file ?args ...?");
 	return TCL_ERROR;
     }
     ttlPtr = NULL;
-    skip = 1;
+    skip = cache = 1;
     file = Tcl_GetString(objv[1]);
-    if (STREQ(file, "-ttl")) {
+    if (STREQ(file, "-nocache")) {
+	if (objc < 3) {
+	    goto badargs;
+	}
+	cache = 0;
+	skip = 2;
+    } else if (STREQ(file, "-cache")) {
 	if (objc < 4) {
 	    goto badargs;
 	}
-	if (Tcl_GetIntFromObj(interp, objv[2], &ttl) != TCL_OK) {
+	if (Ns_TclGetTimeFromObj(interp, objv[2], &ttl) != TCL_OK) {
 	    return TCL_ERROR;
 	}
 	Ns_AdjTime(&ttl);
@@ -135,19 +142,28 @@ badargs:
 	    return TCL_ERROR;
 	}
 	ttlPtr = &ttl;
-	file = Tcl_GetString(objv[3]);
 	skip = 3;
     }
-    if (itPtr->adp.ncache > 0) {
+    file = Tcl_GetString(objv[skip]);
+    objc -= skip;
+    objv += skip;
+
+    /*
+     * In cache refresh mode, append include command to the output
+     * buffer. It will be compiled into the cached result.
+     */
+
+    if (!cache && itPtr->adp.refresh > 0) {
     	Tcl_DStringAppend(itPtr->adp.outputPtr, "<% ns_adp_include", -1);
-    	for (i = 1; i < objc; ++i) {
+    	for (i = 0; i < objc; ++i) {
 	    Tcl_DStringAppendElement(itPtr->adp.outputPtr,
 					Tcl_GetString(objv[i]));
     	}
     	Tcl_DStringAppend(itPtr->adp.outputPtr, "%>", -1);
 	return TCL_OK;
     }
-    return NsAdpInclude(arg, file, objc-skip, objv+skip, ttlPtr);
+
+    return NsAdpInclude(arg, file, objc, objv, ttlPtr);
 }
 
 

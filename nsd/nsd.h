@@ -790,7 +790,7 @@ typedef struct NsInterp {
     struct {
 	bool               stream;
 	int	           exception;
-	int		   ncache;
+	int		   refresh;
 	int                depth;
 	int                objc;
 	Tcl_Obj		 **objv;

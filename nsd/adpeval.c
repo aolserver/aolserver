@@ -33,15 +33,12 @@
  *	ADP string and file eval.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.31 2004/10/26 19:52:26 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.32 2004/10/27 15:45:37 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
 /*
- * The following structure defines a shared page in the ADP cache.  The
- * bytes for the filename as well as the block lengths array and page text 
- * referenced in the code structure are allocated with the Page struct
- * as one contiguous block of memory.
+ * The following structure defines a cached ADP page result.
  */
 
 typedef struct Cache {
@@ -49,6 +46,13 @@ typedef struct Cache {
     Ns_Time	   expires;
     AdpCode	   code;
 } Cache;
+
+/*
+ * The following structure defines a shared page in the ADP cache.  The
+ * bytes for the filename as well as the block lengths array and page text 
+ * referenced in the code structure are allocated with the Page struct
+ * as one contiguous block of memory.
+ */
 
 typedef struct Page {
     NsServer	  *servPtr;
@@ -65,15 +69,25 @@ typedef struct Page {
 } Page;
 
 /*
+ * The following structure holds per-interp script byte codes.
+ */
+
+typedef struct Objs {
+    int nobjs;
+    Tcl_Obj *objs[1];
+} Objs;
+
+/*
  * The following structure defines a per-interp page entry with
- * a pointer to the shared Page and private script Tcl_Obj's.
+ * a pointer to the shared Page and private Objs for cached and
+ * non-cached page results.
  */
 
 typedef struct InterpPage {
     Page     *pagePtr;
     int	      cgen;
-    Tcl_Obj **cobjs;
-    Tcl_Obj **objs;
+    Objs     *objs;
+    Objs     *cobjs;
 } InterpPage;
 
 /*
@@ -112,14 +126,14 @@ static int AdpSource(NsInterp *itPtr, int objc, Tcl_Obj *objv[],
 		char *resvar, int safe, int file);
 static int AdpRun(NsInterp *itPtr, char *file, int objc, Tcl_Obj *objv[],
 		Tcl_DString *outputPtr, Ns_Time *ttlPtr);
-static int AdpEval(NsInterp *itPtr, AdpCode *codePtr, Tcl_Obj *objs[]);
+static int AdpEval(NsInterp *itPtr, AdpCode *codePtr, Objs *objsPtr);
 static void ParseFree(AdpParse *parsePtr);
 static int AdpDebug(NsInterp *itPtr, char *ptr, int len, int nscript);
-static void FreeObjs(InterpPage *ipagePtr, Tcl_Obj **objs);
+static Objs *AllocObjs(int nobjs);
+static void FreeObjs(Objs *objsPtr);
 static int ParseSize(AdpParse *parsePtr);
 static void ParseCopy(AdpCode *codePtr, AdpParse *parsePtr, void *start);
 static Ns_Callback FreeInterpPage;
-static Ns_Cond cond;
 
 #define DecrCache(cp) if ((--(cp)->refcnt) == 0) ns_free((cp))
 
@@ -257,8 +271,8 @@ AdpRun(NsInterp *itPtr, char *file, int objc, Tcl_Obj *objv[],
     AdpParse parse;
     Ns_Time now;
     Ns_Entry *ePtr;
-    Tcl_Obj **objs;
-    int new, n, len, cgen;
+    Objs *objsPtr;
+    int new, len, cgen;
     char *p, *key;
     FileKey ukey;
     int status;
@@ -404,12 +418,11 @@ AdpRun(NsInterp *itPtr, char *file, int objc, Tcl_Obj *objv[],
 	    }
 	    Ns_MutexUnlock(&servPtr->adp.pagelock);
 	    if (pagePtr != NULL) {
-		n = pagePtr->code.nscripts;
-		len = sizeof(Tcl_Obj *) * n * 2;
-	    	ipagePtr = ns_calloc(1, sizeof(InterpPage) + len);
-		ipagePtr->objs = (Tcl_Obj **) (ipagePtr + 1);
-		ipagePtr->cobjs = ipagePtr->objs + n;
+	    	ipagePtr = ns_malloc(sizeof(InterpPage));
 		ipagePtr->pagePtr = pagePtr;
+		ipagePtr->cgen = 0;
+		ipagePtr->objs = AllocObjs(pagePtr->code.nscripts);
+		ipagePtr->cobjs = NULL;
         	ePtr = Ns_CacheCreateEntry(itPtr->adp.cache, key, &new);
 		if (!new) {
 		    Ns_CacheUnsetValue(ePtr);
@@ -436,7 +449,7 @@ AdpRun(NsInterp *itPtr, char *file, int objc, Tcl_Obj *objv[],
 	     */
 
 	    while ((cachePtr = pagePtr->cachePtr) == NULL && pagePtr->locked) {
-		Ns_CondWait(&cond, &servPtr->adp.pagelock);
+		Ns_CondWait(&servPtr->adp.pagecond, &servPtr->adp.pagelock);
 	    }
 
 	    /*
@@ -460,9 +473,9 @@ AdpRun(NsInterp *itPtr, char *file, int objc, Tcl_Obj *objv[],
 	    	Ns_MutexUnlock(&servPtr->adp.pagelock);
 		codePtr = &pagePtr->code;
     		PushFrame(itPtr, &frame, file, objc, objv, outputPtr);
-		++itPtr->adp.ncache;
+		++itPtr->adp.refresh;
 		status = AdpEval(itPtr, codePtr, ipagePtr->objs);
-		--itPtr->adp.ncache;
+		--itPtr->adp.refresh;
     		PopFrame(itPtr, &frame);
 		if ((outputPtr->length - len) < 0) {
 		    len = outputPtr->length;
@@ -481,7 +494,7 @@ AdpRun(NsInterp *itPtr, char *file, int objc, Tcl_Obj *objv[],
 		++pagePtr->cgen;
 		pagePtr->cachePtr = cachePtr;
 		pagePtr->locked = 0;
-		Ns_CondBroadcast(&cond);
+		Ns_CondBroadcast(&servPtr->adp.pagecond);
 	    }
 	    cgen = pagePtr->cgen;
 	    ++cachePtr->refcnt;
@@ -489,17 +502,21 @@ AdpRun(NsInterp *itPtr, char *file, int objc, Tcl_Obj *objv[],
 	}
 	if (cachePtr == NULL) {
 	   codePtr = &pagePtr->code;
-	   objs = ipagePtr->objs;
+	   objsPtr = ipagePtr->objs;
 	} else {
-	   if (cgen != ipagePtr->cgen) {
-		FreeObjs(ipagePtr, ipagePtr->cobjs);
+	    codePtr = &cachePtr->code;
+	    if (ipagePtr->cobjs != NULL && cgen != ipagePtr->cgen) {
+		FreeObjs(ipagePtr->cobjs);
 		ipagePtr->cgen = cgen;
-	   }
-	   codePtr = &cachePtr->code;
-	   objs = ipagePtr->cobjs;
+		ipagePtr->cobjs = NULL;
+	    }
+	    if (ipagePtr->cobjs == NULL) {
+		ipagePtr->cobjs = AllocObjs(codePtr->nscripts);
+	    }
+	    objsPtr = ipagePtr->cobjs;
 	}
     	PushFrame(itPtr, &frame, file, objc, objv, outputPtr);
-	status = AdpEval(itPtr, codePtr, objs);
+	status = AdpEval(itPtr, codePtr, objsPtr);
     	PopFrame(itPtr, &frame);
 	Ns_MutexLock(&servPtr->adp.pagelock);
 	++ipagePtr->pagePtr->evals;
@@ -902,7 +919,7 @@ LogError(NsInterp *itPtr, int nscript)
  */
 
 static int
-AdpEval(NsInterp *itPtr, AdpCode *codePtr, Tcl_Obj **objs)
+AdpEval(NsInterp *itPtr, AdpCode *codePtr, Objs *objsPtr)
 {
     Tcl_Interp *interp = itPtr->interp;
     Tcl_Obj *objPtr;
@@ -926,17 +943,17 @@ AdpEval(NsInterp *itPtr, AdpCode *codePtr, Tcl_Obj **objs)
 	    len = -len;
 	    if (itPtr->adp.debugLevel > 0) {
     	        result = AdpDebug(itPtr, ptr, len, nscript);
-	    } else if (objs == NULL) {
+	    } else if (objsPtr == NULL) {
 		result = Tcl_EvalEx(interp, ptr, len, 0);
 	    } else {
-		objPtr = objs[nscript];
+		objPtr = objsPtr->objs[nscript];
 		if (objPtr != NULL) {
     	            result = Tcl_EvalObjEx(interp, objPtr, 0);
 		} else {
 		    objPtr = Tcl_NewStringObj(ptr, len);
 		    Tcl_IncrRefCount(objPtr);
     	            result = Tcl_EvalObjEx(interp, objPtr, 0);
-		    objs[nscript] = objPtr;
+		    objsPtr->objs[nscript] = objPtr;
 		}
 	    }
 	    if (result != TCL_OK && result != TCL_RETURN
@@ -1046,14 +1063,14 @@ FreeInterpPage(void *arg)
     Page *pagePtr = ipagePtr->pagePtr;
     NsServer *servPtr = pagePtr->servPtr;
 
-    FreeObjs(ipagePtr, ipagePtr->objs);
-    FreeObjs(ipagePtr, ipagePtr->cobjs);
+    FreeObjs(ipagePtr->objs);
     Ns_MutexLock(&servPtr->adp.pagelock);
     if (--pagePtr->refcnt == 0) {
 	if (pagePtr->hPtr != NULL) {
 	    Tcl_DeleteHashEntry(pagePtr->hPtr);
 	}
 	if (pagePtr->cachePtr != NULL) {
+    	    FreeObjs(ipagePtr->cobjs);
 	    DecrCache(pagePtr->cachePtr);
 	}
 	ns_free(pagePtr);
@@ -1063,18 +1080,28 @@ FreeInterpPage(void *arg)
 }
 
 
-void
-FreeObjs(InterpPage *ipagePtr, Tcl_Obj **objs)
+static Objs *
+AllocObjs(int nobjs)
 {
-    Page *pagePtr = ipagePtr->pagePtr;
+    Objs *objsPtr;
+
+    objsPtr = ns_calloc(1, sizeof(Objs) + (nobjs * sizeof(Tcl_Obj *)));
+    objsPtr->nobjs = nobjs;
+    return objsPtr;
+}
+
+
+void
+FreeObjs(Objs *objsPtr)
+{
     int i;
 
-    for (i = 0; i < pagePtr->code.nscripts; ++i) {
-	if (objs[i] != NULL) {
-	    Tcl_DecrRefCount(objs[i]);
-	    objs[i] = NULL;
+    for (i = 0; i < objsPtr->nobjs; ++i) {
+	if (objsPtr->objs[i] != NULL) {
+	    Tcl_DecrRefCount(objsPtr->objs[i]);
 	}
     }
+    ns_free(objsPtr);
 }
 
 
