@@ -1,0 +1,4 @@
+system:::nsadmin
+users:::nsadmin,nobody
+all:::nsadmin,nobody,""
+public:::""
