@@ -1,4 +1,45 @@
+2000-10-13  Kriston J. Rehberg  <Kriston@AOL.NET>
+
+	*** AOLserver 3.2 Released ***
+	
+2000-10-13  Jim Davidson
+	
+	* sproc.cpp: Fixed Wakeup() error message and update child's
+	sproc pid after fork.
+
+	* nsd/random.c: Put back log message when generating seeds.
+
+	* nsd/nsconf.c: Fixed memory overwrite bug in stats and increased
+	the default buffer value.
+
+	* nsd/keepalive.c: Fixed array overwrite with maxkeep=0 bug.
+	
+	* nsd/tclkeylist.c: A more modern version added that's compatible
+	with Tcl 8.3.2 (nsd8x).
+
+	* nsd/stamp.c: Forces the build date reported by AOLserver to be
+	absolutely the last possible moment before the link step happens,
+	not just the last time nsmain.c was built.
+
+	* nsd/binder.c: New option "-b" to prebind ports as root (but not
+	listen on them).  This allows AOLserver to start up on MacOS X on
+	ports 80 and 443 like this:  "nsd ..blah.. -b 10.0.0.1:80".
+
+	* nssock/: Building nsssl is much less of a debacle and doesn't
+	rebuild itself three times anymore.
+
+	* various: fork() calls in all kinds of code were changed to use
+	ns_fork.  ns_fork now lives in the thread library (thread/
+	directory).
+
+	* tcl8.3.2/generic/tclIO.c: Fixed memory leak that leaks around
+	112 bytes each time a file descriptor is closed.  Thanks to Rob
+	Mayoff for finding this and proposing a solution.
+
 2000-10-09  Kriston J. Rehberg  <Kriston@AOL.NET>
+
+	* sample-config.tcl: nsd.tcl is now sample-config.tcl so that
+	existing users can look at the new reference configuration.
 
 	* nsd/nsmain.c (Ns_InfoNameOfExecutable): new function just
 	returns nsconf.nsd which is determined elsewhere.
