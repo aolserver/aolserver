@@ -1,3 +1,9 @@
+2003-12-24  Scott S. Goodwin <scott@scottg.net>
+
+        * nscgi/nscgi.c: Changed HTTPS env variable to be set to "on" or "off"
+	instead of "1" or "0". There doesn't appear to be any standard for
+	this, but Apache uses the on/off string in the environment.
+
 2003-12-16  Scott S. Goodwin <scott@scottg.net>
 
         * nscgi/nscgi.c: Fixed issue with HTTPS environment variable not being
