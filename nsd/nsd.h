@@ -165,11 +165,6 @@ struct _nsconf {
     } sched;
 
     struct {
-	int maxentries;
-	int maxsize;
-    } dstring;
-
-    struct {
 	bool enabled;
 	int timeout;
 	int maxkeep;
@@ -579,25 +574,6 @@ typedef struct NsServer {
 	Tcl_HashTable	    table;
     } chans;
 
-    /*
-     * The following struct maintains the Tcl job queue.
-     */
-
-    struct {
-	struct Job	   *firstPtr;
-	int		    stop;
-	Tcl_HashTable	    table;
-	unsigned int	    nextid;
-	struct {
-	    int		    max;
-	    int		    idle;
-	    int		    current;
-	    unsigned int    next;
-	} threads;
-	Ns_Mutex	    lock;
-	Ns_Cond		    cond;
-    } job;
-
 } NsServer;
     
 /*
@@ -785,8 +761,8 @@ extern void NsWaitSockShutdown(Ns_Time *toPtr);
 extern void NsStartShutdownProcs(void);
 extern void NsWaitShutdownProcs(Ns_Time *toPtr);
 
-extern void NsTclStopJobs(NsServer *servPtr);
-extern void NsTclWaitJobs(NsServer *servPtr, Ns_Time *toPtr);
+extern void NsTclStopJobs(void);
+extern void NsTclWaitJobs(Ns_Time *toPtr);
 
 extern void NsTclInitServer(char *server);
 extern void NsLoadModules(char *server);
@@ -794,6 +770,7 @@ extern struct Bucket *NsTclCreateBuckets(char *server, int nbuckets);
 
 extern void NsClsCleanup(Conn *connPtr);
 extern void NsTclAddCmds(Tcl_Interp *interp, NsInterp *itPtr);
+extern void NsTclAddServerCmds(Tcl_Interp *interp, NsInterp *itPtr);
 
 extern void NsRestoreSignals(void);
 extern void NsSendSignal(int sig);
@@ -820,6 +797,9 @@ extern void NsAdpParse(AdpParse *parsePtr, NsServer *servPtr, char *utf, int saf
 extern Ns_TclInterpInitProc NsTclCreateCmds;
 extern char 	  *NsTclConnId(Ns_Conn *conn);
 extern int 	   NsIsIdConn(char *inID);
+extern void	   NsTclInitQueueType(void);
+extern void	   NsTclInitAddrType(void);
+extern void	   NsTclInitTimeType(void);
 
 /*
  * Callback routines.
