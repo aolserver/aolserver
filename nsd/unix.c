@@ -34,7 +34,7 @@
  *	Unix specific routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/unix.c,v 1.5 2000/10/13 00:11:37 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/unix.c,v 1.6 2000/10/13 18:10:30 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -208,9 +208,9 @@ NsSendSignal(int sig)
 
 /*
  *----------------------------------------------------------------------
- * ns_sockpair --
+ * ns_sockpair, ns_pipe --
  *
- *      Create a socketpair with fd's set close on exec.
+ *      Create a pipe/socketpair with fd's set close on exec.
  *
  * Results:
  *      0 if ok, -1 otherwise.
@@ -221,19 +221,33 @@ NsSendSignal(int sig)
  *----------------------------------------------------------------------
  */
 
+static int
+Pipe(int *fds, int sockpair)
+{
+    int err;
+
+    if (sockpair) {
+    	err = socketpair(AF_UNIX, SOCK_STREAM, 0, fds);
+    } else {
+    	err = pipe(fds);
+    }
+    if (!err) {
+	fcntl(fds[0], F_SETFD, 1);
+	fcntl(fds[1], F_SETFD, 1);
+    }
+    return err;
+}
+
 int
 ns_sockpair(SOCKET *socks)
 {
-    int result;
+    return Pipe(socks, 1);
+}
 
-    result = socketpair(AF_UNIX, SOCK_STREAM, 0, socks);
-    if (result == 0 &&
-	(Ns_CloseOnExec(socks[0]) != NS_OK || Ns_CloseOnExec(socks[1]) != NS_OK)) {
-	close(socks[0]);
-	close(socks[1]);
-	result = -1;
-    }
-    return result;
+int
+ns_pipe(int *fds)
+{
+    return Pipe(fds, 0);
 }
 
 

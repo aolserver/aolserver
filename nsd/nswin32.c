@@ -34,7 +34,7 @@
  *	Win32 specific routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nswin32.c,v 1.4 2000/08/17 06:09:49 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nswin32.c,v 1.5 2000/10/13 18:10:30 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -456,6 +456,29 @@ ns_sockdup(SOCKET sock)
     }
     return (SOCKET) dup;
 }   
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * ns_pipe --
+ *
+ *	Create a pipe marked close-on-exec.
+ *
+ * Results:
+ *  	0 if ok, -1 on error.
+ *
+ * Side effects:
+ *  	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+ns_pipe(int *fds)
+{
+    return _pipe(fds, 4096, _O_NOINHERIT|_O_BINARY);
+}
 
 
 /*

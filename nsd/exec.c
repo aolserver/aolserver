@@ -28,7 +28,7 @@
  */
 
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/exec.c,v 1.5 2000/10/13 00:23:38 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/exec.c,v 1.6 2000/10/13 18:10:30 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -412,7 +412,7 @@ Ns_ExecArgv(char *exec, char *dir, int fdin, int fdout,
         argv[3] = NULL;
         exec = argv[0];
     }
-    if (pipe(pipeError) < 0) {
+    if (ns_pipe(pipeError) < 0) {
         Ns_Log(Error, "exec: failed to create pipe for '%s': '%s'",
 	       exec, strerror(errno));
         return -1;
@@ -467,7 +467,6 @@ Ns_ExecArgv(char *exec, char *dir, int fdin, int fdout,
 	Ns_NoCloseOnExec(0);
 	Ns_NoCloseOnExec(1);
 	Ns_NoCloseOnExec(2);
-	Ns_CloseOnExec(pipeError[1]);
         if (env != NULL) {
             execve(exec, argv, envp);
         } else {

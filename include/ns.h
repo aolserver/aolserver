@@ -33,7 +33,7 @@
  *      All the public types and function declarations for the core
  *	AOLserver.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.7 2000/10/13 00:08:13 jgdavidson Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.8 2000/10/13 18:10:30 jgdavidson Exp $
  */
 
 #ifndef NS_H
@@ -140,8 +140,6 @@ NS_EXTERN int			kill(int pid, int sig);
 #define ns_sockdup		dup
 #define closesocket		close
 #endif
-
-NS_EXTERN int			ns_sockpair(SOCKET *socks);
 
 
 /*
@@ -1220,6 +1218,13 @@ NS_EXTERN void *Ns_ServerSpecificDestroy(char *handle, int id, int flags);
 NS_EXTERN int Ns_CloseOnExec(int fd);
 NS_EXTERN int Ns_NoCloseOnExec(int fd);
 NS_EXTERN int Ns_DupHigh(int *fdPtr);
+
+/*
+ * unix.c, win32.c:
+ */
+
+NS_EXTERN int			ns_sockpair(SOCKET *socks);
+NS_EXTERN int			ns_pipe(int *fds);
 
 /*
  * Exported variables.

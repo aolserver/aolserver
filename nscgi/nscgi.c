@@ -28,7 +28,7 @@
  */
 
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscgi/nscgi.c,v 1.4 2000/08/15 20:24:33 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscgi/nscgi.c,v 1.5 2000/10/13 18:10:30 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 #include <sys/stat.h>
@@ -46,7 +46,6 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsc
 #include <share.h>
 #define S_ISREG(m)	((m)&_S_IFREG)
 #define S_ISDIR(m)	((m)&_S_IFDIR)
-#define pipe(fds)	(_pipe(fds, BUFSIZE, _O_NOINHERIT|_O_BINARY))
 #define DEVNULL	    "nul:"
 #else
 #define DEVNULL	    "/dev/null"
@@ -973,12 +972,10 @@ CgiExec(Cgi *cgiPtr, Ns_Conn *conn)
      * Create the output pipe.
      */
      
-    if (pipe(opipe) != 0) {
+    if (ns_pipe(opipe) != 0) {
 	Ns_Log(Error, "nscgi: pipe() failed: %s", strerror(errno));
 	return NS_ERROR;
     }
-    Ns_CloseOnExec(opipe[0]);
-    Ns_CloseOnExec(opipe[1]);
 
     /*
      * Execute the CGI.
