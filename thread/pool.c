@@ -36,7 +36,7 @@
  *  	fixed size blocks from per-thread block caches.  
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/pool.c,v 1.6 2000/10/22 20:35:45 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/pool.c,v 1.7 2000/10/23 14:33:58 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "thread.h"
 #include <assert.h>
@@ -616,10 +616,17 @@ GetBlocks(Pool *poolPtr, int bucket)
 
 	if (blockPtr == NULL) {
 	    size = MAXALLOC;
+#ifdef WIN32
 	    blockPtr = malloc(size);
 	    if (blockPtr == NULL) {
 		return 0;
 	    }
+#else
+	    blockPtr = sbrk(size);
+	    if (blockPtr == (Block *) -1) {
+		return 0;
+	    }
+#endif
 	}
 
 	/*
