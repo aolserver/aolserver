@@ -33,7 +33,7 @@
  *	Routines for the core server connection threads.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/queue.c,v 1.2 2001/03/13 16:45:24 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/queue.c,v 1.3 2001/03/14 02:01:58 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -458,9 +458,6 @@ NsConnThread(void *arg)
         if (connPtr->authUser != NULL) {
 	    ns_free(connPtr->authUser);
 	}
-        if (connPtr->authPasswd != NULL) {
-            ns_free(connPtr->authPasswd);
-	}
 	if (connPtr->query != NULL) {
 	    Ns_SetFree(connPtr->query);
 	}
@@ -685,7 +682,6 @@ static void
 ParseAuth(Conn *connPtr, char *auth)
 {
     register char *p, *q;
-    char           buf[0x100];
     int            n;
     char    	   save;
     
@@ -696,19 +692,20 @@ ParseAuth(Conn *connPtr, char *auth)
     if (*p != '\0') {
     	save = *p;
 	*p = '\0';
-        if (strcasecmp(auth, "Basic") == 0) {
+        if (STRIEQ(auth, "Basic")) {
     	    q = p + 1;
             while (*q != '\0' && isspace(UCHAR(*q))) {
                 ++q;
             }
-            n = Ns_HtuuDecode(q, (unsigned char *) buf, sizeof(buf));
-            buf[n] = '\0';
-            q = strchr(buf, ':');
+	    n = strlen(q) + 3;
+	    connPtr->authUser = ns_malloc(n);
+            n = Ns_HtuuDecode(q, (unsigned char *) connPtr->authUser, n);
+            connPtr->authUser[n] = '\0';
+            q = strchr(connPtr->authUser, ':');
             if (q != NULL) {
                 *q++ = '\0';
-                connPtr->authPasswd = ns_strdup(q);
+                connPtr->authPasswd = q;
             }
-            connPtr->authUser = ns_strdup(buf);
         }
 	*p = save;
     }
