@@ -34,7 +34,7 @@
  *      Manage the Ns_Conn structure
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.36 2003/03/06 19:39:11 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.37 2003/03/07 18:08:16 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -1148,7 +1148,8 @@ NsTclWriteContentObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **
 	return TCL_ERROR;
     }
     Tcl_Flush(chan);
-    if (Ns_ConnCopyToChannel(itPtr->conn, itPtr->conn->contentLength, chan) != NS_OK) {
+    if (Ns_ConnCopyToChannel(itPtr->conn, (size_t)itPtr->conn->contentLength, 
+                             chan) != NS_OK) {
         Tcl_SetResult(interp, "could not copy content (likely client disconnect)",
 		TCL_STATIC);
         return TCL_ERROR;

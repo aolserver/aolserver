@@ -34,7 +34,7 @@
  *      Handle connection I/O.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/connio.c,v 1.11 2003/01/31 22:47:29 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/connio.c,v 1.12 2003/03/07 18:08:17 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #define IOBUFSZ 2048
@@ -129,7 +129,7 @@ int
 Ns_ConnSend(Ns_Conn *conn, struct iovec *bufs, int nbufs)
 {
     Conn	   *connPtr = (Conn *) conn;
-    int             nwrote, towrite, i, n;
+    int         nwrote, towrite, i, n;
     struct iovec    sbufs[16];
 
     if (connPtr->sockPtr == NULL) {
@@ -190,7 +190,7 @@ Ns_ConnSend(Ns_Conn *conn, struct iovec *bufs, int nbufs)
 		Tcl_DStringTrunc(&connPtr->queued, 0);
 	    } else {
 		memmove(connPtr->queued.string,
-		    connPtr->queued.string + nwrote, n);
+		    connPtr->queued.string + nwrote, (size_t)n);
 		Tcl_DStringTrunc(&connPtr->queued, n);
 		nwrote = 0;
 	    }
@@ -366,7 +366,7 @@ Ns_WriteCharConn(Ns_Conn *conn, char *buf, int len)
 int
 Ns_ConnPuts(Ns_Conn *conn, char *string)
 {
-    return Ns_WriteConn(conn, string, strlen(string));
+    return Ns_WriteConn(conn, string, (int)strlen(string));
 }
 
 
@@ -524,7 +524,7 @@ Ns_ConnRead(Ns_Conn *conn, void *vbuf, int toread)
     if (toread > reqPtr->avail) {
 	toread = reqPtr->avail;
     }
-    memcpy(vbuf, reqPtr->next, toread);
+    memcpy(vbuf, reqPtr->next, (size_t)toread);
     reqPtr->next  += toread;
     reqPtr->avail -= toread;
     return toread;
@@ -726,12 +726,12 @@ ConnCopy(Ns_Conn *conn, size_t tocopy, Tcl_Channel chan, FILE *fp, int fd)
 	if (chan != NULL) {
 	    nwrote = Tcl_Write(chan, reqPtr->next, ncopy);
     	} else if (fp != NULL) {
-            nwrote = fwrite(reqPtr->next, 1, ncopy, fp);
+            nwrote = fwrite(reqPtr->next, 1, (size_t)ncopy, fp);
             if (ferror(fp)) {
 		nwrote = -1;
 	    }
 	} else {
-	    nwrote = write(fd, reqPtr->next, ncopy);
+	    nwrote = write(fd, reqPtr->next, (size_t)ncopy);
 	}
 	if (nwrote < 0) {
 	    return NS_ERROR;
@@ -775,12 +775,12 @@ ConnSend(Ns_Conn *conn, int nsend, Tcl_Channel chan, FILE *fp, int fd)
 	if (chan != NULL) {
 	    nread = Tcl_Read(chan, buf, toread);
 	} else if (fp != NULL) {
-            nread = fread(buf, 1, toread, fp);
+            nread = fread(buf, 1, (size_t)toread, fp);
             if (ferror(fp)) {
 	    	nread = -1;
 	    }
     	} else {
-	    nread = read(fd, buf, toread);
+	    nread = read(fd, buf, (size_t)toread);
     	}
 	if (nread == -1) {
 	    status = NS_ERROR;

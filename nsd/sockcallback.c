@@ -34,7 +34,7 @@
  *	Support for the socket callback thread.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sockcallback.c,v 1.11 2003/02/04 23:10:49 jrasmuss23 Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sockcallback.c,v 1.12 2003/03/07 18:08:35 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -334,7 +334,7 @@ SockCallbackThread(void *ignored)
 
 	if (max <= table.numEntries) {
 	    max  = table.numEntries + 100;
-	    pfds = ns_realloc(pfds, max);
+	    pfds = ns_realloc(pfds, (size_t)max);
 	}
 	nfds = 1;
 	hPtr = Tcl_FirstHashEntry(&table, &search);
@@ -367,7 +367,7 @@ SockCallbackThread(void *ignored)
 	}
 	pfds[0].revents = 0;
 	do {
-	    n = poll(pfds, nfds, -1);
+	    n = poll(pfds, (size_t)nfds, -1);
 	} while (n < 0 && errno == EINTR);
 	if (n < 0) {
 	    Ns_Fatal("poll() failed: %s", strerror(errno));

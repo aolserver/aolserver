@@ -34,7 +34,7 @@
  *	Tcl commands that let you do TCP sockets. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclsock.c,v 1.16 2003/02/04 23:10:50 jrasmuss23 Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclsock.c,v 1.17 2003/03/07 18:08:41 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -864,7 +864,7 @@ AppendReadyFiles(Tcl_Interp *interp, fd_set *setPtr, int write, char *flist,
     if (dsPtr == NULL) {
 	dsPtr = &ds;
     }
-    Tcl_SplitList(interp, flist, &fargc, &fargv);
+    Tcl_SplitList(interp, flist, &fargc, (CONST char***)&fargv);
     while (fargc--) {
         Ns_TclGetOpenFd(interp, fargv[fargc], write, (int *) &sock);
         if (FD_ISSET(sock, setPtr)) {
@@ -909,7 +909,7 @@ GetSet(Tcl_Interp *interp, char *flist, int write, fd_set **setPtrPtr,
     char **fargv;
     int    status;
 
-    if (Tcl_SplitList(interp, flist, &fargc, &fargv) != TCL_OK) {
+    if (Tcl_SplitList(interp, flist, &fargc, (CONST char***)&fargv) != TCL_OK) {
         return TCL_ERROR;
     }
     if (fargc == 0) {

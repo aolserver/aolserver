@@ -28,7 +28,7 @@
  */
 
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscgi/nscgi.c,v 1.21 2003/03/03 14:42:08 shmooved Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscgi/nscgi.c,v 1.22 2003/03/07 18:08:11 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 #include <sys/stat.h>
@@ -422,7 +422,7 @@ CgiInit(Cgi *cgiPtr, Map *mapPtr, Ns_Conn *conn)
 
     ulen = strlen(url);
     plen = strlen(mapPtr->url);
-    if ((strncmp(mapPtr->url, url, plen) == 0) &&
+    if ((strncmp(mapPtr->url, url, (size_t)plen) == 0) &&
     	(ulen == plen || url[plen] == '/')) {
 	
         if (mapPtr->path == NULL) {
@@ -588,7 +588,7 @@ CgiSpool(Cgi *cgiPtr, Ns_Conn *conn)
     fd = Ns_GetTemp();
     if (fd < 0) {
 	Ns_Log(Error, "nscgi: could not allocate temp file.");
-    } else if (write(fd, content, len) != len) {
+    } else if (write(fd, content, (size_t)len) != len) {
 	err = "write";
     } else if (lseek(fd, 0, SEEK_SET) != 0) {
 	err = "lseek";

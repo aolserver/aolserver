@@ -35,7 +35,7 @@
  *	with Tcl_DString's.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/dstring.c,v 1.16 2002/09/28 19:23:29 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/dstring.c,v 1.17 2003/03/07 18:08:23 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -98,8 +98,8 @@ Ns_DStringExport(Ns_DString *dsPtr)
 	s = dsPtr->string;
 	dsPtr->string = dsPtr->staticSpace;
     } else {
-	s = ns_malloc(dsPtr->length+1);
-	memcpy(s, dsPtr->string, dsPtr->length+1);  
+	s = ns_malloc((size_t)dsPtr->length+1);
+	memcpy(s, dsPtr->string, (size_t)(dsPtr->length+1));  
     }
     Ns_DStringFree(dsPtr);
     return s;
@@ -124,7 +124,7 @@ Ns_DStringExport(Ns_DString *dsPtr)
 char *
 Ns_DStringAppendArg(Ns_DString *dsPtr, char *string)
 {
-    return Ns_DStringNAppend(dsPtr, string, strlen(string) + 1);
+    return Ns_DStringNAppend(dsPtr, string, (int)strlen(string) + 1);
 }
 
 

@@ -34,7 +34,7 @@
  *Support for pre-bound privileged ports.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/binder.c,v 1.14 2002/07/14 23:14:25 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/binder.c,v 1.15 2003/03/07 18:08:14 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -67,7 +67,7 @@ static Ns_Mutex lock;
 int
 Ns_SockListenEx(char *address, int port, int backlog)
 {
-    int          err, sock;
+    int err, sock = -1;
     struct sockaddr_in sa;
     Tcl_HashEntry *hPtr;
 

@@ -34,7 +34,7 @@
  *	Encode and decode URLs, as described in RFC 1738.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/urlencode.c,v 1.14 2003/03/06 19:39:10 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/urlencode.c,v 1.15 2003/03/07 18:08:43 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -271,7 +271,7 @@ Ns_DecodeUrlWithEncoding(Ns_DString *dsPtr, char *string, Tcl_Encoding encoding)
 {
     register int i, j, n;
     register char *p, *q;
-    char         *copy;
+    char         *copy = NULL;
     int           length;
     Tcl_DString   ds;
 
@@ -322,8 +322,9 @@ Ns_DecodeUrlWithEncoding(Ns_DString *dsPtr, char *string, Tcl_Encoding encoding)
         Tcl_ExternalToUtfDString(encoding, copy, n, &ds);
         Ns_DStringAppend(dsPtr, Tcl_DStringValue(&ds));
         Tcl_DStringFree(&ds);
-        ns_free(copy);
-
+        if (copy) {
+            ns_free(copy);
+        }
     } else {
 
         /*

@@ -35,7 +35,7 @@
  *	pools of database handles.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsdb/dbinit.c,v 1.2 2002/06/05 22:57:41 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsdb/dbinit.c,v 1.3 2003/03/07 18:08:44 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "db.h"
 
@@ -683,8 +683,8 @@ NsDbInitServer(char *server)
 		pool = p;
 	    }
 	}
-    	sdataPtr->allowed = ns_malloc(ds.length + 1);
-    	memcpy(sdataPtr->allowed, ds.string, ds.length + 1);
+    	sdataPtr->allowed = ns_malloc((size_t)(ds.length + 1));
+    	memcpy(sdataPtr->allowed, ds.string, (size_t)(ds.length + 1));
     	Ns_DStringFree(&ds);
     }
 }

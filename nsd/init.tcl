@@ -28,7 +28,7 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/init.tcl,v 1.17 2003/03/05 17:15:31 vasiljevic Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/init.tcl,v 1.18 2003/03/07 18:08:27 vasiljevic Exp $
 #
 
 #
@@ -436,7 +436,7 @@ proc _ns_getscript n {
                     [::list proc $_proc $_args [::info body $_proc]] \n
             } else {
                 # procedure imported from other namespace
-                ::append _import [::list namespace import $_orig] \n
+                ::append _import [::list namespace import -force $_orig] \n
             }
         }
 
@@ -448,7 +448,7 @@ proc _ns_getscript n {
             ::set _orig [::namespace origin $_cmnd]
             ::if {[::info exists _prcs($_cmnd)] == 0 
                     && $_orig != [::namespace which -command $_cmnd]} {
-                ::append _import [::list namespace import $_orig] \n
+                ::append _import [::list namespace import -force $_orig] \n
             }
         }
 

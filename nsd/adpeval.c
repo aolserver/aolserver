@@ -33,7 +33,7 @@
  *	ADP string and file eval.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.23 2003/03/06 22:31:16 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.24 2003/03/07 18:08:13 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -412,7 +412,7 @@ AdpRun(NsInterp *itPtr, char *file, int objc, Tcl_Obj *objv[],
 		if (!new) {
 		    Ns_CacheUnsetValue(ePtr);
 		}
-                Ns_CacheSetValueSz(ePtr, ipagePtr, ipagePtr->pagePtr->size);
+        Ns_CacheSetValueSz(ePtr, ipagePtr, (size_t)ipagePtr->pagePtr->size);
 	    }
 	}
     }
@@ -533,9 +533,9 @@ NsTclAdpStatsCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 	pagePtr = Tcl_GetHashValue(hPtr);
 	keyPtr = (FileKey *) Tcl_GetHashKey(&servPtr->adp.pages, hPtr);
 	Tcl_AppendElement(interp, pagePtr->file);
-	sprintf(buf, "dev %d ino %d mtime %d refcnt %d evals %d size %d blocks %d scripts %d",
-		keyPtr->dev, keyPtr->ino, (int) pagePtr->mtime, pagePtr->refcnt,
-		pagePtr->evals, (int) pagePtr->size, pagePtr->code.nblocks,
+	sprintf(buf, "dev %ld ino %ld mtime %ld refcnt %d evals %d size %ld blocks %d scripts %d",
+		keyPtr->dev, keyPtr->ino, pagePtr->mtime, pagePtr->refcnt,
+		pagePtr->evals, pagePtr->size, pagePtr->code.nblocks,
 		pagePtr->code.nscripts);
 	Tcl_AppendElement(interp, buf);
 	hPtr = Tcl_NextHashEntry(&search);
@@ -656,7 +656,8 @@ ParseFile(NsInterp *itPtr, char *file, struct stat *stPtr)
     Tcl_Encoding encoding;
     Tcl_DString utf;
     char *page, *buf;
-    int fd, n, size, trys;
+    int fd, n, trys;
+    size_t size;
     Page *pagePtr;
     AdpParse parse;
     
@@ -734,8 +735,8 @@ ParseFile(NsInterp *itPtr, char *file, struct stat *stPtr)
 	pagePtr->code.len = (int *) (pagePtr + 1);
 	pagePtr->code.base = (char *) (pagePtr->code.len + parse.code.nblocks);
 	pagePtr->file = pagePtr->code.base + parse.text.length;
-	memcpy(pagePtr->code.len, parse.hdr.string, parse.hdr.length);
-	memcpy(pagePtr->code.base, parse.text.string, parse.text.length);
+	memcpy(pagePtr->code.len, parse.hdr.string, (size_t)parse.hdr.length);
+	memcpy(pagePtr->code.base, parse.text.string, (size_t)parse.text.length);
 	strcpy(pagePtr->file, file);
 	ParseFree(&parse);
     }
@@ -911,7 +912,7 @@ AdpDebug(NsInterp *itPtr, char *ptr, int len, int nscript)
 	    Tcl_AppendResult(interp, "could not create adp debug file \"",
 		debugfile, "\": ", Tcl_PosixError(interp), NULL);
 	} else {
-	    if (write(fd, ds.string, ds.length) < 0) {
+	    if (write(fd, ds.string, (size_t)ds.length) < 0) {
 		Tcl_AppendResult(interp, "write to \"", debugfile,
 		    "\" failed: ", Tcl_PosixError(interp), NULL);
 	    } else {

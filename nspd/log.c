@@ -34,7 +34,7 @@
  *	Various sundry logging functions. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nspd/log.c,v 1.4 2000/08/15 20:24:33 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nspd/log.c,v 1.5 2003/03/07 18:08:49 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "pd.h"
 
@@ -198,6 +198,7 @@ Ns_PdLog(Ns_PdLogMsgType errtype, char *format,...)
             priority = LOG_NOTICE;
             break;
         default:
+            priority = LOG_ERR;
             typeok = 0;
             syslog(LOG_ERR, "nspd: unknown error type: %d", errtype);
             break;

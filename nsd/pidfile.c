@@ -34,7 +34,7 @@
  *	Implement the PID file routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/pidfile.c,v 1.7 2001/11/05 20:23:56 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/pidfile.c,v 1.8 2003/03/07 18:08:32 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -71,7 +71,7 @@ NsCreatePidFile(char *procname)
     } else {
 	sprintf(buf, "%d\n", nsconf.pid);
 	n = strlen(buf);
-	if (write(fd, buf, n) != n) {
+	if (write(fd, buf, (size_t)n) != n) {
 	    Ns_Log(Error, "pidfile: write() failed: '%s'", strerror(errno));
 	}
         close(fd);

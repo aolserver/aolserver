@@ -33,7 +33,7 @@
  *	Commands for image files.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclimg.c,v 1.8 2003/02/25 17:34:24 shmooved Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclimg.c,v 1.9 2003/03/07 18:08:39 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -42,10 +42,9 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
  */
 
 static int ChanGetc(Tcl_Channel chan);
-static unsigned int JpegRead2Bytes(Tcl_Channel chan);
 static int JpegNextMarker(Tcl_Channel chan);
 static int JpegSize(Tcl_Channel chan, int *wPtr, int *hPtr);
-static unsigned int JpegRead2Bytes(Tcl_Channel chan);
+static int JpegRead2Bytes(Tcl_Channel chan);
 static int AppendObjDims(Tcl_Interp *interp, int w, int h);
 
 
@@ -113,7 +112,7 @@ badfile:
     colormap = (buf[4] & 0x80 ? 1 : 0);
 
     if (colormap) {
-        if (read(fd,buf,3*depth) == -1) {
+        if (read(fd, buf, (size_t)(3*depth)) == -1) {
             goto readfail;
         }
     }
@@ -234,7 +233,7 @@ JpegSize(Tcl_Channel chan, int *wPtr, int *hPtr)
 		break;
 	    }
 	    i = JpegRead2Bytes(chan);
-	    if (i < 2 || Tcl_Seek(chan, i-2, SEEK_CUR) == -1) {
+	    if (i < 2 || Tcl_Seek(chan, i - 2, SEEK_CUR) == -1) {
 	    	break;
 	    }
 	}
@@ -260,7 +259,7 @@ JpegSize(Tcl_Channel chan, int *wPtr, int *hPtr)
  *----------------------------------------------------------------------
  */
 
-static unsigned int
+static int
 JpegRead2Bytes(Tcl_Channel chan)
 {
     int c1, c2;
@@ -270,7 +269,7 @@ JpegRead2Bytes(Tcl_Channel chan)
     if (c1 == EOF || c2 == EOF) {
 	return -1;
     }
-    return (((unsigned int) c1) << 8) + ((unsigned int) c2);
+    return (int)(((unsigned int) c1) << 8) + ((unsigned int) c2);
 }
 
 

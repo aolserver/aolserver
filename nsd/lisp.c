@@ -34,7 +34,7 @@
  *	Commands for manipulating lists. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/lisp.c,v 1.5 2001/03/13 16:46:02 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/lisp.c,v 1.6 2003/03/07 18:08:27 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -290,10 +290,10 @@ Ns_ListPrint(Ns_List *lPtr, Ns_ElemVoidProc *printProc)
 Ns_List *
 Ns_ListCopy(Ns_List *lPtr)
 {
-    Ns_List *curPtr, *newPtr, *headPtr;
+    Ns_List *curPtr = NULL, *newPtr = NULL, *headPtr = NULL;
 
     if (lPtr == NULL) {
-        return lPtr;
+        return NULL;
     }
     headPtr = curPtr = Ns_ListCons(lPtr->first, NULL);
     for (lPtr = lPtr->rest; lPtr != NULL; lPtr = lPtr->rest) {

@@ -34,7 +34,7 @@
  *	This file implements the access log using NCSA Common Log format.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nslog/nslog.c,v 1.10 2002/05/15 20:18:40 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nslog/nslog.c,v 1.11 2003/03/07 18:08:48 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 #include <sys/stat.h>	/* mkdir */
@@ -396,7 +396,7 @@ AddCmds(Tcl_Interp *interp, void *arg)
 }
 
 static int
-LogCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
+LogCmd(ClientData arg, Tcl_Interp *interp, int argc, CONST char **argv)
 {
     char *rollfile;
     int status;
@@ -419,7 +419,7 @@ LogCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 	if (argc == 2) {
 	    status = LogRoll(logPtr);
 	} else {
-	    rollfile = argv[2];
+	    rollfile = (char*)argv[2];
 	    status = NS_OK;
     	    if (access(rollfile, F_OK) == 0) {
 		status = Ns_RollFile(rollfile, logPtr->maxbackup);
@@ -564,7 +564,7 @@ LogFlush(Log *logPtr, Ns_DString *dsPtr)
 {
     if (dsPtr->length > 0) {
     	if (logPtr->fd >= 0 &&
-	    write(logPtr->fd, dsPtr->string, dsPtr->length) != dsPtr->length) {
+	    write(logPtr->fd, dsPtr->string, (size_t)dsPtr->length) != dsPtr->length) {
 	    Ns_Log(Error, "nslog: "
 		   "logging disabled: write() failed: '%s'", strerror(errno));
 	    close(logPtr->fd);
@@ -725,7 +725,7 @@ LogConfigExtHeaders(Log *logPtr, char *path)
 
     /* Initialize the extended header pointers. */
 
-    logPtr->extheaders = ns_calloc(i + 1, sizeof *logPtr->extheaders);
+    logPtr->extheaders = ns_calloc((size_t)(i + 1), sizeof *logPtr->extheaders);
 
     logPtr->extheaders[0] = config;
 

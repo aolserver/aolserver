@@ -34,7 +34,7 @@
  *	Tcl database access routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsdb/dbtcl.c,v 1.2 2002/06/08 14:49:12 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsdb/dbtcl.c,v 1.3 2003/03/07 18:08:45 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "db.h"
 
@@ -52,7 +52,7 @@ typedef struct InterpData {
  * Local functions defined in this file
  */
 
-static int BadArgs(Tcl_Interp *interp, char **argv, char *args);
+static int BadArgs(Tcl_Interp *interp, CONST char **argv, char *args);
 static int DbFail(Tcl_Interp *interp, Ns_DbHandle *handle, char *cmd);
 static void EnterDbHandle(InterpData *idataPtr, Tcl_Interp *interp, Ns_DbHandle *handle);
 static int DbGetHandle(InterpData *idataPtr, Tcl_Interp *interp, char *handleId,
@@ -152,7 +152,7 @@ NsDbAddCmds(Tcl_Interp *interp, void *arg)
  */
 
 static int
-DbCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
+DbCmd(ClientData arg, Tcl_Interp *interp, int argc, CONST char **argv)
 {
     InterpData	   *idataPtr = arg;
     Ns_DbHandle    *handlePtr;
@@ -165,7 +165,7 @@ DbCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
             argv[0], " command ?args ...?", NULL);
         return TCL_ERROR;
     }
-    cmd = argv[1];
+    cmd = (char*)argv[1];
     if (STREQ(cmd, "open") || STREQ(cmd, "close")) {
     	Tcl_AppendResult(interp, "unsupported ns_db command: ", cmd, NULL);
     	return TCL_ERROR;
@@ -186,7 +186,7 @@ DbCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 	if (argc != 3) {
 	    return BadArgs(interp, argv, "pool");
 	}
-	if (Ns_DbBouncePool(argv[2]) == NS_ERROR) {
+	if (Ns_DbBouncePool((char*)argv[2]) == NS_ERROR) {
 	    Tcl_AppendResult(interp, "could not bounce: ", argv[2], NULL);
 	    return TCL_ERROR;
 	}
@@ -216,7 +216,7 @@ DbCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 	 * from the remaining args.
 	 */
        
-	pool = argv[0];
+	pool = (char*)argv[0];
 	if (pool == NULL) {
 	    pool = Ns_DbPoolDefault(idataPtr->server);
             if (pool == NULL) {
@@ -275,7 +275,7 @@ DbCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
         if (argc != 3) {
             return BadArgs(interp, argv, "dbId");
         }
-        if (DbGetHandle(idataPtr, interp, argv[2], &handlePtr, NULL) != TCL_OK) {
+        if (DbGetHandle(idataPtr, interp, (char*)argv[2], &handlePtr, NULL) != TCL_OK) {
             return TCL_ERROR;
         }
         Tcl_AppendElement(interp, handlePtr->cExceptionCode);
@@ -292,7 +292,7 @@ DbCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
         if (argc < 3) {
             return BadArgs(interp, argv, "dbId ?args?");
         }
-        if (DbGetHandle(idataPtr, interp, argv[2], &handlePtr, &hPtr) != TCL_OK) {
+        if (DbGetHandle(idataPtr, interp, (char*)argv[2], &handlePtr, &hPtr) != TCL_OK) {
             return TCL_ERROR;
         }
         Ns_DStringFree(&handlePtr->dsExceptionMsg);
@@ -433,12 +433,12 @@ DbCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 	    }
 
     	    if (STREQ(cmd, "dml")) {
-                if (Ns_DbDML(handlePtr, argv[3]) != NS_OK) {
+                if (Ns_DbDML(handlePtr, (char*)argv[3]) != NS_OK) {
                     return DbFail(interp, handlePtr, cmd);
                 }
 
     	    } else if (STREQ(cmd, "1row")) {
-                rowPtr = Ns_Db1Row(handlePtr, argv[3]);
+                rowPtr = Ns_Db1Row(handlePtr, (char*)argv[3]);
                 if (rowPtr == NULL) {
                     return DbFail(interp, handlePtr, cmd);
                 }
@@ -447,7 +447,7 @@ DbCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
     	    } else if (STREQ(cmd, "0or1row")) {
     	    	int nrows;
 
-                rowPtr = Ns_Db0or1Row(handlePtr, argv[3], &nrows);
+                rowPtr = Ns_Db0or1Row(handlePtr, (char*)argv[3], &nrows);
                 if (rowPtr == NULL) {
                     return DbFail(interp, handlePtr, cmd);
                 }
@@ -458,14 +458,14 @@ DbCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
                 }
 
     	    } else if (STREQ(cmd, "select")) {
-                rowPtr = Ns_DbSelect(handlePtr, argv[3]);
+                rowPtr = Ns_DbSelect(handlePtr, (char*)argv[3]);
                 if (rowPtr == NULL) {
                     return DbFail(interp, handlePtr, cmd);
                 }
                 Ns_TclEnterSet(interp, rowPtr, NS_TCL_SET_STATIC);
 
     	    } else if (STREQ(cmd, "exec")) {
-                switch (Ns_DbExec(handlePtr, argv[3])) {
+                switch (Ns_DbExec(handlePtr, (char*)argv[3])) {
                 case NS_DML:
                     Tcl_SetResult(interp, "NS_DML", TCL_STATIC);
                     break;
@@ -478,18 +478,18 @@ DbCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
                 }
 
     	    } else if (STREQ(cmd, "interpretsqlfile")) {
-                if (Ns_DbInterpretSqlFile(handlePtr, argv[3]) != NS_OK) {
+                if (Ns_DbInterpretSqlFile(handlePtr, (char*)argv[3]) != NS_OK) {
                     return DbFail(interp, handlePtr, cmd);
                 }
 
 	    } else if (STREQ(cmd, "sp_start")) {
-		if (Ns_DbSpStart(handlePtr, argv[3]) != NS_OK) {
+		if (Ns_DbSpStart(handlePtr, (char*)argv[3]) != NS_OK) {
 		    return DbFail(interp, handlePtr, cmd);
 		}
 		Tcl_SetResult(interp, "0", TCL_STATIC);
 		
     	    } else { /* getrow */
-                if (Ns_TclGetSet2(interp, argv[3], &rowPtr) != TCL_OK) {
+                if (Ns_TclGetSet2(interp, (char*)argv[3], &rowPtr) != TCL_OK) {
                     return TCL_ERROR;
                 }
                 switch (Ns_DbGetRow(handlePtr, rowPtr)) {
@@ -528,7 +528,7 @@ DbCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 		    "\" more than 5 characters", NULL);
                 return TCL_ERROR;
             }
-            Ns_DbSetException(handlePtr, argv[3], argv[4]);
+            Ns_DbSetException(handlePtr, (char*)argv[3], (char*)argv[4]);
 	} else if (STREQ(cmd, "sp_setparam")) {
 	    if (argc != 7) {
 		return BadArgs(interp, argv,
@@ -539,14 +539,14 @@ DbCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 			      "be \"in\" or \"out\"", TCL_STATIC);
 		return TCL_ERROR;
 	    }
-	    if (Ns_DbSpSetParam(handlePtr, argv[3], argv[4], argv[5],
-				argv[6]) != NS_OK) {
+	    if (Ns_DbSpSetParam(handlePtr, (char*)argv[3], (char*)argv[4], 
+                (char*)argv[5], (char*)argv[6]) != NS_OK) {
 		return DbFail(interp, handlePtr, cmd);
 	    } else {
 		Tcl_SetResult(interp, "1", TCL_STATIC);
 	    }
         } else {
-            Tcl_AppendResult(interp, argv[0], ":  Unknown command \"",
+            Tcl_AppendResult(interp, (char*)argv[0], ":  Unknown command \"",
 			     argv[1], "\":  should be "
 			     "0or1row, "
 			     "1row, "
@@ -603,7 +603,7 @@ DbCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
  */
 
 static int
-ErrorCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv, int cmd)
+ErrorCmd(ClientData arg, Tcl_Interp *interp, int argc, CONST char **argv, int cmd)
 {
     InterpData *idataPtr = arg;
     Ns_DbHandle *handle;
@@ -613,7 +613,7 @@ ErrorCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv, int cmd)
             argv[0], " dbId\"", NULL);
         return TCL_ERROR;
     }
-    if (DbGetHandle(idataPtr, interp, argv[1], &handle, NULL) != TCL_OK) {
+    if (DbGetHandle(idataPtr, interp, (char*)argv[1], &handle, NULL) != TCL_OK) {
         return TCL_ERROR;
     }
     if (cmd == 'c') {
@@ -625,14 +625,13 @@ ErrorCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv, int cmd)
 }
 
 static int
-DbErrorCodeCmd(ClientData arg, Tcl_Interp *interp, int argc,
-		    char **argv)
+DbErrorCodeCmd(ClientData arg, Tcl_Interp *interp, int argc, CONST char **argv)
 {
     return ErrorCmd(arg, interp, argc, argv, 'c');
 }
 
 static int
-DbErrorMsgCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
+DbErrorMsgCmd(ClientData arg, Tcl_Interp *interp, int argc, CONST char **argv)
 {
     return ErrorCmd(arg, interp, argc, argv, 'm');
 }
@@ -655,8 +654,7 @@ DbErrorMsgCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
  */
 
 static int
-DbConfigPathCmd(ClientData arg, Tcl_Interp *interp, int argc,
-		     char **argv)
+DbConfigPathCmd(ClientData arg, Tcl_Interp *interp, int argc, CONST char **argv)
 {
     InterpData *idataPtr = arg;
     char *section;
@@ -689,15 +687,15 @@ DbConfigPathCmd(ClientData arg, Tcl_Interp *interp, int argc,
  */
 
 static int
-PoolDescriptionCmd(ClientData arg, Tcl_Interp *interp, int argc,
-			char **argv)
+PoolDescriptionCmd(ClientData arg, Tcl_Interp *interp, int argc, 
+        CONST char **argv)
 {
     if (argc != 2) {
-        Tcl_AppendResult(interp, "wrong # of args: should be \"", argv[0],
-			 " poolname\"", NULL);
+        Tcl_AppendResult(interp, "wrong # of args: should be \"", 
+             (char*)argv[0], " poolname\"", NULL);
         return TCL_ERROR;
     }
-    Tcl_SetResult(interp, Ns_DbPoolDescription(argv[1]), TCL_STATIC);
+    Tcl_SetResult(interp, Ns_DbPoolDescription((char*)argv[1]),TCL_STATIC);
     return TCL_OK;
 }
 
@@ -720,7 +718,7 @@ PoolDescriptionCmd(ClientData arg, Tcl_Interp *interp, int argc,
 
 static int
 QuoteListToListCmd(ClientData arg, Tcl_Interp *interp, int argc,
-			char **argv)
+			CONST char **argv)
 {
     char       *quotelist;
     int         inquotes;
@@ -731,7 +729,7 @@ QuoteListToListCmd(ClientData arg, Tcl_Interp *interp, int argc,
 	    argv[0], " quotelist\"", NULL);
         return TCL_ERROR;
     }
-    quotelist = argv[1];
+    quotelist = (char*)argv[1];
     inquotes = NS_FALSE;
     Ns_DStringInit(&ds);
     while (*quotelist != '\0') {
@@ -788,7 +786,8 @@ QuoteListToListCmd(ClientData arg, Tcl_Interp *interp, int argc,
  */
 
 static int
-GetCsvCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
+GetCsvCmd(ClientData arg, Tcl_Interp *interp, int argc, 
+        CONST char **argv)
 {
     int             ncols, inquote, quoted, blank;
     char            c, *p, buf[20];
@@ -801,7 +800,7 @@ GetCsvCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 	    argv[0], " fileId varName\"", NULL);
         return TCL_ERROR;
     }
-    if (Ns_TclGetOpenChannel(interp, argv[1], 0, 0, &chan) == TCL_ERROR) {
+    if (Ns_TclGetOpenChannel(interp, (char*)argv[1], 0, 0, &chan) == TCL_ERROR) {
         return TCL_ERROR;
     }
     
@@ -979,7 +978,7 @@ EnterDbHandle(InterpData *idataPtr, Tcl_Interp *interp, Ns_DbHandle *handle)
  */
 
 static int
-BadArgs(Tcl_Interp *interp, char **argv, char *args)
+BadArgs(Tcl_Interp *interp, CONST char **argv, char *args)
 {
     Tcl_AppendResult(interp, "wrong # args: should be \"",
         argv[0], " ", argv[1], NULL);

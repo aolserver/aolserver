@@ -61,8 +61,7 @@ typedef struct NsShareVar {
 
 static void ShareUnsetVar(Tcl_Interp *interp, char *varName,
 	NsShareVar *valuePtr);
-static char *ShareTraceProc(ClientData clientData, Tcl_Interp *interp,
-	char *name1, char *name2, int flags);
+static Tcl_VarTraceProc ShareTraceProc;
 static int ShareVar(NsInterp *itPtr, Tcl_Interp *interp, char *varName);
 static int InitShare(NsServer *servPtr, Tcl_Interp *interp,
 	char *varName, char *script);
@@ -247,18 +246,19 @@ ShareVar(NsInterp *itPtr, Tcl_Interp *interp, char *varName)
                     /* 
                      * Probably an array. 
                      */
-                    int argc = 0;
-                    char** argv = NULL;
+                    int argc;
+                    char **argv;
                     int x;
                     Tcl_InitHashTable(&valuePtr->array, TCL_STRING_KEYS);
-                    if (Tcl_SplitList(interp, interp->result, &argc, &argv) == TCL_OK) {
+                    if (Tcl_SplitList(interp, interp->result, &argc, 
+                                      (CONST char***)&argv) == TCL_OK) {
                         for (x = 0; x < argc; x += 2) {
                             Tcl_HashEntry* newEntry;
                             Tcl_Obj* newObj;
                             int new;
                             newEntry = Tcl_CreateHashEntry(&valuePtr->array, argv[x], &new);
                             newObj = Tcl_NewStringObj(argv[x + 1], -1);
-			    Tcl_IncrRefCount(newObj);
+                            Tcl_IncrRefCount(newObj);
                             Tcl_SetHashValue(newEntry, (ClientData) newObj);
                         }
                         Tcl_Free((char*) argv);
@@ -431,8 +431,8 @@ ShareTraceProc(clientData, interp, name1, name2, flags)
     ClientData clientData;	/* Not used. */
     Tcl_Interp *interp;		/* Interpreter whose share variable is
 				 * being modified. */
-    char *name1;		/* Name of the shared variable. */
-    char *name2;		/* Name of variable being modified, or NULL
+    CONST char *name1;		/* Name of the shared variable. */
+    CONST char *name2;		/* Name of variable being modified, or NULL
 				 * if whole array is being deleted (UTF-8). */
     int flags;			/* Indicates what's happening. */
 {
@@ -448,14 +448,15 @@ ShareTraceProc(clientData, interp, name1, name2, flags)
     int bail = 0;		/* True if this is a recursive trace */
     char* string;               /* String form of shared value */
     int length;                 /* Length of string */
+    char *name; 
     Tcl_DString ds;		/* Buffer for globalized name */
     NsInterp *itPtr = NsGetInterp(interp);
     NsServer *servPtr = itPtr->servPtr;
 
-    name1 = GetGlobalizedName(&ds, name1);
+    name = (char*)GetGlobalizedName(&ds, (char*)name1);
 
     Ns_CsEnter(&servPtr->share.cs);
-    hPtr = Tcl_FindHashEntry(&servPtr->share.vars, name1);
+    hPtr = Tcl_FindHashEntry(&servPtr->share.vars, name);
     if (hPtr == NULL) {
 	/*
 	 * This trace is firing on an upvar alias to the shared variable.
@@ -512,12 +513,12 @@ ShareTraceProc(clientData, interp, name1, name2, flags)
 	 * the array names and array get operations weighty.
 	 */
 
-	ShareUnsetVar(interp, name1, valuePtr);
+	ShareUnsetVar(interp, name, valuePtr);
 	hPtr = Tcl_FirstHashEntry(&valuePtr->array, &search);
 	while (hPtr != NULL) {
 	    name2 = Tcl_GetHashKey(&valuePtr->array, hPtr);
 	    objPtr = Tcl_GetHashValue(hPtr);
-	    Tcl_SetVar2Ex(interp, name1, name2, Tcl_DuplicateObj(objPtr), 0);
+	    Tcl_SetVar2Ex(interp, name, name2, Tcl_DuplicateObj(objPtr), 0);
 	    hPtr = Tcl_NextHashEntry(&search);
 	}
     }
@@ -528,7 +529,7 @@ ShareTraceProc(clientData, interp, name1, name2, flags)
 	 * Get a copy of the variable value for the shared value.
 	 */
 
-	objPtr = Tcl_GetVar2Ex(interp, name1, name2, 0);
+	objPtr = Tcl_GetVar2Ex(interp, name, name2, 0);
 	string = Tcl_GetStringFromObj(objPtr, &length);
 	newObjPtr = Tcl_NewStringObj(string, length);
 	Tcl_IncrRefCount(newObjPtr);
@@ -570,7 +571,7 @@ ShareTraceProc(clientData, interp, name1, name2, flags)
 	}
 	if (objPtr != NULL) {
 	    newObjPtr = Tcl_DuplicateObj(objPtr);
-	    Tcl_SetVar2Ex(interp, name1, name2, newObjPtr, 0);
+	    Tcl_SetVar2Ex(interp, name, name2, newObjPtr, 0);
 	}
     }
 
@@ -608,7 +609,7 @@ ShareTraceProc(clientData, interp, name1, name2, flags)
 	     * across unsets.
 	     */
 	    
-	    if (Tcl_TraceVar2(interp, name1, (char *) NULL,
+	    if (Tcl_TraceVar2(interp, name, (char *) NULL,
 		    TCL_TRACE_WRITES | TCL_TRACE_UNSETS |
 		    TCL_TRACE_READS | TCL_TRACE_ARRAY,  ShareTraceProc,
 		    (ClientData) NULL) != TCL_OK) {

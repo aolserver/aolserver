@@ -33,7 +33,7 @@
  *	Mutex locks with metering.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/mutex.c,v 1.3 2003/01/18 19:56:30 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/mutex.c,v 1.4 2003/03/07 18:08:51 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "thread.h"
 
@@ -131,10 +131,10 @@ Ns_MutexSetName2(Ns_Mutex *mutex, char *prefix, char *name)
 	}
     }
     Ns_MasterLock();
-    p = strncpy(mutexPtr->name, prefix, plen) + plen;
+    p = strncpy(mutexPtr->name, prefix, (size_t)plen) + plen;
     if (nlen > 0) {
 	*p++ = ':';
-	p = strncpy(p, name, nlen) + nlen;
+	p = strncpy(p, name, (size_t)nlen) + nlen;
     }
     *p = '\0';
     Ns_MasterUnlock();

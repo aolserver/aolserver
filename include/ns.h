@@ -33,7 +33,7 @@
  *      All the public types and function declarations for the core
  *	AOLserver.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.47 2003/03/06 19:40:15 mpagenva Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.48 2003/03/07 18:08:08 vasiljevic Exp $
  */
 
 #ifndef NS_H
@@ -568,6 +568,7 @@ NS_EXTERN char *Ns_ConnDriverName(Ns_Conn *conn);
 NS_EXTERN void *Ns_ConnDriverContext(Ns_Conn *conn);
 NS_EXTERN int Ns_ConnGetWriteEncodedFlag(Ns_Conn *conn);
 NS_EXTERN void Ns_ConnSetWriteEncodedFlag(Ns_Conn *conn, int flag);
+NS_EXTERN void Ns_ConnSetUrlEncoding(Ns_Conn *conn, Tcl_Encoding encoding);
 
 /*
  * crypt.c:
@@ -1173,6 +1174,11 @@ NS_EXTERN int Ns_GetGid(char *group);
 NS_EXTERN int Ns_GetUserGid(char *user);
 NS_EXTERN int Ns_GetUid(char *user);
 
+/*
+ * form.c:
+ */
+
+NS_EXTERN void Ns_ConnClearQuery(Ns_Conn *conn);
 
 /*
  * Compatibility macros.

@@ -33,7 +33,7 @@
  *	Permissions
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsperm/nsperm.c,v 1.7 2001/11/05 20:30:38 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsperm/nsperm.c,v 1.8 2003/03/07 18:08:50 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 
@@ -200,7 +200,7 @@ AddCmds(Tcl_Interp *interpermPtr, void *arg)
  */
 
 static int
-PermCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
+PermCmd(ClientData arg, Tcl_Interp *interp, int argc, CONST char **argv)
 {
     Server *servPtr = arg;
     int status;
@@ -212,17 +212,17 @@ PermCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
     }
     Ns_RWLockWrLock(&servPtr->lock);
     if (STREQ(argv[1], "adduser")) {
-	status = AddUserCmd(servPtr, interp, argc, argv);    
+	status = AddUserCmd(servPtr, interp, argc, (char**)argv);    
     } else if (STREQ(argv[1], "addgroup")) {
-	status = AddGroupCmd(servPtr, interp, argc, argv);
+	status = AddGroupCmd(servPtr, interp, argc, (char**)argv);
     } else if (STREQ(argv[1], "allowuser")) {
-	status = AllowDenyCmd(servPtr, interp, argc, argv, 1, 1);
+	status = AllowDenyCmd(servPtr, interp, argc, (char**)argv, 1, 1);
     } else if (STREQ(argv[1], "denyuser")) {
-	status = AllowDenyCmd(servPtr, interp, argc, argv, 0, 1);
+	status = AllowDenyCmd(servPtr, interp, argc, (char**)argv, 0, 1);
     } else if (STREQ(argv[1], "allowgroup")) {
-	status = AllowDenyCmd(servPtr, interp, argc, argv, 1, 0);
+	status = AllowDenyCmd(servPtr, interp, argc, (char**)argv, 1, 0);
     } else if (STREQ(argv[1], "denygroup")) {
-	status = AllowDenyCmd(servPtr, interp, argc, argv, 0, 0);
+	status = AllowDenyCmd(servPtr, interp, argc, (char**)argv, 0, 0);
     } else {
 	Tcl_AppendResult(interp, "unknown command \"",
 			 argv[1],
@@ -573,7 +573,7 @@ AddUserCmd(Server *servPtr, Tcl_Interp *interp, int argc, char **argv)
      */
 
     for (i = 6; i < argc; ++i) {
-    	mask.s_addr = INADDR_NONE;
+	mask.s_addr = INADDR_NONE;
 	net = argv[i];
 	slash = strchr(net, '/');
 	if (slash == NULL) {

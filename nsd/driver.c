@@ -34,7 +34,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.14 2003/02/04 23:10:46 jrasmuss23 Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.15 2003/03/07 18:08:22 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -85,8 +85,8 @@ static Ns_Thread driverThread;/* Running DriverThread. */
 static SOCKET trigPipe[2];  /* Trigger to wakeup DriverThread. */
 static Ns_Mutex lock;	    /* Lock around close list and shutdown flag. */
 static Ns_Cond cond;	    /* Cond for stopped flag. */
-static int nfds;	    /* Number of Sock to poll(). */
-static int maxfds;	    /* Max pollfd's in pfds. */ 
+static unsigned int nfds;	/* Number of Sock to poll(). */
+static unsigned int maxfds;	/* Max pollfd's in pfds. */ 
 static struct pollfd *pfds; /* Array of pollfds to poll(). */
 static Tcl_HashTable hosts; /* Host header to server table. */
 

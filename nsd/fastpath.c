@@ -34,7 +34,7 @@
  *      Get page possibly from a file cache.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/fastpath.c,v 1.17 2003/02/04 23:10:47 jrasmuss23 Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/fastpath.c,v 1.18 2003/03/07 18:08:25 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #ifndef _WIN32
@@ -471,7 +471,7 @@ static int
 FastReturn(NsServer *servPtr, Ns_Conn *conn, int status,
     char *type, char *file, struct stat *stPtr)
 {
-    int             result, fd, new, nread;
+    int         result = NS_ERROR, fd, new, nread;
     File	   *filePtr;
     char	   *key, *map;
     Ns_Entry	   *entPtr;
@@ -581,7 +581,7 @@ FastReturn(NsServer *servPtr, Ns_Conn *conn, int status,
 		filePtr->refcnt = 1;
 		filePtr->size = stPtr->st_size;
 		filePtr->mtime = stPtr->st_mtime;
-		nread = read(fd, filePtr->bytes, filePtr->size);
+		nread = read(fd, filePtr->bytes, (size_t)filePtr->size);
 		close(fd);
 		if (nread != filePtr->size) {
 	    	    Ns_Log(Warning, "fastpath: failed to read '%s': '%s'",
@@ -593,7 +593,7 @@ FastReturn(NsServer *servPtr, Ns_Conn *conn, int status,
 	    Ns_CacheLock(servPtr->fastpath.cache);
 	    entPtr = Ns_CacheCreateEntry(servPtr->fastpath.cache, key, &new);
 	    if (filePtr != NULL) {
-		Ns_CacheSetValueSz(entPtr, filePtr, filePtr->size);
+		Ns_CacheSetValueSz(entPtr, filePtr, (size_t)filePtr->size);
 	    } else {
 		Ns_CacheFlushEntry(entPtr);
 	    }

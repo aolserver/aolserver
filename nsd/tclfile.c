@@ -34,7 +34,7 @@
  *	Tcl commands that do stuff to the filesystem. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclfile.c,v 1.17 2003/02/04 23:10:49 jrasmuss23 Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclfile.c,v 1.18 2003/03/07 18:08:37 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #ifdef _WIN32
@@ -239,6 +239,9 @@ badargs:
         return TCL_ERROR;
     }
 
+    emsg  = "<unknown>";
+    efile = "";
+
     wfd = rfd = -1;
     result = TCL_ERROR;
 
@@ -276,7 +279,7 @@ badargs:
 	p = buf;
 	towrite = nread;
 	while (towrite > 0) {
-	    nwrote = write(wfd, p, towrite);
+	    nwrote = write(wfd, p, (size_t)towrite);
 	    if (nwrote <= 0) {
 		emsg = "write";
 		efile = dst;
@@ -312,7 +315,7 @@ badargs:
 done:
     if (result != TCL_OK) {
         Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "could not ", emsg, " \"",
-	            efile, "\": ", Tcl_PosixError(interp), NULL);
+                efile, "\": ", Tcl_PosixError(interp), NULL);
     }
     if (rfd >= 0) {
 	close(rfd);
@@ -976,7 +979,7 @@ NsTclChmodObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST ob
     	return TCL_ERROR;
     }
 
-    if (chmod(Tcl_GetString(objv[1]), mode) != 0) {
+    if (chmod(Tcl_GetString(objv[1]), (mode_t)mode) != 0) {
         Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "chmod (\"", 
 		Tcl_GetString(objv[1]), "\", ", 
 		Tcl_GetString(objv[2]),
@@ -1009,7 +1012,7 @@ NsTclChanObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST obj
 {
     NsInterp *itPtr = arg;
     NsServer *servPtr = itPtr->servPtr;
-    Tcl_Channel chan;
+    Tcl_Channel chan = NULL;
     int new;
     Tcl_HashEntry *hPtr;
     Tcl_HashSearch search;

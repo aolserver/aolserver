@@ -38,7 +38,7 @@
  *	For full details see the file doc/urlspace.txt.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/urlspace.c,v 1.9 2002/06/10 22:35:32 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/urlspace.c,v 1.10 2003/03/07 18:08:44 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -1892,8 +1892,8 @@ MkSeq(Ns_DString *dsPtr, char *server, char *method, char *url)
 	 * if we get here.
 	 */
 	
-        Ns_DStringNAppend(dsPtr, server, strlen(server) + 1);
-        Ns_DStringNAppend(dsPtr, method, strlen(method) + 1);
+        Ns_DStringNAppend(dsPtr, server, (int)(strlen(server) + 1));
+        Ns_DStringNAppend(dsPtr, method, (int)(strlen(method) + 1));
 
 	/*
 	 * Loop over each directory in the URL and turn the slashes
@@ -1933,7 +1933,7 @@ MkSeq(Ns_DString *dsPtr, char *server, char *method, char *url)
 	 * be one element.
 	 */
 	
-        Ns_DStringNAppend(dsPtr, server, strlen(server) + 1);
+        Ns_DStringNAppend(dsPtr, server, (int)(strlen(server) + 1));
         Ns_DStringNAppend(dsPtr, "\0", 1);
     }
 }

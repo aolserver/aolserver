@@ -34,7 +34,7 @@
  *	Manage the server log file.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/log.c,v 1.21 2003/01/18 19:24:20 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/log.c,v 1.22 2003/03/07 18:08:28 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -622,7 +622,7 @@ LogFlush(Cache *cachePtr)
     Ns_DString *dsPtr = &cachePtr->buffer;
 
     Ns_MutexLock(&lock);
-    (void) write(2, dsPtr->string, dsPtr->length);
+    (void) write(2, dsPtr->string, (size_t)dsPtr->length);
     Ns_MutexUnlock(&lock);
     Ns_DStringFree(dsPtr);
     cachePtr->count = 0;

@@ -8,7 +8,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclxkeylist.c,v 1.4 2003/02/04 23:10:51 jrasmuss23 Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclxkeylist.c,v 1.5 2003/03/07 18:08:43 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -26,7 +26,7 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
  * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  * ---------------------------------------------------------------------------
- * -- $Id: tclxkeylist.c,v 1.4 2003/02/04 23:10:51 jrasmuss23 Exp $
+ * -- $Id: tclxkeylist.c,v 1.5 2003/03/07 18:08:43 vasiljevic Exp $
  * ---------------------------------------------------------------------------
  * --
  * 
@@ -136,7 +136,7 @@ static int SplitAndFindField _ANSI_ARGS_((Tcl_Interp *interp,
     }
     fieldNameSize = strlen((char *) fieldName);
     if (!((elementSize == fieldNameSize) &&
-            STRNEQU(elementPtr, ((char *) fieldName), fieldNameSize)))
+            STRNEQU(elementPtr, ((char *) fieldName), (size_t)fieldNameSize)))
         return TCL_BREAK;               /* Names do not match */
 
     /*
@@ -193,7 +193,7 @@ SplitAndFindField(interp, fieldName, keyedList, fieldInfoPtr)
     fieldInfoPtr->argv = NULL;
 
     if (Tcl_SplitList(interp, (char *) keyedList, &fieldInfoPtr->argc,
-            &fieldInfoPtr->argv) != TCL_OK)
+            (CONST char ***)&fieldInfoPtr->argv) != TCL_OK)
         goto errorExit;
 
     result = TCL_BREAK;
@@ -324,7 +324,7 @@ Tcl_GetKeyedListKeys(interp, subFieldName, keyedList, keyesArgcPtr,
             NULL);
         TclFindElement(interp, fieldPtr, &keyPtr, &dummyPtr, &keySize, NULL);
         keyArgv[idx++] = nextByte;
-        strncpy(nextByte, keyPtr, keySize);
+        strncpy(nextByte, keyPtr, (size_t)keySize);
         nextByte[keySize] = '\0';
         nextByte += keySize + 1;
     }
@@ -438,9 +438,9 @@ Tcl_GetKeyedListField(interp, fieldName, keyedList, fieldValuePtr)
         if (fieldValuePtr != NULL) {
             char           *fieldValue;
 
-            fieldValue = ckalloc(valueSize + 1);
+            fieldValue = ckalloc((size_t)(valueSize + 1));
             if (braced) {
-                strncpy(fieldValue, valuePtr, valueSize);
+                strncpy(fieldValue, valuePtr, (size_t)valueSize);
                 fieldValue[valueSize] = '\0';
             } else {
                 TclCopyAndCollapse(valueSize, valuePtr, fieldValue);
@@ -505,7 +505,7 @@ Tcl_SetKeyedListField(interp, fieldName, fieldValue, keyedList)
      */
     elemArgv[0] = (char *) fieldName;
     if (nameSeparPtr != NULL) {
-        char            saveChar;
+        char            saveChar = 0;
 
         if (fieldInfo.valuePtr != NULL) {
             saveChar = fieldInfo.valuePtr[fieldInfo.valueSize];
@@ -518,11 +518,11 @@ Tcl_SetKeyedListField(interp, fieldName, fieldValue, keyedList)
             fieldInfo.valuePtr[fieldInfo.valueSize] = saveChar;
         if (elemArgv[1] == NULL)
             goto errorExit;
-        newField = Tcl_Merge(2, elemArgv);
+        newField = Tcl_Merge(2, (CONST char**)elemArgv);
         ckfree(elemArgv[1]);
     } else {
         elemArgv[1] = (char *) fieldValue;
-        newField = Tcl_Merge(2, elemArgv);
+        newField = Tcl_Merge(2, (CONST char**)elemArgv);
     }
 
     /*
@@ -534,7 +534,7 @@ Tcl_SetKeyedListField(interp, fieldName, fieldValue, keyedList)
         fieldInfo.argc++;
     }
     fieldInfo.argv[fieldInfo.foundIdx] = newField;
-    newList = Tcl_Merge(fieldInfo.argc, fieldInfo.argv);
+    newList = Tcl_Merge(fieldInfo.argc, (CONST char**)fieldInfo.argv);
 
     if (nameSeparPtr != NULL)
         *nameSeparPtr = '.';
@@ -603,7 +603,7 @@ Tcl_DeleteKeyedListField(interp, fieldName, keyedList)
      */
     elemArgv[0] = (char *) fieldName;
     if (nameSeparPtr != NULL) {
-        char            saveChar;
+        char            saveChar = 0;
 
         if (fieldInfo.valuePtr != NULL) {
             saveChar = fieldInfo.valuePtr[fieldInfo.valueSize];
@@ -618,7 +618,7 @@ Tcl_DeleteKeyedListField(interp, fieldName, keyedList)
         if (elemArgv[1][0] == '\0')
             newElement = NULL;
         else
-            newElement = Tcl_Merge(2, elemArgv);
+            newElement = Tcl_Merge(2, (CONST char**)elemArgv);
         ckfree(elemArgv[1]);
     } else
         newElement = NULL;
@@ -630,7 +630,7 @@ Tcl_DeleteKeyedListField(interp, fieldName, keyedList)
     } else
         fieldInfo.argv[fieldInfo.foundIdx] = newElement;
 
-    newList = Tcl_Merge(fieldInfo.argc, fieldInfo.argv);
+    newList = Tcl_Merge(fieldInfo.argc, (CONST char**)fieldInfo.argv);
 
     if (nameSeparPtr != NULL)
         *nameSeparPtr = '.';
@@ -672,7 +672,7 @@ Tcl_KeyldelCmd(clientData, interp, argc, argv)
             " listvar key", (char *) NULL);
         return TCL_ERROR;
     }
-    keyedList = Tcl_GetVar(interp, argv[1], TCL_LEAVE_ERR_MSG);
+    keyedList = (char*)Tcl_GetVar(interp, argv[1], TCL_LEAVE_ERR_MSG);
     if (keyedList == NULL)
         return TCL_ERROR;
 
@@ -680,7 +680,7 @@ Tcl_KeyldelCmd(clientData, interp, argc, argv)
     if (newList == NULL)
         return TCL_ERROR;
 
-    varPtr = Tcl_SetVar(interp, argv[1], newList, TCL_LEAVE_ERR_MSG);
+    varPtr = (char*)Tcl_SetVar(interp, argv[1], newList, TCL_LEAVE_ERR_MSG);
     ckfree((char *) newList);
 
     return (varPtr == NULL) ? TCL_ERROR : TCL_OK;
@@ -714,7 +714,7 @@ Tcl_KeylgetCmd(clientData, interp, argc, argv)
             " listvar ?key? ?retvar | {}?", (char *) NULL);
         return TCL_ERROR;
     }
-    keyedList = Tcl_GetVar(interp, argv[1], TCL_LEAVE_ERR_MSG);
+    keyedList = (char*)Tcl_GetVar(interp, argv[1], TCL_LEAVE_ERR_MSG);
     if (keyedList == NULL)
         return TCL_ERROR;
 
@@ -722,7 +722,7 @@ Tcl_KeylgetCmd(clientData, interp, argc, argv)
      * Handle request for list of keys, use keylkeys command.
      */
     if (argc == 2)
-        return Tcl_KeylkeysCmd(clientData, interp, argc, argv);
+        return Tcl_KeylkeysCmd(clientData, interp, argc, (CONST char **)argv);
 
     /*
      * Handle retrieving a value for a specified key.
@@ -799,7 +799,7 @@ Tcl_KeylkeysCmd(clientData, interp, argc, argv)
     ClientData      clientData;
     Tcl_Interp     *interp;
     int             argc;
-    char          **argv;
+    CONST char    **argv;
 {
     char           *keyedList, **keyesArgv;
     int             result, keyesArgc;
@@ -809,7 +809,7 @@ Tcl_KeylkeysCmd(clientData, interp, argc, argv)
             " listvar ?key?", (char *) NULL);
         return TCL_ERROR;
     }
-    keyedList = Tcl_GetVar(interp, argv[1], TCL_LEAVE_ERR_MSG);
+    keyedList = (char*)Tcl_GetVar(interp, argv[1], TCL_LEAVE_ERR_MSG);
     if (keyedList == NULL)
         return TCL_ERROR;
 
@@ -826,7 +826,7 @@ Tcl_KeylkeysCmd(clientData, interp, argc, argv)
             "\"", (char *) NULL);
         return TCL_ERROR;
     }
-    Tcl_SetResult(interp, Tcl_Merge(keyesArgc, keyesArgv), TCL_DYNAMIC);
+    Tcl_SetResult(interp, Tcl_Merge(keyesArgc, (CONST char**)keyesArgv), TCL_DYNAMIC);
     ckfree((char *) keyesArgv);
     return TCL_OK;
 }
@@ -858,7 +858,7 @@ Tcl_KeylsetCmd(clientData, interp, argc, argv)
             " listvar key value ?key value...?", (char *) NULL);
         return TCL_ERROR;
     }
-    keyedList = Tcl_GetVar(interp, argv[1], 0);
+    keyedList = (char*)Tcl_GetVar(interp, argv[1], 0);
 
     newList = keyedList;
     for (idx = 2; idx < argc; idx += 2) {
@@ -870,7 +870,7 @@ Tcl_KeylsetCmd(clientData, interp, argc, argv)
         if (newList == NULL)
             return TCL_ERROR;
     }
-    varPtr = Tcl_SetVar(interp, argv[1], newList, TCL_LEAVE_ERR_MSG);
+    varPtr = (char*)Tcl_SetVar(interp, argv[1], newList, TCL_LEAVE_ERR_MSG);
     ckfree((char *) newList);
 
     return (varPtr == NULL) ? TCL_ERROR : TCL_OK;

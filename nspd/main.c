@@ -34,7 +34,7 @@
  *	The proxy-side library for external drivers. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nspd/main.c,v 1.7 2000/10/07 20:07:57 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nspd/main.c,v 1.8 2003/03/07 18:08:49 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "pd.h"
 #include "nspd.h"
@@ -178,7 +178,7 @@ Ns_PdSendData(char *data, int len)
     int writeReturn;
 
     do {
-        writeReturn = write(1, data, len);
+        writeReturn = write(1, data, (size_t)len);
     } while ((writeReturn < 0) && (errno == EINTR));
     if (writeReturn != len) {
         Ns_PdLog(Error, "nspd: "
@@ -355,7 +355,7 @@ Ns_PdSendRowInfo(Ns_PdRowInfo * rowInfo)
             Ns_PdSendData(rowInfo->rowData[i].elData, size);
         }
     }
-    Ns_PdSendData(END_DATA, strlen(END_DATA));
+    Ns_PdSendData(END_DATA, (int)strlen(END_DATA));
 }
 
 
@@ -477,7 +477,7 @@ Ns_PdFindRowInfoValue(Ns_PdRowInfo * rowInfo, char *value, int len)
     int i;
 
     for (i = 0; i < rowInfo->numColumns; i++) {
-        if (memcmp(rowInfo->rowData[i].elData, value, len) == 0) {
+        if (memcmp(rowInfo->rowData[i].elData, value, (size_t)len) == 0) {
             return i;
         }
     }
@@ -563,7 +563,7 @@ Ns_PdSqlbufEnough(char **buf, int *size, int howmuch)
     if (*size < howmuch) {
         Ns_PdLog(Notice, "nspd: "
 		 "reallocing sqlbuf from %d to %d", *size, howmuch);
-        if ((*buf = (char *) realloc(*buf, howmuch)) == NULL) {
+        if ((*buf = (char *) realloc(*buf, (size_t)howmuch)) == NULL) {
             Ns_PdLog(Error, "nspd: realloc error '%s'", strerror(errno));
             status = NS_ERROR;
         } else {
@@ -1035,7 +1035,7 @@ PdReadFile(char *readParams)
         Ns_PdSendString(errbuf);
     } else {
         lseek(fd, offset, SEEK_SET);
-        if ((bytesRead = read(fd, readBuf, bytecount)) < 0) {
+        if ((bytesRead = read(fd, readBuf, (size_t)bytecount)) < 0) {
             sprintf(errbuf, "Read error on fd %d (%d bytes): %s",
 		    fd, bytecount, strerror(errno));
             Ns_PdLog(Error, "failed reading file: '%s'", errbuf);
@@ -1045,7 +1045,7 @@ PdReadFile(char *readParams)
             sprintf(bytesReadStr, "%d", bytesRead);
             Ns_PdSendString(bytesReadStr);
             Ns_PdSendData(readBuf, bytesRead);
-            Ns_PdSendData(END_DATA, strlen(END_DATA));
+            Ns_PdSendData(END_DATA, (int)strlen(END_DATA));
         }
     }
 
@@ -1093,7 +1093,7 @@ PdWriteFile(char *writeParams)
             }
         }
         lseek(fd, offset, SEEK_SET);
-        if (write(fd, pw, bytecount) != bytecount) {
+        if (write(fd, pw, (size_t)bytecount) != bytecount) {
             sprintf(errbuf, "Write error to fd %d (%d bytes): %s",
 		    fd, bytecount, strerror(errno));
             Ns_PdLog(Error, "nspd: failed writing file: '%s'", errbuf);
@@ -1222,7 +1222,7 @@ Ns_PdSendString(char *rsp)
 	/*
 	 * rare event
 	 */
-        if ((pout = malloc(len + 1)) == NULL) {
+        if ((pout = malloc((size_t)(len + 1))) == NULL) {
             Ns_PdLog(Error, "nspd: "
 		     "data truncated; malloc failed to get %d bytes", len + 1);
             rsp[MAXSTACK - 1] = '\0';
@@ -1261,7 +1261,7 @@ RecvData(char *buf, int len)
     int readReturn;
 
     do {
-        readReturn = read(0, buf, len);
+        readReturn = read(0, buf, (size_t)len);
     } while ((readReturn < 0) && (errno == EINTR));
     if (readReturn < 0) {
         Ns_PdLog(Error, "nspd: read error while reading %d bytes: '%s'",

@@ -34,7 +34,7 @@
  *	Implements a lot of Tcl API commands. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclmisc.c,v 1.29 2003/02/04 23:27:46 shmooved Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclmisc.c,v 1.30 2003/03/07 18:08:40 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -364,7 +364,7 @@ NsTclHTUUEncodeObjCmd(ClientData dummy, Tcl_Interp *interp, int objc, Tcl_Obj **
                          string, "\": must be less than 48 characters", NULL);
         return TCL_ERROR;
     }
-    Ns_HtuuEncode((unsigned char *) string, nbytes, bufcoded);
+    Ns_HtuuEncode((unsigned char *) string, (size_t)nbytes, bufcoded);
     Tcl_SetResult(interp, bufcoded, TCL_VOLATILE);
     return TCL_OK;
 }
@@ -398,7 +398,7 @@ NsTclHTUUDecodeObjCmd(ClientData dummy, Tcl_Interp *interp, int objc, Tcl_Obj **
     }
     string = Tcl_GetStringFromObj(objv[1], &n);
     n += 3;
-    decoded = ns_malloc(n);
+    decoded = ns_malloc((size_t)n);
     n = Ns_HtuuDecode(string, (unsigned char *) decoded, n);
     decoded[n] = '\0';
     Tcl_SetResult(interp, decoded, (Tcl_FreeProc *) ns_free);

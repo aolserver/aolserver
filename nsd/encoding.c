@@ -33,7 +33,7 @@
  *	Defines standard default charset to encoding mappings.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/encoding.c,v 1.12 2003/03/06 19:39:11 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/encoding.c,v 1.13 2003/03/07 18:08:25 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -443,7 +443,6 @@ NsGetTypeEncodingWithDef(char *type, int *used_default)
 {
     char *s, *e;
     Tcl_Encoding ret_enc = NULL;
-    Conn *connPtr;
 
     s = Ns_StrCaseFind(type, "charset");
     if (s != NULL) {
@@ -503,7 +502,7 @@ NsComputeEncodingFromType(char *type, Tcl_Encoding *enc,
         Tcl_DStringInit(type_ds);
         Tcl_DStringAppend(type_ds, type, -1);
         Tcl_DStringAppend(type_ds, "; charset=", -1);
-        Tcl_DStringAppend(type_ds, GetDefaultCharset(), -1);
+        Tcl_DStringAppend(type_ds, (char*)GetDefaultCharset(), -1);
         *new_type = NS_TRUE;
     } else {
         *new_type = NS_FALSE;
@@ -570,7 +569,7 @@ NsTclEncodingForCharsetCmd(ClientData dummy, Tcl_Interp *interp, int argc,
 	return TCL_OK;
     }
 
-    Tcl_SetResult(interp, Tcl_GetEncodingName(encoding), TCL_VOLATILE);
+    Tcl_SetResult(interp, (char*)Tcl_GetEncodingName(encoding), TCL_VOLATILE);
     return TCL_OK;
 }
 
@@ -759,9 +758,9 @@ GetDefaultCharset(void)
 
     if ( ((connPtr = (Conn *)Ns_GetConn()) != NULL) &&
          (connPtr->servPtr != NULL) ) {
-        return connPtr->servPtr->encoding.outputCharset;
+        return (Tcl_Encoding)connPtr->servPtr->encoding.outputCharset;
     } else {
-        return nsconf.encoding.outputCharset;
+        return (Tcl_Encoding)nsconf.encoding.outputCharset;
     }
 }
 

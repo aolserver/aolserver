@@ -33,7 +33,7 @@
  *	Support for the configuration file
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/config.c,v 1.15 2002/08/25 22:06:40 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/config.c,v 1.16 2003/03/07 18:08:15 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #define ISSLASH(c)      ((c) == '/' || (c) == '\\')
@@ -339,7 +339,7 @@ NsConfigRead(char *file)
     struct stat st;
     int fd;
     char *buf;
-    off_t n;
+    size_t n;
 
     if (stat(file, &st) != 0) {
 	Ns_Fatal("config: stat(%s) failed: %s", file, strerror(errno));
@@ -472,7 +472,7 @@ ConfigGet(char *section, char *key, int exact)
  */
 
 static int
-ParamCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
+ParamCmd(ClientData arg, Tcl_Interp *interp, int argc, CONST char **argv)
 {
     Ns_Set *set;
 
@@ -487,7 +487,7 @@ ParamCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 			 " not preceded by an ns_section command.", NULL);
 	return TCL_ERROR;
     }
-    Ns_SetPut(set, argv[1], argv[2]);
+    Ns_SetPut(set, (char*)argv[1], (char*)argv[2]);
     return TCL_OK;
 }
 
@@ -511,17 +511,17 @@ ParamCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
  */
 
 static int
-SectionCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
+SectionCmd(ClientData arg, Tcl_Interp *interp, int argc, CONST char **argv)
 {
     Ns_Set  **set;
 
     if (argc != 2) {
 	Tcl_AppendResult(interp, "wrong # args: should be \"",
-			 argv[0], " sectionname", NULL);
+			 (char*)argv[0], " sectionname", NULL);
 	return TCL_ERROR;
     }
     set = (Ns_Set **) arg;
-    *set = GetSection(argv[1], 1);
+    *set = GetSection((char*)argv[1], 1);
     return TCL_OK;
 }
 

@@ -33,7 +33,7 @@
  *	Support for the ns_http command.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclhttp.c,v 1.13 2003/02/04 23:10:49 jrasmuss23 Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclhttp.c,v 1.14 2003/03/07 18:08:38 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -202,7 +202,7 @@ NsTclHttpObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST obj
 		result = "error";
 	    }
 	}
-	result = Tcl_SetVar(interp, Tcl_GetString(objv[3]), result, TCL_LEAVE_ERR_MSG);
+	result = (char*)Tcl_SetVar(interp, Tcl_GetString(objv[3]), result, TCL_LEAVE_ERR_MSG);
 	if (httpPtr != NULL) {
 	    Tcl_DeleteHashEntry(hPtr);
 	    HttpClose(httpPtr, 0);

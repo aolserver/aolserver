@@ -35,7 +35,7 @@
  *  	Tcl commands.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscp/nscp.c,v 1.21 2003/02/04 23:15:17 jrasmuss23 Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscp/nscp.c,v 1.22 2003/03/07 18:08:12 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 
@@ -545,7 +545,7 @@ Login(Sess *sessPtr, Tcl_DString *unameDSPtr)
 	Ns_Log(Warning, "nscp: login failed: '%s'", user ? user : "?");
 	sprintf(msg, "Access denied!\n");
     }
-    (void) send(sessPtr->sock, msg, strlen(msg), 0);
+    (void) send(sessPtr->sock, msg, (int)strlen(msg), 0);
     Tcl_DStringFree(&uds);
     Tcl_DStringFree(&pds);
     return ok;
@@ -569,13 +569,13 @@ Login(Sess *sessPtr, Tcl_DString *unameDSPtr)
  */
 
 static int
-ExitCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
+ExitCmd(ClientData arg, Tcl_Interp *interp, int argc, CONST char **argv)
 {
     int *stopPtr;
 
     if (argc != 1) {
 	Tcl_AppendResult(interp, "wrong # args: should be \"",
-	    argv[0], "\"", NULL);
+	    (char*)argv[0], "\"", NULL);
 	return TCL_ERROR;
     }
 

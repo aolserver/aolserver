@@ -27,7 +27,7 @@
  * version of this file under either the License or the GPL.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sched.c,v 1.11 2002/10/14 23:20:47 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sched.c,v 1.12 2003/03/07 18:08:35 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
 
 /*
  * sched.c --
@@ -313,7 +313,7 @@ Ns_ScheduleProcEx(Ns_SchedProc *proc, void *arg, int flags,
 	    ePtr->hPtr = Tcl_CreateHashEntry(&eventsTable, (char *) id, &new);
 	} while (!new);
 	Tcl_SetHashValue(ePtr->hPtr, ePtr);
-	ePtr->id = id;
+	ePtr->id = (unsigned int)id;
 	QueueEvent(ePtr, &now);
     }
     Ns_MutexUnlock(&lock);
@@ -348,8 +348,8 @@ Ns_UnscheduleProc(int id)
 int
 Ns_Cancel(int id)
 {
-    Tcl_HashEntry  *hPtr;
-    Event          *ePtr;
+    Tcl_HashEntry  *hPtr = NULL;
+    Event          *ePtr = NULL;
     int		    cancelled;
 
     cancelled = 0;
@@ -677,9 +677,9 @@ EventThread(void *arg)
 	}
 	--nIdleThreads;
 	Ns_MutexUnlock(&lock);
-    	sprintf(name, "-sched:%d-", ePtr->id);
+    	sprintf(name, "-sched:%u-", ePtr->id);
     	Ns_ThreadSetName(name);
-    	(*ePtr->proc) (ePtr->arg, ePtr->id);
+    	(*ePtr->proc) (ePtr->arg, (int)ePtr->id);
     	Ns_ThreadSetName(idle);
     	time(&now);
     	Ns_MutexLock(&lock);
@@ -719,7 +719,7 @@ static void
 FreeEvent(Event *ePtr)
 {
     if (ePtr->deleteProc != NULL) {
-	(*ePtr->deleteProc) (ePtr->arg, ePtr->id);
+	(*ePtr->deleteProc) (ePtr->arg, (int)ePtr->id);
     }
     ns_free(ePtr);
 }
@@ -803,7 +803,7 @@ SchedThread(void *ignored)
 	    ePtr->laststart = now;
 	    ePtr->flags |= NS_SCHED_RUNNING;
 	    Ns_MutexUnlock(&lock);
-	    (*ePtr->proc) (ePtr->arg, ePtr->id);
+	    (*ePtr->proc) (ePtr->arg, (int)ePtr->id);
 	    time(&now);
 	    elapsed = (int) difftime(now, ePtr->laststart);
 	    if (elapsed > nsconf.sched.maxelapsed) {
@@ -879,7 +879,7 @@ NsGetScheduled(Tcl_DString *dsPtr)
     while (hPtr != NULL) {
 	ePtr = Tcl_GetHashValue(hPtr);
 	Tcl_DStringStartSublist(dsPtr);
-	sprintf(buf, "%d %d %d %ld %ld %ld %ld",
+	sprintf(buf, "%u %d %d %ld %ld %ld %ld",
 		ePtr->id, ePtr->flags, ePtr->interval, ePtr->nextqueue,
 		ePtr->lastqueue, ePtr->laststart, ePtr->lastend);
 	Tcl_DStringAppend(dsPtr, buf, -1);

@@ -34,7 +34,7 @@
  *      DNS lookup routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/dns.c,v 1.6 2002/09/28 20:55:13 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/dns.c,v 1.7 2003/03/07 18:08:21 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -109,10 +109,10 @@ Ns_GetAddrByHost(Ns_DString *dsPtr, char *host)
 static int
 DnsGet(GetProc *getProc, Ns_DString *dsPtr, Ns_Cache **cachePtr, char *key)
 {
-    int             status, new, timeout;
-    Value   	   *vPtr;
-    Ns_Entry       *ePtr;
-    Ns_Cache	   *cache;
+    int             status = NS_FALSE, new, timeout;
+    Value   	   *vPtr  = NULL;
+    Ns_Entry       *ePtr  = NULL;
+    Ns_Cache	   *cache = NULL;
     time_t	    now;
 
     /*

@@ -109,7 +109,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsext/nsext.c,v 1.10 2003/02/05 14:28:42 elizthom Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsext/nsext.c,v 1.11 2003/03/07 18:08:45 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsdb.h"
 #include "nsextmsg.h"
@@ -222,7 +222,7 @@ static int      DbProxyGetString(Ns_DbHandle *dbhandle, char *buf, int maxbuf);
 static int      DbProxyGetPingReply(Ns_DbHandle *dbhandle);
 static int      DbProxyIsAlive(Ns_DbHandle *dbhandle);
 static int      DbProxySend(Ns_DbHandle *dbhandle, Ns_ExtDbCommandCode msgType,
-			    char *arg, int argSize);
+			    char *arg, size_t argSize);
 static int      DbProxyGetTypes(Ns_DbHandle *dbhandle, char *typesbuf);
 static int      DbProxyTraceOn(Ns_DbHandle *dbhandle, char *filepath);
 static int      DbProxyTraceOff(Ns_DbHandle *dbhandle);
@@ -467,7 +467,7 @@ ExtDbType(Ns_DbHandle *handle)
     if (typelen >= MAX_DBTYPE) {
         typelen = MAX_DBTYPE - 1;
     }
-    strncpy(nsConn->ctx->dbtype, identstr, typelen);
+    strncpy(nsConn->ctx->dbtype, identstr, (size_t)typelen);
     Ns_MutexUnlock(&nsConn->ctx->muIdent);
     nsConn->ctx->dbtype[typelen] = '\0';
 
@@ -657,7 +657,6 @@ ExtExec(Ns_DbHandle *handle, char *sql)
 
     if (DbProxySend(handle, Exec, sql, strlen(sql)) == NS_OK &&
         DbProxyCheckStatus(nsConn, handle) == NS_OK) {
-
         if (DbProxyGetString(handle, respBuf, RESPBUFMAX) == NS_OK) {
             if (strcmp(respBuf, EXEC_RET_ROWS) == 0) {
                 retcode = NS_ROWS;
@@ -702,7 +701,6 @@ ExtBindRow(Ns_DbHandle *handle)
     
     if (DbProxySend(handle, BindRow, NULL, 0) == NS_OK &&
         DbProxyCheckStatus(nsConn, handle) == NS_OK) {
-
         if ((colList = DbProxyGetList(handle)) != NULL) {
 	    rows = handle->row;
 	    Ns_SetTrunc(rows, 0);
@@ -764,7 +762,6 @@ ExtGetRow(Ns_DbHandle *handle, Ns_Set *row)
     if (DbProxySend(handle, GetRow, colCountStr,
 		    strlen(colCountStr)) == NS_OK &&
         DbProxyCheckStatus(nsConn, handle) == NS_OK) {
-
         if ((rowList = DbProxyGetList(handle)) != NULL) {
 
             for (currRow = rowList, i = 0; currRow != NULL;
@@ -1359,7 +1356,7 @@ DbProxyStop(NsExtConn * nsConn)
 
 static int
 DbProxySend(Ns_DbHandle *dbhandle, Ns_ExtDbCommandCode msgType, char *arg,
-	    int argSize)
+	    size_t argSize)
 {
     int             status = NS_ERROR;
     int             arglen;
@@ -1759,7 +1756,7 @@ DbProxyGetList(Ns_DbHandle *dbhandle)
             } else if (size == END_LIST_VAL) {
                 done = 1;
             } else {
-                datum = ns_malloc(size + 1);
+                datum = ns_malloc((size_t)(size + 1));
 		/*
 		 * add NULL until nsdb does
 		 * binary data
@@ -2046,7 +2043,6 @@ DbProxyTraceOff(Ns_DbHandle *dbhandle)
 
     if (DbProxySend(dbhandle, TraceOff, NULL, 0) == NS_OK &&
         DbProxyGetPingReply(dbhandle) == NS_OK) {
-	
         status = NS_OK;
     } else {
         Ns_Log(Error, "nsext: "
@@ -2163,9 +2159,9 @@ DbProxyCopyToRemoteFile(Ns_DbHandle *dbhandle, char *srcFile, char *remoteFileNa
 				     remoteFdStr, ARG_TOKEN_DELIMITER,
 				     fileLoc, ARG_TOKEN_DELIMITER,
 				     bytesRead, ARG_TOKEN_DELIMITER);
-                memcpy(&outbuf[dataOffset], readbuf, bytesRead);
+                memcpy(&outbuf[dataOffset], readbuf, (size_t)bytesRead);
                 if (DbProxySend(dbhandle, WriteF, outbuf,
-                        dataOffset + bytesRead) != NS_OK) {
+                        (size_t)(dataOffset + bytesRead)) != NS_OK) {
                     sprintf(errbuf, "Remote write failure, file offset=%d",
 			    fileLoc);
                 } else if (DbProxyGetString(dbhandle, respbuf,
@@ -2199,7 +2195,6 @@ DbProxyCopyToRemoteFile(Ns_DbHandle *dbhandle, char *srcFile, char *remoteFileNa
         status = NS_ERROR;
         if (DbProxySend(dbhandle, CloseF, remoteFdStr,
                 strlen(remoteFdStr)) != NS_OK) {
-	    
             sprintf(errbuf, "Can't send CloseF command to Proxy Daemon");
         } else if (DbProxyGetString(dbhandle, respbuf, RSP_BUFSIZE) != NS_OK) {
             sprintf(errbuf,
@@ -2279,7 +2274,7 @@ DbProxyCopyFromRemoteFile(Ns_DbHandle *dbhandle, char *destFile,
 		    ARG_TOKEN_DELIMITER,
 		    fileLoc, ARG_TOKEN_DELIMITER, FILE_IOSIZE);
             if (DbProxySend(dbhandle, ReadF, readRequest,
-			    strlen(readRequest)) != NS_OK) {
+			        strlen(readRequest)) != NS_OK) {
                 sprintf(errbuf, "Can't send ReadF command to Proxy Daemon");
             } else if (DbProxyGetString(dbhandle, respbuf,
 					RSP_BUFSIZE) != NS_OK) {
@@ -2302,7 +2297,7 @@ DbProxyCopyFromRemoteFile(Ns_DbHandle *dbhandle, char *destFile,
 		     */
 		    
                     if (write(localDestFd, readEl->data,
-			      readEl->size) != readEl->size) {
+			      (size_t)readEl->size) != readEl->size) {
 			
                         sprintf(errbuf, "Local write to %s failed: %s",
 				destFile, strerror(errno));

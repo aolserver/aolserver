@@ -34,7 +34,7 @@
  *	Load .so files into the server and initialize them. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/modload.c,v 1.13 2003/02/04 23:10:48 jrasmuss23 Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/modload.c,v 1.14 2003/03/07 18:08:29 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -298,7 +298,7 @@ NsLoadModules(char *server)
 {
     Ns_Set *modules;
     int     i;
-    char   *file, *module, *init, *s, *e;
+    char   *file, *module, *init = NULL, *s, *e = NULL;
     Module *modPtr, *nextPtr;
 
     modules = Ns_ConfigGetSection(Ns_ConfigGetPath(server, NULL, "modules", NULL));

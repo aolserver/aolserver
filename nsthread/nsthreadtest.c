@@ -48,7 +48,7 @@
 #define PTHREAD_TEST 1
 #endif
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/nsthreadtest.c,v 1.2 2003/01/18 19:56:30 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/nsthreadtest.c,v 1.3 2003/03/07 18:08:51 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
 
 /*
  * Collection of synchronization objects for tests.
@@ -302,7 +302,7 @@ DumpString(Tcl_DString *dsPtr)
     char **largv;
     int i, largc;
 
-    if (Tcl_SplitList(NULL, dsPtr->string, &largc, &largv) == TCL_OK) {
+    if (Tcl_SplitList(NULL, dsPtr->string, &largc, (CONST char***)&largv) == TCL_OK) {
 	for (i = 0; i < largc; ++i) {
 	    printf("\t%s\n", largv[i]);
 	}

@@ -33,7 +33,7 @@
  *	AOLserver Ns_Main() startup routine.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.48 2003/02/04 23:10:48 jrasmuss23 Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.49 2003/03/07 18:08:30 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #ifdef _WIN32
@@ -759,6 +759,9 @@ StatusMsg(int state)
 	break;
     case 3:
 	what = "exiting";
+	break;
+    default:
+	what = "unknown";
 	break;
     }
     Ns_Log(Notice, "nsmain: %s/%s %s",

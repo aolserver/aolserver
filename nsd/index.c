@@ -34,7 +34,7 @@
  *	Implement the index data type. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/index.c,v 1.4 2000/08/25 13:49:57 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/index.c,v 1.5 2003/03/07 18:08:26 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -180,14 +180,10 @@ Ns_IndexFind(Ns_Index *indexPtr, void *key)
 {
     void **pPtrPtr;
 
-    pPtrPtr = (void **) bsearch(key, indexPtr->el, indexPtr->n, sizeof(void *),
-				indexPtr->CmpKeyWithEl);
+    pPtrPtr = (void **) bsearch(key, indexPtr->el, (size_t)indexPtr->n, 
+                                sizeof(void *), indexPtr->CmpKeyWithEl);
 
-    if (pPtrPtr != NULL) {
-        return *pPtrPtr;
-    } else {
-        return NULL;
-    }
+    return pPtrPtr ? *pPtrPtr : NULL;
 }
 
 
@@ -263,7 +259,7 @@ Ns_IndexFindMultiple(Ns_Index *indexPtr, void *key)
      * Find a place in the array that matches the key
      */
     
-    firstPtrPtr = (void **) bsearch(key, indexPtr->el, indexPtr->n,
+    firstPtrPtr = (void **) bsearch(key, indexPtr->el, (size_t)indexPtr->n,
 				    sizeof(void *), indexPtr->CmpKeyWithEl);
 
     if (firstPtrPtr == NULL) {
@@ -319,8 +315,7 @@ Ns_IndexFindMultiple(Ns_Index *indexPtr, void *key)
 static int
 BinSearch(void **elPtrPtr, void **listPtrPtr, int n, Ns_IndexCmpProc *cmpProc)
 {
-    int cond;
-    int low, high, mid;
+    int cond = 0, low = 0, high = 0, mid = 0;
 
     low = 0;
     high = n - 1;
@@ -358,8 +353,7 @@ BinSearch(void **elPtrPtr, void **listPtrPtr, int n, Ns_IndexCmpProc *cmpProc)
 static int
 BinSearchKey(void *key, void **listPtrPtr, int n, Ns_IndexCmpProc *cmpProc)
 {
-    int cond;
-    int low, high, mid;
+    int cond = 0, low = 0, high = 0, mid = 0;
 
     low = 0;
     high = n - 1;

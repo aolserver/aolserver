@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Attic/Makefile.global.in,v 1.12 2003/01/24 18:29:15 elizthom Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Attic/Makefile.global.in,v 1.13 2003/03/07 18:08:06 vasiljevic Exp $
 #
 
 #
@@ -99,9 +99,13 @@ INSTSRVPAG	= $(INSTSRV)/pages
 # Platform-specific options.
 uname = $(shell uname -a)
 
-# Solaris 2.7+
+# Solaris 2.6+
 ifneq (,$(findstring SunOS,$(uname)))
-    LIBS+=-lrt
+    ifneq (,$(findstring 5.6,$(uname)))
+        LIBS+=-lthread -lposix4
+    else
+        LIBS+=-lrt
+    endif
 endif
 
 # Add dynamic library entry point flags.

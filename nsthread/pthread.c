@@ -639,7 +639,7 @@ Ns_CondWait(Ns_Cond *cond, Ns_Mutex *mutex)
 int
 Ns_CondTimedWait(Ns_Cond *cond, Ns_Mutex *mutex, Ns_Time *timePtr)
 {
-    int              err, status;
+    int              err, status = NS_ERROR;
     struct timespec  ts;
 
     if (timePtr == NULL) {

@@ -33,7 +33,7 @@
  *	ADP parser.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpparse.c,v 1.12 2002/11/06 15:18:13 jcollins Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpparse.c,v 1.13 2003/03/07 18:08:14 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -159,12 +159,12 @@ RegisterCmd(ClientData arg, Tcl_Interp *interp, int argc,
     tagPtr = ns_malloc(sizeof(Tag) + slen + elen);
     tagPtr->type = type;
     tagPtr->string = (char *) tagPtr + sizeof(Tag);
-    memcpy(tagPtr->string, string, slen);
+    memcpy(tagPtr->string, string, (size_t)slen);
     if (argc == 3) {
 	tagPtr->endtag = NULL;
     } else {
 	tagPtr->endtag = tagPtr->string + slen;
-	memcpy(tagPtr->endtag, argv[2], elen);
+	memcpy(tagPtr->endtag, argv[2], (size_t)elen);
     }
     Ns_RWLockWrLock(&servPtr->adp.taglock);
     hPtr = Tcl_CreateHashEntry(&servPtr->adp.tags, argv[1], &new);
@@ -345,7 +345,8 @@ GetTag(Tcl_DString *dsPtr, char *s, char *e, char **aPtr)
 static void
 ParseAtts(char *s, char *e, int *servPtr, Tcl_DString *attsPtr, int atts)
 {
-    char    *vs, *ve, *as, *ae, end, vsave, asave;
+    char *vs = NULL, *ve = NULL, *as = NULL, *ae = NULL;
+    char end = 0, vsave = 0, asave = 0;
     
     if (servPtr != NULL) {
 	*servPtr = 0;
@@ -554,11 +555,12 @@ AppendTag(AdpParse *parsePtr, Tag *tagPtr, char *as, char *ae, char *se)
 static void
 Parse(AdpParse *parsePtr, NsServer *servPtr, char *utf)
 {
-    Tag            *tagPtr;
-    char           *ss, *se, *s, *e, *a, *as, *ae, *t;
-    int             level, state, stream, streamdone;
+    Tag            *tagPtr = NULL;
+    char           *ss = NULL, *se = NULL, *s = NULL, *e = NULL;
+    char           *a = NULL, *as = NULL, *ae = NULL , *t = NULL;
+    int             level = 0, state, stream, streamdone;
     Tcl_DString     tag;
-    Tcl_HashEntry  *hPtr;
+    Tcl_HashEntry  *hPtr = NULL;
 
     Tcl_DStringInit(&tag);
     t = utf;
