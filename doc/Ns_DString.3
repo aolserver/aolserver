@@ -28,7 +28,7 @@
 '\" version of this file under either the License or the GPL.
 '\" 
 '\"
-'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_DString.3,v 1.1.2.4 2002/12/10 16:00:26 scottg Exp $
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_DString.3,v 1.1.2.5 2002/12/10 16:29:59 scottg Exp $
 '\"
 '\" 
 .so man.macros
@@ -100,17 +100,17 @@ will be automatically extended by allocating more memory to it.
 .PP
 Many functions return string pointers that point directly to the
 string within an Ns_DString structure. You must not free these
-returned string pointers with ns_free or any other freeing function,
+returned string pointers with Ns_Free or any other freeing function,
 but must instead use Ns_DStringFree to free memory associated with the
 Ns_DString.
 .TP
 \fBNs_DStringAppend\fR(\fIdsPtr, string\fR)
 
 Append the specified string plus a terminating null character to the
-end of the Ns_DString. It returns the string associated with the
+end of the Ns_DString. Returns the string associated with the
 current Ns_DString.
 
-The Ns_DString, ds, of the following code, would contain "foo\0" and
+The Ns_DString ds of the following code would contain "foo\0" and
 have a length of 3:
 
 .CS
@@ -119,7 +119,9 @@ Ns_DStringInit(&ds);
 Ns_DStringAppend(&ds, "foo");
 /* do something with the dstring */
 printf("%s\n", ds.string);
-Ns_DStringFree(&ds); /* finished with dstring */
+/* finished with dstring */
+Ns_DStringFree(&ds);
+
 .CE
 .TP
 \fBNs_DStringAppendArg\fR(\fIdsPtr, string\fR)
@@ -156,15 +158,6 @@ Ns_Free(stringdest);
 \fBNs_DStringFree\fR(\fIdsPtr\fR)
 
 Free any allocated memory used by an Ns_DString.
-
-.CS
-Ns_DString ds;
-Ns_DStringInit(&ds);
-Ns_DStringAppend(&ds, "foo");
-/* do something with the dstring */
-printf ("%s\n", ds.string);
-Ns_DStringFree(&ds); /* finished with dstring */
-.CE
 .TP
 \fBNs_DStringInit\fR(\fIdsPtr\fR)
 
@@ -178,8 +171,10 @@ int MyFunctions(int a, int b)
 {
     Ns_DString ds;
     Ns_DStringInit(&ds);
-    /* ds is now initialized and ready to pass to
-    another function */
+    /*
+     * ds is now initialized and ready to
+     * pass to another function
+     */
     ...
 }
 .CE
@@ -194,21 +189,22 @@ Ns_DString ds;
 Ns_DStringInit(&ds);
 Ns_DStringAppend(&ds, "<html></html>");
 printf("len=%d\n", Ns_DStringLength(&ds));
-Ns_DStringFree(&ds); /* finished with dstring */
+/* finished with dstring */
+Ns_DStringFree(&ds); 
 .CE
 .TP
 \fBNs_DStringNAppend\fR(\fIdsPtr, string, length\fR)
 
-Append n-characters of a string to an Ns_DString. The function appends
+Append n-characters of string to Ns_DString dsPtr. The function appends
 a string up to the specified number of characters, plus a terminating
 null character. Unlike the Tcl_DStringAppend function, which only
 works with string data, the AOLserver Ns_DStringNAppend function can
-append binary data.  It returns the string associated with the current
+append binary data.  Returns the string associated with the current
 Ns_DString.
 
 .CS
-The resulting Ns_DString in this example, ds, would contain "foo\0" and have a length
-of 3:
+The resulting Ns_DString in this example, ds would
+contain "foo\0" and have a length of 3:
 
 Ns_DString ds;
 Ns_DStringInit(&ds);
@@ -216,16 +212,16 @@ Ns_DStringNAppend(&ds, "fooasdf", 3);
 printf("%s\n", ds.string);
 Ns_DStringFree(&ds); /* finished with dstring */
 
-If you need a null-terminated list of null-terminated strings, such as "foo\0bar\0\0",
-you would add one to the length of the appended strings to get the extra terminating
-null character. For example:
+If you need a null-terminated list of null-terminated
+strings, such as "foo\0bar\0\0", you would add one to
+the length of the appended strings to get the extra
+terminating null character. For example:
 
 Ns_DString ds;
 Ns_DStringInit(&ds);
 Ns_DStringNAppend(&ds, "foo", 4);
 Ns_DStringNAppend(&ds, "bar", 4);
 .CE
-
 .TP
 \fBNs_DStringPop\fR(\fIvoid\fR)
 
@@ -234,7 +230,7 @@ the Ns_DString if necessary.  This will initialize Thread Local
 Storage (TLS) and configure parameters on first use. TLS is a means of
 storing data associated with a particular thread within the thread's
 context, so that it is always available to that thread. A pointer to
-the initialized DString is returned.
+the initialized Ns_DString is returned.
 .TP
 \fBNs_DStringPrintf\fR(\fIdsPtr, fmt, ...\fR)
 
@@ -251,25 +247,25 @@ Ns_DStringInit(&ds);
 Ns_DStringPrintf(&ds, "/path%d", getpid());
 /* do something with dstring */
 printf ("%s\n", ds.string);
-Ns_DStringFree(&ds); /* finished with dstring */
+/* finished with dstring */
+Ns_DStringFree(&ds);
 .CE
 .TP
 \fBNs_DStringPush\fR(\fIdsPtr\fR)
 
-Pop an Ns_DString from the per-thread cache, allocating the space for
-the Ns_DString if necessary.  This will initialize Thread Local
-Storage (TLS) and configure parameters on first use. TLS is a means of
-storing data associated with a particular thread within the thread's
-context, so that it is always available to that thread. A pointer to
-the initialized DString is returned.
+Push an Ns_DString onto the per-thread cache. The Ns_DString will be
+free'd if the maximum number of entries or the maximum size parameters
+have been exceeded. The contents held by the Ns_DString are destroyed.
 
-
-Ns_DStringFree(&ds); /* finished with dstring */
-.CE
+This is a performance function. Creating Ns_DStrings is a more expensive
+operation than cleaning out an already-existing Ns_DString and storing
+it for later use by the same thread.
 .TP
 \fBNs_DStringSetLength\fR(\fIdsPtr, length\fR)
 
-
+The length of dsPtr is changed to length and a null byte is
+stored at that position in the string.  If length is larger
+than the space allocated for dsPtr, then a panic occurs.
 .TP
 \fBNs_DStringTrunc\fR(\fIdsPtr, length\fR)
 
@@ -292,10 +288,10 @@ Ns_DStringInit(&ds);
 
 for (i=0; i < 50; i++) {
     Ns_DStringPrintf(&ds, "%s%d", "aBigString", i);
-    /* do something with the dstring constructed above*/
+    /* do something with the dstring constructed above */
     Ns_DStringTrunc(&ds, 0);
 }
-
+.CE
 .TP
 \fBNs_DStringValue\fR(\fIdsPtr\fR)
 
@@ -313,7 +309,7 @@ Ns_DStringInit(&ds);
 Ns_DStringAppend(&ds, "foo");
 /* do something with the dstring */
 printf ("%s\n", Ns_DStringValue(&ds));
-Ns_DStringFree(&ds); /* finished with dstring */
+Ns_DStringFree(&ds);
 .CE
 .TP
 \fBNs_DStringVarAppend\fR(\fIdsPtr, ...\fR)
@@ -328,7 +324,7 @@ Ns_DStringInit(&ds);
 Ns_DStringVarAppend(&ds, "foo", "bar", NULL);
 /* do something with the dstring */
 printf ("%s\n", ds.string);
-Ns_DStringFree(&ds); /* finished with dstring */
+Ns_DStringFree(&ds);
 .CE
 .SH "SEE ALSO"
 nsd(1), info(n)
