@@ -82,6 +82,10 @@ install: all
 	$(RM) $(INSTBIN)/$(MOD)
 	$(CP) $(MOD) $(INSTBIN)
 	$(MKDIR) $(INSTMOD)/$(MODDIR)
+	test -f $(INSTMOD)/$(MODDIR)/certfile.pem \
+		|| $(CP) certfile.pem $(INSTMOD)/$(MODDIR)
+	test -f $(INSTMOD)/$(MODDIR)/keyfile.pem \
+		|| $(CP) keyfile.pem $(INSTMOD)/$(MODDIR)
 	$(CP) keygen.tcl $(INSTMOD)/$(MODDIR)
 	$(MKDIR) $(INSTSRVMOD)/$(MODDIR)
 
