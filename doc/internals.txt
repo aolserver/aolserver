@@ -1,0 +1,99 @@
+
+$Header: /Users/dossy/Desktop/cvs/aolserver/doc/Attic/internals.txt,v 1.1 2000/05/09 21:42:31 kriston Exp $
+
+
+The urlspace Trie
+-----------------
+
+There are four basic data structures used in maintaining the urlspace
+trie. They are:
+
+1. Junction
+   A junction is nothing more than a list of channels.
+2. Channel
+   A channel points to a branch which ultimately leads to nodes
+   that match a particular "filter", such as "*.html". The filter
+   is the last section of a URL mask, and is the only part of
+   the mask that may contain wildcards.
+3. Branch
+   A branch represents one part of a URL, such as a server, method,
+   directory, or wildcard filename. It has a list of branches
+   representing sub-URLs as well as a pointer to a list of Nodes.
+4. Node
+   A node stores URL-specific data, as well as a pointer to the
+   cleanup function. 
+
+Another data structure, called an Index, which is manipulated by the
+Ns_Index API calls, is used by the urlspace code. An Index is an
+ordered list of pointers. The order is determined by callback
+functions. See index.c for the scoop on that.
+
+Here is what the urlspace data structure would look like after
+calling
+
+Ns_UrlSpecificSet("server1", "GET", "/foo/bar/*.html", myID, myData,
+                  0, MyDeleteProc);
+------------------------------------------------------------------------------
+		  
+urlspace: JUNCTION
+  byname: INDEX [*][ ][ ][ ][ ]
+                 |
+  +--------------+
+  |
+  V		 
+CHANNEL
+  filter:  CHAR*   "*.html"
+  trie:    TRIE
+             indexnode: INDEX* (NULL)
+	     branches:  INDEX  [*][ ][ ][ ][ ]
+	                        |
+  +-----------------------------+
+  |
+  V
+BRANCH
+  word: CHAR* "server1"
+  node: TRIE
+          indexnode: INDEX* (NULL)
+	  branches:  INDEX  [*][ ][ ][ ][ ]
+	                     |
+  +--------------------------+
+  |
+  V
+BRANCH
+  word: CHAR* "GET"
+  node: TRIE
+          indexnode: INDEX* (NULL)
+	  branches:  INDEX  [*][ ][ ][ ][ ]
+	                     |
+  +--------------------------+
+  |
+  V
+BRANCH
+  word: CHAR* "foo"
+  node: TRIE
+          indexnode: INDEX* (NULL)
+	  branches:  INDEX  [*][ ][ ][ ][ ]
+	                     |
+  +--------------------------+
+  |
+  V
+BRANCH
+  word: CHAR* "*.html"
+  node: TRIE
+          indexnode: INDEX* -----------------> [*][ ][ ][ ][ ]
+	  branches:  INDEX  [ ][ ][ ][ ][ ]     |
+	                                        |
+  +---------------------------------------------+
+  |
+  V
+NODE
+  id:                  INT               myID
+  dataInherit:         VOID*             myData
+  dataNoInherit:       VOID*             0
+  deleteFuncInherit:   VOID(*)(VOID*)    MyDeleteProc
+  deleteFuncNoInherit: VOID(*)(VOID*)    0
+
+    
+
+
+

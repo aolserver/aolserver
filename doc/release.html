@@ -1,0 +1,307 @@
+<html><head><title>AOLserver 3.0 Release Notes</title></head><body>
+<h2>
+
+
+<img src="admin/as-c-lg.gif">
+
+
+
+
+<br>
+
+</h2>
+
+
+<h2>AOLserver 3.0 Release Notes</h2> These release notes, updated Wednesday,
+ April 12, 2000, describe the new features and known issues in AOLserver
+ 3.0.&nbsp; It also contains building and installation instructions.<br>
+<h3>Contents</h3>
+
+<table align="Center" cellpadding="2" cellspacing="2" border="0" width="75%"><tbody>
+
+<tr valign="Top" width="50%">
+<td valign="Top"> <a href="#Whats_New_from_30rc2_to_30">What's New from 3.0rc2 to 3.0</a><br>
+
+    <br> <a href="#Bugs_Fixed_from_30rc2_to_30">Bugs Fixed from 3.0rc2 to 3.0</a><br>
+
+    <br> <a href="#Known_Issues_in_30"> Known Issues in 3.0</a><br><a href="#Known_Issues_in_30">
+
+    </a><br>
+
+    <a href="#Building_and_Installation">
+Building and Installation</a><br>
+
+    <br>
+
+    <a href="#Directory_Structure"> Directory Structure</a><br>
+    </td><td valign="Top">
+
+    <a href="#AOLserver_Modules">AOLserver Modules</a><br>
+
+    <br>
+
+    <a href="#Documentation">Documentation</a><br>
+
+    <br>
+
+    <a href="#Online_Resources">Online Resources</a><br>
+
+    <br>
+
+    <a href="#Your_Feedback">Your Feedback</a><br>
+    </td></tr></tbody></table>
+
+<p>
+&nbsp;
+</p><h3>
+
+<a name="Whats_New_from_30rc2_to_30"></a>
+What's New from 3.0rc2 to 3.0</h3><ul>
+  <li>Automatic configuration in nsd.tcl.</li>
+  <li>External database driver (nsext) performance improvment (up to 1000% faster). </li>
+
+  <li>And more -- check the ChangeLog for more details.<br>
+  </li>
+</ul>
+<h3>
+
+<a name="Bugs_Fixed_from_30rc2_to_30"></a>
+ Bugs Fixed from 3.0rc2 to 3.0</h3>
+<ul>
+
+  <li>ns_sockopen and ns_sendmail no longer deadlock in Windows NT/2000/98.<br>
+</li>
+  <li>Other minor bug fixes -- check the ChangeLog for more details.</li>
+
+</ul>
+<h3>
+
+<a name="Known_Issues_in_30"></a>
+Known Issues in 3.0</h3>
+<ul>
+
+  <li>Modules "nsunix," "nsvhr," and "nssolid" probably do not work due to lack of community interest.</li>
+  <li>The optional "fancy" ADP parser has problems parsing certain constructs,
+ so the standard "ADP" parser is now used as the default ADP parser.<br>
+  </li>
+  <li>The new "nsperm" module has not been fully tested for thread-safety.</li>
+  <li>The database interface, while stable, is due for a redesign post-3.0.<br>
+  </li>
+</ul>
+<h3>
+
+<a name="Building_and_Installation"></a>
+
+Building and Installation</h3>
+AOLserver 3 has an entirely new build process that requires gmake and a C
+ compiler (preferrably gcc).&nbsp; On nearly all systems, you need only extract
+ the source distribution from either a tar file or CVS and type "gmake".&nbsp;
+ The file include/Makefile.global contains platform-specific information
+ if you run into trouble.&nbsp; Some of the optional modules require third-party
+ libraries not included with AOLserver.<br>
+<br> On typing "gmake install", AOLserver attempts to install itself into
+ "/tmp/aolserver/"&nbsp; but you may override it by typing "gmake install INST=/usr/local/yourpath".
+ &nbsp; To test your AOLserver build, change to the installation directory and
+ type&nbsp; "./bin/nsd -kt nsd.tcl" to smoke-test the server.&nbsp; The sample nsd.tcl
+ listens&nbsp; on port 8000 at your machine's primary internet address.<br>
+<br> Like all Unix servers, AOLserver <u>must</u> start up as "root" to use
+ the privileged ports 80 and 443.&nbsp; After AOLserver&nbsp; starts, it changes itself
+ into a normal Unix user.&nbsp; You specify the username&nbsp; to use with the "-u"
+ option as illustrated below.&nbsp; This username should&nbsp; represent a normal Unix
+ user with its own home directory, preferrably&nbsp; the&nbsp; same as the installation
+ path you used while installing AOLserver. <br>
+<br>
+To install a production AOLserver, edit the nsd.tcl to suit your needs.&nbsp;
+ The sample nsd.tcl is very complete and there is a copious reference in
+ doc/config.txt.&nbsp; Then add this line to your /etc/inittab:<br>
+<br><tt>
+<small> as:2345:respawn:/usr/local/aolserver/bin/nsd -it /usr/local/aolserver/nsd.tcl -u user -g group</small></tt><br>
+<br>
+If your *BSD Unix system does not have an /etc/inittab, you can use this
+ line for your /etc/rc.local (or whatever) startup script:<br><tt>
+
+<br>
+
+</tt>
+
+<tt>
+<small>
+while /bin/true</small></tt><small>
+
+<br>
+
+</small>
+
+<small>
+<tt> &nbsp; &nbsp; do /usr/local/aolserver/bin/nsd -it /usr/local/aolserver/nsd.tcl -u user -g group</tt></small><small>
+
+<br>
+
+</small>
+
+<small>
+<tt>
+<tt>
+done</tt></tt></small><br><br>
+Windows users may start AOLserver as an NT Service or from a Win32 console
+ window just like in Unix.&nbsp; For development and testing, we recommend using
+ console mode.&nbsp; For production, we very highly recommend running AOLserver
+ from the NT Services control panel.&nbsp; To install AOLserver as an NT Service,
+ type the following:<br>
+ &nbsp;&nbsp; bin/nsd -I -f nsd.tcl<br>
+To remove AOLserver from the NT Services control panel, type this instead:<br>
+ &nbsp;&nbsp; bin/nsd -R -f nsd.tcl
+<h3>
+
+
+<br>
+
+
+
+<a name="Directory_Structure"></a>
+
+Directory Structure</h3>
+AOLserver inherits the same directory structure as previous releases.&nbsp; There
+ is a shared and a private Tcl library, as well as shared/private module
+ directories.&nbsp; Tcl code and global data not specific to a web server goes
+ into modules/tcl/tclmodulename/ and modules/modulename/ directories, respectively.&nbsp;
+ Data files written to by a server application should go into the servers/server1/modules/modulename/
+ directory.<br>
+<br>
+ For example, a large applicaton such as the Arsdigita Community System would
+ put its Tcl code and read-only data files into modules/tcl/acs/ and modules/acs/,
+ respectively.&nbsp; The files the server reads and writes during operation go
+ into servers/server1/modules/acs/.<br>
+<blockquote style="margin-top: 0pt; margin-right: 0pt; margin-bottom: 0pt; margin-left: 40px; ">
+
+
+<br>
+
+
+<tt>Server executables: &nbsp;&nbsp; &nbsp; bin/</tt><br>
+<tt>Server logs: &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; log/</tt><br>
+<tt>Shared read-only data: &nbsp; modules/modulename/ </tt><br>
+<tt>Tcl library: &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; modules/tcl</tt><tt>/modulename/</tt><br>
+<tt>Page root: &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; servers/server1/pages</tt><tt>/</tt><br>
+<tt>Private module data: &nbsp; &nbsp; servers/server1/modules/modulename/</tt></blockquote>
+<tt>
+
+<br>
+
+
+
+<br>
+
+</tt>
+Other directories:
+<blockquote style="margin-top: 0pt; margin-right: 0pt; margin-bottom: 0pt; margin-left: 40px; ">
+<tt>
+
+<br>
+
+</tt>
+
+<tt>Access logs: &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; servers/server1/modules/nslog</tt><tt>/</tt><br>
+<tt>Access Control records:&nbsp; servers/server1/modules/nsperm</tt><tt>/</tt><br>
+<tt>SSL cert/key storage: &nbsp;&nbsp; servers/server1/modules/nsssl</tt></blockquote>
+<h3>
+
+
+<br>
+
+
+
+<a name="AOLserver_Modules"></a>
+
+AOLserver Modules</h3>
+AOLserver comes with several modules but only the most-used modules are included
+ in the binary distribution.&nbsp; To build the modules, edit the top-level Makefile
+ and edit the "MODULES" line before you run gmake.&nbsp; Alternatively, you can
+ change into the module's directory and type "gmake".&nbsp; In nearly all directories
+ you can type "gmake INST=/your/install/path" to build and install the module
+ you need.<br>
+<br>
+The standard modules are:
+<ul>
+
+  <li>nssock:&nbsp; Services HTTP connections.</li>
+  <li>nscgi:&nbsp; Enables CGI scripting.</li>
+  <li>nscp: Provides remote-administration functions via a tclsh control port.</li>
+  <li>nslog: Common log format module for access logging.</li>
+  <li>nsperm: Permissions module for site-wide access control.<br>
+  </li>
+  <li>nsext: External database driver for databases like Sybase and Oracle.</li>
+</ul>
+The optional modules are:
+<ul>
+
+  <li>nsssl2:&nbsp; enables SSL connections to AOLserver.&nbsp; An export-level security
+ binary comes with the AOLserver binary distribution.&nbsp; Requires BSAFE 3 from
+ <a href="http://www.rsasecurity.com/">http://www.rsasecurity.com/</a>.</li>
+  <li>nsunix: A communications driver that uses Unix domain sockets.</li>
+  <li>nsvhr: A virtual-hosting redirector that lets you use multiple independent
+ web servers on one IP address communicating via a Unix domain socket or
+ regular TCP/IP socket.</li>
+  <li>nspostgres: The Postgres database driver.&nbsp; Requires Postgres from <a href="http://www.postgresql.org/">http://www.postgresql.org/</a>.</li>
+  <li>nssybpd: The Sybase database driver.&nbsp; Requires the Sybase Client Libraries from <a href="http://www.sybase.com/">http://www.sybase.com/</a>.</li>
+  <li>nssolid: The SOLID database driver.&nbsp; Requires the SOLID database server which used to be available at <a href="http://www.solidtech.com/">http://www.solidtech.com/</a>.</li>
+</ul>
+<h3>
+
+<a name="Documentation"></a>
+
+Documentation</h3>
+Starting with AOLserver 3.0rc1, all AOLserver documentation is available
+ in the doc/ directory of the source distribution as well as online at <a href="http://aolserver.com/doc/">http://aolserver.com/doc/</a>.&nbsp;
+ Incrementally, the documentation will be brought up-to-date with the latest
+ version of AOLserver 3.&nbsp; Many documents have been added to the documentation
+ from the AOLserver archives.&nbsp; We also appreciate corrections and additional
+ documentation from you.&nbsp; Source code changes are now in the ChangeLog file
+ in the top-level directory, either manually editted or automatically entered
+ using the Emacs "C-x 4 a" key sequence.<br>
+<br>
+<h3>
+
+<a name="Online_Resources"></a>
+
+Online Resources</h3>
+AOLserver has an active development community at <a href="http://aolserver.com/">http://aolserver.com/</a> where
+ you may register with the development system, subscribe to mailing lists,
+ explore even more contributed software, and get help with AOLserver.&nbsp; Please
+ visit <a href="http://aolserver.com/community/">http://aolserver.com/community/</a> to keep up with us!<br>
+<br>
+<h3>
+
+<a name="Your_Feedback"></a>
+
+Your Feedback</h3> We welcome your feedback and bug reports on AOLserver
+ 3, but note that the&nbsp; most effective assistance will be had from participating
+ in our online community&nbsp; at <a href="http://aolserver.com/community/">http://aolserver.com/community/</a>.&nbsp; We do not accept bug reports or feedback regarding AOLserver 2.x -- you must be using AOLserver 3.x.&nbsp; Please visit <a href="http://aolserver.com/community">http://aolserver.com/community</a>/ for information on how to contribute your feedback.<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+</body>
+</html>
