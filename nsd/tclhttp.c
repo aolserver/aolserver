@@ -33,7 +33,7 @@
  *	Support for the ns_http command.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclhttp.c,v 1.16.2.1 2003/11/23 16:31:31 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclhttp.c,v 1.16.2.2 2003/11/23 16:43:19 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -305,7 +305,7 @@ HttpOpen(char *method, char *url, Ns_Set *hdrs, char *body)
             *file = '/';
         }
         Ns_DStringAppend(&httpPtr->ds, method);
-	Ns_StrToUpper(Ns_DStringValue(&httpPtr->ds));
+        Ns_StrToUpper(Ns_DStringValue(&httpPtr->ds));
         Ns_DStringVarAppend(&httpPtr->ds, " ", file ? file : "/", " HTTP/1.0\r\n", NULL);
         if (file != NULL) {
             *file = '\0';
