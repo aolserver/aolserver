@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsssl/Makefile,v 1.3 2002/09/21 17:07:36 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsssl/Makefile,v 1.4 2002/10/03 22:26:19 jgdavidson Exp $
 #
 
 
@@ -59,6 +59,7 @@ endif
 MODLIBS  =  -L$(BSAFE)/lib -lbsafe
 MODDIR   =  nsssl
 HDRS     =  ssl.h ssltcl.h x509.h
+LDRPATH  += $(LDRFLAG)$(BSAFE)/lib
 
 
 #
