@@ -33,7 +33,7 @@
  *	ADP parser.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpparse.c,v 1.6 2001/12/18 22:34:42 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpparse.c,v 1.7 2002/06/05 23:25:34 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -41,18 +41,24 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
 #define SERV_RUNAT	2
 #define SERV_NOTTCL	4
 
+#define TAG_ADP		1
+#define TAG_PROC	2
+#define TAG_OPROC	3
+
 #define APPEND		"ns_adp_append "
 #define APPEND_LEN	(sizeof(APPEND)-1)
 
 /*
  * The following structure maintains proc and adp registered tags.
+ * String bytes directly follow the Tag struct in the same allocated
+ * block.
  */
 
 typedef struct {
-    char          *tag;     /* The name of the tag (e.g., "netscape") */
-    char          *endtag;  /* The closing tag or null (e.g., "/netscape")*/
-    char          *string;  /* Proc (e.g., "ns_adp_netscape") or ADP string. */
-    int		   isproc;  /* Arg is a proc, not ADP string. */
+    int		   type;   /* Type of tag, ADP or proc. */
+    char          *tag;    /* The name of the tag (e.g., "netscape") */
+    char          *endtag; /* The closing tag or null (e.g., "/netscape")*/
+    char          *string; /* Proc (e.g., "ns_adp_netscape") or ADP string. */
 } Tag;
 
 /*
@@ -63,7 +69,7 @@ static void AppendBlock(AdpParse *parsePtr, char *s, char *e, int type);
 static void Parse(AdpParse *parsePtr, NsServer *servPtr, char *utf);
 static Tag   *GetRegTag(NsServer *servPtr, char *tag);
 static int	 RegisterCmd(ClientData arg, Tcl_Interp *interp,
-		    int argc, char **argv, int isproc);
+		    int argc, char **argv, int type);
 
 
 /*
@@ -87,52 +93,65 @@ int
 NsTclRegisterTagCmd(ClientData arg, Tcl_Interp *interp, int argc,
 		    char **argv)
 {
-    return RegisterCmd(arg, interp, argc, argv, 1);
+    return RegisterCmd(arg, interp, argc, argv, TAG_OPROC);
 }
 
 int
-NsTclRegisterAdpTagCmd(ClientData arg, Tcl_Interp *interp, int argc,
+NsTclAdpRegisterAdpCmd(ClientData arg, Tcl_Interp *interp, int argc,
 		    char **argv)
 {
-    return RegisterCmd(arg, interp, argc, argv, 0);
+    return RegisterCmd(arg, interp, argc, argv, TAG_ADP);
+}
+
+int
+NsTclAdpRegisterProcCmd(ClientData arg, Tcl_Interp *interp, int argc,
+		    char **argv)
+{
+    return RegisterCmd(arg, interp, argc, argv, TAG_PROC);
 }
 
 static int
 RegisterCmd(ClientData arg, Tcl_Interp *interp, int argc,
-		    char **argv, int isproc)
+		    char **argv, int type)
 {
     NsInterp       *itPtr = arg;
     NsServer	   *servPtr = itPtr->servPtr;
-    char           *tag, *endtag, *string;
+    char           *string;
     Tcl_HashEntry  *hPtr;
-    int             new;
-    Tag         *tagPtr;
+    int             new, slen, elen;
+    Tag            *tagPtr;
     
     if (argc != 4 && argc != 3) {
 	Tcl_AppendResult(interp, "wrong # args: should be \"",
-			 argv[0], " tag ?endtag? proc\"", NULL);
+			 argv[0], " tag ?endtag? ",
+			 type == TAG_ADP ? "adp" : "proc", "\"", NULL);
 	return TCL_ERROR;
     }
-    tag = argv[1];
     string = argv[argc-1];
-    endtag = (argc == 3 ? NULL : argv[2]);
-
-    Ns_MutexLock(&servPtr->adp.taglock);
-    hPtr = Tcl_CreateHashEntry(&servPtr->adp.tags, tag, &new);
-    if (new) {
-    	tagPtr = ns_malloc(sizeof(Tag));
-    	tagPtr->tag = ns_strdup(tag);
-    	tagPtr->endtag = endtag ? ns_strdup(endtag) : NULL;
-    	tagPtr->string = ns_strdup(string);
-    	tagPtr->isproc = isproc;
-    	Tcl_SetHashValue(hPtr, (void *) tagPtr);
+    slen = strlen(string) + 1;
+    if (argc == 3) {
+	elen = 0;
+    } else {
+	elen = strlen(argv[2]) + 1;
     }
-    Ns_MutexUnlock(&servPtr->adp.taglock);
+    tagPtr = ns_malloc(sizeof(Tag) + slen + elen);
+    tagPtr->type = type;
+    tagPtr->string = (char *) tagPtr + sizeof(Tag);
+    memcpy(tagPtr->string, string, slen);
+    if (argc == 3) {
+	tagPtr->endtag = NULL;
+    } else {
+	tagPtr->endtag = tagPtr->string + slen;
+	memcpy(tagPtr->endtag, argv[2], elen);
+    }
+    Ns_RWLockWrLock(&servPtr->adp.taglock);
+    hPtr = Tcl_CreateHashEntry(&servPtr->adp.tags, argv[1], &new);
     if (!new) {
-	Tcl_AppendResult(interp, "ADP tag \"", tag, "\" already registered.",
-			 NULL);
-	return TCL_ERROR;
+	ns_free(Tcl_GetHashValue(hPtr));
     }
+    Tcl_SetHashValue(hPtr, tagPtr);
+    tagPtr->tag = Tcl_GetHashKey(&servPtr->adp.tags, hPtr);
+    Ns_RWLockUnlock(&servPtr->adp.taglock);
     return TCL_OK;
 }
 
@@ -154,7 +173,7 @@ RegisterCmd(ClientData arg, Tcl_Interp *interp, int argc,
  */
 
 void
-NsAdpParse(AdpParse *parsePtr, NsServer *servPtr, char *utf)
+NsAdpParse(AdpParse *parsePtr, NsServer *servPtr, char *utf, int safe)
 {
     char *s, *e;
 
@@ -179,10 +198,12 @@ NsAdpParse(AdpParse *parsePtr, NsServer *servPtr, char *utf)
 	*s = '\0';
 	Parse(parsePtr, servPtr, utf);
 	*s = '<';
-	if (s[2] != '=') {
-	    AppendBlock(parsePtr, s + 2, e, 's');
-	} else {
-	    AppendBlock(parsePtr, s + 3, e, 'S');
+	if (!safe) {
+	    if (s[2] != '=') {
+	        AppendBlock(parsePtr, s + 2, e, 's');
+	    } else {
+	        AppendBlock(parsePtr, s + 3, e, 'S');
+	    }
 	}
 	utf = e + 2;
     }
@@ -199,37 +220,6 @@ NsAdpParse(AdpParse *parsePtr, NsServer *servPtr, char *utf)
 
     parsePtr->code.len = (int *) parsePtr->hdr.string;
     parsePtr->code.base = parsePtr->text.string;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * FindRegTag --
- *
- *	Return the Tag structure for the given tag.
- *
- * Results:
- *	Either a pointer to the requested regtag or null if none exists.
- *
- * Side effects:
- *	None.
- *
- *----------------------------------------------------------------------
- */
-
-static Tag *
-FindRegTag(NsServer *servPtr, char *tag)
-{
-    Tcl_HashEntry *hPtr;
-    
-    Ns_MutexLock(&servPtr->adp.taglock);
-    hPtr = Tcl_FindHashEntry(&servPtr->adp.tags, tag);
-    Ns_MutexUnlock(&servPtr->adp.taglock);
-    if (hPtr == NULL) {
-	return NULL;
-    }
-    return Tcl_GetHashValue(hPtr) ;
 }
 
 
@@ -331,7 +321,7 @@ GetTag(Tcl_DString *dsPtr, char *s, char *e, char **aPtr)
  */
 
 static void
-ParseAtts(char *s, char *e, int *servPtr, Tcl_DString *attsPtr)
+ParseAtts(char *s, char *e, int *servPtr, Tcl_DString *attsPtr, int atts)
 {
     char    *vs, *ve, *as, *ae, end, vsave, asave;
     
@@ -346,6 +336,9 @@ ParseAtts(char *s, char *e, int *servPtr, Tcl_DString *attsPtr)
 	while (s < e && isspace(UCHAR(*s))) {
 	    ++s;
 	}
+	if (s == e) {
+	    break;
+	}
 	as = s;
 	while (s < e && !isspace(UCHAR(*s)) && *s != '=') {
 	    ++s;
@@ -354,8 +347,7 @@ ParseAtts(char *s, char *e, int *servPtr, Tcl_DString *attsPtr)
 	while (s < e && isspace(UCHAR(*s))) {
 	    ++s;
 	}
-
-	if (*s++ != '=') {
+	if (*s != '=') {
 	    /*
 	     * Use attribute name as value.
 	     */
@@ -366,9 +358,9 @@ ParseAtts(char *s, char *e, int *servPtr, Tcl_DString *attsPtr)
 	     * Trim spaces and/or quotes from value.
 	     */
 
-	    while (s < e && isspace(UCHAR(*s))) {
+	    do {
 		++s;
-	    }
+	    } while (s < e && isspace(UCHAR(*s)));
 	    vs = s;
 	    while (s < e && !isspace(UCHAR(*s))) {
 		++s;
@@ -393,7 +385,9 @@ ParseAtts(char *s, char *e, int *servPtr, Tcl_DString *attsPtr)
 	 */
 
 	if (attsPtr != NULL) {
-	    Tcl_DStringAppendElement(attsPtr, as);
+	    if (atts) {
+	    	Tcl_DStringAppendElement(attsPtr, as);
+	    }
 	    Tcl_DStringAppendElement(attsPtr, vs);
 	}
 	if (servPtr != NULL && vs != as) {
@@ -440,7 +434,7 @@ IsServer(char *tag, char *as, char *ae, int *streamPtr)
     int serv;
 
     if (as < ae && STREQ(tag, "script")) {
-	ParseAtts(as, ae, &serv, NULL);
+	ParseAtts(as, ae, &serv, NULL, 1);
 	if ((serv & SERV_RUNAT) && !(serv & SERV_NOTTCL)) {
 	    *streamPtr = (serv & SERV_STREAM);
 	    return 1;
@@ -474,20 +468,26 @@ AppendTag(AdpParse *parsePtr, Tag *tagPtr, char *as, char *ae, char *se)
 
     Tcl_DStringInit(&script);
     Tcl_DStringAppend(&script, "ns_adp_append [", -1);
-    if (!tagPtr->isproc) {
-	Tcl_DStringAppend(&script, "ns_adp_eval", -1);
+    if (tagPtr->type == TAG_ADP) {
+	Tcl_DStringAppend(&script, "ns_adp_eval ", -1);
     }
     Tcl_DStringAppendElement(&script, tagPtr->string);
+    if (tagPtr->type == TAG_PROC) {
+    	ParseAtts(as, ae, NULL, &script, 0);
+    }
     if (se > ae) {
 	save = *se;
 	*se = '\0';
 	Tcl_DStringAppendElement(&script, ae + 1);
 	*se = save;
     }
-    Tcl_DStringAppend(&script, " [ns_set create", -1);
-    Tcl_DStringAppendElement(&script, tagPtr->tag);
-    ParseAtts(as, ae, NULL, &script);
-    Tcl_DStringAppend(&script, "]]", 2);
+    if (tagPtr->type != TAG_PROC) {
+    	Tcl_DStringAppend(&script, " [ns_set create", -1);
+    	Tcl_DStringAppendElement(&script, tagPtr->tag);
+    	ParseAtts(as, ae, NULL, &script, 1);
+    	Tcl_DStringAppend(&script, "]", 1);
+    }
+    Tcl_DStringAppend(&script, "]", 1);
     AppendBlock(parsePtr, script.string, script.string+script.length, 's');
     Tcl_DStringFree(&script);
 }
@@ -516,11 +516,13 @@ Parse(AdpParse *parsePtr, NsServer *servPtr, char *utf)
     char           *ss, *se, *s, *e, *a, *as, *ae, *t;
     int             level, state, stream, streamdone;
     Tcl_DString     tag;
+    Tcl_HashEntry  *hPtr;
 
     Tcl_DStringInit(&tag);
     t = utf;
     streamdone = 0;
     state = 0;
+    Ns_RWLockRdLock(&servPtr->adp.taglock);
     while ((s = strchr(utf, '<')) && (e = strchr(s, '>'))) {
 	/*
 	 * Process the tag depending on the current state.
@@ -542,8 +544,9 @@ Parse(AdpParse *parsePtr, NsServer *servPtr, char *utf)
 		se = e + 1;
 		state = 1;
 	    } else {
-		tagPtr = FindRegTag(servPtr, tag.string);
-		if (tagPtr) {
+    		hPtr = Tcl_FindHashEntry(&servPtr->adp.tags, tag.string);
+    		if (hPtr != NULL) {
+		    tagPtr = Tcl_GetHashValue(hPtr);
 		    if (tagPtr->endtag == NULL) {
 			/*
 			 * Output simple no-end registered tag.
@@ -610,6 +613,7 @@ Parse(AdpParse *parsePtr, NsServer *servPtr, char *utf)
 	}
 	utf = e + 1;
     }
+    Ns_RWLockUnlock(&servPtr->adp.taglock);
 
     /*
      * Append the remaining text block.
