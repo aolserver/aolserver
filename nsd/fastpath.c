@@ -34,7 +34,7 @@
  *      Get page possibly from a file cache.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/fastpath.c,v 1.18 2003/03/07 18:08:25 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/fastpath.c,v 1.19 2004/07/02 16:14:14 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #ifndef _WIN32
@@ -488,8 +488,8 @@ FastReturn(NsServer *servPtr, Ns_Conn *conn, int status,
     }
     
     /*
-     * Set the last modified header and, if not modified since
-     * last request, return now.
+     * Set the last modified header if not set yet and, if not
+     * modified since last request, return now.
      */
      
     Ns_ConnSetLastModifiedHeader(conn, &stPtr->st_mtime);

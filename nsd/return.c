@@ -34,7 +34,7 @@
  *	Functions that return data to a browser. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.37 2004/06/15 00:25:07 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.38 2004/07/02 16:14:14 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -385,9 +385,8 @@ Ns_ConnCondSetHeaders(Ns_Conn *conn, char *field, char *value)
 void
 Ns_ConnReplaceHeaders(Ns_Conn *conn, Ns_Set *newheaders)
 {
-    newheaders = Ns_SetCopy(newheaders);
     Ns_SetFree(conn->outputheaders);
-    conn->outputheaders = newheaders;
+    conn->outputheaders = Ns_SetCopy(newheaders);
 }
 
 
@@ -506,7 +505,7 @@ Ns_ConnSetLengthHeader(Ns_Conn *conn, int length)
  *
  * Ns_ConnSetLastModifiedHeader --
  *
- *	Set the Last-Modified output header. 
+ *	Set the Last-Modified output header if it isn't already set. 
  *
  * Results:
  *	None. 
@@ -523,7 +522,7 @@ Ns_ConnSetLastModifiedHeader(Ns_Conn *conn, time_t *mtime)
     Ns_DString ds;
 
     Ns_DStringInit(&ds);
-    Ns_ConnSetHeaders(conn, "Last-Modified", Ns_HttpTime(&ds, mtime));
+    Ns_ConnCondSetHeaders(conn, "Last-Modified", Ns_HttpTime(&ds, mtime));
     Ns_DStringFree(&ds);
 }
 
