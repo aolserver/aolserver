@@ -34,7 +34,7 @@
  *      Get page possibly from a file cache.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/fastpath.c,v 1.15 2002/09/28 20:55:13 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/fastpath.c,v 1.16 2002/11/03 20:20:48 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #include <sys/mman.h>
@@ -90,10 +90,12 @@ static int FastReturn(NsServer *servPtr, Ns_Conn *conn, int status,
 Ns_Cache *
 NsFastpathCache(char *server, int size)
 {
-    char buf[100];
+    Ns_DString ds;
 
-    sprintf(buf, "nsfp:%s", server);
-    return Ns_CacheCreateSz("ns:fastpath", FILE_KEYS, (size_t) size, FreeEntry);
+    Ns_DStringInit(&ds);
+    Ns_DStringVarAppend(&ds, "nsfp:", server, NULL);
+    return Ns_CacheCreateSz(ds.string, FILE_KEYS, (size_t) size, FreeEntry);
+    Ns_DStringFree(&ds);
 }
 
 
