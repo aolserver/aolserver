@@ -34,7 +34,7 @@
  *	Tcl database access routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsdb/dbtcl.c,v 1.3 2003/03/07 18:08:45 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsdb/dbtcl.c,v 1.4 2004/02/05 17:52:04 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "db.h"
 
@@ -195,7 +195,7 @@ DbCmd(ClientData arg, Tcl_Interp *interp, int argc, CONST char **argv)
 	int timeout, nhandles, result;
 	Ns_DbHandle **handlesPtrPtr;
 
-	timeout = 0;
+	timeout = -1;
 	if (argc >= 4) {
 	    if (STREQ(argv[2], "-timeout")) {
 		if (Tcl_GetInt(interp, argv[3], &timeout) != TCL_OK) {
