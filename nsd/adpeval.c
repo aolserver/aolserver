@@ -33,7 +33,7 @@
  *	ADP string and file eval.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.8 2001/06/26 22:09:59 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.9 2001/11/05 20:23:19 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -82,15 +82,10 @@ typedef struct {
  * in the cache.
  */
 
-#ifdef WIN32
-#define CACHE_KEYS TCL_STRING_KEYS
-#else
 typedef struct Key {
     dev_t dev;
     ino_t ino;
 } Key;
-#define CACHE_KEYS ((sizeof(Key))/(sizeof(int)))
-#endif
 
 /*
  * Local functions defined in this file.
@@ -132,7 +127,7 @@ NsAdpCache(char *name, int size)
     char buf[200];
 
     sprintf(buf, "nsadp:%s", name);
-    return Ns_CacheCreateSz(buf, CACHE_KEYS, size, FreePage);
+    return Ns_CacheCreateSz(buf, sizeof(Key)/sizeof(int), size, FreePage);
 }
 
 
@@ -322,15 +317,11 @@ AdpRun(NsInterp *itPtr, char *file, int argc, char **argv, Tcl_DString *outputPt
 	 
     	status = ParseFile(itPtr, file, st.st_size, &chunks);
     } else {
-#ifdef WIN32
-	key = file;
-#else
     	Key ukey;
 
 	ukey.dev = st.st_dev;
 	ukey.ino = st.st_ino;
 	key = (char *) &ukey;
-#endif
 	if (cachePtr != servPtr->adp.cache) {
 
     	    /*
@@ -599,7 +590,7 @@ ParseFile(NsInterp *itPtr, char *file, size_t size, Ns_DString *dsPtr)
      * Read the file in on big binary chunk.
      */
 
-    fd = open(file, O_RDONLY|O_BINARY);
+    fd = open(file, O_RDONLY);
     if (fd < 0) {
 	Tcl_AppendResult(interp, "could not open \"",
 	    file, "\": ", Tcl_PosixError(interp), NULL);
@@ -816,7 +807,7 @@ DebugChunk(NsInterp *itPtr, char *script, int chunk)
     if (mktemp(debugfile) == NULL) {
 	Tcl_SetResult(interp, "could not create adp debug file", TCL_STATIC);
     } else {
-	fd = open(debugfile, O_WRONLY|O_TRUNC|O_CREAT|O_TEXT, 0644);
+	fd = open(debugfile, O_WRONLY|O_TRUNC|O_CREAT, 0644);
 	if (fd < 0) {
 	    Tcl_AppendResult(interp, "could not create adp debug file \"",
 		debugfile, "\": ", Tcl_PosixError(interp), NULL);

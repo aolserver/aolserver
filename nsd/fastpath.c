@@ -34,15 +34,13 @@
  *      Get page possibly from a file cache.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/fastpath.c,v 1.10 2001/04/24 19:42:46 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/fastpath.c,v 1.11 2001/11/05 20:23:19 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
-#ifndef WIN32
 #if defined(MACOSX) && defined(panic)
 #undef panic
 #endif
 #include <sys/mman.h>
-#endif
 
 /*
  * The following constants are defined for this file
@@ -106,15 +104,10 @@ Ns_Cache *
 NsFastpathCache(char *server, int size)
 {
     char buf[100];
-    int keys;
 
-#ifdef WIN32
-    keys = TCL_STRING_KEYS;
-#else
-    keys = sizeof(Key) / sizeof(int);
-#endif
     sprintf(buf, "nsfp:%s", server);
-    return Ns_CacheCreateSz("ns:fastpath", keys, size, FreeEntry);
+    return Ns_CacheCreateSz("ns:fastpath", sizeof(Key)/sizeof(int),
+	size, FreeEntry);
 }
 
 
@@ -482,11 +475,9 @@ FastReturn(NsServer *servPtr, Ns_Conn *conn, int status,
 {
     int             result, fd, new, nread;
     File	   *filePtr;
-    char	   *key;
+    char	   *key, *map;
     Ns_Entry	   *entPtr;
-#ifndef WIN32
     Key ukey;
-#endif
 
     /*
      * Determine the mime type if not given.
@@ -523,15 +514,14 @@ FastReturn(NsServer *servPtr, Ns_Conn *conn, int status,
 	 * so just open, mmap, and send the content directly.
 	 */
 
-    	fd = open(file, O_RDONLY|O_BINARY);
+    	fd = open(file, O_RDONLY);
     	if (fd < 0) {
 	    Ns_Log(Warning, "fastpath: open(%s) failed: %s",
 		   file, strerror(errno));
 	    goto notfound;
 	}
-#ifndef WIN32
 	if (servPtr->fastpath.mmap) {
-	    char *map = mmap(0, stPtr->st_size, PROT_READ, MAP_SHARED, fd, 0);
+	    map = mmap(0, stPtr->st_size, PROT_READ, MAP_SHARED, fd, 0);
 	    if (map != MAP_FAILED) {
 	    	close(fd);
 	    	fd = -1;
@@ -539,7 +529,6 @@ FastReturn(NsServer *servPtr, Ns_Conn *conn, int status,
 	    	munmap(map, stPtr->st_size);
 	    }
 	}
-#endif
 	if (fd != -1) {
             result = Ns_ConnReturnOpenFd(conn, status, type, fd, stPtr->st_size);
 	    close(fd);
@@ -551,13 +540,9 @@ FastReturn(NsServer *servPtr, Ns_Conn *conn, int status,
 	 * the contents against the current file mtime and size.
 	 */
 
-#ifdef WIN32
-	key = file;
-#else
 	ukey.dev = stPtr->st_dev;
 	ukey.ino = stPtr->st_ino;
 	key = (char *) &ukey;
-#endif
 	filePtr = NULL;
 	Ns_CacheLock(servPtr->fastpath.cache);
 	entPtr = Ns_CacheCreateEntry(servPtr->fastpath.cache, key, &new);
@@ -580,7 +565,7 @@ FastReturn(NsServer *servPtr, Ns_Conn *conn, int status,
 	     */
 
 	    Ns_CacheUnlock(servPtr->fastpath.cache);
-	    fd = open(file, O_RDONLY|O_BINARY);
+	    fd = open(file, O_RDONLY);
 	    if (fd < 0) {
 	    	filePtr = NULL;
 	        Ns_Log(Warning, "fastpath: failed to open '%s': '%s'",
