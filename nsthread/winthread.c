@@ -173,7 +173,6 @@ Ns_ThreadSelf(&hdl);
 	    NsThreadFatal("DllMain", "TlsSetValue", GetLastError());
 	}
 	ns_free(wPtr);
-fprintf(stderr, "thread exit: %d %p\n", GetCurrentThreadId(), hdl);
 	break;
 
     case DLL_PROCESS_DETACH:
@@ -772,7 +771,6 @@ Ns_ThreadJoin(Ns_Thread *thread, void **argPtr)
     HANDLE hdl = (HANDLE) *thread;
     LONG exitcode;
 
-fprintf(stderr, "thread join: %p\n", hdl);
     if (WaitForSingleObject(hdl, INFINITE) != WAIT_OBJECT_0) {
 	NsThreadFatal("Ns_ThreadJoin", "WaitForSingleObject", GetLastError());
     }
