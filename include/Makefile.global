@@ -186,8 +186,7 @@ ifeq (IRIX, $(findstring IRIX, $(shell uname)))
     #CFLAGS+=-D_SGI_MP_SOURCE -fPIC -Wall -Wno-unused
     LDFLAGS+=$(ABI)
     NSDLIBS=-lm
-    # CFLAGS+=-DUSE_PTHREADS=1
-    # LIBS+=-lpthread
+    #LIBS+=-lpthread
     CFLAGS+=-DUSE_SPROC=1
     ifeq (o32, $(ABI))
 	CFLAGS+=-DUSE_DUPHIGH=1
