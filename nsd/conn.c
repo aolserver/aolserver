@@ -34,7 +34,7 @@
  *      Manage the Ns_Conn structure
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.12 2001/03/28 00:22:49 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.13 2001/04/02 19:36:47 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #define IOBUFSZ 2048
@@ -890,6 +890,17 @@ Ns_ConnSendFd(Ns_Conn *conn, int fd, int nsend)
 int
 Ns_ConnCopyToDString(Ns_Conn *conn, size_t ncopy, Ns_DString *dsPtr)
 {
+    int len;
+
+    /*
+     * Grow dstring to include space for requested bytes to
+     * avoid later data copies.
+     */
+
+    len = dsPtr->length;
+    Ns_DStringSetLength(dsPtr, ncopy+len);
+    Ns_DStringSetLength(dsPtr, len);
+
     return ConnCopy(conn, ncopy, dsPtr, NULL, NULL, -1);
 }
 
@@ -1087,6 +1098,40 @@ Ns_ConnReadHeaders(Ns_Conn *conn, Ns_Set *set, int *nreadPtr)
 /*
  *----------------------------------------------------------------------
  *
+ * Ns_ConnGetEncoding, Ns_ConnSetEncoding --
+ *
+ *	Get (set) the Tcl_Encoding for the connection which is used
+ *	to convert input forms to proper UTF.
+ *
+ * Results:
+ *	Pointer to Tcl_Encoding (get) or NULL (set).
+ *
+ * Side effects:
+ *	See Ns_ConnGetQuery().
+ *
+ *----------------------------------------------------------------------
+ */
+
+Tcl_Encoding
+Ns_ConnGetEncoding(Ns_Conn *conn)
+{
+    Conn *connPtr = (Conn *) conn;
+
+    return connPtr->encoding;
+}
+
+void
+Ns_ConnSetEncoding(Ns_Conn *conn, Tcl_Encoding encoding)
+{
+    Conn *connPtr = (Conn *) conn;
+
+    connPtr->encoding = encoding;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  * Ns_ParseHeader --
  *
  *	Consume a header line, handling header continuation, placing
@@ -1213,6 +1258,7 @@ NsTclConnCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
     Conn       *connPtr = (Conn *) conn;
     Ns_Request *request;
     Ns_Set     *form;
+    char	buf[50];
     int		urlv, idx;
 
     if (argc < 2) {
@@ -1293,13 +1339,28 @@ badconn:
         Tcl_SetResult(interp, connPtr->authPasswd, TCL_STATIC);
 
     } else if (STREQ(argv[1], "contentlength")) {
-        sprintf(interp->result, "%u", (unsigned) conn->contentLength);
+        sprintf(buf, "%u", (unsigned) conn->contentLength);
+	Tcl_SetResult(interp, buf, TCL_VOLATILE);
+
+    } else if (STREQ(argv[1], "encoding")) {
+	if (argc > 2) {
+	    connPtr->encoding = Ns_GetEncoding(argv[2]);
+	    if (connPtr->encoding == NULL) {
+		Tcl_AppendResult(interp, "no such encoding: ",
+		    argv[2], NULL);
+		return TCL_ERROR;
+	    }
+	}
+	if (connPtr->encoding != NULL) {
+	    Tcl_SetResult(interp, Tcl_GetEncodingName(connPtr->encoding), TCL_VOLATILE);
+	}
 
     } else if (STREQ(argv[1], "peeraddr")) {
         Tcl_SetResult(interp, Ns_ConnPeer(conn), TCL_STATIC);
 
     } else if (STREQ(argv[1], "peerport")) {
-	sprintf(interp->result, "%d", Ns_ConnPeerPort(conn));
+	sprintf(buf, "%d", Ns_ConnPeerPort(conn));
+	Tcl_SetResult(interp, buf, TCL_VOLATILE);
 
     } else if (STREQ(argv[1], "headers")) {
 	if (itPtr->nsconn.flags & CONN_TCLHDRS) {
@@ -1346,7 +1407,8 @@ badconn:
         Tcl_SetResult(interp, request->host, TCL_STATIC);
 
     } else if (STREQ(argv[1], "port")) {
-        sprintf(interp->result, "%d", request->port);
+        sprintf(buf, "%d", request->port);
+	Tcl_SetResult(interp, buf, TCL_VOLATILE);
 
     } else if (STREQ(argv[1], "url")) {
         Tcl_SetResult(interp, request->url, TCL_STATIC);
@@ -1355,10 +1417,12 @@ badconn:
         Tcl_SetResult(interp, request->query, TCL_STATIC);
 
     } else if (STREQ(argv[1], "urlc")) {
-        sprintf(interp->result, "%d", request->urlc);
+        sprintf(buf, "%d", request->urlc);
+	Tcl_SetResult(interp, buf, TCL_VOLATILE);
 
     } else if (STREQ(argv[1], "version")) {
-        sprintf(interp->result, "%1.1f", request->version);
+        sprintf(buf, "%1.1f", request->version);
+	Tcl_SetResult(interp, buf, TCL_VOLATILE);
 
     } else if (STREQ(argv[1], "location")) {
         Tcl_SetResult(interp, Ns_ConnLocation(conn), TCL_STATIC);
@@ -1370,19 +1434,24 @@ badconn:
         Tcl_SetResult(interp, Ns_ConnServer(conn), TCL_STATIC);
 
     } else if (STREQ(argv[1], "status")) {
-        sprintf(interp->result, "%d", Ns_ConnResponseStatus(conn));
+        sprintf(buf, "%d", Ns_ConnResponseStatus(conn));
+	Tcl_SetResult(interp, buf, TCL_VOLATILE);
 
     } else if (STREQ(argv[1], "sock")) {
-	sprintf(interp->result, "%d", Ns_ConnSock(conn));
+	sprintf(buf, "%d", Ns_ConnSock(conn));
+	Tcl_SetResult(interp, buf, TCL_VOLATILE);
 
     } else if (STREQ(argv[1], "id")) {
-	sprintf(interp->result, "%d", Ns_ConnId(conn));
+	sprintf(buf, "%d", Ns_ConnId(conn));
+	Tcl_SetResult(interp, buf, TCL_VOLATILE);
 
     } else if (STREQ(argv[1], "flags")) {
-	sprintf(interp->result, "%d", connPtr->flags);
+	sprintf(buf, "%d", connPtr->flags);
+	Tcl_SetResult(interp, buf, TCL_VOLATILE);
 
     } else if (STREQ(argv[1], "start")) {
-	sprintf(interp->result, "%d", (int) connPtr->startTime);
+	sprintf(buf, "%d", (int) connPtr->startTime);
+	Tcl_SetResult(interp, buf, TCL_VOLATILE);
 
     } else if (STREQ(argv[1], "close")) {
         if (Ns_ConnClose(conn) != NS_OK) {
@@ -1399,6 +1468,7 @@ badconn:
                          "content, "
                          "contentlength, "
                          "driver, "
+                         "encoding, "
                          "flags, "
                          "form, "
                          "headers, "

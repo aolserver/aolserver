@@ -33,11 +33,12 @@
  *      Routines for dealing with HTML FORM's.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/form.c,v 1.1 2001/03/22 21:30:17 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/form.c,v 1.2 2001/04/02 19:36:47 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
-static char *Decode(Ns_DString *dsPtr, char *s);
+static void ParseForm(char *form, Ns_Set *set, Tcl_Encoding encoding);
+static char *Decode(Tcl_DString *dsPtr, char *s, Tcl_Encoding encoding);
 static int ConnReadChar(Ns_Conn *conn, char *buf);
 static int ChanPutc(Tcl_Channel chan, char ch);
 static int CopyToChan(Ns_Conn *conn, Tcl_Channel chan, char *boundary);
@@ -73,37 +74,30 @@ Ns_Set  *
 Ns_ConnGetQuery(Ns_Conn *conn)
 {
     Conn           *connPtr = (Conn *) conn;
-    char	   *form, *type;
+    char	   *type;
     int		    len;
-    Ns_Set	   *set;
-    Ns_DString      ds;
     
     if (connPtr->query == NULL) {
-	Ns_DStringInit(&ds);
-	set = NULL;
-	form = connPtr->request->query;
-	type = Ns_SetIGet(connPtr->headers, "content-type");
-	len = conn->contentLength;
-        if (STREQ(connPtr->request->method, "POST")
-	    && connPtr->nContent == 0
-	    && len > 0) {
-	    if (strstr(type, FORM_URLENCODED) != NULL
-		&& len < connPtr->servPtr->limits.maxpost
-		&& Ns_ConnCopyToDString(conn, len, &ds) == NS_OK) {
-		form = ds.string;
-	    } else if (strstr(type, FORM_MULTIPART) != NULL) {
-		/* TODO: Handle multipart forms here. */
+	if (connPtr->form == NULL) {
+	    connPtr->form = connPtr->request->query;
+	    type = Ns_SetIGet(connPtr->headers, "content-type");
+	    len = conn->contentLength;
+	    if (STREQ(connPtr->request->method, "POST")
+		&& connPtr->nContent == 0
+		&& len > 0) {
+		if (strstr(type, FORM_URLENCODED) != NULL
+		    && len < connPtr->servPtr->limits.maxpost
+		    && Ns_ConnCopyToDString(conn, len, &connPtr->content) == NS_OK) {
+		    connPtr->form = connPtr->content.string;
+		} else if (strstr(type, FORM_MULTIPART) != NULL) {
+		    /* TODO: Handle multipart forms here. */
+		}
 	    }
 	}
-        if (set == NULL && form != NULL) {
-	    set = Ns_SetCreate(NULL);
-	    if (Ns_QueryToSet(form, set) != NS_OK) {
-		Ns_SetFree(set);
-		set = NULL;
-	    }
-        }
-	Ns_DStringFree(&ds);
-	connPtr->query = set;
+	if (connPtr->form != NULL) {
+	    connPtr->query = Ns_SetCreate(NULL);
+	    ParseForm(connPtr->form, connPtr->query, connPtr->encoding);
+	}
     }
     return connPtr->query;
 }
@@ -117,10 +111,10 @@ Ns_ConnGetQuery(Ns_Conn *conn)
  *	Parse query data into an Ns_Set 
  *
  * Results:
- *	NS_OK/NS_ERROR 
+ *	NS_OK. 
  *
  * Side effects:
- *	Will add data to set 
+ *	Will add data to set without any UTF conversion.
  *
  *----------------------------------------------------------------------
  */
@@ -128,32 +122,7 @@ Ns_ConnGetQuery(Ns_Conn *conn)
 int
 Ns_QueryToSet(char *query, Ns_Set *set)
 {
-    char *p, *k, *v;
-    Ns_DString      kds, vds;
-
-    Ns_DStringInit(&kds);
-    Ns_DStringInit(&vds);
-    p = query;
-    while (p != NULL) {
-	k = p;
-	p = strchr(p, '&');
-	if (p != NULL) {
-	    *p++ = '\0';
-	}
-	v = strchr(k, '=');
-	if (v != NULL) {
-	    *v = '\0';
-	}
-	k = Decode(&kds, k);
-	if (v != NULL) {
-	    Decode(&vds, v+1);
-	    *v = '=';
-	    v = vds.string;
-	}
-	Ns_SetPut(set, k, v);
-    }
-    Ns_DStringFree(&kds);
-    Ns_DStringFree(&vds);
+    ParseForm(query, set, NULL);
     return NS_OK;
 }
 
@@ -274,10 +243,59 @@ NsTclGetMultipartFormdataCmd(ClientData arg, Tcl_Interp *interp, int argc,
 /*
  *----------------------------------------------------------------------
  *
+ * ParseForm --
+ *
+ *	Parse the given form string for URL encoded key=value pairs,
+ *	converting to UTF if given encoding is not NULL.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	None. 
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+ParseForm(char *form, Ns_Set *set, Tcl_Encoding encoding)
+{
+    char *p, *k, *v;
+    Tcl_DString      kds, vds;
+
+    Tcl_DStringInit(&kds);
+    Tcl_DStringInit(&vds);
+    p = form;
+    while (p != NULL) {
+	k = p;
+	p = strchr(p, '&');
+	if (p != NULL) {
+	    *p++ = '\0';
+	}
+	v = strchr(k, '=');
+	if (v != NULL) {
+	    *v = '\0';
+	}
+	k = Decode(&kds, k, encoding);
+	if (v != NULL) {
+	    Decode(&vds, v+1, encoding);
+	    *v = '=';
+	    v = vds.string;
+	}
+	Ns_SetPut(set, k, v);
+    }
+    Tcl_DStringFree(&kds);
+    Tcl_DStringFree(&vds);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  * Decode --
  *
- *	Decode a form key or value, converting + to spaces and
- *	UrlDecode'ing the result.
+ *	Decode a form key or value, converting + to spaces,
+ *	UrlDecode, and convert to UTF if given and encoding.
  *
  * Results:
  *	Pointer to dsPtr->string.
@@ -289,24 +307,48 @@ NsTclGetMultipartFormdataCmd(ClientData arg, Tcl_Interp *interp, int argc,
  */
 
 static char *
-Decode(Ns_DString *dsPtr, char *s)
+Decode(Tcl_DString *dsPtr, char *s, Tcl_Encoding encoding)
 {
-    Ns_DString tmp;
+    Tcl_DString uds, eds;
 
-    Ns_DStringInit(&tmp);
+    /*
+     * Convert +'s, if any, to spaces.
+     */
+
+    Tcl_DStringInit(&uds);
     if (strchr(s, '+') != NULL) {
-	s = Ns_DStringAppend(&tmp, s);
+	s = Tcl_DStringAppend(&uds, s, -1);
 	while (*s != '\0') {
 	    if (*s == '+') {
 		*s = ' ';
 	    }
 	    ++s;
 	}
-	s = tmp.string;
+	s = uds.string;
     }
-    Ns_DStringTrunc(dsPtr, 0);
-    Ns_UrlDecode(dsPtr, s);
-    Ns_DStringFree(&tmp);
+
+    if (encoding == NULL) {
+	/*
+	 * Simple URL decode only directly into the result dstring.
+	 */
+
+	Tcl_DStringTrunc(dsPtr, 0);
+	Ns_UrlDecode(dsPtr, s);
+    } else {
+	/*
+	 * URL decode followed by converstion of UTF to the result
+	 * dstring.
+	 */
+
+	Tcl_DStringInit(&eds);
+	Ns_UrlDecode(&eds, s);
+	/* NB: Free dsPtr, Tcl_ExternalToUtfDString will re-init. */
+	Tcl_DStringFree(dsPtr);
+	Tcl_ExternalToUtfDString(encoding, eds.string, eds.length, dsPtr);
+	Tcl_DStringFree(&eds);
+    }
+
+    Tcl_DStringFree(&uds);
     return dsPtr->string;
 }
 
