@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Makefile.global,v 1.58 2002/06/17 17:53:27 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Makefile.global,v 1.59 2002/07/08 02:59:34 jgdavidson Exp $
 #
 
 #
@@ -47,8 +47,9 @@ NSGCC	  ?= 1
 
 tclmajor  	= 8
 tclminor  	= 4
-tclpatch  	= 
+tclpatch  	= b1
 tcldir		= ../tcl$(tclmajor).$(tclminor)$(tclpatch)
+tcltag		= core-8-4-b1
 
 #
 # Set common options.
