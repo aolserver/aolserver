@@ -24,7 +24,7 @@ if {[ns_config -bool ns/server/stats enabled] == 1} {
 	
 	nsv_set _ns_stats config.user   [ns_config ns/server/stats user "aolserver"]
 	nsv_set _ns_stats config.pass   [ns_config ns/server/stats password "stats"]
-	nsv_set _ns_stats config.dir    [ns_config ns/server/stats dir "/_stats"]
+	nsv_set _ns_stats config.dir    [ns_config ns/server/stats dir "_stats"]
 	
 	ns_register_proc GET [nsv_get _ns_stats config.dir]/* _ns_stats
 	
