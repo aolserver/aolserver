@@ -281,6 +281,10 @@ SOURCE=..\..\nsd\sockcallback.c
 # End Source File
 # Begin Source File
 
+SOURCE=..\..\nsd\stamp.c
+# End Source File
+# Begin Source File
+
 SOURCE=..\..\nsd\str.c
 # End Source File
 # Begin Source File
@@ -342,6 +346,10 @@ SOURCE=..\..\nsd\tclthread.c
 # Begin Source File
 
 SOURCE=..\..\nsd\tclvar.c
+# End Source File
+# Begin Source File
+
+SOURCE=..\..\nsd\tclxkeylist.c
 # End Source File
 # Begin Source File
 
