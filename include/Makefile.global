@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Makefile.global,v 1.50 2002/02/28 21:57:11 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Makefile.global,v 1.51 2002/03/03 15:33:21 jgdavidson Exp $
 #
 
 #
@@ -42,11 +42,16 @@ NSDEBUG	  ?= 1
 NSGCC	  ?= 1
 
 #
-# Current Tcl version.
+# Current Tcl version and location.
 #
+
 tclmajor  	= 8
 tclminor  	= 3
 tclpatch  	= .4
+tcldir		= tcl$(tclmajor).$(tclminor)$(tclpatch)
+#tclminor  	= 4
+#tclpatch  	= ""
+#tcldir		= ../tcl
 
 #
 # Set common options.
@@ -72,7 +77,11 @@ else
     CC	     =   $(PURIFY) cc
 endif
 tcllib		= tcl$(tclmajor).$(tclminor)$(tcldbg)
-tcldir		= tcl$(tclmajor).$(tclminor)$(tclpatch)
+tclsrc		= $(tcldir)/unix
+tclcfg          =  --enable-threads --prefix=$(AOLSERVER)
+ifeq (1,$(NSDEBUG))
+    tclcfg      += --enable-symbols
+endif
 
 CFLAGS          += -D_REENTRANT=1 -DTCL_THREADS=1 
 ifdef NSHOME
@@ -98,6 +107,7 @@ INSTMOD		= $(AOLSERVER)/modules
 INSTTCL		= $(AOLSERVER)/modules/tcl
 INSTSRV		= $(AOLSERVER)/servers/server1
 INSTSRVMOD	= $(AOLSERVER)/servers/server1/modules
+INSTSRVPAG	= $(AOLSERVER)/servers/server1/pages
 
 # Platform-specific options.
 uname = $(shell uname -a)
@@ -231,6 +241,7 @@ endif
 
 # Mac OS X
 ifneq (,$(findstring Darwin,$(uname)))
+    NSGCC=0
     CC=cc
     LIBEXT=dylib
     CFLAGS+=-dynamic -traditional-cpp -fno-common
@@ -245,3 +256,6 @@ endif
 
 # Add the platform-specific debug/optimize flags.
 CFLAGS += $(CCOPT)
+ifeq ($(NSGCC),1)
+    tclcfg      += --enable-gcc
+endif

@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/Makefile,v 1.28 2002/02/24 21:45:29 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/Makefile,v 1.29 2002/03/03 15:33:21 jgdavidson Exp $
 #
 
 #
@@ -59,19 +59,22 @@ ifdef NSGCC
     MAKEFLAGS	+= NSGCC=$(NSGCC)
 endif
 
-dirs = $(tcldir) nsd nssock nsssl nscgi nscp nslog nsperm nspd nsext
+dirs   = nsd nssock nsssl nscgi nscp nslog nsperm nspd nsext
 
-all:
+all: tcl 
 	@for i in $(dirs); do \
 		( cd $$i && $(MAKE) all ) || exit 1; \
 	done
 
-install: all
+install: all install-tcl install-aolserver
+
+install-aolserver:
 	@for i in $(dirs); do \
-		(cd $$i && $(MAKE) $@) || exit 1; \
+		(cd $$i && $(MAKE) install) || exit 1; \
 	done
 	$(MKDIR)		$(AOLSERVER)/log
 	$(MKDIR)		$(AOLSERVER)/modules
+	$(MKDIR)		$(INSTSRVPAG)
 	$(CP) -r tcl    	$(AOLSERVER)/modules/
 	$(CP) -r include	$(AOLSERVER)/
 	$(CP) sample-config.tcl $(AOLSERVER)/
@@ -79,10 +82,24 @@ install: all
 install-tests:
 	$(CP) -r tests $(INSTSRVPAG)
 
-clean:
+distclean: clean-aolserver
+	(cd $(tclsrc); $(MAKE) -f Makefile.in distclean)
+
+clean: clean-tcl clean-aolserver
+
+clean-aolserver:
 	@for i in $(dirs); do \
-		(cd $$i && $(MAKE) $@) || exit 1; \
+		(cd $$i && $(MAKE) clean) || exit 1; \
 	done
 
-distclean: clean
-	(cd $(tcldir); $(MAKE) distclean)
+clean-tcl:
+	(cd $(tclsrc); $(MAKE) -f Makefile.in clean)
+
+tcl: $(tclsrc)/Makefile
+	(cd $(tclsrc); $(MAKE))
+
+$(tclsrc)/Makefile: $(tclsrc)/Makefile.in $(tclsrc)/configure
+	(cd $(tclsrc); ./configure $(tclcfg))
+
+install-tcl: tcl
+	(cd $(tclsrc); $(MAKE) install-binaries install-libraries)
