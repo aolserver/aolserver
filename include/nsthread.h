@@ -32,7 +32,7 @@
  *
  *	Core threading and system headers.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/nsthread.h,v 1.26 2004/07/13 20:31:46 dossy Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/nsthread.h,v 1.27 2004/09/24 17:47:50 dossy Exp $
  */
 
 #ifndef NSTHREAD_H
@@ -115,6 +115,10 @@ NS_EXTERN DIR *opendir(char *pathname);
 NS_EXTERN struct dirent *readdir(DIR *dp);
 NS_EXTERN int closedir(DIR *dp);
 #define sleep(n)	(Sleep((n)*1000))
+
+#define HAVE_GETADDRINFO
+#define HAVE_GETNAMEINFO
+#include <ws2tcpip.h>
 
 #endif
 
