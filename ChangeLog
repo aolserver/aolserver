@@ -1,3 +1,66 @@
+2005-03-24  Jim Davidson <jgdavidson@aol.com>
+
+	Several changes to cleanup and clarify Tcl resource management,
+	add support for large content overflow to temp file (minimal
+	testing, likley more work to be done), and simplify encoding
+	management.  Also, updated the version to 4.5 given the
+	scope of changes since 4.0
+
+	* include/ns.h: Added Ns_FindCharset and Ns_GetCharsetEncodingEx.
+	and bumped version to 4.5.
+
+	* nsd/nsd.h: Simplified connection encoding config, renamed
+	NsGetInterp to more clear NsGetInterpData.
+
+	* nsd/tclshare.c:
+	* nsd/tclset.c:
+	* nsd/tclthread.c: Changed NsGetInterp to NsGetInterpData.
+
+	* nsd/adprequest.c: Removed some connection setup code now
+	part of Ns_GetConnInterp.
+
+	* nsd/connio.c: Simplified Ns_WriteCharConn and added code
+	to set the input encoding in Ns_ConnInit.
+
+	* nsd/driver.c:
+	* nsd/conn.c: Added support for large content
+	requests spooled to a temp file. In these cases, the
+	NS_CONN_FILECONTENT flag is set and the content can be
+	accessed via the the new Ns_ConnContentFd routine or ns_conn
+	contentchannel option (limited test, feedback appreciated).
+
+	* nsd/form.c: Updated to use Ns_ConnGetUrlEncoding.
+
+	* nsd/nsconf.c: Removed call to NsUpdateUrlEncode no longer
+	required.
+
+	* nsd/queue.c: Call to new private NsFreeConnInterp instead
+	of Ns_FreeConnInterp which is now a no-op.
+
+	* nsd/encoding.c:
+	* nsd/urlencode.c:
+	* nsd/request.c:
+	* nsd/server.c: Simplified charset/encoding config for
+	process-wide url decoding and per-virtual server defaults
+	for dyanmic Tcl requests.
+
+	* nsd/tclcmds.c: Made ns_atclose an object command.
+
+	* nsthread/tls.c:
+	* nsd/Makefile:
+	* nsd/tclatclose.c:
+	* nsd/tclinit.c: Restructured to be more clear and added
+	detailed comments to help describe the Tcl management
+	complexity. Also, incorporated code from tclatclose.c and
+	moved call to Tcl_FinalizeThread directly into the nsthread
+	library.
+
+	* nsthread/pthread.c: Fixed comments.
+
+	* nsd/tclrequest.c:
+	* nsd/return.c: Some minor cleanup.
+
+
 2005-03-04  Nathan Folkman <shmooved@aol.com>
 
         * nsd/limits.c: Fixed bug where limitsPtr->name was 
