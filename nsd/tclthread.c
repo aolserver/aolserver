@@ -34,7 +34,7 @@
  *	Tcl wrappers around all thread objects 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclthread.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclthread.c,v 1.4 2000/11/09 01:53:35 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -43,8 +43,7 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
  */
 
 static int GetObj(Tcl_Interp *interp, char type, char *id, void **addrPtr);
-#define SETOBJ(interp,type,addr) \
-	(sprintf((interp)->result, "%cid%p", (type), (addr)))
+static void SetObj(Tcl_Interp *interp, int type, void *addr);
 
 
 /*
@@ -79,7 +78,7 @@ NsTclMutexCmd(ClientData data, Tcl_Interp *interp, int argc, char **argv)
 	if (argc > 2) {
 	    Ns_MutexSetName(lockPtr, argv[2]);
 	}
-        SETOBJ(interp, 'm', lockPtr);
+        SetObj(interp, 'm', lockPtr);
     } else {
         if (argc != 3) {
             Tcl_AppendResult(interp, "wrong # args: should be \"",
@@ -136,7 +135,7 @@ NsTclCritSecCmd(ClientData data, Tcl_Interp *interp, int argc, char **argv)
     if (STREQ(argv[1], "create")) {
         csPtr = ns_malloc(sizeof(Ns_Cs));
 	Ns_CsInit(csPtr);
-        SETOBJ(interp, 'c', csPtr);
+        SetObj(interp, 'c', csPtr);
     } else {
         if (argc != 3) {
             Tcl_AppendResult(interp, "wrong # args: should be \"",
@@ -198,7 +197,7 @@ NsTclSemaCmd(ClientData data, Tcl_Interp *interp, int argc, char **argv)
         }
         semaPtr = ns_malloc(sizeof(Ns_Sema));
 	Ns_SemaInit(semaPtr, cnt);
-        SETOBJ(interp, 's', semaPtr);
+        SetObj(interp, 's', semaPtr);
     } else {
         if (argc < 3) {
             Tcl_AppendResult(interp, "wrong # args: should be \"",
@@ -260,7 +259,7 @@ NsTclEventCmd(ClientData data, Tcl_Interp *interp, int argc, char **argv)
     if (STREQ(argv[1], "create")) {
         condPtr = ns_malloc(sizeof(Ns_Cond));
 	Ns_CondInit(condPtr);
-        SETOBJ(interp, 'e', condPtr);
+        SetObj(interp, 'e', condPtr);
     } else {
         if (argc < 3) {
             Tcl_AppendResult(interp, "wrong # args: should be \"",
@@ -362,7 +361,7 @@ NsTclRWLockCmd(ClientData data, Tcl_Interp *interp, int argc, char **argv)
     if (STREQ(argv[1], "create")) {
 	rwlockPtr = ns_malloc(sizeof(Ns_RWLock));
 	Ns_RWLockInit(rwlockPtr);
-	SETOBJ(interp, 'r', rwlockPtr);
+	SetObj(interp, 'r', rwlockPtr);
     } else {
 	if (argc < 3) {
 	    Tcl_AppendResult(interp, "wrong # args: should be \"",
@@ -433,7 +432,7 @@ NsTclThreadCmd(ClientData data, Tcl_Interp *interp, int argc, char **argv)
         if (Ns_TclThread(interp, argv[2], &tid) != NS_OK) {
             return TCL_ERROR;
         }
-        SETOBJ(interp, 't', tid);
+        SetObj(interp, 't', tid);
     } else if (STREQ(argv[1], "begindetached")) {
         if (argc < 3) {
             Tcl_AppendResult(interp, "wrong # args: should be \"",
@@ -459,7 +458,7 @@ NsTclThreadCmd(ClientData data, Tcl_Interp *interp, int argc, char **argv)
 	sprintf(interp->result, "%d", (int) status);
     } else if (STREQ(argv[1], "get")) {
         Ns_ThreadSelf(&tid);
-        SETOBJ(interp, 't', tid);
+        SetObj(interp, 't', tid);
     } else if (STREQ(argv[1], "getid")) {
         sprintf(interp->result, "%d", Ns_ThreadId());
     } else if (STREQ(argv[1], "name")) {
@@ -477,6 +476,32 @@ NsTclThreadCmd(ClientData data, Tcl_Interp *interp, int argc, char **argv)
     }
 
     return TCL_OK;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * SetObj --
+ *
+ *	Set the interp result with an opaque thread-object string id.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	Interp result set.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+SetObj(Tcl_Interp *interp, int type, void *addr)
+{
+    char buf[40];
+
+    sprintf(buf, "%cid%p", type, addr);
+    Tcl_SetResult(interp, buf, TCL_VOLATILE);
 }
 
 
