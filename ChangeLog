@@ -1,3 +1,9 @@
+2004-09-17  Dossy Shiobara <dossy@panoptic.com>
+
+	* nsd/connio.c (1.16): Ns_ConnSend() now bubbles up the error from
+	  NsSockSend() on first send, which is what the C API documentation
+	  says.  Closes SF Bug #1029512.
+
 2004-09-08  Dossy Shiobara <dossy@panoptic.com>
 
 	* nslog/nslog.html (1.2): Updated nslog module documentation.
