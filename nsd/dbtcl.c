@@ -34,7 +34,7 @@
  *	Tcl database access routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/dbtcl.c,v 1.11 2001/04/25 21:06:24 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/dbtcl.c,v 1.12 2001/11/05 20:23:28 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -623,7 +623,7 @@ NsTclDbConfigPathCmd(ClientData arg, Tcl_Interp *interp, int argc,
 			 "\"", NULL);
         return TCL_ERROR;
     }
-    section = Ns_ConfigPath(itPtr->servPtr->server, NULL, "db", NULL);
+    section = Ns_ConfigGetPath(itPtr->servPtr->server, NULL, "db", NULL);
     Tcl_SetResult(interp, section, TCL_STATIC);
     return TCL_OK;
 }

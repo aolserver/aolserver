@@ -33,7 +33,7 @@
  *	Support for the configuration file
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/config.c,v 1.9 2001/03/28 00:24:23 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/config.c,v 1.10 2001/11/05 20:23:28 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #define ISSLASH(c)      ((c) == '/' || (c) == '\\')
@@ -125,7 +125,7 @@ Ns_ConfigGetInt(char *section, char *key, int *valuePtr)
 {
     char           *s;
 
-    s = Ns_ConfigGet(section, key);
+    s = Ns_ConfigGetValue(section, key);
     if (s == NULL || sscanf(s, "%d", valuePtr) != 1) {
         return NS_FALSE;
     }
@@ -155,7 +155,7 @@ Ns_ConfigGetInt64(char *section, char *key, INT64 *valuePtr)
 {
     char           *s;
 
-    s = Ns_ConfigGet(section, key);
+    s = Ns_ConfigGetValue(section, key);
     if (s == NULL || sscanf(s, NS_INT_64_FORMAT_STRING, valuePtr) != 1) {
         return NS_FALSE;
     }
@@ -185,7 +185,7 @@ Ns_ConfigGetBool(char *section, char *key, int *valuePtr)
 {
     char           *s;
 
-    s = Ns_ConfigGet(section, key);
+    s = Ns_ConfigGetValue(section, key);
     if (s == NULL) {
         return NS_FALSE;
     }
@@ -258,7 +258,7 @@ Ns_ConfigGetPath(char *server, char *module, ...)
     }
     va_end(ap);
 
-    setPtr = Ns_ConfigSection(ds.string);
+    setPtr = Ns_ConfigGetSection(ds.string);
     Ns_DStringFree(&ds);
 
     return (setPtr ? Ns_SetName(setPtr) : NULL);
@@ -360,7 +360,7 @@ NsConfigRead(char *file)
     if (S_ISREG(st.st_mode) == 0) {
 	Ns_Fatal("config: not regular file: %s", file);
     }
-    fd = open(file, O_RDONLY|O_TEXT);
+    fd = open(file, O_RDONLY);
     if (fd < 0) {
 	Ns_Fatal("config: open(%s) failed: %s", file, strerror(errno));
     }
@@ -453,7 +453,7 @@ ConfigGet(char *section, char *key, int (*findproc) (Ns_Set *, char *))
 
     s = NULL;
     if (section != NULL && key != NULL) {
-        setPtr = Ns_ConfigSection(section);
+        setPtr = Ns_ConfigGetSection(section);
         if (setPtr != NULL) {
             i = (*findproc) (setPtr, key);
             if (i >= 0) {

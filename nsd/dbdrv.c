@@ -34,7 +34,7 @@
  *	Routines for handling the loadable db driver interface.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/dbdrv.c,v 1.6 2001/03/12 22:06:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/dbdrv.c,v 1.7 2001/11/05 20:23:28 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -631,7 +631,7 @@ NsDbLoadDriver(char *driver)
 	memset(driverPtr, 0, sizeof(DbDriver));
 	driverPtr->name = Tcl_GetHashKey(&driversTable, hPtr);
         Tcl_SetHashValue(hPtr, driverPtr);
-        module = Ns_ConfigGet("ns/db/drivers", driver);
+        module = Ns_ConfigGetValue("ns/db/drivers", driver);
         if (module == NULL) {
 	    Ns_Log(Error, "dbdrv: no such driver '%s'", driver);
 	} else {

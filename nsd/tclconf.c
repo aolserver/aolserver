@@ -34,7 +34,7 @@
  *	Tcl commands for reading config file info. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclconf.c,v 1.5 2001/03/12 22:06:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclconf.c,v 1.6 2001/11/05 20:23:28 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -81,7 +81,7 @@ NsTclConfigCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
     
    
     if (STREQ(argv[1], "-exact")) {
-        value = Ns_ConfigGetExact(argv[2], argv[3]);
+        value = Ns_ConfigGetValueExact(argv[2], argv[3]);
 
 	if (value == NULL && fHasDefault) {
 	    value = argv[defaultIndex];
@@ -117,7 +117,7 @@ NsTclConfigCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 	    value = (iValue) ? "1" : "0";
         }
     } else if (argc == 3 || argc == 4) {
-        value = Ns_ConfigGet(argv[1], argv[2]);
+        value = Ns_ConfigGetValue(argv[1], argv[2]);
 
 	if (value == NULL && fHasDefault) {
 	    value = argv[defaultIndex];
@@ -162,7 +162,7 @@ NsTclConfigSectionCmd(ClientData dummy, Tcl_Interp *interp, int argc,
             argv[0], " key\"", NULL);
         return TCL_ERROR;
     }
-    sectionPtr = Ns_ConfigSection(argv[1]);
+    sectionPtr = Ns_ConfigGetSection(argv[1]);
     if (sectionPtr == NULL) {
         Tcl_SetResult(interp, "", TCL_STATIC);
     } else {
@@ -200,7 +200,7 @@ NsTclConfigSectionsCmd(ClientData dummy, Tcl_Interp *interp, int argc,
             argv[0], " key\"", NULL);
         return TCL_ERROR;
     }
-    setvectorPtrPtr = Ns_ConfigSections();
+    setvectorPtrPtr = Ns_ConfigGetSections();
     for (i = 0; setvectorPtrPtr[i] != NULL; i++) {
         char            setId[20];
         char           *saveResult;
