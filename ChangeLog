@@ -1,3 +1,8 @@
+2004-09-22  Dossy Shiobara <dossy@panoptic.com>
+
+	* configure (1.15.2.6), configure.in (1.13.2.4): get{addr,name}info
+	  on Solaris 9 is in -lsocket.	Backported from HEAD.
+
 2004-09-21  Dossy Shiobara <dossy@panoptic.com>
 
 	* configure (1.15.2.5), configure.in (1.13.2.3): Ensure we use the
