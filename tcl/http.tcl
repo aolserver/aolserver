@@ -2,7 +2,7 @@
 # The contents of this file are subject to the AOLserver Public License
 # Version 1.1 (the "License"); you may not use this file except in
 # compliance with the License. You may obtain a copy of the License at
-# http://aolserver.lcs.mit.edu/.
+# http://aolserver.com/.
 #
 # Software distributed under the License is distributed on an "AS IS"
 # basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
@@ -28,7 +28,7 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/http.tcl,v 1.2 2000/05/02 14:39:31 kriston Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/http.tcl,v 1.3 2000/08/01 19:20:09 kriston Exp $
 #
 
 # http.tcl -
@@ -87,7 +87,7 @@ proc ns_httpopen {method url {rqset ""} {timeout 30} {pdata ""}} {
 	# First write the request, then the headers if they exist.
 	#
 	
-	_ns_http_puts $timeout $wfd "$method $uri HTTP/1.0\n"
+	_ns_http_puts $timeout $wfd "$method $uri HTTP/1.0\r"
 	
 	if {$rqset != ""} {
 	    #
@@ -97,7 +97,7 @@ proc ns_httpopen {method url {rqset ""} {timeout 30} {pdata ""}} {
 	    for {set i 0} {$i < [ns_set size $rqset]} {incr i} {
 		set key [ns_set key $rqset $i]
 		set val [ns_set value $rqset $i]
-		_ns_http_puts $timeout $wfd "$key: $val\n"
+		_ns_http_puts $timeout $wfd "$key: $val\r"
 	    }
 	} else {
 	    #
@@ -105,9 +105,9 @@ proc ns_httpopen {method url {rqset ""} {timeout 30} {pdata ""}} {
 	    # required headers.
 	    #
 	    
-	    _ns_http_puts $timeout $wfd "Accept: */*\n"
+	    _ns_http_puts $timeout $wfd "Accept: */*\r"
 	    _ns_http_puts $timeout $wfd \
-		    "User-Agent: [ns_info name]-Tcl/[ns_info version]\n"
+		    "User-Agent: [ns_info name]-Tcl/[ns_info version]\r"
 	}
 
 	#
@@ -115,7 +115,7 @@ proc ns_httpopen {method url {rqset ""} {timeout 30} {pdata ""}} {
 	# even with HTTP/1.0.
 	#
 	
-	_ns_http_puts $timeout $wfd "Host: $host\n"
+	_ns_http_puts $timeout $wfd "Host: $host\r"
 
 	#
 	# If optional content exists, then output that. Otherwise spit
@@ -123,9 +123,9 @@ proc ns_httpopen {method url {rqset ""} {timeout 30} {pdata ""}} {
 	#
 	
 	if {$pdata != ""} {
-	    _ns_http_puts $timeout $wfd "\n$pdata\n"
+	    _ns_http_puts $timeout $wfd "\r$pdata\r"
 	} else {
-	    _ns_http_puts $timeout $wfd "\n"
+	    _ns_http_puts $timeout $wfd "\r"
 	}
 	flush $wfd
 
