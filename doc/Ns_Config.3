@@ -27,7 +27,7 @@
 '\" version of this file under either the License or the GPL.
 '\" 
 '\"
-'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_Config.3,v 1.1.2.6 2002/12/10 16:00:26 scottg Exp $
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_Config.3,v 1.1.2.7 2002/12/14 18:00:18 jgdavidson Exp $
 '\"
 '\" 
 .so man.macros
@@ -95,17 +95,23 @@ types.  This function isn't available on WIN32.
 
 Get the full name of a config file section if it exists. Returns a
 pointer to to an ASCIIZ string of the full path name, or NULL if that
-path is not in the config file.
+path is not in the config file. The \fIserver\fR and/or \fImodule\fR
+parameters may be NULL and must be followed a variable list of
+additional parameters, the last element of which must be NULL.
 .sp
 Examples:
 .br
-Ns_ConfigGetPath("server1","nscp")
+Ns_ConfigGetPath("server1", "nscp", NULL)
 .br
 \ returns  "ns/server/server1/module/nscp"
 .br
-Ns_ConfigGetPath("server1","nscp","users")
+Ns_ConfigGetPath("server1", "nscp", "users", NULL)
 .br
 \ returns  "ns/server/server1/module/nscp/users"
+.br
+Ns_ConfigGetPath(NULL, "globalmod", "subsect1", "subsect2", NULL)
+.br
+\ returns  "ns/module/globalmod/subsect1/subsect2"
 .TP
 \fBNs_ConfigGetSection\fR(\fIsection\fR)
 
