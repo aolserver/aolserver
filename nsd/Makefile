@@ -34,7 +34,7 @@ NSD8      = nsd8x
 all: $(NSD7) $(NSD8)
 
 #
-# Tcl 7.6:  Our hacked version of Tcl 7.6 is fast and robust.
+# Tcl 7.6
 #
 $(NSD7): libtcl76 libnsthread $(TCL76STUB) $(OBJS) stamp.c
 	$(CC) -c stamp.c
@@ -42,7 +42,7 @@ $(NSD7): libtcl76 libnsthread $(TCL76STUB) $(OBJS) stamp.c
 
 
 #
-# Tcl 8.x:  Slower but at least it's Tcl 8.x.
+# Tcl 8.x
 #
 $(NSD8): libtcl8x libnsthread $(TCL8XSTUB) $(OBJS) stamp.c
 	$(CC) -c stamp.c
@@ -60,14 +60,13 @@ $(OBJS): nsd.h nsconf.h
 #
 # Installation
 #
-#  Note: The modern Tcl 8.x nsd is known as "nsd8x", not "nsd82" or "nsd83".
-#        The older Tcl 7.6 nsd will remain as "nsd76".
+#   Tcl 7.6 is nsd76.  Tcl 8.x is nsd8x.
 #
 install: $(NSD7) $(NSD8)
 	$(RM) $(INSTBIN)/nsd82 $(INSTBIN)/nsd
 	$(RM) $(INSTBIN)/$(NSD7) $(INSTBIN)/$(NSD8)
 	$(CP) $(NSD7) $(NSD8) $(INSTBIN)
-	cd $(INSTBIN) ; $(RM) nsd ; $(LN) ./$(NSD7) nsd
+	cd $(INSTBIN) ; $(RM) nsd ; $(LN) ./$(NSD8) nsd
 
 #
 # Clean the directory to pre-built state.

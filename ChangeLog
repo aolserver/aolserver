@@ -1,3 +1,14 @@
+2000-12-13  Kriston J. Rehberg  <kriston@aol.com>
+
+	* nssock/Makefile*: now installs The Right Things in The Right
+	Places.
+
+	* nsd/Makefile: nsd8x is the default AOLserver now (nsd symlinks
+	to nsd8x).
+
+	* nsd/sample-config.tcl: Added some tuning parameters for easy
+	reference.
+
 2000-12-12  Kriston J. Rehberg  <kriston@aol.com>
 
 	* nsvhr/nsvhr.c (UDSProxy): More type changes.

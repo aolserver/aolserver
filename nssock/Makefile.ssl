@@ -50,6 +50,14 @@ OBJS      =  nsssl.o ssl.o ssltcl.o t_stdlib.o x509.o
 
 include  $(NSHOME)/include/Makefile.module
 
+install: all
+	$(RM) $(INSTBIN)/$(MOD)
+	$(CP) $(MOD) $(INSTBIN)
+	$(MKDIR) $(INSTMOD)/nsssl
+	$(CP) *.tcl $(INSTMOD)/nsssl
+	$(MKDIR) $(INSTSRVMOD)/nsssl
+	$(CP) *.pem $(INSTSRVMOD)/nsssl
+
 nsssl.o: sock.cpp
 
 endif
