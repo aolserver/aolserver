@@ -34,7 +34,7 @@
  *	Implements a lot of Tcl API commands. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclmisc.c,v 1.6 2000/11/09 01:52:23 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclmisc.c,v 1.7 2000/11/13 21:09:08 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -1753,14 +1753,16 @@ AppendPool(Ns_ThreadInfo *iPtr, void *arg)
     infoPtr = Ns_ThreadPoolStats(iPtr->thread);
     if (infoPtr != NULL) {
     	Tcl_DStringStartSublist(dsPtr);
-    	Tcl_DStringAppendElement(dsPtr, infoPtr->name);
+    	Tcl_DStringAppendElement(dsPtr, iPtr->name);
 	for (n = 0; n < infoPtr->nbuckets; ++n) {
-    	    sprintf(buf, "%d %d %d %d %d",
+    	    sprintf(buf, "%d %d %d %d %d %d %d",
 		infoPtr->buckets[n].blocksize,
 		infoPtr->buckets[n].nfree,
 		infoPtr->buckets[n].nget,
 		infoPtr->buckets[n].nput,
-		infoPtr->buckets[n].nrequest);
+		infoPtr->buckets[n].nrequest,
+		infoPtr->buckets[n].nlock,
+		infoPtr->buckets[n].nwait);
 	    Tcl_DStringAppendElement(dsPtr, buf);
 	}
     	Tcl_DStringEndSublist(dsPtr);
