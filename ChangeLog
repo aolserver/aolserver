@@ -1,3 +1,14 @@
+2004-07-28  Dossy Shiobara <dossy@panoptic.com>
+
+	* include/ns.h (1.55.2.8): BUMP: 4.0.8a
+
+2004-07-28  Dossy Shiobara <dossy@panoptic.com>
+
+	* configure (1.15.2.1), configure.in (1.13.2.1): Clean up
+	  configure.in, regenerate configure with autoconf2.13, and clear
+	  CCRPATH/LDRPATH if CCRFLAGS/LDRFLAGS are empty.  Closes SF Bug
+	  #640754.  Backported from HEAD.
+
 2004-07-19  tag aolserver_v40_r7
 
 2004-07-19  Dossy Shiobara <dossy@panoptic.com>
