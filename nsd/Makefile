@@ -1,6 +1,8 @@
 
 include ../include/Makefile.global
 
+NSHOME   =  ..
+
 LIBS	+= $(NSDLIBS)
 
 OBJS = \
@@ -33,14 +35,14 @@ all: $(NSD7) $(NSD8)
 #
 # Tcl 7.6:  Our hacked version of Tcl 7.6 is fast and robust.
 #
-$(NSD7): $(LIBTCL76) $(LIBNSTHREAD) $(TCL76STUB) $(OBJS)
+$(NSD7): libtcl76 libnsthread $(TCL76STUB) $(OBJS)
 	$(CC) $(LDFLAGS) $(TCL76STUB) $(OBJS) $(LIBTCL76) $(LIBNSTHREAD) $(LIBS) -o $@
 
 
 #
-# Tcl 8.2:  Slower but at least it's Tcl 8.x.
+# Tcl 8.x:  Slower but at least it's Tcl 8.x.
 #
-$(NSD8): $(LIBTCL8X) $(LIBNSTHREAD) $(TCL8XSTUB) $(OBJS)
+$(NSD8): libtcl8x libnsthread $(TCL8XSTUB) $(OBJS)
 	$(CC) $(LDFLAGS) $(TCL8XSTUB) $(OBJS) $(LIBTCL8X) $(LIBNSTHREAD) $(LIBS) -o $@
 
 

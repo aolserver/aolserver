@@ -1,5 +1,5 @@
 
-$Header: /Users/dossy/Desktop/cvs/aolserver/doc/Attic/install.txt,v 1.1 2000/05/09 21:42:31 kriston Exp $
+$Header: /Users/dossy/Desktop/cvs/aolserver/doc/Attic/install.txt,v 1.2 2000/08/02 23:38:25 kriston Exp $
 
 
 Building, Installation, and Configuration
@@ -16,14 +16,13 @@ o A supported Unix platform: AOLserver 3 is reasonably portable and
 known to compile and run on the following platforms:
 
 	- Linux (x86 and others)
-	- FreeBSD 3.3 (x86 and others)
-	- OpenBSD 2.6 (x86 and others)
-	- Solaris 2.6 and 7 (SPARC and x86)
-	- IRIX 6.4/6.5 (mips)
-	- HP/UX 10.20 (hppa)
-	- HP/UX 11 (hppa)
-	- DEC OSF/1 4.0 (alpha)
-	- UnixWare 7.1 (x86)
+	- FreeBSD (x86 and others)
+	- OpenBSD (x86 and others)
+	- Solaris (SPARC and x86)
+	- IRIX (mips)
+	- HP/UX (hppa)
+	- DEC Tru64 & OSF/1 (alpha)
+	- UnixWare (x86)
 	- Apple OS/X (ppc)
 
     It's likely AOLserver can compile on other systems and/or higher
@@ -62,12 +61,12 @@ will:
 	- Configure and build the Tcl 8.x library (*)
 	- Build nsd76 and nsd8x
 	- Build several modules:
-		- nssock - basic standard socket comm driver
-		- nscgi - CGI support
-		- nscp - interactive control port
-		- nslog - common log format logging
-		- nsperm - new permission module
-		- nsext - external database driver (**)
+		- nssock - HTTP and HTTPS socket drivers
+		- nscgi  - CGI support
+		- nscp   - interactive control port
+		- nslog  - common log format logging
+		- nsperm -  permission module
+		- nsext  - external database driver (**)
 	- Build the nspd library for linking external database drivers
 
 o Type "make install" to make a production server.  This will:
@@ -93,9 +92,9 @@ safety and ns_share support.  The 8.x library is modified slightly to
 enable thread support through AOLserver's nsthread library and to
 patch a few minor problems.
 
-(**) To compile the included Sybase, Solid, Postgres, and nsssl2
-drivers, edit the makefile in the corresponding directory to point to
-the location of the vendor database library and header files.
+(**) To compile some of the optional modules, drivers, edit the
+makefile in the corresponding directory to point to the location of
+the vendor database library and header files.
 
 
 Running:
@@ -112,13 +111,16 @@ o Some modules have been disabled in the sample nsd.tcl for security
 reasons.  They are nscp and nsperm.  They aren't required to run a
 server unless you want to use the Control Port and/or the Permissions
 module, respectively.  Before using them, change the passwords and
-default permissions.
+default permissions by following the instructions in the AOLserver
+documentation.
 
-o AOLserver will not run as root.  You either need to start the server
-as a non-root user (in which case you will not be able to listen for
-connections on privilieged ports such as port 80) or you must include
-a -u user command line flag to which the server will setuid() after
-startup.  You may either specify a Unix username or numeric uid, e.g.:
+o Although you must be root to start AOLserver, the server itself must
+change to a regular user shortly after initialization.  You either
+need to start the server as a non-root user (in which case you will
+not be able to listen for connections on privileged ports such as port
+80) or you must include a -u user command line flag to which the
+server will setuid(2) after startup.  You may either specify a Unix
+username or numeric uid, e.g.:
 
 	nsd -t nsd.tcl -u nsadmin
 
@@ -132,9 +134,8 @@ o AOLserver can be started by executing the nsd76 or nsd8x binary,
 indicating the mode of operation and the path to the config file.  The
 choice of nsd76 or nsd8x depends on whether you need compatibility
 with Tcl7.6 (closer to the 7.4 of previous releases) or special
-features of Tcl8.x (e.g., internationalizaton).  If you're new to
-AOLserver, use nsd8x as the 7.6 version will be removed in a future
-release.  For the mode of operation, there are three choices:
+features of Tcl8.x (e.g., internationalizaton).  For the mode of
+operation, there are three choices:
 
     - Foreground: The server starts and emits diagnostic log messages
     directly to the terminal window.  This is useful for testing
@@ -160,7 +161,7 @@ release.  For the mode of operation, there are three choices:
       determine the process id from a special marker file, send the
       signal and wait for shutodwn, e.g.:
 
-	./bin/nsd8 -Kt ./nsd.tcl
+	./bin/nsd8x -Kt ./nsd.tcl
 
       You may also use the -k flag to kill and restart a background
       server.

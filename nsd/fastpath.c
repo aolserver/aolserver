@@ -2,7 +2,7 @@
  * The contents of this file are subject to the AOLserver Public License
  * Version 1.1 (the "License"); you may not use this file except in
  * compliance with the License. You may obtain a copy of the License at
- * http://aolserver.lcs.mit.edu/.
+ * http://aolserver.com/.
  *
  * Software distributed under the License is distributed on an "AS IS"
  * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
@@ -34,7 +34,7 @@
  *      Get page possibly from a file cache.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/fastpath.c,v 1.2 2000/05/02 14:39:30 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/fastpath.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #ifndef WIN32
@@ -92,7 +92,6 @@ static int UrlIs(char *server, char *url, int dir);
 
 static Ns_UrlToFileProc *url2filePtr;
 static Ns_Cache 	*cachePtr;	/* the file cache */
-static Ns_ModLogHandle   modlog;
 
 
 /*
@@ -236,11 +235,6 @@ Ns_UrlIsDir(char *server, char *url)
 void
 NsInitFastpath(void)
 {
-    /*
-     * register the sub-realm
-     */
-
-    NsModLogRegSubRealm("fastpath", &modlog);    
     if (nsconf.fastpath.cache) {
 	cachePtr = Ns_CacheCreateSz("ns_fastpath", sizeof(Key) / sizeof(int),
 				    nsconf.fastpath.cachesize, FreeEntry);
@@ -319,8 +313,8 @@ FastGet(void *ignored, Ns_Conn *conn)
 
     if (stat(ds.string, &st) != 0) {
 	if (errno != ENOENT) {
-	    Ns_ModLog(Error, modlog, "stat(%s) failed: %s",
-		      ds.string, strerror(errno));
+	    Ns_Log(Error, "FastGet: stat(%s) failed: %s",
+		   ds.string, strerror(errno));
 	}
 	goto notfound;
     }
@@ -348,8 +342,8 @@ FastGet(void *ignored, Ns_Conn *conn)
 
     	    fd = open(ds.string, O_RDONLY|O_BINARY);
     	    if (fd < 0) {
-	        Ns_ModLog(Warning, modlog, "open(%s) failed: %s",
-			  ds.string, strerror(errno));
+	        Ns_Log(Warning, "FastGet: open(%s) failed: %s",
+		       ds.string, strerror(errno));
 	     	goto notfound;
 	    }
 
@@ -403,8 +397,8 @@ FastGet(void *ignored, Ns_Conn *conn)
 		fd = open(ds.string, O_RDONLY|O_BINARY);
 		if (fd < 0) {
 	    	    filePtr = NULL;
-	            Ns_ModLog(Warning, modlog, "open(%s) failed: %s",
-			ds.string, strerror(errno));
+	            Ns_Log(Warning, "FastGet: open(%s) failed: %s",
+			   ds.string, strerror(errno));
 		} else {
 		    filePtr = ns_malloc(sizeof(File) + st.st_size);
 		    filePtr->refcnt = 1;
@@ -413,8 +407,8 @@ FastGet(void *ignored, Ns_Conn *conn)
 		    nread = read(fd, filePtr->bytes, filePtr->size);
 		    close(fd);
 		    if (nread != filePtr->size) {
-	    	    	Ns_ModLog(Warning, modlog, "read(%s) failed: %s",
-				ds.string, strerror(errno));
+	    	    	Ns_Log(Warning, "FastGet: read(%s) failed: %s",
+			       ds.string, strerror(errno));
 			ns_free(filePtr);
 			filePtr = NULL;
 		    }

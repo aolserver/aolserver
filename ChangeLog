@@ -1,4 +1,60 @@
+2000-08-02  Kriston J. Rehberg  <Kriston@AOL.NET>
+
+	* Build process is a little more rule-oriented.  The cleaning
+	rules "distclean" and "clobber" were removed.  The Tcl libraries
+	are always distcleaned when "gmake clean" is invoked.  Rules that
+	can be used as dependencies were made for libnsthread and the Tcl
+	libraries -- their names are "libnsthread," "libtcl76," and
+	"libtcl8x," respectively.  PREFIX is now used as the installation
+	directory (along with INST), so the more familiar "gmake install
+	PREFIX=/usr/local/aolserver" will work.  Additionally, gmaking in
+	a subdirectory with dependencies now works.
+	
+	* nsd/log.c: The sourge of modlog has been removed.  All code
+	included with AOLserver that used Ns_ModLog now doesn't.  Many log
+	statements are now hopefully more standardized.  This will be a
+	continuing improvement over the next several updates.  I would
+	like to use gcc's __FUNCTION__ macro but it doesn't work on native
+	compilers, but we may start using __LINE__ and __FILE__ instead or
+	replace Ns_Log with a smart macro that takes care of all this
+	stuff for us.
+
+	* nsd/tclmisc.c (NsTclInfoCmd): ns_info pid added to return the
+	process id.
+
+2000-08-01  Kriston J. Rehberg  <Kriston@AOL.NET>
+
+	* nsd/adp.c (Ns_AdpRequest): The enableexpire option was putting
+	an Expires header even if it already existed.
+
+	* nsd/return.c (Ns_ConnReturnNotice): Yikes, /face should have
+	been /font.  No more fonts, colors, etc, on default notice pages.
+
+	* nsd/tclsock.c (NsTclSockOpenCmd): Removed spurious Ns_Log Notice
+	from ns_sockopen.
+
+	* tcl/form.tcl (ns_getform): MSIE presents the wrong stuff to the
+	server when a multipart/formdata POST is redirected.  Workaround
+	contributed by Joseph Bank.
+
+	* tcl/fastpath.tcl (_ns_dirlist): base href removed -- links are
+	now fully-qualified.
+
+	* Makefile (install): include and lib dirs are now included in
+	binary distribution.
+
+	* tcl/http.tcl (_ns_http_gets): \n replaced by \r in all but
+	_ns_http_gets so that arbitrary headers get set correctly.
+	Contributed by <jsc@arsdigita.com>.
+
+	* tcl7.6/generic/tclPosixStr.c (Tcl_SignalMsg): Patch to Tcl 7.6
+	for Red Hat on SPARC architectures.  Contributed by Mike Chan
+	<snotty@linux.com>
+
 2000-07-13  Kriston J. Rehberg  <Kriston@AOL.NET>
+
+	* scripts/nsd.tcl: nssslmodule names the nsssl/nsssle binary's
+	filename.  nscp_port tells nscp what port to listen.
 
 	* nssock: nssock.c renamed sock.c, SSL support has been merged
 	back with nssock so that both nsssl and nssock use identical

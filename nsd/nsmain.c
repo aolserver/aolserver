@@ -33,7 +33,7 @@
  *	AOLserver Ns_Main() startup routine.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.2 2000/05/02 14:39:30 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -182,7 +182,8 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 
 #ifndef WIN32
     if (getrlimit(RLIMIT_NOFILE, &rl) != 0) {
-	Ns_Log(Warning, "getrlimit(RLIMIT_NOFILE) failed: %s", strerror(errno));
+	Ns_Log(Warning, "Ns_Main: "
+	       "getrlimit(RLIMIT_NOFILE) failed: %s", strerror(errno));
     } else {
 	if (rl.rlim_max > FD_SETSIZE) {
 	    rl.rlim_max = FD_SETSIZE;
@@ -190,8 +191,9 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 	if (rl.rlim_cur != rl.rlim_max) {
     	    rl.rlim_cur = rl.rlim_max;
     	    if (setrlimit(RLIMIT_NOFILE, &rl) != 0) {
-	        Ns_Log(Warning, "setrlimit(RLIMIT_NOFILE, %d) failed: %s",
-	              rl.rlim_max, strerror(errno));
+	        Ns_Log(Warning, "Ns_Main: "
+		       "setrlimit(RLIMIT_NOFILE, %d) failed: %s",
+		       rl.rlim_max, strerror(errno));
 	    } 
 	}
     }
@@ -523,10 +525,12 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
      */
      
     if (getrlimit(RLIMIT_NOFILE, &rl) != 0) {
-	Ns_Log(Warning, "getrlimit(RLIMIT_NOFILE) failed: %s", strerror(errno));
+	Ns_Log(Warning, "Ns_Main: "
+	       "getrlimit(RLIMIT_NOFILE) failed: %s", strerror(errno));
     } else {
-	Ns_Log(Notice, "max files: FD_SETSIZE = %d, rl_cur = %d, rl_max = %d",
-	    FD_SETSIZE, rl.rlim_cur, rl.rlim_max);
+	Ns_Log(Notice, "Ns_Main: "
+	       "max files: FD_SETSIZE = %d, rl_cur = %d, rl_max = %d",
+	       FD_SETSIZE, rl.rlim_cur, rl.rlim_max);
     }
 #endif
 
@@ -681,7 +685,7 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 void
 Ns_StopServer(char *server)
 {
-    Ns_Log(Warning, "immediate server shutdown requested");
+    Ns_Log(Warning, "Ns_StopServer: immediate server shutdown requested");
     NsSendSignal(NS_SIGTERM);
 }
 
@@ -1183,7 +1187,7 @@ StatusMsg(int state)
 #ifndef WIN32
     if (state < 2) {
         Ns_Log(Notice, "security info: uid=%d, euid=%d, gid=%d, egid=%d",
-                  getuid(), geteuid(), getgid(), getegid());
+	       getuid(), geteuid(), getgid(), getegid());
     }
 #endif
 }
@@ -1200,8 +1204,7 @@ StatusMsg(int state)
  *	None.
  *
  * Side effects:
- *	Server exits.  This doesn't use Ns_Fatal because that
- *	relies on ModLog.
+ *	Server exits.
  *
  *----------------------------------------------------------------------
  */

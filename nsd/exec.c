@@ -2,7 +2,7 @@
  * The contents of this file are subject to the AOLserver Public License
  * Version 1.1 (the "License"); you may not use this file except in
  * compliance with the License. You may obtain a copy of the License at
- * http://aolserver.lcs.mit.edu/.
+ * http://aolserver.com/.
  *
  * Software distributed under the License is distributed on an "AS IS"
  * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
@@ -28,7 +28,7 @@
  */
 
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/exec.c,v 1.2 2000/05/02 14:39:30 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/exec.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -146,42 +146,49 @@ Ns_WaitForProcess(int pid, int *statusPtr)
     process = (HANDLE) pid;
     if ((WaitForSingleObject(process, INFINITE) == WAIT_FAILED) ||
         (GetExitCodeProcess(process, &exitcode) != TRUE)) {
-        Ns_Log(Error, "Could not get process exit code:  %s", NsWin32ErrMsg(GetLastError()));
+        Ns_Log(Error, "Ns_WaitForProcess: "
+	       "Could not get process exit code:  %s",
+	       NsWin32ErrMsg(GetLastError()));
         status = NS_ERROR;
     }
     if (CloseHandle(process) != TRUE) {
-        Ns_Log(Warning, "WaitForProcess: CloseHandle(%d) failed: %s", pid, NsWin32ErrMsg(GetLastError()));
+        Ns_Log(Warning, "Ns_WaitForProcess: CloseHandle(%d) failed: %s",
+	       pid, NsWin32ErrMsg(GetLastError()));
         status = NS_ERROR;
     }
 #else
     status = NS_ERROR;
 waitproc:
     if (waitpid(pid, &waitstatus, 0) != pid) {
-        Ns_Log(Error, "waitpid(%d) failed: %s", pid, strerror(errno));
+        Ns_Log(Error, "Ns_WaitForProcess: waitpid(%d) failed: %s",
+	       pid, strerror(errno));
     } else {
         if (WIFEXITED(waitstatus)) {
 	    exitcode = WEXITSTATUS(waitstatus);
 	    status = NS_OK;
         } else if (WIFSIGNALED(waitstatus)) {
-            Ns_Log(Error, "process %d exited from signal: %d",
-		      pid, WTERMSIG(waitstatus));
+            Ns_Log(Error, "Ns_WaitForProcess: "
+		   "process %d exited from signal: %d",
+		   pid, WTERMSIG(waitstatus));
 #ifdef WCOREDUMP
             if (WCOREDUMP(waitstatus)) {
-                Ns_Log(Error, "process %d dumped core", pid);
+                Ns_Log(Error, "Ns_WaitForProcess: "
+		       "process %d dumped core", pid);
             }
 #endif /* WCOREDUMP */
         } else if (WIFSTOPPED(waitstatus)) {
-            Ns_Log(Notice, "process %d stopped by signal: %d",
-		      pid, WSTOPSIG(waitstatus));
+            Ns_Log(Notice, "Ns_WaitForProcess: "
+		   "process %d stopped by signal: %d",
+		   pid, WSTOPSIG(waitstatus));
             goto waitproc;
 #ifdef WIFCONTINUED
         } else if (WIFCONTINUED(waitstatus)) {
-            Ns_Log(Notice, "proces %d resumed", pid);
+            Ns_Log(Notice, "Ns_WaitForProcess: process %d resumed", pid);
             goto waitproc;
 #endif /* WIFCONTIUED */
         } else {
-            Ns_Log(Bug, "waitpid(%d) returned invalid status:  %d",
-		pid, waitstatus);
+            Ns_Log(Bug, "Ns_WaitForProcess: "
+		   "waitpid(%d) returned invalid status: %d", pid, waitstatus);
         }
     }
 #endif
@@ -190,7 +197,8 @@ waitproc:
 	    *statusPtr = exitcode;
 	}
 	if (nsconf.exec.checkexit && exitcode != 0) {
-            Ns_Log(Error, "process %d exited with non-zero status: %d",
+            Ns_Log(Error, "Ns_WaitForProcess: "
+		   "process %d exited with non-zero status: %d",
         	   pid, exitcode);
 	    status = NS_ERROR;
 	}
@@ -246,7 +254,8 @@ Ns_ExecArgblk(char *exec, char *dir, int fdin, int fdout, char *args, Ns_Set *en
     char           *cmd;
 
     if (exec == NULL) {
-        Ns_Log(Bug, "Ns_ExecProcess() called with NULL command.");
+        Ns_Log(Bug, "Ns_ExecArgblk: "
+	       "Ns_ExecProcess() called with NULL command.");
         return -1;
     }
     oinfo.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
@@ -269,8 +278,9 @@ Ns_ExecArgblk(char *exec, char *dir, int fdin, int fdout, char *args, Ns_Set *en
     }
     if (DuplicateHandle(hCurrentProcess, (HANDLE) _get_osfhandle(fdout), hCurrentProcess,
             &si.hStdOutput, 0, TRUE, DUPLICATE_SAME_ACCESS) != TRUE) {
-        Ns_Log(Error, "DuplicateHande(StdOutput) failed CreateProcess():  %s",
-	    NsWin32ErrMsg(GetLastError()));
+        Ns_Log(Error, "Ns_ExecArgblk: "
+	       "DuplicateHande(StdOutput) failed CreateProcess():  %s",
+	       NsWin32ErrMsg(GetLastError()));
         return -1;
     }
     if (fdin < 0) {
@@ -278,17 +288,18 @@ Ns_ExecArgblk(char *exec, char *dir, int fdin, int fdout, char *args, Ns_Set *en
     }
     if (DuplicateHandle(hCurrentProcess, (HANDLE) _get_osfhandle(fdin), hCurrentProcess,
             &si.hStdInput, 0, TRUE, DUPLICATE_SAME_ACCESS) != TRUE) {
-        Ns_Log(Error, "DuplicateHande(StdInput) failed before CreateProcess():  %s",
-	    NsWin32ErrMsg(GetLastError()));
+        Ns_Log(Error, "Ns_ExecArgbkl: "
+	       "DuplicateHandle(StdInput) failed before CreateProcess(): %s",
+	       NsWin32ErrMsg(GetLastError()));
         (void) CloseHandle(si.hStdOutput);
         return -1;
     }
-
+    
     /*
      * Setup the command line and environment block and create the new
      * subprocess.
      */
-
+    
     Ns_DStringInit(&dsCmd);
     Ns_DStringInit(&dsExec);
     if (args == NULL) {
@@ -325,13 +336,15 @@ Ns_ExecArgblk(char *exec, char *dir, int fdin, int fdout, char *args, Ns_Set *en
         envBlock = GetEnvBlock(env);
     }
     if (CreateProcess(exec, dsCmd.string, NULL, NULL, TRUE, 0, envBlock, dir, &si, &pi) != TRUE) {
-        Ns_Log(Error, "CreateProcess() failed to execute %s: %s",
-            exec ? exec : dsCmd.string, NsWin32ErrMsg(GetLastError()));
+        Ns_Log(Error, "Ns_ExecArgblk: "
+	       "CreateProcess() failed to execute %s: %s",
+	       exec ? exec : dsCmd.string, NsWin32ErrMsg(GetLastError()));
         pid = -1;
     } else {
         CloseHandle(pi.hThread);
         pid = (int) pi.hProcess;
-        Ns_Log(Debug, "Child process %d started", pid);
+        Ns_Log(Debug, "Ns_ExecArgblk: "
+	       "Child process %d started", pid);
     }
     Ns_DStringFree(&dsCmd);
     Ns_DStringFree(&dsExec);
@@ -398,7 +411,7 @@ Ns_ExecArgv(char *exec, char *dir, int fdin, int fdout,
     char  *argvSh[4];
 
     if (exec == NULL) {
-        Ns_Log(Bug, "Ns_Exec(): NULL command.");
+        Ns_Log(Bug, "Ns_ExecArgv: Ns_Exec(): NULL command.");
         return -1;
     }
     if (argv == NULL) {
@@ -410,8 +423,8 @@ Ns_ExecArgv(char *exec, char *dir, int fdin, int fdout,
         exec = argv[0];
     }
     if (pipe(pipeError) < 0) {
-        Ns_Log(Error, "Ns_Exec(%s): pipe() failed: %s:  %s",
-                  exec, strerror(errno));
+        Ns_Log(Error, "Ns_ExecArgv: Ns_Exec(%s): pipe() failed: %s:  %s",
+	       exec, strerror(errno));
         return -1;
     }
     if (env != NULL) {
@@ -426,7 +439,8 @@ Ns_ExecArgv(char *exec, char *dir, int fdin, int fdout,
     }
     pid = Ns_Fork();
     if (pid < 0) {
-        Ns_Log(Error, "Ns_Exec(%s): fork() failed: %s", exec, strerror(errno));
+        Ns_Log(Error, "Ns_ExecArgv: "
+	       "Ns_Exec(%s): fork() failed: %s", exec, strerror(errno));
         close(pipeError[0]);
         close(pipeError[1]);
     } else if (pid == 0) {	/* child */
@@ -471,24 +485,26 @@ Ns_ExecArgv(char *exec, char *dir, int fdin, int fdout,
             execv(exec, argv);
         }
         ExecFailed(pipeError[1], cBuf, "%dexecv()", errno);
-
+	
     } else {	/* parent */
-
+	
         close(pipeError[1]);
         nread = read(pipeError[0], cBuf, sizeof(cBuf) - 1);
         close(pipeError[0]);
         if (nread != 0) {
             if (nread < 0) {
-                Ns_Log(Error, "Ns_Exec(%s): error reading from process %d: %s",
-                    exec, pid, strerror(errno));
+		Ns_Log(Error, "Ns_ExecArgv: "
+		       "Ns_Exec(%s): error reading from process %d: %s",
+		       exec, pid, strerror(errno));
             } else if (nread > 0) {
                 char *msg;
 		int   err;
-
+		
                 cBuf[nread] = '\0';
                 err = strtol(cBuf, &msg, 10);
-                Ns_Log(Error, "%s failed: %s; could not execute %s",
-			  msg, strerror(err), exec);
+                Ns_Log(Error, "Ns_ExecArgv: "
+		       "%s failed: %s; could not execute %s",
+		       msg, strerror(err), exec);
             }
             waitpid(pid, NULL, 0);
             pid = -1;

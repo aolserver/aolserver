@@ -2,7 +2,7 @@
  * The contents of this file are subject to the AOLserver Public License
  * Version 1.1 (the "License"); you may not use this file except in
  * compliance with the License. You may obtain a copy of the License at
- * http://aolserver.lcs.mit.edu/.
+ * http://aolserver.com/.
  *
  * Software distributed under the License is distributed on an "AS IS"
  * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
@@ -34,7 +34,7 @@
  *	Various core configuration.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsconf.c,v 1.2 2000/05/02 14:39:30 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsconf.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -108,8 +108,10 @@ GetFile(char *path, char *key)
     
     file = GetString(path, key, NULL);
     if (file != NULL && access(file, R_OK) != 0) {
-    	Ns_Log(Error, "conf: access(%s, R_OK) failed: %s", file, strerror(errno));
-	Ns_Log(Error, "conf: [%s]%s reset to NULL", path, key);
+    	Ns_Log(Error, "conf: GetFile: access(%s, R_OK) failed: %s",
+	       file, strerror(errno));
+	Ns_Log(Error, "conf: GetFile: [%s]%s reset to NULL",
+	       path, key);
 	file = NULL;
     }
     return file;
@@ -125,8 +127,9 @@ NsConfInit(void)
     int i;
     Ns_DString ds, pds;
     char *ignored[] = {"creatmode", "mkdirmode", "faststart", "quotesize",
-		"quotewarningperiod", "checkstats", "checkstatsinterval",
-		"logqueryontclerror", "connectionyield", NULL};
+		       "quotewarningperiod", "checkstats",
+		       "checkstatsinterval", "logqueryontclerror",
+		       "connectionyield", NULL};
     
     Ns_DStringInit(&ds);
     Ns_DStringInit(&pds);
@@ -255,8 +258,8 @@ NsConfInit(void)
 	nsconf.conn.hdrcase = ToUpper;
     } else {
     	if (!STRIEQ(s, "preserve")) {
-	    Ns_Log(Error, "[%s]headercase = %s invalid - set to preserve",
-	    	   path, s);
+	    Ns_Log(Error, "conf: NsConfInit: "
+		   "[%s]headercase = %s invalid - set to preserve", path, s);
     	}
     	nsconf.conn.hdrcase = Preserve;
     }
@@ -358,7 +361,8 @@ NsConfInit(void)
     
     for (i = 0; ignored[i] != NULL; ++i) {
 	if (Ns_ConfigGet(PARAMS, ignored[i]) != NULL) {
-	    Ns_Log(Warning, "ignored 2.x option: %s", ignored[i]);
+	    Ns_Log(Warning, "conf: Ns_ConfInit: ignored 2.x option: %s",
+		   ignored[i]);
 	}
     }
 

@@ -1,32 +1,5 @@
-# The contents of this file are subject to the AOLserver Public License
-# Version 1.1 (the "License"); you may not use this file except in
-# compliance with the License. You may obtain a copy of the License at
-# http://aolserver.com/.
-#
-# Software distributed under the License is distributed on an "AS IS"
-# basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
-# the License for the specific language governing rights and limitations
-# under the License.
-#
-# The Original Code is AOLserver Code and related documentation
-# distributed by AOL.
-# 
-# The Initial Developer of the Original Code is America Online,
-# Inc. Portions created by AOL are Copyright (C) 1999 America Online,
-# Inc. All Rights Reserved.
-#
-# Alternatively, the contents of this file may be used under the terms
-# of the GNU General Public License (the "GPL"), in which case the
-# provisions of GPL are applicable instead of those above.  If you wish
-# to allow use of your version of this file only under the terms of the
-# GPL and not to allow others to use your version of this file under the
-# License, indicate your decision by deleting the provisions above and
-# replace them with the notice and other provisions required by the GPL.
-# If you do not delete the provisions above, a recipient may use your
-# version of this file under either the License or the GPL.
-#
 
-# $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Attic/config.txt,v 1.1 2000/05/09 21:42:31 kriston Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Attic/config.txt,v 1.2 2000/08/02 23:38:25 kriston Exp $
 
 #
 # config.txt --
@@ -40,32 +13,10 @@
 
 
 #
-# Putting ns_log notice statements at the beginning and end will help
-# track down syntax errors in your nsd.tcl.
-#
-ns_log notice "nsd.tcl: begin reading config file."
-
-
-#
-# Set commonly-used variables
-#
-set home                   [ns_info home]
-set host                   "www.server.com"
-set address                127.0.0.1
-set httpport               8000
-set httpsport              8443
-set server                 "server1"
-set servername             "Server Name"
-
-set pageroot               "servers/${server}/pages"
-set directoryfile          "index.adp,index.html,index.htm"
-
-#
 # Global parameters
 #
 ns_section "ns/parameters"
-ns_param   home            $home
-ns_param   enableadmin     false     ;# Enable old-style /NS/Admin pages.
+ns_param   home            $home     ;# Server's home directory
 
 # Data structures
 ns_param   dstringcachemaxentries 10 ;# Max no. of Dstrings to put on cache
@@ -81,12 +32,12 @@ ns_param   shutdowntimeout 20        ;# Secs to wait on shutdown if open conns
 
 # Server logging
 ns_param   dev             true      ;# Display logging with "Dev" severity
-ns_param   debug           false
-ns_param   logexpanded     false     ;# true = easily-reading server.log
+ns_param   debug           false     ;# Display logging with "Debug" severity
+ns_param   logexpanded     false     ;# true = double-spaced server.log
 ns_param   logroll         false     ;# Roll server.log every 24 hours.
 ns_param   maxbackup       10        ;# Max number of old server.log files
 ns_param   pidfile         "nspid"   ;# PID of server (named "nspid.PORT")
-ns_param   serverlog       "server.log"
+ns_param   serverlog       "server.log" ;# Filename of server.log
 
 # DNS tuning
 ns_param   dnscache        true      ;# In-memory cache of DNS lookups
@@ -94,8 +45,8 @@ ns_param   dnscachetimeout 60        ;# How long to keep hostnames in cache
 
 # Miscellaneous
 ns_param   checkexitcode   false     ;# Check exit code on forked process
-ns_param   crashcmd        ns_crash  ;# Tcl command that dumps core.
-ns_param   mailhost        smtp.yourcompany.com
+ns_param   crashcmd        ns_crash  ;# A Tcl command that dumps core.
+ns_param   mailhost        smtp.yourcompany.com ;# SMTP host for ns_sendmail
 
 
 #
@@ -117,6 +68,7 @@ ns_param   ".xls"          "application/vnd.ms-excel"
 ns_param   default         "*/*"     ;# MIME type for unknown extension
 ns_param   noextension     "*/*"     ;# MIME type for missing extension
 
+
 ############################################################
 #
 # Server-level configuration
@@ -127,14 +79,14 @@ ns_param   noextension     "*/*"     ;# MIME type for missing extension
 #
 
 ns_section "ns/servers"
-ns_param   $server         $servername
+ns_param   $server         $servername ;# Name of virtual server.
 
 #
 # Server parameters
 #
-ns_section "ns/server/${server}"
-ns_param   directoryfile   $directoryfile
-ns_param   pageroot        $pageroot
+ns_section "ns/server/${servername}"
+ns_param   directoryfile   $directoryfile ;# List of files to use (index.html)
+ns_param   pageroot        $pageroot ;# Directory under which all pages live
 
 # Tuning options
 ns_param   connsperthread  0         ;# Normally there's one conn per thread
@@ -159,7 +111,7 @@ ns_param   maxurlstats     1000      ;# Max number of URL's to do stats on
 # Directory listings can be generated with an ADP or a Tcl proc.
 ns_param   directoryadp    $home/dirlist.adp  ;# Choose one or the other
 ns_param   directoryproc   _ns_dirlist        ;#  ...but not both!
-ns_param   directorylisting simple   ;# Can be "simple" or "fancy"
+ns_param   directorylisting simple   ;# Can be simple or fancy (for ns_dirlist)
 
 # Miscellaneous
 ns_param   checkmodifiedsince true   ;# Check url if no If-Modified-Since?
@@ -167,37 +119,37 @@ ns_param   enableaolpress  false     ;# Enable extra features used by AOLpress
 ns_param   headercase      preserve  ;# tolower, toupper, preserve
 
 #
-# Automatic redirection
+# Internal redirects
 #
-ns_section "ns/server/${server}/redirects"
-ns_param   404 "http://www.yourserver.com/notfound.html"
-ns_param   500 "http://www.yourserver.com/servererror.html"
+ns_section "ns/server/${servername}/redirects"
+ns_param   404 "/notfound.html"      ;# Not Found error page
+ns_param   500 "/servererror.html"   ;# Server Error page
 
 #
-# Fastpath
+# Fastpath serves HTML
 #
-ns_section "ns/server/${server}/fastpath"
+ns_section "ns/server/${servername}/fastpath"
 ns_param   cache           true      ;# Enable cache for normal URLs
 ns_param   cachemaxentry   8192      ;# Largest file size allowable in cache
 ns_param   cachemaxsize    [expr 5000*1024] ;# Size of fastpath cache
 ns_param   mmap            false     ;# Use mmap() for cache
 
 #
-# Tcl
+# Tcl interpreter
 #
-ns_section "ns/server/${server}/tcl"
+ns_section "ns/server/${servername}/tcl"
 ns_param   autoclose       true      ;# Close files the Tcl interp opened
 ns_param   debug           false     ;# Names of files sourced is logged
 ns_param   nsvbuckets      8         ;# No. of buckets to hold nsv's
 ns_param   statlevel       0         ;# How many levels deep to run tclstats
 ns_param   statmaxbuf      100       ;# Maximum entries in tclstats table
 ns_param   library \
-    "$home/servers/${server}/modules/tcl" ;# Private tcl library for the server
+    "$home/servers/${servername}/modules/tcl" ;# Private tcl library for the server
 
 #
 # ADP (AOLserver Dynamic Page) configuration
 #
-ns_section "ns/server/${server}/adp"
+ns_section "ns/server/${servername}/adp"
 
 # ADP features
 ns_param   map             "/*.adp"  ;# Extensions to parse as ADP's
@@ -210,8 +162,8 @@ ns_param   debuginit "ns_adp_debuginit" ;# Debug procedure
 ns_param   cache           true      ;# In-memory cache of ADP's
 ns_param   cachesize       [expr 5000*1024]
 ns_param   taglocks        false     ;# Enable post-ini creation of ADP tags
-ns_param   threadcache     false     ;# for Tcl 7.6 (nsd76)
-ns_param   threadcache     true      ;# for Tcl 8.2 (nsd82)
+ns_param   threadcache     false     ;# default for Tcl 7.6 (nsd76)
+ns_param   threadcache     true      ;# default for Tcl 8.2 (nsd82)
 
 # ADP special pages
 ns_param   errorpage \
@@ -223,47 +175,48 @@ ns_param   startpage \
 #
 # ADP custom parsers -- see adp.c
 #
-ns_section "ns/server/${server}/adp/parsers"
-ns_param   fancy           ".adp"    ;# The "fancy" parser is mapped to *.adp
-ns_param   adp             ".sadp"   ;# The simple parser is mapped to *.sadp
+ns_section "ns/server/${servername}/adp/parsers"
+ns_param   adp             ".adp"   ;# The simple parser looks for <% ... %>
+ns_param   fancy           ".adp"   ;# The fancy parser does a lot more.
 
 
 #
 # Socket driver module (HTTP)  -- nssock
 #
-ns_section "ns/server/${server}/module/nssock"
-ns_param   port            $httpport
+ns_section "ns/server/${servername}/module/nssock"
+ns_param   port            $httpport ;# Port for HTTP (typically 80)
 ns_param   hostname        $host     ;# This is not the same as your hostname
-ns_param   address         $address  
+ns_param   address         $address  ;# This is not the same as your host addr
 ns_param   location        "url"     ;# URL for auto-redirects (trailing slash)
 
 #
 # Socket driver module (HTTPS) -- nsssl
 #
-ns_section "ns/server/${server}/module/nsssl"
-ns_param   port            $httpsport
+ns_section "ns/server/${servername}/module/nsssl"
+ns_param   port            $httpsport ;# Port for HTTPS (typically 443)
 ns_param   hostname        $host     ;# This is not the same as your hostname
-ns_param   address         $address
-ns_param   keyfile         ${home}/servers/${server}/modules/nsssl/keyfile.pem
-ns_param   certfile        ${home}/servers/${server}/modules/nsssl/certfile.pem
+ns_param   address         $address  ;# This is not the same as your host addr
+ns_param   keyfile         ${home}/servers/${servername}/modules/nsssl/keyfile.pem
+ns_param   certfile        ${home}/servers/${servername}/modules/nsssl/certfile.pem
 
 
 #
 # Control port -- nscp
 #
-ns_section "ns/server/${server}/module/nscp"
-ns_param   port            9999
-ns_param   address         "127.0.0.1"
+ns_section "ns/server/${servername}/module/nscp"
+ns_param   port            9999      ;# Control port listens on port 9999
+ns_param   address         "127.0.0.1" ;# For security, use 127.0.0.1 only
 
 # Control port users
-ns_section "ns/server/${server}/module/nscp/users"
+ns_section "ns/server/${servername}/module/nscp/users"
 # The default password for nsadmin is "x". You should change it.
-ns_param   user            "nsadmin:t2GqvvaiIUbF2:"
+# type "ns_crypt newpassword salt" and put the encrypted string below.
+ns_param user "nsadmin:t2GqvvaiIUbF2:" ;# sample user="nsadmin", pw="x".
 
 #
 # Access log -- nslog
 #
-ns_section "ns/server/${server}/module/nslog"
+ns_section "ns/server/${servername}/module/nslog"
 ns_param   file            "access.log"
 ns_param   formattedtime   true      ;# true=common log format
 ns_param   logcombined     false     ;# true==NCSA combined format
@@ -277,8 +230,8 @@ ns_param   rollonsignal    true      ;# Roll log on SIGHUP
 #
 # Note: CGI is *vastly* inferior to ADP's or even built-in Tcl libraries.
 #
-ns_section "ns/server/${server}/module/nscgi"
-ns_param   debug           false
+ns_section "ns/server/${servername}/module/nscgi"
+ns_param   debug           false     ;# Be chatty in log
 ns_param   gethostbyaddr   false     ;# Whether to do reverse DNS lookups
 ns_param   limit           0         ;# Max number of concurrent CGI processes
 ns_param   maxoutput       10240     ;# Max bytes allowed from external process
@@ -295,13 +248,12 @@ ns_param   systemenvironment false   ;# Copies environment from nsd start shell
 #
 # Access control (permissions) -- nsperm
 #
-ns_section "ns/server/${server}/module/nsperm"
-ns_param   skiplocks       true      ;# Faster, but perms only set at startup
+ns_section "ns/server/${servername}/module/nsperm"
 
 #
 # Unix domain socket driver -- nsunix
 #
-ns_section "ns/server/${server}/module/nsunix"
+ns_section "ns/server/${servername}/module/nsunix"
 ns_param   hostname        "host"    ;# Hostname used in response to client
 ns_param   port            "port"    ;# Port to listen on
 ns_param   socketfile      "path.name" ;# UNIX domain socket driver
@@ -309,7 +261,7 @@ ns_param   socketfile      "path.name" ;# UNIX domain socket driver
 #
 # Virtual Hosting redirector -- nsvhr
 #
-ns_section "ns/server/${server}/module/nsvhr"
+ns_section "ns/server/${servername}/module/nsvhr"
 ns_param   busyurl         "url"     ;# Redirect here if back-end times out
 ns_param   errorurl        "url"     ;# Redirect here on proxy errors
 ns_param   method          "GET"     ;# Methods allowed to proxy
@@ -317,7 +269,7 @@ ns_param   method          "POST"    ;# Methods allowed to proxy (can have >1)
 ns_param   timeout         30        ;# Timeout waiting for back-end
 
 # Register hosts to proxy
-ns_section "ns/server/${server}/module/nsvhr/maps"
+ns_section "ns/server/${servername}/module/nsvhr/maps"
 ns_param   "www.tcpsocket.com"    "http://127.0.0.0:2000" ;# HTTP proxy
 ns_param   "www.domainsocket.com" "unix://somehost"       ;# Domain socket
 
@@ -358,20 +310,20 @@ ns_param   maxopen         3600      ;# Max time to keep active db conn open
 ns_param   verbose         true      ;# Verbose error logging
 
 # Tell the virtual server about the pools it can use.
-ns_section "ns/server/${server}/db"
+ns_section "ns/server/${servername}/db"
 ns_param   pools *
 
 #
 # Modules to load
 #
-# Only load the modules you are actually going to use.
+# Note: Only load the modules you are actually going to use.
 #
-ns_section "ns/server/${server}/modules"
+ns_section "ns/server/${servername}/modules"
 ns_param   nssock             nssock.so
 ns_param   nsssl              nsssle.so
 ns_param   nscp               nscp.so
 ns_param   nslog              nslog.so
 ns_param   nscgi              nscgi.so
 ns_param   nsperm             nsperm.so
-ns_param   nsunix             nsunix.so
-ns_param   nsvhr              nsvhr.so
+ns_param   tclmodule          tcl
+

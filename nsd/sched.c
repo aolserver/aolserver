@@ -2,7 +2,7 @@
  * The contents of this file are subject to the AOLserver Public License
  * Version 1.1 (the "License"); you may not use this file except in
  * compliance with the License. You may obtain a copy of the License at
- * http://aolserver.lcs.mit.edu/.
+ * http://aolserver.com/.
  *
  * Software distributed under the License is distributed on an "AS IS"
  * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
@@ -27,7 +27,7 @@
  * version of this file under either the License or the GPL.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sched.c,v 1.2 2000/05/02 14:39:30 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sched.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 /*
  * sched.c --
@@ -461,7 +461,7 @@ NsStartSchedShutdown(void)
 {
     Ns_MutexLock(&lock);
     if (running) {
-    	Ns_Log(Notice, "sched: shutdown pending");
+    	Ns_Log(Notice, "NsStartSchedShutdown: shutdown pending");
 	shutdownPending = 1;
 	Ns_CondSignal(&cond);
     }
@@ -480,7 +480,8 @@ NsWaitSchedShutdown(Ns_Time *toPtr)
     }
     Ns_MutexUnlock(&lock);
     if (status != NS_OK) {
-	Ns_Log(Warning, "timeout waiting for sched exit!");
+	Ns_Log(Warning, "NsWaitSchedShutdown: "
+	       "timeout waiting for sched exit!");
     } else if (schedThread != NULL) {
 	Ns_ThreadJoin(&schedThread, NULL);
     }
@@ -719,7 +720,7 @@ SchedThread(void *ignored)
 
     Ns_WaitForStartup();
     Ns_ThreadSetName("-sched-");
-    Ns_Log(Notice, "starting");
+    Ns_Log(Notice, "SchedThread: starting");
     readyPtr = NULL;
     Ns_MutexLock(&lock);
     while (!shutdownPending) {
@@ -761,8 +762,8 @@ SchedThread(void *ignored)
 	    time(&now);
 	    elapsed = (int) difftime(now, ePtr->laststart);
 	    if (elapsed > nsconf.sched.maxelapsed) {
-		Ns_Log(Warning, "proc #%d elapsed time: %d seconds",
-		       ePtr->id, elapsed);
+		Ns_Log(Warning, "SchedThread: "
+		       "proc #%d elapsed time: %d seconds", ePtr->id, elapsed);
 	    }
 	    if (ePtr->hPtr == NULL) {
 		FreeEvent(ePtr);
@@ -795,9 +796,9 @@ SchedThread(void *ignored)
      * shutdown complete.
      */
      
-    Ns_Log(Notice, "shutdown started");
+    Ns_Log(Notice, "SchedThread: shutdown started");
     if (neventThreads > 0) {
-    	Ns_Log(Notice, "waiting for detached procs");
+    	Ns_Log(Notice, "SchedThread: waiting for detached procs");
 	while (neventThreads > 0) {
 	    Ns_CondWait(&cond, &lock);
 	}
@@ -812,7 +813,7 @@ SchedThread(void *ignored)
     }
     ns_free(queue);
     Tcl_DeleteHashTable(&eventsTable);
-    Ns_Log(Notice, "shutdown complete");
+    Ns_Log(Notice, "SchedThread: shutdown complete");
     Ns_MutexLock(&lock);
     running = 0;
     Ns_CondBroadcast(&cond);

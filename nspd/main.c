@@ -2,7 +2,7 @@
  * The contents of this file are subject to the AOLserver Public License
  * Version 1.1 (the "License"); you may not use this file except in
  * compliance with the License. You may obtain a copy of the License at
- * http://aolserver.lcs.mit.edu/.
+ * http://aolserver.com/.
  *
  * Software distributed under the License is distributed on an "AS IS"
  * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
@@ -34,7 +34,7 @@
  *	The proxy-side library for external drivers. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nspd/main.c,v 1.2 2000/05/02 14:39:30 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nspd/main.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "pd.h"
 #include "nspd.h"
@@ -186,8 +186,8 @@ Ns_PdSendData(char *data, int len)
         writeReturn = write(1, data, len);
     } while ((writeReturn < 0) && (errno == EINTR));
     if (writeReturn != len) {
-        Ns_PdLog(Error, "SendData: write error: %s while writing %d bytes",
-		 strerror(errno), len);
+        Ns_PdLog(Error, "Ns_PdSendData: write error: "
+		 "%s while writing %d bytes", strerror(errno), len);
     }
 }
 
@@ -514,7 +514,7 @@ Ns_PdParseOpenArgs(char *openargs, char **datasource, char **user,
     char *p, *lastp;
     char  dl = ARG_TOKEN_DELIMITER;
 
-    Ns_PdLog(Trace, "openargs: |%s|", openargs);
+    Ns_PdLog(Trace, "Ns_PdParseOpenArgs: |%s|", openargs);
     *datasource = *user = *password = *param = NULL;
     lastp = openargs;
     if ((p = strchr(lastp, dl)) != NULL) {
@@ -566,9 +566,11 @@ Ns_PdSqlbufEnough(char **buf, int *size, int howmuch)
     int status = NS_OK;
 
     if (*size < howmuch) {
-        Ns_PdLog(Notice, "reallocing sqlbuf from %d to %d", *size, howmuch);
+        Ns_PdLog(Notice, "Ns_PdSqlBufEnough: "
+		 "reallocing sqlbuf from %d to %d", *size, howmuch);
         if ((*buf = (char *) realloc(*buf, howmuch)) == NULL) {
-            Ns_PdLog(Error, "realloc error (%s)", strerror(errno));
+            Ns_PdLog(Error, "Ns_PdSqlBufEnough: "
+		     "realloc error (%s)", strerror(errno));
             status = NS_ERROR;
         } else {
             *size = howmuch;
@@ -631,9 +633,9 @@ PdMainLoop(void)
     char           *cmdArg;
     void           *dbhandle;
 
-    Ns_PdLog(Notice, "Started.");
+    Ns_PdLog(Notice, "PdMainLoop: started");
     if ((dbhandle = Ns_PdDbInit()) == NULL) {
-        Ns_PdLog(Error, "Ns_PdDbInit failure");
+        Ns_PdLog(Error, "PdMainLoop: Ns_PdDbInit failure");
     } else {
         while (readInput) {
             if (GetMsg(buf, &cmdName, &cmdArg) == NS_OK) {
@@ -677,7 +679,7 @@ PdPort(char *arg)
 
     port = atoi(arg);
     if (port <= 0 || port >= 65535) {
-        Ns_PdLog(Error, "Invalid port:  %s", arg);
+        Ns_PdLog(Error, "PdPort: invalid port:  %s", arg);
         Ns_PdExit(1);
     }
     return port;
@@ -711,23 +713,23 @@ GetMsg(char *buf, char **cmdName, char **cmdArg)
 
     if ((bytesRead = RecvData(buf, CMDMAX)) > 0) {
         if ((p = strchr(buf, '\n')) == NULL) {
-            Ns_PdLog(Error, "GetMsg: Protocol Error, no newline terminator "
-                "for command name");
+            Ns_PdLog(Error, "GetMsg: protocol error: "
+		     "no newline terminator for command name");
         } else {
             *p++ = '\0';
             *cmdName = buf;
             pargsize = p;
             if ((p = strchr(pargsize, '\n')) == NULL) {
-                Ns_PdLog(Error,
-			 "GetMsg: Protocol Error, no newline terminator "
-			 "for arglen of command: %s", *cmdName);
+                Ns_PdLog(Error, "GetMsg: protocol error: "
+			 "no newline terminator for arglen of command: %s",
+			 *cmdName);
             } else {
                 *p++ = '\0';
                 argsize = atoi(pargsize);
 		if (argsize > (CMDMAX - (p - buf))) {
-                    Ns_PdLog(Error, "GetMsg: arglen of %d for %s command is > "
-			     "configured max of %d", argsize, *cmdName,
-			     CMDMAX);
+                    Ns_PdLog(Error, "GetMsg: "
+			     "arglen of %d for %s command is greater than "
+			     "configured max %d", argsize, *cmdName, CMDMAX);
                 } else {
 		    int msgSize;
 		    int readError = 0;
@@ -782,9 +784,9 @@ DispatchCmd(char *cmd, char *arg, void *dbhandle)
     Ns_ExtDbCommandCode cmdcode;
 
     if ((cmdcode = Ns_ExtDbMsgNameToCode(cmd)) == NS_ERROR) {
-        Ns_PdLog(Error, "DispatchCmd error: Unknown message: %s", cmd);
+        Ns_PdLog(Error, "DispatchCmd: unknown message: %s", cmd);
     } else if (arg == NULL && Ns_ExtDbMsgRequiresArg(cmdcode)) {
-        Ns_PdLog(Error, "DispatchCmd error: Msg: %s requires argument", cmd);
+        Ns_PdLog(Error, "DispatchCmd: msg: %s requires argument", cmd);
     } else {
         switch (cmdcode) {
         case Flush:
@@ -803,13 +805,13 @@ DispatchCmd(char *cmd, char *arg, void *dbhandle)
             Ns_PdDbGetRow(dbhandle, arg);
             break;
         case GetTableInfo:
-	    Ns_PdLog(Error, "Unsupported command: GetTableInfo");
+	    Ns_PdLog(Error, "DispatchCmd: unsupported command: GetTableInfo");
             break;
         case TableList:
-	    Ns_PdLog(Error, "Unsupported command: TableList");
+	    Ns_PdLog(Error, "DispatchCmd: unsupported command: TableList");
             break;
         case BestRowId:
-	    Ns_PdLog(Error, "Unsupported command: BestRowId");
+	    Ns_PdLog(Error, "DispatchCmd: unsupported command: BestRowId");
             break;
         case Close:
             Ns_PdDbClose(dbhandle);
@@ -917,7 +919,7 @@ DispatchCmd(char *cmd, char *arg, void *dbhandle)
 static void
 PdPing()
 {
-    Ns_PdLog(Trace, "statusrequest:");
+    Ns_PdLog(Trace, "PgPing: statusrequest:");
     Ns_PdSendString(OK_STATUS);
 }
 
@@ -948,7 +950,7 @@ PdOpenFile(char *openParams)
     char pathName[512];
     int  oflags;
 
-    Ns_PdLog(Trace, "openfile:");
+    Ns_PdLog(Trace, "PdOpenFile:");
     matchedArgs = sscanf(openParams, "%d#%s", &oflags, pathName);
     if (matchedArgs != 2) {
         sprintf(errbuf, "Error parsing open parameters: %s",
@@ -990,7 +992,7 @@ PdCloseFile(char *fdStr)
     int  fd;
     char errbuf[512];
 
-    Ns_PdLog(Trace, "closefile:");
+    Ns_PdLog(Trace, "PdCloseFile:");
     fd = atoi(fdStr);
     if (close(fd) < 0) {
         sprintf(errbuf, "Close error on file descriptor %d: %s",
@@ -1029,7 +1031,7 @@ PdReadFile(char *readParams)
     int  matchedArgs;
     int  fd, offset, bytecount;
 
-    Ns_PdLog(Trace, "readfile:");
+    Ns_PdLog(Trace, "PdReadFile:");
     matchedArgs = sscanf(readParams, "%d#%d#%d",
 			 &fd, &offset, &bytecount);
     if (matchedArgs != 3) {
@@ -1080,7 +1082,7 @@ PdWriteFile(char *writeParams)
     int   fd, offset, bytecount, hashcount = 0;
     char *pw;
 
-    Ns_PdLog(Trace, "writefile:");
+    Ns_PdLog(Trace, "PdWriteFile:");
     matchedArgs = sscanf(writeParams, "%d#%d#%d#",
 			 &fd, &offset, &bytecount);
     if (matchedArgs != 3) {
@@ -1130,7 +1132,7 @@ PdDeleteFile(char *fileName)
 {
     char errbuf[512];
 
-    Ns_PdLog(Trace, "deletefile:");
+    Ns_PdLog(Trace, "PdDeleteFile:");
     if (unlink(fileName) < 0) {
         sprintf(errbuf, "Can't delete file %s: %s",
             fileName, strerror(errno));
@@ -1166,7 +1168,7 @@ PdCreateTmpFile()
     int  fd;
     int  status = NS_OK;
 
-    Ns_PdLog(Trace, "createtmpfile:");
+    Ns_PdLog(Trace, "PdCreateTmpFile:");
 
     sprintf(tmpName, "%s%s", UNIX_TMPDIR, FILE_TEMPLATE);
 
@@ -1226,9 +1228,8 @@ Ns_PdSendString(char *rsp)
 	 * rare event
 	 */
         if ((pout = malloc(len + 1)) == NULL) {
-            Ns_PdLog(Error,
-		     "SendString: malloc error (%d bytes), truncating...",
-		     len + 1);
+            Ns_PdLog(Error, "Ns_PdSendString: "
+		     "malloc error (%d bytes), truncating...", len + 1);
             rsp[MAXSTACK - 1] = '\0';
             pout = outbuf;
         } else {
@@ -1268,8 +1269,8 @@ RecvData(char *buf, int len)
         readReturn = read(0, buf, len);
     } while ((readReturn < 0) && (errno == EINTR));
     if (readReturn < 0) {
-        Ns_PdLog(Error, "RecvData: read error: %s while reading %d bytes",
-            strerror(errno), len);
+        Ns_PdLog(Error, "RecvData: read error: "
+		 "%s while reading %d bytes", strerror(errno), len);
     }
     return readReturn;
 }

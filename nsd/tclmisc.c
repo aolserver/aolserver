@@ -34,7 +34,7 @@
  *	Implements a lot of Tcl API commands. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclmisc.c,v 1.2 2000/05/02 14:39:30 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclmisc.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -959,28 +959,31 @@ NsTclInfoCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 	Tcl_SetResult(interp, Ns_InfoLabel(), TCL_STATIC);
     } else if (STREQ(argv[1], "builddate")) {
 	Tcl_SetResult(interp, Ns_InfoBuildDate(), TCL_STATIC);
+    } else if (STREQ(argv[1], "pid")) {
+	Tcl_SetResult(interp, Ns_InfoPid(), TCL_STATIC);
     } else {
         Tcl_AppendResult(interp, "unknown command \"", argv[1],
                          "\":  should be "
                          "address, "
                          "argv0, "
+                         "builddate, "
                          "callbacks, "
                          "config, "
                          "hostname, "
+                         "label, "
                          "locks, "
                          "log, "
                          "name, "
                          "pageroot, "
+			 "pid, "
                          "platform, "
+                         "scheduled, "
                          "server, "
                          "sockcallbacks, "
-                         "scheduled, "
                          "tcllib, "
                          "threads, "
                          "version, "
-                         "winnt, "
-                         "builddate, "
-                         "or label", NULL);
+                         "or winnt", NULL);
         return TCL_ERROR;
     }
 

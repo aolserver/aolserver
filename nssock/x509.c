@@ -48,11 +48,12 @@
  *	x.509 Key and Certificate handling routines for SSL v2.
  *
  *      BSAFE provides all these functions even though they are
- *      re-implemented here.  This will change.
+ *      re-implemented here.  Eventually, this file and its
+ *      functions will disappear.
  *
  */
 
-static const char *RCSID = "@(#): $Header: /Users/dossy/Desktop/cvs/aolserver/nssock/Attic/x509.c,v 1.1 2000/07/13 18:43:54 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#): $Header: /Users/dossy/Desktop/cvs/aolserver/nssock/Attic/x509.c,v 1.2 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 
 #include "ns.h"
@@ -148,8 +149,7 @@ GetPrivateKey(B_KEY_OBJ * privateKey, char *filename)
     }
     
     if (err != 0) {
-        Ns_Log(Debug, "nsssl:GetPrivateKey: encountered BSAFE."
-	       " error %d.", err);
+        Ns_Log(Error, "nsssl:GetPrivateKey: BSAFE error %d", err);
     }
     return status;
 }
@@ -284,8 +284,7 @@ PrivateKeyToPEM(B_KEY_OBJ privateKey)
     Ns_DStringFree(&ds);
     
     if (err != 0) {
-        Ns_Log(Debug, "nsssl:PrivateKeyToPEM: encountered BSAFE error "
-	       "%d.", err);
+        Ns_Log(Error, "nsssl:PrivateKeyToPEM: BSAFE error %d", err);
         if (berKey != NULL) {
             ns_free(berKey);
             berKey = NULL;
@@ -334,7 +333,7 @@ GetBerFromPEM(char *filename, char *section, int *length)
 
         fp = fopen(filename, "rb");
         if (fp == NULL) {
-            Ns_Log(Error, "nsssl:GetBerFromPEM: Unable to open file "
+            Ns_Log(Error, "nsssl:GetBerFromPEM: unable to open file "
 		   " '%s'.", filename);
             break;
         }
@@ -374,12 +373,12 @@ GetBerFromPEM(char *filename, char *section, int *length)
 
         i = posEnd - posBegin;
         if ((posEnd == -1) || (i == 0)) {
-            Ns_Log(Error, "nsssl:GetBerFromPEM: Error parsing file "
+            Ns_Log(Error, "nsssl:GetBerFromPEM: error parsing file "
 		   "'%s'.", filename);
             break;
         }
         if (fseek(fp, posBegin, SEEK_SET) == -1) {
-            Ns_Log(Error, "nsssl:GetBerFromPEM: Could not rewind file "
+            Ns_Log(Error, "nsssl:GetBerFromPEM: could not rewind file "
 		   "'%s'.", filename);
             break;
         }
@@ -430,8 +429,7 @@ GetBerFromPEM(char *filename, char *section, int *length)
         fclose(fp);
     }
     if (err != 0) {
-        Ns_Log(Debug, "nsssl:GetBerFromPEM: encountered BSAFE error %d.",
-	       err);
+        Ns_Log(Error, "nsssl:GetBerFromPEM: BSAFE error %d", err);
     }
     return (unsigned char *) chunk;
 }

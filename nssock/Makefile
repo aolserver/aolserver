@@ -25,8 +25,8 @@ ifeq ($(SSL),1)
 #
 # Module name
 #
-#  nsssl.so   is the domestic version.
-#  nsssle.so  is the export version.
+#  nsssl.so   is the domestic 128-bit/1024-bit version.
+#  nsssle.so  is the export 40-bit/512-bit version.
 #
 ifeq ($(SSL_DOMESTIC),1)
   MOD    =  nsssl.so

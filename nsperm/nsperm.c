@@ -2,7 +2,7 @@
  * The contents of this file are subject to the AOLserver Public License
  * Version 1.1 (the "License"); you may not use this file except in
  * compliance with the License. You may obtain a copy of the License at
- * http://aolserver.lcs.mit.edu/.
+ * http://aolserver.com/.
  *
  * Software distributed under the License is distributed on an "AS IS"
  * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
@@ -34,7 +34,7 @@
  *	Permissions
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsperm/nsperm.c,v 1.2 2000/05/02 14:39:30 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsperm/nsperm.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 
@@ -142,7 +142,6 @@ static Ns_Mutex        grouplock;
 static Ns_Mutex        uslock;
 static Ns_Mutex        permlock;
 static int             uskey;
-static Ns_ModLogHandle permModLogHandle;
 
 /*
  * As an optimization, all locking can be turned off. This prevents
@@ -173,8 +172,6 @@ NS_EXPORT int
 Ns_ModuleInit(char *hServer, char *hModule)
 {
     char *path;
-
-    Ns_ModLogRegister(hModule, &permModLogHandle);
 
     path = Ns_ConfigGetPath(hServer, hModule, NULL);
     if (Ns_ConfigGetBool(path, CONFIG_SKIPLOCKS, &skiplocks) == NS_FALSE) {
@@ -426,15 +423,10 @@ AuthProc(char *server, char *method, char *url, char *user, char *pass,
 	if (!skiplocks) {
 	    Ns_MutexUnlock(&permlock);
 	}
-	
-	Ns_ModLog(Debug, permModLogHandle,
-		  "UNAUTHORIZED because user doesn't exist");
 	return NS_UNAUTHORIZED;
     }
     strncpy(temp, userPtr->encpass, 31);    
     if (CheckPass(userPtr, pass) == NS_FALSE) {
-	Ns_ModLog(Debug, permModLogHandle,
-		  "UNAUTHORIZED because password is wrong");
 	if (!skiplocks) {
 	    Ns_MutexUnlock(&permlock);
 	}
@@ -448,12 +440,8 @@ AuthProc(char *server, char *method, char *url, char *user, char *pass,
 	 * Null user never gets forbidden--give a chance to enter password.
 	 */
 	if (!strcmp(user, "") && !strcmp(pass, "")) {
-	    Ns_ModLog(Debug, permModLogHandle,
-		      "UNAUTHORIZED because of IP address");
 	    return NS_UNAUTHORIZED;
 	} else {
-	    Ns_ModLog(Debug, permModLogHandle,
-		      "FORBIDDEN because of IP address");
 	    return NS_FORBIDDEN;
 	}
     }
@@ -472,12 +460,8 @@ AuthProc(char *server, char *method, char *url, char *user, char *pass,
 	 */
 
 	if (!strcmp(user, "") && !strcmp(pass, "")) {
-	    Ns_ModLog(Debug, permModLogHandle,
-		  "FORBIDDEN because user is on user deny list");
 	    return NS_UNAUTHORIZED;
 	} else {
-	    Ns_ModLog(Debug, permModLogHandle,
-		  "FORBIDDEN because user is on user deny list");
 	    return NS_FORBIDDEN;
 	}
     }
@@ -507,12 +491,8 @@ AuthProc(char *server, char *method, char *url, char *user, char *pass,
 	     */
 	    
 	    if (!strcmp(user, "") && !strcmp(pass, "")) {
-		Ns_ModLog(Debug, permModLogHandle,
-			  "FORBIDDEN because user is on group deny list");
 		return NS_UNAUTHORIZED;
 	    } else {
-		Ns_ModLog(Debug, permModLogHandle,
-			  "FORBIDDEN because user is on group deny list");
 		return NS_FORBIDDEN;
 	    }
 	}
@@ -578,8 +558,6 @@ AuthProc(char *server, char *method, char *url, char *user, char *pass,
 	 * special case because this is how people would normally
 	 * first attempt a page w/ a password.
 	 */
-	Ns_ModLog(Debug, permModLogHandle,
-		  "UNAUTHORIZED because user is null, password is null");
 	if (!skiplocks) {
 	    Ns_MutexUnlock(&permlock);
 	}
@@ -591,8 +569,6 @@ AuthProc(char *server, char *method, char *url, char *user, char *pass,
 	 * and implicit allow is turned off (meaning that
 	 * there IS an allow list--he's just not on it).
 	 */
-	Ns_ModLog(Debug, permModLogHandle,
-		  "UNAUTHORIZED because user is not an any allow list");
 	if (!skiplocks) {
 	    Ns_MutexUnlock(&permlock);
 	}
@@ -775,8 +751,8 @@ ValidateUserAddr(User *userPtr, char *peer)
 	return NS_TRUE;
     }
     if (inet_aton(peer, &peerip) == 0) {
-	Ns_ModLog(Bug, permModLogHandle,
-		  "nsperm: bogus peer address of \"%s\"", peer);
+	Ns_Log(Bug, "ValidateUserAddr: "
+	       "bogus peer address of '%s'", peer);
 	return NS_FALSE;
     }
     if (!skiplocks) {
@@ -878,8 +854,8 @@ ValidateUserAddr(User *userPtr, char *peer)
 		}
 
 		if (last == start) {
-		    Ns_ModLog(Warning, permModLogHandle, "Invalid hostname: %s",
-			      addr.string);
+		    Ns_Log(Warning, "ValidateUserAddr: "
+			   "invalid hostname: %s", addr.string);
 		    break;
 		}
 	    }

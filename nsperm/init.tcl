@@ -2,7 +2,7 @@
 # The contents of this file are subject to the AOLserver Public License
 # Version 1.1 (the "License"); you may not use this file except in
 # compliance with the License. You may obtain a copy of the License at
-# http://aolserver.lcs.mit.edu/.
+# http://aolserver.com/.
 #
 # Software distributed under the License is distributed on an "AS IS"
 # basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
@@ -28,7 +28,7 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsperm/init.tcl,v 1.2 2000/05/02 14:39:30 kriston Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsperm/init.tcl,v 1.3 2000/08/02 23:38:25 kriston Exp $
 #
 
 #
@@ -50,7 +50,7 @@ proc init_nsperm { } {
 		if {[string length $line] > 0} {
 		    set list [split $line :]
 		    if {[llength $list] != 2} {
-			ns_log error "bad line in $filename: $line"
+			ns_log error "init_nsperm: bad line in $filename: $line"
 		    } else {
 			set user [lindex $list 0]
 			set addrs [lindex $list 1]
@@ -76,14 +76,14 @@ proc init_nsperm { } {
 		if {[string length $line] > 0} {
 		    set list [split $line :]
 		    if {[llength $list] != 2} {
-			ns_log error "bad line in $filename: $line"
+			ns_log error "init_nsperm: bad line in $filename: $line"
 		    } else {
 			set user [lindex $list 0]
 			set addrs [lindex $list 1]
 			foreach addr $addrs {
 			    set addr [string trim $addr]
 			    if {[info exists _ns_allow($user)]} {
-				ns_log error "nsperm: both allow and deny entries exist for user \"$user\""
+				ns_log error "init_nsperm: both allow and deny entries exist for user \"$user\""
 			    } else {
 				lappend _ns_deny($user) $addr
 			    }
@@ -106,7 +106,7 @@ proc init_nsperm { } {
 		if {[string length $line] > 0} {
 		    set list [split $line :]
 		    if {[llength $list] != 7} {
-			ns_log error "bad line in $filename: $line"
+			ns_log error "nsperm_init: bad line in $filename: $line"
 		    } else {
 			set user [lindex $list 0]
 			set pass [lindex $list 1]
@@ -143,7 +143,7 @@ proc init_nsperm { } {
 		if {[string length $line] > 0} {
 		    set list [split $line :]
 		    if {[llength $list] != 4} {
-			ns_log error "bad line in $filename: $line"
+			ns_log error "nsperm_init: bad line in $filename: $line"
 		    } else {
 			set group [lindex $list 0]
 			set users [split [lindex $list 3] ,]
@@ -170,7 +170,7 @@ proc init_nsperm { } {
 	    if {[string range $line 0 0] != "#"} {
 		if {[string length $line] > 0} {
 		    if {[llength $line] != 5} {
-			ns_log error "bad line in $filename: $line"
+			ns_log error "nsperm_init: bad line in $filename: $line"
 		    } else {
 			set action [lindex $line 0]
 			set inherit [lindex $line 1]
@@ -224,7 +224,7 @@ proc ns_permpasswd { targetuser oldpass newpass } {
 	    if {[string length $line] > 0} {
 		set list [split $line :]
 		if {[llength $list] != 7} {
-		    ns_log error "bad line in $filename: $line"
+		    ns_log error "ns_permpassword: bad line in $filename: $line"
 		} else {
 		    set user [lindex $list 0]
 		    if {$user == $targetuser} {

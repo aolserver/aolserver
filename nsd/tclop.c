@@ -2,7 +2,7 @@
  * The contents of this file are subject to the AOLserver Public License
  * Version 1.1 (the "License"); you may not use this file except in
  * compliance with the License. You may obtain a copy of the License at
- * http://aolserver.lcs.mit.edu/.
+ * http://aolserver.com/.
  *
  * Software distributed under the License is distributed on an "AS IS"
  * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
@@ -35,7 +35,7 @@
  *	with registered procs and whatnot.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/tclop.c,v 1.2 2000/05/02 14:39:30 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/tclop.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -180,7 +180,7 @@ Ns_TclLogError(Tcl_Interp *interp)
     if (errorInfo == NULL) {
         errorInfo = "";
     }
-    Ns_ModLog(Error, nsTclModLogHandle, "%s\n%s", interp->result, errorInfo);
+    Ns_Log(Error, "%s\n%s", interp->result, errorInfo);
     return errorInfo;
 }
 
@@ -211,7 +211,7 @@ Ns_TclLogErrorRequest(Tcl_Interp *interp, Ns_Conn *conn)
     if (errorInfo == NULL) {
         errorInfo = interp->result;
     }
-    Ns_ModLog(Error, nsTclModLogHandle, "error for %s %s, "
+    Ns_Log(Error, "error for %s %s, "
            "User-Agent: %s, "
            "PeerAddress: %s\n%s", 
            conn->request->method, conn->request->url,
@@ -714,10 +714,9 @@ TclFilterProc(void *arg, Ns_Conn *conn, int why)
 	    }
 	}
 	if (status == NS_ERROR) {
-	    Ns_ModLog(Error, nsTclModLogHandle,
-		      "Invalid return code from filter proc: %s "
-		      "(must be filter_ok, filter_return, or filter_break)",
-		      interp->result);
+	    Ns_Log(Error, "Invalid return code from filter proc: %s "
+		   "(must be filter_ok, filter_return, or filter_break)",
+		   interp->result);
 	}
     }
     return status;

@@ -2,7 +2,7 @@
  * The contents of this file are subject to the AOLserver Public License
  * Version 1.1 (the "License"); you may not use this file except in
  * compliance with the License. You may obtain a copy of the License at
- * http://aolserver.lcs.mit.edu/.
+ * http://aolserver.com/.
  *
  * Software distributed under the License is distributed on an "AS IS"
  * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
@@ -34,7 +34,7 @@
  *	Various sundry logging functions. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nspd/log.c,v 1.2 2000/05/02 14:39:30 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nspd/log.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "pd.h"
 
@@ -63,7 +63,7 @@ PdTraceOn(char *file)
 {
     char            errbuf[512];
 
-    Ns_PdLog(Notice, "traceon:");
+    Ns_PdLog(Notice, "PdTraceOn: traceon:");
     trace = 1;
     if (tracefp != NULL) {
         fclose(tracefp);
@@ -98,7 +98,7 @@ PdTraceOn(char *file)
 void
 PdTraceOff(void)
 {
-    Ns_PdLog(Notice, "traceoff:");
+    Ns_PdLog(Notice, "PdTraceOff: traceoff:");
     trace = 0;
     if (tracefp != NULL) {
         fclose(tracefp);
@@ -199,7 +199,7 @@ Ns_PdLog(Ns_PdLogMsgType errtype, char *format,...)
             break;
         default:
             typeok = 0;
-            syslog(LOG_ERR, "Unknown error type: %d received.", errtype);
+            syslog(LOG_ERR, "nspd: unknown error type: %d received", errtype);
             break;
         }
         if (typeok) {

@@ -2,7 +2,7 @@
  * The contents of this file are subject to the AOLserver Public License
  * Version 1.1 (the "License"); you may not use this file except in
  * compliance with the License. You may obtain a copy of the License at
- * http://aolserver.lcs.mit.edu/.
+ * http://aolserver.com/.
  *
  * Software distributed under the License is distributed on an "AS IS"
  * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
@@ -34,7 +34,7 @@
  *	Support for the socket callback thread.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sockcallback.c,v 1.2 2000/05/02 14:39:30 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sockcallback.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -158,7 +158,8 @@ NsWaitSockShutdown(Ns_Time *toPtr)
     }
     Ns_MutexUnlock(&lock);
     if (status != NS_OK) {
-	Ns_Log(Warning, "timeout waiting for socket callback shutdown!");
+	Ns_Log(Warning, "NsWaitSockShutdown: "
+	       "timeout waiting for socket callback shutdown!");
     } else if (sockThread != NULL) {
 	Ns_ThreadJoin(&sockThread, NULL);
 	sockThread = NULL;
@@ -287,7 +288,7 @@ SockCallbackThread(void *ignored)
 
     Ns_ThreadSetName("-socks-");
     Ns_WaitForStartup();
-    Ns_Log(Notice, "starting");
+    Ns_Log(Notice, "SockCallbackThread: starting");
 
     when[0] = NS_SOCK_READ;
     when[1] = NS_SOCK_WRITE;
@@ -390,7 +391,7 @@ SockCallbackThread(void *ignored)
      * system, and signal shutdown complete.
      */
 
-    Ns_Log(Notice, "shutdown pending");
+    Ns_Log(Notice, "SockCallbackThread: shutdown pending");
     hPtr = Tcl_FirstHashEntry(&table, &search);
     while (hPtr != NULL) {
 	cbPtr = Tcl_GetHashValue(hPtr);
@@ -406,7 +407,7 @@ SockCallbackThread(void *ignored)
     }
     Tcl_DeleteHashTable(&table);
 
-    Ns_Log(Notice, "shutdown complete");
+    Ns_Log(Notice, "SockCallbackThread: shutdown complete");
     Ns_MutexLock(&lock);
     running = 0;
     Ns_CondBroadcast(&cond);

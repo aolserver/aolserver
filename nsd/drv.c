@@ -2,7 +2,7 @@
  * The contents of this file are subject to the AOLserver Public License
  * Version 1.1 (the "License"); you may not use this file except in
  * compliance with the License. You may obtain a copy of the License at
- * http://aolserver.lcs.mit.edu/.
+ * http://aolserver.com/.
  *
  * Software distributed under the License is distributed on an "AS IS"
  * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
@@ -37,7 +37,7 @@
  *      happens. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/drv.c,v 1.2 2000/05/02 14:39:30 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/drv.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -158,7 +158,8 @@ Ns_RegisterDriver(char *ignored, char *label, Ns_DrvProc *procs, void *drvData)
 	procs++;
     }
     if (drvPtr->readProc == NULL || drvPtr->writeProc == NULL || drvPtr->closeProc == NULL) {
-	Ns_Log(Error, "driver: %s missing required proc(s)", label);
+	Ns_Log(Error, "Ns_RegisterDriver: "
+	       "driver: %s missing required proc(s)", label);
 	ns_free(drvPtr);
 	return NULL;
     }
@@ -303,7 +304,7 @@ RunDriver(void *arg)
     } else {
 	loc = "<unknown>";
     }
-    Ns_Log(Notice, "%s: accepting: %s", dPtr->label, loc);
+    Ns_Log(Notice, "RunDriver: %s: accepting: %s", dPtr->label, loc);
 
     while ((status = ((*dPtr->acceptProc)(dData, &cData))) == NS_OK) {
 	if (Ns_QueueConn(dData, cData) != NS_OK) {
@@ -311,8 +312,9 @@ RunDriver(void *arg)
 	}
     }
     if (status == NS_SHUTDOWN) {
-	Ns_Log(Notice, "%s: stopping: %s", dPtr->label, loc);
+	Ns_Log(Notice, "RunDriver: %s: stopping: %s", dPtr->label, loc);
     } else {
-	Ns_Log(Error, "%s: error status %d: %s", dPtr->label, status, loc);
+	Ns_Log(Error, "RunDriver: %s: error status %d: %s",
+	       dPtr->label, status, loc);
     }
 }

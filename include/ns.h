@@ -2,7 +2,7 @@
  * The contents of this file are subject to the AOLserver Public License
  * Version 1.1 (the "License"); you may not use this file except in
  * compliance with the License. You may obtain a copy of the License at
- * http://aolserver.lcs.mit.edu/.
+ * http://aolserver.com/.
  *
  * Software distributed under the License is distributed on an "AS IS"
  * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
@@ -33,7 +33,7 @@
  *      All the public types and function declarations for the core
  *	AOLserver.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.2 2000/05/02 14:39:30 kriston Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.3 2000/08/02 23:38:25 kriston Exp $
  */
 
 #ifndef NS_H
@@ -175,10 +175,6 @@ NS_EXTERN int			ns_sockpair(SOCKET *socks);
  */
 
 typedef enum {
-/*
- * Note: if you modify this enum, you will need to modify SeverityRank
- * in nsd/modlog.c
- */
     Notice,
     Warning,
     Error,
@@ -431,7 +427,6 @@ typedef void  (Ns_AdpParserProc)(Ns_DString *, char *);
 typedef void 	       Ns_Cache;
 typedef void 	       Ns_Entry;
 typedef Tcl_HashSearch Ns_CacheSearch;
-typedef void          *Ns_ModLogHandle;
 typedef void 	      *Ns_OpContext;
 
 
@@ -840,23 +835,13 @@ NS_EXTERN int Ns_SockPortBound(int port);
  */
 
 NS_EXTERN char *Ns_InfoErrorLog(void);
-NS_EXTERN int Ns_LogRoll(void);
-NS_EXTERN void Ns_Log(Ns_LogSeverity severity, char *fmt, ...);
-NS_EXTERN void Ns_Fatal(char *fmt, ...);
+NS_EXTERN int   Ns_LogRoll(void);
+NS_EXTERN void  Ns_Log(Ns_LogSeverity severity, char *fmt, ...);
+NS_EXTERN void  Ns_Fatal(char *fmt, ...);
 NS_EXTERN char *Ns_LogTime(char *timeBuf);
-NS_EXTERN int Ns_RollFile(char *file, int max);
-NS_EXTERN int Ns_PurgeFiles(char *file, int max);
-NS_EXTERN int Ns_RollFileByDate(char *file, int max);
-NS_EXTERN void  Ns_ModLogRegister(char *realm, Ns_ModLogHandle *handle);
-NS_EXTERN void Ns_ModLogSetThreshold(Ns_ModLogHandle handle,
-				  Ns_LogSeverity severity);
-NS_EXTERN Ns_LogSeverity Ns_ModLogGetThreshold(Ns_ModLogHandle handle);
-NS_EXTERN Ns_ModLogHandle  Ns_ModLogLookupHandle(char *realm);
-NS_EXTERN char *Ns_ModLogLookupRealm(Ns_ModLogHandle handle);
-NS_EXTERN void Ns_ModLogRedirect(Ns_ModLogHandle handle, FILE *fp,
-			      char *description);
-NS_EXTERN void Ns_ModLog(Ns_LogSeverity severity, Ns_ModLogHandle handle,
-		      char *fmt, ...);
+NS_EXTERN int   Ns_RollFile(char *file, int max);
+NS_EXTERN int   Ns_PurgeFiles(char *file, int max);
+NS_EXTERN int   Ns_RollFileByDate(char *file, int max);
 
 /*
  * nsmain.c:

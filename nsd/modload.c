@@ -2,7 +2,7 @@
  * The contents of this file are subject to the AOLserver Public License
  * Version 1.1 (the "License"); you may not use this file except in
  * compliance with the License. You may obtain a copy of the License at
- * http://aolserver.lcs.mit.edu/.
+ * http://aolserver.com/.
  *
  * Software distributed under the License is distributed on an "AS IS"
  * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
@@ -34,7 +34,7 @@
  *	Load .so files into the server and initialize them. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/modload.c,v 1.2 2000/05/02 14:39:30 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/modload.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -175,8 +175,8 @@ Ns_ModuleLoad(char *server, char *module, char *file, char *init)
         if (verPtr == NULL || *verPtr < 1) {
             status = NS_OK;
         } else if (status != NS_OK) {
-	    Ns_Log(Error, "could not load \"%s\": "
-		      "%s returned %d", file, init, status);
+	    Ns_Log(Error, "Ns_ModuleLoad: could not load \"%s\":"
+		   "%s returned %d", file, init, status);
 	}
     }
 
@@ -241,10 +241,11 @@ Ns_ModuleSymbol(char *file, char *name)
 	 * Load the module because it was not found in the hash table.
 	 */
 	
-    	Ns_Log(Notice, "loading: %s", file);
+    	Ns_Log(Notice, "Ns_ModuleSymbol: loading: %s", file);
 	module = DlOpen(file);
 	if (module == NULL) {
-            Ns_Log(Warning, "could not load %s:  %s", file, DlError());
+            Ns_Log(Warning, "Ns_ModuleSymbol: "
+		   "could not load %s:  %s", file, DlError());
             Tcl_DeleteHashEntry(hPtr);
 	} else {
             Tcl_SetHashValue(hPtr, module);
@@ -260,8 +261,9 @@ Ns_ModuleSymbol(char *file, char *name)
     if (module != NULL) {
 	symbol = DlSym(module, name);
 	if (symbol == NULL) {
-	    Ns_Log(Warning, "no such symbol \"%s\" in module \"%s\"",
-		name, file);
+	    Ns_Log(Warning, "Ns_ModuleSymbol: "
+		   "no such symbol \"%s\" in module \"%s\"",
+		   name, file);
 	}
     }
 
@@ -372,7 +374,7 @@ NsLoadModules(void)
 		Ns_ModuleLoad(nsServer, module, file, init) != NS_OK) {
 		Ns_Fatal("could not load: %s", file);
             }
-	    Ns_Log(Debug, "initializing: %s", module);
+	    Ns_Log(Debug, "Ns_LoadModules: initializing: %s", module);
 
 	    /*
 	     * Append this module to the list of modules that need
@@ -401,9 +403,11 @@ NsLoadModules(void)
 	firstPtr = NULL;
     	while (modPtr != NULL) {
 	    nextPtr = modPtr->nextPtr;
-	    Ns_Log(Notice, "modload: initializing: %s", modPtr->name);
+	    Ns_Log(Notice, "Ns_LoadModules: "
+		   "modload: initializing: %s", modPtr->name);
 	    if ((*modPtr->proc)(nsServer, modPtr->name) != NS_OK) {
-	    	Ns_Fatal("could not initialize: %s", modPtr->name);
+	    	Ns_Fatal("Ns_LoadModules: "
+			 "could not initialize: %s", modPtr->name);
 	    }
             Ns_TclInitModule(nsServer, modPtr->name);
 	    ns_free(modPtr);
@@ -454,25 +458,31 @@ DlOpen(char *file)
     err = NSCreateObjectFileImageFromFile(file, &image);
     if (err != NSObjectFileImageSuccess) {
 	switch (err) {
-	    case NSObjectFileImageFailure:
-		Ns_Log(Error, "dyld: general failure (%s)", file);
-		break;
-	    case NSObjectFileImageInappropriateFile:
-		Ns_Log(Error, "dyld: inappropriate Mach-O file (%s)", file);
-		break;
-	    case NSObjectFileImageArch:
-		Ns_Log(Error, "dyld: inappropriate Mach-O architecture (%s)",
-		    file);
-		break;
-	    case NSObjectFileImageFormat:
-		Ns_Log(Error, "dyld: invalid Mach-O file format (%s)", file);
-		break;
-	    case NSObjectFileImageAccess:
-		Ns_Log(Error, "dyld: permission denied (%s)", file);
-		break;
-	    default:
-		Ns_Log(Error, "dyld: unknown failure (%s)", file);
-		break;
+	case NSObjectFileImageFailure:
+	    Ns_Log(Error, "DlOpen: dyld: "
+		   "general failure (%s)", file);
+	    break;
+	case NSObjectFileImageInappropriateFile:
+	    Ns_Log(Error, "DlOpen: dyld: "
+		   "inappropriate Mach-O file (%s)", file);
+	    break;
+	case NSObjectFileImageArch:
+	    Ns_Log(Error, "DlOpen: dyld: "
+		   "inappropriate Mach-O architecture (%s)",
+		   file);
+	    break;
+	case NSObjectFileImageFormat:
+	    Ns_Log(Error, "DlOpen: dyld: "
+		   "invalid Mach-O file format (%s)", file);
+	    break;
+	case NSObjectFileImageAccess:
+	    Ns_Log(Error, "DlOpen: dyld: "
+		   "permission denied (%s)", file);
+	    break;
+	default:
+	    Ns_Log(Error, "DlOpen: dyld: "
+		   "unknown failure (%s)", file);
+	    break;
 	}
         return NULL;
     }
@@ -608,8 +618,8 @@ dyld_multiple_symbol_handler(NSSymbol s, NSModule old, NSModule new)
 {
 #ifdef DEBUG
     Ns_Log(Warning, 
-	"dyld: multiply-defined symbol '%s' in old '%s', new '%s'",
-	NSNameOfSymbol(s),  NSNameOfModule(old), NSNameOfModule(new));
+	   "dyld: multiply-defined symbol '%s' in old '%s', new '%s'",
+	   NSNameOfSymbol(s),  NSNameOfModule(old), NSNameOfModule(new));
 #endif
 
     return(new);
@@ -637,7 +647,7 @@ dyld_linkEdit_symbol_handler(NSLinkEditErrors c, int errNumber,
     const char *filename, const char *errString)
 {
     Ns_Log(Error, "dyld: file: '%s': link edit errors: '%s'; aborting.",
-	filename, errString);
+	   filename, errString);
     abort();
 }
 

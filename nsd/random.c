@@ -2,7 +2,7 @@
  * The contents of this file are subject to the AOLserver Public License
  * Version 1.1 (the "License"); you may not use this file except in
  * compliance with the License. You may obtain a copy of the License at
- * http://aolserver.lcs.mit.edu/.
+ * http://aolserver.com/.
  *
  * Software distributed under the License is distributed on an "AS IS"
  * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
@@ -34,7 +34,7 @@
  *	This file implements the "ns_rand" command.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/random.c,v 1.2 2000/05/02 14:39:30 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/random.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -198,8 +198,7 @@ Ns_GenSeeds(unsigned long *seedsPtr, int nseeds)
 {
     Ns_Thread thr;
     
-    Ns_Log(Notice, "generating %d random seed%s...", nseeds,
-	nseeds > 1 ? "s" : "");
+    Ns_Log(Notice, "Ns_GenSeeds: generating %d random seed(s)...", nseeds);
     Ns_MasterLock();
     Ns_SemaInit(&counterSema, 0);
     counterRun = 1;
@@ -212,7 +211,7 @@ Ns_GenSeeds(unsigned long *seedsPtr, int nseeds)
     Ns_MasterUnlock();
     Ns_ThreadJoin(&thr, NULL);
     Ns_SemaDestroy(&counterSema);
-    Ns_Log(Notice, "seed generation complete.");
+    Ns_Log(Notice, "Ns_GenSeeds: seed generation complete.");
 }
 
 /*

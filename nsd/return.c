@@ -2,7 +2,7 @@
  * The contents of this file are subject to the AOLserver Public License
  * Version 1.1 (the "License"); you may not use this file except in
  * compliance with the License. You may obtain a copy of the License at
- * http://aolserver.lcs.mit.edu/.
+ * http://aolserver.com/.
  *
  * Software distributed under the License is distributed on an "AS IS"
  * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
@@ -34,7 +34,7 @@
  *	Functions that return data to a browser. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.2 2000/05/02 14:39:30 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -96,7 +96,6 @@ static struct {
 
 static Tcl_HashTable   redirectTable;
 static int             nreasons = (sizeof(reasons) / sizeof(reasons[0]));
-static Ns_ModLogHandle returnModLogHandle;
 
 
 /*
@@ -620,12 +619,11 @@ Ns_ConnReturnNotice(Ns_Conn *conn, int status, char *title, char *notice)
 	"<head>\n"
 	"<title>", title, "</title>\n"
 	"</head>"
-	"<body bgcolor=#ffffff>\n"
-	"<h2><font face=helvetica>", title, "</face></h2>\n"
+	"<body>\n"
+	"<h2>", title, "</h2>\n"
 	"<hr>", NULL);
     if (notice != NULL) {
-    	Ns_DStringVarAppend(&ds,
-	"<font face=helvetica>", notice, "</font>\n", NULL);
+    	Ns_DStringVarAppend(&ds, notice, "\n", NULL);
     }
     Ns_DStringAppend(&ds,
 	"</body>\n"
@@ -1140,15 +1138,15 @@ Ns_ConnReturnFile(Ns_Conn *conn, int status, char *type, char *filename)
         } else if (errno == EACCES) {
             return Ns_ReturnForbidden(conn);
         } else {
-            Ns_ModLog(Error, returnModLogHandle,
-		      "returnfile(%s): stat(%s) failed: %s",
-                Ns_ConnServer(conn), filename, strerror(errno));
+            Ns_Log(Error, "Ns_ConnReturnFile: "
+		   "returnfile(%s): stat(%s) failed: %s",
+		   Ns_ConnServer(conn), filename, strerror(errno));
             return Ns_ReturnInternalError(conn);
         }
     } else if (!Ns_ConnModifiedSince(conn, st.st_mtime)) {
         return Ns_ReturnNotModified(conn);
     }
-
+    
     /*
      * Determine the mime type for this file if none was specified.
      */
@@ -1213,12 +1211,6 @@ NsInitReturn(void)
     int     status, i;
     char   *path, *key, *url;
 
-    /*
-     * register the sub-realm
-     */
-
-    NsModLogRegSubRealm("return", &returnModLogHandle);
-    
     Tcl_InitHashTable(&redirectTable, TCL_ONE_WORD_KEYS);
 
     /*
@@ -1232,10 +1224,10 @@ NsInitReturn(void)
 	url = Ns_SetValue(set, i);
 	status = atoi(key);
 	if (status <= 0) {
-	    Ns_ModLog(Error, returnModLogHandle, "invalid redirect: %s=%s",
-		      key, url);
+	    Ns_Log(Error, "NsInitReturn: "
+		   "invalid redirect: %s=%s", key, url);
 	} else {
-	    Ns_ModLog(Notice, returnModLogHandle, "%d -> %s", status, url);
+	    Ns_Log(Notice, "NsInitReturn: %d -> %s", status, url);
 	    Ns_RegisterReturn(status, url);
 	}
     }
@@ -1268,9 +1260,9 @@ ReturnRedirect(Ns_Conn *conn, int status, int *resultPtr)
     hPtr = Tcl_FindHashEntry(&redirectTable, (char *) status);
     if (hPtr != NULL) {
 	if (++connPtr->recursionCount > MAX_RECURSION) {
-	    Ns_ModLog(Error, returnModLogHandle,
-		      "return redirect(%d): exceeded recursion limit: %d",
-		status, MAX_RECURSION);
+	    Ns_Log(Error, "ReturnRedirect: "
+		   "(%d): exceeded recursion limit: %d",
+		   status, MAX_RECURSION);
 	} else {
     	    *resultPtr = Ns_ConnRedirect(conn, Tcl_GetHashValue(hPtr));
 	    return 1;

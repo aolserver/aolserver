@@ -41,11 +41,10 @@ MODULES   = nssock nscgi nscp nslog nsperm nsext nspd nsftp
 #
 # AOLserver main executable statically-links the thread and tcl libraries.
 #
-NSDDIRS   = thread tcl7.6 tcl8.3.0 nsd
 
-ALLDIRS   = $(NSDDIRS) $(MODULES)
+ALLDIRS   = nsd $(MODULES)
 
-all:
+all: libtcl76 libtcl8x libnsthread
 	@for i in $(ALLDIRS); do \
 		$(ECHO) "building \"$$i\""; \
 		( cd $$i && $(MAKE) all ) || exit 1; \
@@ -53,7 +52,7 @@ all:
 	(cd nssock && $(MAKE) SSL=1)
 
 #
-# Installation to $(INST) directory
+# Installation to $(PREFIX) directory
 #
 #  Note:  Dependencies are checked in the individual directories.
 #
@@ -61,14 +60,15 @@ install:
 	$(MKDIR) $(INSTBIN)
 	$(MKDIR) $(INSTLOG)
 	$(MKDIR) $(INSTTCL)
+	$(MKDIR) $(INSTLIB)
 	$(MKDIR) $(INSTSRVMOD)
 	$(MKDIR) $(INSTSRVPAG)
 	$(CP) -r tcl $(INSTMOD)
 	$(CP) scripts/translate-ini $(INSTBIN)
-	$(CP) scripts/translate-tcl $(INSTBIN)
-	test -f $(INST)/nsd.tcl           \
+	$(CP) -r include $(INSTINC)
+	test -f $(INST)/nsd.tcl \
 		|| $(CP) scripts/nsd.tcl $(INST)
-	test -f $(INSTSRVPAG)/index.html  \
+	test -f $(INSTSRVPAG)/index.html \
 		|| $(CP) scripts/index.html $(INSTSRVPAG)
 	@for i in $(ALLDIRS); do \
 		$(ECHO) "installing \"$$i\""; \
@@ -77,34 +77,11 @@ install:
 	(cd nssock && $(MAKE) SSL=1 install)
 
 #
-# Cleaning rules.
+# Cleaning
 #
-#    clean:      remove objects
-#    clobber:    remove as much cruft as possible
-#    distclean:  clean for non-CVS distribution
-#
-clean:
+clean: libtcl8x-clean libtcl76-clean libnsthread-clean
 	@for i in $(ALLDIRS); do \
 		$(ECHO) "cleaning \"$$i\""; \
 		( cd $$i && $(MAKE) $@) || exit 1; \
 	done
 	(cd nssock && $(MAKE) SSL=1 clean)
-
-clobber: clean
-	$(RM) *~
-	@for i in $(ALLDIRS); do \
-		$(ECHO) "clobbering \"$$i\""; \
-		( cd $$i && $(MAKE) $@) || exit 1; \
-	done
-
-distclean: clobber
-	$(RM) TAGS core
-	@for i in $(ALLDIRS); do \
-		$(ECHO) "distcleaning \"$$i\""; \
-		( cd $$i && $(MAKE) $@) || exit 1; \
-	done
-	$(FIND) . -name \*~ -exec $(RM) {} \;
-	$(FIND) . -name CVS -exec $(RM) -r {} \; -prune
-	$(FIND) . -name .cvsignore -exec $(RM) {} \;
-	$(FIND) . -name TODO -exec $(RM) {} \;
-

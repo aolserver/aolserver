@@ -34,7 +34,7 @@
  * 	Connect Tcl command names to the functions that implement them
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.2 2000/05/02 14:39:30 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -286,12 +286,6 @@ static TclCmd tclCmds[ ] = {
     },
     {
         "ns_logroll", NsTclLogRollCmd, NULL
-    },
-    {
-	"ns_modlogcontrol", NsTclModLogControlCmd, NULL
-    },
-    {
-	"ns_modlog", NsTclModLogCmd, NULL
     },
 
     /*

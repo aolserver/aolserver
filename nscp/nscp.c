@@ -2,7 +2,7 @@
  * The contents of this file are subject to the AOLserver Public License
  * Version 1.1 (the "License"); you may not use this file except in
  * compliance with the License. You may obtain a copy of the License at
- * http://aolserver.lcs.mit.edu/.
+ * http://aolserver.com/.
  *
  * Software distributed under the License is distributed on an "AS IS"
  * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
@@ -35,7 +35,7 @@
  *  	Tcl commands.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscp/nscp.c,v 1.2 2000/05/02 14:39:30 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscp/nscp.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 
@@ -226,7 +226,8 @@ AcceptProc(SOCKET lsock, void *ignored, int why)
     len = sizeof(struct sockaddr_in);
     aPtr->sock = Ns_SockAccept(lsock, (struct sockaddr *) &aPtr->sa, &len);
     if (aPtr->sock == INVALID_SOCKET) {
-	Ns_Log(Error, "nscp: accept() failed: %s", ns_sockstrerror(ns_sockerrno));
+	Ns_Log(Error, "nscp: accept() failed: %s",
+	       ns_sockstrerror(ns_sockerrno));
 	ns_free(aPtr);
     } else {
 	aPtr->id = ++next;
@@ -268,7 +269,7 @@ EvalThread(void *arg)
     Tcl_DStringInit(&ds);
     sprintf(buf, "-nscp:%d-", aPtr->id);
     Ns_ThreadSetName(buf);
-    Ns_Log(Notice, "connect: %s", ns_inet_ntoa(aPtr->sa.sin_addr));
+    Ns_Log(Notice, "nscp: connect: %s", ns_inet_ntoa(aPtr->sa.sin_addr));
     if (!Login(aPtr->sock)) {
 	goto done;
     }
@@ -323,7 +324,7 @@ retry:
 done:
     Tcl_DStringFree(&ds);
     Ns_TclDeAllocateInterp(interp);
-    Ns_Log(Notice, "disconnect: %s", ns_inet_ntoa(aPtr->sa.sin_addr));
+    Ns_Log(Notice, "nscp: disconnect: %s", ns_inet_ntoa(aPtr->sa.sin_addr));
     ns_sockclose(aPtr->sock);
     ns_free(aPtr);
 }
@@ -402,7 +403,7 @@ Login(SOCKET sock)
     Tcl_DStringInit(&uds);
     Tcl_DStringInit(&pds);
     if (GetLine(sock, "login: ", &uds) &&
-	GetLine(sock, "Password: ", &pds)) {
+	GetLine(sock, "password: ", &pds)) {
 	user = Ns_StrTrim(uds.string);
 	pass = Ns_StrTrim(pds.string);
     	hPtr = Tcl_FindHashEntry(&users, user);
@@ -421,10 +422,10 @@ Login(SOCKET sock)
 	}
     }
     if (ok) {
-	Ns_Log(Notice, "logged in: %s", user);
+	Ns_Log(Notice, "nscp: logged in: %s", user);
 	msg = "Welcome to AOLserver\n";
     } else {
-	Ns_Log(Warning, "login failed: %s", user ? user : "?");
+	Ns_Log(Warning, "nscp: login failed: %s", user ? user : "?");
 	msg = "Access denied\n";
     }
     (void) send(sock, msg, strlen(msg), 0);
@@ -463,6 +464,6 @@ ExitCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 
     stopPtr = (int *) arg;
     *stopPtr = 1;
-    Tcl_SetResult(interp, "good bye!", TCL_STATIC);
+    Tcl_SetResult(interp, "Goodbye.", TCL_STATIC);
     return TCL_OK;
 }

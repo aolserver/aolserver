@@ -2,7 +2,7 @@
  * The contents of this file are subject to the AOLserver Public License
  * Version 1.1 (the "License"); you may not use this file except in
  * compliance with the License. You may obtain a copy of the License at
- * http://aolserver.lcs.mit.edu/.
+ * http://aolserver.com/.
  *
  * Software distributed under the License is distributed on an "AS IS"
  * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
@@ -31,53 +31,32 @@
 /*
  * log.c --
  *
- *	Manage the server log file. Also includes the Ns_ModLog API. 
+ *	Manage the server log file.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/log.c,v 1.2 2000/05/02 14:39:30 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/log.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
 #define DEFAULT_LEVEL         Notice
 #define DEFAULT_FILE          NULL
-#define DEFAULT_REALM         "nsd"
-
-/*
- * Ns_ModLogHandle is an opaque type.  It is a pointer to a ModLog structure.
- */
-
-typedef struct {
-    Ns_LogSeverity severity;
-    char *realm;
-    FILE *fp;
-} ModLog; 
-
-ModLog defaultMod = {DEFAULT_LEVEL, DEFAULT_REALM, DEFAULT_FILE};
 
 /*
  * Local functions defined in this file
  */
 
-static void Log(ModLog *mPtr, Ns_LogSeverity severity, char *fmt, va_list *argsPtr);
-static int LogReOpen(void);
+static void  Log(Ns_LogSeverity severity, char *fmt, va_list *argsPtr);
+static int   LogReOpen(void);
 static char *LogTime(char *buf);
-static Tcl_HashTable *GetTable(void);
-static int GetSeverity(Tcl_Interp *interp, char *severityStr, Ns_LogSeverity *severityPtr);
-static int GetHandle(Tcl_Interp *interp, char *realm, Ns_ModLogHandle *handlePtr);
+static int   GetSeverity(Tcl_Interp *interp, char *severityStr,
+			 Ns_LogSeverity *severityPtr);
 
 /*
  * Static variables defined in this file
  */
-
-static char          *logFile;
-
-/*
- * Note that because multiple realms normally the default open file
- * (stderr), the entire logging system is single threaded instead
- * of using a lock per-modlog.
- */
-
-static Ns_Mutex lock;
+static char     *logFile;
+static FILE     *logFileFd;
+static Ns_Mutex  lock;
 
 /*
  * Maps the Ns_LogSeverity enum to integers that relate to their relative
@@ -93,17 +72,9 @@ static int severityRank[Dev + 1] = {
    0, /* Fatal     - enum value = 3 */
    1, /* Bug       - enum value = 4 */
    5, /* Debug     - enum value = 5 */
-   6  /* Dev       -      value = 6 - for developers - defined in nsd/nsd.h */
+   6  /* Dev       - enum value = 6 - for developers - defined in nsd/nsd.h */
 };
 
-
-/*
- * The following global variable if the default Ns_ModLogHandle
- * for Ns_ModLog.
- */
-
-Ns_ModLogHandle nsDefaultModLogHandle = (Ns_ModLogHandle) &defaultMod;
-#define GETMOD(h)	((h)?((ModLog *)(h)):&defaultMod)
 
 
 /*
@@ -153,7 +124,7 @@ Ns_LogRoll(void)
         if (access(logFile, F_OK) == 0) {
             Ns_RollFile(logFile, nsconf.log.maxback);
         }
-        Ns_Log(Notice, "re-opening log:  %s", logFile);
+        Ns_Log(Notice, "Ns_LogRoll: re-opening log:  %s", logFile);
         if (LogReOpen() != NS_OK) {
 	    return NS_ERROR;
 	}
@@ -188,7 +159,7 @@ ns_serverLog(Ns_LogSeverity severity, char *fmt, va_list *vaPtr)
     if (severity == Dev && nsconf.log.dev == 0) {
 	return;
     }
-    Log(&defaultMod, severity, fmt, vaPtr);
+    Log(severity, fmt, vaPtr);
 }
 
 void
@@ -225,7 +196,7 @@ Ns_Fatal(char *fmt, ...)
     va_list ap;
 
     va_start(ap, fmt);
-    Log(&defaultMod, Fatal, fmt, &ap);
+    Log(Fatal, fmt, &ap);
     va_end(ap);
     _exit(1);
 }
@@ -275,7 +246,8 @@ Ns_LogTime2(char *timeBuf, int gmtoff)
 	} else {
             sign = '+';
 	}
-	sprintf(timeBuf + n, " %c%02d%02d]", sign, gmtoffset / 60, gmtoffset % 60);
+	sprintf(timeBuf + n, 
+		" %c%02d%02d]", sign, gmtoffset / 60, gmtoffset % 60);
     }
     return timeBuf;
 }
@@ -286,207 +258,10 @@ Ns_LogTime(char *timeBuf)
     return Ns_LogTime2(timeBuf, 1);
 }
 
-
-/*
- *----------------------------------------------------------------------
- *
- * Ns_ModLogRegister --
- *
- *	Register a realm name, and get a new log handle back. 
- *
- * Results:
- *	The new modlog handle to use in subsequent calls. 
- *
- * Side effects:
- *	Creates a new realm (allocates memory).
- * 	Realms are global to the server, so if you re-register a realm, you'll
- * 	get the original handle back rather than creating a new realm.
- *
- *----------------------------------------------------------------------
- */
-
-void 
-Ns_ModLogRegister(char *realm, Ns_ModLogHandle *handle)
-{
-    ModLog *mPtr;
-    Tcl_HashEntry *hPtr;
-    int            new;
-
-    if (realm == NULL) {
-	mPtr = &defaultMod;
-    } else {
-    	hPtr = Tcl_CreateHashEntry(GetTable(), realm, &new);
-	if (!new) {
-	    mPtr = Tcl_GetHashValue(hPtr);
-	} else {
-	    mPtr = (ModLog *) ns_malloc(sizeof(ModLog));
-	    mPtr->severity = DEFAULT_LEVEL;
-	    mPtr->fp = DEFAULT_FILE;
-	    mPtr->realm = ns_strcopy(realm);
-	    Tcl_SetHashValue(hPtr, mPtr);
-	}
-    }
-    *handle = (Ns_ModLogHandle) mPtr;
-}
 
 
 /*
  *----------------------------------------------------------------------
- *
- * Ns_ModLogSetThreshold --
- *
- *	Throttle the logging output on a per-module basis.
- *	Pass null handle for 'global' level. Only logging of 'serverity'
- *	and higher will actually be logged.
- *
- * Results:
- *	None. 
- *
- * Side effects:
- *	None. 
- *
- *----------------------------------------------------------------------
- */
-
-void
-Ns_ModLogSetThreshold(Ns_ModLogHandle handle, Ns_LogSeverity severity)
-{
-    ModLog *mPtr = GETMOD(handle);
-
-    Ns_MutexLock(&lock);
-    mPtr->severity = severity;
-    Ns_MutexUnlock(&lock);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Ns_ModLogGetThreshold --
- *
- *	Return the logging cut-off level.
- *	Pass NULL handle for 'global' level.
- *
- * Results:
- *	Logging level. 
- *
- * Side effects:
- *	None. 
- *
- *----------------------------------------------------------------------
- */
-
-Ns_LogSeverity
-Ns_ModLogGetThreshold(Ns_ModLogHandle handle)
-{
-    Ns_LogSeverity severity;
-    ModLog *mPtr = GETMOD(handle);
-
-    Ns_MutexLock(&lock);
-    severity = mPtr->severity;
-    Ns_MutexUnlock(&lock);
-    return severity;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Ns_ModLogLookupHandle --
- *
- *	Given a realm name, return the modlog handle. 
- *
- * Results:
- *	The modlog handle, or NULL if the given realm hasn't been 
- *	registered yet. 
- *
- * Side effects:
- *	None. 
- *
- *----------------------------------------------------------------------
- */
-
-Ns_ModLogHandle 
-Ns_ModLogLookupHandle(char *realm)
-{
-    Tcl_HashEntry   *hPtr;
-    ModLog *mPtr;
-
-    mPtr = NULL;
-    if (realm == NULL) {
-	mPtr = &defaultMod;
-    } else {
-    	hPtr = Tcl_FindHashEntry(GetTable(), realm);
-    	if (hPtr != NULL) {
-	    mPtr = Tcl_GetHashValue(hPtr);
-	}
-    }
-    return (Ns_ModLogHandle) mPtr;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Ns_ModLogLookupRealm --
- *
- *	Given a modlog handle, return the realm name.
- *
- * Results:
- *	A string realm name. 
- *
- * Side effects:
- *	None. 
- *
- *----------------------------------------------------------------------
- */
-
-char *
-Ns_ModLogLookupRealm(Ns_ModLogHandle handle)
-{
-    ModLog *mPtr = GETMOD(handle);
-
-    return mPtr->realm;
-}
-
-/*
- *----------------------------------------------------------------------
- *
- * Ns_ModLogRedirect -- 
- *
- *	Redirect logging to a different file.
- *
- * Results:
- *
- *	None.
- *
- * Side effects:
- *
- *	None.
- *
- *----------------------------------------------------------------------
- */
-
-void
-Ns_ModLogRedirect(Ns_ModLogHandle handle, FILE *fp, char *description)
-{
-    ModLog *mPtr = GETMOD(handle);
-
-    Ns_ModLog(Notice, handle, "%s", description);
-    if (fp == NULL) {
-	fp = DEFAULT_FILE;
-    }
-    Ns_MutexLock(&lock);
-    if (mPtr->fp != fp) {
-	mPtr->fp = fp;
-    }
-    Ns_MutexUnlock(&lock);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
  * NsLogOpen --
  *
  *	Open the log file. Adjust configurable parameters, too. 
@@ -523,7 +298,7 @@ NsLogOpen(void)
 	logFile = Ns_DStringExport(&ds);
     }
     if (LogReOpen() != NS_OK) {
-	Ns_Fatal("Could not open server log %s:  %s", 
+	Ns_Fatal("NsLogOpen: could not open server log %s:  %s", 
 		 logFile, strerror(errno));
     }
     if (!Ns_ConfigGetBool(NS_CONFIG_PARAMETERS, "logroll", &roll)) {
@@ -561,91 +336,13 @@ NsTclLogRollCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
     return TCL_OK;
 }
 
-/*
- *----------------------------------------------------------------------
- *
- * NsModLogRegSubRealm --
- *
- *	Register a sub-realm in the nsd realm.
- *  
- * Results:
- *	None.
- *
- * Side effects:
- *	Adds a new realm.
- *
- *----------------------------------------------------------------------
- */
-
-void 
-NsModLogRegSubRealm(char *subrealm, Ns_ModLogHandle *handlePtr)
-{
-    Ns_DString ds;
-
-    Ns_DStringInit(&ds);
-    Ns_DStringVarAppend(&ds, DEFAULT_REALM, ".", subrealm, NULL);
-    Ns_ModLogRegister(ds.string, handlePtr);
-    Ns_DStringFree(&ds);
-}
-
 
 /*
  *----------------------------------------------------------------------
  *
- * Ns_ModLog --
+ * NsTclLogCmd --
  *
- *	Send a message to the server log, gated by the logging 
- *	threshold for a particular module. 
- *
- * Results:
- *	None. 
- *
- * Side effects:
- *	None. 
- *
- *----------------------------------------------------------------------
- */
-
-void
-Ns_ModLog(Ns_LogSeverity severity, Ns_ModLogHandle handle, char *fmt, ...)
-{
-    Ns_LogSeverity debug, dev, lowest;
-    ModLog         *mPtr = GETMOD(handle);
-    va_list         ap;
-
-    if (severity < Notice || severity > Dev) {
-	Ns_Log(Bug, "Unknown severity: %d given to Ns_ModLog", severity);
-	severity = Error;
-    }
-    debug = severityRank[Fatal];
-    if (nsconf.log.debug) {
-	debug = severityRank[Debug];
-    }
-    dev = severityRank[Fatal];
-    if (nsconf.log.dev) {
-	dev =  severityRank[Dev];
-    }
-    lowest = severityRank[mPtr->severity];
-    if (debug > lowest) {
-	lowest = debug;
-    }
-    if (dev > lowest) {
-	lowest = dev;
-    }
-    if (lowest >= severityRank[severity]) {
-	va_start(ap, fmt);
-	Log(mPtr, severity, fmt, &ap);
-	va_end(ap);
-    }
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsTclLogCmd, NsTclModLogCmd --
- *
- *	Implements ns_log and ns_modlog commands. 
+ *	Implements ns_log.
  *
  * Results:
  *	Tcl result. 
@@ -657,7 +354,7 @@ Ns_ModLog(Ns_LogSeverity severity, Ns_ModLogHandle handle, char *fmt, ...)
  */
 
 static int
-TclLog(Tcl_Interp *interp, Ns_ModLogHandle *handle, char *sevstr, int msgc, char **msgv)
+TclLog(Tcl_Interp *interp, char *sevstr, int msgc, char **msgv)
 {
     Ns_LogSeverity severity;
     char *msg;
@@ -670,7 +367,7 @@ TclLog(Tcl_Interp *interp, Ns_ModLogHandle *handle, char *sevstr, int msgc, char
     } else {
     	msg = Tcl_Concat(msgc, msgv);
     }
-    Ns_ModLog(severity, handle, "%s", msg);
+    Ns_Log(severity, "%s", msg);
     if (msg != msgv[0]) {
     	ckfree(msg);
     }
@@ -685,190 +382,7 @@ NsTclLogCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
                          argv[0], " severity string ?string ...?\"", NULL);
     	return TCL_ERROR;
     }
-    return TclLog(interp, NULL, argv[1], argc-2, argv+2);
-}
-
-int
-NsTclModLogCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
-{
-    Ns_ModLogHandle handle;
-
-    if (argc < 4) {
-	Tcl_AppendResult(interp, "wrong # of args: should be \"",
-			 argv[0], " severity realm string ?string ...?\"", 
-			 NULL);
-    	return TCL_ERROR;
-    }
-    if (GetHandle(interp, argv[2], &handle) != TCL_OK) {
-    	return TCL_ERROR;
-    }
-    return TclLog(interp, handle, argv[1], argc-3, argv+3);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsTclModLogControl --
- *
- *	Tweak the module logging - add new realms, set and retrieve 
- *	the threshold for those realms, and get a list of all of the 
- *	currently registered logging realms. 
- *
- *
- *     ns_modlogcontrol set_threshold ?realm? severity
- *     ns_modlogcontrol get_threshold ?realm?
- *     ns_modlogcontrol get_realms
- *     ns_modlogcontrol register realm
- *     ns_modlogcontrol redirect realm ?filename?
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	None. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclModLogControlCmd(ClientData dummy, Tcl_Interp *interp,
-                       int argc, char **argv)
-{
-    Ns_ModLogHandle handle;
-
-    if (argc < 2 || argc > 4) {
-        Tcl_AppendResult(interp, "wrong # of args: should be \"",
-                         argv[0], " command ?arg? ?arg?", NULL);
-    	return TCL_ERROR;
-    }
-    
-    if (STREQ(argv[1], "get_realms")) {
-	Tcl_DString ds;
-	Tcl_HashEntry *hPtr;
-	Tcl_HashSearch search;
-	Tcl_HashTable *tablePtr = GetTable();
-
-    	Tcl_DStringInit(&ds);
-	hPtr = Tcl_FirstHashEntry(tablePtr, &search);
-	while (hPtr != NULL) {
-	    Tcl_DStringAppendElement(&ds, Tcl_GetHashKey(tablePtr, hPtr));
-	    hPtr = Tcl_NextHashEntry(&search);
-	}
-	Tcl_DStringResult(interp, &ds);
-	
-    } else if (STREQ(argv[1], "register")) {
-	if (Ns_InfoStarted()) {
-	    Tcl_SetResult(interp, "can not register realms after startup", TCL_STATIC);
-    	    return TCL_ERROR;
-	}
-	Ns_ModLogRegister(argv[2], &handle);
-	
-    } else if (STREQ(argv[1], "set_threshold")) {
-    	Ns_LogSeverity severity;
-	
-    	if (argc != 3 && argc != 4) {
-	    Tcl_AppendResult(interp, "wrong # args: should be \"",
-	    	argv[0], " ", argv[1], " ?realm? value\"", NULL);
-	    return TCL_ERROR;
-	}
-	if (argc == 3) {
-	    handle = nsDefaultModLogHandle;
-	} else if (GetHandle(interp, argv[2], &handle) != TCL_OK) {
-	    return TCL_ERROR;
-	}
-	if (GetSeverity(interp, argv[argc-1], &severity) != TCL_OK) {
-	    return TCL_ERROR;
-	}
-	Ns_ModLogSetThreshold(handle, severity);
-	
-    } else if (STREQ(argv[1], "get_threshold")) {
-	char *severityStr;
-
-    	if (argc != 2 && argc != 3) {
-	    Tcl_AppendResult(interp, "wrong # args: should be \"",
-	    	argv[0], " ", argv[1], " ?realm?\"", NULL);
-	    return TCL_ERROR;
-	}
-	if (argc == 3) {
-	    handle = nsDefaultModLogHandle;
-	} else if (GetHandle(interp, argv[2], &handle) != TCL_OK) {
-	    return TCL_ERROR;
-	}
-
-	switch (Ns_ModLogGetThreshold(handle)) {
-	    case Fatal: {
-		severityStr = "fatal";
-		break;
-	    }
-	    case Error: {
-		severityStr = "error";
-		break;
-	    }
-	    case Warning: {
-		severityStr = "warning";
-		break;
-	    }
-	    case Bug: {
-		severityStr = "bug";
-		break;
-	    }
-	    case Notice: {
-		severityStr = "notice";
-		break;
-	    }
-	    case Debug: {
-		severityStr = "debug";
-		break;
-	    }
-    	    case Dev: {
-		severityStr = "dev";
-		break;
-	    }
-	    default: {
-		severityStr = "unknown";
-	    }
-	}
-	Tcl_SetResult(interp, severityStr, TCL_STATIC);
-
-    } else if (STREQ(argv[1], "redirect")) {
-    	FILE *fp;
-	Ns_DString ds;
-        char *file;
-	
-    	if (argc != 3 && argc != 4) {
-	    Tcl_AppendResult(interp, "wrong # args: should be \"",
-	    	argv[0], " ", argv[1], " realm ?filename?\"", NULL);
-	    return TCL_ERROR;
-	}
-	if (GetHandle(interp, argv[2], &handle) != TCL_OK) {
-	    return TCL_ERROR;
-	}
-	if (argc == 3) {
-	    fp = DEFAULT_FILE;
-	    file = "<strderr>";
-	} else {
-	    file = argv[3];
-    	    fp = fopen(file, "at");
-	    if (fp == NULL) {
-		Tcl_AppendResult(interp, "could not open \"", file,
-		    "\": ", Tcl_PosixError(interp), NULL);
-		return TCL_ERROR;
-	    }
-	}
-	Ns_DStringInit(&ds);
-	Ns_DStringVarAppend(&ds, "redirecting to ", file, NULL);
-	Ns_ModLogRedirect(handle, fp, ds.string);
-	Ns_DStringFree(&ds);
-
-    } else {
-	Tcl_AppendResult(interp, "unknown command \"", argv[1], "\": should "
-			 "be register, set_threshold, get_threshold, "
-			 "get_realms or redirect", NULL);
-    	return TCL_ERROR;
-    }
-
-    return TCL_OK;
+    return TclLog(interp, argv[1], argc-2, argv+2);
 }
 
 
@@ -890,7 +404,7 @@ NsTclModLogControlCmd(ClientData dummy, Tcl_Interp *interp,
  */
 
 static void
-Log(ModLog *mPtr, Ns_LogSeverity severity, char *fmt, va_list *argsPtr)
+Log(Ns_LogSeverity severity, char *fmt, va_list *argsPtr)
 {
     char *severityStr;
     char  timebuf[100];
@@ -905,7 +419,7 @@ Log(ModLog *mPtr, Ns_LogSeverity severity, char *fmt, va_list *argsPtr)
 	case Error:
 	    severityStr = "Error";
 	    break;
-	case Warning:
+        case Warning:
 	    severityStr = "Warning";
 	    break;
 	case Bug:
@@ -926,15 +440,12 @@ Log(ModLog *mPtr, Ns_LogSeverity severity, char *fmt, va_list *argsPtr)
     }
 
     Ns_MutexLock(&lock);
-    fp = mPtr->fp;
-    if (fp == NULL) {
+    if ( (logFileFd = fp) == NULL) {
 	fp = stderr;
     }
+
     fprintf(fp, "%s[%d.%d][%s] %s: ", timebuf,
 		Ns_InfoPid(), Ns_ThreadId(), Ns_ThreadGetName(), severityStr);
-    if (mPtr != &defaultMod) {
-	fprintf(fp, "%s: ", mPtr->realm);
-    }
     if (nsconf.log.expanded == NS_TRUE) {
 	fprintf(fp, "\n    ");
     }
@@ -976,7 +487,8 @@ LogReOpen(void)
     status = NS_OK;
     fd = open(logFile, O_WRONLY|O_APPEND|O_CREAT|O_TEXT, 0644);
     if (fd < 0) {
-        Ns_Log(Error, "could not re-open log %s: %s", logFile, strerror(errno));
+        Ns_Log(Error, "LogReOpen: "
+	       "could not re-open log %s: %s", logFile, strerror(errno));
         status = NS_ERROR;
     } else {
 	/*
@@ -994,8 +506,9 @@ LogReOpen(void)
 	 */
 	
         if (dup2(STDERR_FILENO, STDOUT_FILENO) == -1) {
-            Ns_Log(Error, "dup2(STDERR_FILENO, STDOUT_FILENO) failed: %s\n",
-		      logFile, strerror(errno));
+            Ns_Log(Error, "LogReOpen: "
+		   "dup2(STDERR_FILENO, STDOUT_FILENO) failed: %s\n",
+		   logFile, strerror(errno));
             status = NS_ERROR;
         }
 	
@@ -1008,42 +521,6 @@ LogReOpen(void)
         }
     }
     return status;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * GetTable --
- *
- *	Get the log realm table, initializing if necessary.
- *
- * Results:
- *  	Pointer to static Tcl_HashTable.
- *
- * Side effects:
- *	None.
- *
- *----------------------------------------------------------------------
- */
-
-static Tcl_HashTable *
-GetTable(void)
-{
-    static int initialized = 0;
-    static Tcl_HashTable table;
-    
-    if (!initialized) {
-    	Tcl_HashEntry *hPtr;
-	int new;
-
-    	Tcl_InitHashTable(&table, TCL_STRING_KEYS);
-	hPtr = Tcl_CreateHashEntry(&table, defaultMod.realm, &new);
-	Tcl_SetHashValue(hPtr, &defaultMod);
-	Ns_MutexSetName2(&lock, "ns", "log");
-	initialized = 1;
-    }
-    return &table;
 }
 
 
@@ -1088,36 +565,5 @@ GetSeverity(Tcl_Interp *interp, char *severityStr,
 			 NULL);
     	return TCL_ERROR;
     }
-    return TCL_OK;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * GetHandle --
- *
- *	Return a valid log handle.
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	Errors will be appended to interp->result. 
- *
- *----------------------------------------------------------------------
- */
-
-static int
-GetHandle(Tcl_Interp *interp, char *realm, Ns_ModLogHandle *handlePtr)
-{
-    Tcl_HashEntry *hPtr;
-
-    hPtr = Tcl_FindHashEntry(GetTable(), realm);
-    if (hPtr == NULL) {
-	Tcl_AppendResult(interp, "no such realm: ", realm, NULL);
-	return TCL_ERROR;
-    }
-    *handlePtr = Tcl_GetHashValue(hPtr);
     return TCL_OK;
 }

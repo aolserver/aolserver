@@ -14,7 +14,7 @@
  * SCCS: @(#) tclPosixStr.c 1.32 96/10/10 10:09:42
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/tcl7.6/generic/Attic/tclPosixStr.c,v 1.3 2000/08/01 19:16:23 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/tcl7.6/generic/Attic/tclPosixStr.c,v 1.4 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "tclInt.h"
 #include "tclPort.h"
@@ -988,7 +988,7 @@ Tcl_SignalId(sig)
 #ifdef SIGPROF
 	case SIGPROF: return "SIGPROF";
 #endif
-#if defined(SIGPWR) && (!defined(SIGXFSZ) || (SIGPWR != SIGXFSZ)) &&
+#if defined(SIGPWR) && (!defined(SIGXFSZ) || (SIGPWR != SIGXFSZ)) && \
 	    (!defined(SIGLOST) || (SIGPWR != SIGLOST))
 	case SIGPWR: return "SIGPWR";
 #endif
@@ -1121,7 +1121,7 @@ Tcl_SignalMsg(sig)
 #ifdef SIGPROF
 	case SIGPROF: return "profiling alarm";
 #endif
-#if defined(SIGPWR) && (!defined(SIGXFSZ) || (SIGPWR != SIGXFSZ)) &&
+#if defined(SIGPWR) && (!defined(SIGXFSZ) || (SIGPWR != SIGXFSZ)) && \
 	    (!defined(SIGLOST) || (SIGPWR != SIGLOST))
 	case SIGPWR: return "power-fail restart";
 #endif

@@ -2,7 +2,7 @@
  * The contents of this file are subject to the AOLserver Public License
  * Version 1.1 (the "License"); you may not use this file except in
  * compliance with the License. You may obtain a copy of the License at
- * http://aolserver.lcs.mit.edu/.
+ * http://aolserver.com/.
  *
  * Software distributed under the License is distributed on an "AS IS"
  * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
@@ -33,7 +33,7 @@
  *	Routines to roll files.
  */
  
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/rollfile.c,v 1.2 2000/05/02 14:39:30 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/rollfile.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -81,11 +81,11 @@ Ns_RollFile(char *file, int max)
     int   err;
     
     if (max < 0 || max > 999) {
-        Ns_Log(Error, "rollfile:  invalid max parameter:  %d (must be > 0 "
-	          "and < 999)", max);
+        Ns_Log(Error, "Ns_RollFile: "
+	       "invalid max parameter: %d (must be > 0 and < 999)", max);
 	return NS_ERROR;
     }
-
+    
     first = ns_malloc(strlen(file) + 5);
     sprintf(first, "%s.000", file);
     err = Exists(first);
@@ -170,7 +170,7 @@ Ns_PurgeFiles(char *file, int max)
     Ns_NormalizePath(&dir, file);
     slash = strrchr (dir.string, '/');
     if (slash == NULL || slash[1] == '\0') {
-	Ns_Log (Error, "purgefile: invalid path: %s", file);
+	Ns_Log (Error, "Ns_PurgeFiles: invalid path: %s", file);
     	goto err;
     }
     *slash = '\0';
@@ -179,8 +179,8 @@ Ns_PurgeFiles(char *file, int max)
     
     dp = opendir(dir.string);
     if (dp == NULL) {
-    	Ns_Log(Error, "purgefile: opendir(%s) failed: %s",
-	    dir.string, strerror(errno));
+    	Ns_Log(Error, "Ns_PurgeFiles: opendir(%s) failed: %s",
+	       dir.string, strerror(errno));
 	goto err;
     }
     while ((ent = ns_readdir(dp)) != NULL) {
@@ -245,7 +245,8 @@ AppendFile(Ns_DString *dsPtr, char *dir, char *tail)
     fPtr = ns_malloc(sizeof(File) + strlen(dir) + strlen(tail));
     sprintf(fPtr->name, "%s/%s", dir, tail);
     if (stat(fPtr->name, &st) != 0) {
-    	Ns_Log(Error, "rollfile: stat(%s) failed: %s", fPtr->name, strerror(errno));
+    	Ns_Log(Error, "rollfile: AppendFile: "
+	       "stat(%s) failed: %s", fPtr->name, strerror(errno));
     	ns_free(fPtr);
 	return 0;
     }
@@ -309,8 +310,8 @@ Unlink(char *file)
     
     err = unlink(file);
     if (err != 0) {
-        Ns_Log(Error, "rollfile: unlink(%s) failed:  %s", 
-	       file, strerror(errno));
+        Ns_Log(Error, "rollfile: Unlink: "
+	       "unlink(%s) failed:  %s", file, strerror(errno));
     }
     return err;
 }
@@ -322,8 +323,8 @@ Rename(char *from, char *to)
     
     err = rename(from, to);
     if (err != 0) {
-    	Ns_Log(Error, "rollfile: rename(%s, %s) failed: %s",
-	    from, to, strerror(errno));
+    	Ns_Log(Error, "rollfile: Rename: "
+	       "rename(%s, %s) failed: %s", from, to, strerror(errno));
     }
     return err;
 }
@@ -338,9 +339,9 @@ Exists(char *file)
     } else if (errno == ENOENT) {
     	exists = 0;
     } else {
-	Ns_Log(Error, "rollfile: access(%s) failed: %s",
-	    file, strerror(errno));
+	Ns_Log(Error, "rollfile: Exists: "
+	       "access(%s) failed: %s", file, strerror(errno));
     	exists = -1;
     }
     return exists;
-}	
+}

@@ -36,7 +36,7 @@
  *	that are run at various points during the server's execution.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/callbacks.c,v 1.2 2000/05/02 14:39:30 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/callbacks.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -436,7 +436,7 @@ RunWait(Callback **firstPtrPtr, Ns_Thread *threadPtr, Ns_Time *toPtr)
     }
     Ns_MutexUnlock(&lock);
     if (status != NS_OK) {
-	Ns_Log(Warning, "timeout waiting for shutdown procs!");
+	Ns_Log(Warning, "RunWait: timeout waiting for shutdown procs");
     } else if (*threadPtr != NULL) {
 	Ns_ThreadJoin(threadPtr, NULL);
     }

@@ -2,7 +2,7 @@
  * The contents of this file are subject to the AOLserver Public License
  * Version 1.1 (the "License"); you may not use this file except in
  * compliance with the License. You may obtain a copy of the License at
- * http://aolserver.lcs.mit.edu/.
+ * http://aolserver.com/.
  *
  * Software distributed under the License is distributed on an "AS IS"
  * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
@@ -34,7 +34,7 @@
  *	Win32 specific routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nswin32.c,v 1.2 2000/05/02 14:39:30 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nswin32.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -175,7 +175,8 @@ NsConnectService(Ns_ServerInitProc *initProc)
     freopen(null, "rt", stdin);
     freopen(log, "wt", stdout);
     freopen(log, "wt", stderr);
-    Ns_Log(Notice, "connecting to service control manager");
+    Ns_Log(Notice, "Ns_ConnectService: "
+	   "connecting to service control manager");
     service = 1;
     table[0].lpServiceName = NSD_NAME;
     table[0].lpServiceProc = ServiceMain;
@@ -183,7 +184,8 @@ NsConnectService(Ns_ServerInitProc *initProc)
     table[1].lpServiceProc = NULL;
     ok = StartServiceCtrlDispatcher(table);
     if (!ok) {
-        Ns_Log(Error, "StartServiceCtrlDispatcher() failed: %s", SysErrMsg());
+        Ns_Log(Error, "Ns_ConnectService: "
+	       "StartServiceCtrlDispatcher() failed: %s", SysErrMsg());
     } else if (log != null) {
 	unlink(log);
     }
@@ -218,7 +220,7 @@ NsRemoveService(void)
 
     Ns_DStringInit(&name);
     GetServiceName(&name);
-    Ns_Log(Notice, "removing service: %s", name.string);
+    Ns_Log(Notice, "Ns_RemoveService: removing service: %s", name.string);
     ok = FALSE;
     hmgr = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
     if (hmgr != NULL) {
@@ -231,7 +233,8 @@ NsRemoveService(void)
         CloseServiceHandle(hmgr);
     }
     if (!ok) {
-	Ns_Log(Error, "could not remove %s: %s", name.string, SysErrMsg());
+	Ns_Log(Error, "Ns_RemoveService: "
+	       "could not remove %s: %s", name.string, SysErrMsg());
     }
     Ns_DStringFree(&name);
     return (ok ? NS_OK : NS_ERROR);
@@ -264,9 +267,11 @@ NsInstallService(void)
 
     ok = FALSE;
     if (_fullpath(config, nsconf.config, sizeof(config)) == NULL) {
-	Ns_Log(Error, "invalid config path: %s", nsconf.config);
+	Ns_Log(Error, "NsInstallService: "
+	       "invalid config path: %s", nsconf.config);
     } else if (!GetModuleFileName(NULL, nsd, sizeof(nsd))) {
-	Ns_Log(Error, "could not find nsd.exe: %s", SysErrMsg());
+	Ns_Log(Error, "NsInstallService: "
+	       "could not find nsd.exe: %s", SysErrMsg());
     } else {
 	sprintf(carg, " -%c ", nsconf.configfmt);
 	Ns_DStringInit(&name);
@@ -277,7 +282,8 @@ NsInstallService(void)
 	    Ns_DStringAppend(&cmd, " -z");
 	}
 	GetServiceName(&name);
-	Ns_Log(Notice, "installing service: %s", name.string);
+	Ns_Log(Notice, "NsInstallService: "
+	       "installing service: %s", name.string);
 	hmgr = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
 	if (hmgr != NULL) {
 	    hsrv = CreateService(hmgr, name.string, name.string,
@@ -291,7 +297,8 @@ NsInstallService(void)
 	    CloseServiceHandle(hmgr);
 	}
 	if (!ok) {
-	    Ns_Log(Error, "could not install %s: %s", name.string, SysErrMsg());
+	    Ns_Log(Error, "NsInstallService: "
+		   "could not install %s: %s", name.string, SysErrMsg());
 	}
 	Ns_DStringFree(&name);
 	Ns_DStringFree(&cmd);
@@ -773,7 +780,7 @@ ServiceMain(DWORD argc, LPTSTR *argv)
     StopTicker();
     ReportStatus(SERVICE_STOP_PENDING, NO_ERROR, 100);
     ReportStatus(SERVICE_STOPPED, 0, 0);
-    Ns_Log(Notice, "service exiting");
+    Ns_Log(Notice, "ServiceMain: service exiting");
 }
 
 

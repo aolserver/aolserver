@@ -57,7 +57,7 @@
  * ns_param   "ParserName" "utf8"
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/adp.c,v 1.3 2000/08/01 20:46:49 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/adp.c,v 1.4 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -119,12 +119,6 @@ static Tcl_HashTable     parsersTable;
 static Ns_Cache         *sharedCachePtr;
 
 
-/*
- * Global variables within this source directory
- */
-
-Ns_ModLogHandle     nsAdpModLogHandle;
-
 
 /*
  *----------------------------------------------------------------------
@@ -150,8 +144,8 @@ Ns_AdpRegisterParser(char *extension, Ns_AdpParserProc *newParserProc)
     int            new;
     
     if (Ns_InfoServersStarted() == NS_TRUE) {
-	Ns_ModLog(Error, nsAdpModLogHandle,
-		  "attempt to register ADP parser after server startup.");
+	Ns_Log(Error, "Ns_AdpRegisterParser: "
+	       "attempt to register ADP parser after server startup.");
 	return NS_ERROR;
     }
     hePtr = Tcl_CreateHashEntry(&parsersTable, extension, &new);
@@ -184,12 +178,6 @@ NsAdpInit(void)
     Ns_Set *set;
     char *path, *map;
     int i;
-
-    /*
-     * register the sub-realm
-     */
-
-    NsModLogRegSubRealm("adp", &nsAdpModLogHandle);
 
     /*
      * Initialize the ADP core.
@@ -226,12 +214,11 @@ NsAdpInit(void)
 			       NULL, 0);
 	    Ns_RegisterRequest(nsServer, "POST", map, AdpProc, NULL,
 			       NULL, 0);
-	    Ns_ModLog(Notice, nsAdpModLogHandle, "mapped %s", map);
+	    Ns_Log(Notice, "NsAdpInit: mapped %s", map);
 	}
     }
     if (map == NULL) {
-	Ns_ModLog(Warning, nsAdpModLogHandle,
-		  "no Map configuration - disabled");
+	Ns_Log(Warning, "NsAdpInit: no Map configuration - disabled");
     }
 
     /*
@@ -295,8 +282,8 @@ NsAdpParsers(void)
 
 	hePtr = Tcl_FindHashEntry(&parsersTable, parser);
 	if (hePtr == NULL) {
-	    Ns_ModLog(Notice, nsAdpModLogHandle,
-		      "invalid parser '%s'", parser);
+	    Ns_Log(Notice, "NsAdpParsers: "
+		   "invalid parser '%s'", parser);
 	    continue;
 	}
 
@@ -401,9 +388,8 @@ NsAdpEval(Tcl_Interp *interp, char *file, char *chunks)
 		mktemp(debugfile);
 		fd = open(debugfile, O_WRONLY|O_TRUNC|O_CREAT|O_TEXT, 0644);
 		if (fd < 0) {
-	    	     Ns_ModLog(Error, nsAdpModLogHandle,
-			       "could not open %s:  %s", debugfile,
-			       strerror(errno));
+	    	     Ns_Log(Error, "NsAdpEval: could not open %s: %s",
+			    debugfile, strerror(errno));
 		} else {
 		    write(fd, ds.string, ds.length);
 		    close(fd);
@@ -1499,8 +1485,8 @@ Ns_AdpRequest(Ns_Conn *conn, char *file)
 	    break;
 
 	case ADP_OVERFLOW:
-	    Ns_ModLog(Error, nsAdpModLogHandle,
-		      "stack overflow:  %s", file);
+	    Ns_Log(Error, "Ns_AdpRequest: "
+		   "stack overflow:  %s", file);
 	    status = Ns_ConnReturnInternalError(conn);
 	    break;
 

@@ -9,11 +9,14 @@
 #
 # Installation locations.
 #
-INST         =   $(NSHOME)/../aolserver_build
+PREFIX       =   /usr/local/aolserver
+INST         =   $(PREFIX)
 INSTBIN      =   $(INST)/bin
 INSTLOG      =   $(INST)/log
 INSTMOD      =   $(INST)/modules
 INSTTCL      =   $(INSTMOD)/tcl
+INSTINC      =   $(INSTMOD)/include
+INSTLIB      =   $(INSTMOD)/lib
 INSTSRV      =   $(INST)/servers/server1
 INSTSRVMOD   =   $(INSTSRV)/modules
 INSTSRVPAG   =   $(INSTSRV)/pages
@@ -284,3 +287,26 @@ endif
 
 LIBTCL76=$(NSHOME)/$(TCL76_DIR)/unix/$(TCL76_LIB)
 LIBTCL8X=$(NSHOME)/$(TCL8X_DIR)/unix/$(TCL8X_LIB)
+
+#
+# Rules for library dependencies.
+#
+all:
+
+libtcl76:
+	(cd $(NSHOME)/$(TCL76_DIR) && $(MAKE) all)
+
+libtcl76-clean:
+	(cd $(NSHOME)/$(TCL76_DIR) && $(MAKE) clean)
+
+libtcl8x:
+	(cd $(NSHOME)/$(TCL8X_DIR) && $(MAKE) all)
+
+libtcl8x-clean:
+	(cd $(NSHOME)/$(TCL8X_DIR) && $(MAKE) clean)
+
+libnsthread:
+	(cd $(NSHOME)/thread && $(MAKE) all)
+
+libnsthread-clean:
+	(cd $(NSHOME)/thread && $(MAKE) clean)

@@ -109,7 +109,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsext/nsext.c,v 1.2 2000/05/02 14:39:30 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsext/nsext.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 #include "nsextmsg.h"
@@ -333,9 +333,8 @@ Ns_DbDriverInit(char *hDriver, char *configPath)
      */
     
     if (Ns_DbRegisterDriver(hDriver, &(ExtProcs[0])) != NS_OK) {
-        Ns_Log(Error,
-	       "Ns_DbDriverInit(%s):  Could not register the %s driver.",
-	       hDriver, extName);
+        Ns_Log(Error, "Ns_DbDriverInit(%s): "
+	       "Could not register the %s driver.", hDriver, extName);
     } else {
         ctx = ns_malloc(sizeof(NsExtCtx));
         ctx->connNum = 0;
@@ -349,12 +348,12 @@ Ns_DbDriverInit(char *hDriver, char *configPath)
             ctx->port = 0;
         }
         if (ctx->path == NULL && ctx->host == NULL) {
-            Ns_Log(Error,
-		   "Ns_DbDriverInit(%s): LocalDaemon or Remotehost must be "
-		   "specified in config file", hDriver);
+            Ns_Log(Error, "Ns_DbDriverInit(%s): "
+		   "LocalDaemon or Remotehost must be specified in config",
+		   hDriver);
         } else if (ctx->path == NULL && ctx->port == 0) {
-            Ns_Log(Error, "Ns_DbDriverInit(%s): ProxyHost specified without "
-		   "ProxyPort", hDriver);
+            Ns_Log(Error, "Ns_DbDriverInit(%s): "
+		   "ProxyHost specified without ProxyPort", hDriver);
         } else {
             if (!Ns_ConfigGetInt(configPath, CONFIG_TIMEOUT, &ctx->timeout)) {
                 ctx->timeout = DEFAULT_TIMEOUT;

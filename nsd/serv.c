@@ -2,7 +2,7 @@
  * The contents of this file are subject to the AOLserver Public License
  * Version 1.1 (the "License"); you may not use this file except in
  * compliance with the License. You may obtain a copy of the License at
- * http://aolserver.lcs.mit.edu/.
+ * http://aolserver.com/.
  *
  * Software distributed under the License is distributed on an "AS IS"
  * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
@@ -33,7 +33,7 @@
  *	Routines for the core server connection threads.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/serv.c,v 1.2 2000/05/02 14:39:30 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/serv.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -153,7 +153,9 @@ Ns_QueueConn(void *drvPtr, void *drvData)
 	status = NS_SHUTDOWN;
     } else if (firstFreeConnPtr == NULL) {
 	if (nsconf.serv.maxdropped > 0 && ++ndropped > nsconf.serv.maxdropped) {
-	    Ns_Log(Error, "max %d dropped connections reach: shutting down", nsconf.serv.maxdropped);
+	    Ns_Log(Error, "Ns_QueueConn: "
+		   "max dropped connections reached (%d): shutting down",
+		   nsconf.serv.maxdropped);
 	    NsSendSignal(NS_SIGTERM);
 	    nsconf.serv.maxdropped = 0;
 	}
@@ -332,18 +334,18 @@ NsStartServer(void)
      */
 
     if (nsconf.serv.maxthreads > nsconf.serv.maxconns) {
-	Ns_Log(Warning,
-		  "%d max threads adjusted down to %d max connections",
-	          nsconf.serv.maxthreads, nsconf.serv.maxconns);
+	Ns_Log(Warning, "NsStartServer: "
+	       "%d max threads adjusted down to %d max connections",
+	       nsconf.serv.maxthreads, nsconf.serv.maxconns);
 	nsconf.serv.maxthreads = nsconf.serv.maxconns;
     }
     if (nsconf.serv.minthreads > nsconf.serv.maxthreads) {
-	Ns_Log(Warning,
-		  "%d min threads adjusted down to %d max threads",
-	          nsconf.serv.minthreads, nsconf.serv.maxthreads);
+	Ns_Log(Warning, "NsStartServer: "
+	       "%d min threads adjusted down to %d max threads",
+	       nsconf.serv.minthreads, nsconf.serv.maxthreads);
 	nsconf.serv.minthreads = nsconf.serv.maxthreads;
     }
-
+    
     /*
      * Finally, create the accept thread which will begin servicing client
      * connections and the minimum number of connection threads.
@@ -375,7 +377,7 @@ NsStartServer(void)
 void
 NsStartServerShutdown(void)
 {
-    Ns_Log(Notice, "stopping connection threads");
+    Ns_Log(Notice, "NsStartServerShutdown: stopping connection threads");
     Ns_MutexLock(&lock);
     shutdownPending = 1;
     Ns_CondBroadcast(&cond);
@@ -415,9 +417,10 @@ NsWaitServerShutdown(Ns_Time *toPtr)
     lastThread = NULL;
     Ns_MutexUnlock(&lock);
     if (status != NS_OK) {
-	Ns_Log(Warning, "timeout waiting for connection thread exit");
+	Ns_Log(Warning, "NsWaitForServerShutdown: "
+	       "timeout waiting for connection thread exit");
     } else {
-	Ns_Log(Notice, "connection threads stopped");
+	Ns_Log(Notice, "NsWaitForServerShutdown: connection threads stopped");
 	if (joinThread != NULL) {
 	    JoinThread(&joinThread);
 	}
@@ -493,7 +496,7 @@ NsConnThread(void *arg)
     Ns_MutexLock(&lock);
     sprintf(thrname, "-conn%d-", next++);
     Ns_ThreadSetName(thrname);
-    Ns_Log(Notice, "starting: waiting for connections");
+    Ns_Log(Debug, "NsConnThread: starting: waiting for connections");
 
     while (1) {
 
@@ -647,7 +650,7 @@ NsConnThread(void *arg)
     if (joinThread != NULL) {
 	JoinThread(&joinThread);
     }
-    Ns_Log(Notice, "exiting: %s", p);
+    Ns_Log(Debug, "NsConnThread: exiting: %s", p);
     Ns_ThreadExit(connPtrPtr);
 }
 

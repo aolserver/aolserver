@@ -2,7 +2,7 @@
  * The contents of this file are subject to the AOLserver Public License
  * Version 1.1 (the "License"); you may not use this file except in
  * compliance with the License. You may obtain a copy of the License at
- * http://aolserver.lcs.mit.edu/.
+ * http://aolserver.com/.
  *
  * Software distributed under the License is distributed on an "AS IS"
  * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
@@ -34,7 +34,7 @@
  *      Manage the Ns_Conn structure
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.2 2000/05/02 14:39:30 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -1158,16 +1158,18 @@ Ns_ConnGetQuery(Ns_Conn *conn)
 {
     Ns_DString     *dsPtr;
     Conn           *connPtr = (Conn *) conn;
-
+    
     dsPtr = Ns_DStringPop();
     if (connPtr->query == NULL) {
         if (STREQ(conn->request->method, "POST") && conn->contentLength > 0) {
-            if (connPtr->nContent == 0 && conn->contentLength > nsconf.conn.maxpost) {
-		Ns_Log(Warning, "POST contentlength %d exceeds maxpost limit %d",
+            if (connPtr->nContent == 0 
+		&& conn->contentLength > nsconf.conn.maxpost) {
+		Ns_Log(Warning, "Ns_ConnGetQuery: "
+		       "POST contentlength %d exceeds maxpost limit %d",
 		       conn->contentLength, nsconf.conn.maxpost);
 	    } else if (Ns_ConnCopyToDString(conn, conn->contentLength,
 					 dsPtr) != NS_OK) {
-		    goto bailout;
+		goto bailout;
             }
         } else if (conn->request->query != NULL) {
             Ns_DStringAppend(dsPtr, conn->request->query);
@@ -1180,7 +1182,7 @@ Ns_ConnGetQuery(Ns_Conn *conn)
 	    }
         }
     }
-
+    
  bailout:
     Ns_DStringPush(dsPtr);
 

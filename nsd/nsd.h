@@ -91,8 +91,8 @@
  */
 
 #define NSD_NAME             "AOLserver"
-#define NSD_VERSION	     "3.0"
-#define NSD_LABEL            "aolserver3_0_0"
+#define NSD_VERSION	     "3.0.1"
+#define NSD_LABEL            "aolserver3_0_1"
 #define NS_CONFIG_PARAMETERS "ns/parameters"
 #define NS_CONFIG_SERVERS    "ns/servers"
 #define NS_CONFIG_THREADS    "ns/threads"
@@ -462,9 +462,6 @@ extern void NsInitMimeTypes(void);
 extern void NsInitReturn(void);
 extern void NsLoadModules(void);
 extern void NsLogOpen(void);
-extern void NsModLogInit(char *realm);
-extern void NsModLogRegSubRealm(char *subRealmName,
-				Ns_ModLogHandle *handlePtr);
 extern void NsPidFileInit(int fkill);
 extern void NsPortInit(void);
 extern void NsSchedInit(void);
@@ -626,8 +623,6 @@ extern Tcl_CmdProc NsTclLogCmd;
 extern Tcl_CmdProc NsTclLogRollCmd;
 extern Tcl_CmdProc NsTclMkTempCmd;
 extern Tcl_CmdProc NsTclMkdirCmd;
-extern Tcl_CmdProc NsTclModLogCmd;
-extern Tcl_CmdProc NsTclModLogControlCmd;
 extern Tcl_CmdProc NsTclMutexCmd;
 extern Tcl_CmdProc NsTclNormalizePathCmd;
 extern Tcl_CmdProc NsTclParseHeaderCmd;
@@ -763,22 +758,6 @@ extern Tcl_CmdProc NsTclVIncrCmd;
 extern Tcl_CmdProc NsTclVAppendCmd;
 
 extern Tcl_CmdProc NsTclStatsCmd;
-
-/* 
- * Global symbols within nsd/ directory
- */
-
-/*
- * ModLog handles for nsd and some nsd sub-realms
- */
-
-extern Ns_ModLogHandle nsTclModLogHandle;
-extern Ns_ModLogHandle nsDBModLogHandle;
-extern Ns_ModLogHandle nsAdpModLogHandle;
-
-/*
- * miscellaneous
- */
 
 extern char     *nsServer;
 

@@ -2,7 +2,7 @@
  * The contents of this file are subject to the AOLserver Public License
  * Version 1.1 (the "License"); you may not use this file except in
  * compliance with the License. You may obtain a copy of the License at
- * http://aolserver.lcs.mit.edu/.
+ * http://aolserver.com/.
  *
  * Software distributed under the License is distributed on an "AS IS"
  * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
@@ -33,7 +33,7 @@
  * 	Tcl command usage stats routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/tclstats.c,v 1.2 2000/05/02 14:39:30 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/tclstats.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -87,7 +87,8 @@ NsTclStatsInit(void)
     Tcl_InitHashTable(&statsTable, TCL_STRING_KEYS);
     Ns_MutexSetName2(&lock, "ns", "tclstats");
     if (nsconf.tcl.statlevel > 0) {
-	Ns_Log(Warning, "tcl: tracing to level: %d", nsconf.tcl.statlevel);
+	Ns_Log(Warning, "NsTclStatsInit: tracing to level: %d",
+	       nsconf.tcl.statlevel);
 	Ns_TclRegisterAtCreate(CreateTrace, NULL);
 	if (nsconf.tcl.statmaxbuf > 0) {
 	    Ns_TlsAlloc(&tls, FreeBuf);

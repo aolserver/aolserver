@@ -2,7 +2,7 @@
  * The contents of this file are subject to the AOLserver Public License
  * Version 1.1 (the "License"); you may not use this file except in
  * compliance with the License. You may obtain a copy of the License at
- * http://aolserver.lcs.mit.edu/.
+ * http://aolserver.com/.
  *
  * Software distributed under the License is distributed on an "AS IS"
  * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
@@ -34,7 +34,7 @@
  *      Manipulate file descriptors of open files.
  */
  
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/fd.c,v 1.2 2000/05/02 14:39:30 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/fd.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -152,14 +152,14 @@ Ns_DupHigh(int *fdPtr)
 
     ofd = *fdPtr;
     if ((flags = fcntl(ofd, F_GETFD)) < 0) {
-	Ns_Log(Warning, "Ns_DupHigh:  fcntl(%d, F_GETFD) failed: %s",
-		  ofd, strerror(errno));
+	Ns_Log(Warning, "Ns_DupHigh: fcntl(%d, F_GETFD) failed: %s",
+	       ofd, strerror(errno));
     } else if ((nfd = fcntl(ofd, F_DUPFD, 256)) < 0) {
-	Ns_Log(Warning, "Ns_DupHigh:  fcntl(%d, F_DUPFD, 256) failed: %s",
+	Ns_Log(Warning, "Ns_DupHigh: fcntl(%d, F_DUPFD, 256) failed: %s",
 	       ofd, strerror(errno));
     } else if (fcntl(nfd, F_SETFD, flags) < 0) {
-	Ns_Log(Warning, "Ns_DupHigh:  fcntl(%d, F_SETFD, %d) failed: %s",
-		  nfd, flags, strerror(errno));
+	Ns_Log(Warning, "Ns_DupHigh: fcntl(%d, F_SETFD, %d) failed: %s",
+	       nfd, flags, strerror(errno));
 	close(nfd);
     } else {
 	close(ofd);

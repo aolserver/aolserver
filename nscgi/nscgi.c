@@ -28,7 +28,7 @@
  */
 
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscgi/nscgi.c,v 1.2 2000/05/02 14:39:30 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscgi/nscgi.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 #include <sys/stat.h>
@@ -255,8 +255,8 @@ Ns_ModuleInit(char *server, char *module)
         Ns_DStringVarAppend(&ds, "ns/interps/", section, NULL);
         modPtr->interps = Ns_ConfigSection(ds.string);
         if (modPtr->interps == NULL) {
-            Ns_Log(Warning, "no such interps section: %s",
-	              ds.string);
+            Ns_Log(Warning, "nscgi: no such interps section: %s",
+		   ds.string);
         }
     	Ns_DStringTrunc(&ds, 0);
     }
@@ -265,8 +265,8 @@ Ns_ModuleInit(char *server, char *module)
         Ns_DStringVarAppend(&ds, "ns/environment/", section, NULL);
         modPtr->mergeEnv = Ns_ConfigSection(ds.string);
         if (modPtr->mergeEnv == NULL) {
-            Ns_Log(Warning, "no such environment section: %s",
-		      ds.string);
+            Ns_Log(Warning, "nscgi: no such environment section: %s",
+		   ds.string);
         }
     	Ns_DStringTrunc(&ds, 0);
     }
@@ -755,8 +755,8 @@ CgiFree(Cgi *cgiPtr)
      */
      
     if (cgiPtr->pid != -1 && Ns_WaitProcess(cgiPtr->pid) != NS_OK) {
-	Ns_Log(Error, "nscgi: wait for %s failed: %s",
-    	    cgiPtr->exec, strerror(errno));
+	Ns_Log(Error, "CgiFree: wait for %s failed: %s",
+	       cgiPtr->exec, strerror(errno));
     }
 }
 
@@ -975,7 +975,7 @@ CgiExec(Cgi *cgiPtr, Ns_Conn *conn)
      
     if (pipe(opipe) != 0) {
 	Ns_Log(Error, "%s: pipe() failed: %s",
-	    cgiPtr->modPtr->module, strerror(errno));
+	       cgiPtr->modPtr->module, strerror(errno));
 	return NS_ERROR;
     }
     Ns_CloseOnExec(opipe[0]);
@@ -1026,7 +1026,7 @@ CgiRead(Cgi *cgiPtr)
 	cgiPtr->cnt = n;
     } else if (n < 0) {
 	Ns_Log(Error, "%s: pipe read() from %s failed: %s",
-	    cgiPtr->modPtr->module, cgiPtr->exec, strerror(errno));
+	       cgiPtr->modPtr->module, cgiPtr->exec, strerror(errno));
     }
     return n;
 }
@@ -1268,8 +1268,9 @@ CgiRegister(Mod *modPtr, char *map)
     mapPtr->url = ns_strdup(url);
     mapPtr->path = ns_strcopy(path);
     Ns_Log(Notice, "%s: %s %s%s%s",
-	      modPtr->module, method, url, path ? " -> " : "", path ? path : "");
-    Ns_RegisterRequest(modPtr->server, method, url, CgiRequest, CgiFreeMap, mapPtr, 0);
+	   modPtr->module, method, url, path ? " -> " : "", path ? path : "");
+    Ns_RegisterRequest(modPtr->server, method, url, 
+		       CgiRequest, CgiFreeMap, mapPtr, 0);
 
 done:
     Ns_DStringFree(&ds1);
@@ -1377,7 +1378,7 @@ CgiCloseTmp(Tmp *tmpPtr, char *err)
 {
     if (err != NULL) {
 	Ns_Log(Error, "nscgi: temp file %s(%d) failed: %s",
-	    err, tmpPtr->fd, strerror(errno));
+	       err, tmpPtr->fd, strerror(errno));
     }
     close(tmpPtr->fd);
     ns_free(tmpPtr);
@@ -1420,8 +1421,8 @@ CgiGetTmp(Mod *modPtr)
 	Ns_DStringInit(&ds);
 	tmp = Ns_MakePath(&ds, modPtr->tmpdir, "cgi.XXXXXX", NULL);
 	if (mktemp(tmp) == NULL || tmp[0] == '\0') {
-	    Ns_Log(Error, "%s: mktemp(%s) failed: %s",
-		modPtr->server, tmp, strerror(errno));
+	    Ns_Log(Error, "CgiGetTemp: %s: mktemp(%s) failed: %s",
+		   modPtr->server, tmp, strerror(errno));
 	} else {
 	    int flags = O_RDWR|O_CREAT|O_TRUNC;
 
@@ -1431,7 +1432,8 @@ CgiGetTmp(Mod *modPtr)
 #else
 	    fd = open(tmp, flags, 0600);
 	    if (fd >= 0 && unlink(tmp) != 0) {
-		Ns_Log(Error, "nscgi: unlink(%s) failed: %s", tmp, strerror(errno));
+		Ns_Log(Error, "CgiGetTmp: "
+		       "unlink(%s) failed: %s", tmp, strerror(errno));
 		close(fd);
 		fd = -1;
 	    }
@@ -1441,8 +1443,9 @@ CgiGetTmp(Mod *modPtr)
 	    }
 #endif
 	    if (fd < 0) {
-		Ns_Log(Error, "nscgi: could not open temp file %s: %s",
-		    modPtr->server, tmp, strerror(errno));
+		Ns_Log(Error, "CgiGetTmp: "
+		       "could not open temp file %s: %s",
+		       modPtr->server, tmp, strerror(errno));
 	    } else {
 		tmpPtr = ns_malloc(sizeof(Tmp));
 		tmpPtr->nextPtr = NULL;

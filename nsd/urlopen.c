@@ -2,7 +2,7 @@
  * The contents of this file are subject to the AOLserver Public License
  * Version 1.1 (the "License"); you may not use this file except in
  * compliance with the License. You may obtain a copy of the License at
- * http://aolserver.lcs.mit.edu/.
+ * http://aolserver.com/.
  *
  * Software distributed under the License is distributed on an "AS IS"
  * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
@@ -33,7 +33,7 @@
  *	Make outgoing HTTP requests.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/urlopen.c,v 1.2 2000/05/02 14:39:30 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/urlopen.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -53,12 +53,6 @@ typedef struct Stream {
 
 static int GetLine(Stream *sPtr, Ns_DString *dsPtr);
 static int FillBuf(Stream *sPtr);
-
-/*
- * Static variables defined in this file
- */
-
-static Ns_ModLogHandle logHandle;
 
 
 /*
@@ -141,7 +135,7 @@ Ns_FetchURL(Ns_DString *dsPtr, char *url, Ns_Set *headers)
     request = Ns_ParseRequest(ds.string);
     if (request == NULL || request->protocol == NULL ||
 	!STREQ(request->protocol, "http") || request->host == NULL) {
-        Ns_ModLog(Notice, logHandle, "%s: invalid url", url);
+        Ns_Log(Notice, "Ns_FetchUrl: invalid url: %s", url);
         goto done;
     }
     if (request->port == 0) {
@@ -149,9 +143,9 @@ Ns_FetchURL(Ns_DString *dsPtr, char *url, Ns_Set *headers)
     }
     sock = Ns_SockConnect(request->host, request->port);    
     if (sock == INVALID_SOCKET) {
-         Ns_ModLog(Error, logHandle, "%s: connect() failed: %s",
-		   url, ns_sockstrerror(ns_sockerrno));
-	 goto done;
+	Ns_Log(Error, "Ns_FetchUrl: connect() failed: %s on url %s",
+	       ns_sockstrerror(ns_sockerrno), url);
+	goto done;
     }
 
     /*
@@ -169,8 +163,8 @@ Ns_FetchURL(Ns_DString *dsPtr, char *url, Ns_Set *headers)
     while (tosend > 0) {
         n = send(sock, p, tosend, 0);
         if (n == SOCKET_ERROR) {
-            Ns_ModLog(Error, logHandle, "%s: send() failed: %s",
-		      url, ns_sockstrerror(ns_sockerrno));
+            Ns_Log(Error, "Ns_FetchUrl: send() failed: %s on url: %s",
+		   ns_sockstrerror(ns_sockerrno), url);
 	    ns_sockclose(sock);
             goto done;
         }
@@ -242,7 +236,7 @@ Ns_FetchURL(Ns_DString *dsPtr, char *url, Ns_Set *headers)
  *	None. 
  *
  * Side effects:
- *	Will allocate a mod log handle. 
+ *	None.
  *
  *----------------------------------------------------------------------
  */
@@ -250,7 +244,7 @@ Ns_FetchURL(Ns_DString *dsPtr, char *url, Ns_Set *headers)
 void
 NsGetURLInit(void)
 {
-    NsModLogRegSubRealm("geturl", &logHandle);
+    Ns_Log(Debug, "NsGetURLInit: initialized.");
 }
 
 
@@ -344,7 +338,7 @@ FillBuf(Stream *sPtr)
     n = recv(sPtr->sock, sPtr->buf, BUFSIZE, 0);
     if (n <= 0) {
     	if (n < 0) {
-	    Ns_ModLog(Error, logHandle, "read() failed: %s", strerror(errno));
+	    Ns_Log(Error, "FillBuf: read() failed: %s", strerror(errno));
 	    sPtr->error = 1;
 	}
     	return 0;

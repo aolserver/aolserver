@@ -2,7 +2,7 @@
  * The contents of this file are subject to the AOLserver Public License
  * Version 1.1 (the "License"); you may not use this file except in
  * compliance with the License. You may obtain a copy of the License at
- * http://aolserver.lcs.mit.edu/.
+ * http://aolserver.com/.
  *
  * Software distributed under the License is distributed on an "AS IS"
  * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
@@ -34,7 +34,7 @@
  *	Routines for handling the loadable db driver interface.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/dbdrv.c,v 1.2 2000/05/02 14:39:30 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/dbdrv.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -119,8 +119,7 @@ static Tcl_HashTable driversTable;
 static void
 UnsupProcId(char *name)
 {
-    Ns_ModLog(Warning, nsDBModLogHandle,
-	      "unsupported function id:  DbFn_%s", name);
+    Ns_Log(Warning, "dbdrv: unsupported function id:  DbFn_%s", name);
 }
 
 int
@@ -131,13 +130,13 @@ Ns_DbRegisterDriver(char *driver, Ns_DbProc *procs)
 
     hPtr = Tcl_FindHashEntry(&driversTable, driver);
     if (hPtr == NULL) {
-        Ns_ModLog(Error, nsDBModLogHandle, "no such driver: %s", driver);
+        Ns_Log(Error, "Ns_DbRegisterDriver: no such driver: %s", driver);
 	return NS_ERROR;
     }
     driverPtr = (DbDriver *) Tcl_GetHashValue(hPtr);
     if (driverPtr->registered) {
-        Ns_ModLog(Error, nsDBModLogHandle, "driver already registered: %s",
-		  driver);
+        Ns_Log(Error, "Ns_DbRegisterDriver: driver already registered: %s",
+	       driver);
         return NS_ERROR;
     }
     driverPtr->registered = 1;
@@ -225,8 +224,8 @@ Ns_DbRegisterDriver(char *driver, Ns_DbProc *procs)
 		break;
 		
 	    default:
-		Ns_ModLog(Error, nsDBModLogHandle, "unknown driver id: %d",
-			  procs->id);
+		Ns_Log(Error, "Ns_DbRegisterDriver: unknown driver id: %d",
+		       procs->id);
 		return NS_ERROR;
 		break;
 	}
@@ -635,13 +634,13 @@ NsDbLoadDriver(char *driver)
         Tcl_SetHashValue(hPtr, driverPtr);
         module = Ns_ConfigGet("ns/db/drivers", driver);
         if (module == NULL) {
-	    Ns_ModLog(Error, nsDBModLogHandle, "no such driver: %s", driver);
+	    Ns_Log(Error, "NsDbLoadDriver: no such driver: %s", driver);
 	} else {
 	    path = Ns_ConfigGetPath(NULL, NULL, "db", "driver", driver, NULL);
             if (Ns_ModuleLoad(driver, path, module, "Ns_DbDriverInit")
 		    != NS_OK) {
-		Ns_ModLog(Error, nsDBModLogHandle, "could not load driver: %s",
-			  driver);
+		Ns_Log(Error, "NsDbLoadDriver: could not load driver: %s",
+		       driver);
             }
         }
     }
@@ -676,8 +675,8 @@ NsDbServerInit(DbDriver *driverPtr)
     if (driverPtr->initProc != NULL &&
 	((*driverPtr->initProc) (nsServer, "db", driverPtr->name)) != NS_OK) {
 
-	Ns_ModLog(Warning, nsDBModLogHandle, "init proc failed for driver: %s",
-		  driverPtr->name);
+	Ns_Log(Warning, "NsDbServerInit: init proc failed for driver: %s",
+	       driverPtr->name);
     }
 }
 
@@ -704,14 +703,14 @@ NsDbOpen(Ns_DbHandle *handle)
 {
     DbDriver *driverPtr = NsDbGetDriver(handle);
 
-    Ns_ModLog(Notice, nsDBModLogHandle, "opening:  %s:%s", handle->driver,
-	      handle->datasource);
+    Ns_Log(Notice, "NsDbOpen: opening:  %s:%s", handle->driver,
+	   handle->datasource);
     if (driverPtr == NULL ||
 	driverPtr->openProc == NULL ||
 	(*driverPtr->openProc) (handle) != NS_OK) {
 
-	Ns_ModLog(Error, nsDBModLogHandle, "could not open:  %s:%s",
-		  handle->driver, handle->datasource);
+	Ns_Log(Error, "NsDbOpen: could not open:  %s:%s",
+	       handle->driver, handle->datasource);
 	handle->connected = NS_FALSE;
         return NS_ERROR;
     }

@@ -2,7 +2,7 @@
  * The contents of this file are subject to the AOLserver Public License
  * Version 1.1 (the "License"); you may not use this file except in
  * compliance with the License. You may obtain a copy of the License at
- * http://aolserver.lcs.mit.edu/.
+ * http://aolserver.com/.
  *
  * Software distributed under the License is distributed on an "AS IS"
  * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
@@ -34,7 +34,7 @@
  *	Support for the slave bind/listen process.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/binder.c,v 1.2 2000/05/02 14:39:30 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/binder.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -168,12 +168,12 @@ Ns_SockListen(char *address, int port)
 	    address = "0.0.0.0";
 	}
 	if (err == 0) {
-	    Ns_Log(Notice, "binder: listen(%s, %d) = %d",
+	    Ns_Log(Notice, "binder: Ns_SockListen: listen(%s, %d) = %d",
 		   address, port, sock);
 	} else {
 	    Ns_SetSockErrno(err);
 	    sock = -1;
-	    Ns_Log(Error, "binder: listen(%s, %d) failed: %s",
+	    Ns_Log(Error, "binder: Ns_SockListen: listen(%s, %d) failed: %s",
 	           address, port, ns_sockstrerror(ns_sockerrno));
 	}
     }
@@ -272,7 +272,7 @@ NsStopBinder(void)
     Ns_MutexLock(&lock);
     if (bindRunning) {
 #ifdef __sgi
-	Ns_Log(Warning, "sgi bug: binder left running");
+	Ns_Log(Warning, "NsStopBinder: SGI bug: binder left running");
 #else
 	close(bindRequest[1]);
 	close(bindResponse[0]);

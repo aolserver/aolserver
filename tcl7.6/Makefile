@@ -19,12 +19,6 @@ $(TCLDIR)/Makefile: $(TCLDIR)/Makefile.in $(TCLDIR)/configure
 	(cd $(TCLDIR); ./configure $(ENABLE_GCC))
 
 clean:
-	(cd $(TCLDIR); $(MAKE) -f Makefile.in clean)
-
-clobber: distclean
-	$(RM) *~
-
-distclean: clean
 	(cd $(TCLDIR); $(MAKE) -f Makefile.in distclean)
 
 install: all

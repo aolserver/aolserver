@@ -2,7 +2,7 @@
  * The contents of this file are subject to the AOLserver Public License
  * Version 1.1 (the "License"); you may not use this file except in
  * compliance with the License. You may obtain a copy of the License at
- * http://aolserver.lcs.mit.edu/.
+ * http://aolserver.com/.
  *
  * Software distributed under the License is distributed on an "AS IS"
  * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
@@ -35,7 +35,7 @@
  *	pools of database handles.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/dbinit.c,v 1.2 2000/05/02 14:39:30 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/dbinit.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -125,11 +125,6 @@ static Tcl_HashTable poolsTable;
 static char    *defaultPool;
 static char    *allowedPools;
 
-/*
- * Global variables defined in this file
- */
-
-Ns_ModLogHandle  nsDBModLogHandle;
 
 
 /*
@@ -418,23 +413,24 @@ Ns_DbPoolTimedGetMultipleHandles(Ns_DbHandle **handles, char *pool,
      
     poolPtr = GetPool(pool);
     if (poolPtr == NULL) {
-	Ns_ModLog(Error, nsDBModLogHandle, "no such pool: %s", pool);
+	Ns_Log(Error, "Ns_DbPoolTimedGetMultipleHandles: "
+	       "no such pool: %s", pool);
 	return NS_ERROR;
     }
     if (poolPtr->nhandles < nwant) {
-	Ns_ModLog(Error, nsDBModLogHandle,
-		  "attempt to get %d handles from pool of %d: %s",
-		  nwant, poolPtr->nhandles, pool);
+	Ns_Log(Error, "Ns_DbPoolTimedGetMultipleHandles: "
+	       "attempt to get %d handles from pool of %d: %s",
+	       nwant, poolPtr->nhandles, pool);
 	return NS_ERROR;
     }
     ngot = (int) Ns_TlsGet(&poolPtr->ngotTls);
     if (ngot > 0) {
-	Ns_ModLog(Error, nsDBModLogHandle,
-		  "thread already owns %d handle%s from pool: %s",
-	          ngot, ngot > 1 ? "s" : "", pool);
+	Ns_Log(Error, "Ns_DbPoolTimedGetMultipleHandles: "
+	       "thread already owns %d handle%s from pool: %s",
+	       ngot, ngot > 1 ? "s" : "", pool);
 	return NS_ERROR;
     }
-
+    
     /*
      * Wait until this thread can be the exclusive thread aquireing
      * handles and then wait until all requested handles are available,
@@ -583,12 +579,6 @@ NsDbInit(void)
     register char  *p;
     int		    new, i, tcheck;
 
-    /*
-     * register the sub-realm
-     */
-
-    NsModLogRegSubRealm("db",  &nsDBModLogHandle);
-
     Ns_DStringInit(&ds);
     Tcl_InitHashTable(&poolsTable, TCL_STRING_KEYS);
 
@@ -634,8 +624,7 @@ NsDbInit(void)
 	driver = Ns_ConfigGet(path, "driver");
 	poolPtr = NULL;
 	if (driver == NULL) {
-	    Ns_ModLog(Error, nsDBModLogHandle,
-		      "no driver defined for pool: %s", pool);
+	    Ns_Log(Error, "NsDbInit: no driver defined for pool: %s", pool);
 	} else {
 	    poolPtr = CreatePool(pool, path, driver);
 	}
@@ -654,8 +643,7 @@ NsDbInit(void)
     if (defaultPool != NULL) {
     	hPtr = Tcl_FindHashEntry(&poolsTable, defaultPool);
     	if (hPtr == NULL) {
-	    Ns_ModLog(Error, nsDBModLogHandle,
-		      "no such default pool: %s", defaultPool);
+	    Ns_Log(Error, "NsDbInit: no such default pool: %s", defaultPool);
 	    defaultPool = NULL;
     	}
     }
@@ -666,7 +654,7 @@ NsDbInit(void)
      */
 
     if (poolsTable.numEntries == 0) {
-	Ns_ModLog(Debug, nsDBModLogHandle, "no configured pools");
+	Ns_Log(Debug, "NsDbInit: no configured pools");
 	allowedPools = "";
     } else {
 	tcheck = INT_MAX;
@@ -744,14 +732,12 @@ NsDbLogSql(Ns_DbHandle *handle, char *sql)
 
     if (handle->dsExceptionMsg.length > 0) {
         if (handlePtr->poolPtr->fVerboseError || handle->verbose) {
-
-            Ns_ModLog(Error, nsDBModLogHandle,
-		      "error(%s, %s): %s", handle->datasource, 
-                      handle->dsExceptionMsg.string, sql);
+	    
+            Ns_Log(Error, "NsDbLogSql: error(%s, %s): %s",
+		   handle->datasource, handle->dsExceptionMsg.string, sql);
         }
     } else if (handle->verbose) {
-        Ns_ModLog(Notice, nsDBModLogHandle,
-		  "sql(%s):  %s", handle->datasource, sql);
+        Ns_Log(Notice, "NsDbLogSql: sql(%s):  %s", handle->datasource, sql);
     }
 }
 
@@ -886,10 +872,9 @@ IsStale(Handle *handlePtr)
 	    (handlePtr->poolPtr->stale_on_close > handlePtr->stale_on_close)) {
 
 	    if (handlePtr->poolPtr->fVerbose) {
-		Ns_ModLog(Notice, nsDBModLogHandle,
-			  "closing %s handle in pool: %s", 
-			  handlePtr->tAccess < minAccess ? "idle" : "old",
-			  handlePtr->poolname);
+		Ns_Log(Notice, "IsStale: closing %s handle in pool: %s",
+		       handlePtr->tAccess < minAccess ? "idle" : "old",
+		       handlePtr->poolname);
 	    }
 	    return NS_TRUE;
 	}
@@ -1027,7 +1012,8 @@ CreatePool(char *pool, char *path, char *driver)
     }
     source = Ns_ConfigGet(path, CONFIG_SOURCE);
     if (source == NULL) {
-	Ns_Log(Error, "nsdb[%s]: required datasource missing", pool);
+	Ns_Log(Error, "nsdb[%s]: CreatePool: required datasource missing",
+	       pool);
 	return NULL;
     }
     poolPtr = ns_malloc(sizeof(Pool));

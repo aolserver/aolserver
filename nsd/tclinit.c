@@ -2,7 +2,7 @@
  * The contents of this file are subject to the AOLserver Public License
  * Version 1.1 (the "License"); you may not use this file except in
  * compliance with the License. You may obtain a copy of the License at
- * http://aolserver.lcs.mit.edu/.
+ * http://aolserver.com/.
  *
  * Software distributed under the License is distributed on an "AS IS"
  * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
@@ -34,7 +34,7 @@
  *	Initialization routines for Tcl.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.2 2000/05/02 14:39:30 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -177,11 +177,6 @@ static Tcl_HashTable builtinCmds;
 static int         initTid;
 static Tcl_Interp *initInterp;
 
-/*
- * Ns_ModLogHandle for Ns_ModLog
- */
-
-Ns_ModLogHandle    nsTclModLogHandle;
 
 
 /*
@@ -543,12 +538,6 @@ NsTclInit(void)
     Tcl_Interp     *interp;
 
     /*
-     * register the sub-realm 
-     */
-
-    NsModLogRegSubRealm("tcl", &nsTclModLogHandle);
-
-    /*
      * Initialize the Tcl core.
      */
 
@@ -678,7 +667,7 @@ NsTclRunInits(void)
     Ns_MutexUnlock(&lock);
     
     if (initPtr != NULL) {
-	Ns_ModLog(Notice, nsTclModLogHandle, "re-initalizing tcl"); 
+	Ns_Log(Notice, "NsTclRunInits: re-initalizing tcl"); 
 	while (initPtr != NULL) {
 	    nextPtr = initPtr->nextPtr;
 	    interp = Ns_TclAllocateInterp(NULL);
@@ -1037,13 +1026,13 @@ static int
 CheckStarting(char *funcName)
 {
     if (Ns_ThreadId() != initTid) {
-    	Ns_ModLog(Error, nsTclModLogHandle,
-		  "attempt to call NsTcl%s in a child thread", funcName);
+    	Ns_Log(Error, "CheckStarting: "
+	       "attempt to call NsTcl%s in a child thread", funcName);
     	return NS_FALSE;
     }
     if (Ns_InfoServersStarted()) {
-	Ns_ModLog(Error, nsTclModLogHandle,
-		  "attempt to call NsTcl%s after startup", funcName);
+	Ns_Log(Error, "CheckStarting: "
+	       "attempt to call NsTcl%s after startup", funcName);
 	return NS_FALSE;
     }
 
@@ -1102,17 +1091,17 @@ SourceDirFile(Ns_DString *dsPtr, char *file)
     len = dsPtr->length;
     file = Ns_DStringVarAppend(dsPtr, "/", file, NULL);
     if (stat(file, &st) != 0) {
-	Ns_ModLog(Warning, nsTclModLogHandle,
-		  "could not stat %s: %s", file, strerror(errno));
+	Ns_Log(Warning, "SourceDirFile: "
+	       "could not stat %s: %s", file, strerror(errno));
     } else if (!S_ISREG(st.st_mode)) {
-	Ns_ModLog(Warning, nsTclModLogHandle,
-		  "not an ordinary file: %s", file);
+	Ns_Log(Warning, "SourceDirFile: "
+	       "not an ordinary file: %s", file);
     } else if (access(file, R_OK) != 0) {
-	Ns_ModLog(Warning, nsTclModLogHandle,
-		  "not readable %s: %s", file, strerror(errno));
+	Ns_Log(Warning, "SourceDirFile: "
+	       "not readable %s: %s", file, strerror(errno));
     } else {
     	interp = Ns_TclAllocateInterp(NULL);
-	Ns_ModLog(Notice, nsTclModLogHandle, "sourcing: %s", file);
+	Ns_Log(Notice, "SourceDirFile: sourcing: %s", file);
 	if (Tcl_EvalFile(interp, file) != TCL_OK) {
 	    Ns_TclLogError(interp);
 	}
