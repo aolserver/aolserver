@@ -27,11 +27,24 @@
  * either the License or the GPL.
  */
 
+/*
+ * test.c -
+ *
+ *	Collection of thread interface tests.  This code is somewhat sloppy
+ *	but contains several examples of of using conditions, mutexes,
+ *	thread local storage, and creating/joining threads.
+ */
 
 #include "nsthread.h"
-#undef Ns_ThreadMalloc
+#ifndef USE_SPROC
+#include <pthread.h>
+#endif
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/test.c,v 1.6 2000/10/20 21:54:09 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/test.c,v 1.7 2000/10/22 20:36:38 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+
+/*
+ * Collection of synchronization objects for tests.
+ */
 
 static Ns_Mutex block;
 static Ns_Mutex mlock;
@@ -45,6 +58,11 @@ static Ns_Mutex dlock;
 static Ns_Cond  dcond;
 static int      dstop;
 
+/*
+ * Msg -
+ *
+ *	Simple message logger with thread id and name.
+ */
 
 void
 Msg(char *fmt,...)
@@ -68,9 +86,14 @@ Msg(char *fmt,...)
     va_end(ap);
 }
 
+/*
+ * TlsLogArg -
+ *
+ *	Log and then free TLS slot data at thread exit.
+ */ 
 
 void
-junk(void *arg)
+TlsLogArg(void *arg)
 {
     int            *ip = arg;
 
@@ -78,19 +101,39 @@ junk(void *arg)
     ns_free(ip);
 }
 
+/*
+ * RecursiveStackCheck, CheckStackThread -
+ *
+ *	Thread which recursively probes stack for max depth.
+ */
+
 int
-CheckStack(int n)
+RecursiveStackCheck(int n)
 {
     if (Ns_CheckStack() == NS_OK) {
-	n = CheckStack(n);
+	n = RecursiveStackCheck(n);
     }
     ++n;
     return n;
 }
 
+void 
+CheckStackThread(void *arg)
+{
+    int n;
+
+    n = RecursiveStackCheck(0);
+    Ns_ThreadExit((void *) n);
+}
+
+/*
+ * WorkThread -
+ *
+ *	Thread which exercies a varity of sync objects and TLS.
+ */
 
 void
-thread(void *arg)
+WorkThread(void *arg)
 {
     int             i = (int) arg;
     int            *ip;
@@ -155,18 +198,11 @@ thread(void *arg)
     Ns_ThreadExit((void *) i);
 }
 
-
-void
-PauseThread(void *arg)
-{
-    int             n = (int) arg;
-
-    Ns_ThreadSetName("-pausethread-");
-    Msg("sleep %d seconds start", n);
-    sleep(n);
-    Msg("sleep %d seconds end", n);
-}
-
+/*
+ * AtExit -
+ *
+ *	Test of atexit() handler.
+ */
 
 void
 AtExit(void)
@@ -174,6 +210,11 @@ AtExit(void)
     Msg("atexit handler called!");
 }
 
+/*
+ * MemThread, MemTime -
+ *
+ *	Time allocations of malloc and zippy ns_malloc.
+ */
 
 #define NA 10000
 
@@ -208,7 +249,6 @@ MemThread(void *arg)
 	}
     }
 }
-
 
 void
 MemTime(int ns)
@@ -246,8 +286,15 @@ MemTime(int ns)
 }
 
 
+/*
+ * DumpLocks, DumpThreads, DumperThread -
+ *
+ *	Thread which continuously dumps the list of locks, threads,
+ *	and zippy memory usage.
+ */
+
 void
-DumpLock(Ns_MutexInfo * infoPtr, void *arg)
+DumpLocks(Ns_MutexInfo * infoPtr, void *arg)
 {
     printf("%32s: %s %10lu %10lu\n", infoPtr->name,
 	   infoPtr->owner ? infoPtr->owner : "(unlocked)",
@@ -255,15 +302,14 @@ DumpLock(Ns_MutexInfo * infoPtr, void *arg)
 }
 
 void
-DumpThread(Ns_ThreadInfo * iPtr, void *ignored)
+DumpThreads(Ns_ThreadInfo * iPtr, void *ignored)
 {
     printf("\t%d(%d): %s %s %p %p %s", iPtr->tid, iPtr->flags, iPtr->name, iPtr->parent,
 	   iPtr->proc, iPtr->arg, ns_ctime(&iPtr->ctime));
 }
 
-
 void
-Dumper(void *arg)
+DumperThread(void *arg)
 {
     Ns_Time         to;
 
@@ -276,9 +322,9 @@ Dumper(void *arg)
 	Ns_CondTimedWait(&dcond, &dlock, &to);
 	Ns_MutexLock(&mlock);
 	printf("current threads:\n");
-	Ns_ThreadEnum(DumpThread, NULL);
+	Ns_ThreadEnum(DumpThreads, NULL);
 	printf("current locks:\n");
-	Ns_MutexEnum(DumpLock, NULL);
+	Ns_MutexEnum(DumpLocks, NULL);
 	printf("memory stats:\n");
 	Ns_ThreadMemStats(stdout);
 	Ns_MutexUnlock(&mlock);
@@ -287,18 +333,84 @@ Dumper(void *arg)
     Ns_MutexUnlock(&block);
 }
 
+#ifndef USE_SPROC
 
-int
-main(int argc, char *argv[])
+/*
+ * Routines to test compatibility with pthread-created
+ * threads, i.e., that non-Ns_ThreadCreate'd threads
+ * can call Ns API's which will cleanup at thread exit.
+ */
+
+static Ns_Mutex plock;
+static Ns_Cond pcond;
+static int pgo;
+
+void
+PthreadTlsCleanup(void *arg)
+{
+    int i = (int) arg;
+    printf("pthread[%d]: log: %d\n", pthread_self(), i);
+}
+
+void *
+Pthread(void *arg)
+{
+    static Ns_Tls tls;
+
+    /* 
+     * Allocate TLS first time (this is recommended TLS
+     * self-initialization style.
+     */
+
+    if (tls == NULL) {
+	Ns_MasterLock();
+	if (tls == NULL) {
+	     Ns_TlsAlloc(&tls, PthreadTlsCleanup);
+	}
+	Ns_MasterUnlock();
+    }
+
+    Ns_TlsSet(&tls, arg);
+
+    /*
+     * Wait for exit signal from main().
+     */
+
+    Ns_MutexLock(&plock);
+    while (!pgo) {
+	Ns_CondWait(&pcond, &plock);
+    }
+    Ns_MutexUnlock(&plock);
+    return arg;
+}
+
+#endif
+
+/*
+ * main -
+ *
+ *	Fire off a bunch of weird threads to exercise the thread
+ *	interface.
+ */
+
+int main(int argc, char *argv[])
 {
     int             i, code;
     Ns_Thread       threads[10];
     Ns_Thread       self, dumper;
     extern int      nsMemPools;
+#ifndef USE_SPROC
+    pthread_t tids[10];
+    void *arg;
+#endif
 
     nsThreadMutexMeter = 1;
-    Ns_ThreadSetName("-main-");
     nsMemPools = 1;
+    Ns_ThreadSetName("-main-");
+
+    /*
+     * Jump directly to memory test if requested. 
+     */
 
     if (argv[1] != NULL && argv[1][0] == 'm') {
 	i = atoi(argv[1] + 1);
@@ -307,7 +419,8 @@ main(int argc, char *argv[])
 	}
 	goto mem;
     }
-    Ns_ThreadCreate(Dumper, NULL, 0, &dumper);
+
+    Ns_ThreadCreate(DumperThread, NULL, 0, &dumper);
     Ns_MutexSetName(&lock, "startlock");
     Ns_MutexSetName(&dlock, "dumplock");
     Ns_MutexSetName(&mlock, "msglock");
@@ -316,16 +429,13 @@ main(int argc, char *argv[])
     Ns_SemaInit(&sema, 3);
     Msg("sema initialized to 3");
     atexit(AtExit);
-    Ns_ThreadCreate(PauseThread, (void *) 1, 0, NULL);
-    Ns_ThreadCreate(PauseThread, (void *) 50, 0, NULL);
-    Ns_ThreadCreate(PauseThread, (void *) 10, 0, NULL);
     Msg("pid = %d", getpid());
-    Ns_TlsAlloc(&key, junk);
+    Ns_TlsAlloc(&key, TlsLogArg);
     for (i = 0; i < 10; ++i) {
-	Msg("starting thread %d", i);
-	Ns_ThreadCreate(thread, (void *) i, 0, &threads[i]);
+	Msg("starting work thread %d", i);
+	Ns_ThreadCreate(WorkThread, (void *) i, 0, &threads[i]);
     }
-    sleep(2);
+    sleep(1);
     /* Ns_CondSignal(&cond); */
     Ns_SemaPost(&sema, 10);
     Msg("sema post 10");
@@ -339,6 +449,22 @@ main(int argc, char *argv[])
 	Ns_ThreadJoin(&threads[i], (void **) &code);
 	Msg("thread %d exited - code: %d", i, code);
     }
+#ifndef USE_SPROC
+    for (i = 0; i < 10; ++i) {
+	pthread_create(&tids[i], NULL, Pthread, (void *) i);
+	printf("pthread: create %d = %d\n", i, tids[i]);
+	Ns_ThreadYield();
+    }
+    Ns_ThreadMemStats(stdout);
+    Ns_MutexLock(&plock);
+    pgo = 1;
+    Ns_MutexUnlock(&plock);
+    Ns_CondBroadcast(&pcond);
+    for (i = 0; i < 10; ++i) {
+	pthread_join(tids[i], &arg);
+	printf("pthread: join %d = %d\n", i, (int) arg);
+    }
+#endif
     Ns_ThreadSelf(&self);
     Ns_MutexLock(&dlock);
     dstop = 1;
@@ -346,11 +472,18 @@ main(int argc, char *argv[])
     Ns_MutexUnlock(&dlock);
     Ns_ThreadJoin(&dumper, NULL);
     Msg("threads joined");
+    for (i = 0; i < 10; ++i) {
+	Ns_ThreadCreate(CheckStackThread, NULL, 8192*(i+1), &threads[i]);
+    }
+    for (i = 0; i < 10; ++i) {
+        Ns_ThreadJoin(&threads[i], &arg);
+	printf("check stack %d = %d\n", i, (int) arg);
+    }
+    Ns_ThreadEnum(DumpThreads, NULL);
+    Ns_MutexEnum(DumpLocks, NULL);
 mem:
     MemTime(0);
     MemTime(1);
-    Ns_ThreadEnum(DumpThread, NULL);
-    Ns_MutexEnum(DumpLock, NULL);
     Ns_ThreadMemStats(stdout);
     return 0;
 }
