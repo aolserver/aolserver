@@ -28,7 +28,7 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/init.tcl,v 1.21 2003/06/25 21:34:09 mpagenva Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/init.tcl,v 1.22 2003/06/25 21:50:56 mpagenva Exp $
 #
 
 #
@@ -446,8 +446,10 @@ proc _ns_getscript n {
             ::switch -- $_var {
                 _var -
                 _import -
+                env -
                 _script {
                     continue ; # skip local help variables
+                               # env should also be skipped as redundent.
                 }
                 default {
                     ::if {[::info exists [::namespace current]::$_var]} {
