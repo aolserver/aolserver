@@ -32,7 +32,7 @@
  *
  *	Private nsthread library include.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/thread.h,v 1.2 2002/06/12 11:31:05 jgdavidson Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/thread.h,v 1.3 2002/09/16 19:43:07 jgdavidson Exp $
  */
 
 #ifndef THREAD_H
@@ -40,9 +40,6 @@
 
 #include "nsthread.h"
 #include <pthread.h>
-#ifdef __APPLE__
-  #include "osxcompat.h"
-#endif
 
 extern void NsThreadFatal(char *func, char *osfunc, int err);
 extern void NsInitMaster(void);
