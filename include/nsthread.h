@@ -32,7 +32,7 @@
  *
  *	Core threading and system headers.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/nsthread.h,v 1.24 2003/02/04 22:55:08 jrasmuss23 Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/nsthread.h,v 1.25 2003/12/24 17:00:18 scottg Exp $
  */
 
 #ifndef NSTHREAD_H
@@ -135,7 +135,7 @@ NS_EXTERN int closedir(DIR *dp);
 #define NS_THREAD_DETACHED	1
 #define NS_THREAD_JOINED	2
 #define NS_THREAD_EXITED	4
-#define NS_THREAD_NAMESIZE	32
+#define NS_THREAD_NAMESIZE	64
 #define NS_THREAD_MAXTLS	100
 
 /*

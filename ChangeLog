@@ -1,5 +1,9 @@
 2003-12-24  Scott S. Goodwin <scott@scottg.net>
 
+	* include/nsthread.h: Bumped up NS_THREAD_NAMESIZE from 32 to 64.
+	Mutex names were being truncated, making it impossible to distinguish
+	mutexes with longer names when looking at stats.
+
         * nscgi/nscgi.c: Changed HTTPS env variable to be set to "on" or "off"
 	instead of "1" or "0". There doesn't appear to be any standard for
 	this, but Apache uses the on/off string in the environment.
