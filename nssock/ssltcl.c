@@ -52,7 +52,7 @@
  *
  */
 
-static const char *RCSID = "@(#): $Header: /Users/dossy/Desktop/cvs/aolserver/nssock/Attic/ssltcl.c,v 1.3 2000/09/06 22:41:59 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#): $Header: /Users/dossy/Desktop/cvs/aolserver/nssock/Attic/ssltcl.c,v 1.4 2000/12/12 22:53:27 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 #include "ssl.h"
@@ -149,13 +149,12 @@ Nsssle_Init(Tcl_Interp *interp)
     Ns_Log(Notice, "nsssl: "
 	   "40-bit export encryption version starting in stand-alone mode");
     InitCommands(interp);
+    return TCL_OK;
 #else
     Ns_Log(Fatal, "nsssl: "
 	   "128-bit domestic encryption not supported by this module");
     return TCL_ERROR;
 #endif    
-
-    return TCL_OK;
 }
 
 
@@ -186,9 +185,8 @@ Nsssl_Init(Tcl_Interp *interp)
     Ns_Log(Notice, "nsssl: "
 	   "128-bit domestic encryption version starting in stand-alone mode");
     InitCommands(interp);
-#endif
-    
     return TCL_OK;
+#endif
 }
 
 

@@ -47,7 +47,7 @@
  *
  */
 
-static const char *RCSID = "@(#): $Header: /Users/dossy/Desktop/cvs/aolserver/nssock/Attic/ssl.c,v 1.3 2000/12/12 18:48:43 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#): $Header: /Users/dossy/Desktop/cvs/aolserver/nssock/Attic/ssl.c,v 1.4 2000/12/12 22:53:27 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 #include "ssl.h"
@@ -1730,7 +1730,7 @@ KeyMaterial(SSLConn * con, unsigned char *dest, char *num)
     }
 
     if (num != NULL &&
-	B_DigestUpdate(con->digester, num,
+	B_DigestUpdate(con->digester, (unsigned char *)num,
 		       strlen(num), NULL) != 0) {
 	return NS_ERROR;
     }
