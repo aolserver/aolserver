@@ -34,7 +34,7 @@
  *	Ns_Time support routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/time.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/time.c,v 1.4 2000/10/18 15:35:04 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "thread.h"
 
@@ -64,7 +64,7 @@ Ns_GetTime(Ns_Time *timePtr)
 
     _ftime(&tb);
     timePtr->sec = tb.time;
-    timePtr->usec = tb.millitm;
+    timePtr->usec = tb.millitm * 1000;
 #else
     struct timezone tz;
     struct timeval tv;
