@@ -33,7 +33,7 @@
  *	Support for the configuration file
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/config.c,v 1.13 2002/06/10 22:35:32 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/config.c,v 1.14 2002/06/19 10:22:17 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #define ISSLASH(c)      ((c) == '/' || (c) == '\\')
@@ -383,7 +383,6 @@ NsConfigRead(char *file)
 void
 NsConfigEval(char *config, int argc, char **argv, int optind)
 {
-    const char *err;
     char buf[20];
     Tcl_Interp *interp;
     Ns_Set     *set;
@@ -394,7 +393,7 @@ NsConfigEval(char *config, int argc, char **argv, int optind)
      */
 
     set = NULL;
-    interp = Tcl_CreateInterp();
+    interp = Ns_TclCreateInterp();
     Tcl_CreateCommand(interp, "ns_section", SectionCmd, &set, NULL);
     Tcl_CreateCommand(interp, "ns_param", ParamCmd, &set, NULL);
     for (i = 0; argv[i] != NULL; ++i) {
@@ -406,11 +405,8 @@ NsConfigEval(char *config, int argc, char **argv, int optind)
     Tcl_SetVar(interp, "optind", buf, TCL_GLOBAL_ONLY);
     NsTclAddCmds(NULL, interp);
     if (Tcl_Eval(interp, config) != TCL_OK) {
-	err = Tcl_GetVar(interp, "errorInfo", TCL_GLOBAL_ONLY);
-	if (err == NULL) {
-	    err = Tcl_GetStringResult(interp);
-	}
-	Ns_Fatal("config: script error: %s", err);
+	Ns_TclLogError(interp);
+	Ns_Fatal("config error");
     }
     Tcl_DeleteInterp(interp);
 }
