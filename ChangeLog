@@ -1,3 +1,14 @@
+2004-08-25  Dossy Shiobara <dossy@panoptic.com>
+
+	* nsd/queue.c (1.23.2.1): If reqPtr is NULL, close the connection
+	  too.
+
+2004-08-25  Dossy Shiobara <dossy@panoptic.com>
+
+	* nsd/driver.c (1.17.2.8): Previous code to eat leading blanks
+	  assumed CR/LF, but some clients only send LF.  Code has been
+	  cleaned up and corrected to handle this properly.
+
 2004-08-20  Dossy Shiobara <dossy@panoptic.com>
 
 	* Makefile (1.44.2.2), tests/new/all.tcl (1.1.2.1),
