@@ -176,6 +176,7 @@ struct _nsconf {
 
     struct {
 	bool checkexit;
+	bool vfork;
     } exec;
 
     struct {

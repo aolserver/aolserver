@@ -33,7 +33,7 @@
  *	Various core configuration.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsconf.c,v 1.19 2001/05/02 15:50:34 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsconf.c,v 1.20 2001/05/10 08:58:57 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #include "nsconf.h"
@@ -156,6 +156,7 @@ NsConfInit(void)
      */
      
     nsconf.exec.checkexit = GetBool("checkexitcode", EXEC_CHECKEXIT_BOOL);
+    nsconf.exec.vfork = GetBool("enablevfork", EXEC_VFORK_BOOL);
 
     /*
      * keepalive.c

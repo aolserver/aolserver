@@ -34,7 +34,7 @@
  *	Implement ns_fork.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/fork.c,v 1.1 2000/10/13 00:08:13 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/fork.c,v 1.2 2001/05/10 08:58:57 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "thread.h"
 
@@ -42,7 +42,7 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thr
 /*
  *----------------------------------------------------------------------
  *
- * ns_fork --
+ * ns_fork, nv_vfork --
  *
  *	Posix style fork(), using fork1() on Solaris if needed.
  *
@@ -73,4 +73,14 @@ int
 Ns_Fork(void)
 {
     return ns_fork();
+}
+
+int
+ns_vfork(void)
+{
+#ifdef HAVE_VFORK
+    return vfork();
+#else
+    return ns_fork();
+#endif
 }

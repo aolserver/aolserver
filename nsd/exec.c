@@ -28,7 +28,7 @@
  */
 
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/exec.c,v 1.11 2001/03/28 01:08:33 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/exec.c,v 1.12 2001/05/10 08:58:57 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -39,7 +39,12 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
 #ifdef WIN32
 #include <process.h>
 #else
-static void     ExecFailed(int errPipe, char *errBuf, char *fmt, ...);
+#define ERR_DUP_0	1
+#define ERR_DUP_1	2
+#define ERR_DUP_IN	3
+#define ERR_DUP_OUT	4
+#define ERR_CHDIR	5
+#define ERR_EXEC	6
 #endif
 static char   **Args2Argv(Ns_DString *dsPtr, char *args);
 static char   **Set2Argv(Ns_DString *dsPtr, Ns_Set *set);
@@ -392,9 +397,9 @@ Ns_ExecArgv(char *exec, char *dir, int fdin, int fdout,
     pid = Ns_ExecArgblk(exec, dir, fdin, fdout, args, env);
     Ns_DStringFree(&ads);
 #else
+    struct iovec iov[2];
     int    errpipe[2];
-    int    nread;
-    char   errbuf[200];
+    int    nread, status, err;
     Ns_DString eds, vds;
     char **envp;
     char  *argvSh[4];
@@ -440,69 +445,113 @@ Ns_ExecArgv(char *exec, char *dir, int fdin, int fdout,
 	fdout = 1;
     }
 
-    pid = ns_fork();
+    /*
+     * The following struct iov is used to return two integers
+     * from the child process to describe any error setting up
+     * or creating the new process.
+     */
+
+    err = status = 0;
+    iov[0].iov_base = (caddr_t) &err;
+    iov[1].iov_base = (caddr_t) &status;
+    iov[0].iov_len = iov[1].iov_len = sizeof(int);
+
+    /*
+     * Fork the child, using vfork if available and enabled.
+     */
+
+    if (nsconf.exec.vfork) {
+    	pid = ns_vfork();
+    } else {
+    	pid = ns_fork();
+    }
     if (pid < 0) {
         Ns_Log(Error, "exec: failed to fork '%s': '%s'", exec, strerror(errno));
         close(errpipe[0]);
         close(errpipe[1]);
-    } else if (pid == 0) {	/* child */
+    } else if (pid == 0) {
+	/*
+	 * Setup the child and exec the new process.
+	 */
+
         close(errpipe[0]);
         if (dir != NULL && chdir(dir) != 0) {
-            ExecFailed(errpipe[1], errbuf, "%dchdir(\"%.150s\")", errno, dir);
-        }
-	if (fdin == 1) {
-	    fdin = dup(1);
-            if (fdin == -1) {
-                ExecFailed(errpipe[1], errbuf, "%ddup(1)", errno);
-            }
-	}
-	if (fdout == 0) {
-	    fdout = dup(0);
-            if (fdout == -1) {
-                ExecFailed(errpipe[1], errbuf, "%ddup(0)", errno);
-            }
-	}
-        if (fdin != 0) {
-            if (dup2(fdin, 0) == -1) {
-                ExecFailed(errpipe[1], errbuf, "%ddup2(%d, 0)", errno, fdin);
-            }
-	    if (fdin != fdout) {
+	    status = ERR_CHDIR;
+        } else if (fdin == 1 && (fdin = dup(1)) < 0) {
+	    status = ERR_DUP_1;
+	} else if (fdout == 0 && (fdout = dup(0)) < 0) {
+	    status = ERR_DUP_0;
+	} else if (fdin != 0 && dup2(fdin, 0) < 0) {
+	    status = ERR_DUP_IN;
+	} else if (fdout != 1 && dup2(fdout, 1) < 0) {
+	    status = ERR_DUP_OUT;
+	} else {
+	    if (fdin > 2) {
 		close(fdin);
 	    }
-        }
-        if (fdout != 1) {
-            if (dup2(fdout, 1) == -1) {
-                ExecFailed(errpipe[1], errbuf, "%ddup2(%d, 1)", errno, fdout);
-            }
-            close(fdout);
-        }
-        NsRestoreSignals();
-	Ns_NoCloseOnExec(0);
-	Ns_NoCloseOnExec(1);
-	Ns_NoCloseOnExec(2);
-        execve(exec, argv, envp);
-        ExecFailed(errpipe[1], errbuf, "%dexecve()", errno);
+	    if (fdout > 2) {
+            	close(fdout);
+	    }
+            NsRestoreSignals();
+	    Ns_NoCloseOnExec(0);
+	    Ns_NoCloseOnExec(1);
+	    Ns_NoCloseOnExec(2);
+            execve(exec, argv, envp);
+	    status = ERR_EXEC;
+	}
+
+	/*
+	 * Send error status message to parent and exit.
+	 */
+
+	err = errno;
+	(void) writev(errpipe[1], iov, 2);
+	_exit(1);
 	
-    } else {	/* parent */
-	
+    } else {
+	/*
+	 * Read error status from the child if any.
+	 */
+
         close(errpipe[1]);
-        nread = read(errpipe[0], errbuf, sizeof(errbuf) - 1);
+        nread = readv(errpipe[0], iov, 2);
         close(errpipe[0]);
         if (nread != 0) {
             if (nread < 0) {
-		Ns_Log(Error, "exec: "
-		       "error reading from process '%s' (pid %d): '%s'",
+		Ns_Log(Error, "exec: %s: error reading status from child %d: %s",
 		       exec, pid, strerror(errno));
             } else if (nread > 0) {
-                char *msg;
-		int   err;
-		
-                errbuf[nread] = '\0';
-                err = strtol(errbuf, &msg, 10);
-                Ns_Log(Error, "exec: "
-		       "failed to execute '%s': failed to read '%s': '%s'",
-		       exec, msg, strerror(err));
+		switch (status) {
+		case ERR_CHDIR:
+                    Ns_Log(Error, "exec %s: chdir(%s) failed: %s", exec,
+			dir, strerror(err));
+		    break;
+		case ERR_DUP_1:
+		case ERR_DUP_0:
+                    Ns_Log(Error, "exec %s: dup(%d) failed: %s", exec,
+			(status == ERR_DUP_0 ? 0 : 1), strerror(err));
+		    break;
+		case ERR_DUP_IN:
+		case ERR_DUP_OUT:
+                    Ns_Log(Error, "exec %s: dup2(%d, %d) failed: %s", exec,
+			(status == ERR_DUP_IN ? fdin : fdout),
+			(status == ERR_DUP_IN ? 0 : 1), strerror(err));
+		    break;
+		case ERR_EXEC:
+                    Ns_Log(Error, "exec %s: execve() failed: %s", exec,
+			strerror(err));
+		    break;
+		default: 
+                    Ns_Log(Error, "exec %s: invalid status code from child %d: %d",
+			exec, pid, status);
+		    break;
+		}
             }
+
+	    /*
+	     * Reap the failed child now to avoid zombies.
+	     */
+
             waitpid(pid, NULL, 0);
             pid = -1;
         }
@@ -573,34 +622,3 @@ Set2Argv(Ns_DString *dsPtr, Ns_Set *env)
     Ns_DStringNAppend(dsPtr, "", 1);
     return Ns_DStringAppendArgv(dsPtr);
 }
-
-
-/*
- *----------------------------------------------------------------------
- * ExecFailed --
- *
- *      Write a formatted message why exec failed and then exit.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-#ifndef WIN32
-static void
-ExecFailed(int errPipe, char *errBuf, char *fmt, ...)
-{
-    va_list ap;
-
-    va_start(ap, fmt);
-    vsprintf(errBuf, fmt, ap);
-    va_end(ap);
-    write(errPipe, errBuf, strlen(errBuf));
-
-    _exit(1);
-}
-#endif

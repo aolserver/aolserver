@@ -32,7 +32,7 @@
  *
  *	Core threading and system headers.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/nsthread.h,v 1.16 2001/04/26 18:42:31 jgdavidson Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/nsthread.h,v 1.17 2001/05/10 08:58:57 jgdavidson Exp $
  */
 
 #ifndef NSTHREAD_H
@@ -280,6 +280,7 @@ NS_EXTERN void Ns_CsLeave(Ns_Cs *csPtr);
  */
 
 NS_EXTERN int ns_fork(void);
+NS_EXTERN int ns_vfork(void);
 NS_EXTERN int Ns_Fork(void);
 
 /*
