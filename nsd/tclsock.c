@@ -34,7 +34,7 @@
  *	Tcl commands that let you do TCP sockets. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclsock.c,v 1.19 2004/06/19 18:05:32 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclsock.c,v 1.20 2004/06/19 21:33:28 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -406,24 +406,34 @@ NsTclSockOpenObjCmd(
             }
             async = 1;
         } else if (STREQ(opt, "-localhost")) {
-            lhost = Tcl_GetString(objv[++first]);
-            if (*lhost == 0) {
-                goto badhost;
-            }
-        } else if (STREQ(opt, "-timeout")) {
-            if (async) {
+            if (++first >= objc) {
                 goto syntax;
             }
-            if (Tcl_GetIntFromObj(interp, objv[++first], &timeout) != TCL_OK) {
+            lhost = Tcl_GetString(objv[first]);
+            if (*lhost == 0) {
+                Tcl_AppendStringsToObj(Tcl_GetObjResult(interp),
+                        "invalid hostname: must not be empty", NULL);
+                return TCL_ERROR;
+            }
+        } else if (STREQ(opt, "-timeout")) {
+            if (++first >= objc || async) {
+                goto syntax;
+            }
+            if (Tcl_GetIntFromObj(interp, objv[first], &timeout) != TCL_OK) {
                 return TCL_ERROR;
             }
         } else if (STREQ(opt, "-localport")) {
-            if (Tcl_GetIntFromObj(interp, objv[++first], &lport) != TCL_OK) {
+            if (++first >= objc) {
+                goto syntax;
+            }
+            if (Tcl_GetIntFromObj(interp, objv[first], &lport) != TCL_OK) {
                 return TCL_ERROR;
             }
-            if (port < 0) {
-                val = Tcl_GetString(objv[first+1]);
-                goto badport;
+            if (lport < 0) {
+                val = Tcl_GetString(objv[first]);
+                Tcl_AppendStringsToObj(Tcl_GetObjResult(interp),
+                        "invalid port: ", val, "; must be > 0", NULL);
+                return TCL_ERROR;
             }
         } else {
             Tcl_AppendStringsToObj(Tcl_GetObjResult(interp),
@@ -431,7 +441,7 @@ NsTclSockOpenObjCmd(
             return TCL_ERROR;   
         }
     }
-    
+
     if ((objc - first) != 2) {
         goto syntax;
     }
@@ -442,7 +452,6 @@ NsTclSockOpenObjCmd(
 
     host = Tcl_GetString(objv[first]);
     if (*host == 0) {
-      badhost:
         Tcl_AppendStringsToObj(Tcl_GetObjResult(interp),
                 "invalid hostname: must not be empty", NULL);
         return TCL_ERROR;
@@ -455,10 +464,9 @@ NsTclSockOpenObjCmd(
     if (Tcl_GetIntFromObj(interp, objv[first+1], &port) != TCL_OK) {
         return TCL_ERROR;
     } else if (port < 0) {
-      badport:
         val = Tcl_GetString(objv[first+1]);
         Tcl_AppendStringsToObj(Tcl_GetObjResult(interp),
-                "invalid port: ", val, "; must be positive integer", NULL);
+                "invalid port: ", val, "; must be > 0", NULL);
         return TCL_ERROR;
     }
 
