@@ -33,7 +33,7 @@
  *      All the public types and function declarations for the core
  *	AOLserver.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.22 2001/03/28 01:08:33 jgdavidson Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.23 2001/04/02 19:36:12 jgdavidson Exp $
  */
 
 #ifndef NS_H
@@ -588,6 +588,8 @@ NS_EXTERN int Ns_ConnCopyToChannel(Ns_Conn *conn, size_t ncopy, Tcl_Channel chan
 NS_EXTERN int Ns_ConnCopyToFile(Ns_Conn *conn, size_t ncopy, FILE *fp);
 NS_EXTERN int Ns_ConnCopyToFd(Ns_Conn *conn, size_t ncopy, int fd);
 NS_EXTERN int Ns_ConnFlushContent(Ns_Conn *conn);
+NS_EXTERN void Ns_ConnSetEncoding(Ns_Conn *conn, Tcl_Encoding encoding);
+NS_EXTERN Tcl_Encoding Ns_ConnGetEncoding(Ns_Conn *conn);
 NS_EXTERN int Ns_ConnModifiedSince(Ns_Conn *conn, time_t inTime);
 NS_EXTERN char *Ns_ConnGets(char *outBuffer, size_t inSize, Ns_Conn *conn);
 NS_EXTERN int Ns_ConnReadHeaders(Ns_Conn *conn, Ns_Set *set, int *nreadPtr);
@@ -877,7 +879,10 @@ NS_EXTERN char *Ns_GetMimeType(char *file);
  * encoding.c:
  */
 
-NS_EXTERN Tcl_Encoding Ns_GetEncoding(char *charset);
+NS_EXTERN Tcl_Encoding Ns_GetEncoding(char *name);
+NS_EXTERN Tcl_Encoding Ns_GetFileEncoding(char *file);
+NS_EXTERN Tcl_Encoding Ns_GetTypeEncoding(char *type);
+NS_EXTERN Tcl_Encoding Ns_GetCharsetEncoding(char *charset);
 
 /*
  * modload.c:
