@@ -137,7 +137,7 @@ ifeq (SunOS,$(shell uname))
     # LDSO=$(LD) -G
     CFLAGS+=-D_POSIX_PTHREAD_SEMANTICS -fPIC -Wall -Wno-unused
     NSDLIBS=-lm
-    LIBS+=-lsocket -lnsl -ldl -lposix4 -lpthread -lresolv -R $(RPATH)
+    LIBS+=-lsocket -lnsl -ldl -lposix4 -lthread -lresolv -R $(RPATH)
     LD=/usr/ccs/bin/ld
     AR=/usr/ccs/bin/ar
     CFLAGS+=-DUSE_PTHREAD_SYSSCOPE=1 -DUSE_DUPHIGH=1 -DHAVE_FORK1=1
