@@ -1,0 +1,8 @@
+$Header: /Users/dossy/Desktop/cvs/aolserver/nsingres/Attic/INSTALL,v 1.1.1.1 2004/09/13 14:54:23 dossy Exp $
+
+To build nsingres:
+
+$ II_SYSTEM=/home/ingres/II; export II_SYSTEM
+$ make
+$ make install
+
