@@ -1,5 +1,11 @@
 2004-08-11  Dossy Shiobara <dossy@panoptic.com>
 
+	* nsd/nsconf.c (1.32.2.3): Inability to resolve nsconf.hostname to
+	  set nsconf.address is no longer fatal, and instead defaults to
+	  "0.0.0.0".  Fixes SF Bug #994072.  Backported from HEAD.
+
+2004-08-11  Dossy Shiobara <dossy@panoptic.com>
+
 	* nsd/driver.c (1.17.2.7): Fixed crash bug when virtual servers are
 	  configured, but the "hostname" parameter didn't match any of the
 	  virtual servers.  Fixed by introducing new "defaultserver"
