@@ -34,7 +34,7 @@
  *	Manage the server log file.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/log.c,v 1.26 2004/06/23 15:18:59 rcrittenden0569 Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/log.c,v 1.27 2004/10/06 18:50:29 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -218,6 +218,9 @@ Ns_Fatal(char *fmt, ...)
     va_start(ap, fmt);
     Log(Fatal, fmt, ap);
     va_end(ap);
+    if (nsconf.debug) {
+	abort();
+    }
     _exit(1);
 }
 

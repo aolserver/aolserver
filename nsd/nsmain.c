@@ -33,7 +33,7 @@
  *	AOLserver Ns_Main() startup routine.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.58 2004/09/21 00:47:20 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.59 2004/10/06 18:50:29 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #ifdef _WIN32
@@ -84,7 +84,6 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 #ifndef _WIN32
     uid_t	   uid = 0;
     gid_t	   gid = 0;
-    int		   debug = 0;
     int	   	   mode = 0;
     char	  *root = NULL;
     char	  *garg = NULL;
@@ -228,7 +227,7 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 	    break;
 	    break;
         case 'd':
-	    debug = 1;
+	    nsconf.debug = 1;
             break;
 	case 'g':
 	    garg = optarg;
@@ -424,7 +423,7 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
      * new threads inherit the blocked state.
      */
 
-    NsBlockSignals(debug);
+    NsBlockSignals(nsconf.debug);
 
 #endif
 
@@ -666,10 +665,12 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 
     NsStartSchedShutdown(); 
     NsStartSockShutdown();
+    NsStartQueueShutdown();
     NsStartJobsShutdown();
     NsStartShutdownProcs();
     NsWaitSchedShutdown(&timeout);
     NsWaitSockShutdown(&timeout);
+    NsWaitQueueShutdown(&timeout);
     NsWaitJobsShutdown(&timeout);
     NsWaitDriversShutdown(&timeout);
     NsWaitShutdownProcs(&timeout);
