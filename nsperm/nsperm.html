@@ -1,0 +1,53 @@
+<html>
+<head>
+  <title>nsperm</title>
+</head>
+<body bgcolor="#ffffff">
+<h2>nsperm -- Access Control (Permissions) Module</h2>
+<pre>$Header: /Users/dossy/Desktop/cvs/aolserver/nsperm/nsperm.html,v 1.1 2000/10/10 18:03:51 kriston Exp $
+</pre>
+<br>
+<a href="#Theory_of_Operation">Theory of Operation</a><br>
+<a href="#Known_Issues">Known Issues</a><br>
+<a href="#Sample_Configuration">Sample Configuration</a><br>
+<br>
+<br>
+<h3><a name="Theory_of_Operation"></a>Theory of Operation</h3>
+An AOLserver "filter" is registered for every connection.&nbsp; This filter looks
+ at Tcl hash tables to determine the access controls for the URL and presents
+ an HTTP authentication challenge if appropriate.<br>
+<br>
+<h3><a name="Known_Issues"></a>Known Issues</h3>
+There is some confusion as to whether the locks are being implemented in
+ the correct way for this module.<br>
+<br>
+You can change permissions while a server is running, but there is currently
+ no easy way to permanently save those permissions to the configuration file.&nbsp;
+ The configuration file is read-only at the moment.<br>
+<br>
+<h3><a name="Sample_Configuration"></a>Sample Configuration</h3>
+There are no global configuration parameters for nsperm at this time.&nbsp; A
+ sample set of permission records is in servers/server1/modules/nsperm.<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+</body>
+</html>
