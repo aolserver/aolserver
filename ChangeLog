@@ -1,3 +1,17 @@
+2004-08-16  Dossy Shiobara <dossy@panoptic.com>
+
+	* nsd/driver.c (1.34): Win32 platform doesn't support mmap().
+	  Maybe should define HAVE_MMAP instead in the future.
+
+2004-08-16  Dossy Shiobara <dossy@panoptic.com>
+
+	* win32/build.tcl (1.5): Add new limits.c and pools.c to nsd.dll
+	  target.
+
+2004-08-16  Dossy Shiobara <dossy@panoptic.com>
+
+	* nsd/tclcmds.c (1.41): Alphabetize list of Tcl ObjCmd procs.
+
 2004-08-14  Jim Davidson <jgdavidson@aol.com>
 
 	* nsd/nsd.h
