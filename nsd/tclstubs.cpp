@@ -63,6 +63,15 @@ typedef struct Block {
 
 char *nsTclVersion = TCL_VERSION;
 
+
+void
+NsTclFinalizeThread(void)
+{
+#if TCL_MAJOR_VERSION >= 8
+   Tcl_FinalizeThread();
+#endif
+}
+
 
 /*
  *----------------------------------------------------------------------

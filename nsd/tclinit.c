@@ -34,7 +34,7 @@
  *	Initialization routines for Tcl.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.10 2001/01/16 22:57:04 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.11 2001/03/08 18:49:03 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -1245,6 +1245,7 @@ FreeData(void *arg)
     	DeleteInterp(tdPtr);
     }
     ns_free(tdPtr);
+    NsTclFinalizeThread();
 }
 
 
