@@ -32,7 +32,7 @@
  *
  *	Private nsthread library include.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/thread.h,v 1.3 2002/09/16 19:43:07 jgdavidson Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/thread.h,v 1.3.2.1 2002/09/17 23:05:26 jgdavidson Exp $
  */
 
 #ifndef THREAD_H

@@ -33,7 +33,7 @@
  *	Mutex locks with metering.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/mutex.c,v 1.2 2002/06/12 11:32:00 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/mutex.c,v 1.2.2.1 2002/09/17 23:05:26 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "thread.h"
 
