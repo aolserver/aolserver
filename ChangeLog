@@ -1,3 +1,8 @@
+2003-04-07  Mark Page  <mpagenva@aol.com>
+
+	* nsd/tclthread.c (NsTclThread): ensure that the server has
+	completed it's initializtion prior to initiating TclEval.
+
 2003-04-04  Mark Page  <mpagenva@aol.com>
 
 	* nsd/tclinit.c:
