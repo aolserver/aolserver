@@ -62,15 +62,13 @@ extern void	__exit(int);
 
 /*
  * The following structure maintains the sproc-specific state of a
- * process thread including queue pointers for startup, exit, and
- * condition wait and the process id.  The pid is stored in two
- * locations because the order of update and visibility of a single
- * update cannot be guaranteed.
+ * process thread including pointers for the run and condition
+ * queues and a wakeup pointer for "rolling" condition broadcast.
  */
 
 typedef struct Sproc {
     int     	   pid;     	/* Thread initialized pid. */
-    struct Sproc  *nextRunPtr; 	/* Next starting, free, or running Sproc */
+    struct Sproc  *nextRunPtr; 	/* Next starting, exiting, or running Sproc */
     struct Sproc  *nextWaitPtr;	/* Next Sproc in CondWait. */
     struct Sproc  *wakeupPtr;	/* Next Sproc to wakeup from CondWait. */
     struct Thread *thrPtr;  	/* Pointer to NsThread structure. */
@@ -125,7 +123,7 @@ static void	CheckHUP(void);
 static usptr_t *GetArena(void);
 static int      StartSproc(Sproc *sPtr);
 static int	GetWakeup(Sproc *sPtr);
-static void	WakeupSproc(int pid);
+static void	SendWakeup(int pid);
 static Sproc   *InitSproc(void);
 static int      shutdownPending;
 
@@ -160,15 +158,13 @@ NsThreadLibName(void)
  *
  * NsMutexInit --
  *
- *	Allocate and initialize a mutex in the arena.  Note this function
- *	is rarley called directly as static NULL mutexes are now self
- *  	initalized when first locked.
+ *	Allocate and initialize a mutex in the arena.
  *
  * Results:
  *	None.
  *
  * Side effects:
- *	None.
+ *	Allocated uslock is stored in given lockPtr.
  *
  *----------------------------------------------------------------------
  */
@@ -225,9 +221,7 @@ NsMutexDestroy(void **lockPtr)
  *	None.
  *
  * Side effects:
- *  	Lock is aquired after a possible spin or blocking wait and
- *  	any global memory modified until the cooresponding Ns_MutexUnlock
- *  	will be made visible to all processors.
+ *  	Thread may wait.
  *
  *----------------------------------------------------------------------
  */
@@ -252,7 +246,7 @@ NsMutexLock(void **lockPtr)
  *	NS_OK if locked, NS_TIMEOUT otherwise.
  *
  * Side effects:
- *  	See Ns_MutexLock.
+ *  	See NsMutexLock.
  *
  *----------------------------------------------------------------------
  */
@@ -283,9 +277,7 @@ NsMutexTryLock(void **lockPtr)
  *	None.
  *
  * Side effects:
- *  	Lock is released, some other thread is possibly resumed,
- *  	and visibility of any modified global data is guaranteed
- *  	in all processors.
+ *  	Some other thread may resume.
  *
  *----------------------------------------------------------------------
  */
@@ -397,7 +389,7 @@ Ns_CondSignal(Ns_Cond *condPtr)
     }
     Ns_MutexUnlock(&cPtr->lock);
     if (sPtr != NULL) {
-	WakeupSproc(wakeup);
+	SendWakeup(wakeup);
     }
 }
 
@@ -408,8 +400,10 @@ Ns_CondSignal(Ns_Cond *condPtr)
  * Ns_CondBroadcast --
  *
  *	Broadcast a condition by resuming the first waiting thread.
- *	The first thread will then signal the next thread in
- *	Ns_CondTimedWait.
+ *	The first thread will then signal the next thread in when
+ *	exiting Ns_CondTimedWait which is signal the next and so
+ *	on resulting an a rolling wakeup which avoids lock contention
+ *	from all thread waking up at once.
  *
  * Results:
  *	None.
@@ -428,6 +422,11 @@ Ns_CondBroadcast(Ns_Cond *condPtr)
     int            wakeup;
 
     Ns_MutexLock(&cPtr->lock);
+
+    /*
+     * Mark each thread to wakeup the next thread on the queue.
+     */
+
     sPtr = cPtr->waitPtr;
     while (sPtr != NULL) {
 	sPtr->wakeupPtr = sPtr->nextWaitPtr;
@@ -440,7 +439,7 @@ Ns_CondBroadcast(Ns_Cond *condPtr)
     }
     Ns_MutexUnlock(&cPtr->lock);
     if (sPtr != NULL) {
-	WakeupSproc(wakeup);
+	SendWakeup(wakeup);
     }
 }
 
@@ -522,7 +521,7 @@ Ns_CondTimedWait(Ns_Cond *condPtr, Ns_Mutex *mutexPtr, Ns_Time *timePtr)
     sPtr->nextWaitPtr = NULL;
 
     /*
-     * Unlock the coordinating mutex and wait for a wakeup signal
+     * Unlock the associated mutex and wait for a wakeup signal
      * or timeout.  Note that because the state of the sproc is check
      * and the relative timeout is recalculated on each interation of
      * the loop it's safe to receive the wakeup signal multiple times,
@@ -586,7 +585,7 @@ Ns_CondTimedWait(Ns_Cond *condPtr, Ns_Mutex *mutexPtr, Ns_Time *timePtr)
 
     /*
      * Check for the next sproc to wakeup in the case of
-     * a broadcast.
+     * a rolling broadcast (see Ns_CondBroadcast).
      */
 
     wakeupPtr = sPtr->wakeupPtr;
@@ -596,7 +595,7 @@ Ns_CondTimedWait(Ns_Cond *condPtr, Ns_Mutex *mutexPtr, Ns_Time *timePtr)
     }
 
     /*
-     * Unlock the condition and lock the coordinating mutex.
+     * Unlock the condition and lock the associated mutex.
      */
     
     Ns_MutexUnlock(&cPtr->lock);
@@ -607,7 +606,7 @@ Ns_CondTimedWait(Ns_Cond *condPtr, Ns_Mutex *mutexPtr, Ns_Time *timePtr)
      */
 
     if (wakeupPtr != NULL) {
-	WakeupSproc(wakeup);
+	SendWakeup(wakeup);
     }
 
     Ns_MutexLock(mutexPtr);
@@ -625,34 +624,35 @@ Ns_CondTimedWait(Ns_Cond *condPtr, Ns_Mutex *mutexPtr, Ns_Time *timePtr)
 /*
  *----------------------------------------------------------------------
  *
- * WakeupSproc --
+ * GetWakeup, SendWakeup --
  *
- *	Wakeup a process sleeping on a condition variable queue.
+ *	Get/send a signal to wakeup a sproc from condition wait. The
+ *	wakup is in two parts so the kill() can be sent after the lock
+ *	is released.
  *
  * Results:
- *	None.
+ *	GetWakeup:  Pid to pass to SendWakup.
  *
  * Side effects:
- *	First process is removed from the queue, marked running and
- *	signaled with SIGHUP.
+ *	GetWakeup:  Sets Sproc to running.
  *
  *----------------------------------------------------------------------
  */
-
-static void
-WakeupSproc(int pid)
-{
-    if (kill(pid, SIGHUP) != 0) {
-    	NsThreadError("WakeupSproc: kill(%d, SIGHUP) failed: %s", 
-	    pid, strerror(errno));
-    }
-}
 
 static int
 GetWakeup(Sproc *sPtr)
 {
     sPtr->state = SprocRunning;
     return sPtr->pid;
+}
+
+static void
+SendWakeup(int pid)
+{
+    if (kill(pid, SIGHUP) != 0) {
+    	NsThreadError("SendWakeup: kill(%d, SIGHUP) failed: %s", 
+	    pid, strerror(errno));
+    }
 }
 
 
@@ -667,7 +667,8 @@ GetWakeup(Sproc *sPtr)
  *	None.
  *
  * Side effects:
- *	New process is sproc'ed by manager thread.
+ *	New process is queued for start by manager thread which itself
+ *	is created when first needed.
  *
  *----------------------------------------------------------------------
  */
@@ -699,7 +700,8 @@ NsThreadCreate(Thread *thrPtr)
     }
     
     /*
-     * Allocate a new sproc and queue for start.
+     * Allocate a new sproc and queue for start, triggering 
+     * wakeup if necessary.
      */
      
     sPtr = ns_calloc(1, sizeof(Sproc));
@@ -713,7 +715,6 @@ NsThreadCreate(Thread *thrPtr)
     sPtr->nextRunPtr = firstStartPtr;
     firstStartPtr = sPtr;
     Ns_MutexUnlock(&mgrLock);
-
     if (trigger) {
 	MgrTrigger();
     }
@@ -805,6 +806,7 @@ NsGetThread(void)
 
     thrPtr = sPtr->thrPtr;
     if (thrPtr == NULL) {
+	/* NB: Unlike pthread/win32, only possible for init thread. */
 	thrPtr = NsNewThread();
 	NsSetThread(thrPtr);
     }
@@ -908,7 +910,7 @@ ns_sigmask(int how, sigset_t * set, sigset_t * oset)
  *	None.
  *
  * Side effects:
- *	Start condition may be signaled.
+ *	None.
  *
  *----------------------------------------------------------------------
  */
@@ -1126,7 +1128,7 @@ CheckHUP(void)
  *  	the initial thread when creating the manager.
  *
  * Results:
- *	None.
+ *	New process id.
  *
  * Side effects:
  *	Process will be created with all attributes shared.
@@ -1402,6 +1404,9 @@ fork(void)
 
     	sPtr = GETSPROC();
 	sPtr->pid = getpid();
+	if (sPtr->thrPtr != NULL) {
+	    sPtr->thrPtr->tid = sPtr->pid;
+	}
     }
     return pid;
 }
