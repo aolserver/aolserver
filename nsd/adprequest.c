@@ -33,7 +33,7 @@
  *	ADP connection request support.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adprequest.c,v 1.20 2005/01/16 03:25:06 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adprequest.c,v 1.21 2005/01/17 14:01:10 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -101,7 +101,7 @@ Ns_AdpRequestEx(Ns_Conn *conn, char *file, Ns_Time *ttlPtr)
 {
     Conn	     *connPtr = (Conn *) conn;
     Tcl_Interp       *interp;
-    Tcl_DString	      rds, tds;
+    Tcl_DString	      rds;
     NsInterp         *itPtr;
     int               result;
     char             *type, *start;
@@ -126,13 +126,13 @@ Ns_AdpRequestEx(Ns_Conn *conn, char *file, Ns_Time *ttlPtr)
     servPtr = itPtr->servPtr;
 
     /*
-     * Set the response type and output buffers.
+     * Set the response buffer and default size.
      */
 
     Tcl_DStringInit(&rds);
-    Tcl_DStringInit(&tds);
     itPtr->adp.responsePtr = &rds;
     itPtr->adp.outputPtr = itPtr->adp.responsePtr;
+    itPtr->adp.bufsize = itPtr->servPtr->adp.bufsize;
 
     /*
      * Determine the output type.  This will set both the input
@@ -167,7 +167,6 @@ Ns_AdpRequestEx(Ns_Conn *conn, char *file, Ns_Time *ttlPtr)
      */
 
     itPtr->adp.flags = (itPtr->servPtr->adp.flags & (ADP_GZIP|ADP_TRACE));
-    itPtr->adp.bufsize = itPtr->servPtr->adp.bufsize;
 
     /*
      * Queue the Expires header if enabled.
@@ -214,7 +213,6 @@ Ns_AdpRequestEx(Ns_Conn *conn, char *file, Ns_Time *ttlPtr)
     itPtr->adp.debugInit = 0;
     itPtr->adp.debugFile = NULL;
     Tcl_DStringFree(&rds);
-    Tcl_DStringFree(&tds);
 
     if (result != TCL_OK) {
 	return NS_ERROR;
