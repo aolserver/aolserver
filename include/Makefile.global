@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Makefile.global,v 1.46 2002/02/16 00:13:37 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Makefile.global,v 1.47 2002/02/16 00:41:05 jgdavidson Exp $
 #
 
 #
@@ -150,6 +150,7 @@ ifneq (,$(findstring FreeBSD,$(uname)))
         CFLAGS+=-mcpu=pentium
     endif
     LDSO=ld -Bshareable -x
+    RPATH = $(RFLAG) $(AOLSERVER)/lib 
     CFLAGS+=-D_THREAD_SAFE=1 -DNO_TIMEZONE=1 -DHAVE_TIMEGM=1 -DNO__ENVIRON=1
 endif
 
