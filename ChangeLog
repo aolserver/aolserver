@@ -1,3 +1,8 @@
+2003-01-16  Elizabeth Thomas <eathomas93@aol.com>
+
+        * nsd/tclmisc.c: Fix WordEndsInSemi so that ns_striphtml correctly
+        * handles ampersands that are not followed by a space or semicolon
+
 2002-11-06  Jeremy Collins <jcollins@phpsource.net>
 
         * nsd/adpparse.c: Changed ParseAtts to make it compatible with
