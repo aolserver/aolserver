@@ -34,7 +34,7 @@
  *	Tcl commands that do stuff to the filesystem. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclfile.c,v 1.20 2005/01/02 15:49:22 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclfile.c,v 1.21 2005/01/02 18:24:26 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #ifdef _WIN32
@@ -42,6 +42,15 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
 #else
 #include <utime.h>
 #endif
+
+/*
+ * Structure handling one registered channel for the [ns_chan] command
+ */
+
+typedef struct _NsRegChan {
+    char *name;
+    Tcl_Channel chan;
+} NsRegChan;
 
 static void SpliceChannel(Tcl_Interp *interp, Tcl_Channel chan);
 static void UnspliceChannel(Tcl_Interp *interp, Tcl_Channel chan);
@@ -1016,7 +1025,8 @@ NsTclChanObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST obj
     NsInterp *itPtr = arg;
     NsServer *servPtr = itPtr->servPtr;
     Tcl_Channel chan = NULL;
-    char *name;
+    char *name, *chanName;
+    NsRegChan *regChan;
     int new, shared;
     Tcl_HashTable *tabPtr;
     Tcl_HashEntry *hPtr;
@@ -1043,12 +1053,9 @@ NsTclChanObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST obj
 	    Tcl_WrongNumArgs(interp, 1, objv, "create channel name");
 	    return TCL_ERROR;
 	}
-	chan = Tcl_GetChannel(interp, Tcl_GetString(objv[2]), NULL);
+	chanName = Tcl_GetString(objv[2]);
+	chan = Tcl_GetChannel(interp, chanName, NULL);
 	if (chan == (Tcl_Channel)NULL) {
-	    return TCL_ERROR;
-	}
-	if (!Tcl_IsChannelRegistered(interp, chan)) {
-	    Tcl_SetResult(interp, "channel is not registered", TCL_STATIC);
 	    return TCL_ERROR;
 	}
 	if (Tcl_IsChannelShared(chan)) {
@@ -1059,7 +1066,11 @@ NsTclChanObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST obj
 	Ns_MutexLock(&servPtr->chans.lock);
 	hPtr = Tcl_CreateHashEntry(&servPtr->chans.table, name, &new);
 	if (new) {
-	    Tcl_SetHashValue(hPtr, chan);
+	    regChan = Ns_Malloc(sizeof(NsRegChan));
+	    regChan->name = Ns_Malloc(strlen(chanName)+1);
+	    regChan->chan = chan;
+	    strcpy(regChan->name, chanName);
+	    Tcl_SetHashValue(hPtr, regChan);
 	}
 	Ns_MutexUnlock(&servPtr->chans.lock);
 	if (!new) {
@@ -1080,7 +1091,7 @@ NsTclChanObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST obj
 	Ns_MutexLock(&servPtr->chans.lock);
 	hPtr = Tcl_FindHashEntry(&servPtr->chans.table, name);
 	if (hPtr != NULL) {
-	    chan = (Tcl_Channel)Tcl_GetHashValue(hPtr);
+	    regChan = (NsRegChan*)Tcl_GetHashValue(hPtr);
 	    Tcl_DeleteHashEntry(hPtr);
 	}
 	Ns_MutexUnlock(&servPtr->chans.lock);
@@ -1089,10 +1100,10 @@ NsTclChanObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST obj
 		    "no such shared channel: ", name, NULL);
 	    return TCL_ERROR;
 	}
-	SpliceChannel(interp, chan);
-	Tcl_SetResult(interp, (char*)Tcl_GetChannelName(chan), TCL_VOLATILE);
+	SpliceChannel(interp, regChan->chan);
+	Tcl_SetResult(interp, regChan->name, TCL_VOLATILE);
 	hPtr = Tcl_CreateHashEntry(&itPtr->chans, name, &new);
-	Tcl_SetHashValue(hPtr, chan);
+	Tcl_SetHashValue(hPtr, regChan);
 	break;
 
     case CPutIdx:
@@ -1107,18 +1118,20 @@ NsTclChanObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST obj
 		   "no such shared channel: ", name, NULL);
 	    return TCL_ERROR;
 	}
-	chan = Tcl_GetHashValue(hPtr);
-	if (!Tcl_IsChannelRegistered(interp, chan)) {
+	regChan = (NsRegChan*)Tcl_GetHashValue(hPtr);
+    chan = Tcl_GetChannel(interp, regChan->name, NULL);
+	if (chan == (Tcl_Channel)NULL || chan != regChan->chan) {
 	    Tcl_DeleteHashEntry(hPtr);
-	    Tcl_AppendStringsToObj(Tcl_GetObjResult(interp),
-		   "shared channel closed: ", name, NULL);
+        if (chan != regChan->chan) {
+            Tcl_SetResult(interp, "channel mismatch", TCL_STATIC);
+        }
 	    return TCL_ERROR;
 	}
-	UnspliceChannel(interp, chan);
+	UnspliceChannel(interp, regChan->chan);
 	Tcl_DeleteHashEntry(hPtr);
 	Ns_MutexLock(&servPtr->chans.lock);
 	hPtr = Tcl_CreateHashEntry(&servPtr->chans.table, name, &new);
-	Tcl_SetHashValue(hPtr, chan);
+	Tcl_SetHashValue(hPtr, regChan);
 	Ns_MutexUnlock(&servPtr->chans.lock);
 	break;
 
@@ -1152,20 +1165,25 @@ NsTclChanObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST obj
 	shared = (objc == 3);
 	if (shared) {
 	    Ns_MutexLock(&servPtr->chans.lock);
-	    tabPtr = &servPtr->chans.table; 
+	    tabPtr = &servPtr->chans.table;
 	} else {
 	    tabPtr = &itPtr->chans;
 	}
 	hPtr = Tcl_FirstHashEntry(tabPtr, &search);
 	while (hPtr != NULL) {
-	    chan = Tcl_GetHashValue(hPtr);
+	    regChan = (NsRegChan*)Tcl_GetHashValue(hPtr);
 	    if (shared) {
-		Tcl_Close(NULL, chan);
+		Tcl_SpliceChannel(regChan->chan);
+		Tcl_UnregisterChannel((Tcl_Interp*)NULL, regChan->chan);
+	    } else {
+		Tcl_UnregisterChannel(interp, regChan->chan);
 	    }
+	    Ns_Free(regChan->name);
+	    Ns_Free(regChan);
 	    Tcl_DeleteHashEntry(hPtr);
 	    hPtr = Tcl_NextHashEntry(&search);
 	}
-	if (objc == 3) {
+	if (shared) {
 	    Ns_MutexUnlock(&servPtr->chans.lock);
 	}
 	break;
