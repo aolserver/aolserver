@@ -33,7 +33,7 @@
  *	Routines for the core server connection threads.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/serv.c,v 1.12 2000/11/09 01:50:49 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/serv.c,v 1.13 2000/11/17 16:51:15 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -570,7 +570,8 @@ NsConnThread(void *arg)
 {
     Conn            *connPtr, **connPtrPtr;
     Ns_Time          wait, ewait, eopen, eclosed, now, *timePtr;
-    static unsigned  next = 0;
+    static unsigned int next = 0;
+    unsigned int     id;
     char             thrname[32];
     int              new, status;
     char            *p;
@@ -580,7 +581,17 @@ NsConnThread(void *arg)
     Ns_Entry	    *entry;
     
     /*
-     * Pre-allocate some structures and warm up Tcl. 
+     * Set the conn thread name.
+     */
+
+    Ns_MutexLock(&lock);
+    id = next++;
+    Ns_MutexUnlock(&lock);
+    sprintf(thrname, "-conn%d-", id); 
+    Ns_ThreadSetName(thrname);
+
+    /*
+     * Pre-allocate some sets and warm up Tcl. 
      */
 
     connPtrPtr = (Conn **) arg;
@@ -588,8 +599,11 @@ NsConnThread(void *arg)
     outputheaders = Ns_SetCreate(NULL);
     (void) Ns_TclAllocateInterp(NULL);
     Ns_TclDeAllocateInterp(NULL);
-    sprintf(thrname, "-conn%d-", next++);
-    Ns_ThreadSetName(thrname);
+
+    /*
+     * Signal that conn threads appear warmed up if necessary and
+     * start handling connections.
+     */
 
     Ns_MutexLock(&lock);
     if (++warmThreads == idleThreads) {
