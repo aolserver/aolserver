@@ -35,7 +35,7 @@
  *	data buffers.  See the corresponding manual page for details.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/reentrant.c,v 1.7 2001/03/12 21:53:47 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/reentrant.c,v 1.8 2001/03/13 23:04:55 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "thread.h"
 
@@ -75,7 +75,7 @@ GetTls(void)
 	Ns_MasterLock();
 	if (!initialized) {
 	    Ns_TlsAlloc(&tls, ns_free);
-	    initialized = 0;
+	    initialized = 1;
 	}
 	Ns_MasterUnlock();
     }
