@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/configure.in,v 1.18 2004/11/20 01:46:00 dossy Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/configure.in,v 1.19 2004/11/20 03:10:45 dossy Exp $
 #
 
 #
@@ -187,6 +187,16 @@ else
 fi
 AC_SUBST(STATIC_BUILD)
 
+AC_CACHE_CHECK([for shared libgcc], ac_cv_shared_libgcc, [
+    ac_save_LIBS="$LIBS"
+    LIBS="-lgcc_s $LIBS"
+    AC_TRY_LINK(, [return 0], ac_cv_shared_libgcc=yes, ac_cv_shared_libgcc=no)
+    LIBS="$ac_save_LIBS"
+])
+if test "$ac_cv_shared_libgcc" = "yes" ; then
+    LIBS="-lgcc_s $LIBS"
+fi
+
 has_threadsafe_dns=no
 AC_CHECK_LIB(socket, getaddrinfo)
 AC_CHECK_LIB(socket, getnameinfo)
@@ -209,15 +219,15 @@ fi
 
 AC_MSG_CHECKING([whether to include zlib compression support])
 AC_ARG_WITH(zlib,
-    [  --with-zlib=DIR         build and link with Zlib [--with-zlib]],
+    [  --with-zlib[=DIR]       build and link with Zlib [--with-zlib]],
     [
         ac_zlib=$withval
         if test "${ac_zlib}" != "no" ; then
             ac_zlib=yes
-        fi
-        if test -d "$withval" ; then
-            CPPFLAGS="$CPPFLAGS -I$withval/include"
-            LDFLAGS="$LDFLAGS -L$withval/lib"
+            if test -d "$withval" ; then
+                CPPFLAGS="$CPPFLAGS -I$withval/include"
+                LDFLAGS="$LDFLAGS -L$withval/lib"
+            fi
         fi
     ], [ac_zlib=yes])
 AC_MSG_RESULT($ac_zlib)
