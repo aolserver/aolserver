@@ -1,3 +1,8 @@
+2003-02-06  Jamie Rasmussen <jrasmuss@mle.ie>
+
+        * nsthread/winthread.c: (bug fix) SF bug 675033.
+        (bug fix) Fixed crash on second DLL_THREAD_DETACH.
+
 2003-02-05  Elizabeth Thomas <eathomas93@aol.com>
 
         * nsext.c: Fix LocalProxy function to call Ns_CloseOnExec
