@@ -33,7 +33,7 @@
  *	Initialization routines for Tcl.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.35 2003/05/20 04:32:57 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.36 2003/05/21 13:36:28 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -484,6 +484,10 @@ Ns_TclRegisterDeferred(Tcl_Interp *interp, Ns_TclDeferProc *proc,
     NsInterp   *itPtr = NsGetInterp(interp);
     Defer      *deferPtr, **nextPtrPtr;
 
+    if (itPtr == NULL) {
+        return;
+    }
+
     deferPtr = ns_malloc(sizeof(Defer));
     deferPtr->proc = proc;
     deferPtr->arg = arg;
@@ -517,7 +521,12 @@ Ns_TclRegisterDeferred(Tcl_Interp *interp, Ns_TclDeferProc *proc,
 NsInterp *
 NsGetInterp(Tcl_Interp *interp)
 {
-    return (NsInterp *) Tcl_GetAssocData(interp, "ns:data", NULL);
+    if (interp == NULL) {
+	Ns_Log(Warning, "NsGetInterp: Invalid Tcl_Interp == NULL");
+        return NULL;
+    } else {
+        return (NsInterp *) Tcl_GetAssocData(interp, "ns:data", NULL);
+    }
 }
 
 
@@ -619,8 +628,14 @@ Ns_FreeConnInterp(Ns_Conn *conn)
 Ns_Conn *
 Ns_TclGetConn(Tcl_Interp *interp)
 {
-    NsInterp *itPtr = NsGetInterp(interp);
+    NsInterp *itPtr;
 
+    if (interp == NULL) {
+        Ns_Log(Warning, "Ns_TclGetConn: interp == NULL; Valid interp value required." );
+        return NULL;
+    }
+
+    itPtr = NsGetInterp(interp);
     return (itPtr ? itPtr->conn : NULL);
 }
 
@@ -669,8 +684,14 @@ Ns_TclLibrary(char *server)
 char *
 Ns_TclInterpServer(Tcl_Interp *interp)
 {
-    NsInterp *itPtr = NsGetInterp(interp);
+    NsInterp *itPtr;
     
+    if (interp == NULL) {
+        Ns_Log(Warning, "Ns_TclInterpServer: interp == NULL; Valid interp value required." );
+        return NULL;
+    }
+
+    itPtr = NsGetInterp(interp);
     if (itPtr == NULL || itPtr->servPtr == NULL) {
 	return NULL;
     }
