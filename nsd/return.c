@@ -34,7 +34,7 @@
  *	Functions that return data to a browser. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.31 2003/08/19 22:14:58 shmooved Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.32 2003/08/19 22:30:29 shmooved Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -64,6 +64,7 @@ static struct {
 } reasons[] = {
     {100, "Continue"},
     {101, "Switching Protocols"},
+    {102, "Processing"},
     {200, "OK"},
     {201, "Created"},
     {202, "Accepted"},
@@ -97,7 +98,10 @@ static struct {
     {415, "Unsupported Media Type"},
     {416, "Requested Range Not Satisfiable"},
     {417, "Expectation Failed"},
+    {422, "Unprocessable Entity"},
     {423, "Locked"},
+    {424, "Method Failure"},
+    {425, "Insufficient Space On Resource"},
     {500, "Internal Server Error"},
     {501, "Not Implemented"},
     {502, "Bad Gateway"},
@@ -254,9 +258,9 @@ Ns_ConnConstructHeaders(Ns_Conn *conn, Ns_DString *dsPtr)
 	    connPtr->headers != NULL &&
 	    connPtr->request != NULL &&
 	    ((connPtr->responseStatus == 200 &&
-	      (lengthHdr != NULL &&
-	      connPtr->responseLength == length)|| doChunkEncoding) ||
-	     connPtr->responseStatus == 304) &&
+	    (lengthHdr != NULL &&
+	    connPtr->responseLength == length) || doChunkEncoding) ||
+	    connPtr->responseStatus == 304) &&
 	    STREQ(connPtr->request->method, "GET") &&
 	    (key = Ns_SetIGet(conn->headers, "connection")) != NULL &&
 	    STRIEQ(key, "keep-alive")) {
