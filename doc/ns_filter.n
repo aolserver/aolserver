@@ -28,7 +28,7 @@
 '\" version of this file under either the License or the GPL.
 '\" 
 '\"
-'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_filter.n,v 1.1.2.2 2002/11/12 23:35:11 scottg Exp $
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_filter.n,v 1.1.2.3 2002/11/21 03:49:18 scottg Exp $
 '\"
 '\" 
 .so man.macros
@@ -37,9 +37,11 @@
 .BS
 '\" Note:  do not modify the .SH NAME line immediately below!
 .SH NAME
-ns_register_filter, ns_register_trace \- commands
+ns_register_filter, ns_register_proc, ns_register_trace \- Register a filter, proc or trace callback
 .SH SYNOPSIS
 \fBns_register_filter \fIoption \fR?\fIarg arg ...\fR?
+.sp
+\fBns_register_proc \fIoption \fR?\fIarg arg ...\fR?
 .sp
 \fBns_register_trace \fIoption \fR?\fIarg arg ...\fR?
 .BE
