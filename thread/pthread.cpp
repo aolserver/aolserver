@@ -588,21 +588,22 @@ Ns_CondTimedWait(Ns_Cond *condPtr, Ns_Mutex *mutexPtr, Ns_Time *timePtr)
  */
 
 void
-NsSetThread(Thread *thisPtr)
+NsSetThread(Thread *thrPtr)
 {
-    pthread_t tid;
-    int err;
+    pthread_t thread;
+    int tid, err;
 
-    tid = pthread_self();
+    thread = pthread_self();
 #ifdef HAVE_PTHREAD_D4
-    thisPtr->tid = pthread_getunique_np(&tid);
+    tid = pthread_getunique_np(&thread);
 #else
-    thisPtr->tid = (int) tid;
+    tid = (int) tid;
 #endif
-    err = pthread_setspecific(GetKey(), thisPtr);
+    err = pthread_setspecific(GetKey(), thrPtr);
     if (err != 0) {
         NsThreadFatal("NsSetThread", "pthread_setspecific", err);
     }
+    NsInitThread(thrPtr, tid);
 }
 
 

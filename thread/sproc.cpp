@@ -772,12 +772,12 @@ NsThreadExit(void)
  */
 
 void
-NsSetThread(Thread *thisPtr)
+NsSetThread(Thread *thrPtr)
 {
     Sproc *sPtr = GETSPROC();
 
-    thisPtr->tid = sPtr->pid;
-    sPtr->thrPtr = thisPtr;
+    sPtr->thrPtr = thrPtr;
+    NsInitThread(thrPtr, sPtr->pid);
 }
 
 
