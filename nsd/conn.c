@@ -34,7 +34,7 @@
  *      Manage the Ns_Conn structure
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.7.2.3.2.1 2002/10/28 23:15:49 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.7.2.3.2.2 2002/11/10 15:02:07 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -1167,7 +1167,6 @@ Ns_ParseHeader(Ns_Set *set, char *line, Ns_HeaderCaseDisposition disp)
 Ns_Set  *
 Ns_ConnGetQuery(Ns_Conn *conn)
 {
-    void 	   *enc;
     Ns_DString     *dsPtr;
     Conn           *connPtr = (Conn *) conn;
     
