@@ -1,3 +1,8 @@
+2004-09-24  Dossy Shiobara <dossy@panoptic.com>
+
+	* nsd/dns.c (1.11): Small memory leak introduced on platforms w/
+	  getaddrinfo.	Closes SF Bug #1033575.
+
 2004-09-22  Dossy Shiobara <dossy@panoptic.com>
 
 	* configure (1.22), configure.in (1.17): get{addr,name}info on
