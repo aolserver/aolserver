@@ -33,7 +33,7 @@
  *	AOLserver Ns_Main() startup routine.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.30 2001/04/23 21:15:25 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.31 2001/04/24 18:55:33 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -82,7 +82,7 @@ static char *FindConfig(char *config);
 int
 Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 {
-    int            i, fd, nargs;
+    int            i, fd;
     char          *config;
     Ns_Time 	   timeout;
     char	   cwd[PATH_MAX];
@@ -175,7 +175,6 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 
     opterr = 0;
     while ((i = getopt(argc, argv, "qhpzifVl:s:t:" POPTS)) != -1) {
-	++nargs;
         switch (i) {
 	case 'l':
 	    sprintf(cwd, "TCL_LIBRARY=%s", optarg);
