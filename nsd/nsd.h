@@ -77,6 +77,9 @@
   extern int poll(struct pollfd *, unsigned long, int);
 #endif
 
+#ifdef __linux
+  #include <sys/prctl.h>
+#endif
 #ifdef __hp
   #define seteuid(i)     setresuid((-1),(i),(-1))
 #endif

@@ -33,7 +33,7 @@
  *	AOLserver Ns_Main() startup routine.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.57 2004/09/01 20:50:25 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.58 2004/09/21 00:47:20 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #ifdef _WIN32
@@ -387,6 +387,20 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 	    Ns_Fatal("nsmain: setuid(%d) failed: '%s'", uid, strerror(errno));
 	}
     }
+
+#ifdef __linux
+    /*
+     * On Linux, once a process changes uid/gid, the dumpable flag
+     * is cleared, preventing a core file from being written.  On
+     * Linux 2.4+, it can be set again using prctl() so that we can
+     * get core files.
+     */
+     
+    if (prctl(PR_SET_DUMPABLE, 1, 0, 0, 0) < 0) {
+        Ns_Fatal("nsmain: prctl(PR_SET_DUMPABLE) failed: '%s'",
+                strerror(errno));
+    }
+#endif
 
     /*
      * Fork into the background and create a new session if running 

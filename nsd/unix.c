@@ -34,7 +34,7 @@
  *	Unix specific routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/unix.c,v 1.17 2004/06/30 21:03:43 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/unix.c,v 1.18 2004/09/21 00:47:20 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #include <pwd.h>
@@ -74,6 +74,7 @@ FatalSignalHandler(int signal)
     pthread_kill_other_threads_np();
 #endif
 
+    Ns_Log(Fatal, "received fatal signal %d", signal);
     abort();
 }
 
