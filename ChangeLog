@@ -1,3 +1,16 @@
+2005-03-27  Jim Davidson <jgdavidson@aol.com>
+
+	* nsdb/dbtcl.c:  Updated ns_db to be an object command.
+
+	* nsd/driver.c:
+	* nsd/limits.c:
+	* nsd/pools.c:
+	* nsd/tcljob.c:
+	* nsd/tclrequest.c:  Fixed usage of Tcl_GetIndexFromObj.
+
+	* nsd/exec.c: Sets errno from child in parent for better
+	error messaging.
+
 2005-03-24  Jim Davidson <jgdavidson@aol.com>
 
 	Several changes to cleanup and clarify Tcl resource management,
