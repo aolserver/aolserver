@@ -1,3 +1,11 @@
+2003-10-09  Mark Page  <mpagenva@aol.com>
+
+        * TAG aolserver_v4_r0_beta_20
+        * doc/ns_job.n:
+        * tests/api/ns_job.adp:
+        * nsd/tcljob.c: Change timeout specification to be ns_time
+        based.
+	
 2003-10-21  Elizabeth Thomas <eathomas93@aol.com>
 
 	* nsd/init.tcl: Removing lazyproc code from 4.0 to enable it
