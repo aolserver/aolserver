@@ -1,3 +1,14 @@
+2004-07-18  Dossy Shiobara <dossy@panoptic.com>
+
+	* nsd/: nsd.h (1.77.2.6), init.c (1.5.2.1), nsconf.c (1.32.2.2):
+	  Ns_GetAddrByHost() reports errors via Ns_Log(), so calls to it
+	  should be done after Ns_Log has been initialized, otherwise very
+	  unhelpful error messages are produced.  In particular, this
+	  happens when the server is started and the hostname as returned
+	  by gethostname() cannot be resolved, because the network
+	  interface is down AND no entry exists in /etc/hosts.	Closes SF
+	  Bug #868362.	Backported from HEAD.
+
 2004-07-16  Dossy Shiobara <dossy@panoptic.com>
 
 	* nsd/driver.c (1.17.2.6): Setting request->method to static
