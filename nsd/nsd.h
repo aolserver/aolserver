@@ -905,6 +905,7 @@ extern int 	   NsIsIdConn(char *inID);
 extern int 	   NsTclEval(Tcl_Interp *interp, char *script);
 extern void 	   NsTclCreateGenericCmds(Tcl_Interp *);
 extern int	   NsTclShareVar(Tcl_Interp *interp, char *varName);
+extern int	   NsTclGetTime(Tcl_Interp *interp, char *time, Ns_Time *timePtr);
 
 /*
  * Callback routines.

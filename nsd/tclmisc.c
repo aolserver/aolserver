@@ -34,7 +34,7 @@
  *	Implements a lot of Tcl API commands. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclmisc.c,v 1.14 2001/03/22 21:29:43 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclmisc.c,v 1.15 2001/04/25 22:31:53 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -431,9 +431,87 @@ NsTclHTUUDecodeCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
  */
 
 int
+NsTclGetTime(Tcl_Interp *interp, char *time, Ns_Time *timePtr)
+{
+    int result, sec, usec;
+    char *sep;
+
+    sep = strchr(time, ':');
+    if (sep != NULL) {
+	*sep = '\0';
+    }
+    result = Tcl_GetInt(interp, time, &sec);
+    if (sep != NULL) {
+	*sep++ = '.';
+    }
+    if (result == TCL_OK) {
+	if (sep == NULL) {
+	    usec = 0;
+	} else {
+	    result = Tcl_GetInt(interp, sep, &usec);
+	}
+	if (result == TCL_OK) {
+	    timePtr->sec = (time_t) sec;
+	    timePtr->usec = (long) usec;
+	}
+    }
+    return result;
+}
+
+int
 NsTclTimeCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 {
-    sprintf(interp->result, "%d", (int) time(NULL));
+    char buf[100];
+    Ns_Time result, t1, t2;
+    int sec, usec;
+
+    if (argc < 2) {
+	sprintf(buf, "%d", (int) time(NULL));
+    } else {
+	if (STREQ(argv[1], "get")) {
+	    Ns_GetTime(&result);
+	} else if (STREQ(argv[1], "incr")) {
+	    if (argc != 4 && argc != 5) {
+		Tcl_AppendResult(interp, "wrong # args: should be \"",
+		    argv[1], " incr time sec ?usec?\"", NULL);
+		return TCL_ERROR;
+	    }
+	    usec = 0;
+	    if (NsTclGetTime(interp, argv[2], &result) != TCL_OK ||
+		Tcl_GetInt(interp, argv[3], &sec) != TCL_OK ||
+		(argc == 5 && Tcl_GetInt(interp, argv[4], &usec) != TCL_OK)) {
+		return TCL_ERROR;
+	    }
+	    Ns_IncrTime(&result, sec, usec);
+	} else if (STREQ(argv[1], "diff")) {
+	    if (argc != 4) {
+		Tcl_AppendResult(interp, "wrong # args: should be \"",
+		    argv[1], " diff t1 t2\"", NULL);
+		return TCL_ERROR;
+	    }
+	    if (NsTclGetTime(interp, argv[2], &t1) != TCL_OK ||
+		NsTclGetTime(interp, argv[3], &t2) != TCL_OK) {
+		return TCL_ERROR;
+	    }
+	    Ns_DiffTime(&t1, &t2, &result);
+	} else if (STREQ(argv[1], "adj")) {
+	    if (argc != 3) {
+		Tcl_AppendResult(interp, "wrong # args: should be \"",
+		    argv[1], " adj time\"", NULL);
+		return TCL_ERROR;
+	    }
+	    if (NsTclGetTime(interp, argv[2], &result) != TCL_OK) {
+		return TCL_ERROR;
+	    }
+	    Ns_AdjTime(&result);
+	} else {
+	    Tcl_AppendResult(interp, "unknown command \"", argv[1],
+		"\": should be get, incr, diff, or adj", NULL);
+	    return TCL_ERROR;
+	}
+	sprintf(buf, "%ld:%ld", (long) result.sec, result.usec);
+    }
+    Tcl_SetResult(interp, buf, TCL_VOLATILE);
     return TCL_OK;
 }
 

@@ -33,7 +33,7 @@
  *	Support for the ns_http command.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclhttp.c,v 1.3 2001/04/25 21:05:03 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclhttp.c,v 1.4 2001/04/25 22:31:53 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -96,8 +96,8 @@ NsTclHttpCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
     NsInterp *itPtr = arg;
     Http *httpPtr;
     char *cmd, buf[20], *result;
-    int state, new, status, seconds, n;
-    Ns_Time timeout;
+    int new, status, n;
+    Ns_Time timeout, now;
     Ns_Set *hdrs;
     Tcl_HashEntry *hPtr;
     Tcl_HashSearch search;
@@ -150,28 +150,23 @@ NsTclHttpCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 	sprintf(buf, "%d", HttpAbort(httpPtr));
 	Tcl_SetResult(interp, buf, TCL_VOLATILE);
 
-    } else if (STREQ(cmd, "wait") || STREQ(cmd, "abswait")) {
+    } else if (STREQ(cmd, "wait")) {
 	if (argc < 4 || argc > 6) {
 	    Tcl_AppendResult(interp, "wrong # args: should be \"",
 		argv[0], " wait id resultsVar ?timeout? ?headers?\"", NULL);
 	    return TCL_ERROR;
 	}
+	Ns_GetTime(&now);
 	if (argc < 5) {
-	    seconds = 2;
-	} else if (Tcl_GetInt(interp, argv[4], &seconds) != TCL_OK) {
+	    Ns_GetTime(&timeout);
+	    Ns_IncrTime(&timeout, 2, 0);
+	} else if (NsTclGetTime(interp, argv[4], &timeout) != TCL_OK) {
 	    return TCL_ERROR;
 	}
 	if (argc < 6) {
 	    hdrs = NULL;
 	} else if (Ns_TclGetSet2(interp, argv[5], &hdrs) != TCL_OK) {
 	    return TCL_ERROR;
-	}
-	if (*cmd == 'a') {
-	    timeout.sec = seconds;
-	    timeout.usec = 0;
-	} else {
-	    Ns_GetTime(&timeout);
-	    Ns_IncrTime(&timeout, seconds, 0);
 	}
 	hPtr = Tcl_FindHashEntry(&itPtr->https, argv[2]);
 	if (hPtr == NULL) {
@@ -274,11 +269,20 @@ HttpOpen(char *url, Ns_Set *hdrs)
 	httpPtr->state = REQ_SEND;
 	httpPtr->sock = sock;
     	Tcl_DStringInit(&httpPtr->ds);
-	Ns_DStringVarAppend(&httpPtr->ds, "GET ", file ? file+1 : "/", " HTTP/1.0\r\n", NULL);
+	if (file != NULL) {
+	    *file = '/';
+	}
+	Ns_DStringVarAppend(&httpPtr->ds, "GET ", file ? file : "/", " HTTP/1.0\r\n", NULL);
+	if (file != NULL) {
+	    *file = '\0';
+	}
 	Ns_DStringVarAppend(&httpPtr->ds,
 	    "User-Agent: ", Ns_InfoServerName(), "/", Ns_InfoServerVersion(), "\r\n"
 	    "Connection: close\r\n"
 	    "Host: ", host, "\r\n", NULL);
+	if (file != NULL) {
+	    *file = '/';
+	}
 	if (hdrs != NULL) {
 	    for (i = 0; i < Ns_SetSize(hdrs); i++) {
 		Ns_DStringVarAppend(&httpPtr->ds,
