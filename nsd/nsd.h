@@ -110,6 +110,12 @@
 #define NSD_TEXTHTML    "text/html; charset=iso-8859-1"
 
 /*
+ * Foward declaraction of NsServer structure.
+ */
+
+struct NsServer;
+
+/*
  * Typedef definitions.
  */
 
@@ -178,54 +184,114 @@ struct _nsconf {
 
 extern struct _nsconf nsconf;
 
+/*
+ * The following structure defines the entire request
+ * including HTTP request line, headers, and content.
+ */
+
+typedef struct Request {
+    struct Request *nextPtr;	/* Next on free list. */
+    Ns_Request	   *request;	/* Parsed request line. */
+    Ns_Set	   *headers;	/* Input headers. */
+    char	    peer[16];	/* Client peer address. */
+    int		    port;	/* Client peer port. */
+
+    /*
+     * The following pointers are used to access the
+     * buffer contents after the read-ahead is complete.
+     */
+
+    char	   *next;	/* Next read offset. */
+    char	   *content;	/* Start of content. */
+    int		    length;	/* Length of content. */
+    int		    avail;	/* Bytes avail in buffer. */
+
+    /*
+     * The following offsets are used to manage the 
+     * buffer read-ahead process.
+     */
+
+    int		    woff;	/* Next write buffer offset. */
+    int		    roff;	/* Next read buffer offset. */
+    int		    coff;	/* Content buffer offset. */
+
+    Tcl_DString	    buffer;	/* Request and content buffer. */
+
+} Request;
 
 /*
- * This is the internal structure for a comm driver.
+ * The following structure maitains data for each instance of
+ * a driver initialized with Ns_DriverInit.
  */
 
 typedef struct Driver {
-    struct Driver      *nextPtr;
-    char	       *server;
-    char               *label;
-    void               *arg;
-    int                 running;
 
     /*
-     * The following procs are required for all drivers.
+     * Visible in Ns_Driver.
      */
 
-    Ns_ConnReadProc         *readProc;
-    Ns_ConnWriteProc        *writeProc;
-    Ns_ConnCloseProc 	    *closeProc;
+    void	*arg;		    /* Driver callback data. */
+    char	*server;	    /* Virtual server name. */
+    char	*module;	    /* Driver module. */
+    char        *name;		    /* Driver name. */
+    char        *location;	    /* Location, e.g, "http://foo:9090" */
+    char        *address;	    /* Address in location. */
+    int     	 sendwait;	    /* send() I/O timeout. */
+    int     	 recvwait;	    /* recv() I/O timeout. */
+    int		 bufsize;	    /* Conn bufsize (0 for SSL) */
+    int		 sndbuf;	    /* setsockopt() SNDBUF option. */
+    int		 rcvbuf;	    /* setsockopt() RCVBUF option. */
 
     /*
-     * The following procs, if present, indicates the
-     * the driver is capable of connection: keep-alive.
+     * Private to Driver.
      */
 
-    Ns_ConnDetachProc       *detachProc;
-    Ns_ConnConnectionFdProc *sockProc;
+    struct Driver *nextPtr;	    /* Next in list of drivers. */
+    struct NsServer *servPtr;	    /* Driver virtual server. */
+    Ns_DriverProc *proc;	    /* Driver callback. */
+    int		 opts;		    /* Driver options. */
+    int     	 closewait;	    /* Graceful close timeout. */
+    int     	 keepwait;	    /* Keepalive timeout. */
+    SOCKET	 sock;		    /* Listening socket. */
+    char        *bindaddr;	    /* Numerical listen address. */
+    int          port;		    /* Port in location. */
+    int		 backlog;	    /* listen() backlog. */
 
-    /*
-     * The following procs are optional.
-     */
-
-    Ns_ConnDriverNameProc   *nameProc;
-    Ns_DriverStartProc      *startProc;
-    Ns_DriverStopProc       *stopProc;
-    Ns_DriverAcceptProc     *acceptProc;
-    Ns_ConnInitProc 	    *initProc;
-    Ns_ConnFreeProc 	    *freeProc;
-    Ns_ConnHostProc         *hostProc;
-    Ns_ConnPortProc         *portProc;
-    Ns_ConnLocationProc     *locationProc;
-    Ns_ConnPeerProc         *peerProc;
-    Ns_ConnPeerPortProc     *peerPortProc;
-    Ns_ConnSendFdProc       *sendFdProc;
-    Ns_ConnSendFileProc     *sendFileProc;
 } Driver;
 
-struct NsServer;
+/*
+ * The following structure maintains a socket to a
+ * connected client.  The socket is used to maintain state
+ * during request read-ahead before connection processing
+ * and keepalive after connection processing.
+ */
+
+typedef struct Sock {
+
+    /*
+     * Visible in Ns_Sock.
+     */
+
+    struct Driver *drvPtr;
+    SOCKET     sock;
+    void      *arg;
+
+    /*
+     * Private to Sock.
+     */
+
+    struct Sock *nextPtr;
+    struct sockaddr_in sa;
+    int		 keep;
+    time_t	 timeout;
+    Request	*reqPtr;
+
+} Sock;
+
+/*
+ * The following structure maintains state for a connection
+ * being processed.
+ */
 
 typedef struct Conn {
 
@@ -248,24 +314,20 @@ typedef struct Conn {
     struct NsServer *servPtr;
     struct Conn *prevPtr;
     struct Conn *nextPtr;
+    struct Driver *drvPtr;
+    struct Sock *sockPtr;
+    struct Request *reqPtr;
     int          id;
     char	 idstr[16];
     time_t	 startTime;
-    Driver      *drvPtr;
-    void        *drvData;
-    Ns_Set      *query;
-    char	*form;
-    char	*peer;
-    char	 peerBuf[32];
     Tcl_Interp  *interp;
     Tcl_Encoding encoding;
-    int          nContent;
     int          nContentSent;
     int          responseStatus;
     int          responseLength;
     int          recursionCount;
-    int		 keepAlive;
-    Ns_DString   content;
+    Ns_Set      *query;
+    Tcl_DString  files;
     void	*cls[NS_CONN_MAXCLS];
 } Conn;
 
@@ -699,6 +761,13 @@ typedef struct NsTls {
 
 } NsTls;
 
+extern int NsQueueConn(Sock *sockPtr, time_t now);
+extern int NsSockSend(Sock *sockPtr, char *buf, int nsend);
+extern void NsSockClose(Sock *sockPtr, int keep);
+
+extern Request *NsGetRequest(Sock *sockPtr);
+extern void NsFreeRequest(Request *reqPtr);
+
 extern NsTls    *NsGetTls(void);
 extern NsServer *NsGetServer(char *server);
 extern NsInterp *NsGetInterp(Tcl_Interp *interp);
@@ -756,13 +825,11 @@ extern void NsInitEncodings(void);
 extern void NsDbInitPools(void);
 extern void NsRunPreStartupProcs(void);
 extern void NsStartServers(void);
-extern void NsStartKeepAlive(void);
 extern void NsForkBinder(void);
 extern void NsStopBinder(void);
 extern void NsBlockSignals(int debug);
 extern void NsHandleSignals(void);
 extern void NsStopDrivers(void);
-extern void NsStopKeepAlive(void);
 extern void NsInitBinder(char *bindargs, char *bindfile);
 extern void NsInitServer(Ns_ServerInitProc *proc, char *server);
 extern char *NsConfigRead(char *file);
@@ -773,7 +840,7 @@ extern void NsStopServers(Ns_Time *toPtr);
 extern void NsStartServer(NsServer *servPtr);
 extern void NsStopServer(NsServer *servPtr);
 extern void NsWaitServer(NsServer *servPtr, Ns_Time *toPtr);
-extern void NsStartDrivers(char *server);
+extern void NsStartDrivers(void);
 extern void NsWaitServerWarmup(Ns_Time *);
 extern void NsWaitSockIdle(Ns_Time *);
 extern void NsWaitSchedIdle(Ns_Time *);
@@ -861,12 +928,6 @@ extern int  Ns_TclGetOpenFd(Tcl_Interp *, char *, int write, int *fp);
 extern void NsStopSockCallbacks(void);
 extern void NsStopScheduledProcs(void);
 extern void NsGetBuf(char **bufPtr, int *sizePtr);
-
-/*
- * Drivers
- */
-
-extern int 	  NsKeepAlive(Ns_Conn *connPtr);
 
 /*
  * Proxy support

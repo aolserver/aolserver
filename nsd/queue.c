@@ -34,7 +34,7 @@
  *	and service threads.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/queue.c,v 1.7 2001/04/02 19:39:03 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/queue.c,v 1.8 2001/04/23 21:16:11 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -66,12 +66,12 @@ static void AppendConnList(Tcl_DString *dsPtr, Conn *firstPtr,
 /*
  *----------------------------------------------------------------------
  *
- * Ns_QueueConn --
+ * NsQueueConn --
  *
  *	Append a connection to the run queue.
  *
  * Results:
- *	NS_OK or NS_ERROR if no more connections are available.
+ *	1 if queued, 0 otherwise.
  *
  * Side effects:
  *	Conneciton will run shortly.
@@ -80,67 +80,51 @@ static void AppendConnList(Tcl_DString *dsPtr, Conn *firstPtr,
  */
 
 int
-Ns_QueueConn(Ns_Driver driver, void *drvData)
+NsQueueConn(Sock *sockPtr, time_t now)
 {
-    NsServer *servPtr;
-    Conn *connPtr;
-    int create, status;
-
-    servPtr = NsGetServer(Ns_GetDriverServer(driver));
-    create = 0;
-
-    /*
-     * Allocate a free connection structure.
-     */
+    Driver *drvPtr = sockPtr->drvPtr;
+    NsServer *servPtr = drvPtr->servPtr;
+    Conn *connPtr = NULL;
+    int create = 0;
 
     Ns_MutexLock(&servPtr->queue.lock);
-    if (servPtr->queue.shutdown) {
-	status = NS_SHUTDOWN;
-    } else if (servPtr->queue.freePtr == NULL) {
-	status = NS_ERROR;
-    } else {
-	status = NS_OK;
+    if (!servPtr->queue.shutdown) {
 	connPtr = servPtr->queue.freePtr;
-	servPtr->queue.freePtr = connPtr->nextPtr;
-	connPtr->nextPtr = NULL;
-
-	/*
-	 * Initialize the structure and place it at the end 
-	 * of the wait queue. 
-	 */
-
-	connPtr->id = servPtr->queue.nextid++;
-	connPtr->startTime = time(NULL);
-	connPtr->drvPtr = (Driver *) driver;
-	connPtr->drvData = drvData;
-	connPtr->servPtr = servPtr;
-	if (servPtr->queue.wait.firstPtr == NULL) {
-	    servPtr->queue.wait.firstPtr = connPtr;
-	} else {
-	    servPtr->queue.wait.lastPtr->nextPtr = connPtr;
+	if (connPtr != NULL) {
+	    servPtr->queue.freePtr = connPtr->nextPtr;
+	    connPtr->startTime = now;
+	    connPtr->id = servPtr->queue.nextid++;
+	    connPtr->sockPtr = sockPtr;
+	    connPtr->drvPtr  = drvPtr;
+	    connPtr->servPtr = servPtr;
+	    if (servPtr->queue.wait.firstPtr == NULL) {
+		servPtr->queue.wait.firstPtr = connPtr;
+	    } else {
+		servPtr->queue.wait.lastPtr->nextPtr = connPtr;
+	    }
+	    servPtr->queue.wait.lastPtr = connPtr;
+	    connPtr->nextPtr = NULL;
+	    if (servPtr->threads.idle == 0 && servPtr->threads.current < servPtr->threads.max) {
+		++servPtr->threads.idle;
+		++servPtr->threads.current;
+		create = 1;
+	    }
+	    ++servPtr->queue.wait.num;
 	}
-	servPtr->queue.wait.lastPtr = connPtr;
-
-	/*
-	 * Create or signal a connection thread if necessary.
-	 */
-
-	if (servPtr->threads.idle == 0 && servPtr->threads.current < servPtr->threads.max) {
-	    ++servPtr->threads.idle;
-	    ++servPtr->threads.current;
-	    create = 1;
-	}
-	++servPtr->queue.wait.num;
-	Ns_CondSignal(&servPtr->queue.cond);
     }
     Ns_MutexUnlock(&servPtr->queue.lock);
+    if (connPtr == NULL) {
+	return 0;
+    }
     if (create) {
     	CreateConnThread(servPtr);
+    } else {
+	Ns_CondSignal(&servPtr->queue.cond);
     }
     if (servPtr->queue.yield) {
-        Ns_ThreadYield();
+	Ns_ThreadYield();
     }
-    return status;
+    return 1;
 }
 
 
@@ -425,56 +409,12 @@ NsConnThread(void *arg)
 	servPtr->queue.wait.num--;
 	argPtr->connPtr = connPtr;
     	Ns_MutexUnlock(&servPtr->queue.lock);
-	
-	/*
-	 * Re-initialize and run the connection.
-	 */
 
-	connPtr->contentLength = 0;
-	connPtr->flags = 0;
-	connPtr->nContent = 0;
-	connPtr->nContentSent = 0;
-	connPtr->responseStatus = 0;
-	connPtr->responseLength = 0;
-	connPtr->recursionCount = 0;
-	connPtr->keepAlive = 0;
-	connPtr->peer = NULL;
-	connPtr->peerBuf[0] = '\0';
-	sprintf(connPtr->idstr, "cns%d", connPtr->id);
-	connPtr->headers = Ns_SetCreate(NULL);
-	connPtr->outputheaders = Ns_SetCreate(NULL);
-	Ns_DStringInit(&connPtr->content);
+	/*
+	 * Run the connection.
+	 */
 
 	ConnRun(connPtr);
-
-	/*
-	 * Perform various garbage collection tasks.  Note
-	 * the order is significant:  The driver freeProc could
-	 * possibly use Tcl and Tcl deallocate callbacks
-	 * could possibly access header and/or request data.
-	 */
-
-	if (connPtr->interp != NULL) {
-            Ns_TclDeAllocateInterp(connPtr->interp);
-	    connPtr->interp = NULL;
-	}
-	if (connPtr->request != NULL) {
-            Ns_FreeRequest(connPtr->request);
-	    connPtr->request = NULL;
-	}
-        if (connPtr->authUser != NULL) {
-	    ns_free(connPtr->authUser);
-	    connPtr->authUser = connPtr->authPasswd = NULL;
-	}
-	if (connPtr->query != NULL) {
-	    Ns_SetFree(connPtr->query);
-	    connPtr->query = NULL;
-	}
-	connPtr->form = NULL;
-	Ns_SetFree(connPtr->headers);
-	Ns_SetFree(connPtr->outputheaders);
-	Ns_DStringFree(&connPtr->content);
-	connPtr->headers = connPtr->outputheaders = NULL;
 
 	/*
 	 * Remove from the active list and push on the free list.
@@ -548,109 +488,74 @@ static void
 ConnRun(Conn *connPtr)
 {
     Ns_Conn 	   *conn = (Ns_Conn *) connPtr;
-    Ns_DString     ds;
-    int            n, status;
-    
-    status = NS_ERROR;
-    Ns_DStringInit(&ds);
-
+    int            status;
+    char	  *auth;
+	
     /*
-     * Initialize the connection.
+     * Re-initialize and run the connection.
      */
 
-    if (Ns_ConnInit(conn) != NS_OK) {
-	goto done;
+    connPtr->reqPtr = NsGetRequest(connPtr->sockPtr);
+    if (connPtr->reqPtr == NULL) {
+	return;
     }
-
-    /*
-     * Read and parse the HTTP request line.
-     */
-
-    if (Ns_ConnReadLine(conn, &ds, &n) != NS_OK ||
-    	(connPtr->request = Ns_ParseRequest(ds.string)) == NULL) {
-        (void) Ns_ConnReturnBadRequest(conn, "Invalid HTTP request");
-        goto done;
-    }
-
-    /*
-     * Read the headers into the connection header set
-     * and parse the content-length and authorization
-     * headers.
-     */
-
+    connPtr->contentLength = connPtr->reqPtr->length;
+    connPtr->headers = connPtr->reqPtr->headers;
+    connPtr->request = connPtr->reqPtr->request;
+    connPtr->flags = 0;
+    connPtr->nContentSent = 0;
+    connPtr->responseStatus = 0;
+    connPtr->responseLength = 0;
+    connPtr->recursionCount = 0;
+    Tcl_DStringInit(&connPtr->files);
+    sprintf(connPtr->idstr, "cns%d", connPtr->id);
+    connPtr->outputheaders = Ns_SetCreate(NULL);
     if (connPtr->request->version < 1.0) {
 	conn->flags |= NS_CONN_SKIPHDRS;
-    } else {
-    	char *p;
-
-        if (Ns_ConnReadHeaders(conn, connPtr->headers, &n) != NS_OK) {
-            Ns_ConnReturnBadRequest(conn, "Invalid HTTP headers");
-            goto done;
-        }
-        p = Ns_SetIGet(connPtr->headers, "Content-Length");
-        if (p != NULL) {
-            connPtr->contentLength = atoi(p);
-        }
-        p = Ns_SetIGet(connPtr->headers, "Authorization");
-	if (p != NULL) {
-	    ParseAuth(connPtr, p);
-	}
+    }
+    auth = Ns_SetIGet(connPtr->headers, "authorization");
+    if (auth != NULL) {
+	ParseAuth(connPtr, auth);
     }
     if (conn->request->method && STREQ(conn->request->method, "HEAD")) {
 	conn->flags |= NS_CONN_SKIPBODY;
     }
 
     /*
-     * Check if this is a proxy request
+     * Run the request.
      */
 
     if (connPtr->request->protocol != NULL && connPtr->request->host != NULL) {
 	status = NsConnRunProxyRequest((Ns_Conn *) connPtr);
-	goto done;
-    }
-
-    /*
-     * Run the pre-authorization filters and, if ok, 
-     * authorize and run the request procedure.
-     */
-     
-    status = NsRunFilters(conn, NS_FILTER_PRE_AUTH);
-    if (status != NS_OK) {
-	goto done;
-    }
-
-    status = Ns_AuthorizeRequest(connPtr->servPtr->server,
-		connPtr->request->method, connPtr->request->url, 
-		connPtr->authUser, connPtr->authPasswd, 
-		Ns_ConnPeer(conn));
-
-    switch (status) {
-    case NS_OK:
-	status = NsRunFilters(conn, NS_FILTER_POST_AUTH);
+    } else {
+	status = NsRunFilters(conn, NS_FILTER_PRE_AUTH);
 	if (status == NS_OK) {
-	    status = Ns_ConnRunRequest(conn);
-	}
-	break;
+	    status = Ns_AuthorizeRequest(connPtr->servPtr->server,
+			connPtr->request->method, connPtr->request->url, 
+			connPtr->authUser, connPtr->authPasswd, connPtr->reqPtr->peer);
+	    switch (status) {
+	    case NS_OK:
+		status = NsRunFilters(conn, NS_FILTER_POST_AUTH);
+		if (status == NS_OK) {
+		    status = Ns_ConnRunRequest(conn);
+		}
+		break;
 
-    case NS_FORBIDDEN:
-	if (Ns_ConnFlushContent(conn) == NS_OK) {
-	    Ns_ConnReturnForbidden(conn);
-	}
-	break;
+	    case NS_FORBIDDEN:
+		Ns_ConnReturnForbidden(conn);
+		break;
 
-    case NS_UNAUTHORIZED:
-	if (Ns_ConnFlushContent(conn) == NS_OK) {
-	    Ns_ConnReturnUnauthorized(conn);
-	}
-	break;
+	    case NS_UNAUTHORIZED:
+		Ns_ConnReturnUnauthorized(conn);
+		break;
 
-    case NS_ERROR:
-    default:
-	Ns_ConnReturnInternalError(conn);
-	break;
+	    case NS_ERROR:
+	    default:
+		Ns_ConnReturnInternalError(conn);
+		break;
+	    }
+	}
     }
-
- done:
     Ns_ConnClose(conn);
     if (status == NS_OK || status == NS_FILTER_RETURN) {
 	status = NsRunFilters(conn, NS_FILTER_TRACE);
@@ -659,9 +564,33 @@ ConnRun(Conn *connPtr)
 	    NsRunTraces(conn);
 	}
     }
+
+    /*
+     * Perform various garbage collection tasks.  Note
+     * the order is significant:  The driver freeProc could
+     * possibly use Tcl and Tcl deallocate callbacks
+     * could possibly access header and/or request data.
+     */
+
     NsRunCleanups(conn);
     NsClsCleanup(connPtr);
-    Ns_DStringFree(&ds);
+    if (connPtr->interp != NULL) {
+        Ns_TclDeAllocateInterp(connPtr->interp);
+	connPtr->interp = NULL;
+    }
+    if (connPtr->authUser != NULL) {
+	ns_free(connPtr->authUser);
+	connPtr->authUser = connPtr->authPasswd = NULL;
+    }
+    if (connPtr->query != NULL) {
+	Ns_SetFree(connPtr->query);
+	connPtr->query = NULL;
+    }
+    Tcl_DStringFree(&connPtr->files);
+    Ns_SetFree(connPtr->outputheaders);
+    connPtr->outputheaders = NULL;
+    NsFreeRequest(connPtr->reqPtr);
+    connPtr->reqPtr = NULL;
 }
 
 

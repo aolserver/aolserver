@@ -33,7 +33,7 @@
  *	Routines for managing NsServer structures.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.8 2001/04/02 19:35:06 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.9 2001/04/23 21:16:11 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -217,6 +217,7 @@ NsInitServer(Ns_ServerInitProc *initProc, char *server)
     for (n = 0; n < maxconns - 1; ++n) {
 	connPtr = &connBufPtr[n];
 	connPtr->nextPtr = &connBufPtr[n+1];
+	connPtr->servPtr = servPtr;
     }
     connBufPtr[n].nextPtr = NULL;
     servPtr->queue.freePtr = &connBufPtr[0];
@@ -280,14 +281,14 @@ NsInitServer(Ns_ServerInitProc *initProc, char *server)
     if (!Ns_ConfigGetInt(path, "errorminsize", &servPtr->limits.errorminsize)) {
     	servPtr->limits.errorminsize = 514;
     }
-    if (!Ns_ConfigGetInt(path, "maxheaders", &servPtr->limits.maxheaders)) {
-    	servPtr->limits.maxheaders = 16 * 1024;
-    }
     if (!Ns_ConfigGetInt(path, "maxline", &servPtr->limits.maxline)) {
-    	servPtr->limits.maxline = 8 * 1024;
+    	servPtr->limits.maxline = 16 * 1024;	/* 16k */
+    }
+    if (!Ns_ConfigGetInt(path, "maxheaders", &servPtr->limits.maxheaders)) {
+    	servPtr->limits.maxheaders = 64 * 1024;	/* 64k */
     }
     if (!Ns_ConfigGetInt(path, "maxpost", &servPtr->limits.maxpost)) {
-    	servPtr->limits.maxpost = 64 * 1024;
+    	servPtr->limits.maxpost = 256 * 1024;	/* 256k */
     }
     
     /*
