@@ -1,3 +1,9 @@
+2004-07-16  Dossy Shiobara <dossy@panoptic.com>
+
+	* include/ns.h (1.55.2.5): BUMP: 4.0.6
+
+	* TAG aolserver_v40_r6
+
 2004-07-15  Tim Suh <suhti@aol.com>
 
 	* nsd/return.c: keepalive is enabled for response codes other than 200 
