@@ -1,0 +1,107 @@
+
+'\"
+'\" The contents of this file are subject to the AOLserver Public License
+'\" Version 1.1 (the "License"); you may not use this file except in
+'\" compliance with the License. You may obtain a copy of the License at
+'\" http://aolserver.com/.
+'\"
+'\" Software distributed under the License is distributed on an "AS IS"
+'\" basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+'\" the License for the specific language governing rights and limitations
+'\" under the License.
+'\"
+'\" The Original Code is AOLserver Code and related documentation
+'\" distributed by AOL.
+'\" 
+'\" The Initial Developer of the Original Code is America Online,
+'\" Inc. Portions created by AOL are Copyright (C) 1999 America Online,
+'\" Inc. All Rights Reserved.
+'\"
+'\" Alternatively, the contents of this file may be used under the terms
+'\" of the GNU General Public License (the "GPL"), in which case the
+'\" provisions of GPL are applicable instead of those above.  If you wish
+'\" to allow use of your version of this file only under the terms of the
+'\" GPL and not to allow others to use your version of this file under the
+'\" License, indicate your decision by deleting the provisions above and
+'\" replace them with the notice and other provisions required by the GPL.
+'\" If you do not delete the provisions above, a recipient may use your
+'\" version of this file under either the License or the GPL.
+'\" 
+'\"
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_adp.n,v 1.2 2002/09/28 19:58:27 jgdavidson Exp $
+'\"
+'\" 
+.so man.macros
+
+.TH ns_adp n 4.0 AOLserver "AOLserver Built-In Commands"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+ns_adp_abort, ns_adp_append, ns_adp_argc, ns_adp_argv, ns_adp_bind_args, ns_adp_break, ns_adp_debug, ns_adp_dir, ns_adp_dump, ns_adp_eval, ns_adp_exception, ns_adp_mime, ns_adp_mimetype, ns_adp_parse, ns_adp_puts, ns_adp_registeradp, ns_adp_registerproc, ns_adp_registertag, ns_adp_return, ns_adp_safeeval, ns_adp_stats, ns_adp_stream, ns_adp_tell, ns_adp_trunc, ns_puts, ns_register_adp, ns_register_adptag, ns_unregister_adp \- commands
+.SH SYNOPSIS
+\fBns_adp_abort \fIoption \fR?\fIarg arg ...\fR?
+.sp
+\fBns_adp_append \fIoption \fR?\fIarg arg ...\fR?
+.sp
+\fBns_adp_argc \fIoption \fR?\fIarg arg ...\fR?
+.sp
+\fBns_adp_argv \fIoption \fR?\fIarg arg ...\fR?
+.sp
+\fBns_adp_bind_args \fIoption \fR?\fIarg arg ...\fR?
+.sp
+\fBns_adp_break \fIoption \fR?\fIarg arg ...\fR?
+.sp
+\fBns_adp_debug \fIoption \fR?\fIarg arg ...\fR?
+.sp
+\fBns_adp_dir \fIoption \fR?\fIarg arg ...\fR?
+.sp
+\fBns_adp_dump \fIoption \fR?\fIarg arg ...\fR?
+.sp
+\fBns_adp_eval \fIoption \fR?\fIarg arg ...\fR?
+.sp
+\fBns_adp_exception \fIoption \fR?\fIarg arg ...\fR?
+.sp
+\fBns_adp_mime \fIoption \fR?\fIarg arg ...\fR?
+.sp
+\fBns_adp_mimetype \fIoption \fR?\fIarg arg ...\fR?
+.sp
+\fBns_adp_parse \fIoption \fR?\fIarg arg ...\fR?
+.sp
+\fBns_adp_puts \fIoption \fR?\fIarg arg ...\fR?
+.sp
+\fBns_adp_registeradp \fIoption \fR?\fIarg arg ...\fR?
+.sp
+\fBns_adp_registerproc \fIoption \fR?\fIarg arg ...\fR?
+.sp
+\fBns_adp_registertag \fIoption \fR?\fIarg arg ...\fR?
+.sp
+\fBns_adp_return \fIoption \fR?\fIarg arg ...\fR?
+.sp
+\fBns_adp_safeeval \fIoption \fR?\fIarg arg ...\fR?
+.sp
+\fBns_adp_stats \fIoption \fR?\fIarg arg ...\fR?
+.sp
+\fBns_adp_stream \fIoption \fR?\fIarg arg ...\fR?
+.sp
+\fBns_adp_tell \fIoption \fR?\fIarg arg ...\fR?
+.sp
+\fBns_adp_trunc \fIoption \fR?\fIarg arg ...\fR?
+.sp
+\fBns_puts \fIoption \fR?\fIarg arg ...\fR?
+.sp
+\fBns_register_adp \fIoption \fR?\fIarg arg ...\fR?
+.sp
+\fBns_register_adptag \fIoption \fR?\fIarg arg ...\fR?
+.sp
+\fBns_unregister_adp \fIoption \fR?\fIarg arg ...\fR?
+.BE
+
+.SH DESCRIPTION
+.PP
+These commands...
+
+.SH "SEE ALSO"
+nsd(1), info(n)
+
+.SH KEYWORDS
+
