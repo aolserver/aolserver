@@ -28,7 +28,7 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/http.tcl,v 1.7 2001/07/17 03:40:46 scottg Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/http.tcl,v 1.8 2001/08/16 03:29:01 scottg Exp $
 #
 
 # http.tcl -
@@ -195,7 +195,7 @@ proc ns_httpopen {method url {rqset ""} {timeout 30} {pdata ""}} {
 #	Will only follow redirections 10 levels deep.
 #
 
-proc ns_httpget {url {timeout 30} {depth 0}} {
+proc ns_httpget {url {rqset ""} {timeout 30} {depth 0}} {
     if {[incr depth] > 10} {
 	return -code error "ns_httpget: Recursive redirection: $url"
     }
@@ -204,7 +204,7 @@ proc ns_httpget {url {timeout 30} {depth 0}} {
     # Perform the actual request.
     #
     
-    set http [ns_httpopen GET $url "" $timeout]
+    set http [ns_httpopen GET $url $rqset $timeout]
     set rfd [lindex $http 0]
     close [lindex $http 1]
     set headers [lindex $http 2]

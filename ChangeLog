@@ -1,3 +1,10 @@
+2001-08-15  Scott S. Goodwin  <scott@scottg.net>
+
+	* tcl/http.tcl: add the rqset param as the second argument to
+	ns_httpget, which in turn calls ns_httpsopen and passes the rqset
+	to it. The change is for consistency so that you can use cookies
+	with ns_httpget as well.
+
 2001-07-16  Scott S. Goodwin  <scott@scottg.net>
 
 	* tcl/http.tcl: you can now do ns_httpopen GET /index.html; the
