@@ -35,7 +35,7 @@
  *  	Tcl commands.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscp/nscp.c,v 1.9 2000/10/09 23:21:01 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscp/nscp.c,v 1.10 2000/10/13 00:48:24 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 
@@ -76,10 +76,10 @@ static Ns_ArgProc ArgProc;
 #define TN_IP   244
 #define TN_ECHO   1
 
-static char do_echo[]    = {TN_IAC, TN_DO,   TN_ECHO};
-static char dont_echo[]  = {TN_IAC, TN_DONT, TN_ECHO};
-static char will_echo[]  = {TN_IAC, TN_WILL, TN_ECHO};
-static char wont_echo[]  = {TN_IAC, TN_WONT, TN_ECHO};
+static unsigned char do_echo[]    = {TN_IAC, TN_DO,   TN_ECHO};
+static unsigned char dont_echo[]  = {TN_IAC, TN_DONT, TN_ECHO};
+static unsigned char will_echo[]  = {TN_IAC, TN_WILL, TN_ECHO};
+static unsigned char wont_echo[]  = {TN_IAC, TN_WONT, TN_ECHO};
 
 NS_EXPORT int Ns_ModuleVersion = 1;
 
