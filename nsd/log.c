@@ -34,33 +34,40 @@
  *	Manage the server log file.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/log.c,v 1.14 2002/06/13 04:41:21 jcollins Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/log.c,v 1.15 2002/07/14 23:08:32 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
 /*
- * The following struct maintains cached formatted
- * time buffers.
+ * The following struct maintains per-thread
+ * cached formatted time strings and log buffers.
  */
 
 typedef struct Cache {
+    int		hold;
+    int		count;
     time_t	gtime;
     time_t	ltime;
     char	gbuf[100];
     char	lbuf[100];
+    Ns_DString  buffer;
 } Cache;
 
 /*
  * Local functions defined in this file
  */
 
-static int   LogReOpen(void);
-static void  Log(Ns_LogSeverity severity, char *fmt, va_list ap);
-static int   LogStart(Ns_DString *dsPtr, Ns_LogSeverity severity);
-static void  LogEnd(Ns_DString *dsPtr);
-static void  LogWrite(void);
+static int    LogReOpen(void);
+static void   Log(Ns_LogSeverity severity, char *fmt, va_list ap);
+static void   LogWrite(void);
 static Ns_Callback LogFlush;
-static char *LogTime(int gmtoff);
+
+static Cache *LogGetCache(void);
+static Ns_TlsCleanup LogFreeCache;
+static void   LogFlushCache(Cache *cachePtr);
+static char  *LogTime(Cache *cachePtr, int gmtoff, long *usecPtr);
+static int    LogStart(Cache *cachePtr, Ns_LogSeverity severity);
+static void   LogEnd(Cache *cachePtr);
 
 /*
  * Static variables defined in this file
@@ -98,7 +105,7 @@ NsInitLog(void)
     Ns_CondInit(&cond);
     Ns_MutexSetName(&lock, "ns:log");
     Ns_DStringInit(&buffer);
-    Ns_TlsAlloc(&tls, ns_free);
+    Ns_TlsAlloc(&tls, LogFreeCache);
 }
 
 
@@ -227,10 +234,11 @@ Ns_Fatal(char *fmt, ...)
  *
  * Ns_LogTime --
  *
- *	Construct local date and time for log file. 
+ *	Copy a GMT date and time string useful for common log
+ *	format enties (e.g., nslog).
  *
  * Results:
- *	A string time and date. 
+ *	Pointer to given buffer.
  *
  * Side effects:
  *	Will put data into timeBuf, which must be at least 41 bytes 
@@ -242,7 +250,7 @@ Ns_Fatal(char *fmt, ...)
 char *
 Ns_LogTime(char *timeBuf)
 {
-    strcpy(timeBuf, LogTime(1));
+    strcpy(timeBuf, LogTime(LogGetCache(), 1, NULL));
     return timeBuf;
 }
 
@@ -349,9 +357,10 @@ NsTclLogRollObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST 
 /*
  *----------------------------------------------------------------------
  *
- * NsTclLogCmd --
+ * NsTclLogCtlObjCmd --
  *
- *	Implements ns_log.
+ *	Implements ns_logctl command to manage log buffering
+ *	and release.
  *
  * Results:
  *	Tcl result. 
@@ -363,46 +372,74 @@ NsTclLogRollObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST 
  */
 
 int
-NsTclLogCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
+NsTclLogCtlObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
+	       Tcl_Obj *CONST objv[])
 {
-    Ns_LogSeverity severity;
-    Ns_DString ds;
-    int i;
+    int len;
+    Cache *cachePtr;
+    static CONST char *opts[] = {
+	"hold",
+	"count",
+	"get",
+	"peek",
+	"flush",
+	"release",
+	"truncate",
+	NULL
+    };
+    enum {
+	CHoldIdx,
+	CCountIdx,
+	CGetIdx,
+	CPeekIdx,
+	CFlushIdx,
+	CReleaseIdx,
+	CTruncIdx
+    } opt;
 
-    if (argc < 3) {
-        Tcl_AppendResult(interp, "wrong # of args:  should be \"",
-                         argv[0], " severity string ?string ...?\"", NULL);
+    if (objc < 2) {
+        Tcl_WrongNumArgs(interp, 1, objv, "option ?arg?");
     	return TCL_ERROR;
     }
-    if (STRIEQ(argv[1], "notice")) {
-	severity = Notice;
-    } else if (STRIEQ(argv[1], "warning")) {
-	severity = Warning;
-    } else if (STRIEQ(argv[1], "error")) {
-	severity = Error;
-    } else if (STRIEQ(argv[1], "fatal")) {
-	severity = Fatal;
-    } else if (STRIEQ(argv[1], "bug")) {
-	severity = Bug;
-    } else if (STRIEQ(argv[1], "debug")) {
-	severity = Debug;
-    } else if (Tcl_GetInt(interp, argv[1], &i) == TCL_OK) {
-	severity = i;
-    } else {
-        Tcl_AppendResult(interp, "unknown severity \"",
-                         argv[1], "\":  should be one of: ",
-			 "fatal, error, warning, bug, notice, or debug.",
-			 NULL);
-    	return TCL_ERROR;
+    if (Tcl_GetIndexFromObj(interp, objv[1], opts, "option", 0,
+			    (int *) &opt) != TCL_OK) {
+	return TCL_ERROR;
     }
-    Ns_DStringInit(&ds);
-    if (LogStart(&ds, severity)) {
-	for (i = 2; i < argc; ++i) {
-	    Ns_DStringVarAppend(&ds, argv[i], i > 2 ? " " : NULL, NULL);
+    cachePtr = LogGetCache();
+    switch (opt) {
+    case CHoldIdx:
+	cachePtr->hold = 1;
+	break;
+
+    case CPeekIdx:
+	Tcl_SetResult(interp, cachePtr->buffer.string, TCL_VOLATILE);
+	break;
+
+    case CGetIdx:
+	Tcl_SetResult(interp, cachePtr->buffer.string, TCL_VOLATILE);
+	Ns_DStringFree(&cachePtr->buffer);
+	break;
+
+    case CReleaseIdx:
+	cachePtr->hold = 0;
+	/* FALLTHROUGH */
+
+    case CFlushIdx:
+	LogFlushCache(cachePtr);
+	break;
+
+    case CCountIdx:
+	Tcl_SetIntObj(Tcl_GetObjResult(interp), cachePtr->count);
+	break;
+
+    case CTruncIdx:
+	len = 0;
+	if (objc > 2 && Tcl_GetIntFromObj(interp, objv[2], &len) != TCL_OK) {
+	    return TCL_ERROR;
 	}
-	LogEnd(&ds);
+	Ns_DStringTrunc(&cachePtr->buffer, len);
+	break;
     }
-    Ns_DStringFree(&ds);
     return TCL_OK;
 }
 
@@ -424,46 +461,47 @@ NsTclLogCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
  */
 
 int
-NsTclLogObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+NsTclLogObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
+	       Tcl_Obj *CONST objv[])
 {
     Ns_LogSeverity severity;
-    Ns_DString ds;
+    Cache *cachePtr;
+    char *severitystr;
     int i;
-    char *cmd = Tcl_GetString(objv[1]);
 
     if (objc < 3) {
         Tcl_WrongNumArgs(interp, 1, objv, "severity string ?string ...?");
     	return TCL_ERROR;
     }
-    if (STRIEQ(cmd, "notice")) {
+    severitystr = Tcl_GetString(objv[1]);
+    cachePtr = LogGetCache();
+    if (STRIEQ(severitystr, "notice")) {
 	severity = Notice;
-    } else if (STRIEQ(cmd, "warning")) {
+    } else if (STRIEQ(severitystr, "warning")) {
 	severity = Warning;
-    } else if (STRIEQ(cmd, "error")) {
+    } else if (STRIEQ(severitystr, "error")) {
 	severity = Error;
-    } else if (STRIEQ(cmd, "fatal")) {
+    } else if (STRIEQ(severitystr, "fatal")) {
 	severity = Fatal;
-    } else if (STRIEQ(cmd, "bug")) {
+    } else if (STRIEQ(severitystr, "bug")) {
 	severity = Bug;
-    } else if (STRIEQ(cmd, "debug")) {
+    } else if (STRIEQ(severitystr, "debug")) {
 	severity = Debug;
-    } else if (Tcl_GetIntFromObj(interp, objv[1], &i) == TCL_OK) {
+    } else if (Tcl_GetIntFromObj(NULL, objv[1], &i) == TCL_OK) {
 	severity = i;
     } else {
-        Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "unknown severity \"",
-                         Tcl_GetString(objv[1]), "\":  should be one of: ",
-			 "fatal, error, warning, bug, notice, or debug.",
-			 NULL);
-    	return TCL_ERROR;
+	Tcl_AppendResult(interp, "unknown severity: \"", severitystr,
+	    "\": should be notice, warning, error, "
+	    "fatal, bug, debug or integer value", NULL);
+	return TCL_ERROR;
     }
-    Ns_DStringInit(&ds);
-    if (LogStart(&ds, severity)) {
+    if (LogStart(cachePtr, severity)) {
 	for (i = 2; i < objc; ++i) {
-	    Ns_DStringVarAppend(&ds, Tcl_GetString(objv[i]), i > 2 ? " " : NULL, NULL);
+	    Ns_DStringVarAppend(&cachePtr->buffer,
+		Tcl_GetString(objv[i]), i > 2 ? " " : NULL, NULL);
 	}
-	LogEnd(&ds);
+	LogEnd(cachePtr);
     }
-    Ns_DStringFree(&ds);
     return TCL_OK;
 }
 
@@ -487,14 +525,13 @@ NsTclLogObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv
 static void
 Log(Ns_LogSeverity severity, char *fmt, va_list ap)
 {
-    Ns_DString ds;
+    Cache *cachePtr;
 
-    Ns_DStringInit(&ds);
-    if (LogStart(&ds, severity)) {
-	Ns_DStringVPrintf(&ds, fmt, ap);
-	LogEnd(&ds);
+    cachePtr = LogGetCache();
+    if (LogStart(cachePtr, severity)) {
+	Ns_DStringVPrintf(&cachePtr->buffer, fmt, ap);
+	LogEnd(cachePtr);
     }
-    Ns_DStringFree(&ds);
 }
 
 
@@ -516,9 +553,10 @@ Log(Ns_LogSeverity severity, char *fmt, va_list ap)
  */
 
 static int
-LogStart(Ns_DString *dsPtr, Ns_LogSeverity severity)
+LogStart(Cache *cachePtr, Ns_LogSeverity severity)
 {
     char *severityStr, buf[10];
+    long usec;
 
     switch (severity) {
 	case Notice:
@@ -555,14 +593,19 @@ LogStart(Ns_DString *dsPtr, Ns_LogSeverity severity)
 	    if (severity > nsconf.log.maxlevel) {
 		return 0;
 	    }
-	    sprintf(buf, "L%d", severity);
+	    sprintf(buf, "Level%d", severity);
 	    severityStr = buf;
 	    break;
     }
-    Ns_DStringPrintf(dsPtr, "%s[%d.%d][%s] %s: ", LogTime(0),
-		Ns_InfoPid(), Ns_ThreadId(), Ns_ThreadGetName(), severityStr);
+    Ns_DStringAppend(&cachePtr->buffer, LogTime(cachePtr, 0, &usec));
+    if (nsconf.log.flags & LOG_USEC) {
+    	Ns_DStringTrunc(&cachePtr->buffer, cachePtr->buffer.length-1);
+	Ns_DStringPrintf(&cachePtr->buffer, ".%ld]", usec);
+    }
+    Ns_DStringPrintf(&cachePtr->buffer, "[%d.%d][%s] %s: ",
+	Ns_InfoPid(), Ns_ThreadId(), Ns_ThreadGetName(), severityStr);
     if (nsconf.log.flags & LOG_EXPAND) {
-	Ns_DStringAppend(dsPtr, "\n    ");
+	Ns_DStringAppend(&cachePtr->buffer, "\n    ");
     }
     return 1;
 }
@@ -586,12 +629,40 @@ LogStart(Ns_DString *dsPtr, Ns_LogSeverity severity)
  */
 
 static void
-LogEnd(Ns_DString *dsPtr)
+LogEnd(Cache *cachePtr)
 {
-    Ns_DStringNAppend(dsPtr, "\n", 1);
+    Ns_DStringNAppend(&cachePtr->buffer, "\n", 1);
     if (nsconf.log.flags & LOG_EXPAND) {
-	Ns_DStringNAppend(dsPtr, "\n", 1);
+	Ns_DStringNAppend(&cachePtr->buffer, "\n", 1);
     }
+    ++cachePtr->count;
+    if (!cachePtr->hold) {
+    	LogFlushCache(cachePtr);
+    }
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * LogFlushCache --
+ *
+ *	Flush per-thread log entries to buffer or open file.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	May write to log file.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+LogFlushCache(Cache *cachePtr)
+{
+    Ns_DString *dsPtr = &cachePtr->buffer;
+
     Ns_MutexLock(&lock);
     if (!buffered) {
 	Ns_MutexUnlock(&lock);
@@ -606,6 +677,8 @@ LogEnd(Ns_DString *dsPtr)
 	}
 	Ns_MutexUnlock(&lock);
     }
+    cachePtr->count = 0;
+    Ns_DStringFree(dsPtr);
 }
 
 
@@ -765,19 +838,14 @@ LogReOpen(void)
  */
 
 static char *
-LogTime(int gmtoff)
+LogTime(Cache *cachePtr, int gmtoff, long *usecPtr)
 {
-    Cache    *cachePtr;
-    time_t   *tp, now = time(NULL);
+    time_t   *tp;
     struct tm *ptm;
     int gmtoffset, n, sign;
     char *bp;
+    Ns_Time now;
 
-    cachePtr = Ns_TlsGet(&tls);
-    if (cachePtr == NULL) {
-	cachePtr = ns_calloc(1, sizeof(Cache));
-	Ns_TlsSet(&tls, cachePtr);
-    }
     if (gmtoff) {
 	tp = &cachePtr->gtime;
 	bp = cachePtr->gbuf;
@@ -785,12 +853,14 @@ LogTime(int gmtoff)
 	tp = &cachePtr->ltime;
 	bp = cachePtr->lbuf;
     }
-    if (*tp != time(&now)) {
-	*tp = now;
-	ptm = ns_localtime(&now);
+    Ns_GetTime(&now);
+    if (*tp != now.sec) {
+	*tp = now.sec;
+	ptm = ns_localtime(&now.sec);
 	n = strftime(bp, 32, "[%d/%b/%Y:%H:%M:%S", ptm);
 	if (!gmtoff) {
-    	    strcat(bp+n, "]");
+	    bp[n++] = ']';
+	    bp[n] = '\0';
 	} else {
 #ifdef NO_TIMEZONE
 	    gmtoffset = ptm->tm_gmtoff / 60;
@@ -810,5 +880,65 @@ LogTime(int gmtoff)
 		    " %c%02d%02d]", sign, gmtoffset / 60, gmtoffset % 60);
 	}
     }
+    if (usecPtr != NULL) {
+	*usecPtr = now.usec;
+    }
     return bp;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * LogGetCache --
+ *
+ *	Get the per-thread Cache struct.
+ *
+ * Results:
+ *	Pointer to per-thread struct.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static Cache *
+LogGetCache(void)
+{
+    Cache *cachePtr;
+
+    cachePtr = Ns_TlsGet(&tls);
+    if (cachePtr == NULL) {
+	cachePtr = ns_calloc(1, sizeof(Cache));
+	Ns_DStringInit(&cachePtr->buffer);
+	Ns_TlsSet(&tls, cachePtr);
+    }
+    return cachePtr;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * LogFreeCache --
+ *
+ *	TLS cleanup callback to destory per-thread Cache struct.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+LogFreeCache(void *arg)
+{
+    Cache *cachePtr = arg;
+
+    Ns_DStringFree(&cachePtr->buffer);
+    ns_free(cachePtr);
 }

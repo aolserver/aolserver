@@ -33,7 +33,7 @@
  * 	Connect Tcl command names to the functions that implement them
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.28 2002/07/08 02:51:15 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.29 2002/07/14 23:08:32 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -90,6 +90,7 @@ extern Tcl_ObjCmdProc
     NsTclLinkObjCmd,
     NsTclLocalTimeObjCmd,
     NsTclLogObjCmd,
+    NsTclLogCtlObjCmd,
     NsTclLogRollObjCmd,
     NsTclMarkForDeleteObjCmd,
     NsTclMkdirObjCmd,
@@ -188,7 +189,6 @@ extern Tcl_CmdProc
     NsTclHeadersCmd,
     NsTclKillCmd,
     NsTclLinkCmd,
-    NsTclLogCmd,
     NsTclLogRollCmd,
     NsTclMkTempCmd,
     NsTclMkdirCmd,
@@ -332,7 +332,8 @@ static Cmd cmds[] = {
     {"ns_info", NsTclInfoCmd, NsTclInfoObjCmd},
     {"ns_modulepath", NsTclModulePathCmd, NsTclModulePathObjCmd},
 
-    {"ns_log", NsTclLogCmd, NsTclLogObjCmd},
+    {"ns_log", NULL, NsTclLogObjCmd},
+    {"ns_logctl", NULL, NsTclLogCtlObjCmd},
 
     {"ns_urlencode", NsTclUrlEncodeCmd, NsTclUrlEncodeObjCmd},
     {"ns_urldecode", NsTclUrlDecodeCmd, NsTclUrlDecodeObjCmd},
