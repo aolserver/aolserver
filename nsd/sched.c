@@ -27,7 +27,7 @@
  * version of this file under either the License or the GPL.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sched.c,v 1.13 2003/03/10 15:31:26 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sched.c,v 1.14 2003/03/10 16:02:05 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
 
 /*
  * sched.c --
@@ -848,7 +848,7 @@ SchedThread(void *ignored)
     if (nThreads > 0) {
     	Ns_Log(Notice, "sched: waiting for event threads...");
 	Ns_CondBroadcast(&eventcond);
-	while (--nThreads >= 0) {
+	while (nThreads > 0) {
             joinThreads = eventThreads;
             nJoinThreads = nThreads;
             eventThreads = NULL;
