@@ -33,7 +33,7 @@
  *	ADP connection request support.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adprequest.c,v 1.17 2004/10/26 19:52:27 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adprequest.c,v 1.18 2004/11/17 21:53:27 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -379,7 +379,7 @@ AdpFlush(NsInterp *itPtr, int stream)
 	if (itPtr->servPtr->adp.enableexpire) {
 	    Ns_ConnCondSetHeaders(conn, "Expires", "now");
 	}
-	Ns_ConnSetRequiredHeaders(conn, type, stream ? 0 : len);
+	Ns_ConnSetRequiredHeaders(conn, type, stream ? -1 : len);
 	Ns_ConnQueueHeaders(conn, 200);
     }
 
