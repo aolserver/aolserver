@@ -171,10 +171,15 @@ ifneq (,$(findstring IRIX,$(PLAT)))
         CFLAGS+=$(GCCOPTS) -mcpu=mips
     endif
 
-    LDFLAGS += -$(ABI)
+    LDFLAGS += -$(ABI) 
     LDSO=$(LD) -$(ABI) -shared
     NSDLIBS=-lm
-    CFLAGS+=-DUSE_SPROC=1 -D_SGI_MP_SOURCE=1 -DNO_VSNPRINTF
+    CFLAGS+=-D_SGI_MP_SOURCE=1 -DNO_VSNPRINTF
+    ifeq ($(USE_SPROC), 0)
+    	LIBS += -lpthread
+    else
+    	CFLAGS+=-DUSE_SPROC=1
+    endif
 
 endif
 
