@@ -34,7 +34,7 @@
  *      Manage the Ns_Conn structure
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.42 2005/01/17 14:01:22 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.43 2005/03/25 00:34:10 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -167,7 +167,7 @@ Ns_ConnContentLength(Ns_Conn *conn)
  *	Return pointer to start of content.
  *
  * Results:
- *	Start of content.
+ *	Start of content or NULL on no memory content.
  *
  * Side effects:
  *	None. 
@@ -181,6 +181,31 @@ Ns_ConnContent(Ns_Conn *conn)
     Conn *connPtr = (Conn *) conn;
 
     return connPtr->content;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_ConnContentFd --
+ *
+ *	Return pointer to content fd.
+ *
+ * Results:
+ *	Open file or -1 on no content file.
+ *
+ * Side effects:
+ *	None. 
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Ns_ConnContentFd(Ns_Conn *conn)
+{
+    Conn *connPtr = (Conn *) conn;
+
+    return connPtr->tfd;
 }
 
 
@@ -236,7 +261,7 @@ Ns_ConnGetStatus(Ns_Conn *conn)
 {
     Conn           *connPtr = (Conn *) conn;
 
-    return connPtr->responseStatus;
+    return connPtr->status;
 }
 
 void
@@ -244,7 +269,7 @@ Ns_ConnSetStatus(Ns_Conn *conn, int status)
 {
     Conn           *connPtr = (Conn *) conn;
 
-    connPtr->responseStatus = status;
+    connPtr->status = status;
 }
 
 
@@ -672,15 +697,34 @@ void
 Ns_ConnSetType(Ns_Conn *conn, char *type)
 {
     Conn *connPtr = (Conn *) conn;
+    NsServer *servPtr = connPtr->servPtr;
     Tcl_Encoding encoding;
     Ns_DString ds;
+    char *charset;
+    int len;
+
+    /*
+     * If the output type is text, set the output encoding based on 
+     * the type charset.  If the charset is missing, use the server
+     * default.
+     */
 
     Ns_DStringInit(&ds);
-    encoding = NsGetTypeEncoding(connPtr->servPtr, &type, &ds);
+    if (type != NULL && (strncmp(type, "text/", 5) == 0)) {
+	encoding = NULL;
+    	charset = Ns_FindCharset(type, &len);
+    	if (charset == NULL && (charset = servPtr->defcharset) != NULL) {
+	    Ns_DStringVarAppend(&ds, type, "; charset=", charset, NULL);
+	    type = ds.string;
+	    len = ds.length;
+	}
+    	if (charset != NULL) {
+	    encoding = Ns_GetCharsetEncodingEx(charset, len);
+	}
+	Ns_ConnSetEncoding(conn, encoding);
+    }
     ns_free(connPtr->type);
     connPtr->type = ns_strcopy(type);
-    Ns_ConnSetEncoding(conn, encoding);
-    Ns_ConnSetUrlEncoding(conn, encoding);
     Ns_DStringFree(&ds);
 }
 
@@ -707,7 +751,7 @@ Ns_ConnGetEncoding(Ns_Conn *conn)
 {
     Conn *connPtr = (Conn *) conn;
 
-    return connPtr->encoding;
+    return connPtr->outputEncoding;
 }
 
 void
@@ -715,7 +759,7 @@ Ns_ConnSetEncoding(Ns_Conn *conn, Tcl_Encoding encoding)
 {
     Conn *connPtr = (Conn *) conn;
 
-    connPtr->encoding = encoding;
+    connPtr->outputEncoding = encoding;
 }
 
 
@@ -880,28 +924,27 @@ NsTclConnObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
     Tcl_HashEntry *hPtr;
     Tcl_HashSearch search;
     FormFile	 *filePtr;
-    int		  idx, off, len, flag;
+    int		  idx, off, len, flag, fd;
 
     static CONST char *opts[] = {
 	 "authpassword", "authuser", "close", "content", "contentlength",
-	 "copy", "driver", "encoding", "files", "fileoffset",
-	 "filelength", "fileheaders", "flags", "form", "headers",
-	 "host", "id", "isconnected", "location", "method",
+	 "contentchannel", "copy", "driver", "encoding", "files",
+	 "fileoffset", "filelength", "fileheaders", "flags", "form",
+	 "headers", "host", "id", "isconnected", "location", "method",
 	 "outputheaders", "peeraddr", "peerport", "port", "protocol",
 	 "query", "request", "server", "sock", "start", "status",
 	 "url", "urlc", "urlencoding", "urlv", "version",
 	 "write_encoded", NULL
-    };
-    enum ISubCmdIdx {
+    }; enum ISubCmdIdx {
 	 CAuthPasswordIdx, CAuthUserIdx, CCloseIdx, CContentIdx,
-	 CContentLengthIdx, CCopyIdx, CDriverIdx, CEncodingIdx,
-	 CFilesIdx, CFileOffIdx, CFileLenIdx, CFileHdrIdx, CFlagsIdx,
-	 CFormIdx, CHeadersIdx, CHostIdx, CIdIdx, CIsConnectedIdx,
-	 CLocationIdx, CMethodIdx, COutputHeadersIdx, CPeerAddrIdx,
-	 CPeerPortIdx, CPortIdx, CProtocolIdx, CQueryIdx, CRequestIdx,
-	 CServerIdx, CSockIdx, CStartIdx, CStatusIdx, CUrlIdx,
-	 CUrlcIdx, CUrlEncodingIdx, CUrlvIdx, CVersionIdx,
-	 CWriteEncodedIdx
+	 CContentLengthIdx, CContentChannelIdx, CCopyIdx, CDriverIdx,
+	 CEncodingIdx, CFilesIdx, CFileOffIdx, CFileLenIdx,
+	 CFileHdrIdx, CFlagsIdx, CFormIdx, CHeadersIdx, CHostIdx,
+	 CIdIdx, CIsConnectedIdx, CLocationIdx, CMethodIdx,
+	 COutputHeadersIdx, CPeerAddrIdx, CPeerPortIdx, CPortIdx,
+	 CProtocolIdx, CQueryIdx, CRequestIdx, CServerIdx, CSockIdx,
+	 CStartIdx, CStatusIdx, CUrlIdx, CUrlcIdx, CUrlEncodingIdx,
+	 CUrlvIdx, CVersionIdx, CWriteEncodedIdx
     } opt;
 
     if (objc < 2) {
@@ -956,6 +999,21 @@ NsTclConnObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 	    Tcl_SetResult(interp, connPtr->authPasswd, TCL_STATIC);
 	    break;
 
+	case CContentChannelIdx:
+	    fd = Ns_ConnContentFd(conn);
+	    if (fd >= 0 && (fd = dup(fd)) >= 0) {
+		/* NB: Dup the fd so the channel can be safely closed later. */
+		chan = Tcl_MakeFileChannel((ClientData) fd, TCL_READABLE);
+	 	if (chan == NULL) {
+		    close(fd);
+		} else {
+		    Tcl_RegisterChannel(interp, chan);
+		    Tcl_SetResult(interp, Tcl_GetChannelName(chan),
+				  TCL_VOLATILE);
+		}
+	    }
+	    break;
+
 	case CContentIdx:
 	    if (objc != 2 && objc != 4) {
 		Tcl_WrongNumArgs(interp, 2, objv, "?off len?");
@@ -976,10 +1034,10 @@ NsTclConnObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 	    Tcl_SetIntObj(result, conn->contentLength);
 	    break;
 
-	case CUrlEncodingIdx:
 	case CEncodingIdx:
+	case CUrlEncodingIdx:
 	    if (opt == CEncodingIdx) {
-		encodingPtr = &connPtr->encoding;
+		encodingPtr = &connPtr->outputEncoding;
 	    } else {
 		encodingPtr = &connPtr->urlEncoding;
 	    }
@@ -1062,7 +1120,7 @@ NsTclConnObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 	case CFileLenIdx:
 	case CFileHdrIdx:
 	    if (objc != 3) {
-		Tcl_WrongNumArgs(interp, 2, objv, NULL);
+		Tcl_WrongNumArgs(interp, 2, objv, "file");
 		return TCL_ERROR;
 	    }
 	    hPtr = Tcl_FindHashEntry(&connPtr->files, Tcl_GetString(objv[2]));
