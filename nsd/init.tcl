@@ -28,7 +28,7 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/init.tcl,v 1.2 2001/03/14 01:11:05 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/init.tcl,v 1.3 2001/04/25 21:05:13 jgdavidson Exp $
 #
 
 #
@@ -120,6 +120,7 @@ proc ns_cleanup {} {
 	_ns_closechannels
 	ns_set cleanup
 	ns_db cleanup
+	ns_http cleanup
 	_ns_updatenamespaces
     }] {
 	global errorInfo
@@ -378,37 +379,37 @@ proc _ns_getnamespaces {listVar {n ""}} {
 
 proc _ns_getscript n {
     namespace eval $n {
-	set n [namespace current]
-	set script ""
-	foreach v [info vars] {
-	    switch $v {
+	::set n [namespace current]
+	::set script ""
+	::foreach v [::info vars] {
+	    ::switch $v {
 		n -
 		v -
 		script continue
 		default {
-		    if [info exists ${n}::$v] {
-			if [array exists $v] {
-			    append script [list variable $v]\n
-			    append script [list array set $v [array get $v]]\n
+		    ::if [info exists ${n}::$v] {
+			::if [array exists $v] {
+			    ::append script [::list variable $v]\n
+			    ::append script [::list array set $v [array get $v]]\n
 			} else {
-			    append script [list variable $v [set $v]]\n
+			    ::append script [::list variable $v [set $v]]\n
 			}
 		    }
 		}
 	    }
 	}
-	foreach p [info procs] {
-	    set args ""
-	    foreach a [info args $p] {
-		if [info default $p $a def] {
-		    set a [list $a $def]
+	::foreach p [::info procs] {
+	    ::set args ""
+	    ::foreach a [::info args $p] {
+		if [::info default $p $a def] {
+		    ::set a [::list $a $def]
 		}
-		lappend args $a
+		::lappend args $a
 	    }
-	    append script [list proc $p $args [info body $p]]\n
+	    ::append script [::list proc $p $args [info body $p]]\n
 	}
-	append script [concat namespace export [namespace export]]\n
-	return $script
+	::append script [::concat namespace export [namespace export]]\n
+	::return $script
     }
 }
 
