@@ -1,3 +1,12 @@
+2003-04-24  Mark Page  <mpagenva@aol.com>
+
+	* nsd/queue.c (ConnRun): Ensure that a Internal Error status is
+	returned to the client if an error status is returned from a
+	pre-auth filter.  Previously, the connection was simply closed,
+	causing difficult to diagnose problems to the client.  Also
+	allow traces to run in this situation, so that access logging can
+	occur.
+
 2003-04-23  Mark Page  <mpagenva@aol.com>
 
 	* nsd/log.c (NsTclLogObjCmd): (bug fix) Tweeked previous fix to

@@ -34,7 +34,7 @@
  *	and service threads.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/queue.c,v 1.21 2003/03/07 18:08:32 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/queue.c,v 1.22 2003/04/24 11:36:15 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -755,7 +755,15 @@ ConnRun(Conn *connPtr)
 		Ns_ConnReturnInternalError(conn);
 		break;
 	    }
-	}
+        } else if (status != NS_FILTER_RETURN) {
+            /* if not ok or filter_return, then the pre-auth filter coughed
+             * an error.  We are not going to proceed, but also we
+             * can't count on the filter to have sent a response
+             * back to the client.  So, send an error response.
+             */
+            Ns_ConnReturnInternalError(conn);
+            status = NS_FILTER_RETURN; /* to allow tracing to happen */
+        }
     }
     Ns_ConnClose(conn);
     if (status == NS_OK || status == NS_FILTER_RETURN) {
