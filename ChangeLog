@@ -1,3 +1,9 @@
+2003-08-06  Elizabeth Thomas <eathomas93@aol.com>
+
+    * nsperm/Makefile: include -lresolv on solaris to find inet_aton
+
+    * TAG: aolserver_v35_b10
+
 2003-05-28  Elizabeth Thomas <eathomas93@aol.com>
 
     * TAG: aolserver_v35_b9
