@@ -848,8 +848,8 @@ if eval "test \"`echo '$''{'ac_cv_prog_CPP'+set}'`\" = set"; then
   echo $ac_n "(cached) $ac_c" 1>&6
 else
     # This must be in double quotes, not single quotes, because CPP may get
-  # substituted into the Makefile and "${CC-cc}" will confuse make.
-  CPP="${CC-cc} -E"
+  # substituted into the Makefile and "${CC-gcc}" will confuse make.
+  CPP="${CC-gcc} -E"
   # On the NeXT, cc -E runs the code through the compiler's parser,
   # not just through cpp.
   cat > conftest.$ac_ext <<EOF
@@ -868,7 +868,7 @@ else
   echo "configure: failed program was:" >&5
   cat conftest.$ac_ext >&5
   rm -rf conftest*
-  CPP="${CC-cc} -E -traditional-cpp"
+  CPP="${CC-gcc} -E -traditional-cpp"
   cat > conftest.$ac_ext <<EOF
 #line 874 "configure"
 #include "confdefs.h"
@@ -885,7 +885,7 @@ else
   echo "configure: failed program was:" >&5
   cat conftest.$ac_ext >&5
   rm -rf conftest*
-  CPP="${CC-cc} -nologo -E"
+  CPP="${CC-gcc} -nologo -E"
   cat > conftest.$ac_ext <<EOF
 #line 891 "configure"
 #include "confdefs.h"
