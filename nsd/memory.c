@@ -33,7 +33,7 @@
  *	Memory allocation routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/memory.c,v 1.1 2001/11/05 20:26:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/memory.c,v 1.2 2002/06/08 14:49:12 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -89,13 +89,13 @@ ns_calloc(size_t num, size_t esize)
 }
 
 char *
-ns_strcopy(char *old)
+ns_strcopy(const char *old)
 {
     return (old == NULL ? NULL : ns_strdup(old));
 }
 
 char *
-ns_strdup(char *old)
+ns_strdup(const char *old)
 {
     char *new;
 

@@ -34,7 +34,7 @@
  *	Implement specialized Tcl_Obj's types for AOLserver.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclobj.c,v 1.2 2002/06/05 23:46:55 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclobj.c,v 1.3 2002/06/08 14:49:12 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -164,7 +164,7 @@ UpdateStringOfTime(objPtr)
     char buf[100];
 
     Ns_AdjTime(timePtr);
-    objPtr->length = sprintf(buf, "%d:%d", (int) timePtr->sec, timePtr->usec);
+    objPtr->length = sprintf(buf, "%ld:%ld", timePtr->sec, timePtr->usec);
     objPtr->bytes = Tcl_Alloc(objPtr->length + 1);
     memcpy(objPtr->bytes, buf, objPtr->length+1);
 }

@@ -33,7 +33,7 @@
  *	Tcl job queueing routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tcljob.c,v 1.4 2001/12/05 22:46:21 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tcljob.c,v 1.5 2002/06/08 14:49:12 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -256,7 +256,8 @@ JobThread(void *arg)
     char *server = servPtr->server;
     Tcl_Interp *interp;
     Job *jobPtr;
-    char buf[100], *err;
+    char buf[100];
+    const char *err;
 
     Ns_MutexLock(&servPtr->job.lock);
     sprintf(buf, "-job%d:%s-", servPtr->job.threads.next++, server);

@@ -34,7 +34,7 @@
  *	Routines for Tcl proc and ADP registered requests.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclrequest.c,v 1.3 2002/05/15 23:38:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclrequest.c,v 1.4 2002/06/08 14:49:12 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -424,7 +424,7 @@ ProcFilter(void *arg, Ns_Conn *conn, int why)
     Tcl_Interp          *interp;
     int                  status;
     int                  cnt;
-    char		*result;
+    const char		*result;
 
     Tcl_DStringInit(&cmd);
 

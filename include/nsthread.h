@@ -32,7 +32,7 @@
  *
  *	Core threading and system headers.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/nsthread.h,v 1.18 2001/11/05 20:29:55 jgdavidson Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/nsthread.h,v 1.19 2002/06/08 14:49:12 jgdavidson Exp $
  */
 
 #ifndef NSTHREAD_H
@@ -142,8 +142,8 @@ NS_EXTERN void *ns_malloc(size_t size);
 NS_EXTERN void *ns_calloc(size_t num, size_t size);
 NS_EXTERN void ns_free(void *buf);
 NS_EXTERN void *ns_realloc(void *buf, size_t size);
-NS_EXTERN char *ns_strdup(char *string);
-NS_EXTERN char *ns_strcopy(char *string);
+NS_EXTERN char *ns_strdup(const char *string);
+NS_EXTERN char *ns_strcopy(const char *string);
 
 /*
  * lock.c:
