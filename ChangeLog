@@ -1,3 +1,29 @@
+2004-09-07  Dossy Shiobara <dossy@panoptic.com>
+
+	* Makefile (1.52), tests/new/harness.tcl (1.3),
+	  tests/new/ns_addrbyhost.test (1.1), tests/new/ns_hostbyaddr.test
+	  (1.1), tests/new/test-ns_addrbyhost.adp (1.2),
+	  tests/new/test-ns_hostbyaddr.adp (1.2),
+	  tests/new/test-ns_hrefs.adp (1.2): Rework tests and harness to
+	  run in tclsh.
+
+2004-08-25  Dossy Shiobara <dossy@panoptic.com>
+
+	* tests/new/: http-test-config.tcl (1.1), http.test (1.1): Start of
+	  some VERY basic HTTP compliance tests.
+
+2004-08-21  Dossy Shiobara <dossy@panoptic.com>
+
+	* tests/new/all.tcl (1.2): Non-threaded tclsh doesn't even set
+	  ::tcl_platform(threaded) at all.
+
+2004-08-20  Dossy Shiobara <dossy@panoptic.com>
+
+	* tests/new/ns_hrefs.test (1.1): Implement automated tests that can
+	  be run from a stand-alone tclsh.  New Makefile target added
+	  called "test" which runs the tests.
+
+
 2004-09-03  Dossy Shiobara <dossy@panoptic.com>
 
 	* nscgi/nscgi.html (1.2): Updated nscgi module documentation for
