@@ -34,7 +34,7 @@
  *      DNS lookup routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/dns.c,v 1.7 2003/03/07 18:08:21 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/dns.c,v 1.7.2.1 2004/08/14 04:19:49 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -46,6 +46,10 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
 #  ifdef h_NETDB_INTERNAL
 #  define NETDB_INTERNAL h_NETDB_INTERNAL
 #  endif
+#endif
+
+#ifdef NEED_HERRNO
+extern int h_errno;
 #endif
 
 /*
@@ -76,7 +80,10 @@ static GetProc GetAddr;
 static GetProc GetHost;
 static int DnsGet(GetProc *getProc, Ns_DString *dsPtr,
 	Ns_Cache **cachePtr, char *key);
-static void LogError(char *func);
+
+#if !defined(HAVE_GETADDRINFO) && !defined(HAVE_GETNAMEINFO)
+static void LogError(char *func, int h_errnop);
+#endif
 
 
 /*
@@ -190,6 +197,7 @@ DnsGet(GetProc *getProc, Ns_DString *dsPtr, Ns_Cache **cachePtr, char *key)
 void
 NsEnableDNSCache(int timeout, int maxentries)
 {
+    Ns_MutexSetName(&lock, "ns:dns");
     Ns_MutexLock(&lock);
     cachetimeout = timeout;
     hostCache = Ns_CacheCreateSz("ns:dnshost", TCL_STRING_KEYS,
@@ -219,6 +227,65 @@ NsEnableDNSCache(int timeout, int maxentries)
  *----------------------------------------------------------------------
  */
 
+#if defined(HAVE_GETNAMEINFO)
+
+static int
+GetHost(Ns_DString *dsPtr, char *addr)
+{
+    struct sockaddr_in sa;
+    char buf[NI_MAXHOST];
+    int result;
+    int status = NS_FALSE;
+
+    sa.sin_family = AF_INET;
+    sa.sin_addr.s_addr = inet_addr(addr);
+    if ((result = getnameinfo((const struct sockaddr *) &sa,
+                    sizeof(struct sockaddr_in), buf, sizeof(buf),
+                    NULL, 0, NI_NAMEREQD)) != 0) {
+        Ns_Log(Error, "dns: getnameinfo failed: %s", gai_strerror(result));
+    } else {
+        Ns_DStringAppend(dsPtr, buf);
+        status = NS_TRUE;
+        
+    }
+    return status;
+}
+
+#elif defined(HAVE_GETHOSTBYADDR_R)
+
+static int
+GetHost(Ns_DString *dsPtr, char *addr)
+{
+    struct hostent he, *hePtr;
+    struct sockaddr_in sa;
+    char buf[2048];
+    int h_errnop;
+    int status = NS_FALSE;
+
+    sa.sin_addr.s_addr = inet_addr(addr);
+    if (sa.sin_addr.s_addr != INADDR_NONE) {
+        hePtr = gethostbyaddr_r(addr, strlen(addr), AF_INET, &he,
+                buf, sizeof(buf), &h_errnop);
+	if (he == NULL) {
+	    LogError("gethostbyaddr_r", h_errnop);
+	} else if (he.h_name != NULL) {
+	    Ns_DStringAppend(dsPtr, he.h_name);
+	    status = NS_TRUE;
+	}
+    }
+    return status;
+}
+
+#else
+
+/*
+ * This version is not thread-safe, but we have no thread-safe
+ * alternative on this platform.  Use critsec to try and serialize
+ * calls, but beware: Tcl core as of 8.4.6 still calls gethostbyaddr()
+ * as well, so it's still possible for two threads to call it at
+ * the same time.
+ */
+
 static int
 GetHost(Ns_DString *dsPtr, char *addr)
 {
@@ -233,7 +300,7 @@ GetHost(Ns_DString *dsPtr, char *addr)
         he = gethostbyaddr((char *) &sa.sin_addr,
 			   sizeof(struct in_addr), AF_INET);
 	if (he == NULL) {
-	    LogError("gethostbyaddr");
+	    LogError("gethostbyaddr", h_errno);
 	} else if (he->h_name != NULL) {
 	    Ns_DStringAppend(dsPtr, he->h_name);
 	    status = NS_TRUE;
@@ -242,6 +309,76 @@ GetHost(Ns_DString *dsPtr, char *addr)
     }
     return status;
 }
+
+#endif
+
+#if defined(HAVE_GETADDRINFO)
+
+static int
+GetAddr(Ns_DString *dsPtr, char *host)
+{
+    struct addrinfo hints;
+    struct addrinfo *res;
+    int result;
+    int status = NS_FALSE;
+    
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = AF_INET;
+    if ((result = getaddrinfo(host, NULL, &hints, &res)) != 0) {
+        Ns_Log(Error, "dns: getaddrinfo failed: %s", gai_strerror(result));
+    } else {
+        Ns_DStringAppend(dsPtr, ns_inet_ntoa(
+                    ((struct sockaddr_in *) res->ai_addr)->sin_addr));
+        status = NS_TRUE;
+    }
+    return status;
+}
+
+#elif defined(HAVE_GETHOSTBYNAME_R)
+
+static int
+GetAddr(Ns_DString *dsPtr, char *host)
+{
+    struct hostent he, *res;
+    struct in_addr ia;
+#ifdef HAVE_GETHOSTBYNAME_R_3
+    struct hostent_data data;
+#endif
+    char buf[2048];
+    int result;
+    int h_errnop;
+    int status = NS_FALSE;
+    
+#if defined(HAVE_GETHOSTBYNAME_R_6)
+    result = gethostbyname_r(host, &he, buf, sizeof(buf), &res, &h_errnop);
+#elif defined(HAVE_GETHOSTBYNAME_R_5)
+    result = gethostbyname_r(host, &he, buf, sizeof(buf), &h_errnop);
+#elif defined(HAVE_GETHOSTBYNAME_R_3)
+    result = gethostbyname_r(host, &he, &data);
+    h_errnop = h_errno;
+#endif
+
+    if (result != 0) { 
+	LogError("gethostbyname_r", h_errnop);
+    } else {
+        if (he.h_addr != NULL) {
+            ia.s_addr = ((struct in_addr *) he.h_addr)->s_addr;
+            Ns_DStringAppend(dsPtr, ns_inet_ntoa(ia));
+            status = NS_TRUE;
+        }
+    }
+    return status;
+}
+
+#else
+
+/*
+ * This version is not thread-safe, but we have no thread-safe
+ * alternative on this platform.  Use critsec to try and serialize
+ * calls, but beware: Tcl core as of 8.4.6 still calls gethostbyname()
+ * as well, so it's still possible for two threads to call it at
+ * the same time.
+ */
 
 static int
 GetAddr(Ns_DString *dsPtr, char *host)
@@ -254,7 +391,7 @@ GetAddr(Ns_DString *dsPtr, char *host)
     Ns_CsEnter(&cs);
     he = gethostbyname(host);
     if (he == NULL) {
-	LogError("gethostbyname");
+	LogError("gethostbyname", h_errno);
     } else if (he->h_addr != NULL) {
         ia.s_addr = ((struct in_addr *) he->h_addr)->s_addr;
 	Ns_DStringAppend(dsPtr, ns_inet_ntoa(ia));
@@ -263,6 +400,8 @@ GetAddr(Ns_DString *dsPtr, char *host)
     Ns_CsLeave(&cs);
     return status;
 }
+
+#endif
 
 
 /*
@@ -281,18 +420,15 @@ GetAddr(Ns_DString *dsPtr, char *host)
  *----------------------------------------------------------------------
  */
 
-static void
-LogError(char *func)
-{
-    int i;
-    char *h, *e, buf[20];
-#ifdef NEED_HERRNO
-    extern int h_errno;
-#endif
+#if !defined(HAVE_GETADDRINFO) && !defined(HAVE_GETNAMEINFO)
 
-    i = h_errno;
+static void
+LogError(char *func, int h_errnop)
+{
+    char *h, *e, buf[20];
+
     e = NULL;
-    switch (i) {
+    switch (h_errnop) {
 	case HOST_NOT_FOUND:
 	    /* Log nothing. */
 	    return;
@@ -318,9 +454,12 @@ LogError(char *func)
 #endif
 
 	default:
-	    sprintf(buf, "unknown error #%d", i);
+	    sprintf(buf, "unknown error #%d", h_errnop);
 	    h = buf;
     }
 
     Ns_Log(Error, "dns: %s failed: %s%s", func, h, e ? e : "");
 }
+
+#endif
+
