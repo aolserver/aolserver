@@ -1,4 +1,18 @@
 
+ifndef BSAFE
+
+all:
+	@echo "** "
+	@echo "** BSAFE variable not set."
+	@echo "** nsssl will not be built."
+	@echo "** "
+
+install: all
+
+clean:
+
+else
+
 NSHOME   =  ..
 
 #
@@ -23,3 +37,5 @@ OBJS      =  nsssl.o ssl.o ssltcl.o t_stdlib.o x509.o
 include  $(NSHOME)/include/Makefile.module
 
 nsssl.o: sock.cpp
+
+endif
