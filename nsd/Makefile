@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Makefile,v 1.25 2001/11/05 20:23:01 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Makefile,v 1.26 2001/11/05 21:10:45 jgdavidson Exp $
 #
 
 
@@ -51,7 +51,7 @@ OBJS = \
 	tclobj.o tclthread.o tclvar.o tclxkeylist.o unix.o url.o \
 	urlencode.o urlopen.o urlspace.o uuencode.o stamp.o \
 	compat.o cond.o error.o fork.o locks.o master.o \
-	memory.o reentrant.o sema.o  signal.o thread.o time.o specific.o
+	memory.o reentrant.o sema.o  signal.o thread.o time.o tls.o
 
 all: $(MAIN)
 
