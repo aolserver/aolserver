@@ -2,6 +2,8 @@
 
     * nsd/tclmisc.c: (bug fix): Use binary channel to read image file
     for ns_jpegsize.  Eliminate double error string.
+    * tcl/form.tcl: Fix to ns_querygetall to suppress null sublists.  Also,
+    fix defaulting semantics to behave as described.
 
 2003-05-28  Nathan Folkman <shmooved@aol.com>
 
