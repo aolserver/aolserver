@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/aclocal.m4,v 1.1 2002/09/10 23:40:04 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/aclocal.m4,v 1.2 2004/08/14 03:56:58 dossy Exp $
 #
 
 #
@@ -37,3 +37,91 @@
 #
 
 builtin(include,../tcl8.4/unix/tcl.m4)
+
+
+dnl
+dnl Check to see what variant of gethostbyname_r() we have.  Defines
+dnl HAVE_GETHOSTBYNAME_R_{6, 5, 3} depending on what variant is found.
+dnl
+dnl Based on David Arnold's example from the comp.programming.threads
+dnl FAQ Q213.
+dnl
+
+AC_DEFUN(AC_HAVE_GETHOSTBYNAME_R,
+[AC_CHECK_FUNC(gethostbyname_r, [
+  AC_DEFINE(HAVE_GETHOSTBYNAME_R)
+  AC_MSG_CHECKING([for gethostbyname_r with 6 args])
+  AC_TRY_COMPILE([
+    #include <netdb.h>
+  ], [
+    char *name;
+    struct hostent *he, *res;
+    char buffer[2048];
+    int buflen = 2048;
+    int h_errnop;
+
+    (void) gethostbyname_r(name, he, buffer, buflen, &res, &h_errnop);
+  ], [
+    AC_DEFINE(HAVE_GETHOSTBYNAME_R_6)
+    AC_MSG_RESULT(yes)
+  ], [
+    AC_MSG_RESULT(no)
+    AC_MSG_CHECKING([for gethostbyname_r with 5 args])
+    AC_TRY_COMPILE([
+      #include <netdb.h>
+    ], [
+      char *name;
+      struct hostent *he;
+      char buffer[2048];
+      int buflen = 2048;
+      int h_errnop;
+
+      (void) gethostbyname_r(name, he, buffer, buflen, &h_errnop);
+    ], [
+      AC_DEFINE(HAVE_GETHOSTBYNAME_R_5)
+      AC_MSG_RESULT(yes)
+    ], [
+      AC_MSG_RESULT(no)
+      AC_MSG_CHECKING([for gethostbyname_r with 3 args])
+      AC_TRY_COMPILE([
+        #include <netdb.h>
+      ], [
+        char *name;
+        struct hostent *he;
+        struct hostent_data data;
+
+        (void) gethostbyname_r(name, he, &data);
+      ], [
+        AC_DEFINE(HAVE_GETHOSTBYNAME_R_3)
+        AC_MSG_RESULT(yes)
+      ], [
+        AC_MSG_RESULT(no)
+      ])
+    ])
+  ])
+])])
+
+AC_DEFUN(AC_HAVE_GETHOSTBYADDR_R,
+[AC_CHECK_FUNC(gethostbyaddr_r, [
+  AC_DEFINE(HAVE_GETHOSTBYADDR_R)
+  AC_MSG_CHECKING([for gethostbyaddr_r with 7 args])
+  AC_TRY_COMPILE([
+    #include <netdb.h>
+  ], [
+    char *addr;
+    int length;
+    int type;
+    struct hostent *result;
+    char buffer[2048];
+    int buflen = 2048;
+    int h_errnop;
+
+    (void) gethostbyaddr_r(addr, length, type, result, buffer, buflen, &h_errnop);
+  ], [
+    AC_DEFINE(HAVE_GETHOSTBYADDR_R_7)
+    AC_MSG_RESULT(yes)
+  ], [
+    AC_MSG_RESULT(no)
+  ])
+])])
+
