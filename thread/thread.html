@@ -1,0 +1,125 @@
+<html>
+<head>
+  <title>thread</title>
+</head>
+<body bgcolor="#ffffff">
+<h2>thread -- AOLserver Thread Library</h2>
+<pre>$Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/thread.html,v 1.1 2000/10/10 18:03:52 kriston Exp $
+</pre>
+<br>
+<a href="#Theory_of_Operation">Theory of Operation</a><br>
+<a href="#Known_Issues">Known Issues</a><br>
+<a href="#Sample_Configuration">Sample Configuration</a><br>
+<br>
+<br>
+<h3><a name="Theory_of_Operation"></a>Theory of Operation</h3> The
+implementation of the underlying thread interface can have a
+noticeable effect on the overal performance of AOLserver.&nbsp; While
+AOLserver runs on many platforms, not all platforms perform the same
+with the same hardware, e.g., the same Intel hardware provide very
+diferent throughput and latency on Linux and FreeBSD.<br>
+<br>
+A major influence on the overall performance is the scheduling scope
+of the thread library.&nbsp; Multithreading scope is often described
+as having a "1-1", "1-n", or "n-m" model.&nbsp; 1-1 means each thread
+is scheduled by the kernel along with all other threads.&nbsp; 1-n
+means one kernel thread is actually used by all process threads and
+thread context switching occurs in a user-level library.&nbsp; n-m
+means some number of kernel threads share the load of some larger
+number of process threads.&nbsp; The nature of the AOLserver workload
+(e.g., many simultaneous, I/O and system call bound threads) has shown
+that the 1-1 model generally works best.&nbsp; 1-n often does not
+provide enough concurrency and n-m introduces library overhead.&nbsp;
+In general the OS vendors go to great lengths to make sure the kernel
+scheduling algorithms perform very well under a variety of
+circumstance whereas library implementations are generally more
+simplistic in design, forced to share resources with many non-threaded
+processes, or require careful wrapping of many system calls with
+non-blocking I/O and signal handling.&nbsp; Heavily-loaded sites may
+realize better performance a change in configuration, e.g., upgrading
+to HP/11 from HP/10 or running SGI sproc-based nsd instead of the
+pthread-based nsd.<br>
+<br>
+However, this does not mean that 1-n or n-m platforms should be
+avoided or you should not run AOLserver unless your platform is 1-1.
+In general, if you experience reasonable performance you do not need
+to worry about the performance of the underlying thread library.&nbsp;
+In fact, there are cases where the 1-n or n-m model may outperform,
+e.g., code which is somewhat compute bound and subject to lock
+contention.  The reason is a 1-n or n-m platform can switch threads
+when it encounters a held lock and continue to make progress whereas a
+1-1 thread must have the kernel put the thread on a lower level wait
+queue, generally a more expensive operation.&nbsp; Another example is
+a large-scale hosting environment where many customers share a single
+machine.&nbsp; You may find better scalability with 1-n threads than
+1-1 on the same hardware as each low-traffic customer would require a
+single Unix process instead of six or more for base operation.<br>
+<br>
+Listed below are the available and currently used threading models on
+each platform AOLserver runs on:&nbsp; <br>
+
+<pre>
+Platform:	Available:	Used:	Notes:
+
+Solaris,	1-1, n-m	1-1	1-1 appears to perform better.
+UnixWare
+
+Linux		1-1		1-1	clone()-based LinuxThreads.
+
+SGI pthread	n-m		n-m	1-1 currently cannot be enabled.
+
+SGI sproc	1-1		1-1	sproc-based custom interface often
+					provides better performance then
+					pthread-interface.
+
+HP/10		1-n		1-n	Performs poorly under load.
+
+HP/11		1-1		1-1	n-m currently cannot be enabled.
+
+FreeBSD		1-n		1-n	rfork()-based 1-1 interface may be
+					available shortly.
+
+Apple OS/X	?		?	Likely 1-1.
+
+DEC Unix 4.0	1-1, n-m	n-m	1-1 can be enabled but blows up
+					after many thread creates/exits.
+					n-m model performs well.
+
+Windows NT	1-1		1-1	New Fiber() Win32 API may provide
+					n-m in the future.
+</pre>
+<br>
+<h3><a name="Known_Issues"></a>Known Issues</h3> We really want to
+make libnsthread.a into libnsthread.so and take it out of nsd.&nbsp;
+This has already happened for Win32, so it should be a relatively
+simple matter for Unix.<br>
+<br>
+<h3><a name="Sample_Configuration"></a>Sample Configuration</h3> The
+library itself has no "configuration" but AOLserver has configuration
+parameters that affect the thread library.&nbsp; Please refer to the
+<a href="../doc/config.txt">Configuration File Reference</a>for
+extensive threading parameters for AOLserver.<br> <pre></pre>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+</body>
+</html>

@@ -1,0 +1,150 @@
+<html>
+<head>
+  <title>win32</title>
+</head>
+<body bgcolor="#ffffff">
+<h2>AOLserver Win32 Port</h2>
+<pre>$Header: /Users/dossy/Desktop/cvs/aolserver/win32/Attic/win32.html,v 1.1 2000/10/10 18:03:52 kriston Exp $
+</pre>
+<br>
+<h2>Getting Started</h2>
+This directory is for building AOLserver on Win32.&nbsp; The server is intended&nbsp;
+ to run on Windows 2000 or Windows NT 4.x SP6 (and better).&nbsp; While AOLserver
+ runs on Windows&nbsp; 9x, the architecture of that operating system precludes
+ any serious use. &nbsp; Included is a top-level Workspace for <b>Visual C++
+6.x
+ or better</b>which&nbsp; references individual Projects in the subdirectories.&nbsp;
+ All the
+project file&nbsp; pathnames are relative to the diretory in which the
+project
+ resides, e.g.,&nbsp; nsd/nsd.dsp will expect to compile
+../../nsd/nsmain.c for
+ output in nsd/Debug.<br>
+<br>
+Included directories are:<br>
+<ul>
+  <li>nsthread: Thread library.</li>
+  <li>nstcl:&nbsp; Tcl 8.3 modified for nsthreads.</li>
+  <li>nsd:&nbsp; Core AOLserver DLL.</li>
+  <li>main:&nbsp; AOLserver nsd.exe program.</li>
+  <li>cgitest: Simple .exe CGI test program.</li>
+  <li>threadtest: Thread library test program.</li>
+  <li>nscp: Control port.</li>
+  <li>nscgi:&nbsp; CGI interface.</li>
+  <li>nslog: Access Logging.</li>
+  <li>nsperm: Permissions.</li>
+  <li>nssock: Socket Driver.</li>
+  <li>nsssl: SSL Socket Driver (requires BSAFE for Win32).</li>
+  <li>test:&nbsp; Simple AOLserver directory for testing.</li>
+</ul>
+<br>
+<h2>Building</h2>
+To build, simply open the aolserver.dsw project workspace file, select
+the
+
+ "main" projects (which depends on all other projects), select
+release or
+
+ debug build, and select "Rebuild All".&nbsp; Output will be
+copied to the Debug
+
+ or Release subdirectory in this directory.&nbsp; The
+main project is also setup
+
+ to run AOLserver in the debugger using the
+"test" directory above.&nbsp; The
+
+ test directory includes a simple index.adp
+which allows you to evaluate
+
+ Tcl commands and has links to execute the
+cgitest.exe program and a cgitest.bat
+
+ batch CGI.
+<br>
+<h2>Installing</h2>
+To install, create an AOLserver installation directory as you would do
+on
+
+ Unix and copy the binaries from Debug or Release to the bin
+subdirectory.&nbsp;
+
+ AOLserver supports both console-mode and service-mode operation.<br>
+<br>
+You may then run the server in a console window as on Unix:
+
+
+
+<pre>bin/nsd.exe -f -t nsd.tcl</pre>
+You can also install the server as an NT Service where it is controlled via
+
+ the Services control panel:
+
+
+
+<pre>bin/nsd.exe -I -f nsd.tcl</pre>
+To remove the server from the list of NT Services, type: 
+
+<pre>bin/nsd -R -f nsd.tcl</pre>
+<br>
+<h2>General Notes</h2>
+The Win32 port is very much a port from Unix, e.g., it does not use
+fancy
+
+ WSA socket calls and relies on the libc library to be very much
+like Unix.&nbsp;
+
+ Pathnames are almost always translated explicitly to
+forward slash and it's
+
+ very unlikely fancy UNC style names (e.g.,
+\\host\file) will ever work.&nbsp;
+
+ Some NT semantics may still cause
+problems, e.g., you probably cannot roll
+
+ the server log file as files
+cannot be renamed while open on NT.&nbsp; The server
+
+ attempts to writes logs
+in "test" format (i.e., \r\n) but most other files
+
+ are assumed binary
+which is normally fine.&nbsp; The Tcl library is compiled
+
+ as "nstcl.dll" to
+ensure nsd.exe uses it instead of a thread unsafe tcl83.dll
+
+ which may
+be loaded because you're playing around with the Tk widget demo.<br>
+<br>
+AOLserver 3.1 and later use the extension ".DLL" for all shared libraries.&nbsp;
+
+ The configuration file automatically determines the extension at server
+
+ startup.<br>
+<br>
+Enjoy!
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+</body>
+</html>
