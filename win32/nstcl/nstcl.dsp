@@ -43,7 +43,7 @@ RSC=rc.exe
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /MT /W3 /GX /O2 /D "WIN32" /D "NDEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "NSTCL_EXPORTS" /YX /FD /c
-# ADD CPP /nologo /MD /W3 /GX /O2 /I "..\..\include" /I "..\..\tcl8.3.0\generic" /D "NDEBUG" /D "BUILD_tcl" /D TCL_THREADS=1 /D USE_TCLALLOC=0 /D "_WINDOWS" /D "_USRDLL" /D "NSTCL_EXPORTS" /D "WIN32" /D "_MBCS" /D FD_SETSIZE=128 /YX /FD /c
+# ADD CPP /nologo /MD /W3 /GX /O2 /I "..\..\include" /I "..\..\tcl8.3.1\generic" /D "NDEBUG" /D "BUILD_tcl" /D TCL_THREADS=1 /D USE_TCLALLOC=0 /D "_WINDOWS" /D "_USRDLL" /D "NSTCL_EXPORTS" /D "WIN32" /D "_MBCS" /D FD_SETSIZE=128 /YX /FD /c
 # ADD BASE MTL /nologo /D "NDEBUG" /mktyplib203 /win32
 # ADD MTL /nologo /D "NDEBUG" /mktyplib203 /win32
 # ADD BASE RSC /l 0x409 /d "NDEBUG"
@@ -69,7 +69,7 @@ LINK32=link.exe
 # PROP Ignore_Export_Lib 0
 # PROP Target_Dir ""
 # ADD BASE CPP /nologo /MTd /W3 /Gm /GX /ZI /Od /D "WIN32" /D "_DEBUG" /D "_WINDOWS" /D "_MBCS" /D "_USRDLL" /D "NSTCL_EXPORTS" /YX /FD /GZ /c
-# ADD CPP /nologo /MDd /W3 /Gm /GX /ZI /Od /I "..\..\include" /I "..\..\tcl8.3.0\generic" /D "_DEBUG" /D "BUILD_tcl" /D TCL_THREADS=1 /D USE_TCLALLOC=0 /D "_WINDOWS" /D "_USRDLL" /D "NSTCL_EXPORTS" /D "WIN32" /D "_MBCS" /D FD_SETSIZE=128 /YX /FD /GZ /c
+# ADD CPP /nologo /MDd /W3 /Gm /GX /ZI /Od /I "..\..\include" /I "..\..\tcl8.3.1\generic" /D "_DEBUG" /D "BUILD_tcl" /D TCL_THREADS=1 /D USE_TCLALLOC=0 /D "_WINDOWS" /D "_USRDLL" /D "NSTCL_EXPORTS" /D "WIN32" /D "_MBCS" /D FD_SETSIZE=128 /YX /FD /GZ /c
 # ADD BASE MTL /nologo /D "_DEBUG" /mktyplib203 /win32
 # ADD MTL /nologo /D "_DEBUG" /mktyplib203 /win32
 # ADD BASE RSC /l 0x409 /d "_DEBUG"
@@ -92,303 +92,303 @@ LINK32=link.exe
 # PROP Default_Filter "cpp;c;cxx;rc;def;r;odl;idl;hpj;bat"
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\generic\regcomp.c
+SOURCE=..\..\tcl8.3.1\generic\regcomp.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\generic\regerror.c
+SOURCE=..\..\tcl8.3.1\generic\regerror.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\generic\regexec.c
+SOURCE=..\..\tcl8.3.1\generic\regexec.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\generic\regfree.c
+SOURCE=..\..\tcl8.3.1\generic\regfree.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\compat\strftime.c
+SOURCE=..\..\tcl8.3.1\compat\strftime.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\generic\tclAsync.c
+SOURCE=..\..\tcl8.3.1\generic\tclAsync.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\generic\tclBasic.c
+SOURCE=..\..\tcl8.3.1\generic\tclBasic.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\generic\tclBinary.c
+SOURCE=..\..\tcl8.3.1\generic\tclBinary.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\generic\tclCkalloc.c
+SOURCE=..\..\tcl8.3.1\generic\tclCkalloc.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\generic\tclClock.c
+SOURCE=..\..\tcl8.3.1\generic\tclClock.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\generic\tclCmdAH.c
+SOURCE=..\..\tcl8.3.1\generic\tclCmdAH.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\generic\tclCmdIL.c
+SOURCE=..\..\tcl8.3.1\generic\tclCmdIL.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\generic\tclCmdMZ.c
+SOURCE=..\..\tcl8.3.1\generic\tclCmdMZ.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\generic\tclCompCmds.c
+SOURCE=..\..\tcl8.3.1\generic\tclCompCmds.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\generic\tclCompExpr.c
+SOURCE=..\..\tcl8.3.1\generic\tclCompExpr.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\generic\tclCompile.c
+SOURCE=..\..\tcl8.3.1\generic\tclCompile.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\generic\tclDate.c
+SOURCE=..\..\tcl8.3.1\generic\tclDate.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\generic\tclEncoding.c
+SOURCE=..\..\tcl8.3.1\generic\tclEncoding.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\generic\tclEnv.c
+SOURCE=..\..\tcl8.3.1\generic\tclEnv.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\generic\tclEvent.c
+SOURCE=..\..\tcl8.3.1\generic\tclEvent.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\generic\tclExecute.c
+SOURCE=..\..\tcl8.3.1\generic\tclExecute.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\generic\tclFCmd.c
+SOURCE=..\..\tcl8.3.1\generic\tclFCmd.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\generic\tclFileName.c
+SOURCE=..\..\tcl8.3.1\generic\tclFileName.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\generic\tclGet.c
+SOURCE=..\..\tcl8.3.1\generic\tclGet.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\generic\tclHash.c
+SOURCE=..\..\tcl8.3.1\generic\tclHash.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\generic\tclHistory.c
+SOURCE=..\..\tcl8.3.1\generic\tclHistory.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\generic\tclIndexObj.c
+SOURCE=..\..\tcl8.3.1\generic\tclIndexObj.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\generic\tclInterp.c
+SOURCE=..\..\tcl8.3.1\generic\tclInterp.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\generic\tclIO.c
+SOURCE=..\..\tcl8.3.1\generic\tclIO.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\generic\tclIOCmd.c
+SOURCE=..\..\tcl8.3.1\generic\tclIOCmd.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\generic\tclIOSock.c
+SOURCE=..\..\tcl8.3.1\generic\tclIOSock.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\generic\tclIOUtil.c
+SOURCE=..\..\tcl8.3.1\generic\tclIOUtil.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\generic\tclLink.c
+SOURCE=..\..\tcl8.3.1\generic\tclLink.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\generic\tclListObj.c
+SOURCE=..\..\tcl8.3.1\generic\tclListObj.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\generic\tclLiteral.c
+SOURCE=..\..\tcl8.3.1\generic\tclLiteral.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\generic\tclLoad.c
+SOURCE=..\..\tcl8.3.1\generic\tclLoad.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\generic\tclMain.c
+SOURCE=..\..\tcl8.3.1\generic\tclMain.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\generic\tclNamesp.c
+SOURCE=..\..\tcl8.3.1\generic\tclNamesp.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\generic\tclNotify.c
+SOURCE=..\..\tcl8.3.1\generic\tclNotify.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\generic\tclObj.c
+SOURCE=..\..\tcl8.3.1\generic\tclObj.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\generic\tclPanic.c
+SOURCE=..\..\tcl8.3.1\generic\tclPanic.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\generic\tclParse.c
+SOURCE=..\..\tcl8.3.1\generic\tclParse.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\generic\tclParseExpr.c
+SOURCE=..\..\tcl8.3.1\generic\tclParseExpr.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\generic\tclPipe.c
+SOURCE=..\..\tcl8.3.1\generic\tclPipe.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\generic\tclPkg.c
+SOURCE=..\..\tcl8.3.1\generic\tclPkg.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\generic\tclPosixStr.c
+SOURCE=..\..\tcl8.3.1\generic\tclPosixStr.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\generic\tclPreserve.c
+SOURCE=..\..\tcl8.3.1\generic\tclPreserve.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\generic\tclProc.c
+SOURCE=..\..\tcl8.3.1\generic\tclProc.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\generic\tclRegexp.c
+SOURCE=..\..\tcl8.3.1\generic\tclRegexp.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\generic\tclResolve.c
+SOURCE=..\..\tcl8.3.1\generic\tclResolve.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\generic\tclResult.c
+SOURCE=..\..\tcl8.3.1\generic\tclResult.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\generic\tclScan.c
+SOURCE=..\..\tcl8.3.1\generic\tclScan.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\generic\tclStringObj.c
+SOURCE=..\..\tcl8.3.1\generic\tclStringObj.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\generic\tclStubInit.c
+SOURCE=..\..\tcl8.3.1\generic\tclStubInit.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\generic\tclStubLib.c
+SOURCE=..\..\tcl8.3.1\generic\tclStubLib.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\generic\tclThread.c
+SOURCE=..\..\tcl8.3.1\generic\tclThread.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\generic\tclTimer.c
+SOURCE=..\..\tcl8.3.1\generic\tclTimer.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\generic\tclUniData.c
+SOURCE=..\..\tcl8.3.1\generic\tclUniData.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\generic\tclUtf.c
+SOURCE=..\..\tcl8.3.1\generic\tclUtf.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\generic\tclUtil.c
+SOURCE=..\..\tcl8.3.1\generic\tclUtil.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\generic\tclVar.c
+SOURCE=..\..\tcl8.3.1\generic\tclVar.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\win\tclWin32Dll.c
+SOURCE=..\..\tcl8.3.1\win\tclWin32Dll.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\win\tclWinChan.c
+SOURCE=..\..\tcl8.3.1\win\tclWinChan.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\win\tclWinConsole.c
+SOURCE=..\..\tcl8.3.1\win\tclWinConsole.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\win\tclWinError.c
+SOURCE=..\..\tcl8.3.1\win\tclWinError.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\win\tclWinFCmd.c
+SOURCE=..\..\tcl8.3.1\win\tclWinFCmd.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\win\tclWinFile.c
+SOURCE=..\..\tcl8.3.1\win\tclWinFile.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\win\tclWinInit.c
+SOURCE=..\..\tcl8.3.1\win\tclWinInit.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\win\tclWinLoad.c
+SOURCE=..\..\tcl8.3.1\win\tclWinLoad.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\win\tclWinMtherr.c
+SOURCE=..\..\tcl8.3.1\win\tclWinMtherr.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\win\tclWinNotify.c
+SOURCE=..\..\tcl8.3.1\win\tclWinNotify.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\win\tclWinPipe.c
+SOURCE=..\..\tcl8.3.1\win\tclWinPipe.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\win\tclWinSerial.c
+SOURCE=..\..\tcl8.3.1\win\tclWinSerial.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\win\tclWinSock.c
+SOURCE=..\..\tcl8.3.1\win\tclWinSock.c
 # End Source File
 # Begin Source File
 
-SOURCE=..\..\tcl8.3.0\win\tclWinTime.c
+SOURCE=..\..\tcl8.3.1\win\tclWinTime.c
 # End Source File
 # End Group
 # Begin Group "Header Files"
