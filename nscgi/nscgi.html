@@ -6,7 +6,7 @@
 
 <h2>nscgi -- Common Gateway Interface (CGI) module</h2>
 
-<p>$Header: /Users/dossy/Desktop/cvs/aolserver/nscgi/nscgi.html,v 1.1.10.1 2004/09/03 04:37:18 dossy Exp $</p>
+<p>$Header: /Users/dossy/Desktop/cvs/aolserver/nscgi/nscgi.html,v 1.1.10.2 2004/09/08 18:37:43 dossy Exp $</p>
 
 <ul>
   <li><a href="#Theory_of_Operation">Theory of Operation</a></li>
@@ -39,11 +39,13 @@ which no redesign is possible.</p>
 <table border="1">
   <tr>
     <th>Option</th>
+    <th>Type</th>
     <th>Default</th>
     <th>Description</th>
   </tr>
   <tr>
     <td>environment</td>
+    <td>string</td>
     <td>N/A</td>
     <td>The name of the config section which contains the additional
       environment variable names and values to set before executing the
@@ -52,6 +54,7 @@ which no redesign is possible.</p>
   </tr>
   <tr>
     <td>gethostbyaddr</td>
+    <td>boolean</td>
     <td>false</td>
     <td>Whether to resolve the peer IP address to its hostname when
       setting the REMOTE_HOST environment variable.  If "false", the
@@ -61,6 +64,7 @@ which no redesign is possible.</p>
   </tr>
   <tr>
     <td>interps</td>
+    <td>string</td>
     <td>N/A</td>
     <td>The name of the config section which contains the mappings from
       file extensions to CGI interpreters to execute the CGI with.  The
@@ -69,12 +73,14 @@ which no redesign is possible.</p>
   </tr>
   <tr>
     <td>limit</td>
+    <td>integer</td>
     <td>0</td>
     <td>Maximum number of concurrent CGI requests to execute.  "0" means
       unlimited.</td>
   </tr>
   <tr>
     <td>map</td>
+    <td>string</td>
     <td>N/A</td>
     <td>
       <p>Maps relative URIs or glob patterns to filesystem paths or
@@ -104,12 +110,14 @@ which no redesign is possible.</p>
   </tr>
   <tr>
     <td>maxinput</td>
+    <td>integer</td>
     <td>1024000</td>
     <td>Maximum in bytes to accept in the HTTP request.  "0" means
       unlimited.  Mostly useful to limit the size of POST'ed data.</td>
   </tr>
   <tr>
     <td>maxwait</td>
+    <td>integer</td>
     <td>30</td>
     <td>Amount of time to wait in the queue when the  concurrency limit
       has been reached.  Server will respond with a 503 Service
@@ -118,6 +126,7 @@ which no redesign is possible.</p>
   </tr>
   <tr>
     <td>systemenvironment</td>
+    <td>boolean</td>
     <td>false</td>
     <td>Controls whether the CGI will inherit the server process's
       environment variables or not.  Enabling this could potentially
