@@ -774,6 +774,7 @@ extern void NsInitConf(void);
 extern void NsInitEncodings(void);
 extern void NsInitListen(void);
 extern void NsInitLog(void);
+extern void NsInitInfo(void);
 extern void NsInitMimeTypes(void);
 extern void NsInitModLoad(void);
 extern void NsInitProcInfo(void);
