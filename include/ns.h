@@ -33,16 +33,28 @@
  *      All the public types and function declarations for the core
  *	AOLserver.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.50 2003/03/13 17:21:18 vasiljevic Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.51 2003/03/19 09:00:47 vasiljevic Exp $
  */
 
 #ifndef NS_H
 #define NS_H
 
-#define NS_MAJOR_VERSION   4
-#define NS_MINOR_VERSION   0
-#define NS_VERSION         "4.0"
-#define NS_PATCH_LEVEL     "4.0"
+#define NS_MAJOR_VERSION	4
+#define NS_MINOR_VERSION	0
+#define NS_RELEASE_SERIAL	0
+#define NS_VERSION		"4.0"
+#define NS_PATCH_LEVEL		"4.0"
+
+#define NS_ALPHA_RELEASE	0
+#define NS_BETA_RELEASE		1
+#define NS_FINAL_RELEASE	2
+
+/*
+ * Be sure to move to NS_FINAL_RELEASE when
+ * finished with non-production stages.
+ */
+
+#define NS_RELEASE_LEVEL	NS_BETA_RELEASE
 
 #include "nsthread.h"
 
@@ -67,7 +79,7 @@
 #define NS_CONN_KEEPALIVE	 32
 #define NS_CONN_WRITE_ENCODED    64
 
-#define NS_CONN_MAXCLS		  16
+#define NS_CONN_MAXCLS		 16
 
 #define NS_AOLSERVER_3_PLUS
 #define NS_UNAUTHORIZED		(-2)
@@ -100,18 +112,18 @@
 #define NS_DRIVER_SSL		  2	/* Use SSL port, protocol defaults. */
 
 #if defined(__alpha)
-typedef long                    ns_int64;
-typedef unsigned long           ns_uint64;
-typedef long INT64;
+typedef long			ns_int64;
+typedef unsigned long		ns_uint64;
+typedef long 			INT64;
 #define NS_INT_64_FORMAT_STRING "%ld"
 #elif defined(_WIN32)
-typedef int                     mode_t;  /* Bug: #703061 */ 
-typedef __int64                 ns_int64;
-typedef unsigned __int64        ns_uint64;
+typedef int			mode_t;  /* Bug: #703061 */ 
+typedef __int64			ns_int64;
+typedef unsigned __int64	ns_uint64;
 #define NS_INT_64_FORMAT_STRING "%I64d"
 #else
 typedef long long 		ns_int64;
-typedef unsigned long long      ns_uint64;
+typedef unsigned long long	ns_uint64;
 #define NS_INT_64_FORMAT_STRING "%lld"
 #endif
 
@@ -514,6 +526,7 @@ NS_EXTERN int Ns_ConfigGetBool(char *section, char *key, int *valuePtr);
 NS_EXTERN char *Ns_ConfigGetPath(char *server, char *module, ...);
 NS_EXTERN Ns_Set **Ns_ConfigGetSections(void);
 NS_EXTERN Ns_Set *Ns_ConfigGetSection(char *section);
+NS_EXTERN void Ns_GetVersion(int *major, int *minor, int *patch, int *type);
 
 /*
  * conn.c:

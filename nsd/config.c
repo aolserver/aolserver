@@ -33,7 +33,7 @@
  *	Support for the configuration file
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/config.c,v 1.16 2003/03/07 18:08:15 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/config.c,v 1.17 2003/03/19 09:00:50 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #define ISSLASH(c)      ((c) == '/' || (c) == '\\')
@@ -314,6 +314,46 @@ Ns_Set *
 Ns_ConfigGetSection(char *section)
 {
     return (section ? GetSection(section, 0) : NULL);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_GetVersion
+ *
+ *	Get the major, minor, and patchlevel version numbers and
+ *      the release type. A patch is a release type NS_FINAL_RELEASE
+ *      with a patchLevel > 0.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+Ns_GetVersion(majorV, minorV, patchLevelV, type)
+    int *majorV;
+    int *minorV;
+    int *patchLevelV;
+    int *type;
+{
+    if (majorV != NULL) {
+        *majorV = NS_MAJOR_VERSION;
+    }
+    if (minorV != NULL) {
+        *minorV = NS_MINOR_VERSION;
+    }
+    if (patchLevelV != NULL) {
+        *patchLevelV = NS_RELEASE_SERIAL;
+    }
+    if (type != NULL) {
+        *type = NS_RELEASE_LEVEL;
+    }
 }
 
 
