@@ -769,7 +769,7 @@ proc ns_job_unit_test_6 {testNum} {
     #
     outputMsgLog "Wait for any job to complete...<br>"
     if {[catch {
-        ns_job waitany -timeout 0 10 $queueId
+        ns_job waitany -timeout 0:10000 $queueId
         outputMsgLog "Failed to timeout call."
         return [rc.failure]
     } err]} {
@@ -800,7 +800,7 @@ proc ns_job_unit_test_6 {testNum} {
     #
     foreach jobId $jobList {
         if {[catch {
-            ns_job wait -timeout 0 10 $queueId $jobId
+            ns_job wait -timeout 0:10000 $queueId $jobId
             outputMsgLog "Failed to timeout call."
             return [rc.failure]
         } err]} {
