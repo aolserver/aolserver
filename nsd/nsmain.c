@@ -33,7 +33,7 @@
  *	AOLserver Ns_Main() startup routine.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.50 2003/04/07 21:08:52 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.51 2003/06/02 14:46:15 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #ifdef _WIN32
@@ -49,6 +49,11 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
 static void UsageError(char *msg);
 static void StatusMsg(int state);
 static char *FindConfig(char *config);
+
+#if (STATIC_BUILD == 1)
+extern void NsthreadsInit();
+extern void NsdInit();
+#endif
 
 
 /*
@@ -102,6 +107,16 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
     static char	  *procname;
     static char	  *server;
 
+#endif
+
+    /*
+     * For static builds only, we have to initialize
+     * otherwise dynamically loaded shared libraries.
+     */
+
+#if (STATIC_BUILD == 1)
+    NsthreadsInit();
+    NsdInit();
 #endif
 
     /*

@@ -1,5 +1,18 @@
 2003-05-31  Zoran Vasiljevic <zoran@archiware.com>
 
+	* nsd/config.c: uses Ns_TclDestroyInterp instead of the
+	Tcl_DeleteInterp.
+
+	* nsthread/nsthreadtest.c:
+	* nsd/init.c:
+	* nsd/nsmain.c:
+	* include/Makefile.module.in:
+	* configure:
+	* configure.in: added --disable-shared so we can now build the
+	nsd image statically.
+ 
+2003-05-31  Zoran Vasiljevic <zoran@archiware.com>
+
 	* nsd/cache.c:
 	* include/ns.h:
 	* doc/Ns_Cache.3: added C-API for Ns_CacheTryLock as in RFE #725704
