@@ -33,7 +33,7 @@
  *      All the public types and function declarations for the core
  *	AOLserver.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.65 2004/08/10 17:26:48 jgdavidson Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.66 2004/08/28 01:07:31 jgdavidson Exp $
  */
 
 #ifndef NS_H
@@ -97,6 +97,7 @@
 #define NS_FILTER_POST_AUTH       2
 #define NS_FILTER_TRACE           4
 #define NS_FILTER_VOID_TRACE      8
+#define NS_FILTER_PRE_QUEUE	 16
 #define NS_REGISTER_SERVER_TRACE 16
 #define NS_OP_NOINHERIT		  2
 #define NS_OP_NODELETE		  4
@@ -456,7 +457,6 @@ typedef void  (Ns_TraceProc) (void *arg, Ns_Conn *conn);
 typedef int   (Ns_FilterProc) (void *arg, Ns_Conn *conn, int why);
 typedef int   (Ns_UrlToFileProc) (Ns_DString *dsPtr, char *server, char *url);
 typedef char *(Ns_LocationProc) (Ns_Conn *conn);
-typedef void  (Ns_PreQueueProc) (Ns_Conn *conn, void *arg);
 typedef void  (Ns_QueueWaitProc) (Ns_Conn *conn, SOCKET sock, void *arg, int why);
 
 /*
@@ -641,9 +641,8 @@ NS_EXTERN int Ns_GetAddrByHost(Ns_DString *dsPtr, char *host);
  * driver.c:
  */
 
-NS_EXTERN int Ns_DriverInit(char *server, char *module, Ns_DriverInitData *init);
-NS_EXTERN int Ns_RegisterPreQueue(char *server, Ns_PreQueueProc *proc,
-    	    	    	    	   void *arg);
+NS_EXTERN int Ns_DriverInit(char *server, char *module,
+			    Ns_DriverInitData *init);
 NS_EXTERN void Ns_QueueWait(Ns_Conn *conn, SOCKET sock, Ns_QueueWaitProc *proc,
     	     void *arg, int when, Ns_Time *timePtr);
 
