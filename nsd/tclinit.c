@@ -33,7 +33,7 @@
  *	Initialization routines for Tcl.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.16 2001/04/25 21:06:24 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.17 2001/11/05 20:23:59 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -42,6 +42,7 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
  */
 
 static Tcl_InterpDeleteProc FreeData;
+static Ns_TlsCleanup DeleteInterps;
 
 /*
  * Static variables defined in this file.
@@ -49,6 +50,8 @@ static Tcl_InterpDeleteProc FreeData;
 
 static char initServer[] = "_ns_initserver";
 static char cleanupInterp[] = "ns_cleanup";
+static int initialized = 0;
+static Ns_Tls tls;
 
 
 /*
@@ -175,14 +178,28 @@ Ns_TclMarkForDelete(Tcl_Interp *interp)
 Tcl_Interp *
 Ns_TclAllocateInterp(char *server)
 {
-    NsTls *tlsPtr = NsGetTls();
+    Tcl_HashTable *tablePtr;
     Tcl_HashEntry *hPtr;
     Tcl_Interp *interp;
     Init *initPtr;
     NsInterp *itPtr;
     int new;
 
-    hPtr = Tcl_CreateHashEntry(&tlsPtr->tcl.interps, server, &new);
+    if (!initialized) {
+	Ns_MasterLock();
+	if (!initialized) {
+	    Ns_TlsAlloc(&tls, DeleteInterps);
+	    initialized = 1;
+	}
+	Ns_MasterUnlock();
+    }
+    tablePtr = Ns_TlsGet(&tls);
+    if (tablePtr == NULL) {
+	tablePtr = ns_malloc(sizeof(Tcl_HashTable));
+	Tcl_InitHashTable(tablePtr, TCL_STRING_KEYS);
+	Ns_TlsSet(&tls, tablePtr);
+    }
+    hPtr = Tcl_CreateHashEntry(tablePtr, server, &new);
     interp = Tcl_GetHashValue(hPtr);
     if (interp != NULL) {
 	Tcl_SetHashValue(hPtr, NULL);
@@ -574,4 +591,39 @@ FreeData(ClientData arg, Tcl_Interp *interp)
     Tcl_DeleteHashTable(&itPtr->chans);
     Tcl_DeleteHashTable(&itPtr->https);
     ns_free(itPtr);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * DeleteInterps --
+ *
+ *      Delete all per-thread interps.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+DeleteInterps(void *arg)
+{
+    Tcl_HashTable *tablePtr = arg;
+    Tcl_HashEntry *hPtr;
+    Tcl_HashSearch search;
+    Tcl_Interp *interp;
+
+    hPtr = Tcl_FirstHashEntry(tablePtr, &search);
+    while (hPtr != NULL) {
+	interp = Tcl_GetHashValue(hPtr);
+	Tcl_DeleteInterp(interp);
+	hPtr = Tcl_NextHashEntry(&search);
+    }
+    Tcl_DeleteHashTable(tablePtr);
+    ns_free(tablePtr);
 }

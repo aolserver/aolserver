@@ -34,9 +34,21 @@
  *	Manage the server log file.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/log.c,v 1.9 2001/05/02 15:50:34 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/log.c,v 1.10 2001/11/05 20:23:59 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
+
+/*
+ * The following struct maintains cached formatted
+ * time buffers.
+ */
+
+typedef struct Cache {
+    time_t	gtime;
+    time_t	ltime;
+    char	gbuf[100];
+    char	lbuf[100];
+} Cache;
 
 /*
  * Local functions defined in this file
@@ -60,6 +72,8 @@ static Ns_DString buffer;
 static int buffered = 0;
 static int flushing = 0;
 static int nbuffered = 0;
+static int initialized = 0;
+static Ns_Tls tls;
 
 
 /*
@@ -588,7 +602,7 @@ LogReOpen(void)
     int status;
 
     status = NS_OK;
-    fd = open(nsconf.log.file, O_WRONLY|O_APPEND|O_CREAT|O_TEXT, 0644);
+    fd = open(nsconf.log.file, O_WRONLY|O_APPEND|O_CREAT, 0644);
     if (fd < 0) {
         Ns_Log(Error, "log: failed to re-open log file '%s': '%s'",
 	       nsconf.log.file, strerror(errno));
@@ -645,18 +659,32 @@ LogReOpen(void)
 static char *
 LogTime(int gmtoff)
 {
-    NsTls     *tlsPtr = NsGetTls();
-    time_t     *tp, now = time(NULL);
+    Cache    *cachePtr;
+    time_t   *tp, now = time(NULL);
     struct tm *ptm;
     int gmtoffset, n, sign;
     char *bp;
 
+    if (!initialized) {
+	Ns_MasterLock();
+	if (!initialized) {
+	    Ns_TlsAlloc(&tls, ns_free);
+	    initialized = 1;
+	}
+	Ns_MasterUnlock();
+    }
+
+    cachePtr = Ns_TlsGet(&tls);
+    if (cachePtr == NULL) {
+	cachePtr = ns_calloc(1, sizeof(Cache));
+	Ns_TlsSet(&tls, cachePtr);
+    }
     if (gmtoff) {
-	tp = &tlsPtr->tfmt.gtime;
-	bp = tlsPtr->tfmt.gbuf;
+	tp = &cachePtr->gtime;
+	bp = cachePtr->gbuf;
     } else {
-	tp = &tlsPtr->tfmt.ltime;
-	bp = tlsPtr->tfmt.lbuf;
+	tp = &cachePtr->ltime;
+	bp = cachePtr->lbuf;
     }
     if (*tp != time(&now)) {
 	*tp = now;
