@@ -1113,17 +1113,12 @@ if test "$shared_ok" = "yes" ; then
         { echo "configure: error: must build tcl with --enable-shared" 1>&2; exit 1; }
     fi
     STATIC_BUILD=0
-    cat >> confdefs.h <<\EOF
-#define STATIC_BUILD 0
-EOF
-
     echo "$ac_t""shared" 1>&6
 else
+    if test "${TCL_SHARED_BUILD}" != "0" ; then
+        { echo "configure: error: must build tcl with --disable-shared" 1>&2; exit 1; }
+    fi
     STATIC_BUILD=1
-    cat >> confdefs.h <<\EOF
-#define STATIC_BUILD 1
-EOF
-
     echo "$ac_t""static" 1>&6
 fi
 
