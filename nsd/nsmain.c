@@ -33,7 +33,7 @@
  *	AOLserver Ns_Main() startup routine.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.16 2000/10/17 19:53:23 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.17 2000/10/17 20:12:03 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -324,14 +324,12 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 
     }
     if (mode == 'V') {
-        printf("AOLserver version %s\n", NSD_VERSION); 
+        printf("AOLserver/%s (%s)\n", NSD_VERSION, Ns_InfoLabel()); 
+	printf("   CVS Tag:         %s\n", Ns_InfoTag());
 	printf("   Built:           %s\n", Ns_InfoBuildDate());
-	printf("   Label:           %s\n", Ns_InfoLabel());
-	printf("   Tag:             %s\n", Ns_InfoTag());
 	printf("   Tcl version:     %s\n", nsTclVersion);
 	printf("   Thread library:  %s\n", NsThreadLibName());
 	printf("   Platform:        %s\n", Ns_InfoPlatform());
-	printf("\n\n Note: \"Tag:\" should resemble \"Label:\"\n\n");
         return 0;
     } else if (nsconf.config == NULL) {
         UsageError("required -c/-t <config> option not specified");
