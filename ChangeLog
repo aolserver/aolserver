@@ -1,8 +1,14 @@
+2003-02-25  Nathan Folkman <shmooved@aol.com>
+
+        * nsd/init.tcl: (patch) Added logging of errorInfo
+        and errorCode globals to _ns_sourcefile command.
+        SF patch 690025.
+
 2003-02-07  Elizabeth Thomas <eathomas93@aol.com>
 
         * TAG aolserver_v4_r0_beta_2
 
-        * tcl/sendmail.tcl (bug fix): SF bugs 669217/669844
+        * tcl/sendmail.tcl: (bug fix) SF bugs 669217/669844
         Fix handling of addressees so we don't lose friendly address name
     
         * configure: fix additional defaults from cc to gcc
