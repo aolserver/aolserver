@@ -1,3 +1,9 @@
+2004-09-20  Dossy Shiobara <dossy@panoptic.com>
+
+	* nsd/: nsmain.c (1.58), nsd.h (1.91), unix.c (1.18): Need to set
+	  the dumpable flag on Linux in order to get a core file after
+	  uid/gid is changed.  Closes SF Bug #1031599.
+
 2004-09-17  Dossy Shiobara <dossy@panoptic.com>
 
 	* nsd/connio.c (1.16): Ns_ConnSend() now bubbles up the error from
