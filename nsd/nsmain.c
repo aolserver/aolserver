@@ -33,7 +33,7 @@
  *	AOLserver Ns_Main() startup routine.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.52 2003/11/03 19:23:26 pkhincha Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.52.2.1 2004/07/01 19:34:38 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #ifdef _WIN32
@@ -82,8 +82,8 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
     Ns_Time 	   timeout;
     char	   buf[PATH_MAX];
 #ifndef _WIN32
-    int		   uid = 0;
-    int		   gid = 0;
+    uid_t	   uid = 0;
+    gid_t	   gid = 0;
     int		   debug = 0;
     int	   	   mode = 0;
     char	  *root = NULL;
@@ -277,6 +277,13 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 	gid = Ns_GetUserGid(uarg);
 	if (uid < 0) {
 	    uid = atoi(uarg);
+
+	    /*
+	     * In the case where uarg isn't a username, we set it to NULL,
+	     * causing supplementary groups to be ignored later.
+	     */
+
+	    uarg = NULL;
 	}
 	if (uid == 0) {
 	    Ns_Fatal("nsmain: invalid user '%s'", uarg);
@@ -352,7 +359,28 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 	    Ns_Fatal("nsmain: server will not run as root; "
 		     "must specify '-u username' parameter");
 	}
-	if (gid != 0 && gid != getgid() && setgid(gid) != 0) {
+	if (gid == 0) {
+	    Ns_Fatal("nsmain: server will not run as gid 0; "
+		     "must specify '-g group' parameter");
+	}
+
+	/*
+	 * Set or clear supplementary groups.
+	 */
+
+	if (uarg != NULL) {
+	    if (initgroups(uarg, gid) != 0) {
+		Ns_Fatal("nsmain: initgroups(%s, %d) failed: '%s'",
+			uarg, gid, strerror(errno));
+	    }
+	} else {
+	    if (setgroups(0, NULL) != 0) {
+		Ns_Fatal("nsmain: setgroups(0, NULL) failed: '%s'",
+			strerror(errno));
+	    }
+	}
+
+	if (gid != getgid() && setgid(gid) != 0) {
 	    Ns_Fatal("nsmain: setgid(%d) failed: '%s'", gid, strerror(errno));
 	}
 	if (setuid(uid) != 0) {

@@ -58,6 +58,7 @@
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <ctype.h>
+#include <grp.h>
 
 #endif	/* WIN32 */
 
