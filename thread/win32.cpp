@@ -34,7 +34,6 @@
  *
  */
 
-
 #include "thread.h"
 #include <io.h>
 
@@ -83,10 +82,11 @@ static void	Wakeup(WinThread *wPtr, char *func);
 static void	Queue(WinThread **waitPtrPtr, WinThread *wPtr);
 
 #define SPINLOCK(lPtr) \
-    while(InterlockedExchange(lPtr, 1)) Sleep(0)
+    while(InterlockedExchange((lPtr), 1)) Sleep(0)
 #define SPINUNLOCK(lPtr) \
-    InterlockedExchange(lPtr, 0)
+    InterlockedExchange((lPtr), 0)
 #define GETWINTHREAD()	TlsGetValue(tlskey)
+
 /*
  * The following single Tls key is used to store the nsthread
  * structure.  It's initialized in DllMain.
@@ -205,7 +205,7 @@ NsThreadLibName(void)
  * Ns_MasterLock, Ns_MasterUnlock --
  *
  *	Lock/unlock the global master critical section lock using
- *	the CRITICAL_SECTION initializes in DllMain.  Sometimes
+ *	the CRITICAL_SECTION initialized in DllMain.  Sometimes
  *	things are easier on Win32.
  *
  * Results:
@@ -287,7 +287,7 @@ NsLockFree(void *lock)
  *	None.
  *
  * Side effects:
- *	None.
+ *	May wait wakeup event if lock already held.
  *
  *----------------------------------------------------------------------
  */
@@ -326,7 +326,7 @@ NsLockSet(void *lock)
  *	Try to set a mutex lock once.
  *
  * Results:
- *	NS_OK if set, NS_TIMEOUT if lock already set.
+ *	1 if lock set, 0 otherwise.
  *
  * Side effects:
  * 	None.
@@ -364,7 +364,7 @@ NsLockTry(Lock *lock)
  *	None.
  *
  * Side effects:
- *	None.
+ *	May signal wakeup event for a waiting thread.
  *
  *----------------------------------------------------------------------
  */
@@ -484,9 +484,9 @@ Ns_CondSignal(Ns_Cond *condPtr)
 	wPtr->condwait = 0;
 
 	/*
-	 * NB: Unlike with MutexUnlock, the Wakeup() must be done
+	 * NB: Unlike with NsLockUnset, the Wakeup() must be done
 	 * before the spin unlock as the other thread may have 
-	 * been in a timed wait which timed out.
+	 * been in a timed wait which just timed out.
 	 */
 
 	Wakeup(wPtr, "Ns_CondSignal");
@@ -506,7 +506,7 @@ Ns_CondSignal(Ns_Cond *condPtr)
  *	None.
  *
  * Side effects:
- *	One or more waiting threads may be resumed.
+ *	First thread, if any, is awoken.
  *
  *----------------------------------------------------------------------
  */
@@ -579,14 +579,14 @@ Ns_CondWait(Ns_Cond *condPtr, Ns_Mutex *lockPtr)
  * Ns_CondTimedWait --
  *
  *	Wait for a condition to be signaled up to a given absolute time
- *	out.  This code is very tricky to avoid the race condition between
- *	locking and unlocking the coordinating mutex and catching a
+ *	out.  This code is very tricky to avoid the race condition
+ *	between locking and unlocking the coordinating mutex and catching
  *	a wakeup signal.  Be sure you understand how condition variables
  *	work before screwing around with this code.
  *
  * Results:
- *	NS_OK on signal being received within the timeout period, otherwise
- *	NS_TIMEOUT.
+ *	NS_OK on signal being received within the timeout period,
+ *	otherwise NS_TIMEOUT.
  *
  * Side effects:
  *	None.
@@ -665,6 +665,8 @@ Ns_CondTimedWait(Ns_Cond *condPtr, Ns_Mutex *lockPtr, Ns_Time *timePtr)
 
     /*
      * Wakeup the next thread in a rolling broadcast if necessary.
+     * Note, as with Ns_CondSignal, the wakeup must be sent while
+     * the spin lock is held.
      */
 
     if (wPtr->wakeupPtr != NULL) {
@@ -710,13 +712,18 @@ Ns_ThreadYield(void)
  *
  * NsThreadCreate --
  *
- *	WinThread specific thread create function called by Ns_ThreadCreate.
+ *	WinThread specific thread create function called by
+ *	Ns_ThreadCreate.  Note the use of _beginthread instead of
+ *	CreateThread which most certainly correct.  Using CreateThread
+ *	is a very common error possibly resulting in a memory leak
+ *	and keeping the C RTL from initializing signal handling
+ *	and floating point exception handling properly.
  *
  * Results:
  *	None.
  *
  * Side effects:
- *	New process is WinThread'ed by manager thread.
+ *	Depends on thread startup routine.
  *
  *----------------------------------------------------------------------
  */
@@ -735,14 +742,14 @@ NsThreadCreate(Thread *thrPtr)
  *
  * NsThreadExit --
  *
- *	Terminate a WinThread processes after adding the process id to the
- *	list of processes to be reaped by the manager process.
+ *	Terminate a thread.  Note the use of _endthread instead of
+ *	ExitThread which, as above, is corrent.
  *
  * Results:
  *	None.
  *
  * Side effects:
- *	Manager process will later reap the process status.
+ *	Thread will clean itself up via the DllMain thread detach code.
  *
  *----------------------------------------------------------------------
  */
@@ -759,7 +766,7 @@ NsThreadExit(void)
  *
  * NsSetThread --
  *
- *	WinThread specific routine for setting a thread's data structure.
+ *	Win32 specific routine for setting a thread's data structure.
  *
  * Results:
  *	None.
@@ -785,13 +792,14 @@ NsSetThread(Thread *thrPtr)
  *
  * NsGetThread --
  *
- *	WinThread specific routine for getting a thread's structure. 
+ *	Win32 specific routine for getting a thread's structure. 
  *
  * Results:
  *	Pointer to this thread's structure.
  *
  * Side effects:
- *	None.
+ *	Will create a new structure for a thread not created via
+ *	Ns_ThreadCreate.
  *
  *----------------------------------------------------------------------
  */
