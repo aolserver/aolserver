@@ -33,7 +33,7 @@
  *      Routines for dealing with HTML FORM's.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/form.c,v 1.9 2002/07/08 02:50:37 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/form.c,v 1.10 2002/10/14 23:20:23 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -41,6 +41,8 @@ static void ParseQuery(char *form, Ns_Set *set, Tcl_Encoding encoding);
 static char *Decode(Tcl_DString *dsPtr, char *s, Tcl_Encoding encoding);
 static char *Ext2Utf(Tcl_DString *dsPtr, char *s, int len, Tcl_Encoding encoding);
 static int GetBoundary(Tcl_DString *dsPtr, Ns_Conn *conn);
+static char * NextBoundry(Tcl_DString *dsPtr, char *s, char *e);
+static void AttEnd(char **sPtr, char **ePtr);
 static void ParseMultiInput(Conn *connPtr, char *start, char *end);
 
 
@@ -66,26 +68,27 @@ Ns_ConnGetQuery(Ns_Conn *conn)
 {
     Conn           *connPtr = (Conn *) conn;
     Tcl_DString	    bound;
-    char	   *s, *e, *form;
+    char	   *s, *e, *form, *formend;
     
     if (connPtr->query == NULL) {
 	connPtr->query = Ns_SetCreate(NULL);
-	if (STREQ(connPtr->request->method, "POST")) {
-	    form = connPtr->reqPtr->content;
-	} else {
+	if (!STREQ(connPtr->request->method, "POST")) {
 	    form = connPtr->request->query;
-	}
-	if (form != NULL) {
+	    if (form != NULL) {
+		ParseQuery(form, connPtr->query, connPtr->encoding);
+	    }
+	} else if ((form = connPtr->reqPtr->content) != NULL) {
 	    Tcl_DStringInit(&bound);
 	    if (!GetBoundary(&bound, conn)) {
 		ParseQuery(form, connPtr->query, connPtr->encoding);
 	    } else {
-		s = strstr(form, bound.string);
+	    	formend = form + connPtr->reqPtr->length;
+		s = NextBoundry(&bound, form, formend);
 		while (s != NULL) {
 		    s += bound.length;
 		    if (*s == '\r') ++s;
 		    if (*s == '\n') ++s;
-		    e = strstr(s, bound.string);
+		    e = NextBoundry(&bound, s, formend);
 		    if (e != NULL) {
 			ParseMultiInput(connPtr, s, e);
 		    }
@@ -236,7 +239,7 @@ ParseQuery(char *form, Ns_Set *set, Tcl_Encoding encoding)
 	k = p;
 	p = strchr(p, '&');
 	if (p != NULL) {
-	    *p++ = '\0';
+	    *p = '\0';
 	}
 	v = strchr(k, '=');
 	if (v != NULL) {
@@ -249,7 +252,118 @@ ParseQuery(char *form, Ns_Set *set, Tcl_Encoding encoding)
 	    v = vds.string;
 	}
 	Ns_SetPut(set, k, v);
+	if (p != NULL) {
+	    *p++ = '&';
+	}
     }
+    Tcl_DStringFree(&kds);
+    Tcl_DStringFree(&vds);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * ParseMulitInput --
+ *
+ *	Parse the a multipart form input.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	Records offset, lengths for files.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+ParseMultiInput(Conn *connPtr, char *start, char *end)
+{
+    Tcl_Encoding encoding = connPtr->encoding;
+    Tcl_DString kds, vds;
+    char *s, *e, *ks, *ke, *fs, *fe, save, saveend;
+    char *key, *value, *ts, *te;
+
+    Tcl_DStringInit(&kds);
+    Tcl_DStringInit(&vds);
+
+    /*
+     * Trim off the trailing \r\n and null terminate the input.
+     */
+
+    if (end > start && end[-1] == '\n') --end;
+    if (end > start && end[-1] == '\r') --end;
+    saveend = *end;
+    *end = '\0';
+
+    /*
+     * Scan non-blank lines for the content-disposition header.
+     */
+
+    ts = ks = fs = NULL;
+    while ((e = strchr(start, '\n')) != NULL) {
+	s = start;
+	start = e + 1;
+	if (e > s && e[-1] == '\r') {
+	    --e;
+	}
+	if (s == e) {
+	    break;
+	}
+	save = *e;
+	*e = '\0';
+	if (strncasecmp(s, "content-disposition", 19) == 0
+	    && (ks = Ns_StrCaseFind(s+19, "name=")) != NULL) {
+	    /*
+	     * Save the key name and filename.
+	     */
+
+	    ks += 5;
+	    AttEnd(&ks, &ke);
+	    if ((fs = Ns_StrCaseFind(s+19, "filename=")) != NULL) {
+		fs += 9;
+		AttEnd(&fs, &fe);
+	    }
+	} else if (strncasecmp(s, "content-type:", 13) == 0) {
+	    ts = s+13;
+	    while (isspace(UCHAR(*ts))) {
+		++ts;
+	    }
+	    te = ts;
+	    AttEnd(&ts, &te);
+	}
+	*e = save;
+    }
+
+    /*
+     * Save the key/value and file contents if found.
+     */
+
+    if (ks != NULL) {
+	key = Ext2Utf(&kds, ks, ke-ks, encoding);
+	if (fs == NULL) {
+	    value = Ext2Utf(&vds, start, end-start, encoding);
+	} else {
+	    Tcl_DStringAppendElement(&connPtr->files, key);
+	    Ns_DStringPrintf(&connPtr->files, " %d %d",
+		start - connPtr->reqPtr->content, end - start);
+	    if (ts == NULL) {
+		ts = "";
+	    } else {
+	    	ts = Ext2Utf(&vds, ts, te-ts, encoding);
+	    }
+	    Tcl_DStringAppendElement(&connPtr->files, ts);
+	    value = Ext2Utf(&vds, fs, fe-fs, encoding);
+	}
+	Ns_SetPut(connPtr->query, key, value);
+    }
+
+    /*
+     * Restore the end marker.
+     */
+
+    *end = saveend;
     Tcl_DStringFree(&kds);
     Tcl_DStringFree(&vds);
 }
@@ -306,6 +420,22 @@ Decode(Tcl_DString *dsPtr, char *s, Tcl_Encoding encoding)
     return dsPtr->string;
 }
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * GetBoundary --
+ *
+ *	Copy multipart/form-data boundy string, if any.
+ *
+ * Results:
+ *	1 if boundy copied, 0 otherwise.
+ *
+ * Side effects:
+ *	Copies boundry string to given dstring.
+ *
+ *----------------------------------------------------------------------
+ */
 
 static int
 GetBoundary(Tcl_DString *dsPtr, Ns_Conn *conn)
@@ -328,6 +458,62 @@ GetBoundary(Tcl_DString *dsPtr, Ns_Conn *conn)
     return 0;
 }
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NextBoundary --
+ *
+ *	Locate the next form boundry.
+ *
+ * Results:
+ *	Pointer to start of next input field or NULL on end of fields.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static char *
+NextBoundry(Tcl_DString *dsPtr, char *s, char *e)
+{
+    char c, sc, *find;
+    size_t len;
+
+    find = dsPtr->string;
+    c = *find++;
+    len = dsPtr->length-1;
+    e -= len;
+    do {
+	do {
+	    sc = *s++;
+	    if (s > e) {
+		return NULL;
+	    }
+	} while (sc != c);
+    } while (strncmp(s, find, len) != 0);
+    s--;
+    return s;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * AttEnd --
+ *
+ *	Determine start and end of a multipart form input attribute.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	Start and end are stored in given pointers.
+ *
+ *----------------------------------------------------------------------
+ */
+
 static void
 AttEnd(char **sPtr, char **ePtr)
 {
@@ -349,6 +535,23 @@ AttEnd(char **sPtr, char **ePtr)
     *ePtr = e;
 }
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ext2Utf --
+ *
+ *	Convert input string to UTF.
+ *
+ * Results:
+ *	Pointer to converted string.
+ *
+ * Side effects:
+ *	Converted string is copied to given dstring, overwriting
+ *	any previous content.
+ *
+ *----------------------------------------------------------------------
+ */
 
 static char *
 Ext2Utf(Tcl_DString *dsPtr, char *start, int len, Tcl_Encoding encoding)
@@ -362,82 +565,4 @@ Ext2Utf(Tcl_DString *dsPtr, char *start, int len, Tcl_Encoding encoding)
 	Tcl_ExternalToUtfDString(encoding, start, len, dsPtr);
     }
     return dsPtr->string;
-}
-
-static void
-ParseMultiInput(Conn *connPtr, char *start, char *end)
-{
-    Tcl_Encoding encoding = connPtr->encoding;
-    Tcl_DString kds, vds;
-    char *s, *e, *ks, *ke, *fs, *fe, save, saveend;
-    char *key, *value, buf[100];
-
-    Tcl_DStringInit(&kds);
-    Tcl_DStringInit(&vds);
-
-    /*
-     * Trim off the trailing \r\n and null terminate the input.
-     */
-
-    if (end > start && end[-1] == '\n') --end;
-    if (end > start && end[-1] == '\r') --end;
-    saveend = *end;
-    *end = '\0';
-
-    /*
-     * Scan non-blank lines for the content-disposition header.
-     */
-
-    ks = fs = NULL;
-    while ((e = strchr(start, '\n')) != NULL) {
-	s = start;
-	start = e + 1;
-	if (e > s && e[-1] == '\r') {
-	    --e;
-	}
-	if (s == e) {
-	    break;
-	}
-	save = *e;
-	*e = '\0';
-	if (strncasecmp(s, "content-disposition", 19) == 0
-	    && (ks = Ns_StrCaseFind(s+19, "name=")) != NULL) {
-	    /*
-	     * Save the key name and filename.
-	     */
-
-	    ks += 5;
-	    AttEnd(&ks, &ke);
-	    if ((fs = Ns_StrCaseFind(s+19, "filename=")) != NULL) {
-		fs += 9;
-		AttEnd(&fs, &fe);
-	    }
-	}
-	*e = save;
-    }
-
-    /*
-     * Save the key/value and file contents if found.
-     */
-
-    if (ks != NULL) {
-	key = Ext2Utf(&kds, ks, ke-ks, encoding);
-	if (fs == NULL) {
-	    value = Ext2Utf(&vds, start, end-start, encoding);
-	} else {
-	    value = Ext2Utf(&vds, fs, fe-fs, encoding);
-	    sprintf(buf, "%d %d", start - connPtr->reqPtr->content, end - start);
-	    Tcl_DStringAppendElement(&connPtr->files, key);
-	    Tcl_DStringAppendElement(&connPtr->files, buf);
-	}
-	Ns_SetPut(connPtr->query, key, value);
-    }
-
-    /*
-     * Restore the end marker.
-     */
-
-    *end = saveend;
-    Tcl_DStringFree(&kds);
-    Tcl_DStringFree(&vds);
 }
