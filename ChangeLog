@@ -1,3 +1,8 @@
+2001-04-26  Kris Rehberg  <Kriston@aol.com>
+
+	* AOLserver 3.4pre1 released.  The ChangeLog will be updated in
+	the next release.
+
 2001-03-14  Kris Rehberg  <kriston@aol.com>
 
 	* nsd/nsmain.c, nsconf.h: non-quiet startup is now the default.
