@@ -33,20 +33,20 @@
  *      All the public types and function declarations for the core
  *	AOLserver.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.75 2005/01/17 14:00:47 jgdavidson Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.76 2005/03/25 00:32:03 jgdavidson Exp $
  */
 
 #ifndef NS_H
 #define NS_H
 
 #define NS_MAJOR_VERSION	4
-#define NS_MINOR_VERSION	1
+#define NS_MINOR_VERSION	5
 #define NS_RELEASE_SERIAL	0
 #define NS_VERSION_NUM          (NS_MAJOR_VERSION * 10000 \
                                 + NS_MINOR_VERSION * 100 \
                                 + NS_RELEASE_SERIAL)
-#define NS_VERSION		"4.1"
-#define NS_PATCH_LEVEL		"4.1.0a"
+#define NS_VERSION		"4.5"
+#define NS_PATCH_LEVEL		"4.5.0a"
 
 #define NS_ALPHA_RELEASE	0
 #define NS_BETA_RELEASE		1
@@ -901,7 +901,9 @@ NS_EXTERN char *Ns_GetMimeType(char *file);
 NS_EXTERN Tcl_Encoding Ns_GetEncoding(char *name);
 NS_EXTERN Tcl_Encoding Ns_GetFileEncoding(char *file);
 NS_EXTERN Tcl_Encoding Ns_GetTypeEncoding(char *type);
+NS_EXTERN char *Ns_FindCharset(char *type, int *lenPtr);
 NS_EXTERN Tcl_Encoding Ns_GetCharsetEncoding(char *charset);
+NS_EXTERN Tcl_Encoding Ns_GetCharsetEncodingEx(char *charset, int len);
 
 /*
  * modload.c:
@@ -972,6 +974,7 @@ NS_EXTERN void Ns_QuoteHtml(Ns_DString *pds, char *string);
 
 NS_EXTERN void Ns_FreeRequest(Ns_Request *request);
 NS_EXTERN Ns_Request *Ns_ParseRequest(char *line);
+NS_EXTERN Ns_Request *Ns_ParseRequestEx(char *line, Tcl_Encoding encoding);
 NS_EXTERN char *Ns_SkipUrl(Ns_Request *request, int n);
 NS_EXTERN void Ns_SetRequestUrl(Ns_Request *request, char *url);
 
