@@ -502,6 +502,12 @@ TclpFinalizeMutex(mutexPtr)
  *----------------------------------------------------------------------
  */
 
+static void
+FreeTls(void *arg)
+{
+    ckfree((char *) arg);
+}
+
 NS_EXPORT void
 TclpThreadDataKeyInit(keyPtr)
     Tcl_ThreadDataKey *keyPtr;	/* Identifier for the data chunk */
@@ -511,7 +517,7 @@ TclpThreadDataKeyInit(keyPtr)
     MASTER_LOCK;
     if (*keyPtr == NULL) {
 	pkeyPtr = (Ns_Tls *)NsAlloc(sizeof(Ns_Tls));
-	Ns_TlsAlloc(pkeyPtr, NULL);
+	Ns_TlsAlloc(pkeyPtr, FreeTls);
 	*keyPtr = (Tcl_ThreadDataKey)pkeyPtr;
     }
     MASTER_UNLOCK;
@@ -594,17 +600,13 @@ NS_EXPORT void
 TclpFinalizeThreadData(keyPtr)
     Tcl_ThreadDataKey *keyPtr;
 {
-    VOID *result;
-    Ns_Tls *pkeyPtr;
 
-    if (*keyPtr != NULL) {
-	pkeyPtr = *(Ns_Tls **)keyPtr;
-	result = (VOID *)Ns_TlsGet(pkeyPtr);
-	if (result != NULL) {
-	    NsFree((char *)result);
-	    Ns_TlsSet(pkeyPtr, (void *)NULL);
-	}
-    }
+    /*
+     * TLS cleanup is handled by the FreeTls callback registered
+     * with Ns_TlsAlloc() above.
+     */
+
+    return;
 }
 
 /*
