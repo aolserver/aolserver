@@ -745,7 +745,7 @@ NsThreadExit(void)
     Sproc *sPtr = GETSPROC();
 
     if (sPtr->thrPtr != NULL) {
-    	NsFreeThread(sPtr->thrPtr);
+    	NsCleanupThread(sPtr->thrPtr);
     }
     Ns_MutexLock(&mgrLock);
     sPtr->state = SprocExited;
