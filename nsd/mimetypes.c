@@ -34,7 +34,7 @@
  *	Defines standard default mime types. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/mimetypes.c,v 1.11 2003/08/08 14:52:17 elizthom Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/mimetypes.c,v 1.11.2.1 2004/07/02 17:44:46 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #define TYPE_DEFAULT "*/*"
@@ -176,11 +176,16 @@ static struct exttype {
 char *
 Ns_GetMimeType(char *file)
 {
-    char          *ext;
+    char          *start, *ext;
     Ns_DString     ds;
     Tcl_HashEntry *hePtr;
 
-    ext = strrchr(file, '.');
+    start = strrchr(file, '/');
+    if (start == NULL) {
+	start = file;
+    }
+
+    ext = strrchr(start, '.');
     if (ext == NULL) {
 	return noextType;
     }
