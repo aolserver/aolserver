@@ -1,3 +1,27 @@
+2004-10-06  Jim Davidson <jgdavidson@aol.com>
+
+	* include/ns.h:
+	* nsd/task.c:
+	* nsd/server.c:
+	* nsd/tclcmds.c
+	* nsd/tclnhttp.c: Added new I/O task API and a new implementation
+	of ns_http which uses and has more flexible argument processing.
+	A tcl/oldhttp server config option (default on) bypasses the
+	new ns_http for the previous implementation based on the sock
+	callback API.
+
+	* nsd/nswin32.c:
+	* nsd/unix.c:
+	* nsd/sock.c: Moved duplicate poll() emulation code to sock.c and
+	added the NsPoll() wrapper used in driver.c and task.c.
+
+	* nsd/log.c:
+	* nsd/nsmain.c: Ns_Fatal now calls abort() on Ns_Fatal when running
+	in debugger mode (i.e., with the -d command line option).
+
+	* nsd/nsd.h: Various updates to support the above additions.
+
+
 2004-09-30  Dossy Shiobara <dossy@panoptic.com>
 
 	* include/ns.h (1.68), nsd/tclhttp.c (1.21), nsd/sockcallback.c
