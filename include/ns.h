@@ -33,7 +33,7 @@
  *      All the public types and function declarations for the core
  *	AOLserver.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.28 2001/05/02 15:55:44 jgdavidson Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.29 2001/05/10 08:55:55 jgdavidson Exp $
  */
 
 #ifndef NS_H
@@ -1080,24 +1080,35 @@ NS_EXTERN void Ns_SetPrint(Ns_Set *set);
 NS_EXTERN int Ns_SockRecv(SOCKET sock, void *vbuf, int nrecv, int timeout);
 NS_EXTERN int Ns_SockSend(SOCKET sock, void *vbuf, int nsend, int timeout);
 NS_EXTERN int Ns_SockWait(SOCKET sock, int what, int timeout);
+
 NS_EXTERN SOCKET Ns_BindSock(struct sockaddr_in *psa);
 NS_EXTERN SOCKET Ns_SockBind(struct sockaddr_in *psa);
 NS_EXTERN SOCKET Ns_SockListen(char *address, int port);
 NS_EXTERN SOCKET Ns_SockListenEx(char *address, int port, int backlog);
 NS_EXTERN SOCKET Ns_SockAccept(SOCKET sock, struct sockaddr *psa, int *lenPtr);
+
 NS_EXTERN SOCKET Ns_SockConnect(char *host, int port);
+NS_EXTERN SOCKET Ns_SockConnect2(char *host, int port, char *lhost, int lport);
 NS_EXTERN SOCKET Ns_SockAsyncConnect(char *host, int port);
+NS_EXTERN SOCKET Ns_SockAsyncConnect2(char *host, int port, char *lhost, int lport);
 NS_EXTERN SOCKET Ns_SockTimedConnect(char *host, int port, int timeout);
+NS_EXTERN SOCKET Ns_SockTimedConnect2(char *host, int port, char *lhost, int lport, int timeout);
+
 NS_EXTERN int Ns_SockSetNonBlocking(SOCKET sock);
 NS_EXTERN int Ns_SockSetBlocking(SOCKET sock);
-NS_EXTERN int Ns_SockCallback(SOCKET sock, Ns_SockProc *proc, void *arg, int when);
-NS_EXTERN void Ns_SockCancelCallback(SOCKET sock);
 NS_EXTERN int Ns_GetSockAddr(struct sockaddr_in *psa, char *host, int port);
 NS_EXTERN void Ns_ClearSockErrno(void);
 NS_EXTERN int Ns_GetSockErrno(void);
 NS_EXTERN void Ns_SetSockErrno(int err);
 NS_EXTERN char *Ns_SockStrError(int err);
 NS_EXTERN int Ns_SockCloseLater(SOCKET sock);
+
+/*
+ * sockcallback.c:
+ */
+
+NS_EXTERN int Ns_SockCallback(SOCKET sock, Ns_SockProc *proc, void *arg, int when);
+NS_EXTERN void Ns_SockCancelCallback(SOCKET sock);
 
 /*
  * str.c:

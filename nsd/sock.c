@@ -34,7 +34,7 @@
  *	Wrappers and convenience functions for TCP/IP stuff. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sock.c,v 1.5 2000/11/06 18:10:58 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sock.c,v 1.6 2001/05/10 08:55:55 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -46,7 +46,7 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
  * Local functions defined in this file
  */
 
-static SOCKET SockConnect(char *host, int port, int async);
+static SOCKET SockConnect(char *host, int port, char *lhost, int lport, int async);
 
 
 /*
@@ -288,7 +288,13 @@ Ns_SockBind(struct sockaddr_in *saPtr)
 SOCKET
 Ns_SockConnect(char *host, int port)
 {
-    return SockConnect(host, port, 0);
+    return SockConnect(host, port, NULL, 0, 0);
+}
+
+SOCKET
+Ns_SockConnect2(char *host, int port, char *lhost, int lport)
+{
+    return SockConnect(host, port, lhost, lport, 0);
 }
 
 
@@ -311,7 +317,13 @@ Ns_SockConnect(char *host, int port)
 SOCKET
 Ns_SockAsyncConnect(char *host, int port)
 {
-    return SockConnect(host, port, 1);
+    return SockConnect(host, port, NULL, 0, 1);
+}
+
+SOCKET
+Ns_SockAsyncConnect2(char *host, int port, char *lhost, int lport)
+{
+    return SockConnect(host, port, lhost, lport, 1);
 }
 
 
@@ -334,27 +346,30 @@ Ns_SockAsyncConnect(char *host, int port)
 SOCKET
 Ns_SockTimedConnect(char *host, int port, int timeout)
 {
-    fd_set         set;
-    struct timeval tv;
+    return Ns_SockTimedConnect2(host, port, NULL, 0, timeout);
+}
+
+SOCKET
+Ns_SockTimedConnect2(char *host, int port, char *lhost, int lport, int timeout)
+{
     SOCKET         sock;
+    int		   len, err;
 
     /*
      * Connect to the host asynchronously and wait for
      * it to connect.
      */
     
-    sock = SockConnect(host, port, 1);
+    sock = SockConnect(host, port, lhost, lport, 1);
     if (sock != INVALID_SOCKET) {
-        tv.tv_sec = timeout;
-        tv.tv_usec = 0;
-        FD_ZERO(&set);
-        FD_SET(sock, &set);
-        if (select(sock + 1, NULL, &set, NULL, &tv) != 1
-	    || !FD_ISSET(sock, &set)
-	    || send(sock, NULL, 0, 0) != 0) {
-            ns_socknbclose(sock);
-            sock = INVALID_SOCKET;
-        }
+	len = sizeof(err);
+    	if (Ns_SockWait(sock, NS_SOCK_WRITE, timeout) == NS_OK
+		&& getsockopt(sock, SOL_SOCKET, SO_ERROR, (char *) &err, &len) == 0
+		&& err == 0) {
+	    return sock;
+	}
+	ns_sockclose(sock);
+	sock = INVALID_SOCKET;
     }
     return sock;
 }
@@ -508,28 +523,17 @@ Ns_SockPipe(SOCKET socks[2])
  */
 
 static SOCKET
-SockConnect(char *host, int port, int async)
+SockConnect(char *host, int port, char *lhost, int lport, int async)
 {
     SOCKET             sock;
     struct sockaddr_in lsa;
     struct sockaddr_in sa;
     int                err;
 
-    /*
-     * Fill out the sockaddr_in structure; this may do a DNS query too.
-     */
-    
-    if (Ns_GetSockAddr(&sa, host, port) != NS_OK) {
+    if (Ns_GetSockAddr(&sa, host, port) != NS_OK ||
+	Ns_GetSockAddr(&lsa, lhost, lport) != NS_OK) {
         return INVALID_SOCKET;
     }
-
-    /*
-     * Bind to INADDR_ANY. Beware that this can cause confusion if
-     * you care about where your connections are coming from, for example
-     * outgoing SSL connections.
-     */
-    
-    Ns_GetSockAddr(&lsa, NULL, 0);
     sock = Ns_SockBind(&lsa);
     if (sock != INVALID_SOCKET) {
         if (async) {
@@ -546,7 +550,6 @@ SockConnect(char *host, int port, int async)
             Ns_SockSetBlocking(sock);
         }
     }
-    
     return sock;
 }
 
@@ -556,7 +559,8 @@ SockConnect(char *host, int port, int async)
  *
  * Ns_SockCloseLater --
  *
- *	Register a callback to close a socket when writable.
+ *	Register a callback to close a socket when writable.  This
+ *	is necessary for timed-out async connecting sockets on NT.
  *
  * Results:
  *	NS_OK or NS_ERROR from Ns_SockCallback.
