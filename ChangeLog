@@ -1,3 +1,7 @@
+2004-07-15  Tim Suh <suhti@aol.com>
+
+	* nsd/return.c: keepalive is enabled for response codes other than 200 
+
 2004-07-13  Dossy Shiobara <dossy@panoptic.com>
 
 	* nsd/: driver.c (1.17.2.5), op.c (1.11.2.1): Change to make HTTP
