@@ -33,9 +33,15 @@
  *	Routines for managing NsServer structures.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.19 2002/08/25 20:10:39 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.20 2002/09/28 19:24:37 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
+
+/*
+ * Static variables defined in this file. 
+ */
+
+static NsServer *initServPtr; /* Holds currently initializing server. */
 
 
 /*
@@ -66,6 +72,29 @@ NsGetServer(char *server)
 	}
     }
     return NULL;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsGetInitServer --
+ *
+ *	Return the currently initializing server.
+ *
+ * Results:
+ *	Pointer to NsServer.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+NsServer *
+NsGetInitServer(void)
+{
+    return initServPtr;
 }
 
 
@@ -158,7 +187,7 @@ NsStopServers(Ns_Time *toPtr)
  */
 
 void
-NsInitServer(char *server)
+NsInitServer(char *server, Ns_ServerInitProc *initProc)
 {
     Tcl_HashEntry *hPtr;
     Ns_DString ds;
@@ -176,6 +205,7 @@ NsInitServer(char *server)
     Tcl_DStringAppendElement(&nsconf.servers, server);   
     servPtr = ns_calloc(1, sizeof(NsServer));
     Tcl_SetHashValue(hPtr, servPtr);
+    initServPtr = servPtr;
 
     /*
      * Create a new NsServer.
@@ -301,6 +331,8 @@ NsInitServer(char *server)
 	Ns_HomePath(&ds, "bin", "init.tcl", NULL);
 	servPtr->tcl.initfile = Ns_DStringExport(&ds);
     }
+    servPtr->tcl.modules = Tcl_NewObj();
+    Tcl_IncrRefCount(servPtr->tcl.modules);
     Ns_RWLockInit(&servPtr->tcl.lock);
     if (!Ns_ConfigGetInt(path, "nsvbuckets", &n) || n < 1) {
 	n = 8;
@@ -408,11 +440,7 @@ NsInitServer(char *server)
 	if (status <= 0 || *map == '\0') {
 	    Ns_Log(Error, "return: invalid redirect '%s=%s'", key, map);
 	} else {
-    	    hPtr = Tcl_CreateHashEntry(&servPtr->request.redirect, (char *) status, &n);
-    	    if (!n) {
-		ns_free(Tcl_GetHashValue(hPtr));
-    	    }
-	    Tcl_SetHashValue(hPtr, ns_strdup(map));
+	    Ns_RegisterReturn(status, map);
 	}
     }
 
@@ -477,9 +505,19 @@ NsInitServer(char *server)
     }
 
     /*
+     * Call the static server init proc, if any, which may register
+     * static modules.
+     */
+    
+    if (initProc != NULL) {
+	(*initProc)(server);
+    }
+
+    /*
      * Load modules and initialize Tcl.  The order is significant.
      */
 
     NsLoadModules(server);
     NsTclInitServer(server);
+    initServPtr = NULL;
 }
