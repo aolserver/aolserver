@@ -28,49 +28,37 @@
 '\" version of this file under either the License or the GPL.
 '\" 
 '\"
-'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_rand.n,v 1.1.2.3 2002/11/12 23:35:11 scottg Exp $
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_img.n,v 1.1.2.2 2002/11/12 23:35:11 scottg Exp $
 '\"
 '\" 
 .so man.macros
 
-.TH ns_rand n 3.5 AOLserver "AOLserver Built-In Commands"
+.TH ns_img n 3.5 AOLserver "AOLserver Built-In Commands"
 .BS
 '\" Note:  do not modify the .SH NAME line immediately below!
 .SH NAME
-ns_rand \- commands
+ns_gifsize, ns_jpegsize, ns_pngsize \- commands
 .SH SYNOPSIS
-\fBns_rand \fR?\fImax\fR?
+\fBns_gifsize \fIfile\fR
+.sp
+\fBns_jpegsize \fIfile\fR
+.sp
+\fBns_pngsize \fIfile\fR
 .BE
 
 .SH DESCRIPTION
 .PP
-ns_rand generates a cryptographically-secure random number.  If 
-.I max
-is not specified, the random number is a floating-point value
-.I n
-such that
-.I 0.0 <= n < 1.0.
+\fBns_gifsize\fR, \fBns_jpegsize\fR and \fBns_pngsize\fR all
+return a list of two elements (the width and height) of the 
+respective GIF, JPEG, or PNG \fIfile\fR.
+
 .PP
-If
-.I max
-is specified, it must be a positive integer between 0 and 2147483647.
-The return value is an integer value such that
-.I 0 <= n <= (max - 1).
-.PP
-Internally ns_rand is implemented with the drand48(3) and lrand48(3)
-standard library functions.  An internal random seed is generated
-the first time ns_rand is called after the server starts.
-
-.SH EXAMPLES
-
- nscp> ns_rand
- 0.39938485692
-
- nscp> ns_rand 10
- 7
+An error is generated if \fIfile\fR does not exist (or the user id
+AOLserver is running under cannot open the file) or if the file is not
+a valid image (GIF, JPEG, or PNG respectively).
 
 .SH "SEE ALSO"
-nsd(1), info(n), drand48(3), lrand48(3)
+nsd(1)
 
 .SH KEYWORDS
 

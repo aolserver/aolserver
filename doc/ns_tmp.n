@@ -28,49 +28,53 @@
 '\" version of this file under either the License or the GPL.
 '\" 
 '\"
-'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_rand.n,v 1.1.2.3 2002/11/12 23:35:11 scottg Exp $
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_tmp.n,v 1.1.2.2 2002/11/12 23:35:11 scottg Exp $
 '\"
 '\" 
 .so man.macros
 
-.TH ns_rand n 3.5 AOLserver "AOLserver Built-In Commands"
+.TH ns_tmp n 3.5 AOLserver "AOLserver Built-In Commands"
 .BS
 '\" Note:  do not modify the .SH NAME line immediately below!
 .SH NAME
-ns_rand \- commands
+ns_mktemp, ns_tmpnam \- commands
 .SH SYNOPSIS
-\fBns_rand \fR?\fImax\fR?
+\fBns_mktemp \fItemplate\fR
+.sp
+\fBns_tmpnam 
 .BE
 
 .SH DESCRIPTION
 .PP
-ns_rand generates a cryptographically-secure random number.  If 
-.I max
-is not specified, the random number is a floating-point value
-.I n
-such that
-.I 0.0 <= n < 1.0.
+
+\fBns_mktemp\fR returns a unique filename based on the \fItemplate\fR you
+specify.  \fBns_tmpnam\fR returns a filename that can safely be used 
+for a temporary file.
+
 .PP
-If
-.I max
-is specified, it must be a positive integer between 0 and 2147483647.
-The return value is an integer value such that
-.I 0 <= n <= (max - 1).
+The \fItemplate\fR for \fBns_mktemp\fR should contain a string with six
+trailing Xs, which will be replaced with an alpha-numeric
+string of six characters chosen to make the filename unique.  If
+\fItemplate\fR does not end with six trailing Xs the empty string
+will be returned.
+
 .PP
-Internally ns_rand is implemented with the drand48(3) and lrand48(3)
-standard library functions.  An internal random seed is generated
-the first time ns_rand is called after the server starts.
+\fBns_tmpnam\fR calls the tmpnam() C library function, and the results will
+depend on your operating system.  On Irix, for example, tmpnam() always
+generate a file name using the path-prefix defined as P_tmpdir in the
+header file which is "/var/tmp/".
 
 .SH EXAMPLES
+.PP
 
- nscp> ns_rand
- 0.39938485692
+ nscp> ns_tmpnam ;# On Linux
+ /tmp/filevuLwaE
 
- nscp> ns_rand 10
- 7
+ nscp> ns_mktemp /tmp/foobar.XXXXXX
+ /tmp/foobar.p6SlaC
 
 .SH "SEE ALSO"
-nsd(1), info(n), drand48(3), lrand48(3)
+nsd(1), mktemp(3), tmpnam(3)
 
 .SH KEYWORDS
 

@@ -1,0 +1,156 @@
+
+'\"
+'\" The contents of this file are subject to the AOLserver Public License
+'\" Version 1.1 (the "License"); you may not use this file except in
+'\" compliance with the License. You may obtain a copy of the License at
+'\" http://aolserver.com/.
+'\"
+'\" Software distributed under the License is distributed on an "AS IS"
+'\" basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+'\" the License for the specific language governing rights and limitations
+'\" under the License.
+'\"
+'\" The Original Code is AOLserver Code and related documentation
+'\" distributed by AOL.
+'\" 
+'\" The Initial Developer of the Original Code is America Online,
+'\" Inc. Portions created by AOL are Copyright (C) 1999 America Online,
+'\" Inc. All Rights Reserved.
+'\"
+'\" Alternatively, the contents of this file may be used under the terms
+'\" of the GNU General Public License (the "GPL"), in which case the
+'\" provisions of GPL are applicable instead of those above.  If you wish
+'\" to allow use of your version of this file only under the terms of the
+'\" GPL and not to allow others to use your version of this file under the
+'\" License, indicate your decision by deleting the provisions above and
+'\" replace them with the notice and other provisions required by the GPL.
+'\" If you do not delete the provisions above, a recipient may use your
+'\" version of this file under either the License or the GPL.
+'\" 
+'\"
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_filter.n,v 1.1.2.2 2002/11/12 23:35:11 scottg Exp $
+'\"
+'\" 
+.so man.macros
+
+.TH ns_filter n 3.5 AOLserver "AOLserver Built-In Commands"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+ns_register_filter, ns_register_trace \- commands
+.SH SYNOPSIS
+\fBns_register_filter \fIoption \fR?\fIarg arg ...\fR?
+.sp
+\fBns_register_trace \fIoption \fR?\fIarg arg ...\fR?
+.BE
+
+.SH DESCRIPTION
+.PP
+
+
+.SS ns_register_filter: 
+Registers a Tcl filter script for the specified method/URL combination on a virtual server. The script can be called at one or more of three given times: pre-authorization, post-authorization before page data has been returned to the user, and after the connection has been processed and closed. 
+
+This function will be called at the specified stage of a connection, if the method/URL combination for the filter matches the method/URL combination for the connection using glob style matching. 
+
+The URLpattern can contain standard string-matching characters. For example, these are valid URL patterns: 
+
+/employees/*.tcl
+/accounts/*/out
+
+Valid values for the "when" argument are: preauth, postauth, and trace. 
+Using pre-authorization, the procedure will be called (assuming that the method/URL combination matches) just before authorization. If the procedure returns with a code of: 
+
+.IP \fBTCL_OK\fR 12
+(using: return "filter_ok"): The server will continue to the next pre-authorization filter for this connection, or, if there are no more pre-authorization filters, it will continue on with authorization.
+.IP \fBTCL_BREAK\fR 12
+(using: return "filter_break"): The server will not process any more pre-authorization filters for this connection, and it will continue on with authorization.
+.IP \fBTCL_RETURN\fR 12
+(using: return "filter_return"): The server will close the connection and will not run any more pre-authorization filters. It will not authorize the request, and it will not run the function registered for this METHOD/URL. It WILL run any trace functions registered for this METHOD/URL, usually including logging. It is assumed that the filter has sent a proper response (e.g., using ns_return) to the client before returning TCL_RETURN.
+
+.TP
+Using post-authorization, the procedure will be called (assuming that the method/URL combination matches) just after successful authorization. If the procedure returns: 
+
+.IP \fBTCL_OK\fR 12
+(using: return "filter_ok"): The server will continue to the next post-authorization filter for this connection, or, if there are no more post-authorization filters, it will run the function registered to handle this request.  
+.IP \fBTCL_BREAK\fR 12
+(using: return "filter_break"): The server will not process any more post-authorization filters for this connection, and it will run the function registered to handle this request.  
+.IP \fBTCL_RETURN\fR 12
+(using: return "filter_return"): The server will close the connection and will not run any more post-authorization filters and it will not run the function registered for this METHOD/URL. It WILL run any trace functions registered for this METHOD/URL, usually including logging. It is assumed that the filter has returned a proper response (e.g., using ns_return) to the client before returning TCL_RETURN.
+.TP
+Using trace, the procedure will be called (assuming that the method/URL combination match) after the connection has been totally processed and closed. If the procedure returns: 
+
+.IP \fBTCL_OK\fR 12
+(using: return "filter_ok"): The server will continue to the next trace filter.
+.IP \fBTCL_BREAK\fR 12  
+(using: return "filter_break"): The rest of the trace filters are ignored.
+.IP \fBTCL_RETURN\fR 12
+(using: return "filter_break"): The rest of the trace filters are ignored.
+.PP
+
+\fBSyntax for the registered procedure:\fR
+
+The conn (connection) argument is optional for procedures registered by ns_register_filter if the procedure has 1 or 2 arguments (including why but not including conn). The following examples show the variations that can be used in this case: 
+
+.CS
+.RE 
+\fBns_register_filter\fR \fItrace\fR GET /noargs filter_noargs
+\fBns_register_filter\fR \fItrace\fR GET /context filter_context fnord
+\fBns_register_filter\fR \fItrace\fR GET /conncontext filter_conncontext
+
+proc filter_noargs { why } {
+    ns_log Notice "filter noargs"
+    return filter_ok
+} ;# filter_noargs
+
+proc filter_context { arg why } {
+    ns_log Notice "filter context. Arg: $arg"
+    return filter_ok
+} ;# filter_noargs
+
+proc filter_conncontext { conn arg why } {
+    ns_log Notice "filter conn context"
+    return filter_ok
+} ;# filter_noargs
+.CE
+
+The conn (connection) argument is required for procedures registered by ns_register_filter if the procedure has 3 or more arguments (including why but not including conn). The conn argument is automatically filled with the connection information. The first argument following conn will always take the value supplied by ns_register_filter, if there is one, or an empty value. The why argument at the end is automatically filled with the type of filter requested. All other arguments must supply a default value. The following examples show the variations that can be used in this case: 
+
+.CS
+.RE
+\fBns_register_filter\fR \fIpostauth\fR GET /threeargs threeargs aaa
+\fBns_register_filter\fR \fIpostauth\fR GET /fourargs fourargs aaa bbb ccc
+
+proc threeargs { conn context { greeble bork } why } {
+    ...
+} ;
+
+proc fourargs { conn context { greeble bork } {hoover quark} why } {
+   ...
+} ;
+.CE
+
+When a GET of /threeargs is requested, the conn and why arguments will be filled automatically, the context argument will be assigned "aaa" and the greeble argument will be assigned the default value "bork". 
+When a GET of /fourargs is requested, the conn and why arguments will be filled automatically, the context argument will be assigned "aaa", the greeble argument will be assigned "bbb", and the hoover argument will be assigned the default value "quark". 
+
+.SS ns_register_trace:
+.IP "" 0
+Register a Tcl trace script to a method and matching URL. 
+(Note: This function is obsolete. Use \fBns_register_filter\fR instead.) 
+
+\fBns_register_trace\fR registers a Tcl script as a trace for the specified method/URL combination. After the server handles the request for the specified method on an URL that matches the \fIURLpattern\fR, it calls the trace script with the connection id and any arguments (args) specified. 
+The \fIURLpattern\fR can contain standard string-matching characters. For example, these are valid URLpatterns: 
+
+/employees/*.tcl
+/accounts/*/out
+
+Note
+\fBns_register_trace\fR is similar to \fBns_register_proc\fR except that the pattern-matching for the URL is performed differently. With \fBns_register_proc\fR, the specified URL is used to match that URL and any URL below it in the hierarchy. Wildcards such as "*" are meaningful only for the final part of the URL, such as /scripts/*.tcl. With \fBns_register_trace\fR, the \fIURLpattern\fR is used to match URLs as a string with standard string-matching characters. 
+\fBns_register_proc\fR results in a single match, whereas multiple ns_register_trace's can be matched and will be called. 
+
+
+.SH "SEE ALSO"
+ns_register_proc(n), ns_register_tag(n), ns_register_adptag(n)
+.CE
+.SH KEYWORDS
+
