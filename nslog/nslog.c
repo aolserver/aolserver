@@ -34,7 +34,7 @@
  *	This file implements the access log using NCSA Common Log format.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nslog/nslog.c,v 1.5 2000/10/17 15:24:54 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nslog/nslog.c,v 1.6 2000/10/17 15:35:34 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 #include <sys/stat.h>	/* mkdir */
@@ -184,7 +184,9 @@ Ns_ModuleInit(char *server, char *module)
 	logPtr->flags |= LOG_COMBINED;
     }
 
-    Ns_ConfigGetBool(path, "suppressquery", &logPtr->suppressquery);
+    if (!Ns_ConfigGetBool(path, "suppressquery", &logPtr->suppressquery)) {
+	logPtr->suppressquery = 0;
+    }
 
     /*
      * Schedule various log roll and shutdown options.
