@@ -28,7 +28,7 @@
 '\" version of this file under either the License or the GPL.
 '\" 
 '\"
-'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_Exec.3,v 1.1.2.2 2002/12/09 03:49:33 scottg Exp $
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_Exec.3,v 1.1.2.3 2002/12/10 21:49:21 scottg Exp $
 '\"
 '\" 
 .so man.macros
@@ -38,7 +38,7 @@
 '\" Note:  do not modify the .SH NAME line immediately below!
 .SH NAME
 Ns_ExecArgblk, Ns_ExecArgv, Ns_ExecProc, Ns_ExecProcess, Ns_Fork, Ns_GetEnviron, 
-Ns_WaitForProcess, Ns_WaitProcess, ns_fork \- library procedures
+Ns_WaitForProcess, Ns_WaitProcess, ns_fork \- External process execution
 .SH SYNOPSIS
 .nf
 \fB#include "ns.h"\fR
@@ -84,7 +84,6 @@ nsd/exec.c, nsd/tclenv.c and nsthread/fork.c.
 Executes a command in a child process. Return process id of 
 child process exec\'ing the command or \-1 on failure. Provides extended
 error checking and error messages.
-
 .TP
 \fBNs_ExecArgv\fR(\fIexec, dir, fdin, fdout, argv, env\fR)
 
@@ -92,7 +91,6 @@ Execute a command in a child process using fork(2) and execve(2),
 returns the process id of child process exec\'ing the command or
 \-1 on failure. The child sends an extended error message to the
 parent.
-
 .TP
 \fBNs_ExecProc\fR(\fIexec, argv\fR)
 
@@ -113,7 +111,6 @@ fork\(2\) man page. Calls ns_fork.
 \fBNs_GetEnviron\fR(\fI\fR)
 
 Returns pointer to the environment vector.
-
 .TP
 \fBNs_WaitForProcess\fR(\fIpid, statusPtr\fR)
 
@@ -125,7 +122,6 @@ code of the child process.
 
 Wait for child process. Calls Ns_WaitForProcess with NULL
 statusPtr. Returns NS_OK on success, or NS_ERROR on failure.
-
 .TP
 \fBns_fork\fR(\fI\fR)
 
