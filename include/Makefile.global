@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Makefile.global,v 1.43 2001/11/08 14:31:53 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Makefile.global,v 1.44 2001/12/05 20:59:27 jgdavidson Exp $
 #
 
 #
@@ -76,9 +76,9 @@ else
 endif
 tcllib		= tcl$(tclmajor).$(tclminor)$(tcldbg)
 tcldir		= tcl$(tclmajor).$(tclminor)$(tclpatch)
-ifdef nsbuild
-    CFLAGS      += -I../include -I../$(tcldir)/generic
-    LIBS	=  -L../$(tcldir)/unix 
+ifdef NSHOME
+    CFLAGS      += -I$(NSHOME)/include -I$(NSHOME)/$(tcldir)/generic
+    LIBS	=  -L$(NSHOME)/$(tcldir)/unix 
 else
     CFLAGS      += -I$(AOLSERVER)/include
     LIBS	=  -L$(AOLSERVER)/lib

@@ -8,7 +8,8 @@
 #         for most shared objects.
 #
 
-include ../include/Makefile.global
+NSHOME ?= ..
+include $(NSHOME)/include/Makefile.global
 
 all: $(LIB)
 

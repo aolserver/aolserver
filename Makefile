@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/Makefile,v 1.25 2001/11/08 14:31:52 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/Makefile,v 1.26 2001/12/05 20:59:26 jgdavidson Exp $
 #
 
 #
@@ -59,7 +59,7 @@ ifdef NSGCC
     MAKEFLAGS	+= NSGCC=$(NSGCC)
 endif
 
-dirs = $(tcldir) nsd nssock nsssl nscgi nscp nslog nsperm nsext nspd 
+dirs = $(tcldir) nsd nsmain nssock nsssl nscgi nscp nslog nsperm nsext nspd 
 
 all:
 	@for i in $(dirs); do \
