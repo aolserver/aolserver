@@ -33,17 +33,17 @@
  *      All the public types and function declarations for the core
  *	AOLserver.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.55 2003/09/25 12:40:54 pmoosman Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.56 2003/11/16 15:03:46 jgdavidson Exp $
  */
 
 #ifndef NS_H
 #define NS_H
 
 #define NS_MAJOR_VERSION	4
-#define NS_MINOR_VERSION	0
+#define NS_MINOR_VERSION	1
 #define NS_RELEASE_SERIAL	0
-#define NS_VERSION		"4.0"
-#define NS_PATCH_LEVEL		"4.0"
+#define NS_VERSION		"4.1"
+#define NS_PATCH_LEVEL		"4.1"
 
 #define NS_ALPHA_RELEASE	0
 #define NS_BETA_RELEASE		1
@@ -54,7 +54,7 @@
  * finished with non-production stages.
  */
 
-#define NS_RELEASE_LEVEL	NS_BETA_RELEASE
+#define NS_RELEASE_LEVEL	NS_ALPHA_RELEASE
 
 #include "nsthread.h"
 
@@ -107,10 +107,22 @@
 #define NS_SOCK_WRITE		  2
 #define NS_SOCK_EXCEPTION	  4
 #define NS_SOCK_EXIT		  8
+#define NS_SOCK_DROP		 16
 #define NS_ENCRYPT_BUFSIZE 	 16
 #define NS_DRIVER_ASYNC		  1	/* Use async read-ahead. */
 #define NS_DRIVER_SSL		  2	/* Use SSL port, protocol defaults. */
 #define NS_DRIVER_VERSION_1       1
+
+/*
+ * The following are valid Tcl traces.
+ */
+
+#define NS_TCL_TRACE_CREATE	   1
+#define NS_TCL_TRACE_DELETE	   2
+#define NS_TCL_TRACE_ALLOCATE	   4
+#define NS_TCL_TRACE_DEALLOCATE	   8
+#define NS_TCL_TRACE_GETCONN	  16
+#define NS_TCL_TRACE_FREECONN	  32
 
 #if defined(__alpha)
 typedef long			ns_int64;
@@ -438,6 +450,8 @@ typedef void  (Ns_TraceProc) (void *arg, Ns_Conn *conn);
 typedef int   (Ns_FilterProc) (void *arg, Ns_Conn *conn, int why);
 typedef int   (Ns_UrlToFileProc) (Ns_DString *dsPtr, char *server, char *url);
 typedef char *(Ns_LocationProc) (Ns_Conn *conn);
+typedef void  (Ns_PreQueueProc) (Ns_Conn *conn, void *arg);
+typedef void  (Ns_QueueWaitProc) (Ns_Conn *conn, SOCKET sock, void *arg, int why);
 
 /*
  * Typedefs of variables
@@ -620,6 +634,10 @@ NS_EXTERN int Ns_GetAddrByHost(Ns_DString *dsPtr, char *host);
  */
 
 NS_EXTERN int Ns_DriverInit(char *server, char *module, Ns_DriverInitData *init);
+NS_EXTERN void Ns_RegisterPreQueue(char *server, Ns_PreQueueProc *proc,
+    	    	    	    	   void *arg);
+NS_EXTERN void Ns_QueueWait(Ns_Conn *conn, SOCKET sock, Ns_QueueWaitProc *proc,
+    	     void *arg, int when, Ns_Time *timePtr);
 
 /*
  * dstring.c:
@@ -1106,6 +1124,8 @@ NS_EXTERN Ns_Conn *Ns_TclGetConn(Tcl_Interp *interp);
 NS_EXTERN int Ns_TclRegisterAtCreate(Ns_TclTraceProc *proc, void *arg);
 NS_EXTERN int Ns_TclRegisterAtCleanup(Ns_TclTraceProc *proc, void *arg);
 NS_EXTERN int Ns_TclRegisterAtDelete(Ns_TclTraceProc *proc, void *arg);
+NS_EXTERN int Ns_TclRegisterTrace(char *server, Ns_TclTraceProc *proc,
+				  void *arg, int when);
 
 /*
  * tclop.c:
