@@ -633,7 +633,7 @@ NsThreadLibName(void)
 void
 NsThreadCreate(Thread *thrPtr)
 {
-    if (_beginthread(WinThreadMain, 0, thrPtr) == 0) {
+    if (_beginthread(WinThreadMain, thrPtr->stackSize, thrPtr) == 0) {
 	NsThreadFatal("NsThreadCreate", "CreateThread", GetLastError());
     }
 }
