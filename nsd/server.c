@@ -33,7 +33,7 @@
  *	Routines for managing NsServer structures.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.11 2001/04/25 21:06:57 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.12 2001/11/05 20:23:31 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -155,7 +155,7 @@ NsStopServers(Ns_Time *toPtr)
  */
 
 void
-NsInitServer(Ns_ServerInitProc *initProc, char *server)
+NsInitServer(char *server)
 {
     Tcl_HashEntry *hPtr;
     Ns_DString ds;
@@ -187,7 +187,7 @@ NsInitServer(Ns_ServerInitProc *initProc, char *server)
      */
      
     Ns_DStringInit(&ds);
-    spath = path = Ns_ConfigPath(server, NULL, NULL);
+    spath = path = Ns_ConfigGetPath(server, NULL, NULL);
     servPtr->server = server;
     Ns_MutexSetName2(&servPtr->queue.lock, "nsd:queue", server);
     if (!Ns_ConfigGetInt(path, "threadyield", &servPtr->queue.yield)) {
@@ -246,7 +246,7 @@ NsInitServer(Ns_ServerInitProc *initProc, char *server)
      * Set some server options.
      */
      
-    servPtr->opts.realm = Ns_ConfigGet(path, "realm");
+    servPtr->opts.realm = Ns_ConfigGetValue(path, "realm");
     if (servPtr->opts.realm == NULL) {
     	servPtr->opts.realm = server;
     }
@@ -262,7 +262,7 @@ NsInitServer(Ns_ServerInitProc *initProc, char *server)
     if (!Ns_ConfigGetBool(path, "noticedetail", &servPtr->opts.noticedetail)) {
     	servPtr->opts.noticedetail = 1;
     }
-    p = Ns_ConfigGet(path, "headercase");
+    p = Ns_ConfigGetValue(path, "headercase");
     if (p != NULL && STRIEQ(p, "tolower")) {
     	servPtr->opts.hdrcase = ToLower;
     } else if (p != NULL && STRIEQ(p, "toupper")) {
@@ -295,13 +295,13 @@ NsInitServer(Ns_ServerInitProc *initProc, char *server)
      * Initialize Tcl.
      */
      
-    path = Ns_ConfigPath(server, NULL, "tcl", NULL);
-    servPtr->tcl.library = Ns_ConfigGet(path, "library");
+    path = Ns_ConfigGetPath(server, NULL, "tcl", NULL);
+    servPtr->tcl.library = Ns_ConfigGetValue(path, "library");
     if (servPtr->tcl.library == NULL) {
 	Ns_ModulePath(&ds, server, "tcl", NULL);
 	servPtr->tcl.library = Ns_DStringExport(&ds);
     }
-    servPtr->tcl.initfile = Ns_ConfigGet(path, "initfile");
+    servPtr->tcl.initfile = Ns_ConfigGetValue(path, "initfile");
     if (servPtr->tcl.initfile == NULL) {
 	Ns_HomePath(&ds, "bin", "init.tcl", NULL);
 	servPtr->tcl.initfile = Ns_DStringExport(&ds);
@@ -347,7 +347,7 @@ NsInitServer(Ns_ServerInitProc *initProc, char *server)
      * Initialize the fastpath.
      */
      
-    path = Ns_ConfigPath(server, NULL, "fastpath", NULL);
+    path = Ns_ConfigGetPath(server, NULL, "fastpath", NULL);
     if (!Ns_ConfigGetBool(path, "cache", &i) || i) {
     	if (!Ns_ConfigGetInt(path, "cachemaxsize", &n)) {
 	    n = 5 * 1024 * 1000;
@@ -361,9 +361,9 @@ NsInitServer(Ns_ServerInitProc *initProc, char *server)
     if (!Ns_ConfigGetBool(path, "mmap", &servPtr->fastpath.mmap)) {
     	servPtr->fastpath.mmap = 0;
     }
-    dirf = Ns_ConfigGet(path, "directoryfile");
+    dirf = Ns_ConfigGetValue(path, "directoryfile");
     if (dirf == NULL) {
-    	dirf = Ns_ConfigGet(spath, "directoryfile");
+    	dirf = Ns_ConfigGetValue(spath, "directoryfile");
     }
     if (dirf != NULL) {
     	dirf = ns_strdup(dirf);
@@ -384,23 +384,23 @@ NsInitServer(Ns_ServerInitProc *initProc, char *server)
 	    dirf = p;
 	}
     }
-    servPtr->fastpath.pageroot = Ns_ConfigGet(path, "pageroot");
+    servPtr->fastpath.pageroot = Ns_ConfigGetValue(path, "pageroot");
     if (servPtr->fastpath.pageroot == NULL) {
-    	servPtr->fastpath.pageroot = Ns_ConfigGet(spath, "pageroot");
+    	servPtr->fastpath.pageroot = Ns_ConfigGetValue(spath, "pageroot");
 	if (servPtr->fastpath.pageroot == NULL) {    	
 	    Ns_ModulePath(&ds, server, NULL, "pages", NULL);
 	    servPtr->fastpath.pageroot = Ns_DStringExport(&ds);
 	}
     }
-    p = Ns_ConfigGet(path, "directorylisting");
+    p = Ns_ConfigGetValue(path, "directorylisting");
     if (p != NULL && (STREQ(p, "simple") || STREQ(p, "fancy"))) {
 	p = "_ns_dirlist";
     }
-    servPtr->fastpath.dirproc = Ns_ConfigGet(path, "directoryproc");
+    servPtr->fastpath.dirproc = Ns_ConfigGetValue(path, "directoryproc");
     if (servPtr->fastpath.dirproc == NULL) {
     	servPtr->fastpath.dirproc = p;
     }
-    servPtr->fastpath.diradp = Ns_ConfigGet(path, "directoryadp");
+    servPtr->fastpath.diradp = Ns_ConfigGetValue(path, "directoryadp");
 
     /*
      * Configure the proxy and redirects requests , e.g., not found 404.
@@ -438,20 +438,20 @@ NsInitServer(Ns_ServerInitProc *initProc, char *server)
      * Initialize ADP.
      */
      
-    path = Ns_ConfigPath(server, NULL, "adp", NULL);
-    servPtr->adp.errorpage = Ns_ConfigGet(path, "errorpage");
-    servPtr->adp.startpage = Ns_ConfigGet(path, "startpage");
+    path = Ns_ConfigGetPath(server, NULL, "adp", NULL);
+    servPtr->adp.errorpage = Ns_ConfigGetValue(path, "errorpage");
+    servPtr->adp.startpage = Ns_ConfigGetValue(path, "startpage");
     if (!Ns_ConfigGetBool(path, "enableexpire", &servPtr->adp.enableexpire)) {
     	servPtr->adp.enableexpire = 0;
     }
     if (!Ns_ConfigGetBool(path, "enabledebug", &servPtr->adp.enabledebug)) {
     	servPtr->adp.enabledebug = 0;
     }
-    servPtr->adp.debuginit = Ns_ConfigGet(path, "debuginit");
+    servPtr->adp.debuginit = Ns_ConfigGetValue(path, "debuginit");
     if (servPtr->adp.debuginit == NULL) {
     	servPtr->adp.debuginit = "ns_adp_debuginit";
     }
-    servPtr->adp.defaultparser = Ns_ConfigGet(path, "defaultparser");
+    servPtr->adp.defaultparser = Ns_ConfigGetValue(path, "defaultparser");
     if (servPtr->adp.defaultparser == NULL) {
     	servPtr->adp.defaultparser = "adp";
     }
@@ -495,9 +495,6 @@ NsInitServer(Ns_ServerInitProc *initProc, char *server)
      */
 
     NsDbInitServer(server);
-    if (initProc != NULL && (*initProc)(server) != NS_OK) {
-	Ns_Fatal("nsmain: Ns_ServerInitProc failed");
-    }
     NsLoadModules(server);
     NsTclInitServer(server);
 }
