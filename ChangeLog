@@ -41,11 +41,12 @@
 
 2001-03-14  Dossy Shiobara  <dossy@panoptic.com>
 	
-	* nsd/nsmain.c: [ #230646 ] Specifying user/group dumps core
-	on Linux.  Segmentation fault when using -g <group> flag
-	(reproducing this change from HEAD into the nsd_v3_r3_p0
-	branch) line 316 should read Ns_GetGid(garg) instead of
-	Ns_GetGid(optarg). Thanks to Scott G and Dossy for this one.
+	* nsd/nsmain.c: [ #230646 ] Specifying user/group dumps core on
+	Linux.  Segmentation fault when using -g <group> flag
+	(reproducing this change from HEAD into the nsd_v3_r3_p0 branch)
+	line 316 should read Ns_GetGid(garg) instead of
+	Ns_GetGid(optarg). Thanks to Scott G and Dossy, and Daniel
+	P. Stasinski for this one.
 
 2001-03-12  Kris Rehberg  <kriston@aol.com>
 
