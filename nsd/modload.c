@@ -34,7 +34,7 @@
  *	Load .so files into the server and initialize them. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/modload.c,v 1.14 2003/03/07 18:08:29 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/modload.c,v 1.15 2003/03/19 09:18:00 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -387,24 +387,29 @@ static void *
 DlOpen(char *file)
 {
 #if defined(USE_DYLD)
-    NSObjectFileImage		image;
-    NSModule			module;
+    int retry;
+    NSObjectFileImage image;
+    NSModule module;
     NSObjectFileImageReturnCode	err;
 
     module = NULL;
+    retry  = 0;
+
     err = NSCreateObjectFileImageFromFile(file, &image);
     switch (err) {
 	case NSObjectFileImageSuccess:
-    	    module = NSLinkModule(image, file, TRUE);
+        module = NSLinkModule(image, file, TRUE);
 	    break;
 	case NSObjectFileImageInappropriateFile:
 	    dylderr = "Inappropriate Mach-O file";
+	    retry   = 1;
 	    break;
 	case NSObjectFileImageArch:
 	    dylderr = "Inappropriate Mach-O architecture";
 	    break;
 	case NSObjectFileImageFormat:
 	    dylderr = "Invalid Mach-O file format";
+	    retry   = 1;
 	    break;
 	case NSObjectFileImageAccess:
 	    dylderr = "Permission denied";
@@ -412,6 +417,16 @@ DlOpen(char *file)
 	default:
 	    dylderr = "Unknown error";
 	    break;
+    }
+    if (retry) {
+
+	/*
+ 	 * Fallback to open shared library.
+	 */
+
+	module = (void *)NSAddImage(file,
+	        NSADDIMAGE_OPTION_WITH_SEARCHING |
+	        NSADDIMAGE_OPTION_RETURN_ON_ERROR);
     }
     return (void *) module;
 #elif defined(_WIN32)
@@ -449,35 +464,45 @@ DlSym(void *handle, char *name)
     symbol = DlSym2(handle, name);
     if (symbol == NULL) {
 
-	/*
-	 * Some BSD platforms (e.g., OS/X) prepend an underscore
-	 * to all symbols.
-	 */
+        /*
+         * Some BSD platforms (e.g., OS/X) prepend an underscore
+         * to all symbols.
+         */
 
-    	Ns_DStringInit(&ds);
-	Ns_DStringVarAppend(&ds, "_", name, NULL);
-	symbol = DlSym2(handle, ds.string);
-	Ns_DStringFree(&ds);
+        Ns_DStringInit(&ds);
+        Ns_DStringVarAppend(&ds, "_", name, NULL);
+        symbol = DlSym2(handle, ds.string);
+        Ns_DStringFree(&ds);
     }
+
     return symbol;
 }
 
 static void *
 DlSym2(void *handle, char *name)
 {
-    void *symbol;
+    void *symbol = NULL;
 
 #if defined(USE_DLSHL)
-    symbol = NULL;
     if (shl_findsym((shl_t *) &handle, name, TYPE_UNDEFINED, &symbol) == -1) {
-	symbol = NULL;
+        symbol = NULL;
     }
 #elif defined(_WIN32)
     symbol =  (void *) GetProcAddress((HMODULE) handle, name);
 #elif (USE_DYLD)
-    symbol = NSLookupSymbolInModule(handle, name);
+    symbol = (void *) NSLookupSymbolInModule(handle, name);
+    if (symbol == NULL) {
+        
+        /*
+         * Fallback to get symbol from shared library
+         */
+
+        symbol = (void *) NSLookupSymbolInImage(handle, name,
+                NSLOOKUPSYMBOLINIMAGE_OPTION_BIND_NOW |
+                NSLOOKUPSYMBOLINIMAGE_OPTION_RETURN_ON_ERROR);
+    }
     if (symbol != NULL) {
-    	symbol = NSAddressOfSymbol(symbol);
+    	symbol = (void *) NSAddressOfSymbol(symbol);
     }
 #else
     symbol = dlsym(handle, name);
