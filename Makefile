@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/Makefile,v 1.17.2.3.2.2 2002/09/23 23:09:26 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/Makefile,v 1.17.2.3.2.3 2002/09/23 23:35:46 jgdavidson Exp $
 #
 
 NSBUILD=1
@@ -50,7 +50,7 @@ install: all
 	for i in tcl/*.tcl; do \
 		$(INSTALL_DATA) $$i $(prefix)/modules/tcl/; \
 	done
-	$(INSTALL_DATA) sample-config.tcl $(prefix)/
+	$(INSTALL_DATA) nsd/sample-config.tcl $(prefix)/
 	$(INSTALL_DATA) install-sh $(INSTBIN)/
 	for i in $(dirs); do \
 		(cd $$i && $(MAKE) install) || exit 1; \
