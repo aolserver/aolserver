@@ -28,47 +28,46 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/init.tcl,v 1.11 2003/01/17 19:56:23 shmooved Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/init.tcl,v 1.12 2003/01/18 11:42:36 vasiljevic Exp $
 #
 
 #
 # init.tcl --
 #
-#	Core script to initialize a virtual server at startup.
+#   Core script to initialize a virtual server at startup.
 #
 
 #
 # ns_module --
 #
-#	Set or return information about the 
-#	currently initializing module.  This 
-#	proc is useful in init files.
+#   Set or return information about
+#   the currently initializing module.
+#   This proc is useful in init files.
 #
 
 proc ns_module {key {val ""}} {
     global _module
-
     switch $key {
-	name -
-	private -
-	library -
-	shared {
-	    if {$key == "library"} {
-		set key private
-	    }
-	    if {$val != ""} {
-		set _module($key) $val
-	    }
-	    if {[info exists _module($key)]} {
-		set val $_module($key)
-	    }
-	}
-	clear {
-	    catch {unset _module}
-	}
-	default {
-	    error "ns_module: invalid cmd: $key"
-	}
+        name    -
+        private -
+        library -
+        shared  {
+            if {$key == "library"} {
+                set key private
+            }
+            if {$val != ""} {
+                set _module($key) $val
+            }
+            if {[info exists _module($key)]} {
+                set val $_module($key)
+            }
+        }
+        clear {
+            catch {unset _module}
+        }
+        default {
+            error "ns_module: invalid cmd: $key"
+        }
     }
     return $val
 }
@@ -77,152 +76,155 @@ proc ns_module {key {val ""}} {
 #
 # ns_eval --
 #
-#	Evaluate a script which should contain
-#	new procs command and then save the
-#	state of the procs for other interps
-#	to sync with on their next _ns_atalloc.
+#   Evaluate a script which should contain
+#   new procs commands and then save the
+#   state of the procs for other interps
+#   to sync with on their next _ns_atalloc.
 #
-#	If this ever gets moved to a namespace, the eval will need
-#	to be modified to ensure that the procs aren't defined in
-#	that namespace.
+#   If this ever gets moved to a namespace,
+#   the eval will need to be modified to
+#   ensure that the procs aren't defined 
+#   in that namespace.
 #
 
-proc ns_eval script {
-    if {[catch {eval $script}]} {
-	#
-	# If the script failed, just dump this
-	# interp to avoid proc pollution.
-	# 
-
-	ns_markfordelete
-    } else {
-	#
-	# Save this interp's namespaces for others.
-	#
-
-	_ns_savenamespaces
+proc ns_eval {args} {
+    if {[catch {uplevel $args} result]} {
+        ns_markfordelete; # dump this interp to avoid proc pollution.
+        return -code error $result
     }
+    _ns_savenamespaces; # save this interp's namespaces for others.
+    return $result
 }
+
 
 #
 # ns_adp_include --
 #
-#	Wrapper for _ns_adp_include to ensure a
-#	new call frame with private variables.
+#   Wrapper for _ns_adp_include to ensure a
+#   new call frame with private variables.
 #
 
 proc ns_adp_include {args} {
     eval _ns_adp_include $args
 }
 
+
 #
 # ns_init --
 #
-#	Initialize the interp.  This proc is called
-#	by the Ns_TclAllocateInterp C function.
+#   Initialize the interp.  This proc is called
+#   by the Ns_TclAllocateInterp C function.
 #
 
 proc ns_init {} {
     ns_ictl update; # check for proc/namespace update
 }
 
+
 #
 # ns_cleanup --
 #
-#	Cleanup the interp, performing various garbage
-#	collection tasks.  This proc is called by the
-#	Ns_TclDeAllocateInterp C function.
+#   Cleanup the interp, performing various garbage
+#   collection tasks.  This proc is called by the
+#   Ns_TclDeAllocateInterp C function.
 #
 
 proc ns_cleanup {} {
     ns_cleanupchans; # close files
     ns_cleanupvars;  # dump globals
-    ns_set cleanup;  # free sets
+    ns_set  cleanup; # free sets
     ns_http cleanup; # abort any http request
     ns_ictl cleanup; # internal cleanup (e.g,. Ns_TclRegisterDefer's)
 }
 
+
 #
 # ns_cleanupchans --
 #
-#	Close all open channels.
+#   Close all open channels.
 #
-    
+
 proc ns_cleanupchans {} {
     ns_chan cleanup; # close shared channels first
     foreach f [file channels] {
-	# NB: Leave core Tcl stderr, stdin, stdout open.
-	if {![string match std* $f]} {
-	    catch {close $f}
-	}
+        # NB: Leave core Tcl stderr, stdin, stdout open.
+        if {![string match std* $f]} {
+            catch {close $f}
+        }
     }
 }
+
 
 #
 # ns_cleanupvars --
 #
-#	Unset global variables.
+#   Unset global variables.
 #
 
 proc ns_cleanupvars {} {
     foreach g [info globals] {
-	switch -glob -- $g {
-	    tcl* -
-	    error -
-	    env {
-		# NB: Save these core Tcl vars.
-	    }
-	    default {
-	    	upvar #0 $g gv
-           	if {[info exists gv]} {
-               	    unset gv
-		}
-           }
-	}
+        switch -glob -- $g {
+            tcl*  - 
+            error - 
+            env {
+                # NB: Save these core Tcl vars.
+            }
+            default {
+                upvar \#0 $g gv
+                if {[info exists gv]} {
+                    unset gv
+                }
+            }
+        }
     }
 }
+
 
 #
 # ns_reinit --
 #
-#	Cleanup and initialize an interp.  This proc
-#	could be used for long running detached
-#	threads to avoid resource leaks and/or missed
-#	state changes, e.g.:
+#   Cleanup and initialize an interp.
+#   This could be used for long running
+#   detached threads to avoid resource 
+#   leaks and/or missed state changes, e.g.:
 #
-#	ns_thread begin {
-#		while 1 {
-#			ns_reinit
-#			... endless work ...
-#		}
-#	}
-#
+#   ns_thread begin {
+#       while 1 {
+#           ns_reinit
+#           ... endless work ...
+#       }
+#   }
 #
 
 proc ns_reinit {} {
-	ns_cleanup
-	ns_init
+    ns_cleanup
+    ns_init
 }
+
 
 #
 # _ns_savenamespaces --
 #
-#	Save this interp's namespaces as the template
-#	for other interps.
+#   Save this interp's namespaces
+#   as the template for other interps.
 #
 
 proc _ns_savenamespaces {} {
+    append script [_ns_getpackages] ; # Assure C-level packages load first
     _ns_getnamespaces namespaces
-    set script ""
     set import ""
     foreach ns $namespaces {
-        foreach { _ns_script _ns_import } [_ns_getscript $ns] break
-	append script [list namespace eval $ns $_ns_script]\n
-        if { $_ns_import != "" } {
-            append import [list namespace eval $ns $_ns_import]\n
+        foreach {_ns_script _ns_import} [_ns_getscript $ns] {
+            break
+        }
+        append script [list namespace eval $ns $_ns_script] \n
+        if {$_ns_import != ""} {
+            append import [list namespace eval $ns $_ns_import] \n
         }
     }
-    append script $import
+    if {$import != ""} {
+        append script $import
+    }
     ns_ictl save $script
 }
 
@@ -230,24 +232,25 @@ proc _ns_savenamespaces {} {
 #
 # _ns_sourcemodule --
 #
-#	Source files for a module.
+#   Source files for a module.
 #
 
 proc _ns_sourcemodule module {
-    set shared  [ns_library shared $module]
+    set shared  [ns_library shared  $module]
     set private [ns_library private $module]
-    ns_module name $module
+    ns_module name    $module
     ns_module private $private
-    ns_module shared $private
+    ns_module shared  $private
     _ns_sourcefiles $shared $private
     ns_module clear
 }
 
+
 #
 # _ns_sourcefiles --
 #
-#	Evaluate the files in the shared and private
-#	Tcl directories.
+#   Evaluate the files in the shared
+#   and private Tcl directories.
 #
 
 proc _ns_sourcefiles {shared private} {
@@ -259,14 +262,14 @@ proc _ns_sourcefiles {shared private} {
     #
 
     foreach file [lsort [glob -nocomplain $shared/*.tcl]] {
-	set tail [file tail $file]
-	if {$tail == "init.tcl"} {
-	    _ns_sourcefile $file
-	} else {
-	    if {![file exists $private/$tail]} {
-		lappend files $file
-	    }
-	}
+        set tail [file tail $file]
+        if {$tail == "init.tcl"} {
+            _ns_sourcefile $file
+        } else {
+            if {![file exists $private/$tail]} {
+                lappend files $file
+            }
+        }
     }
 
     #
@@ -275,12 +278,12 @@ proc _ns_sourcefiles {shared private} {
     #
 
     foreach file [lsort [glob -nocomplain $private/*.tcl]] {
-	set tail [file tail $file]
-	if {$tail == "init.tcl"} {
-	    _ns_sourcefile $file
-	} else {
-	    lappend files $file
-	}
+        set tail [file tail $file]
+        if {$tail == "init.tcl"} {
+            _ns_sourcefile $file
+        } else {
+            lappend files $file
+        }
     }
 
     #
@@ -288,7 +291,7 @@ proc _ns_sourcefiles {shared private} {
     #
 
     foreach file $files {
-	_ns_sourcefile $file
+        _ns_sourcefile $file
     }
 }
 
@@ -296,12 +299,12 @@ proc _ns_sourcefiles {shared private} {
 #
 # _ns_sourcefile --
 #
-#	Source a script file.
+#   Source a script file.
 #
 
-proc _ns_sourcefile file {
+proc _ns_sourcefile {file} {
     if {[catch {source $file} err]} {
-	ns_log error "tcl: source $file failed: $err"
+        ns_log error "tcl: source $file failed: $err"
     }
 }
 
@@ -309,15 +312,52 @@ proc _ns_sourcefile file {
 #
 # _ns_getnamespaces -
 #
-#	Recursively append the list of all known namespaces
-#	to the variable named by listVar variable.
+#   Recursively append the list of all known namespaces
+#   to the variable named by listVar variable.
 #
 
 proc _ns_getnamespaces {listVar {n ""}} {
     upvar $listVar list
     lappend list $n
     foreach c [namespace children $n] {
-	_ns_getnamespaces list $c
+        _ns_getnamespaces list $c
+    }
+}
+
+
+#
+# _ns_getpackages -
+#
+#   Get list of loaded packages and return script
+#   used to re-load each package into new interps.
+#   Note the overloading of the Tcl "load" command.
+#   This way we assure recursive invocation of the
+#   "package require" from within C-level packages.
+#
+
+proc _ns_getpackages {} {
+    append script [subst {set ::_pkglist [list [info loaded]]}] \n
+    append script {
+        if {[info commands ::tcl::_load] != ""} {
+            rename ::tcl::_load ""
+        }
+        rename ::load ::tcl::_load
+        proc ::load {args} {
+            set libfile [lindex $args 0]
+            for {set i 0} {$i < [llength $::_pkglist]} {incr i} {
+                set toload [lindex $::_pkglist $i]
+                if {$libfile == [lindex $toload 0]} {
+                    eval ::tcl::_load $toload
+                    set ::_pkglist [lreplace $::_pkglist $i $i]
+                    return
+                }
+            }
+        }
+        while {[llength $::_pkglist]} {
+            eval ::load [lindex $::_pkglist 0]
+        }
+        rename ::load ""
+        rename ::tcl::_load ::load
     }
 }
 
@@ -325,48 +365,67 @@ proc _ns_getnamespaces {listVar {n ""}} {
 #
 # _ns_getscript --
 #
-#	Return a script to create namespace procs.
+#   Return a script to create namespaces
+#   and their data (vars and procs).
 #
 
 proc _ns_getscript n {
     namespace eval $n {
-	::set n [namespace current]
-	::set script ""
-        ::set import ""
-	::foreach v [::info vars] {
-	    ::switch $v {
-		n -
-		v -
-		script continue
-		default {
-		    ::if {[info exists ${n}::$v]} {
-			::if {[array exists $v]} {
-			    ::append script [::list variable $v]\n
-			    ::append script [::list array set $v [array get $v]]\n
-			} else {
-			    ::append script [::list variable $v [set $v]]\n
-			}
-		    }
-		}
-	    }
-	}
-        ::set import {}
-	::foreach p [::info procs] {
-	    ::set args ""
-            ::if { [::namespace origin $p] == [::namespace which -command $p] } {
-                ::foreach a [::info args $p] {
-                    if {[::info default $p $a def]} {
-                        ::set a [::list $a $def]
-                    }
-                    ::lappend args $a
+
+        #
+        # Cover namespace variables (arrays and scalars)
+        #
+
+        ::set _script ""
+        ::foreach _var [::info vars] {
+            ::switch -- $_var {
+                _var -
+                _script {
+                    continue ; # skip local help variables
                 }
-                ::append script [::list proc $p $args [info body $p]]\n
-            } else {
-                ::append import [::list namespace import [namespace origin $p]]\n
+                default {
+                    ::if {[::info exists [::namespace current]::$_var]} {
+                        ::if {[::array exists $_var]} {
+                            # handle array variable
+                            ::append _script [::list variable $_var] \n
+                            ::append _script \
+                                [::list array set $_var [::array get $_var]] \n
+                        } else {
+                            # handle scalar variable
+                            ::append _script \
+                                [::list variable $_var [::set $_var]] \n
+                        }
+                    }
+                }
             }
-	}
-	::append script [::concat namespace export [namespace export]]\n
-	::return [list $script $import]
+        }
+        
+        #
+        # Cover namespace procedures
+        #
+
+        ::set _import ""
+        ::foreach _proc [::info procs] {
+            ::set _orig [::namespace origin $_proc]
+            ::set _args ""
+            ::if {$_orig == [::namespace which -command $_proc]} {
+                # original command; get the definition
+                ::foreach _arg [::info args $_proc] {
+                    if {[::info default $_proc $_arg _def]} {
+                        ::set _arg [::list $_arg $_def]
+                    }
+                    ::lappend _args $_arg
+                }
+                ::append _script \
+                    [::list proc $_proc $_args [::info body $_proc]] \n
+            } else {
+                # command imported from other namespace
+                ::append _import [::list namespace import $_orig] \n
+            }
+        }
+
+        ::append _script [::concat namespace export [::namespace export]] \n
+        ::return [::list $_script $_import]
     }
 }
 
@@ -375,16 +434,14 @@ proc _ns_getscript n {
 # Source the top level Tcl libraries.
 #
 
-set shared [ns_library shared]
-set private [ns_library private]
-_ns_sourcefiles $shared $private
+_ns_sourcefiles [ns_library shared] [ns_library private]
 
 #
 # Source the module-specific Tcl libraries.
 #
 
-foreach mod [ns_ictl getmodules] {
-    _ns_sourcemodule $mod
+foreach module [ns_ictl getmodules] {
+    _ns_sourcemodule $module
 }
 
 #
@@ -393,9 +450,9 @@ foreach mod [ns_ictl getmodules] {
 
 rename _ns_sourcemodule {}
 rename _ns_sourcefiles  {}
-rename _ns_sourcefile {}
-ns_cleanup
+rename _ns_sourcefile   {}
 
+ns_cleanup
 _ns_savenamespaces
 
 #
@@ -404,3 +461,4 @@ _ns_savenamespaces
 
 ns_markfordelete
 
+# EOF $RCSfile: init.tcl,v $
