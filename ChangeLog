@@ -3,6 +3,9 @@
         * nsd/adpparse.c: Fixed a bug in Parse.  It was not parsing
         registered tags inside of html tags (ex. <td bgcolor='<tag n='v'>'> )
 
+        * nsd/tclset.c: Fixed a bug with ns_set tcl commands.  
+        ns_set idelkey|delkey would not actually delete the key.
+
 2002-11-02  Jim Davidson <jgdavidson@aol.com>
 
 	* nsd/fastpath.c:  Fixed bug with non-server specific cache names.

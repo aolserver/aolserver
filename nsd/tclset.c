@@ -33,7 +33,7 @@
  *	Implements the tcl ns_set commands 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclset.c,v 1.13 2002/10/14 23:21:08 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclset.c,v 1.14 2002/11/06 06:06:21 jcollins Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -896,6 +896,7 @@ NsTclSetObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
                 break;
 		
             case SDeleteIdx:
+            case SDelkeyIdx:
                 Ns_SetDeleteKey(set, key);
                 break;
 		
@@ -914,6 +915,7 @@ NsTclSetObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
                 break;
 		    
 	    case SIDeleteIdx:
+            case SIDelkeyIdx:
                 Ns_SetIDeleteKey(set, key);
                 break;
 		    
