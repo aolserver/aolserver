@@ -28,7 +28,7 @@
  */
 
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscgi/nscgi.c,v 1.25 2003/12/24 15:28:05 scottg Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscgi/nscgi.c,v 1.26 2004/02/26 00:56:30 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 #include <sys/stat.h>
@@ -1139,7 +1139,7 @@ CgiCopy(Cgi *cgiPtr, Ns_Conn *conn)
      * Queue the headers and copy remaining content up to end of file.
      */
      
-    Ns_ConnSetRequiredHeaders(conn, NULL, 0);
+    Ns_ConnSetRequiredHeaders(conn, NULL, -1);
     Ns_ConnQueueHeaders(conn, httpstatus);
 copy:
     do {
