@@ -33,7 +33,7 @@
  *	Tcl job queueing routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tcljob.c,v 1.6 2002/08/10 16:22:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tcljob.c,v 1.7 2002/08/25 20:10:39 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -42,6 +42,20 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
 #define JOB_RUNNING 4
 #define JOB_ERRCODE 8
 #define JOB_ERRINFO 16
+
+/*
+ * The following structure defines a job queued in a
+ * server Tcl job pool.
+ */
+
+typedef struct Job {
+    struct Job      *nextPtr;
+    int              flags;
+    int              code;
+    char            *errorCode;
+    char            *errorInfo;
+    Tcl_DString      ds;
+} Job;
 
 static void FreeJob(Job *jobPtr);
 static Ns_ThreadProc JobThread;

@@ -84,8 +84,7 @@
 #define LOG_DEBUG	4
 #define LOG_DEV		8
 #define LOG_NONOTICE	16
-#define LOG_BUFFER	32
-#define LOG_USEC	64
+#define LOG_USEC	32
 
 /*
  * The following is the default text/html content type
@@ -371,82 +370,6 @@ typedef struct Conn {
 } Conn;
 
 /*
- * The following structure maintains new interp init callbacks.
- */
-
-typedef struct Init {
-    struct Init *nextPtr;
-    Ns_TclInterpInitProc *proc;
-    void *arg;
-} Init;
-
-/*
- * The following structure defines a collection of arrays.  
- * Only the arrays within a given bucket share a lock,
- * allowing for more concurency in nsv.
- */
-
-typedef struct Bucket {
-    Ns_Mutex lock;
-    Tcl_HashTable arrays;
-} Bucket;
-
-/*
- * The following structure maintains scripts to evaluate
- * when a connection closes.
- */
-
-typedef struct AtClose {
-    struct AtClose *nextPtr;
-    char script[1];
-} AtClose;
-
-/*
- * The following structure maintains callbacks to registered
- * to be executed at interp deallocate time.
- */
- 
-typedef struct AtCleanup {
-    struct AtCleanup *nextPtr;
-    Ns_TclDeferProc *procPtr;
-    void 	    *arg;
-} AtCleanup;
-
-/*
- * The following stuctures maintain connection filters
- * and traces.
- */
-
-typedef struct Filter {
-    struct Filter *nextPtr;
-    Ns_FilterProc *proc;
-    char 	  *method;
-    char          *url;
-    int	           when;
-    void	  *arg;
-} Filter;
-
-typedef struct Trace {
-    struct Trace    *nextPtr;
-    Ns_TraceProc    *proc;
-    void    	    *arg;
-} Trace;
-
-/*
- * The following structure defines a job queued in a
- * server Tcl job pool.
- */
-
-typedef struct Job {
-    struct Job	    *nextPtr;
-    int		     flags;
-    int              code;
-    char	    *errorCode;
-    char	    *errorInfo;
-    Tcl_DString	     ds;
-} Job;
-
-/*
  * The following structure is allocated for each virtual server.
  */
 
@@ -552,9 +475,9 @@ typedef struct NsServer {
      */
 
     struct {
-	Filter *firstFilterPtr;
-	Trace  *firstTracePtr;
-	Trace  *firstCleanupPtr;
+	struct Filter *firstFilterPtr;
+	struct Trace  *firstTracePtr;
+	struct Trace  *firstCleanupPtr;
     } filter;
 
     /*
@@ -563,8 +486,12 @@ typedef struct NsServer {
 
     struct {         
 	char	           *library;
-	Init               *firstInitPtr;
+	struct Init        *firstInitPtr;
 	char	    	   *initfile;
+	Ns_RWLock	    lock;
+	char		   *script;
+	int		    length;
+	int		    epoch;
     } tcl;
     
     /*
@@ -603,7 +530,7 @@ typedef struct NsServer {
      */
 
     struct {
-	Bucket      	   *buckets;
+	struct Bucket  	   *buckets;
 	int 	    	    nbuckets;
     } nsv;
     
@@ -646,8 +573,8 @@ typedef struct NsServer {
      */
 
     struct {
+	struct Job	   *firstPtr;
 	int		    stop;
-	Job		   *firstPtr;
 	Tcl_HashTable	    table;
 	unsigned int	    nextid;
 	struct {
@@ -670,7 +597,8 @@ typedef struct NsInterp {
 
     Tcl_Interp		  *interp;
     NsServer  	    	  *servPtr;
-    bool		   delete;
+    int		   	   delete;
+    int			   epoch;
     Tcl_HashEntry	  *hPtr;
 
     /*
@@ -679,7 +607,7 @@ typedef struct NsInterp {
      * de-allocate time.
      */
 
-    AtCleanup		  *firstAtCleanupPtr;
+    struct Defer	 *firstDeferPtr;
 
     /*
      * The following pointer maintains the first in
@@ -687,7 +615,7 @@ typedef struct NsInterp {
      * connection closes.
      */
 
-    AtClose		  *firstAtClosePtr;
+    struct AtClose	*firstAtClosePtr;
 
     /*
      * The following pointer and struct maintain state for
@@ -849,6 +777,7 @@ extern void NsTclWaitJobs(NsServer *servPtr, Ns_Time *toPtr);
 
 extern void NsTclInitServer(char *server);
 extern void NsLoadModules(char *server);
+extern struct Bucket *NsTclCreateBuckets(char *server, int nbuckets);
 
 extern void NsClsCleanup(Conn *connPtr);
 extern void NsTclAddCmds(NsInterp *itPtr, Tcl_Interp *interp);
@@ -878,7 +807,6 @@ extern void NsAdpParse(AdpParse *parsePtr, NsServer *servPtr, char *utf, int saf
 extern Ns_TclInterpInitProc NsTclCreateCmds;
 extern char 	  *NsTclConnId(Ns_Conn *conn);
 extern int 	   NsIsIdConn(char *inID);
-extern int 	   NsTclEval(Tcl_Interp *interp, char *script);
 
 /*
  * Callback routines.

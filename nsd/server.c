@@ -33,7 +33,7 @@
  *	Routines for managing NsServer structures.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.18 2002/08/10 16:01:19 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.19 2002/08/25 20:10:39 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -164,9 +164,7 @@ NsInitServer(char *server)
     Ns_DString ds;
     NsServer *servPtr;
     Conn *connBufPtr, *connPtr;
-    Bucket *buckPtr;
     char *path, *spath, *map, *key, *dirf, *p;
-    char buf[200];
     Ns_Set *set;
     int i, n, maxconns, status;
 
@@ -303,18 +301,12 @@ NsInitServer(char *server)
 	Ns_HomePath(&ds, "bin", "init.tcl", NULL);
 	servPtr->tcl.initfile = Ns_DStringExport(&ds);
     }
+    Ns_RWLockInit(&servPtr->tcl.lock);
     if (!Ns_ConfigGetInt(path, "nsvbuckets", &n) || n < 1) {
 	n = 8;
     }
     servPtr->nsv.nbuckets = n;
-    servPtr->nsv.buckets = ns_malloc(sizeof(Bucket) * n);
-    while (--n >= 0) {
-	sprintf(buf, "nsv:%d", n);
-	buckPtr = &servPtr->nsv.buckets[n];
-	Tcl_InitHashTable(&buckPtr->arrays, TCL_STRING_KEYS);
-	Ns_MutexInit(&buckPtr->lock);
-	Ns_MutexSetName2(&buckPtr->lock, buf, server);
-    }
+    servPtr->nsv.buckets = NsTclCreateBuckets(server, n);
     Tcl_InitHashTable(&servPtr->share.inits, TCL_STRING_KEYS);
     Tcl_InitHashTable(&servPtr->share.vars, TCL_STRING_KEYS);
     Ns_MutexSetName2(&servPtr->share.lock, "nstcl:share", server);
