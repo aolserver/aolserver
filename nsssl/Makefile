@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsssl/Makefile,v 1.4 2002/10/03 22:26:19 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsssl/Makefile,v 1.5 2002/10/03 22:41:45 jgdavidson Exp $
 #
 
 
@@ -85,8 +85,9 @@ include  ../include/Makefile.build
 
 cppem:
 	$(MKDIR) $(INSTMOD)/nsssl
-	$(CP) *.tcl $(INSTMOD)/nsssl
+	$(INSTALL_DATA) keygen.tcl $(INSTMOD)/nsssl
 	$(MKDIR) $(INSTSRVMOD)/nsssl
-	$(CP) *.pem $(INSTSRVMOD)/nsssl
+	$(INSTALL_DATA) certfile-sample.pem $(INSTSRVMOD)/nsssl
+	$(INSTALL_DATA) keyfile-sample.pem $(INSTSRVMOD)/nsssl
 
 endif
