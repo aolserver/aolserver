@@ -35,7 +35,7 @@
  *	Pool memory is used as an optimization.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/request.c,v 1.9 2005/01/15 23:55:53 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/request.c,v 1.10 2005/03/25 00:36:07 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -45,7 +45,7 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
  * Local functions defined in this file.
  */
 
-static void SetUrl(Ns_Request * request, char *url);
+static void SetUrl(Ns_Request * request, char *url, Tcl_Encoding encoding);
 static void FreeUrl(Ns_Request * request);
 static Ns_Mutex reqlock;
 
@@ -84,9 +84,10 @@ Ns_FreeRequest(Ns_Request * request)
 /*
  *----------------------------------------------------------------------
  *
- * Ns_ParseRequest --
+ * Ns_ParseRequest, Ns_ParseRequestEx --
  *
  *	Parse a request from a browser into an Ns_Request structure. 
+ *	Utilize the given encoding, if present.
  *
  * Results:
  *	A new Ns_Request. 
@@ -99,6 +100,12 @@ Ns_FreeRequest(Ns_Request * request)
 
 Ns_Request *
 Ns_ParseRequest(char *line)
+{
+    return Ns_ParseRequestEx(line, NULL);
+}
+
+Ns_Request *
+Ns_ParseRequestEx(char *line, Tcl_Encoding encoding)
 {
     char       *url;
     char       *p;
@@ -220,7 +227,7 @@ Ns_ParseRequest(char *line)
             }
         }
     }
-    SetUrl(request, url);
+    SetUrl(request, url, encoding);
 
 done:
     if (request->url == NULL) {
@@ -229,6 +236,19 @@ done:
     }
     Ns_DStringFree(&ds);
     return request;
+}
+
+char *
+NsFindVersion(char *request)
+{
+    char *s, *v;
+
+    v = NULL;
+    while ((s = strstr(request, " HTTP/")) != NULL) {
+	v = s;
+	request = s + 6;
+    }
+    return v;
 }
 
 
@@ -289,7 +309,7 @@ Ns_SetRequestUrl(Ns_Request * request, char *url)
     FreeUrl(request);
     Ns_DStringInit(&ds);
     Ns_DStringAppend(&ds, url);
-    SetUrl(request, ds.string);
+    SetUrl(request, ds.string, NULL);
     Ns_MutexUnlock(&reqlock);
     Ns_DStringFree(&ds);
 }
@@ -343,8 +363,9 @@ FreeUrl(Ns_Request * request)
  */
 
 static void
-SetUrl(Ns_Request * request, char *url)
+SetUrl(Ns_Request *request, char *url, Tcl_Encoding encoding)
 {
+    Ns_Conn *conn;
     Ns_DString  ds1, ds2;
     char       *p;
 
@@ -365,10 +386,14 @@ SetUrl(Ns_Request * request, char *url)
     }
 
     /*
-     * Decode and normalize the URL.
+     * Decode and normalize the URL.  If the encoding isn't specified,
+     * use the encoding of the current connection, if any.
      */
 
-    p = Ns_DecodeUrlCharset(&ds1, url, NULL);
+    if (encoding == NULL && (conn = Ns_GetConn()) != NULL) {
+	encoding = Ns_ConnGetUrlEncoding(conn);
+    }
+    p = Ns_DecodeUrlWithEncoding(&ds1, url, encoding);
     if (p == NULL) {
         p = url;
     }
