@@ -1,3 +1,8 @@
+2001-01-31  Kriston J. Rehberg  <kriston@aol.com>
+
+	* Makefile (MODULES): nsunix, nsvhr, and nsodbc moved to the
+	Module Collection.
+
 2001-01-16  Jim Davidson
 
 	* Cleaned up sloppy use of the nsServer global wherever it's used.

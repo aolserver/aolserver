@@ -25,11 +25,9 @@ include $(NSHOME)/include/Makefile.global
 #   nsperm      -- Permissions module
 #   nsext       -- External database driver module
 #   nspd        -- Archive library for building an external driver
-#   nsunix      -- serve HTTP over Unix domain socket
-#   nsvhr       -- Virtual hosting redirector
 #
 
-MODULES   =  nssock nscgi nscp nslog nsperm nsext nsunix nsvhr nspd 
+MODULES   =  nssock nscgi nscp nslog nsperm nsext nspd 
 
 ALLDIRS   = nsd $(MODULES)
 
