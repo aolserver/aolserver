@@ -1,3 +1,8 @@
+2003-08-21  Zoran Vasiljevic <zoran@archiware.com>
+
+	* nsd/tclfile.c: properly detach and attach the Tcl channel
+	out and in the current interpreter.
+
 2003-08-19  Rahul Bhargava <rahul032213@aol.com>
 
         * nsd/return.c: Updated to support HTTP/1.1 Transfer Chunk Encoding 

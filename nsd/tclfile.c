@@ -34,7 +34,7 @@
  *	Tcl commands that do stuff to the filesystem. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclfile.c,v 1.18 2003/03/07 18:08:37 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclfile.c,v 1.19 2003/08/21 20:11:14 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #ifdef _WIN32
@@ -42,6 +42,9 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
 #else
 #include <utime.h>
 #endif
+
+static void SpliceChannel(Tcl_Interp *interp, Tcl_Channel chan);
+static void UnspliceChannel(Tcl_Interp *interp, Tcl_Channel chan);
 
 
 /*
@@ -1013,112 +1016,205 @@ NsTclChanObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST obj
     NsInterp *itPtr = arg;
     NsServer *servPtr = itPtr->servPtr;
     Tcl_Channel chan = NULL;
-    int new;
+    char *name;
+    int new, shared;
+    Tcl_HashTable *tabPtr;
     Tcl_HashEntry *hPtr;
     Tcl_HashSearch search;
     static CONST char *opts[] = {
-	"cleanup", "list", "share", "register", "unregister", NULL
+	"cleanup", "list", "create", "put", "get", NULL
     };
     enum {
-	CCleanupIdx, CListIdx, CShareIdx, CRegisterIdx, CUnregisterIdx
+	CCleanupIdx, CListIdx, CCreateIdx, CPutIdx, CGetIdx
     } opt;
 
     if (objc < 2) {
-        Tcl_WrongNumArgs(interp, 1, objv, "command ?args?");
+	Tcl_WrongNumArgs(interp, 1, objv, "command ?args?");
 	return TCL_ERROR;
     }
     if (Tcl_GetIndexFromObj(interp, objv[1], opts, "option", 0,
-			    (int *) &opt) != TCL_OK) {
+		(int *) &opt) != TCL_OK) {
 	return TCL_ERROR;
     }
 
     switch (opt) {
-    case CShareIdx:
+    case CCreateIdx:
 	if (objc != 4) {
-            Tcl_WrongNumArgs(interp, 1, objv, "share name channel");
+            Tcl_WrongNumArgs(interp, 1, objv, "create channel name");
 	    return TCL_ERROR;
 	}
 	chan = Tcl_GetChannel(interp, Tcl_GetString(objv[2]), NULL);
-	if (chan == NULL) {
-	    Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "no such channel: ", 
-		    Tcl_GetString(objv[2]), NULL);
+	if (chan == (Tcl_Channel)NULL) {
 	    return TCL_ERROR;
 	}
+	if (!Tcl_IsChannelRegistered(interp, chan)) {
+	    Tcl_SetResult(interp, "channel is not registered", TCL_STATIC);
+	    return TCL_ERROR;
+	}
+	if (Tcl_IsChannelShared(chan)) {
+	    Tcl_SetResult(interp, "channel is shared", TCL_STATIC);
+	    return TCL_ERROR;
+	}
+        name = Tcl_GetString(objv[3]);
     	Ns_MutexLock(&servPtr->chans.lock);
-	hPtr = Tcl_CreateHashEntry(&servPtr->chans.table, Tcl_GetString(objv[3]), &new);
+	hPtr = Tcl_CreateHashEntry(&servPtr->chans.table, name, &new);
     	if (new) {
-	    Tcl_RegisterChannel(NULL, chan);
             Tcl_SetHashValue(hPtr, chan);
     	}
     	Ns_MutexUnlock(&servPtr->chans.lock);
 	if (!new) {
-	    Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "share already in use: ", 
-		    Tcl_GetString(objv[3]), NULL);
+	    Tcl_AppendStringsToObj(Tcl_GetObjResult(interp),
+		    "channel with name \"", Tcl_GetString(objv[3]),
+		    "\" already exists", NULL);
 	    return TCL_ERROR;
 	}
-	hPtr = Tcl_CreateHashEntry(&itPtr->chans, Tcl_GetString(objv[3]), &new);
-	Tcl_SetHashValue(hPtr, chan);
-	break;
+	UnspliceChannel(interp, chan);
+        break;
 
-    case CRegisterIdx:
+    case CGetIdx:
 	if (objc != 3) {
-	    Tcl_WrongNumArgs(interp, 1, objv, "register name");
+	    Tcl_WrongNumArgs(interp, 1, objv, "get name");
 	    return TCL_ERROR;
 	}
+	name = Tcl_GetString(objv[2]);
     	Ns_MutexLock(&servPtr->chans.lock);
-    	hPtr = Tcl_FindHashEntry(&servPtr->chans.table, Tcl_GetString(objv[2]));
+    	hPtr = Tcl_FindHashEntry(&servPtr->chans.table, name);
 	if (hPtr != NULL) {
-	    chan = Tcl_GetHashValue(hPtr);
-	    Tcl_RegisterChannel(interp, chan);
-	    Tcl_SetResult(interp, (char *) Tcl_GetChannelName(chan), TCL_VOLATILE);
-	}
-    	Ns_MutexUnlock(&servPtr->chans.lock);
+	    chan = (Tcl_Channel)Tcl_GetHashValue(hPtr);
+	    Tcl_DeleteHashEntry(hPtr);
+        }
+	Ns_MutexUnlock(&servPtr->chans.lock);
 	if (hPtr == NULL) {
-	    Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "no such shared channel: ",
-		    Tcl_GetString(objv[3]), NULL);
+	    Tcl_AppendStringsToObj(Tcl_GetObjResult(interp),
+		    "no such shared channel: ", name, NULL);
 	    return TCL_ERROR;
 	}
-	hPtr = Tcl_CreateHashEntry(&itPtr->chans, Tcl_GetString(objv[2]), &new);
+	SpliceChannel(interp, chan);
+	Tcl_SetResult(interp, (char*)Tcl_GetChannelName(chan), TCL_VOLATILE);
+	hPtr = Tcl_CreateHashEntry(&itPtr->chans, name, &new);
 	Tcl_SetHashValue(hPtr, chan);
 	break;
 
-    case CUnregisterIdx:
+    case CPutIdx:
 	if (objc != 3) {
-            Tcl_WrongNumArgs(interp, 1, objv, "unregister name");
+	    Tcl_WrongNumArgs(interp, 1, objv, "put name");
 	    return TCL_ERROR;
 	}
-	hPtr = Tcl_FindHashEntry(&itPtr->chans, Tcl_GetString(objv[2]));
+	name = Tcl_GetString(objv[2]);
+	hPtr = Tcl_FindHashEntry(&itPtr->chans, name);
 	if (hPtr == NULL) {
-	    Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "no such registered channel: ",
-		    Tcl_GetString(objv[3]), NULL);
+	    Tcl_AppendStringsToObj(Tcl_GetObjResult(interp),
+		    "no such shared channel: ", name, NULL);
 	    return TCL_ERROR;
 	}
 	chan = Tcl_GetHashValue(hPtr);
+	UnspliceChannel(interp, chan);
 	Tcl_DeleteHashEntry(hPtr);
     	Ns_MutexLock(&servPtr->chans.lock);
-	Tcl_UnregisterChannel(interp, chan);
+	hPtr = Tcl_CreateHashEntry(&servPtr->chans.table, name, &new);
+	Tcl_SetHashValue(hPtr, chan);
     	Ns_MutexUnlock(&servPtr->chans.lock);
 	break;
 
     case CListIdx:
-	hPtr = Tcl_FirstHashEntry(&itPtr->chans, &search);
+	if (objc != 2 && objc != 3) {
+	    Tcl_WrongNumArgs(interp, 1, objv, "list ?-shared?");
+	    return TCL_ERROR;
+	}
+        shared = (objc == 3);
+	if (shared) {
+	    Ns_MutexLock(&servPtr->chans.lock);
+	    tabPtr = &servPtr->chans.table; 
+	} else {
+	    tabPtr = &itPtr->chans;
+	}
+	hPtr = Tcl_FirstHashEntry(tabPtr, &search);
 	while (hPtr != NULL) {
-	    Tcl_AppendElement(interp, Tcl_GetHashKey(&itPtr->chans, hPtr));
+	    Tcl_AppendElement(interp, Tcl_GetHashKey(tabPtr, hPtr));
 	    hPtr = Tcl_NextHashEntry(&search);
+	}
+	if (shared) {
+	    Ns_MutexUnlock(&servPtr->chans.lock);
 	}
 	break;
 
     case CCleanupIdx:
-	if (itPtr->chans.numEntries > 0) {
+	if (objc != 2 && objc != 3) {
+	    Tcl_WrongNumArgs(interp, 1, objv, "cleanup ?-shared?");
+	    return TCL_ERROR;
+	}
+        shared = (objc == 3);
+	if (shared) {
 	    Ns_MutexLock(&servPtr->chans.lock);
-	    hPtr = Tcl_FirstHashEntry(&itPtr->chans, &search);
-	    while (hPtr != NULL) {
-	        chan = Tcl_GetHashValue(hPtr);
-		Tcl_UnregisterChannel(interp, chan);
-	    	hPtr = Tcl_NextHashEntry(&search);
+	    tabPtr = &servPtr->chans.table; 
+	} else {
+	    tabPtr = &itPtr->chans;
+	}
+	hPtr = Tcl_FirstHashEntry(tabPtr, &search);
+	while (hPtr != NULL) {
+	    chan = Tcl_GetHashValue(hPtr);
+	    if (shared) {
+		Tcl_Close(NULL, chan);
 	    }
+	    Tcl_DeleteHashEntry(hPtr);
+	    hPtr = Tcl_NextHashEntry(&search);
+	}
+	if (objc == 3) {
 	    Ns_MutexUnlock(&servPtr->chans.lock);
 	}
+	break;
     }
     return TCL_OK;
 }
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * SpliceChannel 
+ *
+ *      Adds the shared channel in the interp/thread. 
+ *
+ * Results:
+ *      None.	
+ *
+ * Side effects:
+ *      New channel appears in the interp. 
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void 
+SpliceChannel(Tcl_Interp *interp, Tcl_Channel chan)
+{
+    Tcl_SpliceChannel(chan);
+    Tcl_RegisterChannel(interp, chan);
+    Tcl_UnregisterChannel((Tcl_Interp*)NULL, chan); /* Prevent closing */
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * UnspliceChannel 
+ *
+ *      Divorces the channel from its owning interp/thread.	
+ *
+ * Results:
+ *      None.	
+ *
+ * Side effects:
+ *      Channel is not accesible by Tcl scripts any more.	
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void 
+UnspliceChannel(Tcl_Interp *interp, Tcl_Channel chan)
+{
+    Tcl_ClearChannelHandlers(chan);
+    Tcl_RegisterChannel((Tcl_Interp*)NULL, chan); /* Prevent closing */
+    Tcl_UnregisterChannel(interp, chan);
+    Tcl_CutChannel(chan);
+}
+
