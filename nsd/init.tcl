@@ -28,7 +28,7 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/init.tcl,v 1.25 2003/10/01 17:42:31 elizthom Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/init.tcl,v 1.26 2003/10/06 14:07:04 elizthom Exp $
 #
 
 #
@@ -881,7 +881,7 @@ if { $_ns_lazyprocdef == 1 } {
     #
     proc unknown { args } {
         set _proc [ lindex $args 0  ]
-        if { [ _ns_lzproc_load $_proc ] } {
+        if { [ $_proc != "" && _ns_lzproc_load $_proc ] } {
             set arglist [lrange $args 1 end]
             return [ uplevel 1 $args ]
         } else {
