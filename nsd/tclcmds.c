@@ -33,7 +33,7 @@
  * 	Connect Tcl command names to the functions that implement them
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.19 2001/12/18 22:32:58 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.20 2002/05/15 20:10:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -417,19 +417,6 @@ static Cmd servCmds[] = {
     {"ns_register_adptag", NsTclRegisterTagCmd, NULL},
     {"ns_adp_registeradp", NsTclRegisterAdpTagCmd, NULL},
     {"ns_adp_registertag", NsTclRegisterAdpTagCmd, NULL},
-
-    /*
-     * dbtcl.c
-     */
-
-    {"ns_db", NsTclDbCmd, NULL},
-    {"ns_quotelisttolist", NsTclQuoteListToListCmd, NULL},
-    {"ns_getcsv", NsTclGetCsvCmd, NULL},
-    {"ns_dberrorcode", NsTclDbErrorCodeCmd, NULL},
-    {"ns_dberrormsg", NsTclDbErrorMsgCmd, NULL},
-    {"ns_getcsv", NsTclGetCsvCmd, NULL},
-    {"ns_dbconfigpath", NsTclDbConfigPathCmd, NULL},
-    {"ns_pooldescription", NsTclPoolDescriptionCmd, NULL},
 
     /*
      * tclthread.c

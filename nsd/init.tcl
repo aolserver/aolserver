@@ -28,7 +28,7 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/init.tcl,v 1.5 2002/02/24 21:33:28 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/init.tcl,v 1.6 2002/05/15 20:10:14 jgdavidson Exp $
 #
 
 #
@@ -123,7 +123,6 @@ proc ns_cleanup {} {
 	ns_chan cleanup
 	_ns_closechannels
 	ns_set cleanup
-	ns_db cleanup
 	ns_http cleanup
 	_ns_updatenamespaces
     }]} {

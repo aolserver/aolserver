@@ -77,8 +77,6 @@
 #define F_CLOEXEC 1
 #endif
 
-#define UCHAR(c)	((unsigned char) (c))
-
 /*
  * constants
  */
@@ -632,16 +630,6 @@ typedef struct NsServer {
     } share;
 
     /*
-     * The following struct maintains the default
-     * and allowed database pool lists.
-     */
-
-    struct {
-	char		   *defpool;
-	char		   *allowed;
-    } db;
-
-    /*
      * The following struct maintains detached Tcl
      * channels for the benefit of the ns_chan command.
      */
@@ -746,15 +734,8 @@ typedef struct NsInterp {
      * entered into this interp.
      */
 
-   Tcl_HashTable sets;
+    Tcl_HashTable sets;
     
-    /*
-     * The following table maintains allocated
-     * database handles.
-     */
-
-    Tcl_HashTable dbs;
-
     /*
      * The following table maintains shared channels
      * register with the ns_chan command.
@@ -808,8 +789,6 @@ extern Ns_SockProc NsTclSockProc;
 extern Ns_ArgProc NsTclSockArgProc;
 extern Ns_ThreadProc NsConnThread;
 extern Ns_ArgProc NsConnArgProc;
-extern Ns_Callback NsDbCheckPool;
-extern Ns_ArgProc NsDbCheckArgProc;
 
 extern void NsGetCallbacks(Tcl_DString *dsPtr);
 extern void NsGetSockCallbacks(Tcl_DString *dsPtr);
@@ -823,7 +802,6 @@ extern void NsConfInit(void);
 extern void NsTclInitObjs(void);
 extern void NsInitMimeTypes(void);
 extern void NsInitEncodings(void);
-extern void NsDbInitPools(void);
 extern void NsRunPreStartupProcs(void);
 extern void NsStartServers(void);
 extern void NsForkBinder(void);
@@ -852,7 +830,6 @@ extern void NsTclStopJobs(NsServer *servPtr);
 extern void NsTclWaitJobs(NsServer *servPtr, Ns_Time *toPtr);
 
 extern void NsTclInitServer(char *server);
-extern void NsDbInitServer(char *server);
 extern void NsLoadModules(char *server);
 
 extern void NsClsCleanup(Conn *connPtr);
@@ -875,18 +852,6 @@ extern int NsAdpDebug(NsInterp *itPtr, char *host, char *port, char *procs);
 extern int NsAdpEval(NsInterp *itPtr, char *script, int argc, char **argv);
 extern int NsAdpSource(NsInterp *itPtr, char *file, int argc, char **argv);
 extern int NsAdpInclude(NsInterp *itPtr, char *file, int argc, char **argv);
-
-/*
- * Database routines.
- */
-
-extern void 		NsDbClose(Ns_DbHandle *);
-extern void 		NsDbDisconnect(Ns_DbHandle *);
-extern struct DbDriver *NsDbGetDriver(Ns_DbHandle *);
-extern struct DbDriver *NsDbLoadDriver(char *driver);
-extern void 		NsDbLogSql(Ns_DbHandle *, char *sql);
-extern int 		NsDbOpen(Ns_DbHandle *);
-extern void 		NsDbDriverInit(char *server, struct DbDriver *);
 
 /*
  * Tcl support routines.
