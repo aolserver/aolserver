@@ -1,3 +1,37 @@
+2004-07-29  Dossy Shiobara <dossy@panoptic.com>
+
+	* include/ns.h (1.63), nsd/Makefile (1.40), nsd/connio.c (1.15),
+	  nsd/driver.c (1.24), nsd/fastpath.c (1.20), nsd/init.c (1.9),
+	  nsd/limits.c (1.1), nsd/nsd.h (1.84), nsd/nsmain.c (1.56),
+	  nsd/pools.c (1.1), nsd/queue.c (1.25), nsd/server.c (1.29),
+	  nsd/tclcmds.c (1.40): (These changes are actually Jim Davidson's,
+	  I just merged them and am checking them in on his behalf.)
+
+	  This commit completes (yet another) rewrite of the driver thread
+	  mechanism, along with implementing connection classes
+	  ("ns_limits") and request processing pools ("ns_pools").
+
+	  The code compiles, but does NOT work yet.  I will be correcting
+	  the few remaining issues, soon.
+
+2004-07-29  Dossy Shiobara <dossy@panoptic.com>
+
+	* doc/Ns_TclInit.3 (1.7): Change version number in doc header.
+
+2004-07-29  Dossy Shiobara <dossy@panoptic.com>
+
+	* nsd/return.c (1.40): Remove unused local variable.
+
+2004-07-29  Dossy Shiobara <dossy@panoptic.com>
+
+	* nsd/tcljob.c (1.26): Change mutex name to conform to naming
+	  standard.
+
+2004-07-28  Dossy Shiobara <dossy@panoptic.com>
+
+	* doc/Ns_TclInit.3 (1.6): Better documentation on Tcl interp init C
+	  API.
+
 2004-07-28  Dossy Shiobara <dossy@panoptic.com>
 
 	* configure (1.17): Forgot to re-run autoconf2.13 after the very
