@@ -34,7 +34,7 @@
  *	and service threads.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/queue.c,v 1.22 2003/04/24 11:36:15 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/queue.c,v 1.23 2003/06/06 18:34:03 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -521,8 +521,8 @@ NsConnThread(void *arg)
     Ns_Time          wait, *timePtr;
     unsigned int     id;
     Ns_DString	     ds;
-    int              status;
-    char            *p;
+    int              status, cpt, ncons;
+    char            *p, *path;
     Ns_Thread	     joinThread;
     
     /*
@@ -543,11 +543,26 @@ NsConnThread(void *arg)
     Ns_DStringFree(&ds);
 
     /*
+     * See how many connections this thread should run.
+     * Setting this parameter to > 0 will cause the
+     * thread to graceously exit, after processing that
+     * many requests, thus initiating kind-of Tcl-level
+     * garbage collection.
+     */
+
+    path = Ns_ConfigGetPath(servPtr->server, NULL, NULL);
+    if (!Ns_ConfigGetInt(path, "connsperthread", &cpt)) {
+        cpt = 0; /* == unlimited # of connections */
+    }
+
+    ncons = cpt;
+
+    /*
      * Start handling connections.
      */
 
     Ns_MutexLock(&servPtr->pools.lock);
-    while (1) {
+    while (cpt == 0 || ncons > 0) {
 
 	/*
 	 * Wait for a connection to arrive, exiting if one doesn't
@@ -626,11 +641,13 @@ NsConnThread(void *arg)
 	     * If this thread just free'd up the busy server,
 	     * run the ready procs to signal other subsystems.
 	     */
-
 	    Ns_MutexUnlock(&servPtr->pools.lock);
 	    NsRunAtReadyProcs();
 	    Ns_MutexLock(&servPtr->pools.lock);
 	}
+	if (cpt && --ncons <= 0) {
+	    break; /* Served given # of connections in this thread */
+    	}
     }
     poolPtr->threads.idle--;
     poolPtr->threads.current--;
