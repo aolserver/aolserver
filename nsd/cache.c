@@ -34,7 +34,7 @@
  *	Routines for a simple cache used by fastpath and Adp.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/cache.c,v 1.9 2001/12/05 22:46:21 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/cache.c,v 1.10 2001/12/18 22:31:30 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -95,7 +95,7 @@ static void Push(Entry *ePtr);
  * Static variables defined in this file
  */
 
-static Tcl_HashTable cachesTable;	/* a hash table of hash tables */
+static Tcl_HashTable caches;
 static Ns_Mutex lock;
 static volatile int initialized;
 
@@ -199,8 +199,11 @@ Ns_CacheDestroy(Ns_Cache *cache)
      */
 
     Ns_MutexLock(&lock);
-    Tcl_DeleteHashEntry(cachePtr->hPtr);
+    if (cachePtr->hPtr != NULL) {
+    	Tcl_DeleteHashEntry(cachePtr->hPtr);
+    }
     Ns_MutexUnlock(&lock);
+
     Ns_MutexDestroy(&cachePtr->lock);
     Ns_CondDestroy(&cachePtr->cond);
     Tcl_DeleteHashTable(&cachePtr->entriesTable);
@@ -233,7 +236,7 @@ Ns_CacheFind(char *name)
     cache = NULL;
     Ns_MutexLock(&lock);
     if (initialized) {
-    	hPtr = Tcl_FindHashEntry(&cachesTable, name);
+    	hPtr = Tcl_FindHashEntry(&caches, name);
         if (hPtr != NULL) {
     	    cache = (Ns_Cache *) Tcl_GetHashValue(hPtr);
 	}
@@ -899,9 +902,9 @@ NsTclCacheNamesCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 
     Ns_MutexLock(&lock);
     if (initialized) {
-    	hPtr = Tcl_FirstHashEntry(&cachesTable, &search);
+    	hPtr = Tcl_FirstHashEntry(&caches, &search);
     	while (hPtr != NULL) {
-	    Tcl_AppendElement(interp, Tcl_GetHashKey(&cachesTable, hPtr));
+	    Tcl_AppendElement(interp, Tcl_GetHashKey(&caches, hPtr));
 	    hPtr = Tcl_NextHashEntry(&search);
 	}
     }
@@ -1193,11 +1196,18 @@ CacheCreate(char *name, int keys, time_t timeout, size_t maxSize,
     cachePtr->schedStop = 0;
     Ns_MutexLock(&lock);
     if (!initialized) {
-    	Ns_MutexSetName2(&lock, "ns", "cache");
-    	Tcl_InitHashTable(&cachesTable, TCL_STRING_KEYS);
+    	Ns_MutexSetName(&lock, "ns:caches");
+    	Tcl_InitHashTable(&caches, TCL_STRING_KEYS);
 	initialized = 1;
     }
-    cachePtr->hPtr = Tcl_CreateHashEntry(&cachesTable, name, &new);
+    cachePtr->hPtr = Tcl_CreateHashEntry(&caches, name, &new);
+    if (!new) {
+	Cache *prevPtr;
+
+	Ns_Log(Warning, "cache: duplicate cache name: %s", name);
+	prevPtr = Tcl_GetHashValue(cachePtr->hPtr);
+	prevPtr->hPtr = NULL;
+    }
     Tcl_SetHashValue(cachePtr->hPtr, cachePtr);
     Ns_MutexUnlock(&lock);
     return (Ns_Cache *) cachePtr;
