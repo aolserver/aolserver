@@ -42,7 +42,6 @@
  */
 
 #include "thread.h"
-#define USE_TCL8X
 #define BUILD_tcl
 #include "tcl.h"
 
@@ -56,8 +55,6 @@ typedef struct List {
     Tcl_Obj *firstPtr;
     int nobjs;
 } List;
-
-static Ns_Tls tls;
 
 /*
  * The following define the number of Tcl_Obj's to allocate/move
@@ -998,15 +995,18 @@ FreeList(void *arg)
 static List *
 GetList(void)
 {
+    static volatile int initialized = 0;
+    static Ns_Tls tls;
     List *listPtr;
 
-    if (tls == NULL) {
-    	MASTER_LOCK;
-	if (tls == NULL) {
+    if (!initialized) {
+    	Ns_MasterLock();
+	if (!initialized) {
 	    Ns_TlsAlloc(&tls, FreeList);
+	    initialized = 1;
 	}
 	Ns_MutexSetName2(&lock, "nsthread", "tclobjs");
-    	MASTER_UNLOCK;
+    	Ns_MasterUnlock();
     }
     listPtr = Ns_TlsGet(&tls);
     if (listPtr == NULL) {
