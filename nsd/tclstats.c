@@ -33,7 +33,7 @@
  * 	Tcl command usage stats routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/tclstats.c,v 1.5 2000/10/13 01:16:44 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/tclstats.c,v 1.6 2000/10/13 02:55:49 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -148,7 +148,7 @@ NsTclStatsCmd(ClientData ignored, Tcl_Interp *interp, int argc, char **argv)
 	}
     }
 
-    Tcl_DStringInit(&ds);
+    Ns_MutexLock(&lock);
     if (statsTable.numEntries > 0) {
 	list = ns_malloc(sizeof(Tcl_HashEntry *) * statsTable.numEntries);
 	nlist = 0;
@@ -161,6 +161,7 @@ NsTclStatsCmd(ClientData ignored, Tcl_Interp *interp, int argc, char **argv)
 	    hPtr = Tcl_NextHashEntry(&search);
 	}
 	if (nlist > 0) {
+    	    Tcl_DStringInit(&ds);
 	    qsort(list, nlist, sizeof(Tcl_HashEntry *), compare);
 	    for (i = 0; i < nlist; ++i) {
 	        hPtr = list[i];
@@ -171,11 +172,11 @@ NsTclStatsCmd(ClientData ignored, Tcl_Interp *interp, int argc, char **argv)
 	    	Tcl_AppendElement(interp, ds.string);
 	    	Tcl_DStringTrunc(&ds, 0);
 	    }
+    	    Tcl_DStringFree(&ds);
 	}
 	ns_free(list);
     }
-    Tcl_DStringFree(&ds);
-
+    Ns_MutexUnlock(&lock);
     return TCL_OK;
 }
 
