@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsmain/Attic/Makefile,v 1.4 2001/12/05 20:58:16 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsmain/Attic/Makefile,v 1.5 2002/02/24 02:01:24 jgdavidson Exp $
 #
 
 NSHOME  ?= ..
@@ -38,8 +38,8 @@ OBJS = main.o
 
 all: $(MAIN)
 
-$(MAIN): ../nsd/libnsd.so $(OBJS)
-	$(CC) -o $(MAIN) main.o -L../nsd -lnsd $(LIBS) $(RPATH)
+$(MAIN): $(OBJS)
+	$(CC) -o $(MAIN) main.o $(LIBS) $(RPATH)
 
 install: all
 	$(RM) $(AOLSERVER)/bin/$(MAIN)
