@@ -1,3 +1,8 @@
+2004-07-26  Dossy Shiobara <dossy@panoptic.com>
+
+	* win32/build.tcl (1.3): Now some build variables can be overrided
+	  from the command line.
+
 2004-07-22  Dossy Shiobara <dossy@panoptic.com>
 
 	* sample-config.tcl (1.13): Use [info sharedlibextension] so that
