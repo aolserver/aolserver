@@ -1,3 +1,10 @@
+2003-01-24  Nathan Folkman <shmooved@aol.com>
+
+        * nsd/tclvar.c: Added a NULL as the last argument to 
+        Tcl_AppendResult for nsv_incr error message handling the 
+        case of an array which exists, and a key that does not exist.
+
+
 2002-12-02  Elizabeth Thomas <eathomas93@aol.com>
 
         * Create tag aolserver_v35_b3
