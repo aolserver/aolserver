@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/Makefile,v 1.36 2002/09/11 00:06:48 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/Makefile,v 1.37 2002/09/11 00:20:38 jgdavidson Exp $
 #
 
 #
@@ -56,6 +56,8 @@ all:
 	done
 
 install: all 
+	$(MKDIR)		$(AOLSERVER)/bin
+	$(MKDIR)		$(AOLSERVER)/lib
 	$(MKDIR)		$(AOLSERVER)/log
 	$(MKDIR)		$(AOLSERVER)/modules
 	$(MKDIR)		$(INSTSRVPAG)
