@@ -1,3 +1,21 @@
+2003-08-05  Elizabeth Thomas <eathomas93@aol.com>
+
+	* nsd/conn.c:
+        * nslog/nslog.c:
+        * include/ns.h:
+        * sample-config.tcl: 
+        Merge in feature from 3.5 branch (with simpler implementation)
+        for logging of request execution time in access log. 
+
+        To turn on feature add:   
+
+        ns_section "ns/server/${servername}/module/nslog"
+           ns_param logreqtime true
+
+        By default the option is disabled. If enabled the connection's
+        request time will be appended to the access log before the
+        extended headers (if configured).
+
 2003-07-18  Elizabeth Thomas <eathomas93@aol.com>
 
 	* nsd/tclinit.c: Add optional mutex to serialize interp initialization.

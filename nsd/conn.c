@@ -34,7 +34,7 @@
  *      Manage the Ns_Conn structure
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.37 2003/03/07 18:08:16 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.38 2003/08/05 19:56:05 elizthom Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -541,6 +541,31 @@ Ns_ConnDriverContext(Ns_Conn *conn)
     Conn *connPtr = (Conn *) conn;
 
     return (void *)(connPtr->sockPtr ? connPtr->sockPtr->arg : NULL);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_ConnStartTime --
+ *
+ *	Return the Start Time
+ *
+ * Results:
+ *	Ns_Time value
+ *
+ * Side effects:
+ *	None. 
+ *
+ *----------------------------------------------------------------------
+ */
+
+Ns_Time *
+Ns_ConnStartTime(Ns_Conn *conn)
+{
+    Conn *connPtr = (Conn *) conn;
+
+    return &connPtr->startTime;
 }
 
 

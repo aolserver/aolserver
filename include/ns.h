@@ -33,7 +33,7 @@
  *      All the public types and function declarations for the core
  *	AOLserver.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.53 2003/05/31 20:42:41 vasiljevic Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.54 2003/08/05 19:56:05 elizthom Exp $
  */
 
 #ifndef NS_H
@@ -588,6 +588,7 @@ NS_EXTERN char *Ns_ConnServer(Ns_Conn *conn);
 NS_EXTERN int Ns_ConnResponseStatus(Ns_Conn *conn);
 NS_EXTERN int Ns_ConnContentSent(Ns_Conn *conn);
 NS_EXTERN int Ns_ConnResponseLength(Ns_Conn *conn);
+NS_EXTERN Ns_Time *Ns_ConnStartTime(Ns_Conn *conn);
 NS_EXTERN char *Ns_ConnPeer(Ns_Conn *conn);
 NS_EXTERN int Ns_ConnPeerPort(Ns_Conn *conn);
 NS_EXTERN char *Ns_ConnLocation(Ns_Conn *conn);

@@ -34,7 +34,7 @@
  *	This file implements the access log using NCSA Common Log format.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nslog/nslog.c,v 1.12 2003/07/12 08:49:13 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nslog/nslog.c,v 1.13 2003/08/05 19:56:06 elizthom Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 #include <sys/stat.h>	/* mkdir */
@@ -42,6 +42,7 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsl
 
 #define LOG_COMBINED	1
 #define LOG_FMTTIME	2
+#define LOG_REQTIME	4
 
 /*
  * Exported variables
@@ -184,6 +185,13 @@ Ns_ModuleInit(char *server, char *module)
     if (opt) {
 	logPtr->flags |= LOG_COMBINED;
     }
+    if (!Ns_ConfigGetBool(path, "logreqtime", &opt)) {
+        opt = 0;
+    }
+    if (opt) {
+        logPtr->flags |= LOG_REQTIME;
+    }
+
 
     if (!Ns_ConfigGetBool(path, "suppressquery", &logPtr->suppressquery)) {
 	logPtr->suppressquery = 0;
@@ -243,7 +251,7 @@ Ns_ModuleInit(char *server, char *module)
  *----------------------------------------------------------------------
  */
 
-static void
+static void 
 LogTrace(void *arg, Ns_Conn *conn)
 {
     Ns_DString     ds;
@@ -251,7 +259,19 @@ LogTrace(void *arg, Ns_Conn *conn)
     int            quote, n, status, i;
     char           buf[100];
     Log		  *logPtr = arg;
-    
+     
+    Ns_Time        now, diff;
+
+    /*
+     * Compute the request's elapsed time.
+     */
+
+    if (logPtr->flags & LOG_REQTIME) {
+
+        Ns_GetTime(&now);
+        Ns_DiffTime(&now, Ns_ConnStartTime(conn), &diff);
+    }
+
     Ns_DStringInit(&ds);
 
     /*
@@ -339,6 +359,17 @@ LogTrace(void *arg, Ns_Conn *conn)
 	Ns_DStringAppend(&ds, "\"");
 
     }
+
+    /*
+     * Append the request's elapsed time (if enabled).
+     */
+
+    if (logPtr->flags & LOG_REQTIME) {
+
+        sprintf(buf, " %d.%ld", (int)diff.sec, diff.usec);
+        Ns_DStringAppend(&ds, buf);
+    }
+
 
     /*
      * Append the extended headers (if any).

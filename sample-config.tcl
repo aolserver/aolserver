@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/Attic/sample-config.tcl,v 1.9 2003/03/06 20:12:33 mpagenva Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/Attic/sample-config.tcl,v 1.10 2003/08/05 19:56:05 elizthom Exp $
 #
 
 #
@@ -320,6 +320,7 @@ ns_param   rolllog         true      ;# Should we roll log?
 ns_param   rollonsignal    true      ;# Roll log on SIGHUP.
 ns_param   rollhour        0         ;# Time to roll log.
 ns_param   maxbackup       5         ;# Max number to keep around when rolling.
+ns_param   logreqtime      true      ;# Log the execution time of request
 
 
 #
