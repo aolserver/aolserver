@@ -8,7 +8,7 @@
 #         for most shared objects.
 #
 
-include ../include/Makefile.global
+include $(NSHOME)/include/Makefile.global
 
 all: $(MOD)
 

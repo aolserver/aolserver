@@ -1,10 +1,19 @@
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsexample/Attic/Makefile,v 1.2 2000/05/02 14:39:30 kriston Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsexample/Attic/Makefile,v 1.3 2000/05/02 22:21:33 kriston Exp $
 #
 # nsexample --
 #
 #      Example AOLserver module Makefile.
 #
+
+#
+# AOLserver's location
+#
+#  Since your module probably doesn't live inside the "aolserver"
+#  directory, you can tell make where to find aolserver.
+#
+#NSHOME   =  /home/user/cvs/aolserver
+NSHOME   =  ..
 
 #
 # Module name

@@ -9,7 +9,7 @@
 #
 # Installation locations.
 #
-INST         =   /tmp/aolserver
+INST         =   $(NSHOME)/../aolserver_build
 INSTBIN      =   $(INST)/bin
 INSTLOG      =   $(INST)/log
 INSTMOD      =   $(INST)/modules
@@ -25,9 +25,9 @@ INSTSRVPAG   =   $(INSTSRV)/pages
 CC           =   gcc
 LD           =   ld
 
-CFLAGS       +=  -g -I../include -D_REENTRANT
+CFLAGS       +=  -g -I$(NSHOME)/include -D_REENTRANT
 
-LIBNSTHREAD  =   ../thread/libnsthread.a
+LIBNSTHREAD  =   $(NSHOME)/thread/libnsthread.a
 
 LIBS         +=  
 
@@ -281,5 +281,5 @@ else
   TCL76_LIB=libtcl7.6.a
 endif
 
-LIBTCL76=../$(TCL76_DIR)/unix/$(TCL76_LIB)
-LIBTCL8X=../$(TCL8X_DIR)/unix/$(TCL8X_LIB)
+LIBTCL76=$(NSHOME)/$(TCL76_DIR)/unix/$(TCL76_LIB)
+LIBTCL8X=$(NSHOME)/$(TCL8X_DIR)/unix/$(TCL8X_LIB)

@@ -1,5 +1,13 @@
 2000-05-02  Kriston J. Rehberg  <Kriston@AOL.COM>
 
+	* Makefile, include/Makefile.global, include/Makefile.module,
+	nsexample/Makefile: Now uses NSHOME variable to locate AOLserver.
+	NSHOME is automatically figured out in the top-level Makefile and
+	all the lower Makefiles still use relative directory paths.  The
+	intention of NSHOME is for modules that do NOT live in the
+	AOLserver source directory tree.  The nsexample/Makefile explains
+	how this works.
+
 	* nsftp module added.  Contributed by Eric O'Laughlen
 	<erico@aol.net>.
 

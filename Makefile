@@ -4,8 +4,13 @@
 #      Compile, link, and install AOLserver.
 #
 
+#
+# Tell make where AOLserver source code lives.
+#
+NSHOME    =  $(shell pwd)
+MAKEFLAGS += NSHOME=$(NSHOME)
 
-include ./include/Makefile.global
+include $(NSHOME)/include/Makefile.global
 
 #
 # AOLserver Dynamically-Loaded Modules
