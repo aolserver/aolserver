@@ -1,3 +1,9 @@
+2004-09-01  Dossy Shiobara <dossy@panoptic.com>
+
+	* nsd/: info.c (1.17), nsd.h (1.90), nsmain.c (1.57): Expose "-s"
+	  cmdline arg to config interp via [ns_info server].  Fixes SF Bug
+	  #421740.
+
 2004-08-27  Jim Davidson <jgdavidson@aol.com>
 
 	* nsd/nsd.h
