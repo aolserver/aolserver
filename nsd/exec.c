@@ -33,67 +33,16 @@
  *	Routines for creating and waiting for child processes.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/exec.c,v 1.17 2002/09/19 21:29:50 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/exec.c,v 1.18 2002/09/28 19:23:35 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
-/*
- * Extended result codes from ExecProc. 
- */
-
-#define ERR_PIPE        (-1)
-#define ERR_FORK	(-2)
-#define ERR_READ        (-3)
-#define ERR_DUP         (-4)
-#define ERR_CHDIR	(-5)
-#define ERR_EXEC	(-6)
+#define ERR_DUP         (-1)
+#define ERR_CHDIR	(-2)
+#define ERR_EXEC	(-3)
 
 static int ExecProc(char *exec, char *dir, int fdin, int fdout,
-		    char **argv, char **envp, int *errPtr);
-static int WaitPid(int pid, int *statusPtr, int *errPtr);
-
-/*
- * The proc manager thread is used on platforms where threads are
- * Unix processes such as Linux.
- */
-
-#ifndef USE_PROCTHREAD
-
-#define WAITPID		WaitPid
-#define EXECPROC	ExecProc
-
-#else
-
-#define WAITPID		CallWaitPid
-#define EXECPROC	CallExecProc
-#define CALL_DONE	0
-#define CALL_EXEC	1
-#define CALL_WAIT	2
-
-typedef struct Args {
-    int control;
-    int result;
-    int pid;
-    int *statusPtr;
-    int *errPtr;
-    char *exec;
-    char *dir;
-    int fdin;
-    int fdout;
-    char **argv;
-    char **envp;
-} Args;
-
-static void CallProcThread(Args *);
-static Ns_ThreadProc ProcThread;
-static Ns_Mutex lock;
-static Ns_Cond cond;
-static Args *activePtr;
-static int CallExecProc(char *exec, char *dir, int fdin, int fdout,
-		    char **argv, char **envp, int *errPtr);
-static int CallWaitPid(int pid, int *statusPtr, int *errPtr);
-
-#endif
+		    char **argv, char **envp);
 
 
 /*
@@ -184,13 +133,12 @@ int
 Ns_WaitForProcess(int pid, int *exitcodePtr)
 {
     char *coredump;
-    int exitcode, status, err;
+    int exitcode, status;
     
-    if (WAITPID(pid, &status, &err) != pid) {
-        Ns_Log(Error, "waitpid(%d) failed: %s", pid, strerror(err));
+    if (waitpid(pid, &status, 0) != pid) {
+        Ns_Log(Error, "waitpid(%d) failed: %s", pid, strerror(errno));
 	return NS_ERROR;
     }
-
     if (WIFSIGNALED(status)) {
     	coredump = "";
 #ifdef WCOREDUMP
@@ -281,7 +229,7 @@ Ns_ExecArgv(char *exec, char *dir, int fdin, int fdout,
 {
     Ns_DString eds;
     char *argvSh[4], **envp;
-    int i, err, pid;
+    int i, pid;
     
     if (exec == NULL) {
         return -1;
@@ -296,7 +244,7 @@ Ns_ExecArgv(char *exec, char *dir, int fdin, int fdout,
     }
     Ns_DStringInit(&eds);
     if (env == NULL) {
-	envp = Ns_GetEnvironment(&eds);
+	envp = Ns_CopyEnviron(&eds);
     } else {
 	for (i = 0; i < Ns_SetSize(env); ++i) {
             Ns_DStringVarAppend(&eds,
@@ -312,30 +260,7 @@ Ns_ExecArgv(char *exec, char *dir, int fdin, int fdout,
     if (fdout < 0) {
 	fdout = 1;
     }
-    pid = EXECPROC(exec, dir, fdin, fdout, argv, envp, &err);
-    if (pid < 0) {
-	switch (pid) {
-	case ERR_PIPE:
-            Ns_Log(Error, "exec: ns_pipe() failed: %s", strerror(err));
-	    break;
-	case ERR_FORK:
-            Ns_Log(Error, "exec: ns_fork() failed: %s", strerror(err));
-	    break;
-	case ERR_READ:
-	    Ns_Log(Error, "exec: %s: error reading status from child: %s",
-			   exec, strerror(err));
-	    break;
-	case ERR_CHDIR:
-            Ns_Log(Error, "exec %s: chdir(%s) failed: %s", exec, dir, strerror(err));
-	    break;
-	case ERR_DUP:
-	    Ns_Log(Error, "exec %s: dup(%d) failed: %s", exec, strerror(err));
-	    break;
-	case ERR_EXEC:
-	    Ns_Log(Error, "exec %s: execve() failed: %s", exec, strerror(err));
-	    break;
-	}
-    }
+    pid = ExecProc(exec, dir, fdin, fdout, argv, envp);
     Ns_DStringFree(&eds);
     return pid;
 }
@@ -349,45 +274,49 @@ Ns_ExecArgv(char *exec, char *dir, int fdin, int fdout,
  *  	full error status from the child on failure.
  *
  * Results:
- *      Valid new child pid or one of the special ERR_ parent or child
- *  	error codes.
+ *      Valid new child pid or -1 on error.
  *
  * Side effects:
- *      Will update errPtr with errno value from parent or child on
- *  	error.
+ *      None.
  *
  *----------------------------------------------------------------------
  */
 
 static int
 ExecProc(char *exec, char *dir, int fdin, int fdout, char **argv,
-    	 char **envp, int *errPtr)
+    	 char **envp)
 {
     struct iovec iov[2];
     int    pid, nread, errpipe[2], errnum, result;
 
     /*
-     * Create a pipe to read result and errno from the child.
+     * Create a pipe for child error message.
      */
      
     if (ns_pipe(errpipe) < 0) {
-	return ERR_PIPE;
+        Ns_Log(Error, "exec: ns_pipe() failed: %s", strerror(errno));
+	return -1;
     }
+
+    /*
+     * Fork child and read error message (if any).
+     */
+
     pid = ns_fork();
     if (pid < 0) {
         close(errpipe[0]);
         close(errpipe[1]);
-	return ERR_FORK;
+        Ns_Log(Error, "exec: ns_fork() failed: %s", strerror(errno));
+	return -1;
     }
-  
     iov[0].iov_base = (caddr_t) &result;
     iov[1].iov_base = (caddr_t) &errnum;
     iov[0].iov_len = iov[1].iov_len = sizeof(int);
     if (pid == 0) {
 
 	/*
-	 * Setup and exec the new process in the child, writing
-	 * error status to the pipe on any failure.
+	 * Setup child and exec the program, writing any error back
+	 * to the parent if necessary.
 	 */
 
         close(errpipe[0]);
@@ -433,146 +362,30 @@ ExecProc(char *exec, char *dir, int fdin, int fdout, char **argv,
 	    result = pid;
 	} else {
             if (nread != (sizeof(int) * 2)) {
-		errnum = errno;
-		result = ERR_READ;
-            }
-            waitpid(pid, NULL, 0);
+	    	Ns_Log(Error, "exec: %s: error reading status from child: %s",
+			   exec, strerror(errno));
+            } else {
+		switch (result) {
+		    case ERR_CHDIR:
+            		Ns_Log(Error, "exec %s: chdir(%s) failed: %s",
+				exec, dir, strerror(errnum));
+	    		break;
+		    case ERR_DUP:
+	    		Ns_Log(Error, "exec %s: dup(%d) failed: %s",
+				exec, strerror(errnum));
+	    		break;
+		    case ERR_EXEC:
+	    		Ns_Log(Error, "exec %s: execve() failed: %s",
+				exec, strerror(errnum));
+	    		break;
+		    default:
+	    		Ns_Log(Error, "exec %s: unknown result from child: %d",
+				exec, result);
+	    		break;
+		}
+	    }
+            (void) waitpid(pid, NULL, 0);
         }
     }
     return result;
 }
-
-
-/*
- *----------------------------------------------------------------------
- * WaitPid -- 
- *
- *	Reap a child process.
- *
- * Results:
- *      Pid of child reaped or -1 on error.
- *
- * Side effects:
- *      Given errPtr is updated with errno on failure.
- *
- *----------------------------------------------------------------------
- */
-
-static int
-WaitPid(int pid, int *statusPtr, int *errPtr)
-{
-    int result;
-
-    result = waitpid(pid, statusPtr, 0);
-    if (result < 0) {
-	*errPtr = errno;
-    }
-    return result;
-}
-
-
-/*
- *----------------------------------------------------------------------
- * CallExecProc, CallWaitPid, CallProcThread, ProcThread --
- *
- *	Wrappers to pass process exec or wait requests to detached proc
- *  	manager thread.
- *
- * Results:
- *      See ExecProc and WaitPid.
- *
- * Side effects:
- *      Returned error in errPtr is from the thread managers errno and
- *  	will not in general match that in errno of requesting thread.
- *
- *----------------------------------------------------------------------
- */
-
-#ifdef USE_PROCTHREAD
-
-static int
-CallExecProc(char *exec, char *dir, int fdin, int fdout, char **argv,
-    	     char **envp, int *errPtr)
-{
-    Args args;
-
-    args.exec = exec;
-    args.dir = dir;
-    args.fdin = fdin;
-    args.fdout = fdout;
-    args.argv = argv;
-    args.envp = envp;
-    args.errPtr = errPtr;
-    args.control = CALL_EXEC;
-    CallProcThread(&args);
-    return args.result;
-}
-
-
-static int
-CallWaitPid(int pid, int *statusPtr, int *errPtr)
-{
-    Args args;
-
-    args.pid = pid;
-    args.errPtr = errPtr;
-    args.statusPtr = statusPtr;
-    args.control = CALL_WAIT;
-    CallProcThread(&args);
-    return args.result;
-}
-
-static volatile int initialized = 0;
-
-static void
-CallProcThread(Args *argsPtr)
-{
-    Ns_MutexLock(&lock);
-    if (!initialized) {
-    	Ns_ThreadCreate(ProcThread, NULL, 0, NULL);
-	Ns_MutexSetName(&lock, "ns:exec");
-	initialized = 1;
-    }
-    while (activePtr != NULL) {
-    	Ns_CondWait(&cond, &lock);
-    }
-    activePtr = argsPtr;
-    Ns_CondBroadcast(&cond);
-    while (argsPtr->control != CALL_DONE) {
-    	Ns_CondWait(&cond, &lock);
-    }
-    Ns_MutexUnlock(&lock);
-}
-
-
-static void
-ProcThread(void *ignored)
-{
-    Args *argsPtr;
-    
-    Ns_ThreadSetName("-exec-");
-    Ns_Log(Notice, "exec: starting");
-    Ns_MutexLock(&lock);
-    while (1) {
-    	while ((argsPtr = activePtr) == NULL) {
-	    Ns_CondWait(&cond, &lock);
-	}
-	Ns_MutexUnlock(&lock);
-	if (argsPtr->control == CALL_WAIT) {
-	    argsPtr->result = WaitPid(argsPtr->pid, argsPtr->statusPtr,
-	    	    	    	      argsPtr->errPtr);
-	} else {
-	    argsPtr->result = ExecProc(argsPtr->exec, argsPtr->dir,
-	    	    	    	       argsPtr->fdin, argsPtr->fdout,
-				       argsPtr->argv, argsPtr->envp,
-    	    	    	    	       argsPtr->errPtr);
-	}
-	Ns_MutexLock(&lock);
-	argsPtr->control = CALL_DONE;
-	activePtr = NULL;
-	Ns_CondBroadcast(&cond);
-    }
-    Ns_MutexUnlock(&lock);
-}
-
-#endif
