@@ -27,53 +27,94 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Makefile.module,v 1.9 2002/06/05 22:55:15 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Makefile.module,v 1.10 2002/06/08 14:45:25 jgdavidson Exp $
 
 #
 # Makefile.module --
 #
-#	Makefile stub for AOLserver modules.  Variables to set
+#	Makefile include for AOLserver modules, libraries, and programs.  Variables to set
 #	before including this file include:
 #
 #	NSHOME		AOLserver source dir (default "..")
-#	MOD		Name of module (required).
-#	OBJS		List of object files (required).
-#	LIB		Name of public library (optional)
+#	MOD		Name of module
+#	MODOBJS		List of module object files (required with MOD)
+#	LIB		Root name of dynamic library (without lib prefix or extension)
 #	LIBOBJS		List of library object files (required with LIB)
-#	HDRS		Header OBJS depend on.
-#	MODLIBS		Extra link libraries.
-#	MODINST		Extra install directives.
+#	PGM		Name of executable program
+#	PGMOBJS		List of program object files (required with PGM)
+#	HDRS		Header files which objects depend on
+#	MODLIBS		Extra module link libraries
+#	LIBLIBS		Extra dynamic library link libraries
+#	PGMLIBS		Extra program link libraries
+#	INSTALL		Extra install directive(s)
+#	CLEAN		Extra clean directive(s)
 #
-#	See ../nsext/Makefile for an example.
+#	At least one of PGM, MOD, or LIB must be defined.  For backwards compatibility,
+#	MODOBJS will default to OBJS and MODINST can be used for module install.
+#
+#	See ../nsd/Makefile and ../nsdb/Makefile for examples.
 #	
+
+ifdef MOD
+BUILD	+= $(MOD)
+INSTALL += install-mod
+CLEAN	+= clean-mod
+MODOBJS	?= $(OBJS)
+endif
+
+ifdef LIB
+LIBFILE	=  lib$(LIB).$(LIBEXT)
+BUILD	+= $(LIBFILE)
+INSTALL += install-lib
+CLEAN   += clean-lib
+endif
+
+ifdef PGM
+BUILD	+= $(PGM)
+INSTALL	+= install-pgm
+CLEAN	+= clean-pgm
+endif
 
 NSHOME ?= ..
 include $(NSHOME)/include/Makefile.global
 
-ifdef LIB
-LIBFILE=lib$(LIB).$(LIBEXT)
-LIBINST=install-lib
-MODLIBS += $(LIBFILE)
-endif
+all build: $(BUILD)
 
-all: $(LIBFILE) $(MOD)
+install: $(INSTALL)
 
-$(MOD): $(LIBFILE) $(OBJS)
+clean: $(CLEAN)
+
+$(MOD): $(LIBFILE) $(MODOBJS)
 	$(RM) $(MOD)
-	$(LDSO) -o $(MOD) $(OBJS) $(MODLIBS) $(LIBS)
+	$(LDSO) -o $(MOD) $(MODOBJS) $(LIBFILE) $(MODLIBS) $(LIBS) $(RPATH)
 
 $(LIBFILE): $(LIBOBJS)
-	$(RM) $(LIB)
-	$(LDLIB) -o $(LIBFILE) $(LIBOBJS) $(LIBS) $(RPATH)
+	$(RM) $(LIBFILE)
+	$(LDLIB) -o $(LIBFILE) $(LIBOBJS) $(LIBLIBS) $(LIBS) $(RPATH)
 
-$(OBJS): $(HDRS)
+$(PGM): $(PGMOBJS) $(LIBFILE)
+	$(RM) $(PGM)
+	$(CC) -o $(PGM) $(PGMOBJS) $(LIBFILE) $(PGMLIBS) $(LIBS) $(RPATH)
 
-install: all $(LIBINST) $(MODINST)
+$(MODOBJS) $(LIBOBJS) $(PGMOBJS): $(HDRS) $(INCDIR)/ns.h $(INCDIR)/nsthread.h
+
+install-mod: $(MOD) $(MODINST)
 	$(RM) $(INSTBIN)/$(MOD)
 	$(CP) $(MOD) $(INSTBIN)/
 
-install-lib:
+install-lib: $(LIBFILE)
 	$(RM) $(INSTLIB)/$(LIBFILE)
 	$(CP) $(LIBFILE) $(INSTLIB)/
-clean:
-	$(RM) $(OBJS) $(MOD) $(LIBFILE) $(LIBOBJS)
+
+install-pgm: $(PGM)
+	$(RM) $(INSTBIN)/$(PGM)
+	$(CP) $(PGM) $(INSTBIN)/
+
+clean-mod:
+	$(RM) $(MOD) $(MODOBJS)
+
+clean-lib:
+	$(RM) $(LIBFILE) $(LIBOBJS)
+
+clean-pgm:
+	$(RM) $(PGM) $(PGMOBJS)
