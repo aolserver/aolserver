@@ -28,7 +28,7 @@
  */
 
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscgi/nscgi.c,v 1.13 2001/04/26 18:43:10 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscgi/nscgi.c,v 1.14 2001/11/05 20:30:38 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 #include <sys/stat.h>
@@ -43,14 +43,6 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsc
 #define CGI_GETHOST	2
 #define CGI_ECONTENT	4
 #define CGI_SYSENV	8
-
-#ifdef WIN32
-#define S_ISREG(m)	((m)&_S_IFREG)
-#define S_ISDIR(m)	((m)&_S_IFDIR)
-#define DEVNULL	    "nul:"
-#else
-#define DEVNULL	    "/dev/null"
-#endif
 
 /*
  * The following structure is allocated for each instance the module is
@@ -137,7 +129,7 @@ static char    *NextWord(char *s);
 static void	SetAppend(Ns_Set *set, int index, char *sep, char *value);
 static void	SetUpdate(Ns_Set *set, char *key, char *value);
 
-NS_EXPORT int Ns_ModuleVersion = 1;	
+int Ns_ModuleVersion = 1;	
 
 
 /*
@@ -157,7 +149,7 @@ NS_EXPORT int Ns_ModuleVersion = 1;
  *----------------------------------------------------------------------
  */
  
-NS_EXPORT int
+int
 Ns_ModuleInit(char *server, char *module)
 {
     char           *path, *key, *value, *section;
@@ -169,15 +161,14 @@ Ns_ModuleInit(char *server, char *module)
 
     /*
      * On the first (and likely only) load, register
-     * the temp file cleanup routine and open devNull
+     * the temp file cleanup routine and open /dev/null
      * for requests without content data.
      */
 
     if (!initialized) {
-	devNull = open(DEVNULL, O_RDONLY);
+	devNull = open("/dev/null", O_RDONLY);
 	if (devNull < 0) {
-	    Ns_Log(Error, "nscgi: open(%s) failed: %s",
-		   DEVNULL, strerror(errno));
+	    Ns_Log(Error, "nscgi: open(/dev/null) failed: %s", strerror(errno));
 	    return NS_ERROR;
 	}
 	Ns_DupHigh(&devNull);
@@ -189,7 +180,7 @@ Ns_ModuleInit(char *server, char *module)
      * Config basic options.
      */
 
-    path = Ns_ConfigPath(server, module, NULL);
+    path = Ns_ConfigGetPath(server, module, NULL);
     modPtr = ns_calloc(1, sizeof(Mod));
     modPtr->module = module;
     modPtr->server = server;
@@ -214,20 +205,20 @@ Ns_ModuleInit(char *server, char *module)
      */
 
     Ns_DStringInit(&ds);
-    section = Ns_ConfigGet(path, "interps");
+    section = Ns_ConfigGetValue(path, "interps");
     if (section != NULL) {
         Ns_DStringVarAppend(&ds, "ns/interps/", section, NULL);
-        modPtr->interps = Ns_ConfigSection(ds.string);
+        modPtr->interps = Ns_ConfigGetSection(ds.string);
         if (modPtr->interps == NULL) {
             Ns_Log(Warning, "nscgi: no such interps section: %s",
 		   ds.string);
         }
     	Ns_DStringTrunc(&ds, 0);
     }
-    section = Ns_ConfigGet(path, "environment");
+    section = Ns_ConfigGetValue(path, "environment");
     if (section != NULL) {
         Ns_DStringVarAppend(&ds, "ns/environment/", section, NULL);
-        modPtr->mergeEnv = Ns_ConfigSection(ds.string);
+        modPtr->mergeEnv = Ns_ConfigGetSection(ds.string);
         if (modPtr->mergeEnv == NULL) {
             Ns_Log(Warning, "nscgi: no such environment section: %s",
 		   ds.string);
@@ -245,7 +236,7 @@ Ns_ModuleInit(char *server, char *module)
      * Register all requested mappings.
      */
 
-    set = Ns_ConfigSection(path);
+    set = Ns_ConfigGetSection(path);
     for (i = 0; set != NULL && i < Ns_SetSize(set); ++i) {
         key = Ns_SetKey(set, i);
         value = Ns_SetValue(set, i);
@@ -543,7 +534,7 @@ CgiInit(Cgi *cgiPtr, Map *mapPtr, Ns_Conn *conn)
             if (e != NULL) {
                 *e = '\0';
             }
-            cgiPtr->interpEnv = Ns_ConfigSection(s);
+            cgiPtr->interpEnv = Ns_ConfigGetSection(s);
         }
     }
     if (cgiPtr->interp != NULL) {

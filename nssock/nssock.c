@@ -37,10 +37,8 @@
 #include "ns.h"
 
 static Ns_DriverProc SockProc;
-static int SockRecv(SOCKET sock, Ns_Buf *bufs, int nbufs);
-static int SockSend(SOCKET sock, Ns_Buf *bufs, int nbufs);
 
-NS_EXPORT int Ns_ModuleVersion = 1;
+int Ns_ModuleVersion = 1;
 
 
 /*
@@ -59,7 +57,7 @@ NS_EXPORT int Ns_ModuleVersion = 1;
  *----------------------------------------------------------------------
  */
 
-NS_EXPORT int
+int
 Ns_ModuleInit(char *server, char *module)
 {
     /*
@@ -92,26 +90,29 @@ Ns_ModuleInit(char *server, char *module)
  */
 
 static int
-SockProc(Ns_DriverCmd cmd, Ns_Sock *sock, Ns_Buf *bufs, int nbufs)
+SockProc(Ns_DriverCmd cmd, Ns_Sock *sock, struct iovec *bufs, int nbufs)
 {
+    struct msghdr msg;
     int n;
+
+    memset(&msg, 0, sizeof(msg));
+    msg.msg_iov = bufs;
+    msg.msg_iovlen = nbufs;
 
     switch (cmd) {
     case DriverRecv:
-	n = SockRecv(sock->sock, bufs, nbufs);
-	if (n < 0
-	    && ns_sockerrno == EWOULDBLOCK
+    	n = recvmsg(sock->sock, &msg, 0);
+	if (n < 0 && errno == EWOULDBLOCK
 	    && Ns_SockWait(sock->sock, NS_SOCK_READ, sock->driver->recvwait) == NS_OK) {
-	    n = SockRecv(sock->sock, bufs, nbufs);
+	    n = recvmsg(sock->sock, &msg, 0);
 	}
 	break;
 
     case DriverSend:
-	n = SockSend(sock->sock, bufs, nbufs);
-	if (n < 0
-	    && ns_sockerrno == EWOULDBLOCK
+    	n = sendmsg(sock->sock, &msg, 0);
+	if (n < 0 && errno == EWOULDBLOCK
 	    && Ns_SockWait(sock->sock, NS_SOCK_WRITE, sock->driver->sendwait) == NS_OK) {
-	    n = SockSend(sock->sock, bufs, nbufs);
+    	    n = sendmsg(sock->sock, &msg, 0);
 	}
 	break;
 
@@ -127,47 +128,4 @@ SockProc(Ns_DriverCmd cmd, Ns_Sock *sock, Ns_Buf *bufs, int nbufs)
 	break;
     }
     return n;
-}
-
-
-static int
-SockRecv(SOCKET sock, Ns_Buf *bufs, int nbufs)
-{
-#ifdef WIN32
-    int n, flags;
-
-    flags = 0;
-    if (WSARecv(sock, bufs, nbufs, &n, &flags, NULL, NULL) != 0) {
-	n = -1;
-    }
-    return n;
-#else
-    struct msghdr msg;
-
-    memset(&msg, 0, sizeof(msg));
-    msg.msg_iov = bufs;
-    msg.msg_iovlen = nbufs;
-    return recvmsg(sock, &msg, 0);
-#endif
-}
-
-
-static int
-SockSend(SOCKET sock, Ns_Buf *bufs, int nbufs)
-{
-#ifdef WIN32
-    int n;
-
-    if (WSASend(sock, bufs, nbufs, &n, 0, NULL, NULL) != 0) {
-	n = -1;
-    }
-    return n;
-#else
-    struct msghdr msg;
-
-    memset(&msg, 0, sizeof(msg));
-    msg.msg_iov = bufs;
-    msg.msg_iovlen = nbufs;
-    return sendmsg(sock, &msg, 0);
-#endif
 }

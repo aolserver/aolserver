@@ -35,7 +35,7 @@
  *  	Tcl commands.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscp/nscp.c,v 1.15 2001/03/16 22:22:02 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscp/nscp.c,v 1.16 2001/11/05 20:30:38 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 
@@ -61,14 +61,14 @@ static Ns_ThreadProc EvalThread;
 typedef struct Sess {
     Mod *modPtr;
     int id;
-    SOCKET sock;
+    int sock;
     struct sockaddr_in sa;
 } Sess;
 
 static Ns_SockProc AcceptProc;
 static Tcl_CmdProc ExitCmd;
 static int Login(Sess *sessPtr);
-static int GetLine(SOCKET sock, char *prompt, Tcl_DString *dsPtr, int echo);
+static int GetLine(int sock, char *prompt, Tcl_DString *dsPtr, int echo);
 static Ns_ArgProc ArgProc;
 
 /*
@@ -90,7 +90,7 @@ static unsigned char dont_echo[]  = {TN_IAC, TN_DONT, TN_ECHO};
 static unsigned char will_echo[]  = {TN_IAC, TN_WILL, TN_ECHO};
 static unsigned char wont_echo[]  = {TN_IAC, TN_WONT, TN_ECHO};
 
-NS_EXPORT int Ns_ModuleVersion = 1;
+int Ns_ModuleVersion = 1;
 
 
 /*
@@ -111,13 +111,13 @@ NS_EXPORT int Ns_ModuleVersion = 1;
  *----------------------------------------------------------------------
  */
  
-NS_EXPORT int
+int
 Ns_ModuleInit(char *server, char *module)
 {
     Mod *modPtr;
     char *path, *addr, *pass, *user, *key, *end;
     int i, new, port;
-    SOCKET lsock;
+    int lsock;
     Ns_Set *set;
     Tcl_HashEntry *hPtr;
 
@@ -126,13 +126,13 @@ Ns_ModuleInit(char *server, char *module)
      */
 
     path = Ns_ConfigGetPath(server, module, NULL);
-    if (((addr = Ns_ConfigGet(path, "address")) == NULL)
+    if (((addr = Ns_ConfigGetValue(path, "address")) == NULL)
 	 || (!Ns_ConfigGetInt(path, "port", &port)) )  {
 	Ns_Log(Error, "nscp: address and port must be specified in config");
 	return NS_ERROR;
     }
     lsock = Ns_SockListen(addr, port);
-    if (lsock == INVALID_SOCKET) {
+    if (lsock == -1) {
 	Ns_Log(Error, "nscp: could not listen on %s:%d", addr, port);
 	return NS_ERROR;
     }
@@ -244,7 +244,7 @@ ArgProc(Tcl_DString *dsPtr, void *arg)
  */
 
 static int
-AcceptProc(SOCKET lsock, void *arg, int why)
+AcceptProc(int lsock, void *arg, int why)
 {
     Mod *modPtr = arg;
     Sess *sessPtr;
@@ -253,16 +253,16 @@ AcceptProc(SOCKET lsock, void *arg, int why)
 
     if (why == NS_SOCK_EXIT) {
 	Ns_Log(Notice, "nscp: shutdown");
-	ns_sockclose(lsock);
+	close(lsock);
 	return NS_FALSE;
     }
     sessPtr = ns_malloc(sizeof(Sess));
     sessPtr->modPtr = modPtr;
     len = sizeof(struct sockaddr_in);
     sessPtr->sock = Ns_SockAccept(lsock, (struct sockaddr *) &sessPtr->sa, &len);
-    if (sessPtr->sock == INVALID_SOCKET) {
+    if (sessPtr->sock == -1) {
 	Ns_Log(Error, "nscp: accept() failed: %s",
-	       ns_sockstrerror(ns_sockerrno));
+	       strerror(errno));
 	ns_free(sessPtr);
     } else {
 	sessPtr->id = ++next;
@@ -364,7 +364,7 @@ done:
     	Ns_TclDeAllocateInterp(interp);
     }
     Ns_Log(Notice, "nscp: disconnect: %s", ns_inet_ntoa(sessPtr->sa.sin_addr));
-    ns_sockclose(sessPtr->sock);
+    close(sessPtr->sock);
     ns_free(sessPtr);
 }
 
@@ -387,7 +387,7 @@ done:
  */
 
 static int
-GetLine(SOCKET sock, char *prompt, Tcl_DString *dsPtr, int echo)
+GetLine(int sock, char *prompt, Tcl_DString *dsPtr, int echo)
 {
     unsigned char buf[2048];
     int n;

@@ -34,7 +34,7 @@
  *	This file implements the access log using NCSA Common Log format.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nslog/nslog.c,v 1.7 2000/12/12 22:54:27 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nslog/nslog.c,v 1.8 2001/11/05 20:30:38 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 #include <sys/stat.h>	/* mkdir */
@@ -47,7 +47,7 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsl
  * Exported variables
  */
 
-NS_EXPORT int Ns_ModuleVersion = 1; 		/* Needed for AOLserver */
+int Ns_ModuleVersion = 1; 		/* Needed for AOLserver */
 
 typedef struct {
     char	   *module;
@@ -103,7 +103,7 @@ static Ns_TclInterpInitProc AddCmds;
  *----------------------------------------------------------------------
  */
 
-NS_EXPORT int
+int
 Ns_ModuleInit(char *server, char *module)
 {
     char 	*path;
@@ -128,7 +128,8 @@ Ns_ModuleInit(char *server, char *module)
     logPtr = ns_calloc(1, sizeof(Log));
     logPtr->fd = -1;
     logPtr->module = module;
-    Ns_MutexInit2(&logPtr->lock, "nslog");
+    Ns_MutexInit(&logPtr->lock);
+    Ns_MutexSetName(&logPtr->lock, "nslog");
     Ns_DStringInit(&logPtr->buffer);
 
     /*
@@ -139,7 +140,7 @@ Ns_ModuleInit(char *server, char *module)
      */
 
     path = Ns_ConfigGetPath(server, module, NULL);
-    logPtr->file = Ns_ConfigGet(path, "file");
+    logPtr->file = Ns_ConfigGetValue(path, "file");
     if (logPtr->file == NULL) {
     	logPtr->file = "access.log";
     }
@@ -164,7 +165,7 @@ Ns_ModuleInit(char *server, char *module)
      * Get parameters from configuration file
      */
 
-    logPtr->rollfmt = Ns_ConfigGet(path, "rollfmt");
+    logPtr->rollfmt = Ns_ConfigGetValue(path, "rollfmt");
     if (!Ns_ConfigGetInt(path, "maxbuffer", &logPtr->maxlines)) {
 	logPtr->maxlines = 0;
     }
@@ -493,7 +494,7 @@ LogOpen(Log *logPtr)
 {
     int fd;
 
-    fd = open(logPtr->file, O_APPEND|O_WRONLY|O_CREAT|O_TEXT, 0644);
+    fd = open(logPtr->file, O_APPEND|O_WRONLY|O_CREAT, 0644);
     if (fd < 0) {
     	Ns_Log(Error, "nslog: error '%s' opening '%s'",
 	       strerror(errno),logPtr->file);
@@ -702,7 +703,7 @@ LogRollCallback(void *arg)
 static void
 LogConfigExtHeaders(Log *logPtr, char *path)
 {
-    char *config = Ns_ConfigGet(path, "extendedheaders");
+    char *config = Ns_ConfigGetValue(path, "extendedheaders");
     char *p;
     int   i;
 
@@ -712,7 +713,7 @@ LogConfigExtHeaders(Log *logPtr, char *path)
 	return;
     }
 
-    config = Ns_StrDup(config);
+    config = ns_strdup(config);
 
     /* Figure out how many extended headers there are. */
 

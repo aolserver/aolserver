@@ -33,7 +33,7 @@
  *	Permissions
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsperm/nsperm.c,v 1.6 2001/03/12 22:23:43 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsperm/nsperm.c,v 1.7 2001/11/05 20:30:38 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 
@@ -45,7 +45,7 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsp
  * For AOLserver
  */
 
-NS_EXPORT int Ns_ModuleVersion = 1;
+int Ns_ModuleVersion = 1;
 
 /*
  * The following structure is allocated for each instance of the module.
@@ -133,7 +133,7 @@ static Tcl_HashTable   serversTable;
  *----------------------------------------------------------------------
  */
 
-NS_EXPORT int
+int
 Ns_ModuleInit(char *server, char *module)
 {
     Server *servPtr;

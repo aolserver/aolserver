@@ -109,7 +109,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsext/nsext.c,v 1.4 2000/08/15 20:24:33 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsext/nsext.c,v 1.5 2001/11/05 20:30:38 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 #include "nsextmsg.h"
@@ -167,7 +167,7 @@ typedef struct {
  */
 
 typedef struct NsExtConn {
-    SOCKET    socks[2];
+    int       socks[2];
     int       connNum;
     NsExtCtx *ctx;
 } NsExtConn;
@@ -242,7 +242,7 @@ static int      DbProxyCopyFromRemoteFile(Ns_DbHandle *dbhandle,
 static int      DbProxyDeleteRemoteFile(Ns_DbHandle *dbhandle,
 					char *remoteFileName,
 					char *errbuf);
-static int      DbProxyTimedIO(SOCKET sock, char *buf, int nbytes, int flags,
+static int      DbProxyTimedIO(int sock, char *buf, int nbytes, int flags,
 			       SockIOType iotype, int timeout,
 			       Ns_DbHandle *dbhandle, int readExact);
 static void     DbProxyCleanup(Ns_DbHandle *dbhandle);
@@ -284,8 +284,9 @@ static Ns_DbProc ExtProcs[] = {
     {0, NULL}
 };
 
-DllExport int   Ns_ModuleVersion = 1;
 static    int   verbose = NS_FALSE;
+
+int   Ns_ModuleVersion = 1;
 
 /*
  *==========================================================================
@@ -340,9 +341,9 @@ Ns_DbDriverInit(char *hDriver, char *configPath)
         ctx->connNum = 0;
         ctx->ident[0] = '\0';
         Ns_MutexInit(&ctx->muIdent);
-        ctx->param = Ns_ConfigGet(configPath, CONFIG_PARAM);
-        ctx->path = Ns_ConfigGet(configPath, CONFIG_LOCALDAEMON);
-        ctx->host = Ns_ConfigGet(configPath, CONFIG_REMOTEHOST);
+        ctx->param = Ns_ConfigGetValue(configPath, CONFIG_PARAM);
+        ctx->path = Ns_ConfigGetValue(configPath, CONFIG_LOCALDAEMON);
+        ctx->host = Ns_ConfigGetValue(configPath, CONFIG_REMOTEHOST);
         if (Ns_ConfigGetInt(configPath, CONFIG_REMOTEPORT,
                 &ctx->port) != NS_TRUE) {
             ctx->port = 0;
@@ -1365,9 +1366,9 @@ DbProxyStop(NsExtConn * nsConn)
 {
     Ns_Log(Debug, "nsext: stopping db proxy daemon connection %d",
 	   nsConn->connNum);
-    ns_sockclose(nsConn->socks[0]);
-    ns_sockclose(nsConn->socks[1]);
-    nsConn->socks[0] = nsConn->socks[1] = INVALID_SOCKET;
+    close(nsConn->socks[0]);
+    close(nsConn->socks[1]);
+    nsConn->socks[0] = nsConn->socks[1] = -1;
 }
 
 
@@ -1580,7 +1581,7 @@ DbProxyCheckStatus(NsExtConn * nsConn, Ns_DbHandle *handle)
  */
 
 static int
-DbProxyTimedIO(SOCKET sock, char *buf, int nbytes, int flags,
+DbProxyTimedIO(int sock, char *buf, int nbytes, int flags,
 	       SockIOType iotype, int timeout, Ns_DbHandle *dbhandle,
 	       int readExact)
 {
@@ -1591,7 +1592,7 @@ DbProxyTimedIO(SOCKET sock, char *buf, int nbytes, int flags,
         fd_set         set;
         int            nsel;
         struct timeval tv;
-        SOCKET         max = sock;
+        int         max = sock;
 
         tv.tv_sec = timeout;
         tv.tv_usec = 0;
@@ -2447,7 +2448,7 @@ static int
 NetProxy(NsExtConn *nsConn, char *host, int port)
 {
     nsConn->socks[0] = nsConn->socks[1] = Ns_SockConnect(host, port);
-    if (nsConn->socks[0] == INVALID_SOCKET) {
+    if (nsConn->socks[0] == -1) {
         Ns_Log(Error, "nsext: connect failure: %s:%d", host, port);
         return NS_ERROR;
     }
@@ -2475,7 +2476,7 @@ NetProxy(NsExtConn *nsConn, char *host, int port)
 static int
 LocalProxy(NsExtConn * nsConn)
 {
-    SOCKET  in[2], out[2];
+    int  in[2], out[2];
     char   *argv[3];
     int     status, pid, code;
 
@@ -2489,20 +2490,20 @@ LocalProxy(NsExtConn * nsConn)
     Ns_CloseOnExec(out[0]);
     Ns_CloseOnExec(out[1]);
 
-    if (ns_sockpair(in) < 0) {
+    if (ns_sockpipe(in) < 0) {
         Ns_Log(Error, "nsext: failed to create input socket pipes");
     } else {
-        if (ns_sockpair(out) < 0) {
-	    ns_sockclose(in[0]);
-	    ns_sockclose(in[1]);
+        if (ns_sockpipe(out) < 0) {
+	    close(in[0]);
+	    close(in[1]);
             Ns_Log(Error, "nsext: failed to create output socket pipes");
         } else {
             argv[0] = nsConn->ctx->path;
             argv[1] = NULL;
             pid = Ns_ExecArgv(nsConn->ctx->path, NULL, out[0], in[1], argv,
 			      NULL);
-            ns_sockclose(out[0]);
-            ns_sockclose(in[1]);
+            close(out[0]);
+            close(in[1]);
             if (pid == -1) {
                 Ns_Log(Error, "nsext: spawn failed for '%s'",
 		       nsConn->ctx->path);
@@ -2519,8 +2520,8 @@ LocalProxy(NsExtConn * nsConn)
                 }
             }
             if (status != NS_OK) {
-            	ns_sockclose(in[0]);
-            	ns_sockclose(out[1]);
+            	close(in[0]);
+            	close(out[1]);
             }
         }
     }

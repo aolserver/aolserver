@@ -35,7 +35,7 @@
  *	connections. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/listen.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/listen.c,v 1.4 2001/11/05 20:26:23 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -84,7 +84,7 @@ Ns_SockListenCallback(char *addr, int port, Ns_SockProc *proc, void *arg)
 {
     Tcl_HashEntry      *hPtr;
     Tcl_HashTable      *tablePtr;
-    SOCKET              new, sock;
+    int              new, sock;
     ListenData          *ldPtr;
     int                 status;
     struct sockaddr_in  sa;
@@ -100,10 +100,10 @@ Ns_SockListenCallback(char *addr, int port, Ns_SockProc *proc, void *arg)
 	
         sa.sin_port = 0;
         sock = Ns_SockBind(&sa);
-        if (sock == INVALID_SOCKET) {
+        if (sock == -1) {
             return NS_ERROR;
         }
-        ns_sockclose(sock);
+        close(sock);
     }
     status = NS_OK;
     Ns_MutexLock(&lock);
@@ -123,7 +123,7 @@ Ns_SockListenCallback(char *addr, int port, Ns_SockProc *proc, void *arg)
         tablePtr = Tcl_GetHashValue(hPtr);
     } else {
         sock = Ns_SockListen(NULL, port);
-        if (sock == INVALID_SOCKET) {
+        if (sock == -1) {
             Tcl_DeleteHashEntry(hPtr);
             status = NS_ERROR;
         } else {
@@ -199,22 +199,22 @@ Ns_SockPortBound(int port)
  */
 
 static int
-ListenCallback(SOCKET sock, void *arg, int why)
+ListenCallback(int sock, void *arg, int why)
 {
     struct sockaddr_in  sa;
     int                 len;
     Tcl_HashTable      *tablePtr;
     Tcl_HashEntry      *hPtr;
-    SOCKET              new;
+    int              new;
     ListenData          *ldPtr;
 
     tablePtr = arg;
     if (why == NS_SOCK_EXIT) {
-        ns_sockclose(sock);
+        close(sock);
         return NS_FALSE;
     }
     new = Ns_SockAccept(sock, NULL, NULL);
-    if (new != INVALID_SOCKET) {
+    if (new != -1) {
         Ns_SockSetBlocking(new);
         len = sizeof(sa);
         getsockname(new, (struct sockaddr *) &sa, &len);
@@ -229,7 +229,7 @@ ListenCallback(SOCKET sock, void *arg, int why)
         }
         Ns_MutexUnlock(&lock);
         if (ldPtr == NULL) {
-            ns_sockclose(new);
+            close(new);
         } else {
             (*ldPtr->proc) (new, ldPtr->arg, why);
         }
