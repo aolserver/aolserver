@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Makefile,v 1.33 2002/03/03 16:14:43 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Makefile,v 1.34 2002/05/15 20:15:05 jgdavidson Exp $
 #
 
 NSHOME ?= ..
@@ -41,7 +41,7 @@ INIT	 =  init.tcl
 OBJS = \
 	adpcmds.o adpeval.o adpparse.o adprequest.o auth.o binder.o	\
 	cache.o callbacks.o cls.o compat.o cond.o config.o conn.o	\
-	connio.o crypt.o dbdrv.o dbinit.o dbtcl.o dbutil.o dns.o	\
+	connio.o crypt.o dns.o	\
 	driver.o dsprintf.o dstring.o encoding.o error.o exec.o		\
 	fastpath.o fd.o filter.o fork.o form.o httptime.o index.o	\
 	info.o lisp.o listen.o log.o master.o memory.o mimetypes.o	\
