@@ -101,8 +101,10 @@ all:
 	@echo "** nsssl will not be built."
 	@echo "** "
 install:   all
-clean:     all
-distclean: all
+clean:
+	$(RM) *.so *.o *.a *~ TAGS core so_locations
+clobber:   clean
+distclean: clean
 endif
 
 else
