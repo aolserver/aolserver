@@ -80,7 +80,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tcljob.c,v 1.25 2003/11/03 02:08:58 pmoosman Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tcljob.c,v 1.26 2004/07/29 04:24:51 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -253,7 +253,7 @@ void
 NsTclInitQueueType(void)
 {
     Tcl_InitHashTable(&tp.queues, TCL_STRING_KEYS);
-    Ns_MutexSetName(&tp.queuelock, "threadPool");
+    Ns_MutexSetName(&tp.queuelock, "nsd:tcljobs");
     tp.nextThreadId = 0;
     tp.nextQueueId = 0;
     tp.maxThreads = 0;
