@@ -1,3 +1,11 @@
+2000-07-13  Kriston J. Rehberg  <Kriston@AOL.NET>
+
+	* nssock: nssock.c renamed sock.c, SSL support has been merged
+	back with nssock so that both nsssl and nssock use identical
+	socket code.
+	
+	* nsssl2: directory removed; nsssl is in the nssock directory now.
+
 2000-05-09  Kriston J. Rehberg  <Kriston@AOL.COM>
 
 	* Re-added doc directory which has had the online docs removed.

@@ -18,14 +18,13 @@ include $(NSHOME)/include/Makefile.global
 #  Choose the modules you want and put them in the MODULES variable below.
 #  A typical web server might load nssock, nslog, and nsperm.
 #
-#   nssock      -- serving HTTP
-#   nsssl2      -- serving HTTPS (requires BSAFE 3 library)
+#   nssock      -- serves HTTP and HTTPS
 #   nscgi       -- CGI module
 #   nscp        -- Control port remote administration interface
 #   nslog       -- Common log format module
 #   nsperm      -- Permissions module
 #
-#   nsunix      -- serving HTTP over Unix domain socket
+#   nsunix      -- serve HTTP over Unix domain socket
 #   nsvhr       -- Virtual hosting redirector
 #
 #   nsext       -- External database driver module
@@ -36,7 +35,7 @@ include $(NSHOME)/include/Makefile.global
 #
 
 MODULES   = nssock nscgi nscp nslog nsperm nsext nspd nsftp
-#MODULES  = nsssl2 nspostgres nssybpd nssolid nsunix nsvhr
+#MODULES  = nspostgres nssybpd nssolid nsunix nsvhr
 
 
 #
@@ -48,9 +47,10 @@ ALLDIRS   = $(NSDDIRS) $(MODULES)
 
 all:
 	@for i in $(ALLDIRS); do \
-		echo "building \"$$i\""; \
+		$(ECHO) "building \"$$i\""; \
 		( cd $$i && $(MAKE) all ) || exit 1; \
 	done
+	(cd nssock && $(MAKE) SSL=1)
 
 #
 # Installation to $(INST) directory
@@ -71,10 +71,10 @@ install:
 	test -f $(INSTSRVPAG)/index.html  \
 		|| $(CP) scripts/index.html $(INSTSRVPAG)
 	@for i in $(ALLDIRS); do \
-		echo "installing \"$$i\""; \
+		$(ECHO) "installing \"$$i\""; \
 		( cd $$i && $(MAKE) install) || exit 1; \
 	done
-
+	(cd nssock && $(MAKE) SSL=1 install)
 
 #
 # Cleaning rules.
@@ -85,21 +85,22 @@ install:
 #
 clean:
 	@for i in $(ALLDIRS); do \
-		echo "cleaning \"$$i\""; \
+		$(ECHO) "cleaning \"$$i\""; \
 		( cd $$i && $(MAKE) $@) || exit 1; \
 	done
+	(cd nssock && $(MAKE) SSL=1 clean)
 
 clobber: clean
 	$(RM) *~
 	@for i in $(ALLDIRS); do \
-		echo "clobbering \"$$i\""; \
+		$(ECHO) "clobbering \"$$i\""; \
 		( cd $$i && $(MAKE) $@) || exit 1; \
 	done
 
 distclean: clobber
 	$(RM) TAGS core
 	@for i in $(ALLDIRS); do \
-		echo "distcleaning \"$$i\""; \
+		$(ECHO) "distcleaning \"$$i\""; \
 		( cd $$i && $(MAKE) $@) || exit 1; \
 	done
 	$(FIND) . -name \*~ -exec $(RM) {} \;
