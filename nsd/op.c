@@ -34,7 +34,7 @@
  *  	routines (previously known as "op procs").
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/op.c,v 1.11 2002/08/10 16:01:19 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/op.c,v 1.11.2.1 2004/07/14 00:36:52 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -222,7 +222,11 @@ Ns_ConnRunRequest(Ns_Conn *conn)
     	    	    	       conn->request->url, uid);
     if (reqPtr == NULL) {
     	Ns_MutexUnlock(&ulock);
-	return Ns_ConnReturnNotFound(conn);
+	if (STREQ(conn->request->method, "BAD")) {
+	    return Ns_ConnReturnBadRequest(conn, NULL);
+	} else {
+	   return Ns_ConnReturnNotFound(conn);
+	}
     }
     ++reqPtr->refcnt;
     Ns_MutexUnlock(&ulock);

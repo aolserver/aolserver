@@ -34,7 +34,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.17.2.4 2004/06/03 18:02:20 rcrittenden0569 Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.17.2.5 2004/07/14 00:36:52 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -90,7 +90,6 @@ static Sock *firstClosePtr; /* First conn ready for graceful close. */
 static int SockRead(Sock *sockPtr);
 static void SockPoll(Sock *sockPtr, Ns_Time *timeoutPtr);
 static void SockTimeout(Sock *sockPtr, Ns_Time *nowPtr, int timeout);
-static void MapServer(NsServer *servPtr, char *proto, char *host);
 static int  SetServer(Sock *sockPtr);
 
 /*
@@ -111,6 +110,7 @@ static unsigned int nfds;	/* Number of Sock to poll(). */
 static unsigned int maxfds;	/* Max pollfd's in pfds. */ 
 static struct pollfd *pfds; /* Array of pollfds to poll(). */
 static Tcl_HashTable hosts; /* Host header to server table. */
+static ServerMap *defMapPtr;    /* Default server when not found in table. */
 
 
 /*
@@ -157,6 +157,8 @@ Ns_DriverInit(char *server, char *module, Ns_DriverInitData *init)
 {
     char *path,*address, *host, *bindaddr, *defproto;
     int i, n, sockwait, defport;
+    ServerMap *mapPtr;
+    Tcl_HashEntry *hPtr;
     Ns_DString ds;
     Ns_Set *set;
     struct in_addr  ia;
@@ -362,13 +364,31 @@ Ns_DriverInit(char *server, char *module, Ns_DriverInitData *init)
      */
 
     if (server == NULL) {
+	char *vhost;
 	path = Ns_ConfigGetPath(NULL, module, "servers", NULL);
 	set = Ns_ConfigGetSection(path);
 	for (i = 0; set != NULL && i < Ns_SetSize(set); ++i) {
-	    servPtr = NsGetServer(Ns_SetKey(set, i));
-	    if (servPtr != NULL) {
-		MapServer(servPtr, defproto, Ns_SetValue(set, i));
-	    }
+	    server = Ns_SetKey(set, i);
+	    vhost = Ns_SetValue(set, i);
+	    servPtr = NsGetServer(server);
+            if (servPtr == NULL) {
+                Ns_Log(Error, "%s: no such server: %s", module, server);
+            } else {
+                hPtr = Tcl_CreateHashEntry(&hosts, vhost, &n);
+                if (!n) {
+                    Ns_Log(Error, "%s: duplicate host map: %s", module, vhost);
+                } else {
+                    Ns_DStringVarAppend(&ds, defproto, "://", vhost, NULL);
+                    mapPtr = ns_malloc(sizeof(ServerMap) + ds.length);
+                    mapPtr->servPtr  = servPtr;
+                    strcpy(mapPtr->location, ds.string);
+                    Ns_DStringTrunc(&ds, 0);
+                    if (!defMapPtr && STREQ(host, vhost)) {
+                        defMapPtr = mapPtr;
+                    }
+                    Tcl_SetHashValue(hPtr, mapPtr);
+                }
+            }
 	}
     }
 
@@ -1038,45 +1058,6 @@ DriverThread(void *ignored)
 /*
  *----------------------------------------------------------------------
  *
- * MapServer --
- *
- *	Map a Host header to a virtual server for unbounded drivers.
- *
- * Results:
- *	None.
- *
- * Side effects:
- *	Requests with given Host header will be serviced by given server.
- *
- *----------------------------------------------------------------------
- */
-
-static void
-MapServer(NsServer *servPtr, char *proto, char *host)
-{
-    ServerMap *mapPtr;
-    Tcl_HashEntry *hPtr;
-    Ns_DString ds;
-    int new;
-
-    Ns_DStringInit(&ds);
-    Ns_DStringPrintf(&ds, "%s://%s", proto, host);
-    mapPtr = ns_malloc(sizeof(ServerMap) + ds.length);
-    mapPtr->servPtr  = servPtr;
-    strcpy(mapPtr->location, ds.string);
-    Ns_DStringFree(&ds);
-    hPtr = Tcl_CreateHashEntry(&hosts, host, &new);
-    if (!new) {
-	Ns_Log(Error, "server: duplicate host mapping: %s", host);
-	ns_free(mapPtr);
-    }
-    Tcl_SetHashValue(hPtr, mapPtr);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
  * SetServer --
  *
  *	Set virtual server from driver context or Host header.
@@ -1093,24 +1074,43 @@ MapServer(NsServer *servPtr, char *proto, char *host)
 static int
 SetServer(Sock *sockPtr)
 {
-    ServerMap *mapPtr;
+    ServerMap *mapPtr = NULL;
     Tcl_HashEntry *hPtr;
     char *host;
+    int status = 1;
 
     sockPtr->servPtr = sockPtr->drvPtr->servPtr;
     sockPtr->location = sockPtr->drvPtr->location;
-    if (sockPtr->servPtr == NULL && sockPtr->reqPtr != NULL) {
+    if (sockPtr->reqPtr) {
 	host = Ns_SetIGet(sockPtr->reqPtr->headers, "Host");
-	if (host != NULL) {
+	if (!host && sockPtr->reqPtr->request->version >= 1.1) {
+	    status = 0;
+	}
+    }
+    if (sockPtr->servPtr == NULL) {
+	if (host) {
 	    hPtr = Tcl_FindHashEntry(&hosts, host);
 	    if (hPtr != NULL) {
 		mapPtr = Tcl_GetHashValue(hPtr);
-		sockPtr->servPtr = mapPtr->servPtr;
-		sockPtr->location = mapPtr->location;
 	    }
 	}
+	if (!mapPtr) {
+	    mapPtr = defMapPtr;
+	}
+	if (mapPtr) {
+	    sockPtr->servPtr = mapPtr->servPtr;
+	    sockPtr->location = mapPtr->location;
+	}
+	if (sockPtr->servPtr == NULL) {
+	    status = 0;
+	}
     }
-    return (sockPtr->servPtr ? 1 : 0);
+
+    if (!status && sockPtr->reqPtr) {
+	sockPtr->reqPtr->request->method = "BAD";
+    }
+    return 1;
+    // return status;
 }
 
 
