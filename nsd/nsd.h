@@ -517,7 +517,7 @@ typedef struct NsServer {
 	bool	    	    enabledebug;
 	char	    	   *debuginit;
 	char	    	   *defaultparser;
-	int 	    	    cachesize;
+	size_t 	    	    cachesize;
 	Ns_Cond	    	    pagecond;
 	Ns_Mutex	    pagelock;
 	Tcl_HashTable	    pages;

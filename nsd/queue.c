@@ -34,7 +34,7 @@
  *	and service threads.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/queue.c,v 1.15 2002/09/28 19:24:26 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/queue.c,v 1.16 2002/09/28 20:55:13 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -242,7 +242,7 @@ NsTclServerCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
     } else if (STREQ(argv[1], "keepalive")) {
         Tcl_SetObjResult(interp, Tcl_NewIntObj(nsconf.keepalive.npending));
     } else if (STREQ(argv[1], "connections")) {
-        Tcl_SetObjResult(interp, Tcl_NewIntObj(servPtr->queue.nextid));
+        Tcl_SetObjResult(interp, Tcl_NewIntObj((int) servPtr->queue.nextid));
     } else if (STREQ(argv[1], "threads")) {
         sprintf(buf, "min %d", servPtr->threads.min);
         Tcl_AppendElement(interp, buf);
@@ -335,7 +335,7 @@ NsTclServerObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
 	break;
 
     case SConnectionsIdx:
-        Tcl_SetObjResult(interp, Tcl_NewIntObj(servPtr->queue.nextid));
+        Tcl_SetObjResult(interp, Tcl_NewIntObj((int) servPtr->queue.nextid));
 	break;
 
     case SThreadsIdx:
@@ -793,7 +793,7 @@ ParseAuth(Conn *connPtr, char *auth)
                 ++q;
             }
 	    n = strlen(q) + 3;
-	    connPtr->authUser = ns_malloc(n);
+	    connPtr->authUser = ns_malloc((size_t) n);
             n = Ns_HtuuDecode(q, (unsigned char *) connPtr->authUser, n);
             connPtr->authUser[n] = '\0';
             q = strchr(connPtr->authUser, ':');
@@ -911,7 +911,7 @@ AppendConn(Tcl_DString *dsPtr, Conn *connPtr, char *state)
 	Tcl_DStringAppendElement(dsPtr, strncpy(buf, p, sizeof(buf)));
 	Ns_GetTime(&now);
 	Ns_DiffTime(&now, &connPtr->startTime, &diff);
-	sprintf(buf, "%d.%d", diff.sec, diff.usec);
+	sprintf(buf, "%ld.%ld", diff.sec, diff.usec);
 	Tcl_DStringAppendElement(dsPtr, buf);
 	sprintf(buf, "%d", connPtr->nContentSent);
 	Tcl_DStringAppendElement(dsPtr, buf);

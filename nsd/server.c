@@ -33,7 +33,7 @@
  *	Routines for managing NsServer structures.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.20 2002/09/28 19:24:37 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.21 2002/09/28 20:55:13 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -238,7 +238,7 @@ NsInitServer(char *server, Ns_ServerInitProc *initProc)
      * before Ns_QueueConn begins to return NS_ERROR.
      */
 
-    connBufPtr = ns_calloc(maxconns, sizeof(Conn));
+    connBufPtr = ns_calloc((size_t) maxconns, sizeof(Conn));
     for (n = 0; n < maxconns - 1; ++n) {
 	connPtr = &connBufPtr[n];
 	connPtr->nextPtr = &connBufPtr[n+1];
@@ -473,9 +473,10 @@ NsInitServer(char *server, Ns_ServerInitProc *initProc)
     if (servPtr->adp.defaultparser == NULL) {
     	servPtr->adp.defaultparser = "adp";
     }
-    if (!Ns_ConfigGetInt(path, "cachesize", &servPtr->adp.cachesize)) {
-    	servPtr->adp.cachesize = 5 * 1024 * 1000;
+    if (!Ns_ConfigGetInt(path, "cachesize", &n)) {
+	n = 5 * 1024 * 1000;
     }
+    servPtr->adp.cachesize = n;
 
     /*
      * Initialize the page and tag tables and locks.

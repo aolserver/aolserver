@@ -34,7 +34,7 @@
  *	Tcl wrappers around all thread objects 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclthread.c,v 1.14 2002/09/28 19:24:54 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclthread.c,v 1.15 2002/09/28 20:55:13 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #ifdef NS_NOCOMPAT
 #undef NS_NOCOMPAT
@@ -51,7 +51,7 @@ typedef struct ThreadArg {
  * Local functions defined in this file
  */
 
-static int GetAddr(Tcl_Interp *interp, char type, char *id, void **addrPtr);
+static int GetAddr(Tcl_Interp *interp, int type, char *id, void **addrPtr);
 static void SetAddr(Tcl_Interp *interp, int type, void *addr);
 static int GetArgs(Tcl_Interp *interp, int objc, Tcl_Obj **objv,
 	CONST char *opts[], int type, int create, int *optPtr, void **addrPtr);
@@ -857,7 +857,7 @@ SetAddr(Tcl_Interp *interp, int type, void *addr)
  */
 
 static int
-GetAddr(Tcl_Interp *interp, char type, char *id, void **addrPtr)
+GetAddr(Tcl_Interp *interp, int type, char *id, void **addrPtr)
 {
     void *addr;
 

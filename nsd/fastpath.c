@@ -34,7 +34,7 @@
  *      Get page possibly from a file cache.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/fastpath.c,v 1.14 2002/06/05 22:58:22 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/fastpath.c,v 1.15 2002/09/28 20:55:13 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #include <sys/mman.h>
@@ -93,7 +93,7 @@ NsFastpathCache(char *server, int size)
     char buf[100];
 
     sprintf(buf, "nsfp:%s", server);
-    return Ns_CacheCreateSz("ns:fastpath", FILE_KEYS, size, FreeEntry);
+    return Ns_CacheCreateSz("ns:fastpath", FILE_KEYS, (size_t) size, FreeEntry);
 }
 
 
@@ -489,7 +489,7 @@ FastReturn(NsServer *servPtr, Ns_Conn *conn, int status,
      */
      
     if (conn->flags & NS_CONN_SKIPBODY) {
-	Ns_ConnSetRequiredHeaders(conn, type, stPtr->st_size);
+	Ns_ConnSetRequiredHeaders(conn, type, (int) stPtr->st_size);
 	return Ns_ConnFlushHeaders(conn, status);
     }
 
@@ -507,12 +507,12 @@ FastReturn(NsServer *servPtr, Ns_Conn *conn, int status,
 	    goto notfound;
 	}
 	if (servPtr->fastpath.mmap) {
-	    map = mmap(0, stPtr->st_size, PROT_READ, MAP_SHARED, fd, 0);
+	    map = mmap(0, (size_t) stPtr->st_size, PROT_READ, MAP_SHARED, fd, 0);
 	    if (map != MAP_FAILED) {
 	    	close(fd);
 	    	fd = -1;
-            	result = Ns_ConnReturnData(conn, status, map, stPtr->st_size, type);
-	    	munmap(map, stPtr->st_size);
+            	result = Ns_ConnReturnData(conn, status, map, (int) stPtr->st_size, type);
+	    	munmap(map, (size_t) stPtr->st_size);
 	    }
 	}
 	if (fd != -1) {

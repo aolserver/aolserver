@@ -34,7 +34,7 @@
  *      DNS lookup routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/dns.c,v 1.5 2001/03/14 15:02:37 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/dns.c,v 1.6 2002/09/28 20:55:13 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -193,9 +193,9 @@ NsEnableDNSCache(int timeout, int maxentries)
     Ns_MutexLock(&lock);
     cachetimeout = timeout;
     hostCache = Ns_CacheCreateSz("ns:dnshost", TCL_STRING_KEYS,
-	maxentries, ns_free);
+	(size_t) maxentries, ns_free);
     addrCache = Ns_CacheCreateSz("ns:dnsaddr", TCL_STRING_KEYS,
-	maxentries, ns_free);
+	(size_t) maxentries, ns_free);
     Ns_MutexUnlock(&lock);
 }
 
