@@ -33,7 +33,7 @@
  *	Routines for monitoring keep-alive sockets.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/keepalive.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/keepalive.c,v 1.4 2000/08/08 20:37:26 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -61,7 +61,6 @@ static Keep *firstWaitKeepPtr;	/* New keepalive's to be monitored. */
 
 static SOCKET trigPipe[2]; /* Trigger for waking up select. */
 static int shutdownPending; /* Flag to indicate server shutdown. */
-static int running;
 static Ns_Thread keepThread;
 static Ns_Mutex lock;	/* Lock around access to the above lists. */
 static Ns_Cond cond;	/* Condition for shutdown signalling. */
@@ -128,12 +127,11 @@ NsKeepAlive(Ns_Conn *conn)
 	keepPtr->drvData = drvData;
 	keepPtr->timeout = timeout;
 	keepPtr->sock = sock;
-	if (!running) {
+	if (keepThread == NULL) {
     	    if (ns_sockpair(trigPipe) != 0) {
 		Ns_Fatal("ns_sockpair() failed: %s", ns_sockstrerror(ns_sockerrno));
     	    }
 	    Ns_ThreadCreate(KeepThread, NULL, 0, &keepThread);
-	    running = 1;
 	} else if (keepPtr->nextPtr == NULL) {
 	    trigger = 1;
 	}
@@ -198,7 +196,8 @@ NsStartKeepAlive(void)
  *
  * NsStopKeepAlive --
  *
- *	Set the shutdownPending flag and trigger the KeepThread.
+ *	Set the shutdownPending flag and trigger the KeepThread to
+ *	exit.
  *
  * Results:
  *	None.
@@ -210,31 +209,15 @@ NsStartKeepAlive(void)
  */
 
 void
-NsStartKeepAliveShutdown(void)
+NsStopKeepAlive(void)
 {
     Ns_MutexLock(&lock);
-    if (running) {
+    if (keepThread != NULL) {
 	shutdownPending = 1;
 	KeepTrigger();
     }
     Ns_MutexUnlock(&lock);
-}
-
-void
-NsWaitKeepAliveShutdown(Ns_Time *toPtr)
-{
-    int status;
-    
-    status = NS_OK;
-    Ns_MutexLock(&lock);
-    while (status == NS_OK && running) {
-	status = Ns_CondTimedWait(&cond, &lock, toPtr);
-    }
-    Ns_MutexUnlock(&lock);
-    if (status != NS_OK) {
-	Ns_Log(Warning, "NsWaitKeepAliveShutdown: "
-	       "timeout waiting for keep-alive thread!");
-    } else if (keepThread != NULL) {
+    if (keepThread != NULL) {
 	Ns_ThreadJoin(&keepThread, NULL);
 	keepThread = NULL;
     	ns_sockclose(trigPipe[0]);
@@ -423,17 +406,15 @@ KeepThread(void *ignored)
      * system, and signal shutdown complete.
      */
     
-    Ns_Log(Notice, "KeepThread: keepalive thread shutdown pending");
+    Ns_Log(Notice, "shutdown pending");
     Ns_MutexUnlock(&lock);
     while ((keepPtr = activePtr) != NULL) {
 	activePtr = keepPtr->nextPtr;
 	KeepClose(keepPtr);
     }
     ns_free(keepBufPtr);
-
-    Ns_Log(Notice, "KeepThread: keepalive thread shutdown complete");
+    Ns_Log(Notice, "shutdown complete");
     Ns_MutexLock(&lock);
-    running = 0;
     Ns_CondBroadcast(&cond);
     Ns_MutexUnlock(&lock);
 }

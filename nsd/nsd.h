@@ -465,11 +465,7 @@ extern void NsLogOpen(void);
 extern void NsPidFileInit(int fkill);
 extern void NsPortInit(void);
 extern void NsSchedInit(void);
-extern void NsStartServer(void);
-extern void NsStartKeepAlive(void);
 extern void NsStopBinder(void);
-extern void NsStopDrivers(void);
-extern void NsStopServer(void);
 extern char *NsTclFindExecutable(char *argv0);
 extern void NsTclInit(void);
 extern void NsTclInitGlobal(void);
@@ -485,11 +481,11 @@ extern void NsRestoreSignals(void);
 extern void NsSendSignal(int sig);
 extern void NsShutdown(int timeout);
 
-extern void NsStartServerShutdown(void);
-extern void NsWaitServerShutdown(Ns_Time *toPtr);
-
-extern void NsStartKeepAliveShutdown(void); 
-extern void NsWaitKeepAliveShutdown(Ns_Time *toPtr); 
+extern void NsStartServer(void);
+extern void NsStopDrivers(void);
+extern void NsStartKeepAlive(void);
+extern void NsStopKeepAlive(void);
+extern void NsStopServer(Ns_Time *toPtr);
 
 extern void NsStartSchedShutdown(void);
 extern void NsWaitSchedShutdown(Ns_Time *toPtr);

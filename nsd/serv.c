@@ -33,7 +33,7 @@
  *	Routines for the core server connection threads.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/serv.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/serv.c,v 1.4 2000/08/08 20:37:26 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -361,36 +361,9 @@ NsStartServer(void)
 /*
  *----------------------------------------------------------------------
  *
- * NsStartServerShutdown --
+ * NsStopServer --
  *
- *	Initiate server shutdown.
- *
- * Results:
- *	None.
- *
- * Side effects:
- *	Current connection threads will exit.
- *
- *----------------------------------------------------------------------
- */
-
-void
-NsStartServerShutdown(void)
-{
-    Ns_Log(Notice, "NsStartServerShutdown: stopping connection threads");
-    Ns_MutexLock(&lock);
-    shutdownPending = 1;
-    Ns_CondBroadcast(&cond);
-    Ns_MutexUnlock(&lock);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsWaitServerShutdown --
- *
- *	Wait for server shutdown to complete.
+ *	Signal and wait for connection threads to exit.
  *
  * Results:
  *	None.
@@ -402,13 +375,17 @@ NsStartServerShutdown(void)
  */
 
 void
-NsWaitServerShutdown(Ns_Time *toPtr)
+NsStopServer(Ns_Time *toPtr)
 {
     Ns_Thread joinThread;
     int status;
     
+    Ns_Log(Notice, "server: stopping connection threads");
+
     status = NS_OK;
     Ns_MutexLock(&lock);
+    shutdownPending = 1;
+    Ns_CondBroadcast(&cond);
     while (status == NS_OK &&
 	   (firstWaitConnPtr != NULL || currentThreads > 0)) {
 	status = Ns_CondTimedWait(&cond, &lock, toPtr);
@@ -417,10 +394,9 @@ NsWaitServerShutdown(Ns_Time *toPtr)
     lastThread = NULL;
     Ns_MutexUnlock(&lock);
     if (status != NS_OK) {
-	Ns_Log(Warning, "NsWaitForServerShutdown: "
-	       "timeout waiting for connection thread exit");
+	Ns_Log(Warning, "server: timeout waiting for connection thread exit");
     } else {
-	Ns_Log(Notice, "NsWaitForServerShutdown: connection threads stopped");
+	Ns_Log(Notice, "server: connection threads stopped");
 	if (joinThread != NULL) {
 	    JoinThread(&joinThread);
 	}

@@ -27,7 +27,7 @@
  * version of this file under either the License or the GPL.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sched.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sched.c,v 1.4 2000/08/08 20:37:26 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 /*
  * sched.c --
@@ -783,7 +783,7 @@ SchedThread(void *ignored)
 
 	if (nqueue == 0) {
 	    Ns_CondWait(&cond, &lock);
-	} else {
+	} else if (!shutdownPending) {
 	    timeout.sec = queue[1]->nextqueue;
 	    timeout.usec = 0;
 	    Ns_CondTimedWait(&cond, &lock, &timeout);

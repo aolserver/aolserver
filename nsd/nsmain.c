@@ -33,7 +33,7 @@
  *	AOLserver Ns_Main() startup routine.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.4 2000/08/08 20:37:26 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -615,48 +615,48 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 
     /*
      * Print a "server shutting down" status message and
-     * set the nsconf.stopping flag for any threads calling
-     * Ns_InfoShutdownPending().
+     * then set the nsconf.stopping flag for any threads calling
+     * Ns_InfoShutdownPending() and then determine an absolute
+     * timeout for all systems to complete shutown.
      */
 
     StatusMsg(2);
     Ns_MutexLock(&status.lock);
     status.stopping = 1;
-    Ns_MutexUnlock(&status.lock);
-
-    /*
-     * Signal various subsystems to begin shutdown.
-     */
-
-    NsStopDrivers();
-    NsStartServerShutdown();
-    NsStartKeepAliveShutdown(); 
-    NsStartSchedShutdown(); 
-    NsStartSockShutdown();
-    NsStartShutdownProcs();
-
-    /*
-     * Wait for all subsystems to complete shutdown.
-     */
-
-    Ns_MutexLock(&status.lock);
     if (status.shutdowntimeout < 0) {
 	status.shutdowntimeout = 0;
     }
-    i = status.shutdowntimeout;
+    Ns_GetTime(&timeout);
+    Ns_IncrTime(&timeout, status.shutdowntimeout, 0);
     Ns_MutexUnlock(&status.lock);
 
-    Ns_GetTime(&timeout);
-    Ns_IncrTime(&timeout, i, 0);
-    NsWaitServerShutdown(&timeout);
-    NsWaitKeepAliveShutdown(&timeout);
+    /*
+     * First, stop the drivers and keepalive threads.
+     */
+
+    NsStopDrivers();
+    NsStopKeepAlive();
+    NsStopServer(&timeout);
+
+    /*
+     * Next, start and then wait for other systems to shutdown
+     * simultaneously.  Note that if there was a timeout
+     * waiting for the connection threads to exit, the following
+     * waits will generally timeout as well.
+     */
+
+    NsStartSchedShutdown(); 
+    NsStartSockShutdown();
+    NsStartShutdownProcs();
     NsWaitSchedShutdown(&timeout);
     NsWaitSockShutdown(&timeout);
     NsWaitShutdownProcs(&timeout);
 
     /*
      * Finally, execute the exit procs directly and print a final
-     * "server exiting" status message and exit.
+     * "server exiting" status message and exit.  Note that
+     * there is not timeout check for the exit procs so they
+     * should be well behaved.
      */
 
     NsRunAtExitProcs();
