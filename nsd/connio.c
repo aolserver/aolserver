@@ -34,7 +34,7 @@
  *      Handle connection I/O.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/connio.c,v 1.16 2004/09/17 15:48:22 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/connio.c,v 1.17 2005/01/15 23:54:56 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #define IOBUFSZ 2048
@@ -102,6 +102,152 @@ Ns_ConnClose(Ns_Conn *conn)
 	if (connPtr->interp != NULL) {
 	    NsRunAtClose(connPtr->interp);
 	}
+    }
+    return NS_OK;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_ConnFlush --
+ *
+ *	Flush the headers and/or response content.  This is a bit of a
+ * 	candy machine interface in that it handles the normal case of
+ *	a single flush at the end of the connection plus the cases
+ *	of streaming on buffer overflow or a forced flush.
+ *
+ * Results:
+ *	NS_ERROR if a connection write routine failed, NS_OK otherwise.
+ *
+ * Side effects:
+ *  	Headers will be flushed on first write and Content may be
+ *	encoded and/or gzip'ed. Output will be chunked if streaming
+ *	to an HTTP version 1.1 or greater client.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Ns_ConnFlush(Ns_Conn *conn, char *buf, int len, int stream)
+{
+    Conn *connPtr = (Conn *) conn;
+    NsServer *servPtr = connPtr->servPtr;
+    Tcl_Encoding encoding;
+    Tcl_DString  enc, gzip;
+    struct iovec iov[4];
+    int i, nwrote, towrite, hlen, ioc, gzh;
+    char *ahdr, hdr[100];
+
+    gzh = 0;
+    Tcl_DStringInit(&enc);
+    Tcl_DStringInit(&gzip);
+
+    /*
+     * Encode content to the expected charset.
+     */
+
+    encoding = Ns_ConnGetEncoding(conn);
+    if (encoding != NULL) {
+	Tcl_UtfToExternalDString(encoding, buf, len, &enc);
+	buf = enc.string;
+	len = enc.length;
+    }
+
+    /*
+     * GZIP the content when not streaming if enabled and the content
+     * length is above the minimum.
+     */
+
+    if (!stream
+	    && (conn->flags |= NS_CONN_GZIP)
+	    && (servPtr->opts.flags & SERV_GZIP)
+	    && (len > servPtr->opts.gzipmin)
+	    && (ahdr = Ns_SetIGet(conn->headers, "Accept-Encoding")) != NULL
+	    && strstr(ahdr, "gzip") != NULL
+	    && Ns_Compress(buf, len, &gzip, servPtr->opts.gziplevel) == NS_OK) {
+	buf = gzip.string;
+	len = gzip.length;
+	gzh = 1;
+    }
+
+    /*
+     * Queue headers if not already sent.
+     */
+
+    if (!(conn->flags & NS_CONN_SENTHDRS)) {
+	if (!stream) {
+	    hlen = len;
+	} else {
+	    if (conn->request->version > 1.0) {
+		conn->flags |= NS_CONN_CHUNK;
+	    }
+	    hlen = -1;	/* NB: Surpress Content-length header. */
+	}
+	Ns_ConnSetRequiredHeaders(conn, NULL, hlen);
+	if (conn->flags & NS_CONN_CHUNK) {
+	    Ns_ConnCondSetHeaders(conn, "Transfer-Encoding", "chunked");
+	}
+	if (gzh) {
+	    Ns_ConnCondSetHeaders(conn, "Content-Encoding", "gzip");
+	}
+	Ns_ConnQueueHeaders(conn, 200);
+    }
+
+    /*
+     * Send content on any request other than HEAD.
+     */
+
+    ioc = 0;
+    towrite = 0;
+    if (!(conn->flags & NS_CONN_SKIPBODY)) {
+    	if (!(conn->flags & NS_CONN_CHUNK)) {
+	    /*
+	     * Output content without chunking header/trailers.
+	     */
+
+    	    iov[ioc].iov_base = buf;
+    	    iov[ioc++].iov_len = len;
+        } else {
+	    if (len > 0) {
+		/*
+		 * Output length header followed by content and trailer.
+		 */
+
+    	        iov[ioc].iov_base = hdr;
+	        iov[ioc++].iov_len = sprintf(hdr, "%x\r\n", len);
+    	        iov[ioc].iov_base = buf;
+    	        iov[ioc++].iov_len = len;
+	        iov[ioc].iov_base = "\r\n";
+	        iov[ioc++].iov_len = 2;
+	    }
+	    if (!stream) {
+		/*
+		 * Output end-of-content trailer.
+		 */
+
+    	        iov[ioc].iov_base = "0\r\n\r\n";
+	        iov[ioc++].iov_len = 5;
+	    }
+	}
+    	for (i = 0; i < ioc; ++i) {
+	    towrite += iov[i].iov_len;
+    	}
+    }
+
+    /*
+     * Write the output buffer and if not streaming, close the
+     * connection.
+     */
+
+    nwrote = Ns_ConnSend(conn, iov, ioc);
+    Tcl_DStringFree(&enc);
+    Tcl_DStringFree(&gzip);
+    if (nwrote != towrite) {
+    	return NS_ERROR;
+    }
+    if (!stream && Ns_ConnClose(conn) != NS_OK) {
+	return NS_ERROR;
     }
     return NS_OK;
 }
