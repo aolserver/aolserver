@@ -33,7 +33,7 @@
  *	Defines standard default charset to encoding mappings.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/encoding.c,v 1.6 2001/04/02 20:21:34 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/encoding.c,v 1.7 2001/04/06 23:52:32 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -41,8 +41,8 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
  * Local functions defined in this file.
  */
 
-static void AddEncoding(char *name, char *charset);
-static Tcl_Encoding LoadEncoding(Tcl_HashEntry *hPtr);
+static void AddExtension(char *name, char *charset);
+static void AddCharset(char *name, char *charset);
 static Tcl_Encoding GetCharsetEncoding(char *charset, int len);
 
 /*
@@ -51,45 +51,34 @@ static Tcl_Encoding GetCharsetEncoding(char *charset, int len);
 
 static Tcl_HashTable    encodings;
 static Tcl_HashTable    charsets;
+static Tcl_HashTable    extensions;
 static Ns_Mutex lock;
+static Ns_Cond cond;
+#define ENC_LOCKED ((Tcl_Encoding) (-1))
 
 /*
- * The default encoding matching table.  This should be kept up to date with
- * the Tcl encoding files.
+ * The default table maps file extension to Tcl encodings.
+ */
+
+static struct {
+    char	   *extension;
+    char	   *name;
+} builtinExt[] = {
+    {".txt", "ascii"},
+    {".htm", "iso8859-1"},
+    {".html", "iso8859-1"},
+    {".adp", "iso8859-1"},
+    {NULL, NULL}
+};
+
+/*
+ * The following table provides charset aliases for Tcl encodings.
  */
 
 static struct {
     char           *charset;
     char           *name;
-} builtins[] = {
-    { "ascii", "ascii" },
-    { "big5", "big5" },
-    { "euc-cn", "euc-cn" },
-    { "euc-jp", "euc-jp" },
-    { "euc-kr", "euc-kr" },
-    { "gb12345", "gb12345" },
-    { "gb1988", "gb1988" },
-    { "gb2312", "gb2312" },
-    { "ibm437", "cp437" },
-    { "ibm737", "cp737" },
-    { "ibm775", "cp775" },
-    { "ibm850", "cp850" },
-    { "ibm852", "cp852" },
-    { "ibm855", "cp855" },
-    { "ibm857", "cp857" },
-    { "ibm860", "cp860" },
-    { "ibm861", "cp861" },
-    { "ibm862", "cp862" },
-    { "ibm863", "cp863" },
-    { "ibm864", "cp864" },
-    { "ibm865", "cp865" },
-    { "ibm866", "cp866" },
-    { "ibm869", "cp869" },
-    { "ibm874", "cp874" },
-    { "ibm932", "cp932" },
-    { "ibm936", "cp936" },
-    { "ibm949", "cp949" },
-    { "ibm950", "cp950" },
+} builtinChar[] = {
     { "iso-2022-jp", "iso2022-jp" },
     { "iso-2022-kr", "iso2022-kr" },
     { "iso-8859-1", "iso8859-1" },
@@ -101,7 +90,6 @@ static struct {
     { "iso-8859-7", "iso8859-7" },
     { "iso-8859-8", "iso8859-8" },
     { "iso-8859-9", "iso8859-9" },
-    { "koi8-r", "koi8-r" },
     { "korean", "ksc5601" },
     { "ksc_5601", "ksc5601" },
     { "mac", "macRoman" },
@@ -131,9 +119,7 @@ static struct {
     { "macturkish", "macTurkish" },
     { "macukraine", "macUkraine" },
     { "shift_jis", "shiftjis" },
-    { "unicode", "unicode" },
     { "us-ascii", "ascii" },
-    { "utf-8", "utf-8" },
     { "windows-1250", "cp1250" },
     { "windows-1251", "cp1251" },
     { "windows-1252", "cp1252" },
@@ -166,9 +152,9 @@ static struct {
  *
  * Ns_GetFileEncoding --
  *
- *	Return the Tcl_Encoding for the given file, e.g., if .adp
- *	extension is mapped to "text/html; charset=iso-8859-1",
- *	will return Tcl_Encoding for iso8859-1. 
+ *	Return the Tcl_Encoding for the given file.  Note this may
+ *	not be the same as the encoding for the charset of the
+ *	file's mimetype.
  *
  * Results:
  *	Tcl_Encoding or NULL if not found.
@@ -182,11 +168,16 @@ static struct {
 Tcl_Encoding
 Ns_GetFileEncoding(char *file)
 {
-    char *type;
+    Tcl_HashEntry *hPtr;
+    char *ext, *name;
 
-    type = Ns_GetMimeType(file);
-    if (type != NULL) {
-	return Ns_GetTypeEncoding(type);
+    ext = strrchr(file, '.');
+    if (ext != NULL) {
+	hPtr = Tcl_FindHashEntry(&extensions, ext);
+	if (hPtr != NULL) {
+	    name = Tcl_GetHashValue(hPtr);
+	    return Ns_GetEncoding(name);
+	}
     }
     return NULL;
 }
@@ -277,13 +268,31 @@ Ns_GetCharsetEncoding(char *charset)
 Tcl_Encoding
 Ns_GetEncoding(char *name)
 {
+    Tcl_Encoding encoding;
     Tcl_HashEntry *hPtr;
+    int new;
 
-    hPtr = Tcl_FindHashEntry(&encodings, name);
-    if (hPtr != NULL) {
-	return LoadEncoding(hPtr);
+    Ns_MutexLock(&lock);
+    hPtr = Tcl_CreateHashEntry(&encodings, name, &new);
+    if (!new) {
+	while ((encoding = Tcl_GetHashValue(hPtr)) == ENC_LOCKED) {
+	    Ns_CondWait(&cond, &lock);
+	}
+    } else {
+	Tcl_SetHashValue(hPtr, ENC_LOCKED);
+	Ns_MutexUnlock(&lock);
+	encoding = Tcl_GetEncoding(NULL, name);
+	if (encoding == NULL) {
+	    Ns_Log(Warning, "encoding: could not load: %s", name);
+	} else {
+	    Ns_Log(Notice, "encoding: loaded: %s", name);
+	}
+	Ns_MutexLock(&lock);
+	Tcl_SetHashValue(hPtr, encoding);
+	Ns_CondBroadcast(&cond);
     }
-    return NULL;
+    Ns_MutexUnlock(&lock);
+    return encoding;
 }
 
 
@@ -316,22 +325,30 @@ NsInitEncodings(void)
     Ns_MutexSetName(&lock, "ns:encodings");
     Tcl_InitHashTable(&encodings, TCL_STRING_KEYS);
     Tcl_InitHashTable(&charsets, TCL_STRING_KEYS);
+    Tcl_InitHashTable(&extensions, TCL_STRING_KEYS);
 
     /*
-     * Add default encodings.
+     * Add default charset and file mappings.
      */
 
-    for (i = 0; builtins[i].charset != NULL; ++i) {
-        AddEncoding(builtins[i].charset, builtins[i].name);
+    for (i = 0; builtinChar[i].charset != NULL; ++i) {
+        AddCharset(builtinChar[i].charset, builtinChar[i].name);
+    }
+    for (i = 0; builtinExt[i].extension != NULL; ++i) {
+	AddExtension(builtinExt[i].extension, builtinExt[i].name);
     }
 
     /*
-     * Add configured encodings.
+     * Add configured charsets and file mappings.
      */
 
+    set = Ns_ConfigGetSection("ns/charsets");
+    for (i = 0; set != NULL && i < Ns_SetSize(set); ++i) {
+	AddCharset(Ns_SetKey(set, i), Ns_SetValue(set, i));
+    }
     set = Ns_ConfigGetSection("ns/encodings");
     for (i = 0; set != NULL && i < Ns_SetSize(set); ++i) {
-	AddEncoding(Ns_SetKey(set, i), Ns_SetValue(set, i));
+	AddExtension(Ns_SetKey(set, i), Ns_SetValue(set, i));
     }
 }
 
@@ -339,9 +356,9 @@ NsInitEncodings(void)
 /*
  *----------------------------------------------------------------------
  *
- * AddEncoding --
+ * AddCharset, AddExtension --
  *
- *	Add an encoding.
+ *	Add 
  *
  * Results:
  *	None. 
@@ -353,26 +370,27 @@ NsInitEncodings(void)
  */
 
 static void
-AddEncoding(char *charset, char *name)
+AddExtension(char *ext, char *name)
 {
-    Tcl_HashEntry  *hPtr, *h2Ptr;
+    Tcl_HashEntry  *hPtr;
+    int             new;
+
+    hPtr = Tcl_CreateHashEntry(&extensions, ext, &new);
+    Tcl_SetHashValue(hPtr, name);
+}
+
+static void
+AddCharset(char *charset, char *name)
+{
+    Tcl_HashEntry  *hPtr;
     Ns_DString	    ds;
     int             new;
 
-    hPtr = Tcl_CreateHashEntry(&encodings, name, &new);
-    if (new) {
-	Tcl_SetHashValue(hPtr, (Tcl_Encoding) -1);
-    }
-    if (charset != NULL) {
-	Ns_DStringInit(&ds);
-	charset = Ns_StrToLower(Ns_DStringAppend(&ds, charset));
-	h2Ptr = Tcl_CreateHashEntry(&charsets, charset, &new);
-	if (!new) {
-	    Ns_Log(Warning, "duplicate charset: %s", charset);
-	}
-	Tcl_SetHashValue(h2Ptr, hPtr);
-        Ns_DStringFree(&ds);
-    }
+    Ns_DStringInit(&ds);
+    charset = Ns_StrToLower(Ns_DStringAppend(&ds, charset));
+    hPtr = Tcl_CreateHashEntry(&charsets, charset, &new);
+    Tcl_SetHashValue(hPtr, name);
+    Ns_DStringFree(&ds);
 }
 
 
@@ -399,15 +417,21 @@ GetCharsetEncoding(char *charset, int len)
     Tcl_Encoding encoding;
     Ns_DString ds;
 
-    encoding = NULL;
+    /*
+     * Cleanup the charset name and check for an
+     * alias (e.g., iso-8859-1 = iso8859-1) before
+     * assuming the charset and Tcl encoding names
+     * match (e.g., big5).
+     */
+    
     Ns_DStringInit(&ds);
     Ns_DStringNAppend(&ds, charset, len);
     charset = Ns_StrTrim(Ns_StrToLower(ds.string));
     hPtr = Tcl_FindHashEntry(&charsets, charset);
     if (hPtr != NULL) {
-	hPtr = Tcl_GetHashValue(hPtr);
-	encoding = LoadEncoding(hPtr);
+	charset = Tcl_GetHashValue(hPtr);
     }
+    encoding = Ns_GetEncoding(charset);
     Ns_DStringFree(&ds);
     return encoding;
 }
