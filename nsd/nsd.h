@@ -455,6 +455,7 @@ extern void NsCacheInit(void);
 extern void NsDNSInit(void);
 extern void NsDbInit(void);
 extern void NsDbTclInit(void);
+extern void NsInitBinder(char *args, char *file);
 extern void NsForkBinder(void);
 extern void NsGetURLInit(void);
 extern void NsInitFastpath(void);
@@ -756,5 +757,7 @@ extern Tcl_CmdProc NsTclVAppendCmd;
 extern Tcl_CmdProc NsTclStatsCmd;
 
 extern char     *nsServer;
+extern char     *nsBuildDate;
+extern int       nsConfQuiet;
 
 #endif

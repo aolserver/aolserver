@@ -34,7 +34,7 @@
  *	Support for the slave bind/listen process.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/binder.c,v 1.5 2000/10/03 16:15:43 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/binder.c,v 1.6 2000/10/07 20:01:57 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -66,6 +66,8 @@ typedef struct CMsg {
 
 static int Listen(struct sockaddr_in *saPtr, int backlog);
 static void Binder(void);
+static void PreBind(char *line);
+static int GetAddr(struct sockaddr_in *saPtr, char *addr, int port);
 
 /*
  * Static variables in this file
@@ -74,6 +76,7 @@ static void Binder(void);
 static int bindRequest[2];
 static int bindResponse[2];
 static int bindRunning;
+static Tcl_HashTable preBound;
 static Ns_Mutex lock;
 
 
@@ -101,12 +104,12 @@ Ns_SockListen(char *address, int port)
     struct sockaddr_in sa;
     int backlog;
     static int first = 1;
+    Tcl_HashEntry *hPtr;
 
     if (first) {
 	Ns_MutexSetName2(&lock, "ns", "binder");
 	first = 0;
     }
-
     if (Ns_GetSockAddr(&sa, address, port) != NS_OK) {
 	return -1;
     }
@@ -119,6 +122,25 @@ Ns_SockListen(char *address, int port)
      */
 
     Ns_MutexLock(&lock);
+
+    /*
+     * First, check in the pre-bind table.
+     */
+
+    hPtr = Tcl_FindHashEntry(&preBound, (char *) &sa);
+    if (hPtr != NULL) {
+	sock = (int) Tcl_GetHashValue(hPtr);
+	Tcl_DeleteHashEntry(hPtr);
+	if (listen(sock, backlog) == 0) {
+	    goto done;
+	}
+	close(sock);
+    }
+
+    /*
+     * Next, either bind local or through the binder process.
+     */
+
     if (!bindRunning || port > 1024) {
 	sock = Listen(&sa, nsconf.backlog);
     } else {
@@ -187,8 +209,55 @@ Ns_SockListen(char *address, int port)
 	           address, port, ns_sockstrerror(ns_sockerrno));
 	}
     }
+
+done:
     Ns_MutexUnlock(&lock);
     return sock;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsInitBinder --
+ *
+ *	Initialize the binder, pre-binding to any requested ports.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	May pre-bind to one or more ports.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+NsInitBinder(char *args, char *file)
+{
+    char line[1024];
+    FILE *fp;
+
+    /*
+     * Initialize the pre-bind table.
+     */
+
+    Tcl_InitHashTable(&preBound, sizeof(struct sockaddr_in)/sizeof(int));
+
+    /*
+     * Pre-bound to requested ports from the command line and/or
+     * simple pre-bind file.
+     */
+
+    if (args != NULL) {
+	PreBind(args);
+    }
+    if (file != NULL && (fp = fopen(file, "r")) != NULL) {
+	while (fgets(line, sizeof(line), fp) != NULL) {
+	    PreBind(line);
+	}
+	fclose(fp);
+    }
 }
 
 
@@ -280,7 +349,29 @@ NsForkBinder(void)
 void
 NsStopBinder(void)
 {
+    Tcl_HashSearch search;
+    Tcl_HashEntry *hPtr;
+    char *addr;
+    int sock, port;
+    struct sockaddr_in *saPtr;
+
     Ns_MutexLock(&lock);
+
+    /*
+     * First, close any pre-bound sockets.
+     */
+
+    hPtr = Tcl_FirstHashEntry(&preBound, &search);
+    while (hPtr != NULL) {
+	sock = (int) Tcl_GetHashValue(hPtr);
+	saPtr = (struct sockaddr_in *) Tcl_GetHashKey(&preBound, hPtr);
+	addr = ns_inet_ntoa(saPtr->sin_addr);
+	port = htons(saPtr->sin_port);
+	Ns_Log(Warning, "binder: closed unused: %s:%d = %d", addr, port, sock);
+	close(sock);
+	hPtr = Tcl_NextHashEntry(&search);
+    }
+
     if (bindRunning) {
 #ifdef __sgi
 	Ns_Log(Warning, "binder: irix bug: binder left running");
@@ -425,4 +516,123 @@ Binder(void)
             close(fd);
         }
     }
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * PreBind --
+ *
+ *	Pre-bind to one or more ports in a comma-separted list.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	Sockets are left in bound state for later listen 
+ *	in Ns_SockListen.  
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+PreBind(char *line)
+{
+    struct sockaddr_in sa;
+    Tcl_HashEntry *hPtr;
+    int new, sock, port;
+    char *err, *ent, *p, *q, *addr, *baddr;
+
+    ent = line;
+    do {
+	p = strchr(ent, ',');
+	if (p != NULL) {
+	    *p = '\0';
+	}
+	baddr = NULL;
+    	addr = "0.0.0.0";
+    	q = strchr(ent, ':');
+	if (q == NULL) {
+	    port = atoi(ent);
+	} else {
+	    *q = '\0';
+	    port = atoi(q+1);
+	    baddr = addr = ent;
+	}
+	if (port == 0) {
+	    err = "invalid port";
+	} else if (!GetAddr(&sa, baddr, port)) {
+	    err = "invalid address";
+	} else {
+	    hPtr = Tcl_CreateHashEntry(&preBound, (char *) &sa, &new);
+	    if (!new) {
+	    	err = "duplicate entry";
+	    } else if ((sock = Ns_SockBind(&sa)) == INVALID_SOCKET) {
+	    	err = strerror(errno);
+	    	Tcl_DeleteHashEntry(hPtr);
+	    } else {
+	    	Tcl_SetHashValue(hPtr, sock);
+	    	err = NULL;
+	    }
+	}
+	if (q != NULL) {
+	    *q = ':';
+	}
+	if (p != NULL) {
+	    *p++ = ',';
+	}
+	if (err != NULL) {
+	    /* NB: Don't use Ns_Log as now, server not fully initialized. */
+	    fprintf(stderr, "prebind: invalid entry \"%s\": %s\n", ent, err);
+	}
+	ent = p;
+    } while (ent != NULL);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * GetAddr --
+ *
+ *	Local version of Ns_GetSockAddr which avoids any calls to
+ *	NS API's which may initialize the thread interface before
+ *	the server can setuid().
+ *
+ * Results:
+ *	1 or 0 if address could be created.
+ *
+ * Side effects:
+ *	Sets address in given sockaddr_in structure, possibly after
+ *	a lookup through the DNS.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+GetAddr(struct sockaddr_in *saPtr, char *host, int port)
+{
+    struct hostent *he;
+    struct in_addr ia;
+
+    if (host == NULL) {
+        ia.s_addr = htonl(INADDR_ANY);
+    } else {
+        ia.s_addr = inet_addr(host);
+        if (ia.s_addr == INADDR_NONE) {
+	    he = gethostbyname(host);
+    	    if (he != NULL && he->h_addr != NULL) {
+        	ia.s_addr = ((struct in_addr *) he->h_addr)->s_addr;
+	    }
+	}
+    }
+    if (ia.s_addr == INADDR_NONE) {
+	return 0;
+    }
+    memset(saPtr, 0, sizeof(struct sockaddr_in));
+    saPtr->sin_family = AF_INET;
+    saPtr->sin_addr = ia;
+    saPtr->sin_port = htons((unsigned short) port);
+    return 1;
 }

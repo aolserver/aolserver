@@ -33,7 +33,7 @@
  *	AOLserver Ns_Main() startup routine.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.7 2000/10/03 17:57:13 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.8 2000/10/07 20:01:57 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -112,6 +112,8 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
     int		   kill = 0;
     int		   debug = 0;
     char	  *root = NULL;
+    char	  *bindargs = NULL;
+    char	  *bindfile = NULL;
     struct rlimit  rl;
 #endif
     static int	   mode = 0;
@@ -168,6 +170,8 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 	close(fd);
     }
 
+#ifndef WIN32
+
     /*
      * AOLserver uses select() extensively so adjust the open file
      * limit to be no greater than FD_SETSIZE on Unix.  It's possible
@@ -180,7 +184,6 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
      * all future threads on certain platforms such as SGI and Linux.
      */
 
-#ifndef WIN32
     if (getrlimit(RLIMIT_NOFILE, &rl) != 0) {
 	Ns_Log(Warning, "nsmain: getrlimit(RLIMIT_NOFILE) failed: '%s'",
 	       strerror(errno));
@@ -197,6 +200,7 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 	    } 
 	}
     }
+
 #endif
 
     /*
@@ -223,14 +227,17 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 #ifdef WIN32
 #define POPTS	"IRS"
 #else
-#define POPTS	"kKdr:u:g:"
+#define POPTS	"kKdr:u:g:b:B:"
 #endif
 
     opterr = 0;
-    while ((i = getopt(argc, argv, "hpzifVs:t:c:" POPTS)) != -1) {
+    while ((i = getopt(argc, argv, "qhpzifVs:t:c:" POPTS)) != -1) {
         switch (i) {
 	case 'h':
 	    UsageError(NULL);
+	    break;
+	case 'q':
+	    nsConfQuiet = 1;
 	    break;
 	case 'f':
 	case 'i':
@@ -266,6 +273,12 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 	    nsMemPools = 0;
             break;
 #ifndef WIN32
+	case 'b':
+	    bindargs = optarg;
+	    break;
+	case 'B':
+	    bindfile = optarg;
+	    break;
 	case 'r':
 	    root = optarg;
 	    break;
@@ -330,16 +343,27 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 #ifndef WIN32    
 
     /*
-     * On Unix, parse non-Tcl style config files in case the the
-     * Unix uid/gid are specified.  Then, chroot() if requested,
-     * fork the binder process and setuid() if starting as root,
-     * and then fork into the background and create a new session
-     * if running in daemon mode.
+     * On Unix, parse non-Tcl style config files in case the
+     * Unix uid/gid are specified.
      */
 
     if (nsconf.configfmt == 'c') {
     	NsConfigParse(nsconf.config, config);
     }
+
+    /*
+     * Initialize the binder now, before a possible setuid from root
+     * or chroot which may hide /etc/resolv.conf required to
+     * bind to one or more ports given on the command line and/or
+     * pre-bind file.
+     */
+
+    NsInitBinder(bindargs, bindfile);
+
+    /*
+     * Chroot() if requested before setuid from root.
+     */
+
     if (root != NULL) {
 	if (chroot(root) != 0) {
 	    Ns_Fatal("nsmain: chroot(%s) failed: '%s'", root, strerror(errno));
@@ -349,6 +373,11 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 	}
 	nsconf.home = "/";
     }
+
+    /*
+     * If root, determine and change to the run time user and/or group.
+     */
+
     if (getuid() == 0) {
 	char *param;
 
@@ -372,7 +401,14 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 		}
 	    }
 	}
+
+	/*
+	 * Before setuid, fork the background binder process to
+	 * listen on ports which were not pre-bound above.
+	 */
+
 	NsForkBinder();
+
 	if (gid != 0 && gid != getgid() && setgid(gid) != 0) {
 	    Ns_Fatal("nsmain: setgid(%d) failed: '%s'", gid, strerror(errno));
 	}
@@ -380,6 +416,11 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 	    Ns_Fatal("nsmain: setuid(%d) failed: '%s'", uid, strerror(errno));
 	}
     }
+
+    /*
+     * Fork into the background and create a new session if running in daemon mode.
+     */
+
     if (mode == 0) {
 	i = fork();
 	if (i < 0) {
@@ -391,13 +432,21 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 	nsconf.pid = getpid();
 	setsid();
     }
+
+    /*
+     * Finally, block all signals for the duration of startup to ensure any
+     * new threads inherit the blocked state.
+     */
+
     NsBlockSignals(debug);
+
 #endif
 
     /*
      * Initialize Tcl and eval the config file.
      */
 
+    Ns_ThreadSetName("-main-");
     nsconf.nsd = NsTclFindExecutable(argv[0]);
     if (nsconf.configfmt == 't') {
     	NsConfigEval(config);
@@ -440,7 +489,7 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 #ifdef WIN32
 
     /*
-     * On Win32, perform some additional cleanup of
+     * On Win32, first perform some additional cleanup of
      * home, ensuring forward slashes and lowercase.
      */
 
@@ -459,7 +508,7 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
     nsconf.home = cwd;
 
     /*
-     * On NT, connect to the service control manager if running
+     * Then, connect to the service control manager if running
      * as a service (see service comment above).
      */
 
@@ -485,7 +534,6 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 
 #endif
 
-    Ns_ThreadSetName("-main-");
     Ns_MutexSetName2(&status.lock, "ns", "status");
 
     /*
@@ -521,6 +569,7 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
     StatusMsg(0);
 
 #ifndef WIN32
+
     /*
      * Log the current open file limit.
      */
@@ -533,6 +582,7 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 	       "max files: FD_SETSIZE = %d, rl_cur = %d, rl_max = %d",
 	       FD_SETSIZE, rl.rlim_cur, rl.rlim_max);
     }
+
 #endif
 
     /*
@@ -972,9 +1022,7 @@ Ns_InfoAddress(void)
 char *
 Ns_InfoBuildDate(void)
 {
-    static char buildDate[] = __DATE__ " at " __TIME__;
-
-    return (buildDate);
+    return nsBuildDate;
 }
 
 
