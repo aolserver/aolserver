@@ -33,7 +33,7 @@
  *	ADP commands.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpcmds.c,v 1.4 2001/03/23 18:31:23 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpcmds.c,v 1.5 2001/03/27 16:44:40 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -582,9 +582,6 @@ NsTclAdpExceptionCmd(ClientData arg, Tcl_Interp *interp, int argc,
 	    break;
 	case ADP_ABORT:
 	    exception = "abort";
-	    break;
-	case ADP_OVERFLOW:
-	    exception = "overflow";
 	    break;
 	case ADP_RETURN:
 	    exception = "return";
