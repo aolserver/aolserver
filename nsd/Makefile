@@ -27,10 +27,14 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Makefile,v 1.30 2002/02/16 00:12:01 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Makefile,v 1.31 2002/02/24 01:57:19 jgdavidson Exp $
 #
 
-LIB      =  libnsd.so
+NSHOME ?= ..
+buildnsd = 1
+include $(NSHOME)/include/Makefile.global
+
+LIB      =  libnsd.$(LIBEXT)
 
 OBJS = \
 	adpcmds.o adpeval.o adpparse.o adprequest.o auth.o binder.o	\
@@ -50,6 +54,17 @@ OBJS = \
 	urlencode.o urlopen.o urlspace.o uuencode.o			\
 	mutex.o cslock.o rwlock.o
 
-include  ../include/Makefile.library
+all: $(LIB)
 
 $(OBJS): nsd.h
+
+$(LIB): $(OBJS)
+	$(RM) $(LIB)
+	$(LDLIB) -o $(LIB) $(OBJS) $(LIBS) $(RPATH)
+
+install: all
+	$(RM) $(INSTLIB)/$(LIB)
+	$(CP) $(LIB) $(INSTLIB)
+
+clean:
+	$(RM) $(OBJS) $(LIB) 
