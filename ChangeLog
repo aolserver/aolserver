@@ -1,3 +1,19 @@
+2004-08-10  Jim Davidson <JGDavidson@aol.com>
+
+	* nsd/driver.c (1.28): Restructured code (again) to better support
+	  overload and timeout conditions (work in progress).
+
+2004-08-10  Jim Davidson <JGDavidson@aol.com>
+
+	* nsd/: nsd.h (1.86), pools.c (1.4), queue.c (1.27): Moved pool
+	  selection to pools.c from queue.c and added timeout pool config
+	  option.
+
+2004-08-10  Jim Davidson <JGDavidson@aol.com>
+
+	* include/ns.h (1.65): Added conn flags to track overflow and
+	  timeout conditions.
+
 2004-08-05  Rob Crittenden <rcrittenden0569@aol.com>
 
 	* nsd/tclhttp.c: Add new option to ns_http wait, -servicetime, so
