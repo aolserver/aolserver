@@ -273,7 +273,7 @@ endif
 #
 #    Note:  Tcl 7.6 on *BSD has a different name for no apparent reason.
 #
-TCL8X_DIR=tcl8.3.1
+TCL8X_DIR=tcl8.3.2
 TCL8X_LIB=libtcl8.3g.a
 TCL76_DIR=tcl7.6
 ifeq (bsd, $(findstring bsd, $(PLATFORM)))
