@@ -1,3 +1,8 @@
+2001-01-16  Jim Davidson
+
+	* Cleaned up sloppy use of the nsServer global wherever it's used.
+	
+
 2001-01-04  Kriston J. Rehberg  <kriston@aol.com>
 
 	* nsd/tclmisc.c: ns_striphtml crashing-bug in nsd8x fixed.
