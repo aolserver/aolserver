@@ -34,7 +34,7 @@
  *	Tcl database access routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/dbtcl.c,v 1.4 2000/08/17 06:09:49 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/dbtcl.c,v 1.5 2000/08/17 23:08:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -54,12 +54,6 @@ static int DbGetHandle(Tcl_Interp *interp, char *handleId,
  */
 
 static int cmdsEnabled;
-
-/*
- *==========================================================================
- * API functions
- *==========================================================================
- */
 
 
 /*
@@ -82,12 +76,6 @@ Ns_TclDbGetHandle(Tcl_Interp *interp, char *handleId, Ns_DbHandle **handle)
 {
     return DbGetHandle(interp, handleId, handle, NULL);
 }
-
-/* 
- *==========================================================================
- * Exported functions
- *==========================================================================
- */
 
 
 /*
@@ -742,7 +730,7 @@ NsTclPoolDescriptionCmd(ClientData dummy, Tcl_Interp *interp, int argc,
 {
     if (argc != 2) {
         Tcl_AppendResult(interp, "wrong # of args: should be \"", argv[0],
-			 "poolname\"", NULL);
+			 " poolname\"", NULL);
         return TCL_ERROR;
     }
     if (cmdsEnabled == NS_FALSE) {
@@ -783,7 +771,7 @@ NsTclQuoteListToListCmd(ClientData cd, Tcl_Interp *interp, int argc,
 
     if (argc != 2) {
         Tcl_AppendResult(interp, "wrong # of args: should be \"",
-	    argv[0], "quotelist\"", NULL);
+	    argv[0], " quotelist\"", NULL);
         return TCL_ERROR;
     }
     quotelist = argv[1];
@@ -846,46 +834,42 @@ NsTclQuoteListToListCmd(ClientData cd, Tcl_Interp *interp, int argc,
 int
 NsTclGetCsvCmd(ClientData cd, Tcl_Interp *interp, int argc, char **argv)
 {
-    int             status, ncols, inquote, quoted_element, blank_line;
-    char            c, *p;
-    Tcl_DString      dsLine;
-    Ns_DString      dsElement;
+    int             ncols, inquote, quoted, blank, n;
+    char            c, *p, *s, buf[20];
+    Tcl_DString     line, cols, elem;
     Tcl_Channel	    chan;
 
     if (argc != 3) {
         Tcl_AppendResult(interp, "wrong # of args: should be \"",
-	    argv[0], "fileId varName\"", NULL);
-        return TCL_ERROR;
-    }
-    if (Tcl_SetVar(interp, argv[2], "", TCL_LEAVE_ERR_MSG) == NULL) {
+	    argv[0], " fileId varName\"", NULL);
         return TCL_ERROR;
     }
     if (Ns_TclGetOpenChannel(interp, argv[1], 0, 0, &chan) == TCL_ERROR) {
         return TCL_ERROR;
     }
 
-    Tcl_DStringInit(&dsLine);
-    if (Tcl_Gets(chan, &dsLine) < 0) {
-	if (Tcl_Eof(chan) == 0) {
+    Tcl_DStringInit(&line);
+    if (Tcl_Gets(chan, &line) < 0) {
+	Tcl_DStringFree(&line);
+    	if (!Tcl_Eof(chan)) {
 	    Tcl_AppendResult(interp, "could not read from ", argv[1],
-		": ", Tcl_PosixError(interp), NULL);
+	        ": ", Tcl_PosixError(interp), NULL);
 	    return TCL_ERROR;
 	}
-	Tcl_DStringFree(&dsLine);
 	Tcl_SetResult(interp, "-1", TCL_STATIC);
 	return TCL_OK;
     }
 
-    Ns_DStringInit(&dsElement);
-    status = TCL_OK;
-    inquote = 0;
-    quoted_element = NS_FALSE;
+    Tcl_DStringInit(&cols);
+    Tcl_DStringInit(&elem);
     ncols = 0;
-    blank_line = NS_TRUE;
-    p = dsLine.string;
+    inquote = 0;
+    quoted = 0;
+    blank = 1;
+    p = line.string;
     while (*p != '\0') {
         c = *p++;
- loopstart:
+loopstart:
         if (inquote) {
             if (c == '"') {
 		c = *p++;
@@ -893,13 +877,13 @@ NsTclGetCsvCmd(ClientData cd, Tcl_Interp *interp, int argc, char **argv)
 		    break;
 		}
                 if (c == '"') {
-                    Ns_DStringNAppend(&dsElement, &c, 1);
+                    Tcl_DStringAppend(&elem, &c, 1);
                 } else {
                     inquote = 0;
                     goto loopstart;
                 }
             } else {
-                Ns_DStringNAppend(&dsElement, &c, 1);
+                Tcl_DStringAppend(&elem, &c, 1);
             }
         } else {
             if ((c == '\n') || (c == '\r')) {
@@ -913,47 +897,41 @@ NsTclGetCsvCmd(ClientData cd, Tcl_Interp *interp, int argc, char **argv)
             }
             if (c == '"') {
                 inquote = 1;
-                quoted_element = NS_TRUE;
-                blank_line = NS_FALSE;
-            } else if ((c == '\r') || (dsElement.length == 0 && isspace(UCHAR(c)))) {
+                quoted = 1;
+                blank = 0;
+            } else if ((c == '\r') || (elem.length == 0 && isspace(UCHAR(c)))) {
                 continue;
             } else if (c == ',') {
-                if (quoted_element == NS_FALSE) {
-                    Ns_StrTrimRight(dsElement.string);
+                if (!quoted) {
+                    Ns_StrTrimRight(elem.string);
                 }
-                if (Tcl_SetVar(interp, argv[2], dsElement.string,
-                        TCL_LIST_ELEMENT | TCL_APPEND_VALUE
-                        | TCL_LEAVE_ERR_MSG) == NULL) {
-                    status = TCL_ERROR;
-                    goto done;
-                }
-                Ns_DStringTrunc(&dsElement, 0);
+		Tcl_DStringAppendElement(&cols, elem.string);
+                Tcl_DStringTrunc(&elem, 0);
                 ncols++;
-                quoted_element = NS_FALSE;
+                quoted = 0;
             } else {
-                blank_line = NS_FALSE;
-                Ns_DStringNAppend(&dsElement, &c, 1);
+                blank = 0;
+                Tcl_DStringAppend(&elem, &c, 1);
             }
         }
     }
-    if (quoted_element == NS_FALSE) {
-        Ns_StrTrimRight(dsElement.string);
+    if (!quoted) {
+        Ns_StrTrimRight(elem.string);
     }
-    if (blank_line == NS_FALSE) {
-        if (Tcl_SetVar(interp, argv[2], dsElement.string,
-                       TCL_LIST_ELEMENT | TCL_APPEND_VALUE
-                       | TCL_LEAVE_ERR_MSG) == NULL) {
-            status = TCL_ERROR;
-            goto done;
-        }
+    if (!blank) {
+	Tcl_DStringAppendElement(&cols, elem.string);
         ncols++;
     }
-    sprintf(interp->result, "%d", ncols);
- done:
-    Tcl_DStringFree(&dsLine);
-    Ns_DStringFree(&dsElement);
-
-    return status;
+    p = Tcl_SetVar(interp, argv[2], cols.string, TCL_LEAVE_ERR_MSG);
+    Tcl_DStringFree(&line);
+    Tcl_DStringFree(&cols);
+    Tcl_DStringFree(&elem);
+    if (p == NULL) {
+	return TCL_ERROR;
+    }
+    sprintf(buf, "%d", ncols);
+    Tcl_SetResult(interp, buf, TCL_VOLATILE);
+    return TCL_OK;
 }
 
 
@@ -981,14 +959,7 @@ NsTclUnsupDbCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
     return TCL_ERROR;
 }
 
- 
-/*
- *==========================================================================
- * Static functions
- *==========================================================================
- */
- 
-
+ 
 /*
  *----------------------------------------------------------------------
  * EnableCmds --
