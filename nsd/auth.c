@@ -33,7 +33,7 @@
  *	URL level HTTP authorization support.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/auth.c,v 1.8 2002/06/13 04:41:21 jcollins Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/auth.c,v 1.9 2002/07/08 02:50:37 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -172,18 +172,17 @@ NsTclRequestAuthorizeCmd(ClientData arg, Tcl_Interp *interp, int argc,
  */
 
 int
-NsTclRequestAuthorizeObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+NsTclRequestAuthorizeObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
+			    Tcl_Obj *CONST objv[])
 {
     NsInterp   *itPtr = arg;
     int         status;
-    Tcl_Obj    *result;
 
     if ((objc != 5) && (objc != 6)) {
         Tcl_WrongNumArgs(interp, 1, objv, 
-			"method url authuser authpasswd [ipaddr]");
+			"method url authuser authpasswd ?ipaddr?");
         return TCL_ERROR;
     }
-
     status = Ns_AuthorizeRequest(itPtr->servPtr->server, 
 	    Tcl_GetString(objv[1]), 
 	    Tcl_GetString(objv[2]),
@@ -209,12 +208,9 @@ NsTclRequestAuthorizeObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Ob
 	    break;
 	
 	default:
-	    result = Tcl_NewObj();
-	    Tcl_AppendStringsToObj(result, "Could not check ", 
-			Tcl_GetString(objv[2]),
-			" permission of URL ", 
-			Tcl_GetString(objv[1]), NULL);
-	    Tcl_SetObjResult(interp, result);
+	    Tcl_AppendResult(interp, "could not authorize \"", 
+			Tcl_GetString(objv[1]), " ",
+			Tcl_GetString(objv[2]), "\"", NULL);
 	    return TCL_ERROR;
     }
     
