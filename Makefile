@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/Makefile,v 1.21 2001/05/28 21:30:04 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/Makefile,v 1.22 2001/05/28 21:58:12 jgdavidson Exp $
 #
 
 #
@@ -74,9 +74,7 @@ install: all
 	$(MKDIR)                    $(INSTSRVMOD)
 	$(MKDIR)                    $(INSTSRVPAG)
 	$(CP) -r tcl                $(INSTMOD)
-	$(CP) nsd/translate-ini     $(INSTBIN)
 	$(CP) -r include            $(INSTINC)
-	$(CP) nsd/sample-config.tcl $(INST)
 	test -f $(INSTSRVPAG)/index.html \
 		|| $(CP) doc/default-home.html $(INSTSRVPAG)/index.html
 	@for i in $(DIRS); do \

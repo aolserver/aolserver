@@ -142,7 +142,7 @@ endif
 ifneq (,$(findstring Linux,$(PLAT)))
     PLATFORM=linux
     LDFLAGS+=-Wl,-E
-
+    RFLAG=-Xlinker -rpath -Xlinker
     ## We optimize for either i686 or i586 -- they really are very different.
     ifneq (,$(findstring "i686",$(PLAT)))
         CFLAGS+=-mcpu=i686

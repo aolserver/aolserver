@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Makefile,v 1.23 2001/05/28 21:30:04 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Makefile,v 1.24 2001/05/28 21:58:12 jgdavidson Exp $
 #
 
 
@@ -47,4 +47,11 @@ OBJS = \
 	tclobj.o tclthread.o tclvar.o tclxkeylist.o tls.o unix.o url.o \
 	urlencode.o urlopen.o urlspace.o uuencode.o stamp.o
 
+LIBINST=cpinit
+
 include ../include/Makefile.library
+
+cpinit:
+	$(CP) init.tcl $(INSTBIN)/
+	$(CP) translate-ini $(INSTBIN)/
+	$(CP) sample-config.tcl $(INST)/
