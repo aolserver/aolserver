@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/Makefile,v 1.23 2001/05/29 23:12:52 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/Makefile,v 1.24 2001/11/05 20:30:26 jgdavidson Exp $
 #
 
 #
@@ -81,7 +81,7 @@ endif
 include include/Makefile.global
 
 MAKEFLAGS 	+= NSHOME=$(NSHOME) NSDEBUG=$(NSDEBUG) NSGCC=$(NSGCC)
-DIRS		=  thread $(NSTCL_ROOT) nsd nsmain $(NSMODS)
+DIRS		=  $(NSTCL_ROOT) nsd $(NSMODS)
 
 all:
 	@for i in $(DIRS); do \
