@@ -1,3 +1,8 @@
+2004-09-03  Dossy Shiobara <dossy@panoptic.com>
+
+	* nscgi/nscgi.html (1.2): Updated nscgi module documentation for
+	  4.0.	Closes SF Bug #465907.
+
 2004-09-01  Dossy Shiobara <dossy@panoptic.com>
 
 	* nsd/: info.c (1.17), nsd.h (1.90), nsmain.c (1.57): Expose "-s"
