@@ -34,15 +34,11 @@
  *	Implement the "ns_env" command.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclenv.c,v 1.9 2001/11/05 20:23:11 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclenv.c,v 1.10 2002/09/10 23:25:49 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include	"nsd.h"
 
-#ifdef NO__ENVIRON
-#define _environ environ
-#endif
-extern char **_environ;
-
+static char **GetEnviron(void);
 static int PutEnv(Tcl_Interp *interp, char *name, char *value);
 static Ns_Mutex lock;
 
@@ -67,12 +63,13 @@ static Ns_Mutex lock;
 char **
 Ns_GetEnvironment(Ns_DString *dsPtr)
 {
-    char *s;
+    char *s, **envp;
     int i;
 
     Ns_MutexLock(&lock);
-    for (i = 0; (s = _environ[i]) != NULL; ++i) {
-	Ns_DStringNAppend(dsPtr, s, strlen(s)+1);
+    envp = GetEnviron();
+    for (i = 0; (s = envp[i]) != NULL; ++i) {
+	Ns_DStringAppendArg(dsPtr, s);
     }
     Ns_MutexUnlock(&lock);
     return Ns_DStringAppendArgv(dsPtr);
@@ -102,7 +99,7 @@ Ns_GetEnvironment(Ns_DString *dsPtr)
 int
 NsTclEnvCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 {
-    char	*name, *value;
+    char	*name, *value, **envp;
     int		status, i;
     Tcl_DString	ds;
 
@@ -121,8 +118,9 @@ NsTclEnvCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 	    status = TCL_ERROR;
 	} else {
 	    Tcl_DStringInit(&ds);
-	    for (i = 0; _environ[i] != NULL; ++i) {
-		name = _environ[i];
+    	    envp = GetEnviron();
+	    for (i = 0; envp[i] != NULL; ++i) {
+		name = envp[i];
 		value = strchr(name, '=');
 		Tcl_DStringAppend(&ds, name, value ? value - name : -1);
 	    	Tcl_AppendElement(interp, ds.string);
@@ -237,4 +235,36 @@ PutEnv(Tcl_Interp *interp, char *name, char *value)
 	return TCL_ERROR;
     }
     return TCL_OK;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * GetEnviron --
+ *
+ *	Return the environment vector.
+ *
+ * Results:
+ *	Pointer to environment.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static char **
+GetEnviron(void)
+{
+   char **envp;
+
+#ifdef HAVE_NSGETENVIRON
+    envp = NsGetEnviron();
+#else
+    extern char **environ;
+
+    envp = environ;
+#endif
+    return envp;
 }
