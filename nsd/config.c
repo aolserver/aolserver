@@ -33,7 +33,7 @@
  *	Support for the configuration file
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/config.c,v 1.10 2001/11/05 20:23:28 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/config.c,v 1.11 2001/12/05 22:43:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #define ISSLASH(c)      ((c) == '/' || (c) == '\\')
@@ -45,9 +45,7 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
 static Tcl_CmdProc SectionCmd;
 static Tcl_CmdProc ParamCmd;
 static Ns_Set     *GetSection(char *section, int create);
-static char       *MakeSection(Ns_DString *pds, char *string);
-static char       *ConfigGet(char *section, char *key,
-			     int (*findproc) (Ns_Set *, char *));
+static char       *ConfigGet(char *section, char *key, int exact);
 
 /*
  * Global variables defined in this file.
@@ -76,7 +74,7 @@ static int initialized;
 char *
 Ns_ConfigGetValue(char *section, char *key)
 {
-    return ConfigGet(section, key, Ns_SetIFind);
+    return ConfigGet(section, key, 0);
 }
 
 
@@ -99,7 +97,7 @@ Ns_ConfigGetValue(char *section, char *key)
 char *
 Ns_ConfigGetValueExact(char *section, char *key)
 {
-    return ConfigGet(section, key, Ns_SetFind);
+    return ConfigGet(section, key, 1);
 }
 
 
@@ -235,7 +233,7 @@ Ns_ConfigGetPath(char *server, char *module, ...)
     va_list         ap;
     char           *s;
     Ns_DString      ds;
-    Ns_Set         *setPtr;
+    Ns_Set         *set;
 
     Ns_DStringInit(&ds);
     Ns_DStringAppend(&ds, "ns");
@@ -258,10 +256,10 @@ Ns_ConfigGetPath(char *server, char *module, ...)
     }
     va_end(ap);
 
-    setPtr = Ns_ConfigGetSection(ds.string);
+    set = Ns_ConfigGetSection(ds.string);
     Ns_DStringFree(&ds);
 
-    return (setPtr ? Ns_SetName(setPtr) : NULL);
+    return (set ? Ns_SetName(set) : NULL);
 }
 
 
@@ -285,25 +283,25 @@ Ns_ConfigGetPath(char *server, char *module, ...)
 Ns_Set **
 Ns_ConfigGetSections(void)
 {
-    Ns_Set        **setPtrPtr;
+    Ns_Set        **sets;
     Tcl_HashEntry  *hPtr;
     Tcl_HashSearch  search;
     int     	    n;
     
     if (!initialized) {
-	setPtrPtr = ns_calloc(1, sizeof(Ns_Set *));
+	sets = ns_calloc(1, sizeof(Ns_Set *));
     } else {
 	n = configSections.numEntries + 1;
-        setPtrPtr = ns_malloc(sizeof(Ns_Set *) * n);
+        sets = ns_malloc(sizeof(Ns_Set *) * n);
 	n = 0;
         hPtr = Tcl_FirstHashEntry(&configSections, &search);
     	while (hPtr != NULL) {
-    	    setPtrPtr[n++] = Tcl_GetHashValue(hPtr);
+    	    sets[n++] = Tcl_GetHashValue(hPtr);
     	    hPtr = Tcl_NextHashEntry(&search);
         }
-        setPtrPtr[n] = NULL;
+        sets[n] = NULL;
     }
-    return setPtrPtr;
+    return sets;
 }
 
 
@@ -398,17 +396,17 @@ NsConfigEval(char *config, int argc, char **argv, int optind)
 {
     char *err, buf[20];
     Tcl_Interp *interp;
-    Ns_Set     *setPtr;
+    Ns_Set     *set;
     int i;
 
     /*
      * Create an interp with a few config-related commands.
      */
 
-    setPtr = NULL;
+    set = NULL;
     interp = Tcl_CreateInterp();
-    Tcl_CreateCommand(interp, "ns_section", SectionCmd, &setPtr, NULL);
-    Tcl_CreateCommand(interp, "ns_param", ParamCmd, &setPtr, NULL);
+    Tcl_CreateCommand(interp, "ns_section", SectionCmd, &set, NULL);
+    Tcl_CreateCommand(interp, "ns_param", ParamCmd, &set, NULL);
     for (i = 0; argv[i] != NULL; ++i) {
 	Tcl_SetVar(interp, "argv", argv[i], TCL_APPEND_VALUE|TCL_LIST_ELEMENT|TCL_GLOBAL_ONLY);
     }
@@ -420,7 +418,7 @@ NsConfigEval(char *config, int argc, char **argv, int optind)
     if (Tcl_Eval(interp, config) != TCL_OK) {
 	err = Tcl_GetVar(interp, "errorInfo", TCL_GLOBAL_ONLY);
 	if (err == NULL) {
-	    err = interp->result;
+	    err = Tcl_GetStringResult(interp);
 	}
 	Ns_Fatal("config: script error: %s", err);
     }
@@ -445,62 +443,27 @@ NsConfigEval(char *config, int argc, char **argv, int optind)
  */
 
 static char *
-ConfigGet(char *section, char *key, int (*findproc) (Ns_Set *, char *))
+ConfigGet(char *section, char *key, int exact)
 {
-    Ns_Set         *setPtr;
+    Ns_Set         *set;
     int             i;
     char           *s;
 
     s = NULL;
     if (section != NULL && key != NULL) {
-        setPtr = Ns_ConfigGetSection(section);
-        if (setPtr != NULL) {
-            i = (*findproc) (setPtr, key);
+        set = Ns_ConfigGetSection(section);
+        if (set != NULL) {
+	    if (exact) {
+            	i = Ns_SetFind(set, key);
+	    } else {
+            	i = Ns_SetIFind(set, key);
+	    }
             if (i >= 0) {
-                s = Ns_SetValue(setPtr, i);
+                s = Ns_SetValue(set, i);
             }
         }
     }
-
     return s;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * MakeSection --
- *
- *	Make sure section and key names are trimmed and lowercase and 
- *	all backslashes (\) are converted to forward slashses (/) 
- *
- * Results:
- *	Pointer to fixed up string 
- *
- * Side effects:
- *	The string will be trimmed, lowercased, and slashes pointed 
- *	forwards. 
- *
- *----------------------------------------------------------------------
- */
-
-static char *
-MakeSection(Ns_DString *dsPtr, char *string)
-{
-    char           *start;
-    register char  *s;
-
-    Ns_DStringAppend(dsPtr, string);
-    start = Ns_StrTrim(dsPtr->string);
-    for (s = start; *s != '\0'; ++s) {
-        if (*s == '\\') {
-            *s = '/';
-        } else if (isupper(UCHAR(*s))) {
-            *s = tolower(UCHAR(*s));
-        }
-    }
-
-    return start;
 }
 
 
@@ -526,21 +489,20 @@ MakeSection(Ns_DString *dsPtr, char *string)
 static int
 ParamCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 {
-    Ns_Set *setPtr;
+    Ns_Set *set;
 
     if (argc != 3) {
 	Tcl_AppendResult(interp, "wrong # args: should be \"",
 		argv[0], " key value", NULL);
 	return TCL_ERROR;
     }
-    setPtr = *((Ns_Set **) arg);
-    if (setPtr == NULL) {
+    set = *((Ns_Set **) arg);
+    if (set == NULL) {
 	Tcl_AppendResult(interp, argv[0],
 			 " not preceded by an ns_section command.", NULL);
 	return TCL_ERROR;
     }
-    Ns_SetPut(setPtr, argv[1], argv[2]);
-
+    Ns_SetPut(set, argv[1], argv[2]);
     return TCL_OK;
 }
 
@@ -566,16 +528,15 @@ ParamCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 static int
 SectionCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 {
-    Ns_Set  **setPtrPtr;
+    Ns_Set  **set;
 
     if (argc != 2) {
 	Tcl_AppendResult(interp, "wrong # args: should be \"",
 			 argv[0], " sectionname", NULL);
 	return TCL_ERROR;
     }
-    setPtrPtr = (Ns_Set **) arg;
-    *setPtrPtr = GetSection(argv[1], 1);
-
+    set = (Ns_Set **) arg;
+    *set = GetSection(argv[1], 1);
     return TCL_OK;
 }
 
@@ -602,28 +563,56 @@ GetSection(char *section, int create)
     Ns_DString ds;
     Tcl_HashEntry *hPtr;
     int new;
-    Ns_Set *setPtr;
+    Ns_Set *set;
+    char *s;
 
     if (!initialized) {
 	Tcl_InitHashTable(&configSections, TCL_STRING_KEYS);
 	initialized = 1;
     }
 
+    /*
+     * Clean up section name to all lowercase, trimming space
+     * and swapping silly backslashes.
+     */
+
     Ns_DStringInit(&ds);
-    setPtr = NULL;
-    MakeSection(&ds, section);    
+    s = section;
+    while (isspace(UCHAR(*s))) {
+	++s;
+    }
+    Ns_DStringAppend(&ds, s);
+    s = ds.string;
+    while (*s != '\0') {
+	if (*s == '\\') {
+	    *s = '/';
+	} else if (isupper(UCHAR(*s))) {
+	    *s = tolower(UCHAR(*s));
+	}
+	++s;
+    }
+    while (--s > ds.string && isspace(UCHAR(*s))) {
+	*s = '\0';
+    }
+    section = ds.string;
+
+    /*
+     * Return config set, creating if necessary.
+     */
+ 
+    set = NULL;
     if (!create) {
-	hPtr = Tcl_FindHashEntry(&configSections, ds.string);
+	hPtr = Tcl_FindHashEntry(&configSections, section);
     } else {
-    	hPtr = Tcl_CreateHashEntry(&configSections, ds.string, &new);
+    	hPtr = Tcl_CreateHashEntry(&configSections, section, &new);
     	if (new) {
-	    setPtr = Ns_SetCreate(section);
-	    Tcl_SetHashValue(hPtr, setPtr);
+	    set = Ns_SetCreate(section);
+	    Tcl_SetHashValue(hPtr, set);
 	}
     }
     if (hPtr != NULL) {
-	setPtr = Tcl_GetHashValue(hPtr);
+	set = Tcl_GetHashValue(hPtr);
     }
     Ns_DStringFree(&ds);
-    return setPtr;
+    return set;
 }
