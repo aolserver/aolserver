@@ -1,3 +1,10 @@
+2004-11-15  Dossy Shiobara <dossy@panoptic.com>
+
+	* nsd/nsmain.c (1.60): AOLserver will now allow setting the fd
+	  limit (via "ulimit -Hn", etc.) and only log a warning if it
+	  exceeds FD_SETSIZE.  Do this at your own risk, as things which
+	  still use select(), i.e., Tcl, are likely to break.
+
 2004-11-05  Dossy Shiobara <dossy@panoptic.com>
 
 	* nsd/sockcallback.c (1.15): Dereferencing cbPtr->nextPtr is
