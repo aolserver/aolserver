@@ -1,3 +1,12 @@
+2004-08-27  Jim Davidson <jgdavidson@aol.com>
+
+	* nsd/nsd.h
+	* nsd/driver.c
+	* nsd/tclrequest.c: Removed (the undocumented) Ns_RegisterPreQue in favor or
+	a new NS_FILTER_PRE_QUEUE flag for Ns_RegisterFilter.
+	* nsd/limits.c: Set more reasonable default limits.
+
+
 2004-08-25  Dossy Shiobara <dossy@panoptic.com>
 
 	* nsd/driver.c (1.37): In the event of a SockRead() error, the
