@@ -35,13 +35,31 @@
 #endif
 
 #include "ns.h"
+#ifndef _WIN32
 #include <pthread.h>
+#endif
 #include <assert.h>
+
+#ifdef _WIN32
+
+#include <fcntl.h>
+#include <io.h>
+#define STDOUT_FILENO	1
+#define STDERR_FILENO	2
+#define S_ISREG(m)	((m)&_S_IFREG)
+#define S_ISDIR(m)	((m)&_S_IFDIR)
+#include "getopt.h"
+#include <sys/stat.h>
+
+#else
+
 #include <sys/resource.h>
 #include <sys/wait.h>
 #include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <ctype.h>
+
+#endif	/* WIN32 */
 
 #ifdef HAVE_POLL
   #include <poll.h>
@@ -71,6 +89,14 @@
 
 #ifndef F_CLOEXEC
 #define F_CLOEXEC 1
+#endif
+
+#ifdef _WIN32
+#define NS_SIGTERM  1
+#define NS_SIGHUP   2
+#else
+#define NS_SIGTERM  SIGTERM
+#define NS_SIGHUP   SIGHUP
 #endif
 
 /*
@@ -163,6 +189,12 @@ struct _nsconf {
     struct {
 	int maxelapsed;
     } sched;
+
+#ifdef _WIN32    
+    struct {
+	bool checkexit;
+    } exec;
+#endif
 
     struct {
 	bool enabled;
@@ -291,7 +323,7 @@ typedef struct Driver {
     int		 opts;		    /* Driver options. */
     int     	 closewait;	    /* Graceful close timeout. */
     int     	 keepwait;	    /* Keepalive timeout. */
-    int		 sock;		    /* Listening socket. */
+    SOCKET		 sock;		    /* Listening socket. */
     int		 pidx;		    /* poll() index. */
     char        *bindaddr;	    /* Numerical listen address. */
     int          port;		    /* Port in location. */
@@ -313,7 +345,7 @@ typedef struct Sock {
      */
 
     struct Driver *drvPtr;
-    int	       sock;
+    SOCKET     sock;
     void      *arg;
 
     /*
@@ -771,6 +803,12 @@ extern void NsGetCallbacks(Tcl_DString *dsPtr);
 extern void NsGetSockCallbacks(Tcl_DString *dsPtr);
 extern void NsGetScheduled(Tcl_DString *dsPtr);
 
+#ifdef _WIN32
+extern int NsConnectService(void);
+extern int NsInstallService(char *service);
+extern int NsRemoveService(char *service);
+#endif
+
 extern void NsCreatePidFile(char *service);
 extern void NsRemovePidFile(char *service);
 
@@ -803,8 +841,8 @@ extern void NsWaitSockShutdown(Ns_Time *toPtr);
 extern void NsStartShutdownProcs(void);
 extern void NsWaitShutdownProcs(Ns_Time *toPtr);
 
-extern void NsTclStopJobs(void);
-extern void NsTclWaitJobs(Ns_Time *toPtr);
+extern void NsStartJobsShutdown(void);
+extern void NsWaitJobsShutdown(Ns_Time *toPtr);
 
 extern void NsTclInitServer(char *server);
 extern void NsLoadModules(char *server);
@@ -862,10 +900,12 @@ extern void NsRunAtExitProcs(void);
  */
 
 extern int  NsCloseAllFiles(int errFd);
+#ifndef _WIN32
 extern int  Ns_ConnRunRequest(Ns_Conn *conn);
 extern int  Ns_GetGid(char *group);
 extern int  Ns_GetUserGid(char *user);
 extern int  Ns_TclGetOpenFd(Tcl_Interp *, char *, int write, int *fp);
+#endif
 extern void NsStopSockCallbacks(void);
 extern void NsStopScheduledProcs(void);
 extern void NsGetBuf(char **bufPtr, int *sizePtr);

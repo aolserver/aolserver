@@ -37,6 +37,8 @@
 #include "ns.h"
 
 static Ns_DriverProc SockProc;
+static int SockRecv(SOCKET sock, struct iovec *bufs, int nbufs);
+static int SockSend(SOCKET sock, struct iovec *bufs, int nbufs);
 
 int Ns_ModuleVersion = 1;
 
@@ -92,27 +94,24 @@ Ns_ModuleInit(char *server, char *module)
 static int
 SockProc(Ns_DriverCmd cmd, Ns_Sock *sock, struct iovec *bufs, int nbufs)
 {
-    struct msghdr msg;
     int n;
-
-    memset(&msg, 0, sizeof(msg));
-    msg.msg_iov = bufs;
-    msg.msg_iovlen = nbufs;
 
     switch (cmd) {
     case DriverRecv:
-    	n = recvmsg(sock->sock, &msg, 0);
-	if (n < 0 && errno == EWOULDBLOCK
+	n = SockRecv(sock->sock, bufs, nbufs);
+	if (n < 0
+	    && ns_sockerrno == EWOULDBLOCK
 	    && Ns_SockWait(sock->sock, NS_SOCK_READ, sock->driver->recvwait) == NS_OK) {
-	    n = recvmsg(sock->sock, &msg, 0);
+	    n = SockRecv(sock->sock, bufs, nbufs);
 	}
 	break;
 
     case DriverSend:
-    	n = sendmsg(sock->sock, &msg, 0);
-	if (n < 0 && errno == EWOULDBLOCK
+	n = SockSend(sock->sock, bufs, nbufs);
+	if (n < 0
+	    && ns_sockerrno == EWOULDBLOCK
 	    && Ns_SockWait(sock->sock, NS_SOCK_WRITE, sock->driver->sendwait) == NS_OK) {
-    	    n = sendmsg(sock->sock, &msg, 0);
+	    n = SockSend(sock->sock, bufs, nbufs);
 	}
 	break;
 
@@ -128,4 +127,47 @@ SockProc(Ns_DriverCmd cmd, Ns_Sock *sock, struct iovec *bufs, int nbufs)
 	break;
     }
     return n;
+}
+
+
+static int
+SockRecv(SOCKET sock, struct iovec *bufs, int nbufs)
+{
+#ifdef _WIN32
+    int n, flags;
+
+    flags = 0;
+    if (WSARecv(sock, (LPWSABUF)bufs, nbufs, &n, &flags, NULL, NULL) != 0) {
+	n = -1;
+    }
+    return n;
+#else
+    struct msghdr msg;
+
+    memset(&msg, 0, sizeof(msg));
+    msg.msg_iov = bufs;
+    msg.msg_iovlen = nbufs;
+    return recvmsg(sock, &msg, 0);
+#endif
+}
+
+
+static int
+SockSend(SOCKET sock, struct iovec *bufs, int nbufs)
+{
+#ifdef _WIN32
+    int n;
+
+    if (WSASend(sock, (LPWSABUF)bufs, nbufs, &n, 0, NULL, NULL) != 0) {
+	n = -1;
+    }
+    return n;
+#else
+    struct msghdr msg;
+
+    memset(&msg, 0, sizeof(msg));
+    msg.msg_iov = bufs;
+    msg.msg_iovlen = nbufs;
+    return sendmsg(sock, &msg, 0);
+#endif
 }

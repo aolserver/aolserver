@@ -33,16 +33,22 @@
  *	Routines for creating and waiting for child processes.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/exec.c,v 1.18 2002/09/28 19:23:35 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/exec.c,v 1.19 2003/02/04 23:10:47 jrasmuss23 Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
+#ifdef _WIN32
+#include <process.h>
+static char   **Set2Argv(Ns_DString *dsPtr, Ns_Set *set);
+static int  	WaitForProcess(int pid, int *statusPtr);
+#else
 #define ERR_DUP         (-1)
 #define ERR_CHDIR	(-2)
 #define ERR_EXEC	(-3)
 
 static int ExecProc(char *exec, char *dir, int fdin, int fdout,
 		    char **argv, char **envp);
+#endif /* _WIN32 */
 
 
 /*
@@ -132,6 +138,35 @@ Ns_WaitProcess(int pid)
 int
 Ns_WaitForProcess(int pid, int *exitcodePtr)
 {
+#ifdef _WIN32
+    HANDLE process = (HANDLE) pid;
+    int status = NS_OK;
+    int exitcode;
+
+    if ((WaitForSingleObject(process, INFINITE) == WAIT_FAILED) ||
+        (GetExitCodeProcess(process, &exitcode) != TRUE)) {
+        Ns_Log(Error, "exec: failed to get process exit code: %s",
+               NsWin32ErrMsg(GetLastError()));
+        status = NS_ERROR;
+    }
+    if (CloseHandle(process) != TRUE) {
+        Ns_Log(Warning, "exec: failed to close handle for process %d: %s",
+	       pid, NsWin32ErrMsg(GetLastError()));
+        status = NS_ERROR;
+    }
+    if (status == NS_OK) {
+        if (exitcodePtr != NULL) {
+            *exitcodePtr = exitcode;
+        }
+        if (nsconf.exec.checkexit && exitcode != 0) {
+            Ns_Log(Error, "exec: process %d exited with non-zero status: %d",
+                   pid, exitcode);
+            status = NS_ERROR;
+        }
+    }
+    return status;
+
+#else
     char *coredump;
     int exitcode, status;
     
@@ -161,6 +196,7 @@ Ns_WaitForProcess(int pid, int *exitcodePtr)
 	}
     }
     return NS_OK;
+#endif /* _WIN32 */
 }
 
 
@@ -185,6 +221,7 @@ int
 Ns_ExecArgblk(char *exec, char *dir, int fdin, int fdout,
 		char *args, Ns_Set *env)
 {
+#ifndef _WIN32
     int    pid;
     char **argv;
     Ns_DString vds;
@@ -204,6 +241,111 @@ Ns_ExecArgblk(char *exec, char *dir, int fdin, int fdout,
     pid = Ns_ExecArgv(exec, dir, fdin, fdout, argv, env);
     Ns_DStringFree(&vds);
     return pid;
+#else
+    STARTUPINFO     si;
+    PROCESS_INFORMATION pi;
+    HANDLE          hCurrentProcess;
+    int             pid;
+    Ns_DString      cds, xds, eds;
+    char           *envp;
+    OSVERSIONINFO   oinfo;
+    char           *cmd;
+
+    if (exec == NULL) {
+        return -1;
+    }
+    oinfo.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
+    if (GetVersionEx(&oinfo) == TRUE && oinfo.dwPlatformId != VER_PLATFORM_WIN32_NT) {
+        cmd = "command.com";
+    } else {
+        cmd = "cmd.exe";
+    }
+
+    /*
+     * Setup STARTUPINFO with stdin, stdout, and stderr.
+     */
+    memset(&si, 0, sizeof(si));
+    si.cb = sizeof(si);
+    si.dwFlags = STARTF_USESTDHANDLES;
+    si.hStdError = (HANDLE) _get_osfhandle(_fileno(stderr));
+    hCurrentProcess = GetCurrentProcess();
+    if (fdout < 0) {
+        fdout = 1;
+    }
+    if (DuplicateHandle(hCurrentProcess, (HANDLE) _get_osfhandle(fdout), hCurrentProcess,
+            &si.hStdOutput, 0, TRUE, DUPLICATE_SAME_ACCESS) != TRUE) {
+        Ns_Log(Error, "exec: failed to duplicate handle: %s",
+        NsWin32ErrMsg(GetLastError()));
+        return -1;
+    }
+    if (fdin < 0) {
+        fdin = 0;
+    }
+    if (DuplicateHandle(hCurrentProcess, (HANDLE) _get_osfhandle(fdin), hCurrentProcess,
+            &si.hStdInput, 0, TRUE, DUPLICATE_SAME_ACCESS) != TRUE) {
+        Ns_Log(Error, "exec: failed to duplicate handle: %s",
+        NsWin32ErrMsg(GetLastError()));
+        (void) CloseHandle(si.hStdOutput);
+        return -1;
+    }
+
+    /*
+     * Setup the command line and environment block and create the new
+     * subprocess.
+     */
+
+    Ns_DStringInit(&cds);
+    Ns_DStringInit(&xds);
+    Ns_DStringInit(&eds);
+    if (args == NULL) {
+        /* NB: exec specifies a complete cmd.exe command string. */
+        Ns_DStringVarAppend(&cds, cmd, " /c ", exec, NULL);
+        exec = NULL;
+    } else {
+        char           *s;
+
+        s = args;
+        while (*s != '\0') {
+            int             len;
+
+            len = strlen(s);
+            Ns_DStringNAppend(&cds, s, len);
+            s += len + 1;
+            if (*s != '\0') {
+                Ns_DStringNAppend(&cds, " ", 1);
+            }
+        }
+    Ns_NormalizePath(&xds, exec);
+    s = xds.string;
+    while (*s != '\0') {
+        if (*s == '/') {
+            *s = '\\';
+        }
+        ++s;
+    }
+    exec = xds.string;
+    }
+    if (env == NULL) {
+        envp = NULL;
+    } else {
+        Set2Argv(&eds, env);
+        envp = eds.string;
+    }
+    if (CreateProcess(exec, cds.string, NULL, NULL, TRUE, 0, envp, dir, &si, &pi) != TRUE) {
+        Ns_Log(Error, "exec: failed to create process: %s: %s",
+        exec ? exec : cds.string, NsWin32ErrMsg(GetLastError()));
+        pid = -1;
+    } else {
+        CloseHandle(pi.hThread);
+        pid = (int) pi.hProcess;
+    }
+    Ns_DStringFree(&cds);
+    Ns_DStringFree(&xds);
+    Ns_DStringFree(&eds);
+    CloseHandle(si.hStdInput);
+    CloseHandle(si.hStdOutput);
+    return pid;
+#endif
 }
 
 
@@ -227,6 +369,28 @@ int
 Ns_ExecArgv(char *exec, char *dir, int fdin, int fdout,
 	    char **argv, Ns_Set *env)
 {
+#ifdef _WIN32
+    /*
+     * Win32 ExecArgv simply calls ExecArgblk.
+     */
+    int             pid;     
+    Ns_DString      ads;
+    char	   *args;
+    int		    i;
+
+    Ns_DStringInit(&ads);
+    if (argv == NULL) {
+        args = NULL;
+    } else {
+        for (i = 0; argv[i] != NULL; ++i) {
+            Ns_DStringNAppend(&ads, argv[i], strlen(argv[i]) + 1);
+        }
+        args = ads.string;
+    }
+    pid = Ns_ExecArgblk(exec, dir, fdin, fdout, args, env);
+    Ns_DStringFree(&ads);
+    return pid;
+#else
     Ns_DString eds;
     char *argvSh[4], **envp;
     int i, pid;
@@ -263,8 +427,10 @@ Ns_ExecArgv(char *exec, char *dir, int fdin, int fdout,
     pid = ExecProc(exec, dir, fdin, fdout, argv, envp);
     Ns_DStringFree(&eds);
     return pid;
+#endif
 }
 
+#ifndef _WIN32
 
 /*
  *----------------------------------------------------------------------
@@ -389,3 +555,41 @@ ExecProc(char *exec, char *dir, int fdin, int fdout, char **argv,
     }
     return result;
 }
+
+#else /* _WIN32 */
+
+
+
+/*
+ *----------------------------------------------------------------------
+ * Set2Argv --
+ *
+ *      Convert an Ns_Set containing key-value pairs into a character
+ *	array containing a sequence of name-value pairs with their 
+ *	terminating null bytes.
+ *
+ * Results:
+ *      Returns pointer to a character array containing a sequence of
+ *	name-value pairs with their terminating null bytes.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static char **
+Set2Argv(Ns_DString *dsPtr, Ns_Set *env)
+{
+    int        i;
+
+    for (i = 0; i < Ns_SetSize(env); ++i) {
+        Ns_DStringVarAppend(dsPtr,
+        Ns_SetKey(env, i), "=", Ns_SetValue(env, i), NULL);
+        Ns_DStringNAppend(dsPtr, "", 1);
+    }
+    Ns_DStringNAppend(dsPtr, "", 1);
+    return Ns_DStringAppendArgv(dsPtr);
+}
+
+#endif /* _WIN32 */

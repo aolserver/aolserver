@@ -34,7 +34,7 @@
  *	Wrappers and convenience functions for TCP/IP stuff. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sock.c,v 1.10 2002/09/21 17:55:16 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sock.c,v 1.11 2003/02/04 23:10:49 jrasmuss23 Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -46,8 +46,8 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
  * Local functions defined in this file
  */
 
-static int SockConnect(char *host, int port, char *lhost, int lport, int async);
-static int SockSetup(int sock);
+static SOCKET SockConnect(char *host, int port, char *lhost, int lport, int async);
+static SOCKET SockSetup(SOCKET sock);
 
 
 /*
@@ -67,13 +67,13 @@ static int SockSetup(int sock);
  */
 
 int
-Ns_SockRecv(int sock, void *buf, int toread, int timeout)
+Ns_SockRecv(SOCKET sock, void *buf, int toread, int timeout)
 {
     int		nread;
 
     nread = recv(sock, buf, toread, 0);
     if (nread == -1
-	&& errno == EWOULDBLOCK
+	&& ns_sockerrno == EWOULDBLOCK
 	&& Ns_SockWait(sock, NS_SOCK_READ, timeout) == NS_OK) {
 	nread = recv(sock, buf, toread, 0);
     }
@@ -99,13 +99,13 @@ Ns_SockRecv(int sock, void *buf, int toread, int timeout)
  */
 
 int
-Ns_SockSend(int sock, void *buf, int towrite, int timeout)
+Ns_SockSend(SOCKET sock, void *buf, int towrite, int timeout)
 {
     int nwrote;
 
     nwrote = send(sock, buf, towrite, 0);
     if (nwrote == -1
-    	&& errno == EWOULDBLOCK
+    	&& ns_sockerrno == EWOULDBLOCK
 	&& Ns_SockWait(sock, NS_SOCK_WRITE, timeout) == NS_OK) {
     	nwrote = send(sock, buf, towrite, 0);
     }
@@ -130,7 +130,7 @@ Ns_SockSend(int sock, void *buf, int towrite, int timeout)
  */
 
 int
-Ns_SockWait(int sock, int what, int timeout)
+Ns_SockWait(SOCKET sock, int what, int timeout)
 {
     struct pollfd pfd;
     int n;
@@ -181,7 +181,7 @@ Ns_SockWait(int sock, int what, int timeout)
  *----------------------------------------------------------------------
  */
 
-int
+SOCKET
 Ns_SockListen(char *address, int port)
 {
     return Ns_SockListenEx(address, port, nsconf.backlog);
@@ -204,13 +204,13 @@ Ns_SockListen(char *address, int port)
  *----------------------------------------------------------------------
  */
 
-int
-Ns_SockAccept(int lsock, struct sockaddr *saPtr, int *lenPtr)
+SOCKET
+Ns_SockAccept(SOCKET lsock, struct sockaddr *saPtr, int *lenPtr)
 {
-    int sock;
+    SOCKET sock;
 
     sock = accept(lsock, saPtr, lenPtr);
-    if (sock != -1) {
+    if (sock != INVALID_SOCKET) {
 	sock = SockSetup(sock);
     }
     return sock;
@@ -233,31 +233,31 @@ Ns_SockAccept(int lsock, struct sockaddr *saPtr, int *lenPtr)
  *----------------------------------------------------------------------
  */
 
-int
+SOCKET
 Ns_BindSock(struct sockaddr_in *saPtr)
 {
     return Ns_SockBind(saPtr);
 }
 
-int
+SOCKET
 Ns_SockBind(struct sockaddr_in *saPtr)
 {
-    int sock;
+    SOCKET sock;
     int n;
 
     sock = socket(AF_INET, SOCK_STREAM, 0);
-    if (sock != -1) {
+    if (sock != INVALID_SOCKET) {
 	sock = SockSetup(sock);
     }
-    if (sock != -1) {
+    if (sock != INVALID_SOCKET) {
         n = 1;
         if (saPtr->sin_port != 0) {
             setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (char *) &n, sizeof(n));
         }
         if (bind(sock, (struct sockaddr *) saPtr,
 		 sizeof(struct sockaddr_in)) != 0) {
-            close(sock);
-            sock = -1;
+            ns_sockclose(sock);
+            sock = INVALID_SOCKET;
         }
     }
     
@@ -281,13 +281,13 @@ Ns_SockBind(struct sockaddr_in *saPtr)
  *----------------------------------------------------------------------
  */
 
-int
+SOCKET
 Ns_SockConnect(char *host, int port)
 {
     return SockConnect(host, port, NULL, 0, 0);
 }
 
-int
+SOCKET
 Ns_SockConnect2(char *host, int port, char *lhost, int lport)
 {
     return SockConnect(host, port, lhost, lport, 0);
@@ -310,13 +310,13 @@ Ns_SockConnect2(char *host, int port, char *lhost, int lport)
  *----------------------------------------------------------------------
  */
 
-int
+SOCKET
 Ns_SockAsyncConnect(char *host, int port)
 {
     return SockConnect(host, port, NULL, 0, 1);
 }
 
-int
+SOCKET
 Ns_SockAsyncConnect2(char *host, int port, char *lhost, int lport)
 {
     return SockConnect(host, port, lhost, lport, 1);
@@ -339,16 +339,16 @@ Ns_SockAsyncConnect2(char *host, int port, char *lhost, int lport)
  *----------------------------------------------------------------------
  */
 
-int
+SOCKET
 Ns_SockTimedConnect(char *host, int port, int timeout)
 {
     return Ns_SockTimedConnect2(host, port, NULL, 0, timeout);
 }
 
-int
+SOCKET
 Ns_SockTimedConnect2(char *host, int port, char *lhost, int lport, int timeout)
 {
-    int         sock;
+    SOCKET         sock;
     int		   len, err;
 
     /*
@@ -357,15 +357,15 @@ Ns_SockTimedConnect2(char *host, int port, char *lhost, int lport, int timeout)
      */
     
     sock = SockConnect(host, port, lhost, lport, 1);
-    if (sock != -1) {
+    if (sock != INVALID_SOCKET) {
 	len = sizeof(err);
     	if (Ns_SockWait(sock, NS_SOCK_WRITE, timeout) == NS_OK
 		&& getsockopt(sock, SOL_SOCKET, SO_ERROR, (char *) &err, &len) == 0
 		&& err == 0) {
 	    return sock;
 	}
-	close(sock);
-	sock = -1;
+	ns_sockclose(sock);
+	sock = INVALID_SOCKET;
     }
     return sock;
 }
@@ -388,12 +388,12 @@ Ns_SockTimedConnect2(char *host, int port, char *lhost, int lport, int timeout)
  */
 
 int
-Ns_SockSetNonBlocking(int sock)
+Ns_SockSetNonBlocking(SOCKET sock)
 {
     unsigned long   i;
 
     i = 1;
-    if (ioctl(sock, FIONBIO, &i) == -1) {
+    if (ns_sockioctl(sock, FIONBIO, &i) == -1) {
         return NS_ERROR;
     }
     return NS_OK;
@@ -417,12 +417,12 @@ Ns_SockSetNonBlocking(int sock)
  */
 
 int
-Ns_SockSetBlocking(int sock)
+Ns_SockSetBlocking(SOCKET sock)
 {
     unsigned long   i;
 
     i = 0;
-    if (ioctl(sock, FIONBIO, &i) == -1) {
+    if (ns_sockioctl(sock, FIONBIO, &i) == -1) {
         return NS_ERROR;
     }
     return NS_OK;
@@ -493,7 +493,7 @@ Ns_GetSockAddr(struct sockaddr_in *saPtr, char *host, int port)
  */
 
 int
-Ns_SockPipe(int socks[2])
+Ns_SockPipe(SOCKET socks[2])
 {
     if (ns_sockpair(socks) != 0) {
         return NS_ERROR;
@@ -518,31 +518,31 @@ Ns_SockPipe(int socks[2])
  *----------------------------------------------------------------------
  */
 
-static int
+static SOCKET
 SockConnect(char *host, int port, char *lhost, int lport, int async)
 {
-    int             sock;
+    SOCKET             sock;
     struct sockaddr_in lsa;
     struct sockaddr_in sa;
     int                err;
 
     if (Ns_GetSockAddr(&sa, host, port) != NS_OK ||
 	Ns_GetSockAddr(&lsa, lhost, lport) != NS_OK) {
-        return -1;
+        return INVALID_SOCKET;
     }
     sock = Ns_SockBind(&lsa);
-    if (sock != -1) {
+    if (sock != INVALID_SOCKET) {
         if (async) {
             Ns_SockSetNonBlocking(sock);
         }
         if (connect(sock, (struct sockaddr *) &sa, sizeof(sa)) != 0) {
-            err = errno;
+            err = ns_sockerrno;
             if (!async || (err != EINPROGRESS && err != EWOULDBLOCK)) {
-                close(sock);
-                sock = -1;
+                ns_sockclose(sock);
+                sock = INVALID_SOCKET;
             }
         }
-        if (async && sock != -1) {
+        if (async && sock != INVALID_SOCKET) {
             Ns_SockSetBlocking(sock);
         }
     }
@@ -568,14 +568,14 @@ SockConnect(char *host, int port, char *lhost, int lport, int async)
  */
 
 static int
-CloseLater(int sock, void *arg, int why)
+CloseLater(SOCKET sock, void *arg, int why)
 {
-    close(sock);
+    ns_sockclose(sock);
     return NS_FALSE;
 }
 
 int
-Ns_SockCloseLater(int sock)
+Ns_SockCloseLater(SOCKET sock)
 {
     return Ns_SockCallback(sock, CloseLater, NULL, NS_SOCK_WRITE);
 }
@@ -600,25 +600,41 @@ Ns_SockCloseLater(int sock)
 void
 Ns_ClearSockErrno(void)
 {
+#ifdef _WIN32
+    SetLastError(0);
+#else
     errno = 0;
+#endif
 }
 
 int
 Ns_GetSockErrno(void)
 {
+#ifdef _WIN32
+    return (int) WSAGetLastError();
+#else
     return errno;
+#endif
 }
 
 void
 Ns_SetSockErrno(int err)
 {
+#ifdef _WIN32
+    SetLastError((DWORD) err);
+#else
     errno = err;
+#endif
 }
 
 char           *
 Ns_SockStrError(int err)
 {
+#ifdef _WIN32
+    return NsWin32ErrMsg(err);
+#else
     return strerror(err);
+#endif
 }
 
 
@@ -638,8 +654,8 @@ Ns_SockStrError(int err)
  *----------------------------------------------------------------------
  */
 
-static int
-SockSetup(int sock)
+static SOCKET
+SockSetup(SOCKET sock)
 {
 #ifdef USE_DUPHIGH
     int nsock;
@@ -650,6 +666,8 @@ SockSetup(int sock)
 	sock = nsock;
     }
 #endif
+#ifndef _WIN32
     (void) fcntl(sock, F_SETFD, 1);
+#endif
     return sock;
 }

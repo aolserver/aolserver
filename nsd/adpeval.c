@@ -33,7 +33,7 @@
  *	ADP string and file eval.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.19 2003/01/24 01:19:15 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.20 2003/02/04 23:10:46 jrasmuss23 Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -252,8 +252,13 @@ AdpRun(NsInterp *itPtr, char *file, int objc, Tcl_Obj *objv[],
 
     if (itPtr->adp.cache == NULL) {
 	Ns_DStringPrintf(&tmp, "nsadp:%s:%p", itPtr->servPtr->server, itPtr);
-	itPtr->adp.cache = Ns_CacheCreateSz(tmp.string, FILE_KEYS,
+#ifdef _WIN32
+    itPtr->adp.cache = Ns_CacheCreateSz(tmp.string, TCL_STRING_KEYS,
 				itPtr->servPtr->adp.cachesize, FreeInterpPage);
+#else
+    itPtr->adp.cache = Ns_CacheCreateSz(tmp.string, FILE_KEYS,
+				itPtr->servPtr->adp.cachesize, FreeInterpPage);
+#endif
 	Ns_DStringTrunc(&tmp, 0);
     }
 
@@ -271,8 +276,12 @@ AdpRun(NsInterp *itPtr, char *file, int objc, Tcl_Obj *objv[],
 	 * Check for valid code in interp page cache.
 	 */
 	 
+#ifdef _WIN32
+    key = file;
+#else
 	ukey.dev = st.st_dev;
 	ukey.ino = st.st_ino;
+#endif
         ePtr = Ns_CacheFindEntry(itPtr->adp.cache, key);
 	if (ePtr != NULL) {
     	    ipagePtr = Ns_CacheGetValue(ePtr);
@@ -306,11 +315,17 @@ AdpRun(NsInterp *itPtr, char *file, int objc, Tcl_Obj *objv[],
 		if (pagePtr == NULL) {
 		    Tcl_DeleteHashEntry(hPtr);
 		} else {
-		    if (ukey.dev != st.st_dev || ukey.ino != st.st_ino) {
+#ifdef _WIN32
+            if (pagePtr->mtime != st.st_mtime || pagePtr->size != st.st_size) {
+#else
+            if (ukey.dev != st.st_dev || ukey.ino != st.st_ino) {
+#endif
 			/* NB: File changed between stat above and ParseFile. */
 		    	Tcl_DeleteHashEntry(hPtr);
-		    	ukey.dev = st.st_dev;
+#ifndef _WIN32
+                ukey.dev = st.st_dev;
 		    	ukey.ino = st.st_ino;
+#endif
 		    	hPtr = Tcl_CreateHashEntry(&servPtr->adp.pages, key, &new);
 		    	if (!new) {
 			    oldPagePtr = Tcl_GetHashValue(hPtr);
@@ -582,7 +597,7 @@ ParseFile(NsInterp *itPtr, char *file, struct stat *stPtr)
     Page *pagePtr;
     AdpParse parse;
     
-    fd = open(file, O_RDONLY);
+    fd = open(file, O_RDONLY | O_BINARY);
     if (fd < 0) {
 	Tcl_AppendResult(interp, "could not open \"",
 	    file, "\": ", Tcl_PosixError(interp), NULL);

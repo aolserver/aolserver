@@ -34,7 +34,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.13 2003/01/18 18:24:42 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.14 2003/02/04 23:10:46 jrasmuss23 Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -82,7 +82,7 @@ static int shutdownPending; /* Flag to indicate shutdown. */
 static int stopped = 1;	    /* Flag to indicate running. */
 static int nactive;	    /* Active sockets. */
 static Ns_Thread driverThread;/* Running DriverThread. */
-static int trigPipe[2];     /* Trigger to wakeup DriverThread. */
+static SOCKET trigPipe[2];  /* Trigger to wakeup DriverThread. */
 static Ns_Mutex lock;	    /* Lock around close list and shutdown flag. */
 static Ns_Cond cond;	    /* Cond for stopped flag. */
 static int nfds;	    /* Number of Sock to poll(). */
@@ -396,10 +396,10 @@ NsStartDrivers(void)
     while (drvPtr != NULL) {
 	drvPtr->sock = Ns_SockListenEx(drvPtr->bindaddr, drvPtr->port,
 	    drvPtr->backlog);
-	if (drvPtr->sock == -1) {
+	if (drvPtr->sock == INVALID_SOCKET) {
 	    Ns_Log(Error, "%s: failed to listen on %s:%d: %s",
 		drvPtr->name, drvPtr->address, drvPtr->port,
-		strerror(errno));
+		ns_sockstrerror(ns_sockerrno));
 	} else {
     	    Ns_SockSetNonBlocking(drvPtr->sock);
     	    Ns_Log(Notice, "%s: listening on %s:%d",
@@ -413,7 +413,8 @@ NsStartDrivers(void)
      */
 
     if (ns_sockpair(trigPipe) != 0) {
-	Ns_Fatal("driver: ns_sockpair() failed: %s", strerror(errno));
+	Ns_Fatal("driver: ns_sockpair() failed: %s",
+	    ns_sockstrerror(ns_sockerrno));
     }
     Ns_ThreadCreate(DriverThread, NULL, 0, &driverThread);
 }
@@ -482,8 +483,8 @@ NsWaitDriversShutdown(Ns_Time *toPtr)
 	Ns_Log(Notice, "driver: shutdown complete");
 	Ns_ThreadJoin(&driverThread, NULL);
 	driverThread = NULL;
-	close(trigPipe[0]);
-	close(trigPipe[1]);
+	ns_sockclose(trigPipe[0]);
+	ns_sockclose(trigPipe[1]);
     }
 }
 
@@ -675,7 +676,7 @@ DriverThread(void *ignored)
     firstDrvPtr = NULL;
     while (drvPtr != NULL) {
 	nextDrvPtr = drvPtr->nextPtr;
-	if (drvPtr->sock != -1) {
+	if (drvPtr->sock != INVALID_SOCKET) {
 	    drvPtr->nextPtr = activeDrvPtr;
 	    activeDrvPtr = drvPtr;
 	} else {
@@ -753,10 +754,12 @@ DriverThread(void *ignored)
 	    n = poll(pfds, nfds, pollto);
 	} while (n < 0  && errno == EINTR);
 	if (n < 0) {
-	    Ns_Fatal("driver: poll() failed: %s", strerror(errno));
+	    Ns_Fatal("driver: poll() failed: %s",
+		ns_sockstrerror(ns_sockerrno));
 	}
 	if ((pfds[0].revents & POLLIN) && recv(trigPipe[0], &c, 1, 0) != 1) {
-	    Ns_Fatal("driver: trigger recv() failed: %s", strerror(errno));
+	    Ns_Fatal("driver: trigger recv() failed: %s",
+            ns_sockstrerror(ns_sockerrno));
 	}
 
 	/*
@@ -959,8 +962,8 @@ DriverThread(void *ignored)
 	if (stopping) {
 	    while ((drvPtr = activeDrvPtr) != NULL) {
 		activeDrvPtr = drvPtr->nextPtr;
-		close(drvPtr->sock);
-		drvPtr->sock = -1;
+		ns_sockclose(drvPtr->sock);
+		drvPtr->sock = INVALID_SOCKET;
 		drvPtr->nextPtr = firstDrvPtr;
 		firstDrvPtr = drvPtr;
 	    }
@@ -1153,7 +1156,7 @@ SockAccept(Driver *drvPtr)
     sockPtr->arg = NULL;
     sockPtr->sock = Ns_SockAccept(drvPtr->sock,
 				  (struct sockaddr *) &sockPtr->sa, &slen);
-    if (sockPtr->sock == -1) {
+    if (sockPtr->sock == INVALID_SOCKET) {
 	/* 
 	 * Accept failed - return the Sock to the free list.
 	 */
@@ -1209,8 +1212,8 @@ static void
 SockRelease(Sock *sockPtr)
 {
     --nactive;
-    close(sockPtr->sock);
-    sockPtr->sock = -1;
+    ns_sockclose(sockPtr->sock);
+    sockPtr->sock = INVALID_SOCKET;
     if (sockPtr->reqPtr != NULL) {
 	NsFreeRequest(sockPtr->reqPtr);
 	sockPtr->reqPtr = NULL;
@@ -1240,7 +1243,8 @@ static void
 SockTrigger(void)
 {
     if (send(trigPipe[1], "", 1, 0) != 1) {
-	Ns_Fatal("driver: trigger send() failed: %s", strerror(errno));
+	Ns_Fatal("driver: trigger send() failed: %s",
+	    ns_sockstrerror(ns_sockerrno));
     }
 }
 

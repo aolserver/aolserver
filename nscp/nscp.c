@@ -35,7 +35,7 @@
  *  	Tcl commands.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscp/nscp.c,v 1.20 2003/01/19 14:40:15 shmooved Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscp/nscp.c,v 1.21 2003/02/04 23:15:17 jrasmuss23 Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 
@@ -63,14 +63,14 @@ typedef struct Sess {
     Mod *modPtr;
     char *user;
     int id;
-    int sock;
+    SOCKET sock;
     struct sockaddr_in sa;
 } Sess;
 
 static Ns_SockProc AcceptProc;
 static Tcl_CmdProc ExitCmd;
 static int Login(Sess *sessPtr, Tcl_DString *unameDS);
-static int GetLine(int sock, char *prompt, Tcl_DString *dsPtr, int echo);
+static int GetLine(SOCKET sock, char *prompt, Tcl_DString *dsPtr, int echo);
 static Ns_ArgProc ArgProc;
 
 /*
@@ -119,7 +119,7 @@ Ns_ModuleInit(char *server, char *module)
     Mod *modPtr;
     char *path, *addr, *pass, *user, *key, *end;
     int i, new, port;
-    int lsock;
+    SOCKET lsock;
     Ns_Set *set;
     Tcl_HashEntry *hPtr;
 
@@ -134,7 +134,7 @@ Ns_ModuleInit(char *server, char *module)
 	return NS_ERROR;
     }
     lsock = Ns_SockListen(addr, port);
-    if (lsock == -1) {
+    if (lsock == INVALID_SOCKET) {
 	Ns_Log(Error, "nscp: could not listen on %s:%d", addr, port);
 	return NS_ERROR;
     }
@@ -250,7 +250,7 @@ ArgProc(Tcl_DString *dsPtr, void *arg)
  */
 
 static int
-AcceptProc(int lsock, void *arg, int why)
+AcceptProc(SOCKET lsock, void *arg, int why)
 {
     Mod *modPtr = arg;
     Sess *sessPtr;
@@ -259,16 +259,16 @@ AcceptProc(int lsock, void *arg, int why)
 
     if (why == NS_SOCK_EXIT) {
 	Ns_Log(Notice, "nscp: shutdown");
-	close(lsock);
+	ns_sockclose(lsock);
 	return NS_FALSE;
     }
     sessPtr = ns_malloc(sizeof(Sess));
     sessPtr->modPtr = modPtr;
     len = sizeof(struct sockaddr_in);
     sessPtr->sock = Ns_SockAccept(lsock, (struct sockaddr *) &sessPtr->sa, &len);
-    if (sessPtr->sock == -1) {
+    if (sessPtr->sock == INVALID_SOCKET) {
 	Ns_Log(Error, "nscp: accept() failed: %s",
-	       strerror(errno));
+	       ns_sockstrerror(ns_sockerrno));
 	ns_free(sessPtr);
     } else {
 	sessPtr->id = ++next;
@@ -384,7 +384,7 @@ done:
     	Ns_TclDeAllocateInterp(interp);
     }
     Ns_Log(Notice, "nscp: %s disconnected", ns_inet_ntoa(sessPtr->sa.sin_addr));
-    close(sessPtr->sock);
+    ns_sockclose(sessPtr->sock);
     ns_free(sessPtr);
 }
 
@@ -407,7 +407,7 @@ done:
  */
 
 static int
-GetLine(int sock, char *prompt, Tcl_DString *dsPtr, int echo)
+GetLine(SOCKET sock, char *prompt, Tcl_DString *dsPtr, int echo)
 {
     unsigned char buf[2048];
     int n;

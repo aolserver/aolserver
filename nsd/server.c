@@ -33,7 +33,7 @@
  *	Routines for managing NsServer structures.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.25 2003/02/03 16:07:08 jrasmuss23 Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.26 2003/02/04 23:10:49 jrasmuss23 Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -456,7 +456,7 @@ NsInitServer(char *server, Ns_ServerInitProc *initProc)
     Ns_MutexSetName2(&servPtr->pools.lock, "nsd:queue:", server);
     CreatePool(servPtr, "");
     path = Ns_ConfigGetPath(server, NULL, "pools", NULL);
-    set = Ns_ConfigSection(path);
+    set = Ns_ConfigGetSection(path);
     for (i = 0; set != NULL && i < Ns_SetSize(set); ++i) {
 	CreatePool(servPtr, Ns_SetKey(set, i));
     }

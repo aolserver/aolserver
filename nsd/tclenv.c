@@ -34,7 +34,7 @@
  *	Implement the "ns_env" command.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclenv.c,v 1.13 2002/09/28 20:51:38 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclenv.c,v 1.14 2003/02/04 23:10:49 jrasmuss23 Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include	"nsd.h"
 
@@ -42,7 +42,7 @@ static int PutEnv(Tcl_Interp *interp, char *name, char *value);
 static Ns_Mutex lock;
 #ifdef HAVE__NSGETENVIRON
 #include <crt_externs.h>
-#else
+#elif !defined(_WIN32)
 extern char **environ;
 #endif
 

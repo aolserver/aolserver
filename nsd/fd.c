@@ -34,9 +34,12 @@
  *      Manipulate file descriptors of open files.
  */
  
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/fd.c,v 1.7 2001/11/05 20:23:11 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/fd.c,v 1.8 2003/02/04 23:10:47 jrasmuss23 Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
+#ifdef _WIN32
+#include <share.h>
+#endif
 
 /*
  * The following structure maitains and open temp fd.
@@ -77,6 +80,9 @@ static Ns_Mutex lock;
 int
 Ns_CloseOnExec(int fd)
 {
+#ifdef _WIN32
+    return NS_OK;
+#else
     int             i;
     int status = NS_ERROR;
 
@@ -87,6 +93,7 @@ Ns_CloseOnExec(int fd)
 	status = NS_OK;
     }
     return status;
+#endif
 }
 
 
@@ -114,6 +121,9 @@ ns_closeonexec(int fd)
 int
 Ns_NoCloseOnExec(int fd)
 {
+#ifdef _WIN32
+    return NS_OK;
+#else
     int             i;
     int status = NS_ERROR;
 
@@ -124,6 +134,7 @@ Ns_NoCloseOnExec(int fd)
 	status = NS_OK;
     }
     return status;
+#endif
 }
 
 
@@ -199,7 +210,7 @@ Ns_GetTemp(void)
     Ns_Time now;
     Ns_DString ds;
     char *path, buf[64];
-    int fd, trys;
+    int fd, flags, trys;
     
     Ns_MutexLock(&lock);
     tmpPtr = firstTmpPtr;
@@ -213,22 +224,32 @@ Ns_GetTemp(void)
 	return fd;
     }
     Ns_DStringInit(&ds);
+    flags = O_RDWR|O_CREAT|O_TRUNC|O_EXCL;
+#ifdef _WIN32
+    flags |= _O_SHORT_LIVED|_O_NOINHERIT|_O_TEMPORARY|_O_BINARY;
+#endif
     trys = 0;
     do {
 	Ns_GetTime(&now);
 	sprintf(buf, "nstmp.%d.%d", (int) now.sec, (int) now.usec);
 	path = Ns_MakePath(&ds, P_tmpdir, buf, NULL);
-	fd = open(path, O_RDWR|O_CREAT|O_TRUNC|O_EXCL, 0600);
+#ifdef _WIN32
+	fd = _sopen(path, flags, _SH_DENYRW, _S_IREAD|_S_IWRITE);
+#else
+	fd = open(path, flags, 0600);
+#endif
     } while (fd < 0 && trys++ < 10 && errno == EEXIST);
     if (fd < 0) {
 	Ns_Log(Error, "tmp: could not open temp file %s: %s",
 	       path, strerror(errno));
+#ifndef _WIN32
     } else {
 	Ns_DupHigh(&fd);
 	Ns_CloseOnExec(fd);
 	if (unlink(path) != 0) {
 	    Ns_Log(Warning, "tmp: unlink(%s) failed: %s", path, strerror(errno));
 	}
+#endif
     }
     Ns_DStringFree(&ds);
     return fd;

@@ -35,7 +35,7 @@
  *	Pool memory is used as an optimization.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/request.c,v 1.5 2001/04/23 21:16:11 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/request.c,v 1.6 2003/02/04 23:10:49 jrasmuss23 Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -364,7 +364,7 @@ SetUrl(Ns_Request * request, char *url)
      * Decode and normalize the URL.
      */
 
-    p = Ns_DecodeUrl(&ds1, url);
+    p = Ns_DecodeUrlCharset(&ds1, url, NULL);
     if (p == NULL) {
         p = url;
     }

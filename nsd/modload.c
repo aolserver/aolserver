@@ -34,7 +34,7 @@
  *	Load .so files into the server and initialize them. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/modload.c,v 1.12 2002/09/28 19:24:09 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/modload.c,v 1.13 2003/02/04 23:10:48 jrasmuss23 Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -43,7 +43,7 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
 #elif defined(USE_DYLD)
 #include <mach-o/dyld.h>
 static char *dylderr = "";
-#else
+#elif !defined(_WIN32)
 #include <dlfcn.h>
 #ifdef USE_RTLD_LAZY
 #ifdef RTLD_NOW
@@ -100,7 +100,11 @@ static Module *firstPtr;
 void
 NsInitModLoad(void)
 {
+#ifdef _WIN32
+    Tcl_InitHashTable(&modulesTable, TCL_STRING_KEYS);
+#else
     Tcl_InitHashTable(&modulesTable, FILE_KEYS);
+#endif
 }
 
 
@@ -205,7 +209,9 @@ Ns_ModuleSymbol(char *file, char *name)
     void	  *module;
     void          *symbol;
     struct stat    st;
+#ifndef _WIN32
     FileKey	   key;
+#endif
 
     symbol = NULL;
     Ns_DStringInit(&ds);
@@ -216,9 +222,13 @@ Ns_ModuleSymbol(char *file, char *name)
 	Ns_Log(Notice, "modload: stat(%s) failed: %s", file, strerror(errno));
 	goto done;
     }
+#ifdef _WIN32
+    hPtr = Tcl_CreateHashEntry(&modulesTable, file, &new);
+#else
     key.dev = st.st_dev;
     key.ino = st.st_ino;
     hPtr = Tcl_CreateHashEntry(&modulesTable, (char *) &key, &new);
+#endif
     if (!new) {
         module = Tcl_GetHashValue(hPtr);
     } else {
@@ -404,6 +414,8 @@ DlOpen(char *file)
 	    break;
     }
     return (void *) module;
+#elif defined(_WIN32)
+    return (void *) LoadLibrary(file);
 #elif defined(USE_DLSHL)
     return (void *) shl_load(file, BIND_VERBOSE|BIND_IMMEDIATE|BIND_RESTRICTED, 0);
 #else
@@ -460,6 +472,8 @@ DlSym2(void *handle, char *name)
     if (shl_findsym((shl_t *) &handle, name, TYPE_UNDEFINED, &symbol) == -1) {
 	symbol = NULL;
     }
+#elif defined(_WIN32)
+    symbol =  (void *) GetProcAddress((HMODULE) handle, name);
 #elif (USE_DYLD)
     symbol = NSLookupSymbolInModule(handle, name);
     if (symbol != NULL) {
@@ -493,6 +507,8 @@ DlError(void)
 {
 #if defined(USE_DLSHL)
     return strerror(errno);
+#elif defined(_WIN32)
+    return NsWin32ErrMsg(GetLastError());
 #elif defined(USE_DYLD)
     return dylderr;
 #else

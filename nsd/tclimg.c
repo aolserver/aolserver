@@ -33,7 +33,7 @@
  *	Commands for image files.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclimg.c,v 1.6 2003/01/18 19:24:20 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclimg.c,v 1.7 2003/02/04 23:10:50 jrasmuss23 Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -77,7 +77,7 @@ NsTclGifSizeObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST 
         Tcl_WrongNumArgs(interp, 1, objv, "gif");
         return TCL_ERROR;
     }
-    fd = open(Tcl_GetString(objv[1]), O_RDONLY);
+    fd = open(Tcl_GetString(objv[1]), O_RDONLY|O_BINARY);
     if (fd == -1) {
         Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "could not open \"", 
             Tcl_GetString(objv[1]),

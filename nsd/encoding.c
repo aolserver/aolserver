@@ -33,7 +33,7 @@
  *	Defines standard default charset to encoding mappings.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/encoding.c,v 1.10 2003/01/31 22:47:30 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/encoding.c,v 1.11 2003/02/04 23:10:47 jrasmuss23 Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -689,10 +689,10 @@ RebuildCharsetList(void)
     Ns_MutexUnlock(&lock);
 
     if (charsetList != NULL ) {
-        Ns_Free( charsetList );
+        ns_free( charsetList );
     }
 
-    charsetList = Ns_StrDup( Tcl_DStringValue(&ds) );
+    charsetList = ns_strdup( Tcl_DStringValue(&ds) );
     Tcl_DStringFree(&ds);
     return charsetList;
 }

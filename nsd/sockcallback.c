@@ -34,7 +34,7 @@
  *	Support for the socket callback thread.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sockcallback.c,v 1.10 2002/05/15 20:07:48 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sockcallback.c,v 1.11 2003/02/04 23:10:49 jrasmuss23 Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -44,7 +44,7 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
 
 typedef struct Callback {
     struct Callback     *nextPtr;
-    int                  sock;
+    SOCKET               sock;
     int			 idx;
     int                  when;
     Ns_SockProc         *proc;
@@ -56,7 +56,7 @@ typedef struct Callback {
  */
 
 static Ns_ThreadProc SockCallbackThread;
-static int Queue(int sock, Ns_SockProc *proc, void *arg, int when);
+static int Queue(SOCKET sock, Ns_SockProc *proc, void *arg, int when);
 static void CallbackTrigger(void);
 
 /*
@@ -69,7 +69,7 @@ static int	     running;
 static Ns_Thread     sockThread;
 static Ns_Mutex      lock;
 static Ns_Cond	     cond;
-static int	     trigPipe[2];
+static SOCKET	     trigPipe[2];
 static Tcl_HashTable table;
 
 
@@ -91,7 +91,7 @@ static Tcl_HashTable table;
  */
 
 int
-Ns_SockCallback(int sock, Ns_SockProc *proc, void *arg, int when)
+Ns_SockCallback(SOCKET sock, Ns_SockProc *proc, void *arg, int when)
 {
     return Queue(sock, proc, arg, when);
 }
@@ -114,7 +114,7 @@ Ns_SockCallback(int sock, Ns_SockProc *proc, void *arg, int when)
  */
 
 void
-Ns_SockCancelCallback(int sock)
+Ns_SockCancelCallback(SOCKET sock)
 {
     (void) Queue(sock, NULL, NULL, 0);
 }
@@ -163,8 +163,8 @@ NsWaitSockShutdown(Ns_Time *toPtr)
     } else if (sockThread != NULL) {
 	Ns_ThreadJoin(&sockThread, NULL);
 	sockThread = NULL;
-    	close(trigPipe[0]);
-    	close(trigPipe[1]);
+    	ns_sockclose(trigPipe[0]);
+    	ns_sockclose(trigPipe[1]);
     }
 }
 
@@ -187,8 +187,8 @@ NsWaitSockShutdown(Ns_Time *toPtr)
 static void
 CallbackTrigger(void)
 {
-    if (write(trigPipe[1], "", 1) != 1) {
-	Ns_Fatal("trigger write() failed: %s", strerror(errno));
+    if (send(trigPipe[1], "", 1, 0) != 1) {
+	Ns_Fatal("trigger send() failed: %s", ns_sockstrerror(ns_sockerrno));
     }
 }
 
@@ -210,7 +210,7 @@ CallbackTrigger(void)
  */
 
 static int
-Queue(int sock, Ns_SockProc *proc, void *arg, int when)
+Queue(SOCKET sock, Ns_SockProc *proc, void *arg, int when)
 {
     Callback   *cbPtr;
     int         status, trigger, create;
@@ -248,7 +248,7 @@ Queue(int sock, Ns_SockProc *proc, void *arg, int when)
 	CallbackTrigger();
     } else if (create) {
     	if (ns_sockpair(trigPipe) != 0) {
-	    Ns_Fatal("ns_sockpair() failed: %s", strerror(errno));
+	    Ns_Fatal("ns_sockpair() failed: %s", ns_sockstrerror(ns_sockerrno));
     	}
     	Ns_ThreadCreate(SockCallbackThread, NULL, 0, &sockThread);
     }
@@ -372,7 +372,7 @@ SockCallbackThread(void *ignored)
 	if (n < 0) {
 	    Ns_Fatal("poll() failed: %s", strerror(errno));
 	}
-	if ((pfds[0].revents & POLLIN) && read(trigPipe[0], &c, 1) != 1) {
+	if ((pfds[0].revents & POLLIN) && recv(trigPipe[0], &c, 1, 0) != 1) {
 	    Ns_Fatal("trigger read() failed: %s", strerror(errno));
 	}
 

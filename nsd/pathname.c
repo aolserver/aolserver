@@ -34,11 +34,11 @@
  *	Functions that manipulate or return paths. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/pathname.c,v 1.12 2003/01/18 19:24:20 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/pathname.c,v 1.13 2003/02/04 23:10:48 jrasmuss23 Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
-#define isslash(c)	((c) == '/')
+#define isslash(c)	((c) == '/' || (c) == '\\')
 
 /*
  * Local functions defined in this file.
@@ -66,7 +66,15 @@ static char *MakePath(Ns_DString *dest, va_list *pap);
 int
 Ns_PathIsAbsolute(char *path)
 {
-    return (path[0] == '/' ? NS_TRUE : NS_FALSE);
+#ifdef _WIN32
+    if (isalpha(*path) && path[1] == ':') {
+	path += 2;
+    }
+#endif
+    if (isslash(*path)) {
+	return NS_TRUE;
+    }
+    return NS_FALSE;
 }
 
 
@@ -95,6 +103,15 @@ Ns_NormalizePath(Ns_DString *dsPtr, char *path)
 
     Ns_DStringInit(&tmp);
     src = Ns_DStringAppend(&tmp, path);
+#ifdef _WIN32
+    if (isalpha(*src) && src[1] == ':') {
+	if (isupper(*src)) {
+	    *src = tolower(*src);
+	}
+	Ns_DStringNAppend(dsPtr, src, 2);
+	src += 2;
+    }
+#endif
 
     /*
      * Move past leading slash(es)
@@ -347,14 +364,21 @@ MakePath(Ns_DString *dest, va_list *pap)
     int len;
 
     while ((s = va_arg(*pap, char *)) != NULL) {
+        if (isalpha(*s) && s[1] == ':') {
+            char temp = *(s+2);
+            *(s + 2) = 0;
+            Ns_DStringNAppend(dest, s, 2);
+            *(s + 2) = temp;
+            s += 2;
+        }
 	while (*s) {
-	    while (*s == '/') {
+	    while (isslash(*s)) {
 	        ++s;
 	    }
 	    if (*s) {
 	    	Ns_DStringNAppend(dest, "/", 1);
 		len = 0;
-		while (s[len] != '\0' && s[len] != '/') {
+		while (s[len] != '\0' && !isslash(s[len])) {
 		    ++len;
 		}
 	    	Ns_DStringNAppend(dest, s, len);

@@ -8,7 +8,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclxkeylist.c,v 1.3 2001/04/25 00:26:09 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclxkeylist.c,v 1.4 2003/02/04 23:10:51 jrasmuss23 Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -26,7 +26,7 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
  * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  * ---------------------------------------------------------------------------
- * -- $Id: tclxkeylist.c,v 1.3 2001/04/25 00:26:09 jgdavidson Exp $
+ * -- $Id: tclxkeylist.c,v 1.4 2003/02/04 23:10:51 jrasmuss23 Exp $
  * ---------------------------------------------------------------------------
  * --
  * 
@@ -41,7 +41,7 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
 #define CONST
 #endif
 #define ISSPACE(c) (isspace ((unsigned char) c))
-#define UCHAR(c) ((unsigned char) (c))
+#define UCHAR(c) ((unsigned char)(c))
 #define STRNEQU(str1, str2, cnt) \
         (((str1) [0] == (str2) [0]) && (strncmp (str1, str2, cnt) == 0))
 static char    *tclXWrongArgs = "wrong # args: ";
