@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/Attic/sample-config.tcl,v 1.3 2002/10/30 00:41:42 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/Attic/sample-config.tcl,v 1.4 2003/01/19 15:37:11 shmooved Exp $
 #
 
 #
@@ -69,14 +69,6 @@ set directoryfile          index.adp,index.html,index.htm
 set sslmodule              nsssle.so ;# Exportable 40-bit/512-bit SSL.
 set sslkeyfile   ${homedir}/servers/${servername}/modules/nsssl/keyfile.pem
 set sslcertfile  ${homedir}/servers/${servername}/modules/nsssl/certfile.pem
-
-# nscp: Uncomment the sample password and log in with "nsadmin", password "x",
-#       type "ns_crypt newpassword salt" and put the encrypted string below.
-set nscp_port 9999
-set nscp_addr 127.0.0.1
-set nscp_user ""
-#set nscp_user "nsadmin:t2GqvvaiIUbF2:" ;# sample user="nsadmin", pw="x".
-
 
 #
 # Global server parameters
@@ -180,19 +172,53 @@ ns_param   address         $address
 ns_param   keyfile         $sslkeyfile
 ns_param   certfile        $sslcertfile
 
-
 #
-# Control port -- nscp
+# Example:  Control port configuration.
 #
-#  nscp does not load unless nscp_user is a valid user.
+# To enable:
+#  
+# 1. Define an address and port to listen on. For security
+#    reasons listening on any port other then 127.0.0.1 is 
+#    not recommended.
 #
-ns_section "ns/server/${servername}/module/nscp"
-ns_param   port            $nscp_port
-ns_param   address         $nscp_addr
-
-ns_section "ns/server/${servername}/module/nscp/users"
-ns_param   user            $nscp_user
-
+# 2. Decided whether or not you wish to enable features such
+#    as password echoing at login time, and command logging. 
+#
+# 3. Add a list of authorized users and passwords. The entires
+#    take the following format:
+#
+#    <user>:<encryptedPassword>:
+#
+#    You can use the ns_crypt Tcl command to generate an encrypted
+#    password. The ns_crypt command uses the same algorithm as
+#    the Unix crypt(3) command. Suppose you have a user "nsadmin"
+#    with a password of "x". The /etc/passwrd entry might look like:
+#
+#    nsadmin:t2GqvvaiIUbF2:28:1:Administrator:/:/bin/tcsh
+#
+#    The first two characters of the password are the salt. The
+#    following should generate the same password:
+#
+#    ns_crypt <key> <salt>
+#    ns_crypt x t2
+#    
+#    The example below adds the user "nsadmin" with a password
+#    of "x".
+#
+# 4. Make sure the nscp.so module is loaded in the modules section.
+#
+#ns_section "ns/server/${servername}/module/nscp"
+#    ns_param address 127.0.0.1        
+#    ns_param port 9999
+#    ns_param echopassword 1
+#    ns_param cpcmdlogging 1
+#
+#ns_section "ns/server/${servername}/module/nscp/users"
+#    ns_param user "nsadmin:t2GqvvaiIUbF2:"
+#
+#ns_section "ns/server/${servername}/modules"
+#    ns_param nscp ${bindir}/nscp.so
+#
 
 #
 # Access log -- nslog
@@ -217,11 +243,12 @@ ns_section "ns/server/${servername}/module/nscgi"
 #
 # Modules to load
 #
+
 ns_section "ns/server/${servername}/modules"
-ns_param   nssock          ${bindir}/nssock.so
-ns_param   nslog           ${bindir}/nslog.so
-#ns_param   nscgi           ${bindir}/nscgi.so  ;# Map the paths before using.
-#ns_param   nsperm          ${bindir}/nsperm.so ;# Edit passwd before using.
+    ns_param nssock ${bindir}/nssock.so
+    ns_param nslog ${bindir}/nslog.so
+    #ns_param nscgi ${bindir}/nscgi.so
+    #ns_param nsperm ${bindir}/nsperm.so
 
 #
 # nsssl: Only loads if sslcertfile and sslkeyfile exist (see above).
@@ -231,23 +258,6 @@ if { [file exists $sslcertfile] && [file exists $sslkeyfile] } {
 } else {
     ns_log warning "config.tcl: nsssl not loaded -- key/cert files do not exist."
 }
-
-#
-# nscp: Only loads if nscp_user is set (see above).
-#
-if { $nscp_user != "" } {
-
-    if {![string match "127.0.0.1" $nscp_addr]} {
-	# Anything but 127.0.0.1 is not recommended.
-	ns_log warning "config.tcl: nscp listening on ${nscp_addr}:${nscp_port}"
-    }
-    ns_param nscp ${bindir}/nscp.so
-
-} else {
-    ns_log warning "config.tcl: nscp not loaded -- user/password is not set."
-}
-
-
 
 #
 # Example: Host headers based virtual servers.
