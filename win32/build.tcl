@@ -1,10 +1,11 @@
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/win32/Attic/build.tcl,v 1.5 2004/08/16 20:28:22 dossy Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/win32/Attic/build.tcl,v 1.6 2004/08/18 00:13:24 dossy Exp $
 #
 
 package require Tcl 8.4
 package provide make 1.0
 
+set BUILD "release" ;# or "debug"
 set DEBUG 0
 set INSTALLDIR "./installed"
 set TCLDIR "../tcl_core-8-4-6/win/installed"
@@ -67,13 +68,20 @@ namespace eval ::make {
         return 0
     }
 
-    proc make {argv} {
-        set cmds [list]
+    proc options {argv} {
         foreach arg $argv {
             if {[regexp {^(.*?)=(.*)$} $arg -> key value]} {
                 puts "CONFIG: $key=$value"
                 set ::$key $value
-            } else {
+            }
+        }
+        return 0
+    }
+
+    proc make {argv} {
+        set cmds [list]
+        foreach arg $argv {
+            if {![regexp {^(.*?)=(.*)$} $arg -> key value]} {
                 lappend cmds $arg
             }
         }
@@ -164,7 +172,7 @@ namespace eval ::make {
         set file [file tail $target]
         puts "In $dir, linking $target."
         set cmd "exec link.exe -nologo -subsystem:console -machine:I386 \
-            nsd.lib [flag LIB] -out:$target nsd/main.obj"
+            nsd.lib [flag LDFLAGS] -out:$target nsd/main.obj"
         if {$::DEBUG >= 2} { puts "DEBUG: $cmd" }
         set output [eval $cmd]
         if {$::DEBUG} { puts $output }
@@ -175,36 +183,38 @@ namespace eval ::make {
 # The interesting stuff starts here.
 #
 
-make::flag INCLUDE {-I./include}
-make::flag CFLAGS [concat [make::flag INCLUDE] {-MD -W3 -GX -Zi -O2 -D "WIN32" -D "NDEBUG" -D "_WINDOWS" -D "_MBCS" -D "_USRDLL" -D "TCL_THREADS=1" -D "FD_SETSIZE=128" -D "NO_CONST=1" -YX -FD}]
+make::options $argv
 
+make::flag INCLUDE {-I./include}
 make::flag LIB "-libpath:\"$::TCLDIR/lib\" -libpath:./nsd -libpath:./nsthread"
-make::flag LDFLAGS [concat [make::flag LIB] {tcl84t.lib kernel32.lib -OPT:REF}]
+
+puts "BUILD=$BUILD"
+switch $BUILD {
+    release {
+        make::flag CFLAGS [concat [make::flag INCLUDE] {-MD -W3 -GX -O2 -D "WIN32" -D "NDEBUG" -D "_WINDOWS" -D "_MBCS" -D "_USRDLL" -D "TCL_THREADS=1" -D "FD_SETSIZE=128" -D "NO_CONST=1" -YX -FD}]
+        make::flag LDFLAGS [concat [make::flag LIB] {tcl84t.lib kernel32.lib -pdb:aolserver.pdb -release -incremental:no -opt:ref -opt:icf}]
+    }
+    debug {
+        make::flag CFLAGS [concat [make::flag INCLUDE] {-MD -W3 -GX -Z7 -Od -D "WIN32" -D "_DEBUG" -D "_WINDOWS" -D "_MBCS" -D "_USRDLL" -D "TCL_THREADS=1" -D "FD_SETSIZE=128" -D "NO_CONST=1" -FR -YX -Yd -FD -GZ}]
+        make::flag LDFLAGS [concat [make::flag LIB] {tcl84t.lib kernel32.lib -pdb:aolserver.pdb -debug:full -debugtype:cv -incremental:no}]
+    }
+}
 
 make::rule *.obj compile_obj
 make::rule *.dll link_dll
 
 make::rule clean {
     variable depends
-    foreach file [concat \
-        nsd/nsd.dll nsd/nsd.lib nsd/nsd.exp \
-            $depends(nsd/nsd.dll) \
-        nsthread/nsthread.dll nsthread/nsthread.lib nsthread/nsthread.exp \
-            $depends(nsthread/nsthread.dll) \
-        nssock/nssock.dll nssock/nssock.lib nssock/nssock.exp \
-            $depends(nssock/nssock.dll) \
-        nscgi/nscgi.dll nscgi/nscgi.lib nscgi/nscgi.exp \
-            $depends(nscgi/nscgi.dll) \
-        nscp/nscp.dll nscp/nscp.lib nscp/nscp.exp \
-            $depends(nscp/nscp.dll) \
-        nslog/nslog.dll nslog/nslog.lib nslog/nslog.exp \
-            $depends(nslog/nslog.dll) \
-        nsperm/nsperm.dll nsperm/nsperm.lib nsperm/nsperm.exp \
-            $depends(nsperm/nsperm.dll) \
-        nsdb/nsdb.dll nsdb/nsdb.lib nsdb/nsdb.exp \
-            $depends(nsdb/nsdb.dll) \
-        nsd/main.obj
-    ] {
+    set files [list]
+    foreach target {nsd nsthread nssock nscgi nscp nslog nsperm nsdb} {
+        lappend files $target/$target.dll
+        lappend files $target/$target.lib
+        lappend files $target/$target.exp
+        lappend files $target/$target.pdb
+        lappend files $depends($target/$target.dll)
+    }
+    lappend files nsd/main.obj
+    foreach file [eval concat $files] {
         puts "Deleting $file."
         file delete $file
     }
