@@ -1,0 +1,148 @@
+
+README:  AOLserver
+
+    This is the AOLserver 3.5.1 source distribution.  AOLserver is
+    available at http://aolserver.com, a SourceForge hosted site.
+
+RCS: @(#) $Id: README,v 1.1.4.1.2.4 2002/11/04 17:16:17 schaudhri Exp $
+
+
+Contents
+--------
+    1. Introduction
+    2. Documentation
+    3. Compiling and installing AOLserver
+    4. Mailing lists
+    5. Thank You
+
+
+1. Introduction
+---------------
+
+AOLserver is a multithread web server with flexible and extensible C
+and Tcl API's.  AOLserver is used for several high traffic, dynamic
+web applications and services at America Online among other sites.
+
+AOLserver is maintained, enhanced, and distributed freely by the
+AOLserver community.  The home for AOLserver sources and bug/patch
+database is on SourceForge available at:
+
+	http://aolserver.com/
+
+AOLserver is a freely available open source package.  See the file
+"license.terms" for complete information.
+
+
+2. Documentation
+----------------
+
+Documentation is available in the "doc" subdirectory of this release.
+It contains of Unix-style reference manual entries for AOLserver.
+Files with extension ".1" are for programs (for example, nsd.1); files
+with extension ".3" are for C library procedures; and files with
+extension ".n" describe Tcl commands.  The file "doc/nsd.1" gives a
+quick summary of the AOLserver configuration.  To view any of the man
+pages on Unix, cd to the "doc" directory and invoke your favorite
+variant of troff using the normal -man macros, for example:
+
+		groff -Tascii -man nsd.1 | more
+
+Conversion to HTML may be possible with:
+
+		groff -Thtml -man nsd.1 > nsd.html
+
+If AOLserver has been installed correctly and your "man" program
+supports it, you should be able to access the AOLserver manual entries
+using the normal "man" mechanisms, such as
+
+		man -M /usr/local/aolserver/man nsd
+
+
+3. Compiling and installing AOLserver
+-------------------------------------
+
+AOLserver is known to compile and run on FreeBSD, Linux, Solaris, and
+Mac OS/X 10.2.  Ports to other modern platforms such as HP/UX should
+be easy.  To compile and install AOLserver:
+
+3a.     Download, configure, build and install Tcl 8.4 or better
+	with threads and shared libraries enabled.  To do so,
+	download the latest release from http://tcl.tk and following
+	the instructions in the included README.  You may install
+	Tcl within the directory you intend to install AOLserver
+	(e.g., /usr/local/aolserver) or in some other location.
+	The following should work:
+
+	% gunzip < tcl8.4.0-src.tar.gz | tar xvf -
+	% cd tcl8.4.0/unix
+	% ./configure --prefix=/usr/local/aolserver --enable-threads
+	% make install
+	
+3b.     If you don't have GNU make (Linux make is GNU make), install
+	it as AOLserver's makefiles require it.  If you're not sure
+	if you have GNU make, try "make -v" to check.  You can get
+	GNU make at http://www.gnu.org.
+
+3c.     Download, configure, build, and install AOLserver.  The
+	following should work:
+
+	% gunzip < aolserver-3.5.1.src.tar.gz | tar xvf -
+	% cd aolserver-3.5.1
+	% ./configure 
+	% make install
+
+	AOLserver's configure script takes the following options:
+
+	--with-tcl=/usr/local/aolserver/lib
+
+		Path to library installation directory of Tcl where
+		configure can find the tclConfig.sh script.  Without
+		this option, configure will search around for
+		tclConfig.sh, perhaps finding it in ../tcl8.4.0/unix.
+
+	--enable-symbols
+
+		Compile with debug symbols enabled.  The default
+		is to compile optimized.
+
+	--prefix=/usr/local/aolserver
+
+		Set the installation directory for AOLserver.  All
+		program, man page, and runtime files (e.g., log
+		files) will be install or updated within this
+		directory.
+
+3d.     Create and edit a config file, nsd.tcl by convention.  A
+	sample is provided to get started:
+
+	% cd /usr/local/aolserver
+	% cp sample-config.tcl nsd.tcl
+	% vi nsd.tcl
+
+
+3e.	Try running the server in a shell window:
+
+	% cd /usr/local/aolserver
+	% bin/nsd -ft nsd.tcl
+
+
+More information on configuration and running AOLserver can be
+found within the sample-config.tcl script and the AOLserver.n man
+page.
+
+
+4. Mailing lists
+----------------
+
+There is a mailing list for AOLserver to discuss anything from
+configuration, development, and future direction.  To join visit:
+
+	http://aolserver.com/
+
+
+5. Thank You
+-------------
+
+Thank you for your interest in AOLserver!  We hope you find it
+useful and look forward to hearing from you on our mailing list.
+
