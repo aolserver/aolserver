@@ -1,4 +1,4 @@
-<pre>
+<xmp>
 format:
 
     seconds (0-59)
@@ -10,9 +10,11 @@ format:
     dayofweek (Sunday=0)
     dayofyear (0-365)
     1 if Daylight Savings Time is in effect
+</xmp>
 
 <hr size="1" noshade>
 
+<xmp>
             [ns_localtime] = <%= [ns_localtime] %>
 
                [ns_gmtime] = <%= [ns_gmtime] %>
@@ -46,6 +48,5 @@ you'd expect.
       [ns_localtime GMT-3] = <%= [ns_localtime GMT-3] %>
       [ns_localtime GMT-4] = <%= [ns_localtime GMT-4] %>
       [ns_localtime GMT-5] = <%= [ns_localtime GMT-5] %>
-
-</pre>
+</xmp>
 
