@@ -1,3 +1,8 @@
+2004-11-17  Dossy Shiobara <dossy@panoptic.com>
+
+	* nsd/adprequest.c (1.16.2.1): Don't send Content-Length if
+	  streaming is on.  Backport from HEAD.
+
 2004-11-15  Dossy Shiobara <dossy@panoptic.com>
 
 	* nsd/nsmain.c (1.52.2.3): AOLserver will now allow setting the fd
