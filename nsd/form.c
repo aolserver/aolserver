@@ -33,7 +33,7 @@
  *      Routines for dealing with HTML FORM's.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/form.c,v 1.17 2005/01/17 14:02:21 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/form.c,v 1.18 2005/03/25 00:34:58 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -75,7 +75,7 @@ Ns_ConnGetQuery(Ns_Conn *conn)
 	Ns_ConnClearQuery(conn);
     }
     if (connPtr->query == NULL) {
-	encoding = connPtr->queryEncoding = connPtr->urlEncoding;
+	encoding = connPtr->queryEncoding = Ns_ConnGetUrlEncoding(conn);
 	connPtr->query = Ns_SetCreate(NULL);
 	if (!STREQ(connPtr->request->method, "POST")) {
 	    form = connPtr->request->query;
@@ -137,10 +137,9 @@ Ns_ConnClearQuery(Ns_Conn *conn)
     if (conn == NULL || connPtr->query == NULL) {
         return;
     }
-    
     Ns_SetFree(connPtr->query);
     connPtr->query = NULL;
-
+    connPtr->queryEncoding = NULL;
     hPtr = Tcl_FirstHashEntry(&connPtr->files, &search);
     while (hPtr != NULL) {
 	filePtr = Tcl_GetHashValue(hPtr);
@@ -240,7 +239,7 @@ NsCheckQuery(Ns_Conn *conn)
 {
     Conn *connPtr = (Conn *) conn;
 
-    if (connPtr->queryEncoding != connPtr->urlEncoding) {
+    if (connPtr->queryEncoding != Ns_ConnGetUrlEncoding(conn)) {
 	return 0;
     }
     return 1;
