@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Makefile.global,v 1.51 2002/03/03 15:33:21 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Makefile.global,v 1.52 2002/05/15 23:07:31 jgdavidson Exp $
 #
 
 #
@@ -46,12 +46,9 @@ NSGCC	  ?= 1
 #
 
 tclmajor  	= 8
-tclminor  	= 3
-tclpatch  	= .4
-tcldir		= tcl$(tclmajor).$(tclminor)$(tclpatch)
-#tclminor  	= 4
-#tclpatch  	= ""
-#tcldir		= ../tcl
+tclminor  	= 4
+tclpatch  	= 
+tcldir		= ../tcl$(tclmajor).$(tclminor)$(tclpatch)
 
 #
 # Set common options.
@@ -65,6 +62,7 @@ RANLIB	     =   /usr/bin/true
 ifeq (1,$(NSDEBUG))
     CCOPT     	= -g
     tcldbg	= g
+    #CFLAGS	+= -DTCL_MEM_DEBUG=1
 else
     CCOPT    	= -O2
     CFLAGS   	+= -DNDEBUG=1
@@ -83,10 +81,10 @@ ifeq (1,$(NSDEBUG))
     tclcfg      += --enable-symbols
 endif
 
-CFLAGS          += -D_REENTRANT=1 -DTCL_THREADS=1 
+CFLAGS          += -D_REENTRANT=1 -DTCL_THREADS=1
 ifdef NSHOME
     CFLAGS      += -I$(NSHOME)/include -I$(NSHOME)/$(tcldir)/generic
-    LIBS	=  -L$(NSHOME)/$(tcldir)/unix -L../nsd
+    LIBS	=  -L$(NSHOME)/$(tcldir)/unix -L$(NSHOME)/nsd
 else
     CFLAGS      += -I$(AOLSERVER)/include
     LIBS	=  -L$(AOLSERVER)/lib
@@ -122,7 +120,7 @@ ifneq (,$(findstring Linux,$(uname)))
         CFLAGS+=-mcpu=i586
     endif
     LIBS+=-ldl -lpthread 
-    CFLAGS+=-DUSE_FIONREAD=1 -DHAVE_COND_EINTR=1
+    CFLAGS+=-DUSE_FIONREAD=1 -DHAVE_COND_EINTR=1 -DUSE_PROCTHREAD
 endif
 
 # Solaris 2.7+
@@ -162,14 +160,14 @@ ifneq (,$(findstring FreeBSD,$(uname)))
     # Standard uthreads:
     CC += -pthread
     # rfork-based LinuxThreads:
-    #CFLAGS += -I/usr/local/include/pthread/linuxthreads
+    #CFLAGS += -I/usr/local/include/pthread/linuxthreads -DUSE_PROCTHREAD
     #LIBS+= -L/usr/local/lib -llthread -llgcc_r
     ## FreeBSD doesn't make a distinction among processors in the x86 class.
     ifneq (,$(findstring i386,$(uname)))
         CFLAGS+=-mcpu=pentium
     endif
-    LDSO=ld -Bshareable -x
-    RPATH = $(RFLAG) $(AOLSERVER)/lib 
+    RPATH=$(RFLAG) $(AOLSERVER)/lib
+    LDSO=ld -Bshareable -x $(RPATH)
     CFLAGS+=-D_THREAD_SAFE=1 -DNO_TIMEZONE=1 -DHAVE_TIMEGM=1 -DNO__ENVIRON=1
     RANLIB=/usr/bin/ranlib
 endif
