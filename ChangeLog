@@ -1,8 +1,30 @@
+2002-06-12  Jim Davidson <jgdavidson@aol.com>
+	
+	* include/nsthread.h:
+	* nsthread/mutex.c:
+	* nsthread/thread.c:
+	* nsd/info.c:  Rename Ns_MutexEnum and Ns_ThreadEnum to
+	Ns_MutexList and Ns_ThreadList to not conflict with pre-4.0
+	definitions of removed functions.
+
+	* nsthread/Makefile
+	* nsthread/nshtreadtest.c (new file):  Added simple program
+	to test thread interface.
+
+	* nsthread/thread.h:
+	* nsthread/cslock.c:
+	* nsthread/rwlock.c:  Added new NsMutexInitNext function
+	to consistantly name mutexes in internal objects.
+
+	* nsthread/sema.c:  Restored AOLserver 3.x implementation
+	using Ns_Mutex and Ns_Cond objects.  The API's in <semaphore.h>
+	were not implemented on OS/X.
+
 2002-06-10  Jim Davidson <jgdavidson@aol.com>
 
 	* include/Makefile.global:
-	* include/Makefile.module:  Added support for dynamic library init
-	procs set via the LIBINIT make variable.
+	* include/Makefile.module:  Added support for dynamic
+	library init procs set via the LIBINIT make variable.
 
 	* Makefile: 
 	* nsthread/compat.c:
@@ -22,10 +44,12 @@
 	* nsthread/thread.c:
 	* nsthread/thread.h (new file):
 	* nsthread/time.c:
-	* nsthread/tls.c:  Moved from nsd as separate nsthread library.
+	* nsthread/tls.c:  Moved from nsd as separate nsthread
+	library.
 
 	* include/ns.h:
-	* include/nsthread.h:  Include of tcl.h moved to nsthread.h from ns.h.
+	* include/nsthread.h:  Include of tcl.h moved to nsthread.h
+	from ns.h.
 
 	* nsd/Makefile
 	* nsd/init.c (new file):
@@ -46,18 +70,18 @@
 	* nsd/sched.c:
 	* nsd/server.c:
 	* nsd/tclinit.c:
-	* nsd/urlspace.c:  Various runtime initializations collected into
-	dynamic library load time init via NsdInit in init.c.
+	* nsd/urlspace.c:  Various runtime initializations collected
+	into dynamic library load time init via NsdInit in init.c.
 
 2002-06-08  Jim Davidson <jgdavidson@aol.com>
 
 	* include/Makefile.global
 	* include/Makefile.module:  Support for building programs
-	along with dynamic libraries and modules.  Also, fixed
-	bug setting -install_name on OS/X.
+	along with dynamic libraries and modules.  Also, fixed bug
+	setting -install_name on OS/X.
 
-	* nsd/Makefile:  Use of updated Makefile.module and include osxcompat.o
-	on OS/X.
+	* nsd/Makefile:  Use of updated Makefile.module and include
+	osxcompat.o on OS/X.
 
 	* nsd/nsd.h:
 	* nsd/osxcompat.h:
@@ -65,10 +89,11 @@
 
 	* nsosx/README (removed):
 	* nsosx/Makefile (removed):
-	* nsosx/nsosx.c (removed):  Tcl no longer requires any compat functions,
-	remainder moved into nsd. 
+	* nsosx/nsosx.c (removed):  Tcl no longer requires any
+	compat functions, remainder moved into nsd.
 
-	Otherwise, minor tweaks throughout to silence compiler warnings.
+	Otherwise, minor tweaks throughout to silence compiler
+	warnings.
 
 2002-06-05  Jim Davidson <jgdavidson@aol.com>
 
@@ -88,23 +113,23 @@
 	* nsd/adpparse.c:
 	* nsd/adpcmds.c:
 	* nsd/adpeval.c:  Added support for new ns_adp_safeeval
-	and ns_adp_registerproc commands. Also, registered
-	tags can now be modified after startup.
+	and ns_adp_registerproc commands. Also, registered tags
+	can now be modified after startup.
 
-	* include/Makefile.module:  Updated to allow building
-	of dynamic library of public routines to go with dynamic
+	* include/Makefile.module:  Updated to allow building of
+	dynamic library of public routines to go with dynamic
 	module, e.g., libnsdb.so with nsdb.so.
 
 	* nsext/Makefile:
 	* nspd/Makefile:
 	* nspd/msg.c (removed):
 	* nsext/msg.c (moved from nspd):  Moved Ns_Ext API from
-	libnspd.a static library to libnsext.so dynamic library
-	as it's used by both nsext.so and proxy drivers.
+	libnspd.a static library to libnsext.so dynamic library as
+	it's used by both nsext.so and proxy drivers.
 
 	* nsdb/Makefile:
-	* nsdb/nsext.c (new file):  Moved public API for nsdb
-	out of nsdb.so module and into libnsdb.so dynamic library.
+	* nsdb/nsext.c (new file):  Moved public API for nsdb out
+	of nsdb.so module and into libnsdb.so dynamic library.
 
 2002-05-15  Jim Davidson <jgdavidson@aol.com>
 
@@ -115,8 +140,9 @@
 	the hacked 8.3.4 sources have been removed.  Going forward
 	you'll need to checkout the Tcl source from Sourceforge
 	into the directory specified in include/Makefile.global
-	(currently ../tcl8.4).  The top level Makefile includes the
-	"tcl-checkout" and "tcl-update" targets which should help.
+	(currently ../tcl8.4).  The top level Makefile includes
+	the "tcl-checkout" and "tcl-update" targets which should
+	help.
 	
 	* include/ns.h:
 	* nsd/server.c:
@@ -132,9 +158,10 @@
 	* nsdb/dbdrv.c (new):
 	* nsdb/dbtcl.c (new):
 	* nsdb/dbutil.c (new):
-	* include/nsdb.h (new):  Moved the NsDb interface from core to
-	new nsdb module.  Simply loading nsdb.so should work as before.
-	Goal is to enable full replacement of NsDb in the future.
+	* include/nsdb.h (new):  Moved the NsDb interface from core
+	to new nsdb module.  Simply loading nsdb.so should work as
+	before.  Goal is to enable full replacement of NsDb in the
+	future.
 
 	* nsd/cache.c:
 	* nsd/callbacks.c:
@@ -156,9 +183,9 @@
 	* nsd/tclinit.c:  Fixed crash bug of null interp delete.
 
 	* nsd/exec.c:
-	* include/Makefile.global:  Support for process manager thread
-	enabled with -DUSE_PROCTHREAD to route all process create/wait
-	through a single thread for Linux threads.
+	* include/Makefile.global:  Support for process manager
+	thread enabled with -DUSE_PROCTHREAD to route all process
+	create/wait through a single thread for Linux threads.
 
 2002-02-24  Jim Davidson <jgdavidson@aol.com>
 
@@ -173,13 +200,13 @@
 	* nsmain/Makefile:
 	* include/Makefile.global:
 	* include/Makefile.module:
-	* include/Makefile.library (removed): Updates for
-	linking modules against the nsd shared library and
-	for library filenames which don't end in .so.
+	* include/Makefile.library (removed): Updates for linking
+	modules against the nsd shared library and for library
+	filenames which don't end in .so.
 
 	* nsext/Makefile
-	* nspd/Makefile: Moved proxy message code from nsext
-	to  nspd, now a static library.
+	* nspd/Makefile: Moved proxy message code from nsext to
+	nspd, now a static library.
 
 	* nsd/main.c:
 	* nsd/init.c:
@@ -190,8 +217,8 @@
 	* ini2tcl.tcl:
 	* Makefile: Moved build and install of nsd and init.tcl
 	into nsd directory and install of sample config to top
-	level Makefile.  Added tcl2ini.tcl and ini2tcl.tcl
-	config file utilities.
+	level Makefile.  Added tcl2ini.tcl and ini2tcl.tcl config
+	file utilities.
 
 2002-02-07  Jeff Hobbs  <jeffh@ActiveState.com>
 
@@ -218,30 +245,32 @@
 	
 	  $(LDSO) -o $(LIB) $(OBJS) $(LIBS) $(RPATH)
 
-	which is what I think was intended. Still have the problem that
-	$(AOLSERVER)/lib must already exist.
+	which is what I think was intended. Still have the problem
+	that $(AOLSERVER)/lib must already exist.
 
 2001-11-05  Jim Davidson <jgdavidson@aol.com>
 
 	* Removed support for Win32, removing both the build/test
-	environment and updating the code to be standard Unix style. Among
-	other style changes such as changing SOCKET's to simple Unix style
-	int's, the short lived Ns_Buf structure was also eliminated in
-	favor of the Unix standard struct iovec.
+	environment and updating the code to be standard Unix style.
+	Among other style changes such as changing SOCKET's to
+	simple Unix style int's, the short lived Ns_Buf structure
+	was also eliminated in favor of the Unix standard struct
+	iovec.
 
-	* Removed support for older non-pthread Unix platforms such as
-	HP/10 and SGI native.
+	* Removed support for older non-pthread Unix platforms such
+	as HP/10 and SGI native.
 
 	* Updated Tcl to version to Tcl 8.3.4, replacing tclAlloc.c
 	with a modified version of what was libnsthread's fast pool
-	allocator including support for fast direct Tcl_Obj allocation.
-	Also added a few functions to tclUnixThrd.c for thread safety
-	(e.g., readdir_r and localtime_r support) and fixed up tcl.m4
-	for better FreeBSD 4.4 and Solaris thread builds.
+	allocator including support for fast direct Tcl_Obj
+	allocation.  Also added a few functions to tclUnixThrd.c
+	for thread safety (e.g., readdir_r and localtime_r support)
+	and fixed up tcl.m4 for better FreeBSD 4.4 and Solaris
+	thread builds.
 
-	* ns_malloc, Ns_ThreadMalloc, and Ns_PoolAlloc all now simply
-	call Tcl_Alloc which is always enabled. The previous -z (enable)
-	and -p (disable) command line flags are ignored.
+	* ns_malloc, Ns_ThreadMalloc, and Ns_PoolAlloc all now
+	simply call Tcl_Alloc which is always enabled. The previous
+	-z (enable) and -p (disable) command line flags are ignored.
 
 	* Integrated remainder of libnsthread, now standard pthreads
 	and compatible with Tcl pthread code, into libnsd.so.
@@ -249,44 +278,45 @@
 	* Updated libnsd.so to use poll() instead of select() where
 	possible.
 
-	* Removed the code which would attempt to determine when the
-	sock callbacks and scheduler were idle before completing startup.
-	The code was overly complex and not strictly correct.
+	* Removed the code which would attempt to determine when
+	the sock callbacks and scheduler were idle before completing
+	startup.  The code was overly complex and not strictly
+	correct.
 
-	* Removed the -k and -K shutdown/restart options which was not
-	entirely safe.
+	* Removed the -k and -K shutdown/restart options which was
+	not entirely safe.
 
-	* Removed the child-process privleged port Ns_SockListen code
-	in nsd/binder.c.  Binding privleged ports (e.g., port 80) now
-	requires the -b or -B command line methods introduced in 3.4,
-	e.g., "nsd -ft nsd.tcl -b myhost:80".  The binder code, while
-	clever, was a potential security risk.
+	* Removed the child-process privleged port Ns_SockListen
+	code in nsd/binder.c.  Binding privleged ports (e.g., port
+	80) now requires the -b or -B command line methods introduced
+	in 3.4, e.g., "nsd -ft nsd.tcl -b myhost:80".  The binder
+	code, while clever, was a potential security risk.
 
-	* Cleaned up some lingering sloppy uses of Ns_ConfigGet and
-	other older macros.  Old macro and function definitions can be
-	disabled by defining NS_NOCOMPAT as is done when compiling the
-	core server and modules.
+	* Cleaned up some lingering sloppy uses of Ns_ConfigGet
+	and other older macros.  Old macro and function definitions
+	can be disabled by defining NS_NOCOMPAT as is done when
+	compiling the core server and modules.
 
 	* Incremented version to 4.0b2.
 
 2001-08-29  Scott S. Goodwin  <scott@scottg.net>
 
 	* https.tcl: made fixes to ns_httppost per Rick Lansky at
-	bom.com. He also suggested I allow the Content-type to be passed
-	in as a parameter, so I've added that too.
+	bom.com. He also suggested I allow the Content-type to be
+	passed in as a parameter, so I've added that too.
 
 2001-08-27  Scott S. Goodwin  <scott@scottg.net>
 
-	* https.tcl: added ns_httppost, that is called with url, rqset,
-	qsset and timeout. The qsset is an ns_set with key/values that
-	will be turned into user=scottg&pass=1234, for example, and passed
-	as content in the POST.
+	* https.tcl: added ns_httppost, that is called with url,
+	rqset, qsset and timeout. The qsset is an ns_set with
+	key/values that will be turned into user=scottg&pass=1234,
+	for example, and passed as content in the POST.
 
 2001-08-17  Scott S. Goodwin  <scott@scottg.net>
 
 	* tcl/http.tcl: moved rqset to be the last arg passed to
-	ns_httpget so it wouldn't break existing code. I should have done
-	it that way in the first place.
+	ns_httpget so it wouldn't break existing code. I should
+	have done it that way in the first place.
 
 2001-08-15  Scott S. Goodwin  <scott@scottg.net>
 
@@ -297,22 +327,24 @@
 
 2001-07-16  Scott S. Goodwin  <scott@scottg.net>
 
-	* tcl/http.tcl: you can now do ns_httpopen GET /index.html; the
-	script will automatically prepend http://hostname:port/ to the
-	url.
+	* tcl/http.tcl: you can now do ns_httpopen GET /index.html;
+	the script will automatically prepend http://hostname:port/
+	to the url.
 
 2001-06-30  Dossy Shiobara  <scott@scottg.net>
 
-	* nsd/conn.c, tests/api/ns_conn.adp: fixed ns_conn outputheaders
-	as per bug #433676 submitted by Yon Derek (yond).
+	* nsd/conn.c, tests/api/ns_conn.adp: fixed ns_conn
+	outputheaders as per bug #433676 submitted by Yon Derek
+	(yond).
 
 2001-05-22  Scott S. Goodwin  <scott@scottg.net>
 
-	* nsd/conn.c: changed Ns_ConnDriverContext in 4.x to return the
-	actual conn-specific, module-specific context back, which is how
-	it works in 3.x. For some reason this API call was changed to
-	always return NULL, but nsopenssl and potentially other comm
-	drivers need to get their conn-specific info back.
+	* nsd/conn.c: changed Ns_ConnDriverContext in 4.x to return
+	the actual conn-specific, module-specific context back,
+	which is how it works in 3.x. For some reason this API call
+	was changed to always return NULL, but nsopenssl and
+	potentially other comm drivers need to get their conn-specific
+	info back.
 
 2001-04-25  Dossy Shiobara  <dossy@panoptic.com>
 
@@ -321,20 +353,21 @@
 
 2001-03-15  Dossy Shiobara  <dossy@panoptic.com>
 
-	* include/Makefile.win32 win32/*/Makefile: initial attempts at
-	Makefiles suitable for NMAKE for building on Win32
+	* include/Makefile.win32 win32/*/Makefile: initial attempts
+	at Makefiles suitable for NMAKE for building on Win32
 
 	* include/ns.h: define typedef __int64 INT64 for Win32
 
 2001-03-12  Scott S. Goodwin  <scott@scottg.net>
 
-	* nsmain.c: Segmentation fault when using -g <group> flag: line
-	294 should read Ns_GetGid(garg) instead of Ns_GetGid(optarg).
+	* nsmain.c: Segmentation fault when using -g <group> flag:
+	line 294 should read Ns_GetGid(garg) instead of Ns_GetGid(optarg).
 
 2001-03-12 Jim Davidson
 
-	Initial checkin of AOLserver 4.0 (beta), now supporting vitual
-	servers and (finally) removing supporting for Tcl 7.6.
+	Initial checkin of AOLserver 4.0 (beta), now supporting
+	vitual servers and (finally) removing supporting for Tcl
+	7.6.
 	
 2001-03-08  Kris Rehberg
 
@@ -343,53 +376,54 @@
 2001-03-08 Jim Davidson
 
 	* Added NsTclFinalizeThread() at end of Tcl TLS cleanup to
-	finalize Tcl 8.x thread data.  This fix was the last hurdle for
-	finalizing nsd8x.
+	finalize Tcl 8.x thread data.  This fix was the last hurdle
+	for finalizing nsd8x.
 
 2001-01-31  Kris Rehberg 
 
-	* Makefile (MODULES): nsunix, nsvhr, and nsodbc moved to the
-	Module Collection.
+	* Makefile (MODULES): nsunix, nsvhr, and nsodbc moved to
+	the Module Collection.
 
 2001-01-16  Jim Davidson
 
-	* Cleaned up sloppy use of the nsServer global wherever it's used.
+	* Cleaned up sloppy use of the nsServer global wherever
+	it's used.
 
 2001-01-04  Kris Rehberg 
 
-	* nsd/tclmisc.c: Ticket 13090.  ns_striphtml crashing-bug in nsd8x
-	fixed.
+	* nsd/tclmisc.c: Ticket 13090.  ns_striphtml crashing-bug
+	in nsd8x fixed.
 
 2000-12-14  Kris Rehberg 
 
 	* tcl/http.tcl: Corrected typo _ns_ns_http_readable.
 
-	* nsd/dstring.c (Ns_DStringPrintf): Ticket 12765. Ns_DStringPrintf
-	uses vsnprintf instead of vsprintf with specified buffer size.
-	Thanks to "??".
+	* nsd/dstring.c (Ns_DStringPrintf): Ticket 12765.
+	Ns_DStringPrintf uses vsnprintf instead of vsprintf with
+	specified buffer size.  Thanks to "??".
 
-	* nsd/return.c (Ns_ConnConstructHeaders): Ticket
-	12764. If-Modified-Since (304) works with keepalive now. Thanks to
-	Jim "??".
+	* nsd/return.c (Ns_ConnConstructHeaders): Ticket 12764.
+	If-Modified-Since (304) works with keepalive now. Thanks
+	to Jim "??".
 
 2000-12-13  Kris Rehberg 
 
 	* include/Makefile.global: Builds with architecture-specific
 	optimization options. Auto-detects architecture for most
-	platforms.  Auto-select compiler and Purify usage from command
-	line, e.g.:
+	platforms.  Auto-select compiler and Purify usage from
+	command line, e.g.:
 	gmake nativeme=1   (all non-free Unix)
-	gmake gccme=1      (some non-free Unix)
-	gmake PURIFY=/path/to/purify/executable  (Solaris and Irix only)
+	gmake gccme=1      (some non-free Unix) gmake
+	PURIFY=/path/to/purify/executable  (Solaris and Irix only)
 
-	* nssock/Makefile*: now installs The Right Things in The Right
-	Places.
+	* nssock/Makefile*: now installs The Right Things in The
+	Right Places.
 
-	* nsd/Makefile: nsd8x is the default AOLserver now (nsd symlinks
-	to nsd8x).
+	* nsd/Makefile: nsd8x is the default AOLserver now (nsd
+	symlinks to nsd8x).
 
-	* nsd/sample-config.tcl: Added some tuning parameters for easy
-	reference.
+	* nsd/sample-config.tcl: Added some tuning parameters for
+	easy reference.
 
 2000-12-12  Kris Rehberg 
 
@@ -397,126 +431,135 @@
 
 	* nslog/nslog.c (Ns_ModuleInit): pointer-to-function casted.
 
-	* nscp/nscp.c (GetLine): buf changed to char *; casted AcceptProc.
+	* nscp/nscp.c (GetLine): buf changed to char *; casted
+	AcceptProc.
 	
 2000-12-12  Jim Davidson
 
-	* nssock/sock.cpp: Fixed multiple-load problems, added sndbuf,
-	rcvbuf, sendwait, and recvwait options. Added configurable backlog
-	via Ns_SockListenEx. Fixed compile bugs for ssl. Restructured the
-	socket module to wait in server busy situations instead of sending
-	the server busy message.  Also, moved the graceful close burden to
-	the SockThread from the connection thread.
+	* nssock/sock.cpp: Fixed multiple-load problems, added
+	sndbuf, rcvbuf, sendwait, and recvwait options. Added
+	configurable backlog via Ns_SockListenEx. Fixed compile
+	bugs for ssl. Restructured the socket module to wait in
+	server busy situations instead of sending the server busy
+	message.  Also, moved the graceful close burden to the
+	SockThread from the connection thread.
 
 	* thread/win32.cpp: Moved WinThread allocation to DllMain,
-	eliminating GetWinThread function. Also, disabled thread cleanup
-	for final thread to avoid any TLS cleanup callbacks attempting to
-	invoke code in unloaded libraries like Tcl. Removed call to
-	NsInitThread no longer needed. Switched to rolling condition
-	broadcast wakeup as in the sproc code.  More fixes for new Thread
-	context model.
+	eliminating GetWinThread function. Also, disabled thread
+	cleanup for final thread to avoid any TLS cleanup callbacks
+	attempting to invoke code in unloaded libraries like Tcl.
+	Removed call to NsInitThread no longer needed. Switched to
+	rolling condition broadcast wakeup as in the sproc code.
+	More fixes for new Thread context model.
 	
-	* thread/tls.c: Changed NsLock API's to return 1/0 instead of
-	NS_OK/NS_TIMEOUT and more use of Ns_MasterLock to keep things
-	simple.
+	* thread/tls.c: Changed NsLock API's to return 1/0 instead
+	of NS_OK/NS_TIMEOUT and more use of Ns_MasterLock to keep
+	things simple.
 
-	* thread/thread.c: Changed thread enum to return Ns_Thread, not
-	Ns_Thread pointer which didn't make much sense.  Updated "ns_info
-	pools" command to reflect change. Fixed bugs with Ns_ThreadEnum
-	and pool counters. Update of the Ns_Pool API to support more stats
-	gathering available via new Ns_PoolStats API. Remove Thread->etime
-	and NsPool API's. Moved sprintf of default thread name from
-	NsThreadMain to NsInitThread under protection of threads
-	lock. Added comment for NsInitThread. More fixes for new Thread
-	context model. Updated sproc.cpp code for new Thread management
-	and removed the wait for thread startup which shouldn't be
-	needed.
+	* thread/thread.c: Changed thread enum to return Ns_Thread,
+	not Ns_Thread pointer which didn't make much sense.  Updated
+	"ns_info pools" command to reflect change. Fixed bugs with
+	Ns_ThreadEnum and pool counters. Update of the Ns_Pool API
+	to support more stats gathering available via new Ns_PoolStats
+	API. Remove Thread->etime and NsPool API's. Moved sprintf
+	of default thread name from NsThreadMain to NsInitThread
+	under protection of threads lock. Added comment for
+	NsInitThread. More fixes for new Thread context model.
+	Updated sproc.cpp code for new Thread management and removed
+	the wait for thread startup which shouldn't be needed.
 
-	* thread/test.c: Cleaned up code a bit to quiet compiler.  Better
-	test for PTHREAD_TEST.  Fixed undefined var bug for sproc.  Added
-	some comments, a native pthread test, and a recursive stack
-	checker.
+	* thread/test.c: Cleaned up code a bit to quiet compiler.
+	Better test for PTHREAD_TEST.  Fixed undefined var bug for
+	sproc.  Added some comments, a native pthread test, and a
+	recursive stack checker.
 
-	* thread/tcl8x.c: Added Tcl_JoinThread for benefit of Tcl8.4.
+	* thread/tcl8x.c: Added Tcl_JoinThread for benefit of
+	Tcl8.4.
 
-	* thread/sproc.cpp: Changed NsLock API's to return 1/0 instead of
-	NS_OK/NS_TIMEOUT and more use of Ns_MasterLock to keep things
-	simple. Fixed some comment bugs, update thrPtr->tid after
-	fork. Added call the NsInitThread. Updated sproc.cpp code for new
-	Thread management and removed the wait for thread startup which
-	shouldn't be needed.
+	* thread/sproc.cpp: Changed NsLock API's to return 1/0
+	instead of NS_OK/NS_TIMEOUT and more use of Ns_MasterLock
+	to keep things simple. Fixed some comment bugs, update
+	thrPtr->tid after fork. Added call the NsInitThread. Updated
+	sproc.cpp code for new Thread management and removed the
+	wait for thread startup which shouldn't be needed.
 
-	* thread/pthread.cpp: Changed NsLock API's to return 1/0 instead
-	of NS_OK/NS_TIMEOUT and more use of Ns_MasterLock to keep things
-	simple. Fixed bug of not setting the tid correctly. Added call the
-	NsInitThread.
+	* thread/pthread.cpp: Changed NsLock API's to return 1/0
+	instead of NS_OK/NS_TIMEOUT and more use of Ns_MasterLock
+	to keep things simple. Fixed bug of not setting the tid
+	correctly. Added call the NsInitThread.
 
-	* thread/pool.c: Added Ns_PoolEnum to get at pool stats as with
-	mutexes and threads, removing the old Ns_PoolStats API's and
-	updating the "ns_info pools" command. Fixed bugs with
-	Ns_ThreadEnum and pool counters. Update of the Ns_Pool API to
-	support more stats gathering available via new Ns_PoolStats
-	API. Removed <mutex.h> for sgi which shouldn't have been
-	there. Removed the sbrk() code for now, was crashing SGI
-	(probably not thread safe). Use sbrk() on Unix instead of malloc
-	to avoid any malloc overhead or contention. Reduced the zippy
-	allocator page size to 16k from 64k. 
+	* thread/pool.c: Added Ns_PoolEnum to get at pool stats as
+	with mutexes and threads, removing the old Ns_PoolStats
+	API's and updating the "ns_info pools" command. Fixed bugs
+	with Ns_ThreadEnum and pool counters. Update of the Ns_Pool
+	API to support more stats gathering available via new
+	Ns_PoolStats API. Removed <mutex.h> for sgi which shouldn't
+	have been there. Removed the sbrk() code for now, was
+	crashing SGI (probably not thread safe). Use sbrk() on Unix
+	instead of malloc to avoid any malloc overhead or contention.
+	Reduced the zippy allocator page size to 16k from 64k.
 
-	* thread/pool.c, thread.c, sproc.cpp: Re-structured management of
-	the Thread context to better support threads created without
-	Ns_ThreadCreate (e.g., Java VM threads).
+	* thread/pool.c, thread.c, sproc.cpp: Re-structured management
+	of the Thread context to better support threads created
+	without Ns_ThreadCreate (e.g., Java VM threads).
 	
-	* thread/mutex.c: Changed NsLock API's to return 1/0 instead of
-	NS_OK/NS_TIMEOUT and more use of Ns_MasterLock to keep things
-	simple.
+	* thread/mutex.c: Changed NsLock API's to return 1/0 instead
+	of NS_OK/NS_TIMEOUT and more use of Ns_MasterLock to keep
+	things simple.
 
 	* thread/cs.c, memory.c, mutex.c, pool.c, pthread.cpp,
 	reentrant.c, rwlock.c, sema.c, sproc.cpp, tcl8x.c, test.c,
-	thread.c, win32.cpp: Restructured the thread interfaces, moving
-	the master lock to the platform interface code, integrating the
-	zippy allocator with Ns_Pool/Ns_ThreadAlloc and use of a new
-	simple direct allocator for all thread objects.
+	thread.c, win32.cpp: Restructured the thread interfaces,
+	moving the master lock to the platform interface code,
+	integrating the zippy allocator with Ns_Pool/Ns_ThreadAlloc
+	and use of a new simple direct allocator for all thread
+	objects.
 
-	* win32/nsthread/nsthread.dsp: Removed master.c and oldpools.c.
+	* win32/nsthread/nsthread.dsp: Removed master.c and
+	oldpools.c.
 
-	* nsd/unix.c: Made ns_eval command disabled by default to avoid
-	using SIGUSR2.
+	* nsd/unix.c: Made ns_eval command disabled by default to
+	avoid using SIGUSR2.
 
-	* nsd/tclthread.c: Changed SETOBJ macro to SetObj function which
-	no longer sprintf's directly into interp->result.
+	* nsd/tclthread.c: Changed SETOBJ macro to SetObj function
+	which no longer sprintf's directly into interp->result.
 
-	* nsd/tclmisc.c: Added Ns_PoolEnum to get at pool stats as with
-	mutexes and threads, removing the old Ns_PoolStats API's and
-	updating the "ns_info pools" command. Changed thread enum to
-	return Ns_Thread, not Ns_Thread pointer which didn't make much
-	sense.  Updated "ns_info pools" command to reflect change.  Added
-	more info for "ns_info pools".  Added "ns_info pools" command to
-	dump memory pool stats.
+	* nsd/tclmisc.c: Added Ns_PoolEnum to get at pool stats as
+	with mutexes and threads, removing the old Ns_PoolStats
+	API's and updating the "ns_info pools" command. Changed
+	thread enum to return Ns_Thread, not Ns_Thread pointer
+	which didn't make much sense.  Updated "ns_info pools"
+	command to reflect change.  Added more info for "ns_info
+	pools".  Added "ns_info pools" command to dump memory pool
+	stats.
 	
 	* nsd/tclinit.c: Added nsconf.quiet and nsconf.startuptimeout.
-	Made ns_eval command disabled by default to avoid using SIGUSR2.
-	Added nsConfQuiet flag to quiet down the startup messages with the
-	-q flag.
+	Made ns_eval command disabled by default to avoid using
+	SIGUSR2.  Added nsConfQuiet flag to quiet down the startup
+	messages with the -q flag.
 
 	* nsd/sock.c: Added Ns_SockListenEx.
 
-	* nsd/serv.c: Ensured the conn thread name was set first. Added
-	Ns_RegisterAtReady callbacks for indicating server no longer busy.
+	* nsd/serv.c: Ensured the conn thread name was set first.
+	Added Ns_RegisterAtReady callbacks for indicating server
+	no longer busy.
 
-	* nsd/sched.c, nsmain.c, serv.c, sockcallback.c: Added code to
-	wait for conn thread, sock callback, and sched idle at startup to
-	help alleviate code start problems.
+	* nsd/sched.c, nsmain.c, serv.c, sockcallback.c: Added code
+	to wait for conn thread, sock callback, and sched idle at
+	startup to help alleviate code start problems.
 
-	* nsd/nsmain.c: Shuffled initialization to ensure command line
-	args are read before calling any Ns API's, ensuring zippy malloc
-	can be set if needed.
+	* nsd/nsmain.c: Shuffled initialization to ensure command
+	line args are read before calling any Ns API's, ensuring
+	zippy malloc can be set if needed.
 
 	* nsd/nsconf.c: Added nsconf.quiet and nsconf.startuptimeout.
-	Made ns_eval command disabled by default to avoid using SIGUSR2.
+	Made ns_eval command disabled by default to avoid using
+	SIGUSR2.
 
-	* nsd/dstring.c: Remove unused vars.  Uses ns_realloc to grow
-	strings and maintains dstring stack in the staticSpace instead of
-	the *addr pointer for compatibility with Tcl dstrings.
+	* nsd/dstring.c: Remove unused vars.  Uses ns_realloc to
+	grow strings and maintains dstring stack in the staticSpace
+	instead of the *addr pointer for compatibility with Tcl
+	dstrings.
 
 	* nsd/callbacks.c: Added Ns_RegisterAtReady callbacks for
 	indicating server no longer busy.
@@ -525,16 +568,17 @@
 
 2000-12-12  Kris Rehberg 
 	
-	* nsvhr/nsvhr.c (VHRProc): Matches hostnames regardless of case.
+	* nsvhr/nsvhr.c (VHRProc): Matches hostnames regardless of
+	case.
 
 	* nssock: Supports Rainbow CryptoSwift SSL accelerators
 	(compile-time option; requires the Swift SDK from
 	http://www.rainbow.com/).
 
-	* nsd/nsmain.c (Ns_Main): Changed order of some config default
-	initialization.  Config options cleaned up a lot.  Usage message
-	very less glib.  SUNWspro dumped core on usage message due to
-	nsconf.argv0 quigglyness.
+	* nsd/nsmain.c (Ns_Main): Changed order of some config
+	default initialization.  Config options cleaned up a lot.
+	Usage message very less glib.  SUNWspro dumped core on
+	usage message due to nsconf.argv0 quigglyness.
 	
 2000-10-20  Kris Rehberg 
 
@@ -545,78 +589,78 @@
 	* win/tclWinSock.c: Fixed deadlock in sockets init code.
 
 	* nsd/nswin32.c: Fixed service install code to allow long
-	pathnames with spaces.
-	Added/use ns_pipe which set's close-on-exec like ns_sockpair.
+	pathnames with spaces.  Added/use ns_pipe which set's
+	close-on-exec like ns_sockpair.
 	
 
 2000-10-17  Kris Rehberg 
 
-	* nssock/sock.cpp: extra padding on Server Busy message to defeat
-	MSIE friendly error messages.
+	* nssock/sock.cpp: extra padding on Server Busy message to
+	defeat MSIE friendly error messages.
 
-	* nsd/nsconf.h: All configuration option defaults have been moved
-	to nsconf.h as #defines.
+	* nsd/nsconf.h: All configuration option defaults have been
+	moved to nsconf.h as #defines.
 
-	* Makefile (install): Tcl library for nsd8x is now installed into
-	$(PREFIX)/lib/tcl8.3.
+	* Makefile (install): Tcl library for nsd8x is now installed
+	into $(PREFIX)/lib/tcl8.3.
 
-	* tcl/http.tcl (ns_httpopen): Host:port is now sent to remote host
-	if != 80.  Suggested by Jerry Asher.
+	* tcl/http.tcl (ns_httpopen): Host:port is now sent to
+	remote host if != 80.  Suggested by Jerry Asher.
 
-	* tcl/fastpath.tcl (_ns_dirlist): All kinds of Win32 pathnames
-	should now be working.  Thanks to Eric Klein.
+	* tcl/fastpath.tcl (_ns_dirlist): All kinds of Win32
+	pathnames should now be working.  Thanks to Eric Klein.
 
-	* nsd/return.c (Ns_ConnReturnNotice): New options "errorminsize",
-	to pad error messages to defeat MSIE friendly errors (fix
-	suggested by ArsDigita) and "noticedetail" to return more detailed
-	information on notice pages.
+	* nsd/return.c (Ns_ConnReturnNotice): New options
+	"errorminsize", to pad error messages to defeat MSIE friendly
+	errors (fix suggested by ArsDigita) and "noticedetail" to
+	return more detailed information on notice pages.
 
-	* nslog/nslog.c: suppressquery option added to suppress logging of
-	query data.
+	* nslog/nslog.c: suppressquery option added to suppress
+	logging of query data.
 
-	* nslog/nslog.c: LogExtendedHEaders option added.  Contributed by
-	ArsDigita.
-
-
-	* nsd/tclfile.c: Input string to mktemp is copied, because mktemp
-	edits the string in-place and that's generally a bad thing to do
-	with argv's.  Contributed by ArsDigita.
-
-	* nsd/tclnsshare.cpp (ShareTraceProc): Patch to tclnsshare.cpp to
-	avoid race conditions if the shared value is a list.  Contributed
+	* nslog/nslog.c: LogExtendedHEaders option added.  Contributed
 	by ArsDigita.
+
+
+	* nsd/tclfile.c: Input string to mktemp is copied, because
+	mktemp edits the string in-place and that's generally a
+	bad thing to do with argv's.  Contributed by ArsDigita.
+
+	* nsd/tclnsshare.cpp (ShareTraceProc): Patch to tclnsshare.cpp
+	to avoid race conditions if the shared value is a list.
+	Contributed by ArsDigita.
 
 	* tcl/http.tcl (ns_httpopen): CRLF now returned in ns_httpopen.
 	Contributed by ArsDigita.
 
-	* tcl8.3.2/generic/tclCmdIL.c: Nonsense case of lsorting a list
-	with length <= 0 caused a memory leak.  Fixed.  Contributed by
-	ArsDigita.
-	
-	* nsd/adpfancy.c: We now use the Arsdigita version of adpfancy.
+	* tcl8.3.2/generic/tclCmdIL.c: Nonsense case of lsorting
+	a list with length <= 0 caused a memory leak.  Fixed.
 	Contributed by ArsDigita.
+	
+	* nsd/adpfancy.c: We now use the Arsdigita version of
+	adpfancy.  Contributed by ArsDigita.
 	
 	* nsd/adp.c: Sundry ArsDigita changes.
 
 2000-10-16  Kris Rehberg 
 
-	* tcl/init.tcl:  Initialize errorCode and errorInfo like tclsh
-	does.  From ArsDigita.
+	* tcl/init.tcl:  Initialize errorCode and errorInfo like
+	tclsh does.  From ArsDigita.
 
-	* nsd/nsd.h, nsd/tclcmds.c, nsd/tclvar.c: nsv_names Tcl command
-	lists names of nsv's in memory.
+	* nsd/nsd.h, nsd/tclcmds.c, nsd/tclvar.c: nsv_names Tcl
+	command lists names of nsv's in memory.
 
-	* tcl8.3.2: The complete Tcl 8.x distributions are now included.
-	They aren't installed with AOLserver's "gmake install", but you
-	can install them manually if you want to use them for the i18n
-	encodings and stuff like that.  It will install into the
-	"lib/tcl8.3" directory of the binary distribution with AOLserver
-	3.3 and later.
+	* tcl8.3.2: The complete Tcl 8.x distributions are now
+	included.  They aren't installed with AOLserver's "gmake
+	install", but you can install them manually if you want to
+	use them for the i18n encodings and stuff like that.  It
+	will install into the "lib/tcl8.3" directory of the binary
+	distribution with AOLserver 3.3 and later.
 
-	* nsd/nsmain.c (Ns_Main): Had to move Ns_ThreadSetName below the
-	stdin/stdout/stderr reassignment to fix a fd problem with running
-	nsd on Irix in "installed" or "daemon" mode that would prevent the
-	server from starting up.  Sigh.
+	* nsd/nsmain.c (Ns_Main): Had to move Ns_ThreadSetName
+	below the stdin/stdout/stderr reassignment to fix a fd
+	problem with running nsd on Irix in "installed" or "daemon"
+	mode that would prevent the server from starting up.  Sigh.
 	(Ns_Main): Took out little note about -k|-K being deprecated.
 
 2000-10-13  Kris Rehberg 
@@ -627,12 +671,12 @@
 	(Ns_Main): -f gives a "deprecated" warning.
 
 	* nsd/binder.c (PreBind): Didn't really tell us if it was
-	successful at pre-binding.  Helpful to know if you're wondering
-	what happened to that port you wanted to pre-bind.
+	successful at pre-binding.  Helpful to know if you're
+	wondering what happened to that port you wanted to pre-bind.
 	(Binder): backlog variables (2) initialized to nsconf.backlog.
 
-	* nssock/sock.cpp, nsd/return.c: Made an attempt at standardizing
-	the error codes and error page content.
+	* nssock/sock.cpp, nsd/return.c: Made an attempt at
+	standardizing the error codes and error page content.
 	
 2000-10-13  Jim Davidson
 	
@@ -641,60 +685,63 @@
 
 	* nsd/random.c: Put back log message when generating seeds.
 
-	* nsd/nsconf.c: Fixed memory overwrite bug in stats and increased
-	the default buffer value.
+	* nsd/nsconf.c: Fixed memory overwrite bug in stats and
+	increased the default buffer value.
 
-	* nsd/keepalive.c: Fixed array overwrite with maxkeep=0 bug.
-	Contributed by ArsDigita.
+	* nsd/keepalive.c: Fixed array overwrite with maxkeep=0
+	bug.  Contributed by ArsDigita.
 	
-	* nsd/tclkeylist.c: A more modern version added that's compatible
-	with Tcl 8.3.2 (nsd8x).
+	* nsd/tclkeylist.c: A more modern version added that's
+	compatible with Tcl 8.3.2 (nsd8x).
 
-	* nsd/stamp.c: Forces the build date reported by AOLserver to be
-	absolutely the last possible moment before the link step happens,
-	not just the last time nsmain.c was built.
+	* nsd/stamp.c: Forces the build date reported by AOLserver
+	to be absolutely the last possible moment before the link
+	step happens, not just the last time nsmain.c was built.
 
-	* nsd/binder.c: New option "-b" to prebind ports as root (but not
-	listen on them).  This allows AOLserver to start up on MacOS X on
-	ports 80 and 443 like this:  "nsd ..blah.. -b 10.0.0.1:80".
+	* nsd/binder.c: New option "-b" to prebind ports as root
+	(but not listen on them).  This allows AOLserver to start
+	up on MacOS X on ports 80 and 443 like this:  "nsd ..blah..
+	-b 10.0.0.1:80".
 
-	* nssock/: Building nsssl is much less of a debacle and doesn't
-	rebuild itself three times anymore.
+	* nssock/: Building nsssl is much less of a debacle and
+	doesn't rebuild itself three times anymore.
 
-	* various: fork() calls in all kinds of code were changed to use
-	ns_fork.  ns_fork now lives in the thread library (thread/
-	directory).
+	* various: fork() calls in all kinds of code were changed
+	to use ns_fork.  ns_fork now lives in the thread library
+	(thread/ directory).
 
-	* tcl8.3.2/generic/tclIO.c: Fixed memory leak that leaks around
-	112 bytes each time a file descriptor is closed.  Thanks to Rob
-	Mayoff for finding this and proposing a solution.
+	* tcl8.3.2/generic/tclIO.c: Fixed memory leak that leaks
+	around 112 bytes each time a file descriptor is closed.
+	Thanks to Rob Mayoff for finding this and proposing a
+	solution.
 
 2000-10-09  Kris Rehberg 
 
-	* sample-config.tcl: nsd.tcl is now sample-config.tcl so that
-	existing users can look at the new reference configuration.
+	* sample-config.tcl: nsd.tcl is now sample-config.tcl so
+	that existing users can look at the new reference configuration.
 
 	* nsd/nsmain.c (Ns_InfoNameOfExecutable): new function just
 	returns nsconf.nsd which is determined elsewhere.
 
-	* nscp/nscp.c (Login): Tells you lots of harmless info about the
-	machine once you log in.  Also, nscp does not run unless
-	configuration is explicitly set
+	* nscp/nscp.c (Login): Tells you lots of harmless info
+	about the machine once you log in.  Also, nscp does not
+	run unless configuration is explicitly set
 
 	* nsd/nsmain.c: Some typo or other.
 
-	* General: Files were re-arranged and some were renamed.  The
-	sample SSL key/cert files are sample-certfile, sample-keyfile.
-	The nsd.tcl is now called sample-config.tcl (so that existing
-	installations always have a current reference copy of the
-	configuration).  Other minor changes.
+	* General: Files were re-arranged and some were renamed.
+	The sample SSL key/cert files are sample-certfile,
+	sample-keyfile.  The nsd.tcl is now called sample-config.tcl
+	(so that existing installations always have a current
+	reference copy of the configuration).  Other minor changes.
 
-	* tests/:  Moved from its hiding place in scripts/test.  Install
-	them with "gmake install-tests".
+	* tests/:  Moved from its hiding place in scripts/test.
+	Install them with "gmake install-tests".
 
-	* nsd/tclxkeylist.c, nsd/tclcmds.c, nsd/Makefile: Re-added TclX
-	keyl* commands that were in AOLserver 2.x.  These are inferior to
-	ns_set which is why they were left out in the first place.
+	* nsd/tclxkeylist.c, nsd/tclcmds.c, nsd/Makefile: Re-added
+	TclX keyl* commands that were in AOLserver 2.x.  These are
+	inferior to ns_set which is why they were left out in the
+	first place.
 
 2000-10-04  Jim Davidson
 
@@ -705,52 +752,54 @@
 
 	* nsd/nsmain.c, include/Makefile.global, nsd/nsthread.h,
 	nspd/main.c, nsunix/nsunix.c, nsvhr/nsvhr.c, thread/Makefile,
-	thread/osthread, thread/reentrant.c, thread/signal.c: Updates for
-	Mac OS X.  Use MACOSX instead of APPLE; use HAVE_BSDSETPGRP,
-	HAVE_CMMSG, use pthreads instead of cthreads.
+	thread/osthread, thread/reentrant.c, thread/signal.c:
+	Updates for Mac OS X.  Use MACOSX instead of APPLE; use
+	HAVE_BSDSETPGRP, HAVE_CMMSG, use pthreads instead of
+	cthreads.
 	
-	* nssock/sock.c: Removed setting bufsize to uninitialized value on
-	ssl.
+	* nssock/sock.c: Removed setting bufsize to uninitialized
+	value on ssl.
 
-	* include/ns.h: Removed Ns_CacheTimedGetValue which was an odd
-	interface not used anywhere.
+	* include/ns.h: Removed Ns_CacheTimedGetValue which was an
+	odd interface not used anywhere.
 	
 	* nsd/nsd.h: Update to version 3.11.
 	
 	* tcl/namespace.tcl: Added namespace export to init script.
 	
-	* thread/pthread.cpp: Stopped using pthread_once as it appears to
-	require a lock.
+	* thread/pthread.cpp: Stopped using pthread_once as it
+	appears to require a lock.
 	
 2000-10-04  Kris Rehberg 
 
 	* win32/nsssl/nsssl.dsp: nsssl project for win32.
 
-	* win32/aolserver.dsw: main installation keeps DLL's as DLL's now.
+	* win32/aolserver.dsw: main installation keeps DLL's as
+	DLL's now.
 
 	* scripts/nsd.tcl: shared library extension is now
 	platform-dependent
 
-	* nssock/ssltcl.c: Changed name of ReadFile adn WriteFile to avoid
-	Win32 naming conflicts.
+	* nssock/ssltcl.c: Changed name of ReadFile adn WriteFile
+	to avoid Win32 naming conflicts.
 	
 2000-09-28  Kris Rehberg 
 
-	* scripts/tests/nstelemetry.adp: added "Expires: now" header to
-	ensure it gets run each time it's visitted.
+	* scripts/tests/nstelemetry.adp: added "Expires: now" header
+	to ensure it gets run each time it's visitted.
 
-	* nsd/serv.c (NsConnArgProc): Race condition when threads exit
-	while [ns_info threads] is run; arg can be NULL.  Seen mostly by
-	people who regularly visit nstelemetry.adp.
-	(AppendConn): same thing but with connPtr.  This may be a losing
-	battle.  It appears to work on a busy Irix server, so I'm
-	declaring victory for now.
+	* nsd/serv.c (NsConnArgProc): Race condition when threads
+	exit while [ns_info threads] is run; arg can be NULL.  Seen
+	mostly by people who regularly visit nstelemetry.adp.
+	(AppendConn): same thing but with connPtr.  This may be a
+	losing battle.  It appears to work on a busy Irix server,
+	so I'm declaring victory for now.
 
 2000-09-28  Jim Davidson
 	
-	* nssock/sock.c: Fixed bufferred read code in SockRead, resulting
-	in a big performance boost and system load reduction.  Special
-	thanks to Zachary Girouard.
+	* nssock/sock.c: Fixed bufferred read code in SockRead,
+	resulting in a big performance boost and system load
+	reduction.  Special thanks to Zachary Girouard.
 
 2000-09-05  Kris Rehberg 
 
@@ -759,38 +808,42 @@
 2000-09-05  (various: Jerry Asher, Jim Davidson, "Dossy," Curtis Galloway,
 	Scott S. Goodwin, Rob Mayoff, Kris Rehberg)
 
-	* thread/win32.cpp: Sets thread stack size as on other platforms.
+	* thread/win32.cpp: Sets thread stack size as on other
+	platforms.
 
 	* thread/thread.c: NULL out thread arg at exit to avoid
-	Ns_ThreadEnum checking arg info for possibly deallocated context
-	as seen in ns_info threads.  Also, moved read of firstPtr in
-	Ns_ThreadEnum inside lock.  Added Ns_ThreadCreate2 in thread.c
-	needed for upgrade to Tcl 8.3.1 in tcl8x.c
+	Ns_ThreadEnum checking arg info for possibly deallocated
+	context as seen in ns_info threads.  Also, moved read of
+	firstPtr in Ns_ThreadEnum inside lock.  Added Ns_ThreadCreate2
+	in thread.c needed for upgrade to Tcl 8.3.1 in tcl8x.c
 	
-	* thread/pthread.cpp: ETIME bug work around not causes wakeup in
-	Ns_CondWait and Ns_CondTimeWait instead of waiting again.  This is
-	more conservative and should avoid problems some have had with
-	threads missing wakeup.
+	* thread/pthread.cpp: ETIME bug work around not causes
+	wakeup in Ns_CondWait and Ns_CondTimeWait instead of waiting
+	again.  This is more conservative and should avoid problems
+	some have had with threads missing wakeup.
 
 	* thread/pool.c: Added a simple 1-byte range check to -z
 	allocator.
 
-	* thread/Makefile: Added dependency for osthread.o to Makefile.
+	* thread/Makefile: Added dependency for osthread.o to
+	Makefile.
 
 	* tcl/namespace.tcl: Added namespace export to init script.
 
-	* nsvhr/nsvhr.c: Switched to Ns_WriteConn in TimedSockDump to
-	ensure all data was sent.
+	* nsvhr/nsvhr.c: Switched to Ns_WriteConn in TimedSockDump
+	to ensure all data was sent.
 
 	* nssock(nsssl): SSL module includes a fake 40-bit/512-bit
-	export-grade SSL keyfile.pem and certfile.pem for immediate use on
-	installation.  Adjusted for use with BSAFE 4 and 5.
+	export-grade SSL keyfile.pem and certfile.pem for immediate
+	use on installation.  Adjusted for use with BSAFE 4 and 5.
 
 	* nspd: Library now installed to binary distribution.
 
-	* nsd/tclsock.c: Fixed crash bug in error message in ns_socknread.
+	* nsd/tclsock.c: Fixed crash bug in error message in
+	ns_socknread.
 
-	* nsd/tclcmds.c: Added ns_adp_registertag command as documented.
+	* nsd/tclcmds.c: Added ns_adp_registertag command as
+	documented.
 	
 	* nsd/serv.c: Added missing break for unauthorized case in
 	ConnRun.
@@ -801,33 +854,34 @@
 
 	* nsd/mimetypes.c: Added .png type, "image/png".
 	
-	* nsd/dbtcl.c: Removed unused variables in GetCsvCmd.  Use a
-	dstring to create the column list instead of incrementally setting
-	the output variable with Tcl_SetVar.  This was necessary to avoid
-	conflicting definitions of the needed TCL_ flags between 7.6 and
-	8.x.
+	* nsd/dbtcl.c: Removed unused variables in GetCsvCmd.  Use
+	a dstring to create the column list instead of incrementally
+	setting the output variable with Tcl_SetVar.  This was
+	necessary to avoid conflicting definitions of the needed
+	TCL_ flags between 7.6 and 8.x.
 
-	* nsd/dbinit.c: MOdified current per-thread handle count to use a
-	single TLS slot instead of a slot per pool.
+	* nsd/dbinit.c: MOdified current per-thread handle count
+	to use a single TLS slot instead of a slot per pool.
 	
-	* nsd/tclinit.c,adp.c,conn.c: The use of thread-local storage
-	(Tls) is now self-initializing in the conn, ADP, Tcl, etc.  This
-	allows ns_conn commands to be used outside a connection thread as
-	well as other uses of Tls where it may not be ready for use.
+	* nsd/tclinit.c,adp.c,conn.c: The use of thread-local
+	storage (Tls) is now self-initializing in the conn, ADP,
+	Tcl, etc.  This allows ns_conn commands to be used outside
+	a connection thread as well as other uses of Tls where it
+	may not be ready for use.
 
-	* nscp/nscp.c: Password non-echo code confuses Win32 and some free
-	Unix telnet clients so it has been disabled by default for now,
-	though it can be enabled by setting "echopassword" in the nscp
-	module section of nsd.tcl.
+	* nscp/nscp.c: Password non-echo code confuses Win32 and
+	some free Unix telnet clients so it has been disabled by
+	default for now, though it can be enabled by setting
+	"echopassword" in the nscp module section of nsd.tcl.
 	
 2000-08-21  Kris Rehberg 
 
-	* nscp/nscp.c: Makes some attempt to recognize and handle telnet
-	IAC codes like CTRL-C and CTRL-D to force a logout.  This
-	implementation of the telnet protocol is dirt-cheap, so only
-	standard Unix telnet is supported.  On Win32, IAC handling is
-	completely disabled because the client is too chatty with its IAC
-	codes.
+	* nscp/nscp.c: Makes some attempt to recognize and handle
+	telnet IAC codes like CTRL-C and CTRL-D to force a logout.
+	This implementation of the telnet protocol is dirt-cheap,
+	so only standard Unix telnet is supported.  On Win32, IAC
+	handling is completely disabled because the client is too
+	chatty with its IAC codes.
 
 2000-08-20  Kris Rehberg 
 
@@ -837,42 +891,43 @@
 
 	* nsd/dbtcl: Removed unused variables in GetCsvCmd.
 	
-	* nsd/adp.c: Fixed bug of not truncating output buffer when an
-	error was thrown during an ns_adp_parse.  Fix suggested by Rob
-	Mayoff.
+	* nsd/adp.c: Fixed bug of not truncating output buffer when
+	an error was thrown during an ns_adp_parse.  Fix suggested
+	by Rob Mayoff.
 
-	* tcl7.6 and tcl8.2.3: Switched to blocking Tcl_WaitPid to avoid
-	zombies as suggested by Rob Mayoff.
+	* tcl7.6 and tcl8.2.3: Switched to blocking Tcl_WaitPid to
+	avoid zombies as suggested by Rob Mayoff.
 	
 	* thread: NULL out thread arg at exit to avoid Ns_ThreadEnum
-	checking arg info for possibly deallocated context as seen in
-	ns_info threads.  Also, moved read of firstPtr in Ns_ThreadEnum
-	inside lock.
+	checking arg info for possibly deallocated context as seen
+	in ns_info threads.  Also, moved read of firstPtr in
+	Ns_ThreadEnum inside lock.
 	
 2000-08-17  Kris Rehberg 
 	
-	* nssock/sock.c (SockThread): warning sent to log when Server Busy
-	is returned.
+	* nssock/sock.c (SockThread): warning sent to log when
+	Server Busy is returned.
 
-	* All the Makefiles should be in line with each other.  Typing
-	"gmake", "gmake install" and "gmake clean" should work in any
-	directory.  NSHOME is paid attention to by all Makefiles.
+	* All the Makefiles should be in line with each other.
+	Typing "gmake", "gmake install" and "gmake clean" should
+	work in any directory.  NSHOME is paid attention to by all
+	Makefiles.
 
 	* nsd: Ns_Log and Ns_Fatal statements are hopefully more
 	standardized and more useful to admins and developers.
 
-	* Irix now builds as -o32 using the native compiler by default.
-	See Makefile.global on how to change.
+	* Irix now builds as -o32 using the native compiler by
+	default.  See Makefile.global on how to change.
 
 2000-08-15  Kris Rehberg 
 
-	* include/Makefile.global (INSTLOG): should have pointed to
-	$(INST)/lib, not $(INST)/modules/lib.
+	* include/Makefile.global (INSTLOG): should have pointed
+	to $(INST)/lib, not $(INST)/modules/lib.
 
-	* Makefile: nsunix resurrected.  All modules are built.  If a
-	module is missing a library, it is not built, but it won't stop
-	the AOLserver build process (no error is thrown).  The build will
-	continue with the next module.
+	* Makefile: nsunix resurrected.  All modules are built.
+	If a module is missing a library, it is not built, but it
+	won't stop the AOLserver build process (no error is thrown).
+	The build will continue with the next module.
 	
 	* nsftp: guesses if you have TCP_WRAPPERS available.
 
@@ -880,14 +935,14 @@
 	duplicated here.
 
 	* nssybpd: Hopefully, the log statements will be easier to
-	understand by both admins and developers.  It's still messy since
-	it uses syslog.  Makefile redone to use standard AOLserver rules.
-	RPATH is used a little more intelligently.  Removed files that had
-	no business living there.
+	understand by both admins and developers.  It's still messy
+	since it uses syslog.  Makefile redone to use standard
+	AOLserver rules.  RPATH is used a little more intelligently.
+	Removed files that had no business living there.
 	
-	* include/Makefile.global: Took stab at RPATH support on Solaris
-	to perhaps remove the need for LD_LIBRARY_PATH on an
-	intelligenly-administered system.  New rule for libnspd.a.
+	* include/Makefile.global: Took stab at RPATH support on
+	Solaris to perhaps remove the need for LD_LIBRARY_PATH on
+	an intelligenly-administered system.  New rule for libnspd.a.
 	
 	
 2000-08-14  Kris Rehberg 
@@ -902,146 +957,157 @@
 
 	* Tcl 8.x library upgraded to tcl8.3.2.
 
-	* thread/pool.c: A spiffy range-checker added to the Zippy (-z)
-	memory allocator.
+	* thread/pool.c: A spiffy range-checker added to the Zippy
+	(-z) memory allocator.
 
 2000-08-11  Kris Rehberg 
 
-	* nsvhr/nsvhr.c: Always add "Connection: close" to the request
-	line to satisfy HTTP 1.1 RFC -- this would break MSIE in HTTP 1.1
-	mode.  HTTP_EOL of "\r\n" used on all request lines for stupid web
-	servers on the other end.  Protocol "tcp" added as synonym of
-	"http" for old-time Unix heads.  Lots of folks lended a hand on
-	this one -- Satyam Priyadarshy, Jerry Asher, Kriston Rehberg, and
-	special thanks to Wanda G. at AOL for adding a CNAME in DNS so
+	* nsvhr/nsvhr.c: Always add "Connection: close" to the
+	request line to satisfy HTTP 1.1 RFC -- this would break
+	MSIE in HTTP 1.1 mode.  HTTP_EOL of "\r\n" used on all
+	request lines for stupid web servers on the other end.
+	Protocol "tcp" added as synonym of "http" for old-time Unix
+	heads.  Lots of folks lended a hand on this one -- Satyam
+	Priyadarshy, Jerry Asher, Kriston Rehberg, and special
+	thanks to Wanda G. at AOL for adding a CNAME in DNS so
 	quickly.
 
 2000-08-09  Kris Rehberg 
 
-	* nsd/serv.c: A whole lot less chatty about conns starting and
-	exiting.  If you want to see them, turn on the Debug flag.
+	* nsd/serv.c: A whole lot less chatty about conns starting
+	and exiting.  If you want to see them, turn on the Debug
+	flag.
 
-	* doc/*: lots of updates.  Title page extremely simplified.  SSL
-	docs updated.  Release notes updated.  NSV docs corrected (thanks
-	to Todd Levy.
+	* doc/*: lots of updates.  Title page extremely simplified.
+	SSL docs updated.  Release notes updated.  NSV docs corrected
+	(thanks to Todd Levy.
 
 2000-08-09  Jim Davidson
 	
-	* tcl7.6/generic/tclFHandle.c: Removed needed fileTable which
-	could result in crashes when fd's where reused quickly [fixes a
-	rare multiple-exec crashing bug in nsd76 --kris].
+	* tcl7.6/generic/tclFHandle.c: Removed needed fileTable
+	which could result in crashes when fd's where reused quickly
+	[fixes a rare multiple-exec crashing bug in nsd76 --kris].
 
-	* thread/tcl8x.c: Added a wrapper startup for Tcl_CreateThread for
-	the benefit of Win32.
+	* thread/tcl8x.c: Added a wrapper startup for Tcl_CreateThread
+	for the benefit of Win32.
 
 	* nsd/log.c: Removed severityRank array.
 
 	* nsd/tclmisc.c: Fixed bug with ns_info pid. [I can't code --kris]
 	
-	* nsd: keepalive.c,nsmain.c,sched.c,serv.c: Re-ordered shutdowns
-	to ensure connection threads are stopped before other shutdowns
-	begin (e.g., sched, sockcallback).
+	* nsd: keepalive.c,nsmain.c,sched.c,serv.c: Re-ordered
+	shutdowns to ensure connection threads are stopped before
+	other shutdowns begin (e.g., sched, sockcallback).
 	
-	* tcl8.3.1 replaces tcl8.3.0.  README.AOLSERVER added to tcl8.3.1
-	directory.  Original copies of changed are named *.orig.
+	* tcl8.3.1 replaces tcl8.3.0.  README.AOLSERVER added to
+	tcl8.3.1 directory.  Original copies of changed are named
+	*.orig.
 
-	* include/Makefile.global: Build environment now uses gcc -shared
-	-nostartfiles as the default LDSO.
+	* include/Makefile.global: Build environment now uses gcc
+	-shared -nostartfiles as the default LDSO.
 
-	* nsthread/thread.c: Added Ns_ThreadCreate2 with extra flags
-	argument used by Tcl_CreateThread to create a detached thread.
+	* nsthread/thread.c: Added Ns_ThreadCreate2 with extra
+	flags argument used by Tcl_CreateThread to create a detached
+	thread.
 	
 2000-08-06  Scott S. Goodwin
 
-	* nsd/log.c: Segmentation fault was occuring when writing to the
-	log file because file pointer was being assigned to incorrectly -
-	it wasn't NULL and it wasn't a valid address within processes
-	memory. Fixed.
+	* nsd/log.c: Segmentation fault was occuring when writing
+	to the log file because file pointer was being assigned to
+	incorrectly - it wasn't NULL and it wasn't a valid address
+	within processes memory. Fixed.
 
 2000-08-06  Scott S. Goodwin
 
-	* nssock: You can now compile with BSAFE versions 4 and 5. You'll
-	need to specify the path to your BSAFE libaries and the BSAFE
-	version in the nssock/Makefile before compiling. If you don't have
-	BSAFE and want to compile without SSL at all, edit the toplevel
-	Makefile and take out all the "SSL=1" text. The files changed were
-	nssock/Makefile and nssock/t_stdlib.c.
+	* nssock: You can now compile with BSAFE versions 4 and 5.
+	You'll need to specify the path to your BSAFE libaries and
+	the BSAFE version in the nssock/Makefile before compiling.
+	If you don't have BSAFE and want to compile without SSL at
+	all, edit the toplevel Makefile and take out all the "SSL=1"
+	text. The files changed were nssock/Makefile and
+	nssock/t_stdlib.c.
 
 2000-08-02  Kris Rehberg 
 
 	* Build process is a little more rule-oriented.  The cleaning
-	rules "distclean" and "clobber" were removed.  The Tcl libraries
-	are always distcleaned when "gmake clean" is invoked.  Rules that
-	can be used as dependencies were made for libnsthread and the Tcl
-	libraries -- their names are "libnsthread," "libtcl76," and
-	"libtcl8x," respectively.  PREFIX is now used as the installation
-	directory (along with INST), so the more familiar "gmake install
-	PREFIX=/usr/local/aolserver" will work.  Additionally, gmaking in
-	a subdirectory with dependencies now works.
+	rules "distclean" and "clobber" were removed.  The Tcl
+	libraries are always distcleaned when "gmake clean" is
+	invoked.  Rules that can be used as dependencies were made
+	for libnsthread and the Tcl libraries -- their names are
+	"libnsthread," "libtcl76," and "libtcl8x," respectively.
+	PREFIX is now used as the installation directory (along
+	with INST), so the more familiar "gmake install
+	PREFIX=/usr/local/aolserver" will work.  Additionally,
+	gmaking in a subdirectory with dependencies now works.
 	
-	* nsd/log.c: The sourge of modlog has been removed.  All code
-	included with AOLserver that used Ns_ModLog now doesn't.  Many log
-	statements are now hopefully more standardized.  This will be a
-	continuing improvement over the next several updates.  I would
-	like to use gcc's __FUNCTION__ macro but it doesn't work on native
-	compilers, but we may start using __LINE__ and __FILE__ instead or
-	replace Ns_Log with a smart macro that takes care of all this
-	stuff for us.
+	* nsd/log.c: The sourge of modlog has been removed.  All
+	code included with AOLserver that used Ns_ModLog now doesn't.
+	Many log statements are now hopefully more standardized.
+	This will be a continuing improvement over the next several
+	updates.  I would like to use gcc's __FUNCTION__ macro but
+	it doesn't work on native compilers, but we may start using
+	__LINE__ and __FILE__ instead or replace Ns_Log with a
+	smart macro that takes care of all this stuff for us.
 
-	* nsd/tclmisc.c (NsTclInfoCmd): ns_info pid added to return the
-	process id.
+	* nsd/tclmisc.c (NsTclInfoCmd): ns_info pid added to return
+	the process id.
 
 2000-08-01  Kris Rehberg 
 
-	* nsd/adp.c (Ns_AdpRequest): The enableexpire option was putting
-	an Expires header even if it already existed.
+	* nsd/adp.c (Ns_AdpRequest): The enableexpire option was
+	putting an Expires header even if it already existed.
 
-	* nsd/return.c (Ns_ConnReturnNotice): Yikes, /face should have
-	been /font.  No more fonts, colors, etc, on default notice pages.
+	* nsd/return.c (Ns_ConnReturnNotice): Yikes, /face should
+	have been /font.  No more fonts, colors, etc, on default
+	notice pages.
 
-	* nsd/tclsock.c (NsTclSockOpenCmd): Removed spurious Ns_Log Notice
-	from ns_sockopen.
+	* nsd/tclsock.c (NsTclSockOpenCmd): Removed spurious Ns_Log
+	Notice from ns_sockopen.
 
-	* tcl/form.tcl (ns_getform): MSIE presents the wrong stuff to the
-	server when a multipart/formdata POST is redirected.  Workaround
-	contributed by Joseph Bank.
+	* tcl/form.tcl (ns_getform): MSIE presents the wrong stuff
+	to the server when a multipart/formdata POST is redirected.
+	Workaround contributed by Joseph Bank.
 
-	* tcl/fastpath.tcl (_ns_dirlist): base href removed -- links are
-	now fully-qualified.
+	* tcl/fastpath.tcl (_ns_dirlist): base href removed --
+	links are now fully-qualified.
 
-	* Makefile (install): include and lib dirs are now included in
-	binary distribution.
+	* Makefile (install): include and lib dirs are now included
+	in binary distribution.
 
-	* tcl/http.tcl (_ns_http_gets): \n replaced by \r in all but
-	_ns_http_gets so that arbitrary headers get set correctly.
+	* tcl/http.tcl (_ns_http_gets): \n replaced by \r in all
+	but _ns_http_gets so that arbitrary headers get set correctly.
 
-	* tcl7.6/generic/tclPosixStr.c (Tcl_SignalMsg): Patch to Tcl 7.6
-	for Red Hat on SPARC architectures.  Contributed by Mike Chan.
+	* tcl7.6/generic/tclPosixStr.c (Tcl_SignalMsg): Patch to
+	Tcl 7.6 for Red Hat on SPARC architectures.  Contributed
+	by Mike Chan.
 
 2000-07-13  Kris Rehberg 
 
-	* scripts/nsd.tcl: nssslmodule names the nsssl/nsssle binary's
-	filename.  nscp_port tells nscp what port to listen.
+	* scripts/nsd.tcl: nssslmodule names the nsssl/nsssle
+	binary's filename.  nscp_port tells nscp what port to
+	listen.
 
-	* nssock: nssock.c renamed sock.c, SSL support has been merged
-	back with nssock so that both nsssl and nssock use identical
-	socket code.
+	* nssock: nssock.c renamed sock.c, SSL support has been
+	merged back with nssock so that both nsssl and nssock use
+	identical socket code.
 	
-	* nsssl2: directory removed; nsssl is in the nssock directory now.
+	* nsssl2: directory removed; nsssl is in the nssock directory
+	now.
 
 2000-05-09  Kris Rehberg 
 
-	* Re-added doc directory which has had the online docs removed.
+	* Re-added doc directory which has had the online docs
+	removed.
 
 2000-05-02  Kris Rehberg 
 
 	* Makefile, include/Makefile.global, include/Makefile.module,
-	nsexample/Makefile: Now uses NSHOME variable to locate AOLserver.
-	NSHOME is automatically figured out in the top-level Makefile and
-	all the lower Makefiles still use relative directory paths.  The
-	intention of NSHOME is for modules that do NOT live in the
-	AOLserver source directory tree.  The nsexample/Makefile explains
-	how this works.
+	nsexample/Makefile: Now uses NSHOME variable to locate
+	AOLserver.  NSHOME is automatically figured out in the
+	top-level Makefile and all the lower Makefiles still use
+	relative directory paths.  The intention of NSHOME is for
+	modules that do NOT live in the AOLserver source directory
+	tree.  The nsexample/Makefile explains how this works.
 
 	* nsftp module added.  Contributed by Eric O'Laughlen.
 
