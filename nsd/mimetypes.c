@@ -34,7 +34,7 @@
  *	Defines standard default mime types. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/mimetypes.c,v 1.4 2000/08/25 13:49:57 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/mimetypes.c,v 1.5 2000/08/25 18:44:33 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -111,6 +111,7 @@ static struct exttype {
     { ".pic",   "image/pict" },
     { ".pict",  "image/pict" },
     { ".pnm",   "image/x-portable-anymap" },
+    { ".png",   "image/png" },
     { ".ps",    "application/postscript" },
     { ".qt",    "video/quicktime" },
     { ".ra",    "audio/x-pn-realaudio" },
