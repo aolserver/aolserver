@@ -1,8 +1,29 @@
+2004-06-14 20:28  Dossy Shiobara <dossy@panoptic.com>
+
+	* nsd/connio.c: If nsend == 0, we would never call Ns_WriteConn to
+	  flush the queued headers.  This could happen when we're sending
+	  zero bytes of data as a response.  This fixes bug #971016 in the
+	  case where fastpath.cache=false and fastpath.mmap=false and a
+	  zero byte file is requested.
+
+2004-06-14 20:25  Dossy Shiobara <dossy@panoptic.com>
+
+	* nsd/return.c: unnecessary test for data != NULL actually caused
+	  part of bug #971016 when fastpath.cache=false and
+	  fastpath.mmap=true and the file requested is zero bytes, mmap()
+	  returns 0 which gets passed along as data == NULL, causing
+	  ReturnCharData() to not flush the queued headers.  removing the
+	  if is safe as Ns_WriteConn will simply flush any queued data
+
 2004-06-08  Rob Crittenden <rcrittenden0569@aol.com>
 
 	* Makefile: remove Makefile.module on distclean.
 	* include/ns.h, nsd/log.c: Allow users to override logging functions.
 	* nsd/str.c: Fix crash bug in Ns_Trim* when trimming NULL strings.
+
+2004-06-08  Rob Crittenden <rcrittenden0569@aol.com>
+
+	* TAG aolserver_v40_r5
 
 2004-03-09 13:35  Rob Crittenden <rcrittenden0569@aol.com>
 
