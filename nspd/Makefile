@@ -27,9 +27,9 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nspd/Makefile,v 1.8 2002/09/21 17:07:36 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nspd/Makefile,v 1.9 2003/06/03 15:26:09 vasiljevic Exp $
 #
 
-ALIB	 =  nspd
-ALIBOBJS =  listen.o log.o main.o 
+ALIB	=  nspd
+LIBOBJS	=  listen.o log.o main.o 
 include  ../include/Makefile.build
