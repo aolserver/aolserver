@@ -1,3 +1,8 @@
+2001-03-12  Scott S. Goodwin  <scott@scottg.net>
+
+	* nsmain.c: Segmentation fault when using -g <group> flag: line
+	294 should read Ns_GetGid(garg) instead of Ns_GetGid(optarg).
+
 2001-03-08  Kris Rehberg
 
 	*** AOLserver 3.3 RELEASED ***
