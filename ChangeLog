@@ -1,9 +1,14 @@
+2001-04-25  Dossy Shiobara  <dossy@panoptic.com>
+
+	* Implemented [ns_localtime ?tz?] as per "[ #418890 ]
+	ns_localtime should accept timezone".
+
 2001-03-15  Dossy Shiobara  <dossy@panoptic.com>
 
 	* include/Makefile.win32 win32/*/Makefile: initial attempts at
 	Makefiles suitable for NMAKE for building on Win32
 
-    * include/ns.h: define typedef __int64 INT64 for Win32
+	* include/ns.h: define typedef __int64 INT64 for Win32
 
 2001-03-12  Scott S. Goodwin  <scott@scottg.net>
 
