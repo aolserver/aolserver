@@ -33,7 +33,7 @@
  *	Make outgoing HTTP requests.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/urlopen.c,v 1.9 2001/11/05 20:23:11 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/urlopen.c,v 1.10 2001/11/25 20:13:44 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -165,7 +165,6 @@ Ns_FetchURL(Ns_DString *dsPtr, char *url, Ns_Set *headers)
         if (n == -1) {
             Ns_Log(Error, "urlopen: failed to send data to '%s': '%s'",
 		   url, strerror(errno));
-	    close(sock);
             goto done;
         }
         tosend -= n;
