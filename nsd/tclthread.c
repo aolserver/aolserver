@@ -34,8 +34,11 @@
  *	Tcl wrappers around all thread objects 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclthread.c,v 1.5 2001/03/12 22:06:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclthread.c,v 1.6 2001/11/05 20:26:12 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
+#ifdef NS_NOCOMPAT
+#undef NS_NOCOMPAT
+#endif
 #include "nsd.h"
 
 /*
