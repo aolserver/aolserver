@@ -2,7 +2,8 @@
 
         * nscp/nscp.c: Cleaned up log messages to be more consistent 
         with other server messages. Moved user name from thread name into
-        log notice. Control port logging now disabled by default.
+        log notice. Control port logging now disabled by default. Added
+        more detailed configuration instructions to sample-config.tcl.
 
 2003-01-18  Jim Davidson <jgdavidson@aol.com>
 
