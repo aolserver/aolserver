@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Makefile,v 1.32 2002/02/24 21:33:28 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Makefile,v 1.33 2002/03/03 16:14:43 jgdavidson Exp $
 #
 
 NSHOME ?= ..
@@ -44,25 +44,25 @@ OBJS = \
 	connio.o crypt.o dbdrv.o dbinit.o dbtcl.o dbutil.o dns.o	\
 	driver.o dsprintf.o dstring.o encoding.o error.o exec.o		\
 	fastpath.o fd.o filter.o fork.o form.o httptime.o index.o	\
-	info.o lisp.o listen.o log.o master.o memory.o			\
-	mimetypes.o modload.o nsconf.o nsmain.o nsthread.o op.o		\
-	pathname.o pidfile.o proc.o queue.o quotehtml.o random.o	\
-	reentrant.o request.o return.o rollfile.o sched.o sema.o	\
-	server.o set.o signal.o sock.o sockcallback.o stamp.o str.o	\
+	info.o lisp.o listen.o log.o master.o memory.o mimetypes.o	\
+	modload.o nsconf.o nsmain.o nsthread.o op.o mutex.o cslock.o	\
+	rwlock.o pathname.o pidfile.o proc.o queue.o quotehtml.o	\
+	random.o reentrant.o request.o return.o rollfile.o sched.o	\
+	sema.o server.o set.o signal.o sock.o sockcallback.o str.o	\
 	tclatclose.o tclcmds.o tclconf.o tclenv.o tclfile.o tclhttp.o	\
 	tclimg.o tclinit.o tcljob.o tclmisc.o tclobj.o tclrequest.o	\
 	tclresp.o tclsched.o tclset.o tclshare.o tclsock.o tclthread.o	\
 	tclvar.o tclxkeylist.o thread.o time.o tls.o unix.o url.o	\
-	urlencode.o urlopen.o urlspace.o uuencode.o			\
-	mutex.o cslock.o rwlock.o
+	urlencode.o urlopen.o urlspace.o uuencode.o
 
 all: $(LIB) $(NSD)
 
 $(OBJS): nsd.h
 
 $(LIB): $(OBJS)
-	$(RM) $(LIB)
-	$(LDLIB) -o $(LIB) $(OBJS) $(LIBS) $(RPATH)
+	$(RM) $(LIB) stamp.o
+	$(CC) -c -o stamp.o stamp.c
+	$(LDLIB) -o $(LIB) $(OBJS) stamp.o $(LIBS) $(RPATH)
 
 $(NSD): $(LIB) main.o
 	$(RM) $(NSD)
