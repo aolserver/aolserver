@@ -36,7 +36,7 @@ all: $(NSD7) $(NSD8)
 #
 # Tcl 7.6:  Our hacked version of Tcl 7.6 is fast and robust.
 #
-$(NSD7): $(LIBTCL76) $(LIBNSTHREAD) $(TCL76STUB) $(OBJS) stamp.c
+$(NSD7): libtcl76 libnsthread $(TCL76STUB) $(OBJS) stamp.c
 	$(CC) -c stamp.c
 	$(CC) $(LDFLAGS) $(TCL76STUB) stamp.o $(OBJS) $(LIBTCL76) $(LIBNSTHREAD) $(LIBS) -o $@
 
@@ -44,7 +44,7 @@ $(NSD7): $(LIBTCL76) $(LIBNSTHREAD) $(TCL76STUB) $(OBJS) stamp.c
 #
 # Tcl 8.x:  Slower but at least it's Tcl 8.x.
 #
-$(NSD8): $(LIBTCL8X) $(LIBNSTHREAD) $(TCL8XSTUB) $(OBJS) stamp.c
+$(NSD8): libtcl8x libnsthread $(TCL8XSTUB) $(OBJS) stamp.c
 	$(CC) -c stamp.c
 	$(CC) $(LDFLAGS) $(TCL8XSTUB) stamp.o $(OBJS) $(LIBTCL8X) $(LIBNSTHREAD) $(LIBS) -o $@
 
