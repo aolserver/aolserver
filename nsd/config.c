@@ -33,7 +33,7 @@
  *	Support for the configuration file
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/config.c,v 1.8 2001/03/27 16:42:57 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/config.c,v 1.9 2001/03/28 00:24:23 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #define ISSLASH(c)      ((c) == '/' || (c) == '\\')
@@ -394,11 +394,12 @@ NsConfigRead(char *file)
  */
 
 void
-NsConfigEval(char *config)
+NsConfigEval(char *config, int argc, char **argv, int optind)
 {
-    char *err;
+    char *err, buf[20];
     Tcl_Interp *interp;
     Ns_Set     *setPtr;
+    int i;
 
     /*
      * Create an interp with a few config-related commands.
@@ -408,6 +409,13 @@ NsConfigEval(char *config)
     interp = Tcl_CreateInterp();
     Tcl_CreateCommand(interp, "ns_section", SectionCmd, &setPtr, NULL);
     Tcl_CreateCommand(interp, "ns_param", ParamCmd, &setPtr, NULL);
+    for (i = 0; argv[i] != NULL; ++i) {
+	Tcl_SetVar(interp, "argv", argv[i], TCL_APPEND_VALUE|TCL_LIST_ELEMENT|TCL_GLOBAL_ONLY);
+    }
+    sprintf(buf, "%d", argc);
+    Tcl_SetVar(interp, "argc", buf, TCL_GLOBAL_ONLY);
+    sprintf(buf, "%d", optind);
+    Tcl_SetVar(interp, "optind", buf, TCL_GLOBAL_ONLY);
     NsTclAddCmds(NULL, interp);
     if (Tcl_Eval(interp, config) != TCL_OK) {
 	err = Tcl_GetVar(interp, "errorInfo", TCL_GLOBAL_ONLY);
