@@ -33,7 +33,7 @@
  *	AOLserver Ns_Main() startup routine.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.41 2002/07/08 02:50:55 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.42 2002/07/14 23:15:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -51,19 +51,12 @@ static char *FindConfig(char *config);
  *
  * Ns_Main --
  *
- *	The AOLserver startup routine called from main().  The
- *	separation from main() is for the benefit of nsd.dll on NT
- *	and also to allow a custom, static linked server init.
- *
- *	Startup is somewhat complicated to ensure certain things happen
- *	in the correct order, e.g., setting the malloc/ns_malloc flag
- *	before the first ns_malloc and forking the binder before
- *	initializing the thread library (which is a problem for Linux
- * 	and perhaps other platforms).  This routine is also an unusual
- *	case of mixing much specific code for Unix and NT.
+ *	The AOLserver startup routine called from main().  Startup is
+ *	somewhat complicated to ensure certain things happen in the
+ *	correct order.
  *
  * Results:
- *	None.
+ *	Returns 0 to main() on final exit.
  *
  * Side effects:
  *	Many - read comments below.
@@ -114,9 +107,7 @@ Ns_Main(int argc, char **argv)
      * is starting from /etc/init.  If so, open them on /dev/null
      * as well because the server will assume they're open during
      * initialization.  In particular, the log file will be duped
-     * to fd's 1 and 2 which would cause problems if 1 and 2
-     * were open on something important, e.g., the underlying
-     * SGI sproc-based threads library arena file.
+     * to fd's 1 and 2.
      */
 
     fd = open("/dev/null", O_WRONLY);
@@ -133,12 +124,8 @@ Ns_Main(int argc, char **argv)
      */
 
     opterr = 0;
-    while ((i = getopt(argc, argv, "hpzifVl:s:t:kKdr:u:g:b:B:")) != -1) {
+    while ((i = getopt(argc, argv, "hpzifVs:t:kKdr:u:g:b:B:")) != -1) {
         switch (i) {
-	case 'l':
-	    sprintf(buf, "TCL_LIBRARY=%s", optarg);
-	    putenv(buf);
-	    break;
 	case 'h':
 	    UsageError(NULL);
 	    break;
@@ -247,7 +234,7 @@ Ns_Main(int argc, char **argv)
      * limit of 255  open streams due to the definition of the FILE
      * structure with an unsigned char member for the file descriptor.
      * Note this limit must be set now to ensure it's inherited by
-     * all future threads on certain platforms such as SGI and Linux.
+     * all future threads on certain platforms such as Linux.
      */
 
     if (getrlimit(RLIMIT_NOFILE, &rl) != 0) {
@@ -268,10 +255,9 @@ Ns_Main(int argc, char **argv)
     }
 
     /*
-     * Initialize the binder now, before a possible setuid from root
+     * Pre-bind any sockets now, before a possible setuid from root
      * or chroot which may hide /etc/resolv.conf required to
-     * bind to one or more ports given on the command line and/or
-     * pre-bind file.
+     * resolve name-based addresses.
      */
 
     NsPreBind(bindargs, bindfile);
@@ -366,7 +352,7 @@ Ns_Main(int argc, char **argv)
     }
 
     /*
-     * Set the procname used for the pid file and NT service name.
+     * Set the procname used for the pid file.
      */
 
     procname = (server ? server : Ns_SetKey(servers, 0));
@@ -400,7 +386,8 @@ Ns_Main(int argc, char **argv)
 
     /*
      * Log the first startup message which should be the first
-     * output to the open log file.
+     * output to the open log file unless the config script 
+     * generated some messages.
      */
      
     StatusMsg(0);
@@ -419,7 +406,7 @@ Ns_Main(int argc, char **argv)
     }
 
     /*
-     * Initialize the core.
+     * Create the pid file used.
      */
 
     NsCreatePidFile(procname);
@@ -461,15 +448,15 @@ Ns_Main(int argc, char **argv)
     NsRunStartupProcs();
 
     /*
-     * Start the drivers now that the server appears
-     * ready.
+     * Start the drivers now that the server appears ready
+     * and then close any remaining pre-bound sockets.
      */
 
     NsStartDrivers();
-    NsStopBinder();
+    NsClosePreBindBinder();
 
     /*
-     * Once the listening thread is started, this thread will just
+     * Once the drivers listen thread is started, this thread will just
      * endlessly wait for Unix signals, calling NsRunSignalProcs()
      * whenever SIGHUP arrives.
      */
@@ -477,9 +464,9 @@ Ns_Main(int argc, char **argv)
     NsHandleSignals();
 
     /*
-     * Print a "server shutting down" status message and
-     * then set the nsconf.stopping flag for any threads calling
-     * Ns_InfoShutdownPending() and then determine an absolute
+     * Print a "server shutting down" status message, set
+     * the nsconf.stopping flag for any threads calling
+     * Ns_InfoShutdownPending(), and set the absolute
      * timeout for all systems to complete shutown.
      */
 
@@ -494,17 +481,15 @@ Ns_Main(int argc, char **argv)
     Ns_MutexUnlock(&nsconf.state.lock);
 
     /*
-     * First, stop the drivers and keepalive threads.
+     * First, stop the drivers and servers threads.
      */
 
     NsStopDrivers();
     NsStopServers(&timeout);
 
     /*
-     * Next, start and then wait for other systems to shutdown
-     * simultaneously.  Note that if there was a timeout
-     * waiting for the connection threads to exit, the following
-     * waits will generally timeout as well.
+     * Next, start simultaneous shutdown in other systems and wait
+     * for them to complete.
      */
 
     NsStartSchedShutdown(); 
@@ -515,13 +500,18 @@ Ns_Main(int argc, char **argv)
     NsWaitShutdownProcs(&timeout);
 
     /*
-     * Finally, execute the exit procs directly and print a final
-     * "server exiting" status message and exit.  Note that
+     * Finally, execute the exit procs directly.  Note that
      * there is not timeout check for the exit procs so they
      * should be well behaved.
      */
 
     NsRunAtExitProcs();
+
+    /*
+     * Remove the pid maker file, print a final "server exiting"
+     * status message and return to main.
+     */
+
     NsRemovePidFile(procname);
     StatusMsg(3);
     return 0;
@@ -533,7 +523,7 @@ Ns_Main(int argc, char **argv)
  *
  * Ns_WaitForStartup --
  *
- *	Blocks until the server has completed loading modules, 
+ *	Blocks thread until the server has completed loading modules, 
  *	sourcing Tcl, and is ready to begin normal operation. 
  *
  * Results:
@@ -641,7 +631,8 @@ NsTclShutdownObjCmd(ClientData dummy, Tcl_Interp *interp, int objc, Tcl_Obj **ob
  *
  * StatusMsg --
  *
- *	Print a status message to the log file.
+ *	Print a status message to the log file.  Initial messages log
+ *	security status to ensure setuid()/setgid() works as expected.
  *
  * Results:
  *	None.
