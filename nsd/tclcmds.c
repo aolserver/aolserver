@@ -33,7 +33,7 @@
  * 	Connect Tcl command names to the functions that implement them
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.10 2001/03/13 22:28:49 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.11 2001/03/14 01:10:49 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -182,8 +182,7 @@ static struct {
      * tclfile.c
      */
 
-    {"ns_detach", NsTclDetachCmd},
-    {"ns_attach", NsTclAttachCmd},
+    {"ns_chan", NsTclChanCmd},
     {"ns_url2file", NsTclUrl2FileCmd},
 
     /*

@@ -34,7 +34,7 @@
  *	Tcl commands that do stuff to the filesystem. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclfile.c,v 1.7 2001/03/13 22:28:30 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclfile.c,v 1.8 2001/03/14 01:10:49 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #ifdef WIN32
@@ -986,9 +986,9 @@ NsTclChmodCmd(ClientData dummy,Tcl_Interp *interp, int argc, char **argv)
 /*
  *----------------------------------------------------------------------
  *
- * NsTclDetachCmd --
+ * NsTclChanCmd --
  *
- *	Implement the ns_detach command.
+ *	Implement the ns_chan command.
  *
  * Results:
  *	Tcl result. 
@@ -1000,81 +1000,110 @@ NsTclChmodCmd(ClientData dummy,Tcl_Interp *interp, int argc, char **argv)
  */
 
 int
-NsTclDetachCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
+NsTclChanCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 {
     NsInterp *itPtr = arg;
     NsServer *servPtr = itPtr->servPtr;
-    Tcl_Channel channel;
+    Tcl_Channel chan;
     int new;
     Tcl_HashEntry *hPtr;
+    Tcl_HashSearch search;
+    char *cmd;
 
-    if (argc != 3) {
+    if (argc < 2) {
 	Tcl_AppendResult(interp, "wrong # of args: should be \"",
-	    argv[0], " channelId detachedName\"", NULL);
+	    argv[0], " command ?args?\"", NULL);
 	return TCL_ERROR;
     }
-    channel = Tcl_GetChannel(interp, argv[1], NULL);
-    if (channel == NULL) {
-	Tcl_AppendResult(interp, "no such channel: ", argv[1], NULL);
-	return TCL_ERROR;
-    }
-    Ns_MutexLock(&servPtr->detach.lock);
-    hPtr = Tcl_CreateHashEntry(&servPtr->detach.channels, argv[2], &new);
-    if (new) {
-	Tcl_RegisterChannel(NULL, channel);
-        Tcl_SetHashValue(hPtr, channel);
-    }
-    Ns_MutexUnlock(&servPtr->detach.lock);
-    if (!new) {
-	Tcl_AppendResult(interp, "channel \"", argv[2],
-		"\" already detached", NULL);
-	return TCL_ERROR;
-    }
-    return TCL_OK;
-}
+    cmd = argv[1];
 
-
-/*
- *----------------------------------------------------------------------
- *
- * NsTclAttachCmd --
- *
- *	Implement the ns_attach command.
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	See docs. 
- *
- *----------------------------------------------------------------------
- */
+    if (STREQ(cmd, "share")) {
+	if (argc != 4) {
+	    Tcl_AppendResult(interp, "wrong # of args: should be \"",
+		argv[0], " share name channel\"", NULL);
+	    return TCL_ERROR;
+	}
+	chan = Tcl_GetChannel(interp, argv[2], NULL);
+	if (chan == NULL) {
+	    Tcl_AppendResult(interp, "no such channel: ", argv[2], NULL);
+	    return TCL_ERROR;
+	}
+    	Ns_MutexLock(&servPtr->chans.lock);
+	hPtr = Tcl_CreateHashEntry(&servPtr->chans.table, argv[3], &new);
+    	if (new) {
+	    Tcl_RegisterChannel(NULL, chan);
+            Tcl_SetHashValue(hPtr, chan);
+    	}
+    	Ns_MutexUnlock(&servPtr->chans.lock);
+	if (!new) {
+	    Tcl_AppendResult(interp, "share already in use: ", argv[3], NULL);
+	    return TCL_ERROR;
+	}
+	hPtr = Tcl_CreateHashEntry(&itPtr->chans, argv[3], &new);
+	Tcl_SetHashValue(hPtr, chan);
 
-int
-NsTclAttachCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
-{
-    NsInterp *itPtr = arg;
-    NsServer *servPtr = itPtr->servPtr;
-    Tcl_Channel channel;
-    Tcl_HashEntry *hPtr;
+    } else if (STREQ(cmd, "register")) {
+	if (argc != 3) {
+	    Tcl_AppendResult(interp, "wrong # of args: should be \"",
+		argv[0], " register name\"", NULL);
+	    return TCL_ERROR;
+	}
+    	Ns_MutexLock(&servPtr->chans.lock);
+    	hPtr = Tcl_FindHashEntry(&servPtr->chans.table, argv[2]);
+	if (hPtr != NULL) {
+	    chan = Tcl_GetHashValue(hPtr);
+	    Tcl_RegisterChannel(interp, chan);
+	    Tcl_SetResult(interp, Tcl_GetChannelName(chan), TCL_VOLATILE);
+	}
+    	Ns_MutexUnlock(&servPtr->chans.lock);
+	if (hPtr == NULL) {
+	    Tcl_AppendResult(interp, "no such shared channel: ", argv[2], NULL);
+	    return TCL_ERROR;
+	}
+	hPtr = Tcl_CreateHashEntry(&itPtr->chans, argv[2], &new);
+	Tcl_SetHashValue(hPtr, chan);
 
-    if (argc != 2) {
-	Tcl_AppendResult(interp, "wrong # of args: should be \"",
-	    argv[0], " detachedName\"", NULL);
+    } else if (STREQ(cmd, "unregister")) {
+	if (argc != 3) {
+	    Tcl_AppendResult(interp, "wrong # of args: should be \"",
+		argv[0], " unregister name\"", NULL);
+	    return TCL_ERROR;
+	}
+	hPtr = Tcl_FindHashEntry(&itPtr->chans, argv[2]);
+	if (hPtr == NULL) {
+	    Tcl_AppendResult(interp, "no such registered channel: ", argv[2], NULL);
+	    return TCL_ERROR;
+	}
+	chan = Tcl_GetHashValue(hPtr);
+	Tcl_DeleteHashEntry(hPtr);
+    	Ns_MutexLock(&servPtr->chans.lock);
+	Tcl_UnregisterChannel(interp, chan);
+    	Ns_MutexUnlock(&servPtr->chans.lock);
+
+    } else if (STREQ(cmd, "list")) {
+	hPtr = Tcl_FirstHashEntry(&itPtr->chans, &search);
+	while (hPtr != NULL) {
+	    Tcl_AppendElement(interp, Tcl_GetHashKey(&itPtr->chans, hPtr));
+	    hPtr = Tcl_NextHashEntry(&search);
+	}
+    } else if (STREQ(cmd, "cleanup")) {
+	if (itPtr->chans.numEntries > 0) {
+	    Ns_MutexLock(&servPtr->chans.lock);
+	    hPtr = Tcl_FirstHashEntry(&itPtr->chans, &search);
+	    while (hPtr != NULL) {
+	        chan = Tcl_GetHashValue(hPtr);
+		Tcl_UnregisterChannel(interp, chan);
+	    	hPtr = Tcl_NextHashEntry(&search);
+	    }
+	    Ns_MutexUnlock(&servPtr->chans.lock);
+	}
+
+    } else {
+	Tcl_AppendResult(interp, "no such command \"", cmd,
+	   "\": should be share, register, unregister, list, or cleanup", NULL);
 	return TCL_ERROR;
+
     }
 
-    Ns_MutexLock(&servPtr->detach.lock);
-    hPtr = Tcl_FindHashEntry(&servPtr->detach.channels, argv[1]);
-    if (hPtr != NULL) {
-	channel = Tcl_GetHashValue(hPtr);
-	Tcl_RegisterChannel(interp, channel);
-	Tcl_SetResult(interp, Tcl_GetChannelName(channel), TCL_VOLATILE);
-    }
-    Ns_MutexUnlock(&servPtr->detach.lock);
-    if (hPtr == NULL) {
-	Tcl_AppendResult(interp, "no such detached channel: ", argv[1], NULL);
-	return TCL_ERROR;
-    }
     return TCL_OK;
 }
