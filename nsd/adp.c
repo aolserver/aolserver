@@ -57,7 +57,7 @@
  * ns_param   "ParserName" "utf8"
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/adp.c,v 1.6 2000/08/18 00:09:24 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/adp.c,v 1.7 2000/08/24 23:04:55 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -527,34 +527,32 @@ NsTclAdpEvalCmd(ClientData dummy, Tcl_Interp *interp, int argc,
     Frame             frame;
     Ns_DString        ds;
     int               code;
-    int               offset = 0;
-    int               parser = -1;
-    Tcl_HashEntry    *hePtr;
+    Tcl_HashEntry    *hPtr;
     Ns_AdpParserProc *parserProc;
+    char	     *page, *cmd;
     
-    if (argc >= 2) {
-	if (!strcmp(argv[1], "-parser")) {
-	    offset += 2;
-	    parser = 1;
-	}
-    }
-    if (argc < 2 + offset) {
+    if (argc < 2) {
+badargs:
 	Tcl_AppendResult(interp, "wrong # args: should be \"",
 	    argv[0], " ?-parser parser? page ?arg ...?\"", NULL);
 	return TCL_ERROR;
     }
-
-    if (parser != -1) {
-	hePtr = Tcl_FindHashEntry(&parsersTable, argv[parser]);
-	if (hePtr == NULL) {
-	    Tcl_AppendResult(interp, "invalid parser \"", parser, "\"", NULL);
+    cmd = argv[0];
+    parserProc = defParserProc;
+    if (argc > 2 && STREQ(argv[1], "-parser")) {
+	if (argc < 4) {
+	    goto badargs;
+	}
+	hPtr = Tcl_FindHashEntry(&parsersTable, argv[2]);
+	if (hPtr == NULL) {
+	    Tcl_AppendResult(interp, "no such parser: ", argv[2], NULL);
 	    return TCL_ERROR;
 	}
-	parserProc = (Ns_AdpParserProc *) Tcl_GetHashValue(hePtr);
-    } else {
-	parserProc = defParserProc;
+	parserProc = (Ns_AdpParserProc *) Tcl_GetHashValue(hPtr);
+	argv += 2;
+	argc -= 2;
     }
-    
+
     /*
      * Increment the inline eval level to ensure flushing is disabled,
      * push a frame, execute the code, and then move any result to the
@@ -564,9 +562,9 @@ NsTclAdpEvalCmd(ClientData dummy, Tcl_Interp *interp, int argc,
     Ns_DStringInit(&ds);
     adPtr = NsAdpGetData();
     ++adPtr->evalLevel;
-    PushFrame(&frame, NULL, argc-1-offset, argv+1+offset);
+    PushFrame(&frame, NULL, argc-1, argv+1);
     Parse(NULL, &ds, argv[1]);
-    code = NsAdpEval(interp, argv[0], ds.string);
+    code = NsAdpEval(interp, cmd, ds.string);
     if (adPtr->output.length > frame.length) {
 	Tcl_SetResult(interp, adPtr->output.string + frame.length,
 		      TCL_VOLATILE);
@@ -574,9 +572,7 @@ NsTclAdpEvalCmd(ClientData dummy, Tcl_Interp *interp, int argc,
     }
     PopFrame(&frame);
     --adPtr->evalLevel;
-
     Ns_DStringFree(&ds);
-
     return code;
 }
 
