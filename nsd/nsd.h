@@ -453,18 +453,14 @@ extern int NsInstallService(void);
 extern int NsRemoveService(void);
 #endif
 
-extern void NsProcInit(void);
 extern void NsTclStatsInit(void);
 extern void NsAdpInit(void);
 extern void NsAdpParsers(void);
-extern void NsCacheInit(void);
-extern void NsDNSInit(void);
 extern void NsDbInit(void);
 extern void NsDbTclInit(void);
 extern void NsInitBinder(char *args, char *file);
 extern void NsForkBinder(void);
 extern void NsStopBinder(void);
-extern void NsGetURLInit(void);
 extern void NsInitFastpath(void);
 extern void NsInitMimeTypes(void);
 extern void NsInitReturn(void);
@@ -478,6 +474,7 @@ extern void NsTclInit(void);
 extern void NsTclInitGlobal(void);
 extern void NsTclInitScripts(void);
 
+extern void NsEnableDNSCache(int timeout);
 extern void NsCreatePidFile(void);
 extern void NsRemovePidFile(void);
 extern int  NsGetLastPid(void);
@@ -553,6 +550,7 @@ extern void 	   NsSigRestore(void);
 extern int 	   NsTclEval(Tcl_Interp *interp, char *script);
 extern void 	   NsTclCopyCommands(Tcl_Interp *from, Tcl_Interp *to);
 extern void 	   NsTclCreateCmds(Tcl_Interp *);
+extern void 	   NsTclCreateGenericCmds(Tcl_Interp *);
 extern void 	   NsTclCreateObjCmds(Tcl_Interp *);
 extern void	   NsTclFreeAtClose(struct AtClose *firstPtr);
 extern TclData    *NsTclGetData(Tcl_Interp *);
@@ -744,6 +742,7 @@ extern Tcl_CmdProc NsTclCacheStatsCmd;
 extern Tcl_CmdProc NsTclCacheFlushCmd;
 extern Tcl_CmdProc NsTclCacheNamesCmd;
 extern Tcl_CmdProc NsTclCacheSizeCmd;
+extern Tcl_CmdProc NsTclCacheKeysCmd;
 
 extern Tcl_CmdProc NsTclDbCmd;
 extern Tcl_CmdProc NsTclDbConfigPathCmd;
