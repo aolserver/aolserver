@@ -27,14 +27,13 @@
  * version of this file under either the License or the GPL.
  */
 
-
 /* 
  * tclrequest.c --
  *
  *	Routines for Tcl proc and ADP registered requests.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclrequest.c,v 1.9 2004/08/28 01:08:00 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclrequest.c,v 1.10 2005/03/25 00:39:15 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -356,13 +355,11 @@ AdpRequest(void *arg, Ns_Conn *conn)
  *
  * RequstProc --
  *
- *	Ns_OpProc for Tcl operations. Enters the header and form 
- *	connection sets, sets the current connection, concats the Tcl 
- *	command and args strings from the arg and evaluates the 
- *	resulting string. 
+ *	Ns_OpProc for ns_register_proc callbacks.  Constructs and
+ *	evaluates the given script.
  *
  * Results:
- *	NS_OK or NS_ERROR. 
+ *	Standard request result.
  *
  * Side effects:
  *	None. 
@@ -374,39 +371,45 @@ static int
 ProcRequest(void *arg, Ns_Conn *conn)
 {
     Proc	*procPtr = arg;
-    Tcl_Interp  *interp;
-    int     	 cnt;
-    Tcl_DString  cmd;
-    int          retval;
+    Tcl_Interp  *interp = Ns_GetConnInterp(conn);
+    int     	 result, cnt;
+    Tcl_DString  script;
 
-    retval = NS_OK;
-    Tcl_DStringInit(&cmd);
-    Tcl_DStringAppendElement(&cmd, procPtr->name);
-    interp = Ns_GetConnInterp(conn);
 
     /*
-     * Build the procedure arguments.  Now that we don't require the
-     * connId parameter, there are three cases to consider:
-     *   - no args -> don't add anything after the command name
-     *   - one arg -> just add the context (the arg specified at register time)
-     *   - two+ args-> (backward compatibility), the connId and the context
+     * Construct and evaluate the script. The legacy connId parameter is
+     * no longer required so the code below supports three cases:
+     *
+     * 1. No args: Append nothing.
+     * 2. One arg: Append the callback arg only.
+     * 3. Two or more args: Append the connId and callback arg.
      */
 
+    Tcl_DStringInit(&script);
+    Tcl_DStringAppendElement(&script, procPtr->name);
     cnt = GetNumArgs(interp, procPtr);
     if (cnt != 0) {
 	if (cnt > 1) {
-	    AppendConnId(&cmd, conn);
+	    AppendConnId(&script, conn);
 	}
-	Tcl_DStringAppendElement(&cmd, procPtr->args ? procPtr->args : "");
+	Tcl_DStringAppendElement(&script, procPtr->args ? procPtr->args : "");
     }
-    if (Tcl_GlobalEval(interp, cmd.string) != TCL_OK) {
+    result = Tcl_EvalEx(interp, script.string, script.length, 0);
+    Tcl_DStringFree(&script);
+
+    /*
+     * On script error, generate an internal error response if
+     * no content has been sent on the connection.
+     */
+
+    if (result != TCL_OK) {
         Ns_TclLogError(interp);
         if (Ns_ConnResetReturn(conn) == NS_OK) {
-            retval = Ns_ConnReturnInternalError(conn);
+            return Ns_ConnReturnInternalError(conn);
         }
     }
-    Tcl_DStringFree(&cmd);
-    return retval;
+
+    return NS_OK;
 }
 
 
@@ -415,10 +418,10 @@ ProcRequest(void *arg, Ns_Conn *conn)
  *
  * ProcFilter --
  *
- *	The callback for Tcl filters. Run the script. 
+ *	Callback for Tcl-based connection filters.
  *
  * Results:
- *	NS_OK, NS_FILTER_RETURN, or NS_FILTER_BREAK.
+ *	Standard filter result.
  *
  * Side effects:
  *	None. 
@@ -430,80 +433,70 @@ static int
 ProcFilter(void *arg, Ns_Conn *conn, int why)
 {
     Proc	        *procPtr = arg;
-    Tcl_DString          cmd;
-    Tcl_Interp          *interp;
-    int                  status;
-    int                  cnt;
+    Tcl_Interp          *interp = Ns_GetConnInterp(conn);
+    Tcl_DString          script;
+    int                  status, cnt;
     CONST char		*result;
 
-    Tcl_DStringInit(&cmd);
-
     /*
-     * Start building the command with the proc name
+     * Construct and evaluate the script. The filter arg and legacy connId
+     * args will be appended before the "why" argument if present.
      */
     
-    Tcl_DStringAppendElement(&cmd, procPtr->name);
-    interp = Ns_GetConnInterp(conn);
-
-    /*
-     * Now add the optional filter arg...
-     */
-    
+    Tcl_DStringInit(&script);
+    Tcl_DStringAppendElement(&script, procPtr->name);
     cnt = GetNumArgs(interp, procPtr);
     if (cnt > 1) {
 	if (cnt > 2) {
-	    AppendConnId(&cmd, conn);
+	    AppendConnId(&script, conn);
 	}
-	Tcl_DStringAppendElement(&cmd, procPtr->args ? procPtr->args : "");
+	Tcl_DStringAppendElement(&script, procPtr->args ? procPtr->args : "");
     }
-
-    /*
-     * Append the 'why'
-     */
-    
     switch (why) {
 	case NS_FILTER_PRE_AUTH:
-	    Tcl_DStringAppendElement(&cmd, "preauth");
+	    Tcl_DStringAppendElement(&script, "preauth");
 	    break;
 	case NS_FILTER_POST_AUTH:
-	    Tcl_DStringAppendElement(&cmd, "postauth");
+	    Tcl_DStringAppendElement(&script, "postauth");
 	    break;
 	case NS_FILTER_TRACE:
-	    Tcl_DStringAppendElement(&cmd, "trace");
+	    Tcl_DStringAppendElement(&script, "trace");
+	    break;
+	default:
+	    /* NB: Do not append a why argument. */
 	    break;
     }
-
-    /*
-     * Run the script.
-     */
-    
     Tcl_AllowExceptions(interp);
-    status = Tcl_GlobalEval(interp, cmd.string);
+    status = Tcl_EvalEx(interp, script.string, script.length, 0);
+    Tcl_DStringFree(&script);
     if (status != TCL_OK) {
 	Ns_TclLogError(interp);
     }
 
     /*
-     * Determine the filter result code.
+     * Determine the filter return code from the Tcl result string.
      */
 
-    result = Tcl_GetStringResult(interp);
     if (why == NS_FILTER_VOID_TRACE) {
+	/* NB: Result string ignored for traces. */
 	status = NS_OK;
     } else if (status != TCL_OK) {
+	/* NB: Filter error on script error. */
 	status = NS_ERROR;
-    } else if (STREQ(result, "filter_ok")) {
-	status = NS_OK;
-    } else if (STREQ(result, "filter_break")) {
-	status = NS_FILTER_BREAK;
-    } else if (STREQ(result, "filter_return")) {
-	status = NS_FILTER_RETURN;
     } else {
-	Ns_Log(Warning, "tclfilter: %s return invalid result: %s",
-	    procPtr->name, result);
-	status = NS_ERROR;
+    	result = Tcl_GetStringResult(interp);
+        if (STREQ(result, "filter_ok")) {
+	    status = NS_OK;
+    	} else if (STREQ(result, "filter_break")) {
+	    status = NS_FILTER_BREAK;
+    	} else if (STREQ(result, "filter_return")) {
+	    status = NS_FILTER_RETURN;
+    	} else {
+	    Ns_Log(Warning, "tclfilter: %s return invalid result: %s",
+	    	procPtr->name, result);
+	    status = NS_ERROR;
+	}
     }
-    Tcl_DStringFree(&cmd);
     return status;
 }
 
@@ -588,7 +581,7 @@ RegisterFilterObj(NsInterp *itPtr, int when, int objc, Tcl_Obj *CONST objv[])
  *
  * AppendConnId --
  *
- *	Append the tcl conn handle to a dstring. 
+ *	Append the Tcl conn handle to a dstring. 
  *
  * Results:
  *	None. 
