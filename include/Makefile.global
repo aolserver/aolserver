@@ -58,8 +58,7 @@ ifeq (HP-UXB.11.00, $(shell uname -s)$(shell uname -r))
     CFLAGS+=-D__hp11 -pipe -fPIC -Wall -Wno-unused
     LDFLAGS=-Wl,-E
     LIBS+=-lpthread 
-    #LDSO=$(LD) -b
-    LDSO=$(CC) -shared
+    LDSO=$(LD) -b
     CFLAGS+=-DUSE_DLSHL=1
 endif
 
@@ -69,16 +68,17 @@ endif
 #
 #  The optional DCE threads package must be installed.
 #  SMP is fully supported.
+#  "gcc -g" gives a harmless warning unless you have the GNU version of as.
 #
 ifeq (HP-UXB.10.20, $(shell uname -s)$(shell uname -r))
     PLATFORM=hp10
     # CC=cc
     # CFLAGS+=-Ae +DAportable +z
+    NSDLIBS=-lm
     CFLAGS+=-D__hp10 -pipe -fPIC -Wall -Wno-unused
     LDFLAGS=-Wl,-E
     LIBS+=-ldce -lc_r
-    #LDSO=$(LD) -b
-    LDSO=$(CC) -shared
+    LDSO=$(LD) -b
     CFLAGS+=-DHAVE_PTHREAD_D4=1 -DUSE_DLSHL=1 -DNEED_HERRNO=1
 endif
 
@@ -97,6 +97,7 @@ ifeq (Linux,$(shell uname))
     PLATFORM=linux
     LDFLAGS+=-Wl,-E
     CFLAGS+=-pipe -fPIC -Wall -Wno-unused
+    NSDLIBS=-lm
     LIBS+=-ldl -lpthread 
     LDSO=$(CC) -shared
     CFLAGS+=-DHAVE_CMMSG=1 -DUSE_FIONREAD=1 -DHAVE_COND_EINTR=1
@@ -120,6 +121,7 @@ ifeq (SunOS,$(shell uname))
     # CC=/opt/SUNWspro/bin/cc
     # CFLAGS+=-KPIC
     CFLAGS+=-D_POSIX_PTHREAD_SEMANTICS -fPIC -Wall -Wno-unused
+    NSDLIBS=-lm
     LIBS+=-lsocket -lnsl -ldl -lposix4 -lpthread -lresolv
     LD=/usr/ccs/bin/ld
     #LDSO=$(LD) -G
@@ -144,6 +146,7 @@ ifeq (OSF1,$(shell uname))
     CFLAGS+=-std1 -pthread
     LDFLAGS+=-pthread
     LDSO=$(LD) -shared -expect_unresolved '*'
+    NSDLIBS=-lm
     LIBS+=-lrt
 endif
 
@@ -171,6 +174,7 @@ ifeq (IRIX, $(findstring IRIX, $(shell uname)))
     #LDSO=$(LD) $(ABI) -shared
     LDSO=$(CC) -shared
     #LIBS+=-lpthread
+    NSDLIBS=-lm
     #CFLAGS+=-DUSE_PTHREADS=1
     CFLAGS+=-DUSE_SPROC=1
     ifeq (o32, $(ABI))
@@ -192,6 +196,7 @@ ifeq (FreeBSD,$(shell uname))
     LDSO=$(CC) -shared
     RANLIB=ranlib
     CFLAGS+=-DHAVE_CMMSG=1 -DNO_TIMEZONE=1 -DHAVE_TIMEGM
+    NSDLIBS=-lm
 endif
 
 
@@ -209,6 +214,7 @@ ifeq (OpenBSD,$(shell uname))
     RANLIB=ranlib
     CFLAGS+=-DHAVE_CMMSG=1 -DUSE_DLSYMPREFIX=1 -DUSE_RTLD_LAZY=1
     CFLAGS+=-DNO_TIMEZONE=1 -DHAVE_TIMEGM
+    NSDLIBS=-lm
 endif
 
 
@@ -231,6 +237,7 @@ ifeq (UnixWare,$(shell uname))
     LDFLAGS=-Wl,-B export
     LDSO=$(LD) -G
     LIBS+=-Kthread -lsocket
+    NSDLIBS=-lm
     CLFAGS+=-DUSE_PTHREAD_SYSSCOPE=1 -DHAVE_SENDV=1 -DHAVE_CMMSG=1
 endif
 
@@ -249,6 +256,7 @@ ifeq (Rhapsody,$(shell uname))
     CFLAGS+=-dynamic -traditional-cpp -pipe -Wall -Wno-unused
     LDSO=$(LD) -bundle -undefined suppress
     RANLIB=ranlib
+    NSDLIBS=
     CFLAGS+=-DUSE_CTHREADS=1 -DHAVE_CMMSG=1 -DUSE_DYLD -DUSE_DLSYMPREFIX=1
     CFLAGS+=-DNO_RAND48=1 -DNO_TIMEZONE=1
 endif

@@ -1,7 +1,7 @@
 
 include ../include/Makefile.global
 
-LIBS	+= -lm
+LIBS	+= $(NSDLIBS)
 
 OBJS = \
         adp.o adpfancy.o auth.o binder.o cache.o callbacks.o config.o \
