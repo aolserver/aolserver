@@ -33,7 +33,7 @@
  *	Routines for managing NsServer structures.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.27 2003/03/06 19:39:10 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.28 2003/11/16 15:04:43 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -300,6 +300,9 @@ NsInitServer(char *server, Ns_ServerInitProc *initProc)
     if (!Ns_ConfigGetInt(path, "maxpost", &servPtr->limits.maxpost)) {
     	servPtr->limits.maxpost = 256 * 1024;	/* 256k */
     }
+    if (!Ns_ConfigGetInt(path, "connsperthread", &servPtr->limits.connsperthread)) {
+    	servPtr->limits.connsperthread = 0;	/* Unlimited */
+    }
     
     /*
      * Initialize Tcl.
@@ -525,8 +528,7 @@ static void
 CreatePool(NsServer *servPtr, char *pool)
 {
     ConnPool *poolPtr;
-    Conn *connBufPtr, *connPtr;
-    int i, n, maxconns;
+    int i;
     char *path;
     Ns_Set *set;
 
@@ -552,25 +554,6 @@ CreatePool(NsServer *servPtr, char *pool)
     }
     poolPtr->nextPtr = servPtr->pools.firstPtr;
     servPtr->pools.firstPtr = poolPtr;
-
-    /*
-     * Pre-allocate all available connection structures to avoid having
-     * to repeatedly allocate and free them at run time and to ensure there
-     * is a per-set maximum number of simultaneous connections to handle
-     * before NsQueueConn begins to return NS_ERROR.
-     */
-
-    if (!Ns_ConfigGetInt(path, "maxconnections", &maxconns)) {
-	maxconns = 100;
-    }
-    connBufPtr = ns_calloc((size_t) maxconns, sizeof(Conn));
-    for (n = 0; n < maxconns - 1; ++n) {
-	connPtr = &connBufPtr[n];
-	connPtr->nextPtr = &connBufPtr[n+1];
-    }
-    connBufPtr[n].nextPtr = NULL;
-    poolPtr->queue.freePtr = &connBufPtr[0];
-
     if (!Ns_ConfigGetInt(path, "minthreads", &poolPtr->threads.min)) {
 	poolPtr->threads.min = 0;
     }
@@ -580,6 +563,9 @@ CreatePool(NsServer *servPtr, char *pool)
     if (!Ns_ConfigGetInt(path, "threadtimeout", &poolPtr->threads.timeout)) {
 	poolPtr->threads.timeout = 120;
     }
+    if (!Ns_ConfigGetInt(path, "maxconns", &poolPtr->threads.maxconns)) {
+    	poolPtr->threads.maxconns = servPtr->limits.connsperthread;
+    }
 
     /*
      * Determine the minimum and maximum number of threads, adjusting the
@@ -588,12 +574,6 @@ CreatePool(NsServer *servPtr, char *pool)
      * current number of threads is above the minimum.
      */
 
-    if (poolPtr->threads.max > maxconns) {
-	Ns_Log(Warning, "serv: cannot have more maxthreads than maxconns: "
-	       "%d max threads adjusted down to %d max connections",
-	       poolPtr->threads.max, maxconns);
-	poolPtr->threads.max = maxconns;
-    }
     if (poolPtr->threads.min > poolPtr->threads.max) {
 	Ns_Log(Warning, "serv: cannot have more minthreads than maxthreads: "
 	       "%d min threads adjusted down to %d max threads",
@@ -609,25 +589,5 @@ CreatePool(NsServer *servPtr, char *pool)
     }
     if (!Ns_ConfigGetInt(path, "threadtimeout", &poolPtr->threads.timeout)) {
 	poolPtr->threads.timeout = 120;
-    }
-
-    /*
-     * Determine the minimum and maximum number of threads, adjusting the
-     * values as needed.  The threadtimeout value is the maximum number of
-     * seconds a thread will wait for a connection before exiting if the
-     * current number of threads is above the minimum.
-     */
-
-    if (poolPtr->threads.max > maxconns) {
-	Ns_Log(Warning, "serv: cannot have more maxthreads than maxconns: "
-	       "%d max threads adjusted down to %d max connections",
-	       poolPtr->threads.max, maxconns);
-	poolPtr->threads.max = maxconns;
-    }
-    if (poolPtr->threads.min > poolPtr->threads.max) {
-	Ns_Log(Warning, "serv: cannot have more minthreads than maxthreads: "
-	       "%d min threads adjusted down to %d max threads",
-	       poolPtr->threads.min, poolPtr->threads.max);
-	poolPtr->threads.min = poolPtr->threads.max;
     }
 }
