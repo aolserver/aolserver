@@ -2,8 +2,10 @@
 # Stub to include nsssl or nssock makefile.
 #
 
-ifeq ($(SSL),1)
-include Makefile.ssl
-else
-include Makefile.sock
-endif
+all:
+	$(MAKE) -f Makefile.sock
+	$(MAKE) -f Makefile.ssl
+
+clean:
+	$(MAKE) -f Makefile.sock clean
+	$(MAKE) -f Makefile.ssl clean

@@ -44,7 +44,6 @@ all: libtcl76 libtcl8x libnsthread
 		$(ECHO) "building \"$$i\""; \
 		( cd $$i && $(MAKE) all ) || exit 1; \
 	done
-	(cd nssock && $(MAKE) SSL=1)
 
 #
 # Installation to $(PREFIX) directory
@@ -69,7 +68,6 @@ install:
 		( cd $$i && $(MAKE) install) || exit 1; \
 	done
 	(cd thread && $(MAKE) install)
-	(cd nssock && $(MAKE) SSL=1 install)
 
 install-tests:
 	$(CP) -r tests $(INSTSRVPAG)
@@ -82,4 +80,3 @@ clean: libtcl8x-clean libtcl76-clean libnsthread-clean
 		$(ECHO) "cleaning \"$$i\""; \
 		( cd $$i && $(MAKE) $@) || exit 1; \
 	done
-	(cd nssock && $(MAKE) SSL=1 clean)
