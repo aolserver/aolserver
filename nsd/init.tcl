@@ -28,7 +28,7 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/init.tcl,v 1.9 2002/09/28 19:23:49 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/init.tcl,v 1.10 2002/11/06 19:11:01 jcollins Exp $
 #
 
 #
@@ -214,9 +214,15 @@ proc ns_reinit {} {
 proc _ns_savenamespaces {} {
     _ns_getnamespaces namespaces
     set script ""
+    set import ""
     foreach ns $namespaces {
-	append script [list namespace eval $ns [_ns_getscript $ns]]\n
+        foreach { _ns_script _ns_import } [_ns_getscript $ns] break
+	append script [list namespace eval $ns $_ns_script]\n
+        if { $_ns_import != "" } {
+            append import [list namespace eval $ns $_ns_import]\n
+        }
     }
+    append script $import
     ns_ictl save $script
 }
 
@@ -326,6 +332,7 @@ proc _ns_getscript n {
     namespace eval $n {
 	::set n [namespace current]
 	::set script ""
+        ::set import ""
 	::foreach v [::info vars] {
 	    ::switch $v {
 		n -
@@ -343,18 +350,23 @@ proc _ns_getscript n {
 		}
 	    }
 	}
+        ::set import {}
 	::foreach p [::info procs] {
 	    ::set args ""
-	    ::foreach a [::info args $p] {
-		if {[::info default $p $a def]} {
-		    ::set a [::list $a $def]
-		}
-		::lappend args $a
-	    }
-	    ::append script [::list proc $p $args [info body $p]]\n
+            ::if { [::namespace origin $p] == [::namespace which -command $p] } {
+                ::foreach a [::info args $p] {
+                    if {[::info default $p $a def]} {
+                        ::set a [::list $a $def]
+                    }
+                    ::lappend args $a
+                }
+                ::append script [::list proc $p $args [info body $p]]\n
+            } else {
+                ::append import [::list namespace import [namespace origin $p]]\n
+            }
 	}
 	::append script [::concat namespace export [namespace export]]\n
-	::return $script
+	::return [list $script $import]
     }
 }
 
