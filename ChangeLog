@@ -1,3 +1,8 @@
+2003-02-05  Elizabeth Thomas <eathomas93@aol.com>
+
+        * nsext.c: Fix LocalProxy function to call Ns_CloseOnExec
+        after the file descriptors have been opened instead of before
+
 2003-02-04  Jamie Rasmussen <jrasmuss@mle.ie>
 
         * include/nsthread.h:
