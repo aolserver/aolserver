@@ -1,3 +1,67 @@
+2003-11-16  Jim Davidson <jgdavidson@aol.com>
+
+	* include/ns.h: Update version ids, added NS_SOCK_DROP and
+	NS_TCL_TRACE constants and pre-queue function definitions.
+
+	* nsd/nsd.h:  Added new "times" struct to Conn for more
+	fine-grained timing.  Need to provide options to enable
+	these time stamps plus ways to get the data.
+
+	* nsd/driver.c:  Restructured in a few ways:
+
+	1. Each loaded driver now has it's own thread.  This should
+	allow some more concurrency (if necessary) and generally
+	made the code more manageable.
+
+	2. New pre-queue I/O callback API.  The API will be documented
+	with an example HTTP module later.
+
+	3. Conn allocation is handled by the driver threads and
+	request buffers have been moved to the Conn from the Sock.
+
+	4. Reads for synchrounous drivers (i.e., SSL) are handled
+	by a pool of reader threads instead of by the conn threads.
+	The number of threads is set with a "maxreaders" config
+	option.  This change should enable both Host: header based
+	virtual servers and pre-queue callbacks for SSL connections.
+
+	5. New "maxsocks" config for drivers is now used to manage
+	the concurrency limit of the server.  Conn's are now queued
+	without limit into the connection pools and the previous
+	"maxconns" virtual-server config is ignored.
+
+	* nsd/queue.c: Cleaned up "connsperthread" code and updated
+	NsQueueConn to support new driver code.
+
+	* nsd/conn.c:
+	* nsd/connio.c:
+	* nsd/form.c:
+	* nsd/nsd.h:
+	* nsd/queue.c:
+	* nsd/return.c: Moved connection request buffers from Sock
+	to Conn structure.
+
+	* nsd/server.c: Removed startup Conn pre-allocation as Conns
+	are now allocated dynamically by the driver.  Also, removed
+	the "maxconns" parameter which is no longer used.
+
+	* nssock/nssock.c: Added new "async" option (default on)
+	mostly to test new reader thread capabilities of the core
+	driver code.
+
+	* nsd/tclinit.c: Added a new generalized Tcl interp tracing
+	facility and cleaned up some previous init code.  This
+	should make it easier to support standard Tcl extensions
+	and will be documented with an example module later.
+
+	* nsd/init.c: Fixed order of init calls.
+
+	* nsd/binder.c:
+	* nsd/dns.c: Named unnamed mutexes.
+
+	* nsd/tclset.c:
+	* nsd/tclsock.c: Removed unused functions.
+
 2003-11-03  pkhincha <pkhincha@aol.com>
 
 	* nsd/urlspace.c: removed initing of mutex
@@ -205,7 +269,6 @@
 
         * TAG aolserver_v4_r0_beta_10
 
->>>>>>> 1.190
 2003-07-18  Mark Page  <mpagenva@aol.com>
 
 	* nsd/adpeval.c (AdpEval): Check adp.outputPtr validity before
