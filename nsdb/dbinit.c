@@ -35,7 +35,7 @@
  *	pools of database handles.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsdb/dbinit.c,v 1.4 2003/05/16 07:44:42 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsdb/dbinit.c,v 1.5 2004/02/05 17:50:53 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "db.h"
 
@@ -438,7 +438,7 @@ Ns_DbPoolTimedGetMultipleHandles(Ns_DbHandle **handles, char *pool,
      * watching for timeout in either of these waits.
      */
      
-    if (wait <= 0) {
+    if (wait < 0) {
 	timePtr = NULL;
     } else {
     	Ns_GetTime(&timeout);
