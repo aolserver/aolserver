@@ -34,7 +34,7 @@
  *	Win32 specific routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nswin32.c,v 1.11 2003/02/04 23:04:14 jrasmuss23 Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nswin32.c,v 1.12 2004/10/06 18:50:44 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -865,85 +865,4 @@ ReportStatus(DWORD state, DWORD code, DWORD hint)
     if (hStatus != 0 && SetServiceStatus(hStatus, &curStatus) != TRUE) {
         Ns_Fatal("nswin32: SetServiceStatus(%d) failed: '%s'", state, SysErrMsg());
     }
-}
-
-
-/* Copyright (C) 1994, 1996, 1997 Free Software Foundation, Inc.
-   This file is part of the GNU C Library.
-
-   The GNU C Library is free software; you can redistribute it and/or
-   modify it under the terms of the GNU Library General Public License as
-   published by the Free Software Foundation; either version 2 of the
-   License, or (at your option) any later version.
-
-   The GNU C Library is distributed in the hope that it will be useful,
-   but WITHOUT ANY WARRANTY; without even the implied warranty of
-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
-   Library General Public License for more details.
-
-   You should have received a copy of the GNU Library General Public
-   License along with the GNU C Library; see the file COPYING.LIB.  If not,
-   write to the Free Software Foundation, Inc., 59 Temple Place - Suite 330,
-   Boston, MA 02111-1307, USA.  */
-
-/* Poll the file descriptors described by the NFDS structures starting at
-   FDS.  If TIMEOUT is nonzero and not -1, allow TIMEOUT milliseconds for
-   an event to occur; if TIMEOUT is -1, block until an event occurs.
-   Returns the number of file descriptors with events, zero if timed out,
-   or -1 for errors.  */
-
-int
-poll (fds, nfds, timeout)
-     struct pollfd *fds;
-     unsigned long int nfds;
-     int timeout;
-{
- struct timeval tv, *tvp;
- fd_set rset, wset, xset;
- struct pollfd *f;
- int ready;
- int maxfd = 0;
- 
- FD_ZERO (&rset);
- FD_ZERO (&wset);
- FD_ZERO (&xset);
- 
- for (f = fds; f < &fds[nfds]; ++f)
-   if (f->fd != -1)
-   {
-    if (f->events & POLLIN)
-      FD_SET (f->fd, &rset);
-    if (f->events & POLLOUT)
-      FD_SET (f->fd, &wset);
-    if (f->events & POLLPRI)
-      FD_SET (f->fd, &xset);
-    if (f->fd > maxfd && (f->events & (POLLIN|POLLOUT|POLLPRI)))
-      maxfd = f->fd;
-   }
- 
- if (timeout < 0) {
-    tvp = NULL;
- } else {
-    tv.tv_sec = timeout / 1000;
-    tv.tv_usec = (timeout % 1000) * 1000;
-    tvp = &tv;
- }
- 
- ready = select (maxfd + 1, &rset, &wset, &xset, tvp);
- if (ready > 0)
-   for (f = fds; f < &fds[nfds]; ++f)
-   {
-    f->revents = 0;
-    if (f->fd >= 0)
-    {
-     if (FD_ISSET (f->fd, &rset))
-       f->revents |= POLLIN;
-     if (FD_ISSET (f->fd, &wset))
-       f->revents |= POLLOUT;
-     if (FD_ISSET (f->fd, &xset))
-       f->revents |= POLLPRI;
-    }
-   }
- 
- return ready;
 }
