@@ -27,33 +27,35 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Makefile,v 1.41 2004/10/06 18:50:24 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Makefile,v 1.42 2004/11/19 14:00:25 dossy Exp $
 #
 
-INSTALL = install-init
-LIB     = nsd
+INSTALL	= install-init
+LIB	= nsd
 PGM	= nsd
 PGMOBJS	= main.o
-LIBINIT = NsdInit
+LIBINIT	= NsdInit
 HDRS	= nsd.h
 
-LOBJS = adpcmds.o adpeval.o adpparse.o adprequest.o auth.o binder.o \
-	cache.o callbacks.o cls.o config.o conn.o connio.o crypt.o \
-	dns.o driver.o dsprintf.o dstring.o encoding.o exec.o \
-	fastpath.o fd.o filter.o form.o httptime.o index.o info.o \
-	init.o limits.o lisp.o listen.o log.o mimetypes.o modload.o \
-	nsconf.o nsmain.o nsthread.o op.o pathname.o pidfile.o pools.o \
-	proc.o queue.o quotehtml.o random.o request.o return.o \
-	rollfile.o sched.o server.o set.o sock.o sockcallback.o str.o \
-	task.o tclatclose.o tclcmds.o tclconf.o tclenv.o tclfile.o tclhttp.o \
-	tclimg.o tclinit.o tcljob.o tclmisc.o tclnhttp.o tclobj.o tclrequest.o \
-	tclresp.o tclsched.o tclset.o tclshare.o tclsock.o tclthread.o \
-	tclvar.o tclxkeylist.o unix.o url.o urlencode.o urlopen.o \
-	urlspace.o uuencode.o
+LOBJS	= adpcmds.o adpeval.o adpparse.o adprequest.o auth.o binder.o \
+	  cache.o callbacks.o cls.o compress.o config.o conn.o connio.o \
+	  crypt.o dns.o driver.o dsprintf.o dstring.o encoding.o exec.o \
+	  fastpath.o fd.o filter.o form.o httptime.o index.o info.o \
+	  init.o limits.o lisp.o listen.o log.o mimetypes.o modload.o \
+	  nsconf.o nsmain.o nsthread.o op.o pathname.o pidfile.o pools.o \
+	  proc.o queue.o quotehtml.o random.o request.o return.o \
+	  rollfile.o sched.o server.o set.o sock.o sockcallback.o str.o \
+	  task.o tclatclose.o tclcmds.o tclconf.o tclenv.o tclfile.o \
+	  tclhttp.o tclimg.o tclinit.o tcljob.o tclmisc.o tclnhttp.o \
+	  tclobj.o tclrequest.o tclresp.o tclsched.o tclset.o tclshare.o \
+	  tclsock.o tclthread.o tclvar.o tclxkeylist.o unix.o url.o \
+	  urlencode.o urlopen.o urlspace.o uuencode.o
 
-LIBOBJS=$(LOBJS) stamp.o
+LIBOBJS	= $(LOBJS) stamp.o
 
 include ../include/Makefile.build
+
+LIBS	+= -lz
 
 stamp.o: $(LOBJS)
 	$(CC) -c -o stamp.o stamp.c

@@ -33,7 +33,7 @@
  *      All the public types and function declarations for the core
  *	AOLserver.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.70 2004/10/26 19:52:15 jgdavidson Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.71 2004/11/19 14:00:26 dossy Exp $
  */
 
 #ifndef NS_H
@@ -559,6 +559,12 @@ NS_EXTERN void *Ns_RegisterAtExit(Ns_Callback *proc, void *arg);
 NS_EXTERN void Ns_ClsAlloc(Ns_Cls *clsPtr, Ns_Callback *proc);
 NS_EXTERN void *Ns_ClsGet(Ns_Cls *clsPtr, Ns_Conn *conn);
 NS_EXTERN void Ns_ClsSet(Ns_Cls *clsPtr, Ns_Conn *conn, void *data);
+
+/*
+ * compress.c:
+ */
+
+NS_EXTERN int Ns_Compress(char *buf, int len, Tcl_DString *outPtr, int level);
 
 /*
  * config.c:
