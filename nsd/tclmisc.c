@@ -34,7 +34,7 @@
  *	Implements a lot of Tcl API commands. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclmisc.c,v 1.4 2000/08/08 22:19:10 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclmisc.c,v 1.5 2000/10/17 19:53:23 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -961,6 +961,8 @@ NsTclInfoCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 	Tcl_SetResult(interp, Ns_InfoLabel(), TCL_STATIC);
     } else if (STREQ(argv[1], "builddate")) {
 	Tcl_SetResult(interp, Ns_InfoBuildDate(), TCL_STATIC);
+    } else if (STREQ(argv[1], "tag")) {
+	Tcl_SetResult(interp, Ns_InfoTag(), TCL_STATIC);
     } else {
         Tcl_AppendResult(interp, "unknown command \"", argv[1],
                          "\":  should be "
@@ -980,6 +982,7 @@ NsTclInfoCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
                          "scheduled, "
                          "server, "
                          "sockcallbacks, "
+                         "tag, "
                          "tcllib, "
                          "threads, "
                          "version, "

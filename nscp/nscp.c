@@ -35,7 +35,7 @@
  *  	Tcl commands.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscp/nscp.c,v 1.10 2000/10/13 00:48:24 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscp/nscp.c,v 1.11 2000/10/17 19:53:23 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 
@@ -494,10 +494,10 @@ Login(SOCKET sock)
     if (ok) {
 	Ns_Log(Notice, "nscp: logged in: '%s'", user);
 	sprintf(msg, "\nWelcome to %s running at %s (pid %d)\n"
-		"%s/%s (%s) for %s built on %s\n\n",
+		"%s/%s (%s) for %s built on %s\nTag: %s\n",
 		server, Ns_InfoNameOfExecutable(), Ns_InfoPid(),
 		Ns_InfoServerName(), Ns_InfoServerVersion(), Ns_InfoLabel(),
-		Ns_InfoPlatform(), Ns_InfoBuildDate());
+		Ns_InfoPlatform(), Ns_InfoBuildDate(), Ns_InfoTag());
     } else {
 	Ns_Log(Warning, "nscp: login failed: '%s'", user ? user : "?");
 	sprintf(msg, "Access denied!\n");
