@@ -34,7 +34,7 @@
  *	Functions that return data to a browser. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.6 2000/10/13 23:17:30 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.7 2000/10/17 17:27:38 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -616,15 +616,37 @@ Ns_ConnReturnNotice(Ns_Conn *conn, int status, char *title, char *notice)
     }
     Ns_DStringVarAppend(&ds,
 			"<!DOCTYPE HTML PUBLIC \"-//IETF//DTD HTML 2.0//EN\">\n"
-			"<HTML><HEAD>\n"
+			"<HTML>\n<HEAD>\n"
 			"<TITLE>", title, "</TITLE>\n"
-			"</HEAD><BODY>\n"
+			"</HEAD>\n<BODY>\n"
 			"<H2>", title, "</H2>\n", NULL);
     if (notice != NULL) {
     	Ns_DStringVarAppend(&ds, notice, "\n", NULL);
     }
-    Ns_DStringAppend(&ds, "</BODY></HTML>\n");
 
+    /*
+     * Detailed server information at the bottom of the page.
+     */
+    if (nsconf.serv.noticedetail) {
+	Ns_DStringVarAppend(&ds, "<P ALIGN=RIGHT><SMALL><I>",
+			    Ns_InfoServerName(), "/",
+			    Ns_InfoServerVersion(), " on ",
+			    Ns_ConnLocation(conn), "</I></SMALL></P>\n",
+			    NULL);
+    }
+
+    /*
+     * Padding that suppresses those horrible MSIE friendly errors.
+     * NB: Because we pad inside the body we may pad more than needed.
+     */
+    if (status >= 400) {
+	while (ds.length < nsconf.serv.errorminsize) {
+	    Ns_DStringAppend(&ds, "                    ");
+	}
+    }
+    
+    Ns_DStringVarAppend(&ds, "\n</BODY></HTML>\n", NULL);
+    
     result = Ns_ReturnHtml(conn, status, ds.string, ds.length);
     Ns_DStringFree(&ds);
     return result;
@@ -854,8 +876,8 @@ Ns_ConnReturnUnauthorized(Ns_Conn *conn)
     Ns_DStringFree(&ds);
 
     return Ns_ReturnNotice(conn, 401, "Access Denied",
-			   "The requested URL requires a "
-			   "valid username and password.");
+			   "The requested URL cannot be accessed because a "
+			   "valid username and password are required.");
 }
 
 
@@ -884,7 +906,8 @@ Ns_ConnReturnForbidden(Ns_Conn *conn)
 	return result;
     }
     return Ns_ReturnNotice(conn, 403, "Forbidden",
-			   "The requested URL cannot be accessed.");
+			   "The requested URL cannot be accessed "
+			   "by this server.");
 }
 
 
@@ -913,7 +936,7 @@ Ns_ConnReturnNotFound(Ns_Conn *conn)
 	return result;
     }
     return Ns_ReturnNotice(conn, 404, "Not Found",
-			   "The requested URL was not found.");
+			   "The requested URL was not found on this server.");
 }
 
 
@@ -965,7 +988,8 @@ Ns_ConnReturnNotImplemented(Ns_Conn *conn)
 	return result;
     }
     return Ns_ReturnNotice(conn, 501, "Not Implemented",
-			   "The requested URL is not implemented.");
+			   "The requested URL or method is not "
+			   "implemented by this server.");
 }
 
 
@@ -996,7 +1020,7 @@ Ns_ConnReturnInternalError(Ns_Conn *conn)
     }
     return Ns_ReturnNotice(conn, 500, "Server Error",
 			   "The requested URL cannot be accessed "
-			   "due to a system error.");
+			   "due to a system error on this server.");
 }
 
 

@@ -34,7 +34,7 @@
  *	Various core configuration.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsconf.c,v 1.6 2000/10/13 01:16:44 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsconf.c,v 1.7 2000/10/17 17:27:38 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -234,7 +234,8 @@ NsConfInit(void)
     if (nsconf.serv.maxurlstats > 0 && GetBool(path, "urlstats", 0)) {
 	nsconf.serv.stats |= STATS_PERURL;
     }
-    
+    nsconf.serv.errorminsize = GetInt(path,  "errorminsize", 514);
+    nsconf.serv.noticedetail = GetBool(path, "noticedetail", 1);
 
     /*
      * ConnsPerThread specifies the maximum number of connections for
