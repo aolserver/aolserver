@@ -1,104 +1,97 @@
-#
-# Makefile --
-#
-#      Compile, link, and install AOLserver.
-#
-
-
-include ./include/Makefile.global
+# Copyright 1994-1996 America Online, Inc. 
 
 #
-# AOLserver Dynamically-Loaded Modules
+# Makefile for nspostgres.so module.
 #
-#  Choose the modules you want and put them in the MODULES variable below.
-#  A typical web server might load nssock, nslog, and nsperm.
-#
-#   nssock      -- serving HTTP
-#   nsssl2      -- serving HTTPS (requires BSAFE 3 library)
-#   nscgi       -- CGI module
-#   nscp        -- Control port remote administration interface
-#   nslog       -- Common log format module
-#   nsperm      -- Permissions module
-#
-#   nsunix      -- serving HTTP over Unix domain socket
-#   nsvhr       -- Virtual hosting redirector
-#
-#   nsext       -- External database driver module
-#   nspd        -- Archive library for building an external driver
-#   nspostgres  -- Postgres driver (requires Postgres library)
-#   nssybpd     -- Sybase driver (requires Sybase library and nspd)
-#   nssolid     -- Solid driver (requires Solid library)
-#
+# -DFOR_ACS_USE required for ACS/pg use!
 
-MODULES   = nssock nscgi nscp nslog nsperm nsext nspd
-#MODULES  = nsssl2 nspostgres nssybpd nssolid nsunix nsvhr
+# To compile the postgres.so loadable AOLserver module, edit the NSHOME
+# variable (below) to the directory where the AOLserver files are located,
+# edit the PGLIB and PGINC variables to the directories where the PostgreSQL
+# libraries and includes are (the RPM installation is different from default), 
+# and uncomment the CC, COPTS, and LDFLAGS variables for your platform and
+# compiler.  Then type "make install" to compile and install the module
+# in the AOLserver bin directory.  To have the AOLserver load the
+# postgres.so module at runtime, you will need to add the following
+# entry in the [ns\server\godzilla\modules] section of your nsd.ini file
+# (where 'godzilla' is the name of a virtual server):
+#
+#	nspostgres=nspostgres.so
+#
+#
+# NOTE:  This code is unsupported and for example purposes only.
 
+INSTALL=/home/nsadmin
 
-#
-# AOLserver main executable statically-links the thread and tcl libraries.
-#
-NSDDIRS   = thread tcl7.6 tcl8.3.0 nsd
+# Location of the PostgreSQL libraries
+PGLIB=/usr/local/pgsql/lib
 
-ALLDIRS   = $(NSDDIRS) $(MODULES)
+# Location of the PostgreSQL includes
+PGINC=/usr/local/pgsql/include
 
-all:
-	@for i in $(ALLDIRS); do \
-		echo "building \"$$i\""; \
-		( cd $$i && $(MAKE) all ) || exit 1; \
-	done
+# Location of the AOLserver files (normally the ~nsadmin directory):
+#NSHOME=/opt/aolserver
+# Alternate location for AOLserver
+NSHOME=/home/aolserver/aolserver3_0
 
-#
-# Installation to $(INST) directory
-#
-#  Note:  Dependencies are checked in the individual directories.
-#
-install:
-	$(MKDIR) $(INSTBIN)
-	$(MKDIR) $(INSTLOG)
-	$(MKDIR) $(INSTTCL)
-	$(MKDIR) $(INSTSRVMOD)
-	$(MKDIR) $(INSTSRVPAG)
-	$(CP) -r tcl $(INSTMOD)
-	$(CP) scripts/translate-ini $(INSTBIN)
-	$(CP) scripts/translate-tcl $(INSTBIN)
-	test -f $(INST)/nsd.tcl           \
-		|| $(CP) scripts/nsd.tcl $(INST)
-	test -f $(INSTSRVPAG)/index.html  \
-		|| $(CP) scripts/index.html $(INSTSRVPAG)
-	@for i in $(ALLDIRS); do \
-		echo "installing \"$$i\""; \
-		( cd $$i && $(MAKE) install) || exit 1; \
-	done
+CC=gcc
+COPTS=-Wall -fpic -shared -I/usr/local/pgsql/include -I/home/aolserver/include -I-/usr/include
 
+# Debian Linux with deb AOLserver & PostgreSQL
+#CC=gcc
+#PGLIB=/usr/lib
+#PGINC=/usr/include/postgresql
+#NSINC=/usr/include/aolserver
+#COPTS=-fpic -shared -I$(PGINC) -I$(NSINC) -I-/usr/include
 
-#
-# Cleaning rules.
-#
-#    clean:      remove objects
-#    clobber:    remove as much cruft as possible
-#    distclean:  clean for non-CVS distribution
-#
+# RedHat Linux with RPM PostgreSQL
+CC=gcc
+#PGLIB=/usr/lib
+#PGINC=/usr/include/pgsql
+COPTS=-fpic -shared -I$(PGINC) -I$(NSHOME)/include -I-/usr/include
+
+# Solaris 2.4
+#CC=/opt/SUNWspro/bin/cc
+#COPTS=-g -mt -Xa
+#LDFLAGS=-dy -G
+
+# Alpha Digital Unix 3.2
+#CC=cc
+#COPTS=-g -D_REENTRANT -threads
+#LDFLAGS=-shared -expect_unresolved '*'
+
+# HP/UX
+#CC=cc
+#COPTS=-g -Ae -D_REENTRANT +z
+#LDFLAGS=-b
+
+# SGI Irix 5.3
+#CC=cc
+#COPTS=-g -D_SGI_MP_SOURCE
+#LDFLAGS=-shared
+
+# FreeBSD 3
+# The make install target isn't what you want---just copy postgres.so to
+# /usr/local/libexec/aolserver
+#COPTS=-g -Wall -fpic -pthread -D_THREAD_SAFE -I/usr/local/include/aolserver -I/usr/local/pgsql/include
+#LDFLAGS=-pthread -Wl,-E
+
+# You should not need to edit anything below this line.
+
+EXTRA_OBJS=$(PGLIB)/libpq.so
+OBJS=nspostgres.o
+MODULE=nspostgres.so
+CFLAGS=-DFOR_ACS_USE -DBIND_EMULATION -I$(NSHOME)/include $(COPTS)
+LDFLAGS=-shared -I$(PGINC) -I$(NSHOME)/include -I-/usr/include
+
+all: $(MODULE)
+
+$(MODULE): $(OBJS)
+	gcc $(LDFLAGS) -o $(MODULE) $(OBJS) $(EXTRA_OBJS)
+
+install: $(MODULE)
+	cp $(MODULE) $(INSTALL)/bin/
+	chmod +x $(INSTALL)/bin/$(MODULE)
+
 clean:
-	@for i in $(ALLDIRS); do \
-		echo "cleaning \"$$i\""; \
-		( cd $$i && $(MAKE) $@) || exit 1; \
-	done
-
-clobber: clean
-	$(RM) *~
-	@for i in $(ALLDIRS); do \
-		echo "clobbering \"$$i\""; \
-		( cd $$i && $(MAKE) $@) || exit 1; \
-	done
-
-distclean: clobber
-	$(RM) TAGS core
-	@for i in $(ALLDIRS); do \
-		echo "distcleaning \"$$i\""; \
-		( cd $$i && $(MAKE) $@) || exit 1; \
-	done
-	$(FIND) . -name \*~ -exec $(RM) {} \;
-	$(FIND) . -name CVS -exec $(RM) -r {} \; -prune
-	$(FIND) . -name .cvsignore -exec $(RM) {} \;
-	$(FIND) . -name TODO -exec $(RM) {} \;
-
+	rm -f *.o *.so
