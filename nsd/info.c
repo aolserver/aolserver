@@ -33,15 +33,11 @@
  *	Ns_Info* API and ns_info command support.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/info.c,v 1.1 2001/03/12 22:06:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/info.c,v 1.2 2001/11/05 20:23:52 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
 extern char *nsBuildDate;
-
-static void AppendThread(Ns_ThreadInfo *iPtr, void *arg);
-static void AppendPool(Ns_PoolInfo *iPtr, void *arg);
-static void AppendMutex(Ns_MutexInfo *iPtr, void *arg);
 
 
 /*
@@ -228,8 +224,6 @@ Ns_InfoPlatform(void)
     return "UnixWare";
 #elif defined(MACOSX)
     return "osx";
-#elif defined(WIN32)
-    return "win32";
 #else
     return "?";
 #endif
@@ -526,13 +520,13 @@ NsTclInfoCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
     	NsGetScheduled(&ds);
 	Tcl_DStringResult(interp, &ds);
     } else if (STREQ(cmd, "locks")) {
-	Ns_MutexEnum(AppendMutex, &ds);
+	NsLockInfo(&ds);
 	Tcl_DStringResult(interp, &ds);
     } else if (STREQ(cmd, "threads")) {
-	Ns_ThreadEnum(AppendThread, &ds);
+	NsThreadInfo(&ds);
 	Tcl_DStringResult(interp, &ds);
     } else if (STREQ(cmd, "pools")) {
-	Ns_PoolEnum(AppendPool, &ds);
+	Tcl_GetMemoryInfo(&ds);
 	Tcl_DStringResult(interp, &ds);
     } else if (STREQ(cmd, "log")) {
         elog = Ns_InfoErrorLog();
@@ -554,11 +548,7 @@ NsTclInfoCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
     } else if (STREQ(cmd, "home")) {
 	Tcl_SetResult(interp, Ns_InfoHomePath(), TCL_STATIC);
     } else if (STREQ(cmd, "winnt")) {
-#ifdef WIN32
-        interp->result = "1";
-#else
-        interp->result = "0";
-#endif
+	Tcl_SetResult(interp, "0", TCL_STATIC);
     } else if (STREQ(cmd, "label")) {
 	Tcl_SetResult(interp, Ns_InfoLabel(), TCL_STATIC);
     } else if (STREQ(cmd, "builddate")) {
@@ -658,74 +648,4 @@ NsTclLibraryCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
     Tcl_SetResult(interp, ds.string, TCL_VOLATILE);
     Ns_DStringFree(&ds);
     return TCL_OK;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * AppendMutex, AppendThread, AppendPool --
- *
- *	Helper routines for NsTclInfoCmd.
- *
- * Results:
- *	None.
- *
- * Side effects:
- *	Appends data to given dstring.
- *
- *----------------------------------------------------------------------
- */
-
-static void
-AppendMutex(Ns_MutexInfo *iPtr, void *arg)
-{
-    Tcl_DString *dsPtr = arg;
-    char buf[100], *owner;
-
-    owner = iPtr->owner;
-    Tcl_DStringStartSublist(dsPtr);
-    Tcl_DStringAppendElement(dsPtr, iPtr->name);
-    Tcl_DStringAppendElement(dsPtr, owner ? owner : "");
-    sprintf(buf, " %d %lu %lu", iPtr->id, iPtr->nlock, iPtr->nbusy);
-    Tcl_DStringAppend(dsPtr, buf, -1);
-    Tcl_DStringEndSublist(dsPtr);
-}
-
-static void
-AppendThread(Ns_ThreadInfo *iPtr, void *arg)
-{
-    Tcl_DString *dsPtr = arg;
-    char buf[100];
-
-    Tcl_DStringStartSublist(dsPtr);
-    Tcl_DStringAppendElement(dsPtr, iPtr->name);
-    Tcl_DStringAppendElement(dsPtr, iPtr->parent);
-    sprintf(buf, " %d %d %ld", iPtr->tid, iPtr->flags, iPtr->ctime);
-    Tcl_DStringAppend(dsPtr, buf, -1);
-    Ns_GetProcInfo(dsPtr, (void *) iPtr->proc, iPtr->arg);
-    Tcl_DStringEndSublist(dsPtr);
-}
-
-static void
-AppendPool(Ns_PoolInfo *iPtr, void *arg)
-{
-    Tcl_DString *dsPtr = arg;
-    char buf[200];
-    int n;
-
-    Tcl_DStringStartSublist(dsPtr);
-    Tcl_DStringAppendElement(dsPtr, iPtr->name);
-    for (n = 0; n < iPtr->nbuckets; ++n) {
-    	    sprintf(buf, "%d %d %d %d %d %d %d",
-		iPtr->buckets[n].blocksize,
-		iPtr->buckets[n].nfree,
-		iPtr->buckets[n].nget,
-		iPtr->buckets[n].nput,
-		iPtr->buckets[n].nrequest,
-		iPtr->buckets[n].nlock,
-		iPtr->buckets[n].nwait);
-	    Tcl_DStringAppendElement(dsPtr, buf);
-    }
-    Tcl_DStringEndSublist(dsPtr);
 }
