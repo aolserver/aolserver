@@ -33,7 +33,7 @@
  *	ADP string and file eval.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.22 2003/03/05 19:56:57 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.23 2003/03/06 22:31:16 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -62,7 +62,7 @@ typedef struct Page {
 
 typedef struct InterpPage {
     Page     *pagePtr;
-    Tcl_Obj  *objs[0];
+    Tcl_Obj  *objs[1];
 } InterpPage;
 
 /*
