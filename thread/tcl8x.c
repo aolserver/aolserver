@@ -89,6 +89,7 @@ typedef struct ThreadArg {
 } ThreadArg;
 
 static Ns_ThreadProc TclNsThread;
+static Ns_TlsCleanup FreeTls;
 
 /*
  * These macros are for critical sections within this file.
@@ -502,12 +503,6 @@ TclpFinalizeMutex(mutexPtr)
  *----------------------------------------------------------------------
  */
 
-static void
-FreeTls(void *arg)
-{
-    ckfree((char *) arg);
-}
-
 NS_EXPORT void
 TclpThreadDataKeyInit(keyPtr)
     Tcl_ThreadDataKey *keyPtr;	/* Identifier for the data chunk */
@@ -806,6 +801,29 @@ NS_EXPORT char *
 TclpRealloc(char *cp, unsigned int nbytes)
 {
     return ns_realloc(cp, nbytes);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * FreeTls --
+ *
+ *	Ns_Tls cleanup callback to free thread local storage.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+FreeTls(void *arg)
+{
+    TclpFree((char *) arg);
 }
 
 
