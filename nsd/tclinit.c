@@ -33,7 +33,7 @@
  *	Initialization routines for Tcl.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.36 2003/05/21 13:36:28 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.37 2003/05/24 15:26:59 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -1291,6 +1291,8 @@ DeleteInterps(void *arg)
     }
     Tcl_DeleteHashTable(tablePtr);
     ns_free(tablePtr);
+
+    Tcl_FinalizeThread(); /* To call registered thread-exit handlers */
 }
 
 
