@@ -28,12 +28,13 @@
  */
 
 /* 
- * serv.c --
+ * queue.c --
  *
- *	Routines for the core server connection threads.
+ *	Routines for the managing the virtual server connection queue
+ *	and service threads.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/queue.c,v 1.3 2001/03/14 02:01:58 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/queue.c,v 1.4 2001/03/22 21:32:17 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
