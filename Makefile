@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/Makefile,v 1.44 2002/10/30 00:01:08 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/Makefile,v 1.44.2.1 2004/06/03 17:58:57 rcrittenden0569 Exp $
 #
 
 NSBUILD=1
@@ -70,6 +70,6 @@ clean:
 	done
 
 distclean: clean
-	$(RM) config.status config.log config.cache include/Makefile.global
+	$(RM) config.status config.log config.cache include/Makefile.global include/Makefile.module
 
 .PHONY: all install install-binaries install-doc install-tests clean distclean
