@@ -95,5 +95,6 @@
 #define TCL_NSVBUCKETS_INT     8
 #define TCL_STATLEVEL_INT      0
 #define TCL_STATMAXBUF_INT     1000
+#define TCL_INITLCK_BOOL       NS_FALSE
 
 #endif

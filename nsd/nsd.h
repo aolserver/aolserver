@@ -206,6 +206,7 @@ struct _nsconf {
     struct {
 	char *sharedlibrary;
 	char *version;
+        bool lockoninit;
     } tcl;
 
     struct {
