@@ -1,3 +1,8 @@
+2003-02-03  Jamie Rasmussen <jrasmuss@mle.ie>
+
+        * tcl/sendmail.tcl: Fix bug #632265
+        * Fix minor spelling errors in comments
+
 2003-02-01  Nathan Folkman <shmooved@aol.com>
 
         * tcl/stats.tcl: Consolidated web based stats interface into
