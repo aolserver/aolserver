@@ -35,7 +35,7 @@
  *  	Tcl commands.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscp/nscp.c,v 1.13.4.2 2002/10/28 23:15:39 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscp/nscp.c,v 1.13.4.3 2002/11/10 15:01:58 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 
@@ -91,7 +91,7 @@ static unsigned char dont_echo[]  = {TN_IAC, TN_DONT, TN_ECHO};
 static unsigned char will_echo[]  = {TN_IAC, TN_WILL, TN_ECHO};
 static unsigned char wont_echo[]  = {TN_IAC, TN_WONT, TN_ECHO};
 
-int Ns_ModuleVersion = 1;
+NS_EXPORT int Ns_ModuleVersion = 1;
 
 
 /*
@@ -112,7 +112,7 @@ int Ns_ModuleVersion = 1;
  *----------------------------------------------------------------------
  */
  
-int
+NS_EXPORT int
 Ns_ModuleInit(char *server, char *module)
 {
     Mod *modPtr;
@@ -249,7 +249,7 @@ ArgProc(Tcl_DString *dsPtr, void *arg)
  */
 
 static int
-AcceptProc(int lsock, void *arg, int why)
+AcceptProc(SOCKET lsock, void *arg, int why)
 {
     Mod *modPtr = arg;
     Sess *sessPtr;
@@ -258,7 +258,7 @@ AcceptProc(int lsock, void *arg, int why)
 
     if (why == NS_SOCK_EXIT) {
 	Ns_Log(Notice, "nscp: shutdown");
-	close(lsock);
+	closesocket(lsock);
 	return NS_FALSE;
     }
     sessPtr = ns_malloc(sizeof(Sess));
@@ -387,7 +387,7 @@ done:
     	Ns_TclDeAllocateInterp(interp);
     }
     Ns_Log(Notice, "nscp: disconnect: %s", ns_inet_ntoa(sessPtr->sa.sin_addr));
-    close(sessPtr->sock);
+    closesocket(sessPtr->sock);
     ns_free(sessPtr);
 }
 
@@ -538,15 +538,15 @@ Login(Sess *sessPtr, Tcl_DString *unameDSPtr)
     if (ok) {
 	Ns_Log(Notice, "nscp: logged in: '%s'", user);
         Tcl_DStringAppend(unameDSPtr, user, -1);
-	sprintf(msg, "\nWelcome to %s running at %s (pid %d)\n"
-		"%s/%s (%s) for %s built on %s\nCVS Tag: %s\n",
+	sprintf(msg, "\nWelcome to %s running at %s (pid %d)\r\n"
+		"%s/%s (%s) for %s built on %s\r\nCVS Tag: %s\r\n",
 		sessPtr->modPtr->server,
 		Ns_InfoNameOfExecutable(), Ns_InfoPid(),
 		Ns_InfoServerName(), Ns_InfoServerVersion(), Ns_InfoLabel(),
 		Ns_InfoPlatform(), Ns_InfoBuildDate(), Ns_InfoTag());
     } else {
 	Ns_Log(Warning, "nscp: login failed: '%s'", user ? user : "?");
-	sprintf(msg, "Access denied!\n");
+	sprintf(msg, "Access denied!\r\n");
     }
     (void) send(sessPtr->sock, msg, strlen(msg), 0);
     Tcl_DStringFree(&uds);
