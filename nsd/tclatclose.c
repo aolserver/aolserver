@@ -33,7 +33,7 @@
  *	Routines for the ns_atclose command.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/tclatclose.c,v 1.4 2002/07/08 02:51:10 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/tclatclose.c,v 1.5 2002/08/10 16:22:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -93,7 +93,7 @@ Ns_TclRegisterDeferred(Tcl_Interp *interp, Ns_TclDeferProc *procPtr,
  */
 
 int
-NsTclAtCloseCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
+NsTclAtCloseCmd(ClientData arg, Tcl_Interp *interp, int argc, CONST char **argv)
 {
     NsInterp *itPtr = arg;
     char    *script;
@@ -107,7 +107,7 @@ NsTclAtCloseCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
     if (argc == 2) {
 	script = argv[1];
     } else {
-	script = Tcl_Concat(2, (const char **) argv+1);
+	script = Tcl_Concat(2, argv+1);
     }
 
     /*

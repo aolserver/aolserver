@@ -33,7 +33,7 @@
  *	Initialization routines for Tcl.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.23 2002/06/19 10:19:49 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.24 2002/08/10 16:22:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -98,7 +98,7 @@ Ns_TclEval(Ns_DString *dsPtr, char *server, char *script)
 {
     int         retcode;
     Tcl_Interp *interp;
-    const char *result;
+    CONST char *result;
 
     retcode = NS_ERROR;
     interp = Ns_TclAllocateInterp(server);
@@ -589,7 +589,7 @@ NsTclEval(Tcl_Interp *interp, char *script)
 char *
 Ns_TclLogError(Tcl_Interp *interp)
 {
-    const char *errorInfo;
+    CONST char *errorInfo;
 
     errorInfo = Tcl_GetVar(interp, "errorInfo", TCL_GLOBAL_ONLY);
     if (errorInfo == NULL) {

@@ -33,7 +33,7 @@
  *	Support for the ns_http command.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclhttp.c,v 1.10 2002/07/08 02:50:55 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclhttp.c,v 1.11 2002/08/10 16:22:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -96,7 +96,7 @@ NsTclHttpCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
     NsInterp *itPtr = arg;
     Http *httpPtr;
     char *cmd, buf[20];
-    const char *result;
+    CONST char *result;
     int new, status, n;
     Ns_Time timeout;
     Ns_Set *hdrs;

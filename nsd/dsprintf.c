@@ -37,7 +37,7 @@
  *	(see copyright below).
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/dsprintf.c,v 1.2 2001/05/10 09:57:21 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/dsprintf.c,v 1.3 2002/08/10 16:22:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 /*	$NetBSD: vfprintf.c,v 1.35 2000/12/30 04:13:25 itojun Exp $	*/
 
@@ -112,10 +112,10 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
 char *
 Ns_DStringVPrintf(Tcl_DString *dsPtr, char *fmt0, va_list ap)
 {
-	const char *fmt;/* format string */
+	CONST char *fmt;/* format string */
 	int ch;	/* character from fmt */
 	int n;	/* handy integers (short term usage) */
-	const char *cp;	/* handy char pointer (short term usage) */
+	CONST char *cp;	/* handy char pointer (short term usage) */
 	char *bp;	/* handy char pointer (short term usage) */
 	int flags;	/* flags as above */
 	int width;		/* width from format (%8d), or 0 */
@@ -131,7 +131,7 @@ Ns_DStringVPrintf(Tcl_DString *dsPtr, char *fmt0, va_list ap)
 	char buf[BUF];		/* space for %c, %[diouxX], %[eEfgG] */
 	char ox[2];		/* space for 0x hex-prefix */
 	int slen, len;		/* saved and current output length */
-	const char *tfmt;	/* tmp fmt for float sprintf */
+	CONST char *tfmt;	/* tmp fmt for float sprintf */
 	Tcl_DString tfmtds;	/* dstring for tmp fmt copy */
 
 #define	PRINT(ptr, len) Tcl_DStringAppend(dsPtr, (ptr), (len))
