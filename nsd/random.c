@@ -34,7 +34,7 @@
  *	This file implements the "ns_rand" command.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/random.c,v 1.4 2000/08/17 06:09:49 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/random.c,v 1.5 2000/08/25 13:47:50 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -50,29 +50,25 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
  * Local functions defined in this file
  */
 
-static void CounterThread(void);
-static unsigned long raw_truerand(void);
+static Ns_ThreadProc CounterThread;
+static unsigned long TrueRand(void);
+static unsigned long Roulette(void);
 
 /*
- * These static variables are used the GenerateSeed routine to generate
- * an array of random seeds.
+ * Static variables used by Ns_GenSeeds to generate array of random
+ * by utilizing the random nature of the thread scheduler.
  */
 
-static volatile unsigned long Counter;  /* counter in counting thread */
+static volatile unsigned long counter;  /* Counter in counting thread */
+static volatile char fRun; /* Flag for counting thread outer loop. */
+static volatile char fCount; /* Flag for counting thread inner loop. */
+static Ns_Sema sema;	/* Semaphore that controls counting threads. */
 
-static volatile char counterRun;	/* flag that controls the outer loop
-					 * in the counting thread */
-
-static volatile char keepCounting;	/* flag that controls the inner loop
-					 * in the counting thread */
-
-static Ns_Sema counterSema;	/* semaphore that controls the 
-					 * counting thread */
 /*
- *==========================================================================
- * Exported functions
- *==========================================================================
+ * Critical section around initial and subsequent seed generation.
  */
+
+static Ns_Cs lock;
 
 /*
  *----------------------------------------------------------------------
@@ -151,7 +147,7 @@ Ns_DRand(void)
     static int initialized;
 
     if (!initialized) {
-	Ns_MasterLock();
+	Ns_CsEnter(&lock);
 	if (!initialized) {
 	    unsigned long seed;
 	    Ns_GenSeeds(&seed, 1);
@@ -164,7 +160,7 @@ Ns_DRand(void)
 #endif
 	    initialized = 1;
 	}
-	Ns_MasterUnlock();
+	Ns_CsLeave(&lock);
     }
 #if HAVE_RAND48
     return drand48();
@@ -198,20 +194,18 @@ Ns_GenSeeds(unsigned long *seedsPtr, int nseeds)
 {
     Ns_Thread thr;
     
-    Ns_Log(Notice, "random: generating %d random seeds...", nseeds);
-    Ns_MasterLock();
-    Ns_SemaInit(&counterSema, 0);
-    counterRun = 1;
-    Ns_ThreadCreate((Ns_ThreadProc *) CounterThread, NULL, 0, &thr);
+    Ns_CsEnter(&lock);
+    Ns_SemaInit(&sema, 0);
+    fRun = 1;
+    Ns_ThreadCreate(CounterThread, NULL, 0, &thr);
     while (nseeds-- > 0) {
-    	*seedsPtr++ = raw_truerand();
+    	*seedsPtr++ = TrueRand();
     }
-    counterRun = 0;
-    Ns_SemaPost(&counterSema, 1);
-    Ns_MasterUnlock();
+    fRun = 0;
+    Ns_SemaPost(&sema, 1);
     Ns_ThreadJoin(&thr, NULL);
-    Ns_SemaDestroy(&counterSema);
-    Ns_Log(Notice, "random: seed generation complete");
+    Ns_SemaDestroy(&sema);
+    Ns_CsLeave(&lock);
 }
 
 /*
@@ -226,21 +220,22 @@ Ns_GenSeeds(unsigned long *seedsPtr, int nseeds)
  *	scheduler.
  *
  * Results:
+ *	None.
  *
  * Side effects:
- *	None external. 
+ *	None.
  *
  *----------------------------------------------------------------------
  */
 
 static void
-CounterThread(void)
+CounterThread(void *ignored)
 {
-    while (counterRun) {
-        Ns_SemaWait(&counterSema);
-        if (counterRun) {
-	    while (keepCounting) {
-		Counter++;
+    while (fRun) {
+        Ns_SemaWait(&sema);
+        if (fRun) {
+	    while (fCount) {
+		counter++;
             }
         }
     }
@@ -250,9 +245,7 @@ CounterThread(void)
  *==========================================================================
  * AT&T Seed Generation Code
  *==========================================================================
- */
-
-/*
+ *
  * The authors of this software are Don Mitchell and Matt Blaze.
  *              Copyright (c) 1995 by AT&T.
  * Permission to use, copy, and modify this software without fee
@@ -269,39 +262,36 @@ CounterThread(void)
  * OF THIS SOFTWARE OR ITS FITNESS FOR ANY PARTICULAR PURPOSE.
  */
 
-#define MSEC_TO_COUNT 31  /* duration of thread counting in milliseconds */
+#define MSEC_TO_COUNT 31  /* Duration of thread counting in milliseconds. */
 #define ROULETTE_PRE_ITERS 10
 
-static unsigned long roulette(void);
-
 static unsigned long
-raw_truerand(void)
+TrueRand(void)
 {
     int i;
 
     for (i = 0; i < ROULETTE_PRE_ITERS; i++) {
-	roulette();
+	Roulette();
     }
-    return roulette();
+    return Roulette();
 }
 
-
 static unsigned long
-roulette(void)
+Roulette(void)
 {
     static unsigned long ocount, randbuf;
     struct timeval tv;
 
-    Counter = 0;
-    keepCounting = 1;
-    Ns_SemaPost(&counterSema, 1);
+    counter = 0;
+    fCount = 1;
+    Ns_SemaPost(&sema, 1);
     tv.tv_sec = (time_t)0;
     tv.tv_usec = MSEC_TO_COUNT * 1000;
     select(0, NULL, NULL, NULL, &tv);
-    keepCounting = 0;
-    Counter ^= (Counter >> 3) ^ (Counter >> 6) ^ (ocount);
-    Counter &= 0x7;
-    ocount = Counter;
-    randbuf = (randbuf<<3) ^ Counter;
+    fCount = 0;
+    counter ^= (counter >> 3) ^ (counter >> 6) ^ (ocount);
+    counter &= 0x7;
+    ocount = counter;
+    randbuf = (randbuf<<3) ^ counter;
     return randbuf;
 }
