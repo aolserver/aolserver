@@ -1,6 +1,10 @@
 2002-09-24  Kriston Rehberg  <kriston@aol.com>
 
-	*** aolserver_v35_pre1 tagged ***
+	*** AOLserver 3.5.0 RELEASED ***
+
+	* nsd/nsd.h (NSD_LABEL): Tag name formats are changed again.  This
+	release, 3.5, is aolserver_v35_b0.  The tag is based on project
+	"aolserver", version "35", off of branch tag "aolserver_v35_bp".
 
 	* Tcl is now separate from AOLserver and needs to be obtained and
 	build separately following the instructions in the README file.
