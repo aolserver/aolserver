@@ -33,7 +33,7 @@
  *	AOLserver Ns_Main() startup routine.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.52 2003/11/03 19:23:26 pkhincha Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.53 2003/11/16 17:54:22 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #ifdef _WIN32
@@ -620,7 +620,6 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
      * for them to complete.
      */
 
-    NsWaitDriversShutdown(&timeout);
     NsStartSchedShutdown(); 
     NsStartSockShutdown();
     NsStartJobsShutdown();
@@ -628,6 +627,7 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
     NsWaitSchedShutdown(&timeout);
     NsWaitSockShutdown(&timeout);
     NsWaitJobsShutdown(&timeout);
+    NsWaitDriversShutdown(&timeout);
     NsWaitShutdownProcs(&timeout);
 
     /*
