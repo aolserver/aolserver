@@ -18,7 +18,8 @@ include $(NSHOME)/include/Makefile.global
 #  Choose the modules you want and put them in the MODULES variable below.
 #  A typical web server might load nssock, nslog, and nsperm.
 #
-#   nssock      -- serves HTTP (nssock) and HTTPS (nsssl)
+#   nssock      -- serves HTTP
+#   nsssl       -- serves HTTPS
 #   nscgi       -- CGI module
 #   nscp        -- Control port remote administration interface
 #   nslog       -- Common log format module
@@ -27,7 +28,7 @@ include $(NSHOME)/include/Makefile.global
 #   nspd        -- Archive library for building an external driver
 #
 
-MODULES   =  nssock nscgi nscp nslog nsperm nsext nspd 
+MODULES   =  nssock nsssl nscgi nscp nslog nsperm nsext nspd 
 
 ALLDIRS   = thread $(TCL_DIR) nsd $(MODULES) 
 
