@@ -27,7 +27,7 @@
 '\" version of this file under either the License or the GPL.
 '\" 
 '\"
-'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_Config.3,v 1.1.2.4 2002/12/05 18:08:00 scottg Exp $
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_Config.3,v 1.1.2.5 2002/12/09 03:49:33 scottg Exp $
 '\"
 '\" 
 .so man.macros
@@ -36,26 +36,37 @@
 .BS
 '\" Note:  do not modify the .SH NAME line immediately below!
 .SH NAME
-Ns_ConfigGetBool, Ns_ConfigGetInt, Ns_ConfigGetInt64, Ns_ConfigGetPath, Ns_ConfigGetSection, Ns_ConfigGetSections, Ns_ConfigGetValue, Ns_ConfigGetValueExact \- Extract information from the server configuration files
+Ns_ConfigGetBool, Ns_ConfigGetInt, Ns_ConfigGetInt64, Ns_ConfigGetPath, 
+Ns_ConfigGetSection, Ns_ConfigGetSections, Ns_ConfigGetValue, 
+.br
+Ns_ConfigGetValueExact \- Extract information from the server configuration files
 .SH SYNOPSIS
 .nf
 \fB#include "ns.h"\fR
 .sp
+int
 \fBNs_ConfigGetBool\fR(\fIchar *section, char *key, int *valuePtr\fR)
 .sp
+int
 \fBNs_ConfigGetInt\fR(\fIchar *section, char *key, int *valuePtr\fR)
 .sp
+int
 \fBNs_ConfigGetInt64\fR(\fIchar *section, char *key, INT64 *valuePtr\fR)
 .sp
-\fBNs_ConfigGetPath\fR(\fIchar *server, char *module, ...\fR)
+char
+\fB*Ns_ConfigGetPath\fR(\fIchar *server, char *module, ...\fR)
 .sp
-\fBNs_ConfigGetSection\fR(\fIchar *section\fR)
+Ns_Set
+\fB*Ns_ConfigGetSection\fR(\fIchar *section\fR)
 .sp
-\fBNs_ConfigGetSections\fR(\fIvoid\fR)
+Ns_Set
+\fB**Ns_ConfigGetSections\fR(\fIvoid\fR)
 .sp
-\fBNs_ConfigGetValue\fR(\fIchar *section, char *key\fR)
+char
+\fB*Ns_ConfigGetValue\fR(\fIchar *section, char *key\fR)
 .sp
-\fBNs_ConfigGetValueExact\fR(\fIchar *section, char *key\fR)
+char
+\fB*Ns_ConfigGetValueExact\fR(\fIchar *section, char *key\fR)
 .BE
 .SH DESCRIPTION
 .PP
@@ -85,6 +96,16 @@ types.  This function isn't available on WIN32.
 Get the full name of a config file section if it exists. Returns a
 pointer to to an ASCIIZ string of the full path name, or NULL if that
 path is not in the config file.
+.sp
+Examples:
+.br
+Ns_ConfigGetPath("server1","nscp")
+.br
+\ returns  "ns/server/server1/module/nscp"
+.br
+Ns_ConfigGetPath("server1","nscp","users")
+.br
+\ returns  "ns/server/server1/module/nscp/users"
 .TP
 \fBNs_ConfigGetSection\fR(\fIsection\fR)
 
