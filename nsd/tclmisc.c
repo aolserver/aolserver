@@ -34,7 +34,7 @@
  *	Implements a lot of Tcl API commands. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclmisc.c,v 1.12.2.1.2.2 2002/11/10 15:02:30 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclmisc.c,v 1.12.2.1.2.4 2003/02/01 19:00:16 shmooved Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -86,6 +86,8 @@ static int JpegSize(Tcl_Channel chan, int *wPtr, int *hPtr);
 /*
  * Static variables defined in this file
  */
+
+static Ns_ThreadArgProc ThreadArgProc;
 
 
 /*
@@ -156,8 +158,7 @@ NsIsIdConn(char *connId)
  *	1 if semi, 0 if space. 
  *
  * Side effects:
- *	Behavior is undefined if string ends before either space or 
- *	semi. 
+ *      Undefined behavior if string does not end in null
  *
  *----------------------------------------------------------------------
  */
@@ -165,7 +166,16 @@ NsIsIdConn(char *connId)
 static int
 WordEndsInSemi(char *ip)
 {
-    while((*ip != ' ') && (*ip != ';')) {
+    if (ip == NULL) {
+        return 0;
+    }
+    /* advance past the first '&' so we can check for a second 
+       (i.e. to handle "ben&jerry&nbsp;")
+    */
+    if (*ip == '&') {
+        ip++;
+    }
+    while((*ip != '\0') && (*ip != ' ') && (*ip != ';') && (*ip != '&')) {
         ip++;
     }
     if (*ip == ';') {
@@ -926,7 +936,7 @@ NsTclInfoCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 	Ns_MutexList(&ds);
 	Tcl_DStringResult(interp, &ds);
     } else if (STREQ(argv[1], "threads")) {
-	Ns_ThreadList(&ds, NULL);
+	Ns_ThreadList(&ds, ThreadArgProc);
 	Tcl_DStringResult(interp, &ds);
     } else if (STREQ(argv[1], "pools")) {
 #ifndef _WIN32
@@ -1729,4 +1739,10 @@ JpegSize(Tcl_Channel chan, int *wPtr, int *hPtr)
 	}
     }
     return TCL_ERROR;
+}
+
+static void      
+ThreadArgProc(Tcl_DString *dsPtr, void *proc, void *arg)
+{
+    Ns_GetProcInfo(dsPtr, proc, arg);
 }

@@ -45,11 +45,17 @@
 typedef struct WinThread {
     struct WinThread *nextPtr;
     struct WinThread *wakeupPtr;
+    HANDLE	      self;
     HANDLE	      event;
     int		      condwait;
     void	     *slots[NS_THREAD_MAXTLS];
 } WinThread;
 
+typedef struct ThreadArg {
+    HANDLE  self;
+    void   *arg;
+} ThreadArg;
+    
 /*
  * The following structure defines a mutex as a spinlock and
  * wait queue.  The custom lock code provides the speed of
@@ -697,17 +703,23 @@ Ns_CondTimedWait(Ns_Cond *cond, Ns_Mutex *mutex, Ns_Time *timePtr)
 void
 NsCreateThread(void *arg, long stacksize, Ns_Thread *resultPtr)
 {
-    unsigned tid;
-    unsigned long hdl;
+    ThreadArg *argPtr;
+    unsigned hdl, tid, flags;
 
-    hdl = _beginthreadex(NULL, stacksize, ThreadMain, arg, 0, &tid);
+    flags = (resultPtr ? 0 : CREATE_SUSPENDED);
+    argPtr = ns_malloc(sizeof(ThreadArg));
+    argPtr->arg = arg;
+    argPtr->self = NULL;
+    hdl = _beginthreadex(NULL, stacksize, ThreadMain, argPtr, flags, &tid);
     if (hdl == 0) {
     	NsThreadFatal("NsCreateThread", "_beginthreadex", errno);
     }
-    if (resultPtr != NULL) {
-	*resultPtr = (Ns_Thread) hdl;
-    } else {
+    if (resultPtr == NULL) {
 	CloseHandle((HANDLE) hdl);
+    } else {
+	argPtr->self = (HANDLE) hdl;
+	ResumeThread(argPtr->self);
+	*resultPtr = (Ns_Thread) hdl;
     }
 }
 
@@ -838,7 +850,9 @@ Ns_ThreadId(void)
 void
 Ns_ThreadSelf(Ns_Thread *threadPtr)
 {
-    *threadPtr = (Ns_Thread) GetCurrentThread();
+    WinThread *wPtr = GETWINTHREAD();
+
+    *threadPtr = (Ns_Thread) wPtr->self;
 }
 
 
@@ -861,6 +875,12 @@ Ns_ThreadSelf(Ns_Thread *threadPtr)
 static unsigned __stdcall
 ThreadMain(void *arg)
 {
+    WinThread *wPtr = GETWINTHREAD();
+    ThreadArg *argPtr = arg;
+
+    wPtr->self = argPtr->self;
+    arg = argPtr->arg;
+    ns_free(argPtr);
     NsThreadMain(arg);
     /* NOT REACHED */
     return 0;
