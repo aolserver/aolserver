@@ -1,5 +1,15 @@
 2000-10-13  Kriston J. Rehberg  <Kriston@AOL.NET>
 
+	* nsd/nsmain.c (Ns_Main): gid of the specified user is set even if
+	it's not specified.
+	(UsageError): -K and -k give a "deprecated" warning.
+	(Ns_Main): -f gives a "deprecated" warning.
+
+	* nsd/binder.c (PreBind): Didn't really tell us if it was
+	successful at pre-binding.  Helpful to know if you're wondering
+	what happened to that port you wanted to pre-bind.
+	(Binder): backlog variables (2) initialized to nsconf.backlog.
+
 	* nssock/sock.cpp, nsd/return.c: Made an attempt at standardizing
 	the error codes and error page content.
 	
