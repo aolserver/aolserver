@@ -1,5 +1,15 @@
 2004-07-28  Dossy Shiobara <dossy@panoptic.com>
 
+	* include/ns.h (1.62): BUMP: 4.1.0a
+
+2004-07-28  Dossy Shiobara <dossy@panoptic.com>
+
+	* configure.in (1.14), configure (1.16): Clean up configure.in,
+	  regenerate configure with autoconf2.13, and clear CCRPATH/LDRPATH
+	  if CCRFLAGS/LDRFLAGS are empty.  Closes SF Bug #640754.
+
+2004-07-28  Dossy Shiobara <dossy@panoptic.com>
+
 	* win32/build.tcl (1.4): DEBUG=2 now yields a really noisy build.
 
 2004-07-26  Dossy Shiobara <dossy@panoptic.com>
