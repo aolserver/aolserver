@@ -1,3 +1,54 @@
+2002-06-10  Jim Davidson <jgdavidson@aol.com>
+
+	* include/Makefile.global:
+	* include/Makefile.module:  Added support for dynamic library init
+	procs set via the LIBINIT make variable.
+
+	* Makefile: 
+	* nsthread/compat.c:
+	* nsthread/cond.c:
+	* nsthread/cslock.c
+	* nsthread/error.c:
+	* nsthread/fork.c:
+	* nsthread/master.c:
+	* nsthread/memory.c:
+	* nsthread/mutex.c:
+	* nsthread/osxcompat.c:
+	* nsthread/osxcompat.h:
+	* nsthread/reentrant.c:
+	* nsthread/rwlock.c:
+	* nsthread/sema.c:
+	* nsthread/signal.c:
+	* nsthread/thread.c:
+	* nsthread/thread.h (new file):
+	* nsthread/time.c:
+	* nsthread/tls.c:  Moved from nsd as separate nsthread library.
+
+	* include/ns.h:
+	* include/nsthread.h:  Include of tcl.h moved to nsthread.h from ns.h.
+
+	* nsd/Makefile
+	* nsd/init.c (new file):
+	* nsd/binder.c:
+	* nsd/cache.c:
+	* nsd/config.c:
+	* nsd/encoding.c:
+	* nsd/exec.c:
+	* nsd/info.c:
+	* nsd/listen.c:
+	* nsd/log.c:
+	* nsd/mimetypes.c:
+	* nsd/modload.c:
+	* nsd/nsd.h:
+	* nsd/nsmain.c:
+	* nsd/nsconf.c:
+	* nsd/proc.c:
+	* nsd/sched.c:
+	* nsd/server.c:
+	* nsd/tclinit.c:
+	* nsd/urlspace.c:  Various runtime initializations collected into
+	dynamic library load time init via NsdInit in init.c.
+
 2002-06-08  Jim Davidson <jgdavidson@aol.com>
 
 	* include/Makefile.global
