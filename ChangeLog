@@ -1,3 +1,9 @@
+2001-08-17  Scott S. Goodwin  <scott@scottg.net>
+
+	* tcl/http.tcl: moved rqset to be the last arg passed to
+	ns_httpget so it wouldn't break existing code. I should have done
+	it that way in the first place.
+
 2001-08-15  Scott S. Goodwin  <scott@scottg.net>
 
 	* tcl/http.tcl: add the rqset param as the second argument to
