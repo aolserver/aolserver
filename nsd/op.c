@@ -35,7 +35,7 @@
  *  	routines (previously known as "op procs").
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/op.c,v 1.7 2001/03/12 22:06:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/op.c,v 1.8 2001/04/23 21:10:26 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -242,16 +242,10 @@ Ns_ConnRedirect(Ns_Conn *conn, char *url)
         status = Ns_ConnRunRequest(conn);
         break;
     case NS_FORBIDDEN:
-        status = Ns_ConnFlushContent(conn);
-        if (status == NS_OK) {
-            status = Ns_ConnReturnForbidden(conn);
-        }
+        status = Ns_ConnReturnForbidden(conn);
         break;
     case NS_UNAUTHORIZED:
-        status = Ns_ConnFlushContent(conn);
-        if (status == NS_OK) {
-            status = Ns_ConnReturnUnauthorized(conn);
-        }
+        status = Ns_ConnReturnUnauthorized(conn);
         break;
     case NS_ERROR:
     default:
