@@ -34,15 +34,11 @@
  *	Functions that return data to a browser. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.34 2003/11/16 15:04:13 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.35 2004/02/15 16:29:31 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
 #define MAX_RECURSION 3       /* Max return direct recursion limit. */
-
-#define HTTP11_HDR_TE "Transfer-Encoding"
-#define HTTP11_TE_CHUNKED "chunked"
-
 
 /*
  * Local functions defined in this file
@@ -53,6 +49,7 @@ static int ReturnOpen(Ns_Conn *conn, int status, char *type, Tcl_Channel chan,
 		      FILE *fp, int fd, int len);
 static int ReturnCharData(Ns_Conn *conn, int status, char *data, int len,
                           char *type, int sendRaw);
+static int HdrEq(Ns_Set *hdrs, char *key, char *value);
 
 /*
  * This structure connections HTTP response codes to their descriptions.
@@ -158,29 +155,6 @@ Ns_RegisterReturn(int status, char *url)
     }
 }
 
-static int
-IsSetupForChunkedEncoding(Ns_Conn *conn) 
-{
-    int headerCount = 0;
-    int i;
-    Ns_Set* outHeaders;
-
-    if (conn == NULL)
-        return 0;
-
-    outHeaders = Ns_ConnOutputHeaders(conn);
-    headerCount = Ns_SetSize (outHeaders);
-
-    if (outHeaders && headerCount) {
-        for (i = 0 ; i < headerCount ; i++) {
-           if ( !strcasecmp(Ns_SetKey (outHeaders, i), HTTP11_HDR_TE) &&
-	        !strcasecmp(Ns_SetValue (outHeaders, i), HTTP11_TE_CHUNKED) )
-	       return 1;
-           }
-    }
-    return 0;
-}
-
 
 /*
  *----------------------------------------------------------------------
@@ -202,34 +176,32 @@ IsSetupForChunkedEncoding(Ns_Conn *conn)
 void
 Ns_ConnConstructHeaders(Ns_Conn *conn, Ns_DString *dsPtr)
 {
-    int   i, length;
+    int   i, length, minor, status;
     char *reason;
     char  buf[100];
     char *value, *keep;
     char *key, *lengthHdr;
     Conn *connPtr;
-    int  doChunkEncoding = 0;
 
     /*
      * Construct the HTTP response status line.
      */
 
     connPtr = (Conn *) conn;
-    sprintf(buf, "%d", connPtr->responseStatus);
+    status = connPtr->responseStatus;
+    if (HdrEq(conn->outputheaders, "transfer-encoding", "chunked")) {
+	minor = 1;
+    } else {
+	minor = 0;
+    }
     reason = "Unknown Reason";
     for (i = 0; i < nreasons; i++) {
-	if (reasons[i].status == connPtr->responseStatus) {
+	if (reasons[i].status == status) {
 	    reason = reasons[i].reason;
 	    break;
 	}
     }
-
-    doChunkEncoding = IsSetupForChunkedEncoding(conn);
-
-    if (!doChunkEncoding)
-        Ns_DStringVarAppend(dsPtr, "HTTP/1.0 ", buf, " ", reason, "\r\n", NULL);
-    else
-        Ns_DStringVarAppend(dsPtr, "HTTP/1.1 ", buf, " ", reason, "\r\n", NULL);
+    Ns_DStringPrintf(dsPtr, "HTTP/1.%d %d %s\r\n", minor, status, reason);
 
     /*
      * Output any headers.
@@ -249,29 +221,29 @@ Ns_ConnConstructHeaders(Ns_Conn *conn, Ns_DString *dsPtr)
 	}
 	
 	/*
-	 * Output a connection keep-alive header only on
-	 * basic HTTP status 200 GET responses which included
-	 * a valid and correctly set content-length header.
+	 * If not already set, enable keep-alive only on basic HTTP status
+	 * 200 GET responses which include a valid and correctly set
+	 * content-length header.
 	 */
 
-	if (nsconf.keepalive.enabled &&
+	if (!Ns_ConnGetKeepAliveFlag(conn) &&
+	    nsconf.keepalive.enabled &&
 	    connPtr->headers != NULL &&
 	    connPtr->request != NULL &&
 	    ((connPtr->responseStatus == 200 &&
 	    (lengthHdr != NULL &&
-	    connPtr->responseLength == length) || doChunkEncoding) ||
+	    connPtr->responseLength == length) || (minor > 0)) ||
 	    connPtr->responseStatus == 304) &&
 	    STREQ(connPtr->request->method, "GET") &&
-	    (key = Ns_SetIGet(conn->headers, "connection")) != NULL &&
-	    STRIEQ(key, "keep-alive")) {
-	    conn->flags |= NS_CONN_KEEPALIVE;
+	    HdrEq(conn->headers, "connection", "keep-alive")) {
+	    Ns_ConnSetKeepAliveFlag(conn, NS_TRUE);
+	}
+	if (Ns_ConnGetKeepAliveFlag(conn)) {
 	    keep = "keep-alive";
 	} else {
 	    keep = "close";
 	}
-
 	Ns_ConnCondSetHeaders(conn, "Connection", keep);
-	
 
 	for (i = 0; i < Ns_SetSize(conn->outputheaders); i++) {
 	    key = Ns_SetKey(conn->outputheaders, i);
@@ -470,10 +442,7 @@ Ns_ConnSetRequiredHeaders(Ns_Conn *conn, char *type, int length)
     if (type != NULL) {
     	Ns_ConnSetTypeHeader(conn, type);
     }
-    if (length > 0) {
-	Ns_ConnSetLengthHeader(conn, length);
-    }
-
+    Ns_ConnSetLengthHeader(conn, length);
     Ns_DStringFree(&ds);
 }
 
@@ -1371,4 +1340,18 @@ ReturnOpen(Ns_Conn *conn, int status, char *type, Tcl_Channel chan,
         result = Ns_ConnClose(conn);
     }
     return result;
+}
+
+
+static int
+HdrEq(Ns_Set *set, char *name, char *value)
+{
+    char *hdrvalue;
+
+    if (set != NULL
+	&& (hdrvalue = Ns_SetIGet(set, name)) != NULL
+	&& STRIEQ(hdrvalue, value)) {
+	return 1;
+    }
+    return 0;
 }

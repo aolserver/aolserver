@@ -34,10 +34,11 @@
  *      Manage the Ns_Conn structure
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.39 2003/11/16 15:04:13 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.40 2004/02/15 16:29:31 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
+static void SetFlag(Ns_Conn *conn, int bit, int flag);
 static int GetChan(Tcl_Interp *interp, char *id, Tcl_Channel *chanPtr);
 static int GetIndices(Tcl_Interp *interp, Conn *connPtr, Tcl_Obj **objv,
 		      int *offPtr, int *lenPtr);
@@ -725,13 +726,13 @@ NsIsIdConn(char *connId)
 }
 
 
-
 /*
  *----------------------------------------------------------------------
  *
  * Ns_ConnGetWriteEncodedFlag --
+ * Ns_ConnGetKeepAliveFlag --
  *
- *	Is the given connection set for encoded writes.
+ *	Is the given connection set for encoded writes/keepalive.
  *
  * Results:
  *	Boolean. 
@@ -745,15 +746,21 @@ NsIsIdConn(char *connId)
 int
 Ns_ConnGetWriteEncodedFlag(Ns_Conn *conn)
 {
-    return (conn->flags & NS_CONN_WRITE_ENCODED );
+    return (conn->flags & NS_CONN_WRITE_ENCODED);
 }
 
+int
+Ns_ConnGetKeepAliveFlag(Ns_Conn *conn)
+{
+    return (conn->flags & NS_CONN_KEEPALIVE);
+}
 
-
+
 /*
  *----------------------------------------------------------------------
  *
  * Ns_ConnSetWriteEncodedFlag --
+ * Ns_ConnSetKeepAliveFlag --
  *
  *	Set the given connection encoded writes flag per parameter.
  *
@@ -769,10 +776,22 @@ Ns_ConnGetWriteEncodedFlag(Ns_Conn *conn)
 void
 Ns_ConnSetWriteEncodedFlag(Ns_Conn *conn, int flag)
 {
-    if( flag ) {
-        conn->flags |= NS_CONN_WRITE_ENCODED;
+    SetFlag(conn, NS_CONN_WRITE_ENCODED, flag);
+}
+
+void
+Ns_ConnSetKeepAliveFlag(Ns_Conn *conn, int flag)
+{
+    SetFlag(conn, NS_CONN_KEEPALIVE, flag);
+}
+
+static void
+SetFlag(Ns_Conn *conn, int bit, int flag)
+{
+    if (flag) {
+        conn->flags |= bit;
     } else {
-        conn->flags &= ~NS_CONN_WRITE_ENCODED;
+        conn->flags &= ~bit;
     }
 }
 
@@ -1267,8 +1286,8 @@ NsTclStartContentObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
 	return status;
     }
 
-    Ns_ConnSetWriteEncodedFlag( itPtr->conn, NS_TRUE );
-    Ns_ConnSetEncoding( itPtr->conn, encoding );
+    Ns_ConnSetWriteEncodedFlag(itPtr->conn, NS_TRUE);
+    Ns_ConnSetEncoding(itPtr->conn, encoding);
 
     return status;
 }

@@ -1,3 +1,12 @@
+2004-02-15  Jim Davidson <jgdavidson@aol.com>
+
+	* nsd/conn.c:
+	* include/ns.h:
+	* nsd/return.c: Added new Ns_ConnGet/SetKeepAliveFlag APIs to
+	allow custom request procedures to enable keep-alive directly.
+
+	* nsd/driver.c: Minor updates to separate conn & driver structs.
+
 2004-01-01  Scott S. Goodwin <scott@scottg.net>
 
         * nsd/adpparse.c: fixed bug #868600, where tag attribute values
