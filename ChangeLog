@@ -1,3 +1,14 @@
+2002-06-08  Jim Davidson <jgdavidson@aol.com>
+
+	* include/Makefile.global
+	* include/Makefile.module:  Support for building programs
+	along with dynamic libraries and modules.  Also, fixed
+	bug setting -install_name on OS/X.
+
+	* nsd/Makefile:  Use of updated Makefile.module.
+
+	Otherwise, minor tweaks throughout to silence compiler warnings.
+
 2002-06-05  Jim Davidson <jgdavidson@aol.com>
 
 	* Makefile:
