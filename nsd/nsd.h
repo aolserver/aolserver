@@ -865,8 +865,10 @@ extern void NsAdpSetCharSet(NsInterp *itPtr, char *charset);
 extern void NsAdpFlush(NsInterp *itPtr);
 extern void NsAdpStream(NsInterp *itPtr);
 extern int NsAdpDebug(NsInterp *itPtr, char *host, char *port, char *procs);
-extern int NsAdpEval(NsInterp *itPtr, int objc, Tcl_Obj *objv[], int safe);
-extern int NsAdpSource(NsInterp *itPtr, int objc, Tcl_Obj *objv[]);
+extern int NsAdpEval(NsInterp *itPtr, int objc, Tcl_Obj *objv[], int safe,
+                     char *resvar);
+extern int NsAdpSource(NsInterp *itPtr, int objc, Tcl_Obj *objv[],
+                       char *resvar);
 extern int NsAdpInclude(NsInterp *itPtr, char *file, int objc, Tcl_Obj *objv[]);
 extern void NsAdpParse(AdpParse *parsePtr, NsServer *servPtr, char *utf, int safe);
 

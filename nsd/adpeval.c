@@ -33,7 +33,7 @@
  *	ADP string and file eval.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.20 2003/02/04 23:10:46 jrasmuss23 Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.21 2003/03/05 14:40:38 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -115,12 +115,14 @@ static Ns_Callback FreeInterpPage;
  */
 
 int
-NsAdpEval(NsInterp *itPtr, int objc, Tcl_Obj *objv[], int safe)
+NsAdpEval(NsInterp *itPtr, int objc, Tcl_Obj *objv[], int safe, char *resvar)
 {
     AdpParse	      parse;
     Frame             frame;
     Tcl_DString       output;
     int               result;
+    Tcl_Obj          *resPtr;
+    bool              lcl_resp = NS_FALSE;
     
     /*
      * Push a frame, execute the code, and then move any result to the
@@ -128,10 +130,38 @@ NsAdpEval(NsInterp *itPtr, int objc, Tcl_Obj *objv[], int safe)
      */
      
     Tcl_DStringInit(&output);
+
+    /*
+     * If we are not acting within a context which has set up the adp
+     * output buffer, then hook the responsePtr to our lcl buffer
+     * for the processing of this request.  It will be unhooked after.
+     */
+    if (itPtr->adp.responsePtr == NULL) {
+        itPtr->adp.responsePtr = &output;
+        lcl_resp = NS_TRUE;
+    }
+
     PushFrame(itPtr, &frame, NULL, objc, objv, &output);
     NsAdpParse(&parse, itPtr->servPtr, Tcl_GetString(objv[0]), safe);
     result = AdpEval(itPtr, &parse.code, NULL);
     PopFrame(itPtr, &frame);
+
+    if (lcl_resp) {
+        itPtr->adp.responsePtr = NULL;
+    }
+
+    /*
+     * If the caller has supplied a variable for the adp's result value,
+     * then save the interp's result there prior to overwritting it.
+     */
+    if (resvar != NULL) {
+        resPtr = Tcl_GetObjResult(itPtr->interp);
+        if (Tcl_SetVar2Ex(itPtr->interp, resvar, NULL, resPtr,
+                           TCL_LEAVE_ERR_MSG) == NULL) {
+            return TCL_ERROR;
+        }
+    }
+
     Tcl_SetResult(itPtr->interp, output.string, TCL_VOLATILE);
     Tcl_DStringFree(&output);
     ParseFree(&parse);
@@ -157,17 +187,47 @@ NsAdpEval(NsInterp *itPtr, int objc, Tcl_Obj *objv[], int safe)
  */
 
 int
-NsAdpSource(NsInterp *itPtr, int objc, Tcl_Obj *objv[])
+NsAdpSource(NsInterp *itPtr, int objc, Tcl_Obj *objv[], char *resvar)
 {
     Tcl_DString output;
     int code;
+    Tcl_Obj     *resPtr;
+    bool         lcl_resp = NS_FALSE;
 
     /*
      * Direct output to a local buffer.
      */
 
     Tcl_DStringInit(&output);
+
+    /*
+     * If we are not acting within a context which has set up the adp
+     * output buffer, then hook the responsePtr to our lcl buffer
+     * for the processing of this request.  It will be unhooked after.
+     */
+    if (itPtr->adp.responsePtr == NULL) {
+        itPtr->adp.responsePtr = &output;
+        lcl_resp = NS_TRUE;
+    }
+
     code = AdpRun(itPtr, Tcl_GetString(objv[0]), objc, objv, &output);
+
+    if (lcl_resp) {
+        itPtr->adp.responsePtr = NULL;
+    }
+
+    /*
+     * If the caller has supplied a variable for the adp's result value,
+     * then save the interp's result there prior to overwritting it.
+     */
+    if (resvar != NULL) {
+        resPtr = Tcl_GetObjResult(itPtr->interp);
+        if (Tcl_SetVar2Ex(itPtr->interp, resvar, NULL, resPtr,
+                           TCL_LEAVE_ERR_MSG) == NULL) {
+            return TCL_ERROR;
+        }
+    }
+
     if (code == TCL_OK) {
 	Tcl_DStringResult(itPtr->interp, &output);
     }

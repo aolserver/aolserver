@@ -33,7 +33,7 @@
  *	ADP commands.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpcmds.c,v 1.12 2003/01/15 21:04:08 shmooved Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpcmds.c,v 1.13 2003/03/05 14:40:38 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -81,7 +81,7 @@ EvalObjCmd(NsInterp *itPtr, int objc, Tcl_Obj **objv, int safe)
 	Tcl_WrongNumArgs(itPtr->interp, 1, objv, "page ?args ...?");
 	return TCL_ERROR;
     }
-    return NsAdpEval(itPtr, objc-1, objv+1, safe);
+    return NsAdpEval(itPtr, objc-1, objv+1, safe, NULL);
 }
 
 
@@ -137,10 +137,17 @@ NsTclAdpParseObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
 {
     int         isfile, i, safe;
     char       *opt;
+    char       *resvarname = NULL;
+    char       *cwd = NULL;
+    NsInterp   *itPtr = (NsInterp *)arg;
+    Tcl_DString tds;
+    bool        lcl_bufs = NS_FALSE;
+    int         ret_status;
     
     if (objc < 2) {
 badargs:
-	Tcl_WrongNumArgs(interp, 1, objv, "?-file|-string? arg ?arg ...?");
+	Tcl_WrongNumArgs(interp, 1, objv,
+                         "?-file|-string? ?-savedresult varname? ?-cwd path? arg ?arg ...?");
         return TCL_ERROR;
     }
     isfile = safe = 0;
@@ -149,9 +156,20 @@ badargs:
 	if (STREQ(opt, "-global")) {
 	    Tcl_SetResult(interp, "option -global unsupported", TCL_STATIC);
 	    return TCL_ERROR;
-	}
-	if (STREQ(opt, "-file")) {
+	} else if (STREQ(opt, "-file")) {
 	    isfile = 1;
+        } else if (STREQ(opt, "-savedresult")) {
+	    if (++i < objc) {
+                resvarname = Tcl_GetString(objv[i]);
+            } else {
+                goto badargs;
+            }
+        } else if (STREQ(opt, "-cwd")) {
+	    if (++i < objc) {
+                cwd = Tcl_GetString(objv[i]);
+            } else {
+                goto badargs;
+            }
 	} else if (STREQ(opt, "-safe")) {
 	    safe = 1;
 	} else if (!STREQ(opt, "-string") && !STREQ(opt, "-local")) {
@@ -163,11 +181,33 @@ badargs:
     }
     objc -= i;
     objv += i;
-    if (isfile) {
-        return NsAdpSource(arg, objc, objv);
-    } else {
-        return NsAdpEval(arg, objc, objv, safe);
+
+    /*
+     * Check the adp field in the nsInterp, and construct any support
+     * Also, set the cwd.
+     */
+    if (itPtr->adp.typePtr == NULL) {
+        Tcl_DStringInit(&tds);
+        itPtr->adp.typePtr = &tds;
+        lcl_bufs = NS_TRUE;
     }
+    if (cwd != NULL) {
+        itPtr->adp.cwd = cwd;
+    }
+
+    if (isfile) {
+        ret_status = NsAdpSource(arg, objc, objv, resvarname);
+    } else {
+        ret_status = NsAdpEval(arg, objc, objv, safe, resvarname);
+    }
+
+    if (lcl_bufs) {
+        itPtr->adp.responsePtr = NULL;
+        itPtr->adp.typePtr = NULL;
+        Tcl_DStringFree(&tds);
+    }
+
+    return ret_status;
 }
 
 
