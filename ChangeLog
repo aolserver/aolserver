@@ -1,3 +1,19 @@
+2000-08-06  Scott S. Goodwin  <scott@scottg.net>
+
+	* nsd/log.c: Segmentation fault was occuring when writing to the
+	log file because file pointer was being assigned to incorrectly -
+	it wasn't NULL and it wasn't a valid address within processes
+	memory. Fixed.
+
+2000-08-06  Scott S. Goodwin  <scott@scottg.net>
+
+	* nssock: You can now compile with BSAFE versions 4 and 5. You'll
+	need to specify the path to your BSAFE libaries and the BSAFE
+	version in the nssock/Makefile before compiling. If you don't have
+	BSAFE and want to compile without SSL at all, edit the toplevel
+	Makefile and take out all the "SSL=1" text. The files changed were
+	nssock/Makefile and nssock/t_stdlib.c.
+
 2000-08-02  Kriston J. Rehberg  <Kriston@AOL.NET>
 
 	* Build process is a little more rule-oriented.  The cleaning
