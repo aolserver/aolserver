@@ -34,7 +34,7 @@
  *	Routines for creating, exiting, and joining threads.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/thread.c,v 1.9 2000/10/20 22:45:41 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/thread.c,v 1.10 2000/10/22 20:36:09 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "thread.h"
 
@@ -526,6 +526,41 @@ NsNewThread(void)
 /*
  *----------------------------------------------------------------------
  *
+ * NsInitThread --
+ *
+ *	Initialize a thread, setting the tid and adding to the list
+ *	of threads.  This routine is called from the interface
+ *	specific NsSetThread routine when safe.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+NsInitThread(Thread *thrPtr, int tid)
+{
+    static int initialized;
+
+    if (!initialized) {
+	Ns_MutexSetName2(&lock, "nsthread", "list");
+	initialized = 1;
+    }
+    thrPtr->tid = tid;
+    Ns_MutexLock(&lock);
+    thrPtr->nextPtr = firstPtr;
+    firstPtr = thrPtr;
+    Ns_MutexUnlock(&lock);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  * NsCleanupThread --
  *
  *	Cleanup the thread's tls and memory pool and either free the
@@ -595,19 +630,3 @@ FreeThread(Thread *thrPtr)
     free(thrPtr);
 }
 
-
-void
-NsInitThread(Thread *thrPtr, int tid)
-{
-    static int initialized;
-
-    if (!initialized) {
-	Ns_MutexSetName2(&lock, "nsthread", "list");
-	initialized = 1;
-    }
-    thrPtr->tid = tid;
-    Ns_MutexLock(&lock);
-    thrPtr->nextPtr = firstPtr;
-    firstPtr = thrPtr;
-    Ns_MutexUnlock(&lock);
-}
