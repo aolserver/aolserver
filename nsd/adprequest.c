@@ -33,7 +33,7 @@
  *	ADP connection request support.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adprequest.c,v 1.4 2001/03/23 18:36:50 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adprequest.c,v 1.5 2001/03/23 19:12:07 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -170,7 +170,7 @@ Ns_AdpRequest(Ns_Conn *conn, char *file)
 		 * command was called.
 		 */
 
-                status = NS_OK;
+                status = Ns_ConnClose(conn);
 
 	    } else {
 		/*
