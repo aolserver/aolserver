@@ -34,7 +34,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.7 2001/11/05 21:11:23 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.8 2001/11/06 01:12:36 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -660,6 +660,7 @@ DriversThread(void *ignored)
 	 * Select and drain the trigger pipe if necessary.
 	 */
 
+    	pfds[0].revents = 0;
 	do {
 	    n = poll(pfds, nfds, pollto);
 	} while (n < 0  && errno == EINTR);
