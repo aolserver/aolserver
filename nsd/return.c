@@ -34,7 +34,7 @@
  *	Functions that return data to a browser. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.35 2004/02/15 16:29:31 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.36 2004/02/26 00:55:43 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -442,7 +442,9 @@ Ns_ConnSetRequiredHeaders(Ns_Conn *conn, char *type, int length)
     if (type != NULL) {
     	Ns_ConnSetTypeHeader(conn, type);
     }
-    Ns_ConnSetLengthHeader(conn, length);
+    if (length >= 0) {
+       Ns_ConnSetLengthHeader(conn, length);
+    }
     Ns_DStringFree(&ds);
 }
 
