@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Attic/Makefile.module.in,v 1.4 2003/06/02 14:42:00 vasiljevic Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Attic/Makefile.module.in,v 1.5 2003/06/02 16:51:53 vasiljevic Exp $
 
 #
 # Makefile.module --
@@ -59,41 +59,46 @@
 #	
 
 STATIC_BUILD = @STATIC_BUILD@
-ifeq ($(STATIC_BUILD), 1)
-    ALIB 	:= $(LIB)
-    LIB		:=
-    LIBINIT	:= 
+
+ifdef NSBUILD
+    ifeq ($(STATIC_BUILD), 1)
+        ALIB 	:= $(LIB)
+        LIB	:=
+        LIBINIT	:= 
+    endif
 endif
 
 ifdef MOD
-BUILD	+= $(MOD)
-INSTALL += install-mod
-CLEAN	+= clean-mod
-MODOBJS	?= $(OBJS)
+    BUILD	+= $(MOD)
+    INSTALL 	+= install-mod
+    CLEAN	+= clean-mod
+    ifeq ($(origin MODOBJS), undefined)
+        MODOBJS	= $(OBJS)
+    endif
 endif
 
 ifdef LIB
-LIBFILE	=  lib$(LIB)$(LIBEXT)
-BUILD	+= $(LIBFILE)
-INSTALL += install-lib
-CLEAN   += clean-lib
-MODLIBS	+= $(LIBFILE)
-PGMLIBS	+= $(LIBFILE)
+    LIBFILE	=  lib$(LIB)$(LIBEXT)
+    BUILD	+= $(LIBFILE)
+    INSTALL 	+= install-lib
+    CLEAN   	+= clean-lib
+    MODLIBS	+= $(LIBFILE)
+    PGMLIBS	+= $(LIBFILE)
 endif
 
 ifdef ALIB
-ALIBFILE = lib$(ALIB).a
-BUILD	+= $(ALIBFILE)
-INSTALL	+= install-alib
-CLEAN	+= clean-alib
-MODLIBS	+= $(ALIBFILE)
-PGMLIBS	+= $(ALIBFILE)
+    ALIBFILE 	= lib$(ALIB).a
+    BUILD	+= $(ALIBFILE)
+    INSTALL	+= install-alib
+    CLEAN	+= clean-alib
+    MODLIBS	+= $(ALIBFILE)
+    PGMLIBS	+= $(ALIBFILE)
 endif
 
 ifdef PGM
-BUILD	+= $(PGM)
-INSTALL	+= install-pgm
-CLEAN	+= clean-pgm
+    BUILD	+= $(PGM)
+    INSTALL	+= install-pgm
+    CLEAN	+= clean-pgm
 endif
 
 ifdef NSBUILD
@@ -108,7 +113,7 @@ install: $(INSTALL)
 
 clean: $(CLEAN)
 
-$(MOD): $(LIBFILE) $(MODOBJS)
+$(MOD): $(LIBFILE) $(ALIBFILE) $(MODOBJS)
 	$(RM) $(MOD)
 	$(LDSO) $(LDFLAGS) -o $(MOD) $(MODOBJS) $(MODLIBS) $(LIBS) @LDRPATHS@
 

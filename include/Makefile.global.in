@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Attic/Makefile.global.in,v 1.13 2003/03/07 18:08:06 vasiljevic Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Attic/Makefile.global.in,v 1.14 2003/06/02 16:51:53 vasiljevic Exp $
 #
 
 #
@@ -42,6 +42,7 @@ srcdir		= @SRCDIR@
 
 RM           	= /bin/rm -f
 MKDIR		= /bin/mkdir -p
+
 ifdef NSBUILD
     INSTALL_SH	= $(srcdir)/install-sh -c
 else
@@ -55,10 +56,19 @@ TCL_EXEC_PREFIX	= @TCL_EXEC_PREFIX@
 LIB_RUNTIME_DIR =
 LDLIB		= @LDLIB@
 LDSO		= @LDSO@
-CCRFLAG		= @CCRFLAG@
-LDRFLAG		= @LDRFLAG@
-CCRPATH		+= @CCRPATH@
-LDRPATH		+= @LDRPATH@
+
+ifdef NSBUILD
+    ifeq ($(STATIC_BUILD), 1)
+        CCRFLAG	=
+        LDRFLAG	=
+    else
+        CCRFLAG	= @CCRFLAG@
+        LDRFLAG	= @LDRFLAG@
+    endif
+else
+    CCRFLAG	= @CCRFLAG@
+    LDRFLAG	= @LDRFLAG@
+endif
 
 CC		= $(PURIFY) @TCL_CC@
 CFLAGS_DEBUG	= @TCL_CFLAGS_DEBUG@
@@ -74,12 +84,14 @@ ifndef NSBUILD
     LIBS	+= -lnsthread -lnsd
     INCDIR	= $(AOLSERVER)/include
 else
-    LDFLAGS	+= -L../nsthread -L../nsd 
+    LDFLAGS	+= -L../nsthread -L../nsd
     INCDIR	= ../include
     ifneq (nsthread,$(LIB))
     	LIBS	+= -lnsthread
     	ifneq (nsd,$(LIB))
-            LIBS	+= -lnsd
+            ifneq (nsthreadtest,$(PGM))
+                LIBS	+= -lnsd
+            endif
     	endif
     endif
 endif
