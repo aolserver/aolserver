@@ -1,3 +1,10 @@
+2005-03-11  Dossy Shiobara <dossy@panoptic.com>
+
+	* nsd/driver.c (1.17.2.10): Ensure that socket driver's DriverClose
+	  callback gets executed when the socket is released.  This was
+	  causing a memory leak for HTTPS connections with nsopenssl when a
+	  Keep-Alive HTTP request timed out.  Closes SF Bug #1160850.
+
 2005-01-18  tag aolserver_v40_r10
 
 2005-01-18  Dossy Shiobara <dossy@panoptic.com>
