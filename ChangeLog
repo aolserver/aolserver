@@ -1,3 +1,8 @@
+2003-11-01  Zoran Vasiljevic <zv@archiware.com>
+
+	* tcl/file.tcl: fixed broken argument convention for the
+	unused argument of ns_sourceproc.
+
 2003-10-28  Zoran Vasiljevic <zv@archiware.com>
 
 	* nsd/tclatclose.c: fixed typo in command usage text
