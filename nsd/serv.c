@@ -33,7 +33,7 @@
  *	Routines for the core server connection threads.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/serv.c,v 1.10 2000/10/16 15:06:05 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/serv.c,v 1.11 2000/11/03 00:18:02 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -679,9 +679,19 @@ NsConnThread(void *arg)
 	} else {
 	    lastActiveConnPtr = connPtr->prevPtr;
 	}
+	idleThreads++;
 	connPtr->nextPtr = firstFreeConnPtr;
 	firstFreeConnPtr = connPtr;
-	idleThreads++;
+	if (connPtr->nextPtr == NULL) {
+	    /*
+	     * If this thread just free'd up the busy server,
+	     * run the ready procs to signal other subsystems.
+	     */
+
+	    Ns_MutexUnlock(&lock);
+	    NsRunAtReadyProcs();
+	    Ns_MutexLock(&lock);
+	}
     }
 
     idleThreads--;

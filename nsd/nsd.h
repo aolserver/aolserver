@@ -501,8 +501,6 @@ extern void NsWaitSockShutdown(Ns_Time *toPtr);
 extern void NsStartShutdownProcs(void);
 extern void NsWaitShutdownProcs(Ns_Time *toPtr);
 
-extern void NsRunAtExitProcs(void);
-
 /*
  * ADP routines.
  */
@@ -567,6 +565,9 @@ extern void NsRunTraces(Ns_Conn *conn);
 extern void NsRunPreStartupProcs(void);
 extern void NsRunSignalProcs(void);
 extern void NsRunStartupProcs(void);
+extern void NsRunAtReadyProcs(void);
+extern void NsRunAtExitProcs(void);
+
 
 /*
  * Utility functions.

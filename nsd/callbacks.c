@@ -36,7 +36,7 @@
  *	that are run at various points during the server's execution.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/callbacks.c,v 1.4 2000/08/17 06:09:49 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/callbacks.c,v 1.5 2000/11/03 00:18:01 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -70,10 +70,23 @@ static Callback *firstSignal;
 static Callback *firstServerShutdown;
 static Callback *firstShutdown;
 static Callback *firstExit;
+static Callback *firstReady;
 static Ns_Mutex  lock;
 static Ns_Cond   cond;
 static int shutdownPending;
 static Ns_Thread serverShutdownThread;
+
+void *
+Ns_RegisterAtReady(Ns_Callback *proc, void *arg)
+{
+    return RegisterAt(&firstReady, proc, arg);
+}
+
+void
+NsRunAtReadyProcs(void)
+{
+    RunCallbacks(firstReady);
+}
 
 
 /*
