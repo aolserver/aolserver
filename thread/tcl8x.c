@@ -111,6 +111,24 @@ Tcl_CreateThread(idPtr, proc, clientData, stackSize, flags)
     return TCL_OK;
 }
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * TclNsThread --
+ *
+ *	Tcl specific thread startup routine.  This is only required
+ *	to handle the different proc types between Tcl and Ns threads.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	Depends on given thread start proc.
+ *
+ *----------------------------------------------------------------------
+ */
+
 static void
 TclNsThread(void *arg)
 {
@@ -122,6 +140,35 @@ TclNsThread(void *arg)
     clientData = argPtr->clientData;
     NsFree(argPtr);
     (*proc)(clientData);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Tcl_JoinThread --
+ *
+ *	This procedure waits for a thread to exit.
+ *
+ * Results:
+ *	TCL_OK
+ *
+ * Side effects:
+ *	Thread exit status is returned in given resultPtr.
+ *
+ *----------------------------------------------------------------------
+ */
+
+NS_EXPORT int
+Tcl_JoinThread(id, resultPtr)
+    Tcl_ThreadId id;		/* ID of the thread */
+    int *resultPtr;		/* Thread exit status. */
+{
+    void *status;
+
+    Ns_ThreadJoin((Ns_Thread *) &id, &status);
+    *resultPtr = (int) status;
+    return TCL_OK;
 }
 
 
