@@ -1,5 +1,20 @@
 2000-10-17  Kriston J. Rehberg  <Kriston@AOL.NET>
 
+	* nslog/nslog.c: suppressquery option added to suppress logging of
+	query data.
+
+	* nslog/nslog.c: LogExtendedHEaders option added.  Contributed by
+	ArsDigita.
+
+
+	* nsd/tclfile.c: Input string to mktemp is copied, because mktemp
+	edits the string in-place and that's generally a bad thing to do
+	with argv's.  Contributed by ArsDigita.
+
+	* nsd/tclnsshare.cpp (ShareTraceProc): Patch to tclnsshare.cpp to
+	avoid race conditions if the shared value is a list.  Contributed
+	by ArsDigita.
+
 	* tcl/http.tcl (ns_httpopen): CRLF now returned in ns_httpopen.
 	Contributed by ArsDigita.
 
@@ -59,6 +74,7 @@
 	the default buffer value.
 
 	* nsd/keepalive.c: Fixed array overwrite with maxkeep=0 bug.
+	Contributed by ArsDigita.
 	
 	* nsd/tclkeylist.c: A more modern version added that's compatible
 	with Tcl 8.3.2 (nsd8x).
