@@ -1,3 +1,8 @@
+2004-08-13  Dossy Shiobara <dossy@panoptic.com>
+
+	* nsd/tclmisc.c (1.30.2.1): ns_hrefs is now more robust.  Fixes SF
+	  Bug #995078.	Backported from HEAD.
+
 2004-08-11  Dossy Shiobara <dossy@panoptic.com>
 
 	* nsd/nsconf.c (1.32.2.3): Inability to resolve nsconf.hostname to
