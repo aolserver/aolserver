@@ -34,7 +34,7 @@
  *	Implement scheduled procs in Tcl. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclsched.c,v 1.4 2001/03/12 22:06:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclsched.c,v 1.5 2001/12/05 22:45:01 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -55,56 +55,6 @@ static Ns_Callback FreeCallback;
 static Ns_SchedProc FreeSched;
 static int ReturnValidId(Tcl_Interp *interp, int id, Callback *cbPtr);
 static int AtCmd(AtProc *procPtr, Tcl_Interp *interp, int argc, char **argv);
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Ns_TclThread --
- *
- *	Run a Tcl script in a new thread. 
- *
- * Results:
- *	NS_OK. 
- *
- * Side effects:
- *	None. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-Ns_TclThread(Tcl_Interp *interp, char *script, Ns_Thread *thrPtr)
-{
-    Callback *cbPtr;
-
-    cbPtr = NewCallback(interp, script, NULL);
-    Ns_ThreadCreate(NsTclThread, cbPtr, 0, thrPtr);
-    return NS_OK;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Ns_TclDetachedThread --
- *
- *	Run a Tcl script in a detached thread. 
- *
- * Results:
- *	NS_OK. 
- *
- * Side effects:
- *	None. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-Ns_TclDetachedThread(Tcl_Interp *interp, char *script)
-{
-    return Ns_TclThread(interp, script, NULL);
-}
 
 
 /*
@@ -671,7 +621,7 @@ FreeSched(void *arg, int id)
 /*
  *----------------------------------------------------------------------
  *
- * NsTclSchedProc, NsTclSignalProc, NsTclCallback, NsTclThread --
+ * NsTclSchedProc, NsTclSignalProc, NsTclCallback --
  *
  *	External wrapper for various Tcl callbacks.
  *
@@ -703,11 +653,22 @@ NsTclCallback(void *arg)
     FreeCallback(arg);
 }
 
-void
-NsTclThread(void *arg)
-{
-    NsTclCallback(arg);
-}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsTclArgProc --
+ *
+ *	Proc info routine to copy Tcl callback script.
+ *
+ * Results:
+ *	None. 
+ *
+ * Side effects:
+ *	Will copy script to given dstring.
+ *
+ *----------------------------------------------------------------------
+ */
 
 void
 NsTclArgProc(Tcl_DString *dsPtr, void *arg)

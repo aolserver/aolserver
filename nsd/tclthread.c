@@ -34,12 +34,18 @@
  *	Tcl wrappers around all thread objects 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclthread.c,v 1.6 2001/11/05 20:26:12 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclthread.c,v 1.7 2001/12/05 22:45:01 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #ifdef NS_NOCOMPAT
 #undef NS_NOCOMPAT
 #endif
 #include "nsd.h"
+
+typedef struct ThreadArg {
+    int detached;
+    char *server;
+    char script[1];
+} ThreadArg;
 
 /*
  * Local functions defined in this file
@@ -252,6 +258,7 @@ NsTclSemaCmd(ClientData data, Tcl_Interp *interp, int argc, char **argv)
 int
 NsTclEventCmd(ClientData data, Tcl_Interp *interp, int argc, char **argv)
 {
+    Tcl_Obj *objPtr;
     Ns_Cond *condPtr;
 
     if (argc < 2) {
@@ -307,15 +314,16 @@ NsTclEventCmd(ClientData data, Tcl_Interp *interp, int argc, char **argv)
 	    }
 	    switch (result) {
             case NS_OK:
-                interp->result = "1";
+		objPtr = Tcl_NewBooleanObj(1);
                 break;
             case NS_TIMEOUT:
-                interp->result = "0";
+		objPtr = Tcl_NewBooleanObj(0);
                 break;
             default:
                 return TCL_ERROR;
                 break;
             }
+	    Tcl_SetObjResult(interp, objPtr);
         } else if (STREQ(argv[1], "broadcast")) {
 	    Ns_CondBroadcast(condPtr);
         } else if (STREQ(argv[1], "set")) {
@@ -417,35 +425,31 @@ NsTclRWLockCmd(ClientData data, Tcl_Interp *interp, int argc, char **argv)
  */
 
 int
-NsTclThreadCmd(ClientData data, Tcl_Interp *interp, int argc, char **argv)
+NsTclThreadCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 {
+    NsInterp *itPtr = arg;
     void *status;
     Ns_Thread tid;
+    ThreadArg *argPtr;
 
     if (argc < 2) {
         Tcl_AppendResult(interp, "wrong # args: should be \"",
             argv[0], " command arg\"", NULL);
         return TCL_ERROR;
     }
-    if (STREQ(argv[1], "begin") || STREQ(argv[1], "create")) {
+    if (STREQ(argv[1], "begin") || STREQ(argv[1], "create") ||
+	STREQ(argv[1], "begindetached")) {
         if (argc < 3) {
             Tcl_AppendResult(interp, "wrong # args: should be \"",
                 argv[0], " ", argv[1], " script\"", NULL);
             return TCL_ERROR;
         }
-        if (Ns_TclThread(interp, argv[2], &tid) != NS_OK) {
-            return TCL_ERROR;
-        }
+	argPtr = ns_malloc(sizeof(ThreadArg) + strlen(argv[2]));
+	argPtr->server = itPtr->servPtr->server;
+	argPtr->detached = STREQ(argv[1], "begindetached");
+	strcpy(argPtr->script, argv[2]);
+	Ns_ThreadCreate(NsTclThread, argPtr, 0, &tid);
         SetObj(interp, 't', tid);
-    } else if (STREQ(argv[1], "begindetached")) {
-        if (argc < 3) {
-            Tcl_AppendResult(interp, "wrong # args: should be \"",
-                argv[0], " ", argv[1], " script\"", NULL);
-            return TCL_ERROR;
-        }
-        if (Ns_TclDetachedThread(interp, argv[2]) != NS_OK) {
-            return TCL_ERROR;
-        }
     } else if (STREQ(argv[1], "wait") || STREQ(argv[1], "join")) {
         if (argc < 3) {
             Tcl_AppendResult(interp, "wrong # args: should be \"",
@@ -457,12 +461,12 @@ NsTclThreadCmd(ClientData data, Tcl_Interp *interp, int argc, char **argv)
             return TCL_ERROR;
         }
 	Ns_ThreadJoin(&tid, &status);
-	sprintf(interp->result, "%d", (int) status);
+	Tcl_SetResult(interp, (char *) status, (Tcl_FreeProc *) ns_free);
     } else if (STREQ(argv[1], "get")) {
         Ns_ThreadSelf(&tid);
         SetObj(interp, 't', tid);
     } else if (STREQ(argv[1], "getid") || STREQ(argv[1], "id")) {
-        sprintf(interp->result, "%d", Ns_ThreadId());
+	Tcl_SetObjResult(interp, Tcl_NewIntObj(Ns_ThreadId()));
     } else if (STREQ(argv[1], "name")) {
 	if (argc > 2) {
 	    Ns_ThreadSetName(argv[2]);
@@ -537,4 +541,66 @@ GetObj(Tcl_Interp *interp, char type, char *id, void **addrPtr)
     }
     *addrPtr = addr;
     return TCL_OK;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsTclThread --
+ *
+ *	Tcl thread main.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	Copy of string result is return as exit arg to be reaped
+ *	by ns_thread wait.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+NsTclThread(void *arg)
+{
+    ThreadArg *argPtr = arg;
+    Ns_DString ds, *dsPtr;
+
+    if (argPtr->detached) {
+	dsPtr = NULL;
+    } else {
+	Ns_DStringInit(&ds);
+	dsPtr = &ds;
+    }
+    (void) Ns_TclEval(dsPtr, argPtr->server, argPtr->script);
+    ns_free(argPtr);
+    if (!argPtr->detached) {
+	Ns_ThreadExit(Ns_DStringExport(&ds));
+    }
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsTclThreadArgProc --
+ *
+ *	Proc info routine to copy Tcl thread script.
+ *
+ * Results:
+ *	None. 
+ *
+ * Side effects:
+ *	Will copy script to given dstring.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+NsTclThreadArgProc(Tcl_DString *dsPtr, void *arg)
+{
+    ThreadArg *argPtr = arg;
+
+     Tcl_DStringAppendElement(dsPtr, argPtr->script);
 }
