@@ -1,3 +1,13 @@
+2003-02-27  Mark Page  <mpagenva@aol.com>
+
+	* nsd/conn.c: Add 'content' option to ns_conn function to
+	provide access to HTTP POST content data.  This introduces,
+	by way of a temporary implementation as a bridge to nsd4.0,
+	an internal set element onto the query set built when
+	processing Posts.  This set element is only used by the
+	ns_conn content function.
+
+
 2003-02-05  Elizabeth Thomas <eathomas93@aol.com>
 
         * nsext/nsext.c: Fixed LocalProxy to move Ns_CloseOnExec
