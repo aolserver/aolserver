@@ -34,7 +34,7 @@
  *	Ns_Time support routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/time.c,v 1.1 2002/06/10 22:30:24 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/time.c,v 1.2 2002/08/26 02:03:29 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "thread.h"
 
@@ -104,7 +104,7 @@ Ns_AdjTime(Ns_Time *timePtr)
  *	Determine the difference between two Ns_Time structures.
  *
  * Results:
- *	None.
+ *	-1, 0, or 1 if t1 is before, same, or after t0.
  *
  * Side effects:
  *	Ns_Time structure pointed to by timePtr is set with difference
@@ -113,17 +113,29 @@ Ns_AdjTime(Ns_Time *timePtr)
  *----------------------------------------------------------------------
  */
 
-void
-Ns_DiffTime(Ns_Time *t1, Ns_Time *t0, Ns_Time *resultPtr)
+int
+Ns_DiffTime(Ns_Time *t1, Ns_Time *t0, Ns_Time *diffPtr)
 {
-    if (t1->usec >= t0->usec) {
-	resultPtr->sec = t1->sec - t0->sec;
-	resultPtr->usec = t1->usec - t0->usec;
-    } else {
-	resultPtr->sec = t1->sec - t0->sec - 1;
-	resultPtr->usec = 1000000L + t1->usec - t0->usec;
+    Ns_Time diff;
+
+    if (diffPtr == NULL) {
+	diffPtr = &diff;
     }
-    Ns_AdjTime(resultPtr);
+    if (t1->usec >= t0->usec) {
+	diffPtr->sec = t1->sec - t0->sec;
+	diffPtr->usec = t1->usec - t0->usec;
+    } else {
+	diffPtr->sec = t1->sec - t0->sec - 1;
+	diffPtr->usec = 1000000L + t1->usec - t0->usec;
+    }
+    Ns_AdjTime(diffPtr);
+    if (diffPtr->sec < 0) {
+	return -1;
+    } else if (diffPtr->sec == 0 && diffPtr->usec == 0) {
+	return 0;
+    } else {
+	return 1;
+    }
 }
 
 
