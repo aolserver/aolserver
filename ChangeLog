@@ -1,3 +1,39 @@
+2002-06-05  Jim Davidson <jgdavidson@aol.com>
+
+	* Makefile:
+	* include/Makefile.global:  Added tclmemdbg flag to compile
+	Tcl and AOLserver with TCL_MEM_DEBUG option.
+
+	* nsd/unix.o:
+	* nsosx/README (new file):
+	* nsosx/Makefile (new file):
+	* nsosx/nsosx.o (new file):  Hacks for Apple OS/X removed
+	from nsd/unix.o and moved to nsosx.o as a Tcl compat object.
+	See README for instructions.
+
+	* nsd/nsd.h:
+	* nsd/server.c:
+	* nsd/adpparse.c:
+	* nsd/adpcmds.c:
+	* nsd/adpeval.c:  Added support for new ns_adp_safeeval
+	and ns_adp_registerproc commands. Also, registered
+	tags can now be modified after startup.
+
+	* include/Makefile.module:  Updated to allow building
+	of dynamic library of public routines to go with dynamic
+	module, e.g., libnsdb.so with nsdb.so.
+
+	* nsext/Makefile:
+	* nspd/Makefile:
+	* nspd/msg.c (removed):
+	* nsext/msg.c (moved from nspd):  Moved Ns_Ext API from
+	libnspd.a static library to libnsext.so dynamic library
+	as it's used by both nsext.so and proxy drivers.
+
+	* nsdb/Makefile:
+	* nsdb/nsext.c (new file):  Moved public API for nsdb
+	out of nsdb.so module and into libnsdb.so dynamic library.
+
 2002-05-15  Jim Davidson <jgdavidson@aol.com>
 
 	* Makefile:
