@@ -763,4 +763,5 @@ CleanupTls(void *arg)
     pthread_setspecific(key, arg);
     NsCleanupTls(slots);
     pthread_setspecific(key, NULL);
+    ns_free(slots);
 }
