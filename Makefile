@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/Makefile,v 1.40 2002/09/21 17:53:01 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/Makefile,v 1.41 2002/09/28 19:21:37 jgdavidson Exp $
 #
 
 NSBUILD=1
@@ -51,7 +51,7 @@ install: all
 		$(INSTALL_DATA) $$i $(prefix)/modules/tcl/; \
 	done
 	$(INSTALL_DATA) sample-config.tcl $(prefix)/
-	$(INSTALL_DATA) install-sh $(INSTBIN)/
+	$(INSTALL_SH) install-sh $(INSTBIN)/
 	for i in $(dirs); do \
 		(cd $$i && $(MAKE) install) || exit 1; \
 	done
