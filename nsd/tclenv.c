@@ -34,20 +34,12 @@
  *	Implement the "ns_env" command.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclenv.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclenv.c,v 1.3.10.1 2002/09/17 23:52:03 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include	"nsd.h"
 
-
 static int PutEnv(Tcl_Interp *interp, char *name, char *value);
-
-#ifndef WIN32
-#ifndef __irix
-extern char **environ;
-#else
-extern char *environ[];
-#endif
-#endif
+static Ns_Mutex lock;
 
 
 /*
@@ -73,10 +65,9 @@ extern char *environ[];
 int
 NsTclEnvCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 {
-    char	*name, *value;
+    char	*name, *value, **envp;
     int		status, i;
     Tcl_DString	ds;
-    static Ns_Mutex lock;
 
     if (argc < 2) {
 	Tcl_AppendResult(interp, "wrong # args:  should be \"",
@@ -93,8 +84,9 @@ NsTclEnvCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 	    status = TCL_ERROR;
 	} else {
 	    Tcl_DStringInit(&ds);
-	    for (i = 0; environ[i] != NULL; ++i) {
-		name = environ[i];
+    	    envp = Ns_GetEnviron();
+	    for (i = 0; envp[i] != NULL; ++i) {
+		name = envp[i];
 		value = strchr(name, '=');
 		Tcl_DStringAppend(&ds, name, value ? value - name : -1);
 	    	Tcl_AppendElement(interp, ds.string);
@@ -209,4 +201,36 @@ PutEnv(Tcl_Interp *interp, char *name, char *value)
 	return TCL_ERROR;
     }
     return TCL_OK;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_GetEnviron --
+ *
+ *	Return the environment vector.
+ *
+ * Results:
+ *	Pointer to environment.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+char **
+Ns_GetEnviron(void)
+{
+   char **envp;
+
+#ifdef HAVE__NSGETENVIRON
+    envp = _NSGetEnviron();
+#else
+    extern char **environ;
+
+    envp = environ;
+#endif
+    return envp;
 }

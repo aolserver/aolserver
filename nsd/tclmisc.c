@@ -34,7 +34,7 @@
  *	Implements a lot of Tcl API commands. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclmisc.c,v 1.12.2.1 2001/09/18 20:31:02 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclmisc.c,v 1.12.2.1.2.1 2002/09/17 23:52:03 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -82,9 +82,6 @@ static int InitShare(Tcl_Interp *interp, char *varName, char *script);
 static unsigned int JpegRead2Bytes(Tcl_Channel chan);
 static int JpegNextMarker(Tcl_Channel chan);
 static int JpegSize(Tcl_Channel chan, int *wPtr, int *hPtr);
-static void AppendThread(Ns_ThreadInfo *iPtr, void *arg);
-static void AppendPool(Ns_PoolInfo *iPtr, void *arg);
-static void AppendMutex(Ns_MutexInfo *iPtr, void *arg);
 
 /*
  * Static variables defined in this file
@@ -926,13 +923,13 @@ NsTclInfoCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
     	NsGetScheduled(&ds);
 	Tcl_DStringResult(interp, &ds);
     } else if (STREQ(argv[1], "locks")) {
-	Ns_MutexEnum(AppendMutex, &ds);
+	Ns_MutexList(&ds);
 	Tcl_DStringResult(interp, &ds);
     } else if (STREQ(argv[1], "threads")) {
-	Ns_ThreadEnum(AppendThread, &ds);
+	Ns_ThreadList(&ds, NULL);
 	Tcl_DStringResult(interp, &ds);
     } else if (STREQ(argv[1], "pools")) {
-	Ns_PoolEnum(AppendPool, &ds);
+	Tcl_GetMemoryInfo(&ds);
 	Tcl_DStringResult(interp, &ds);
     } else if (STREQ(argv[1], "log")) {
         elog = Ns_InfoErrorLog();
@@ -1730,60 +1727,4 @@ JpegSize(Tcl_Channel chan, int *wPtr, int *hPtr)
 	}
     }
     return TCL_ERROR;
-}
-
-
-static void
-AppendMutex(Ns_MutexInfo *iPtr, void *arg)
-{
-    Tcl_DString *dsPtr = arg;
-    char buf[100], *owner;
-
-    owner = iPtr->owner;
-    Tcl_DStringStartSublist(dsPtr);
-    Tcl_DStringAppendElement(dsPtr, iPtr->name);
-    Tcl_DStringAppendElement(dsPtr, owner ? owner : "");
-    sprintf(buf, " %d %lu %lu", iPtr->id, iPtr->nlock, iPtr->nbusy);
-    Tcl_DStringAppend(dsPtr, buf, -1);
-    Tcl_DStringEndSublist(dsPtr);
-}
-
-
-static void
-AppendThread(Ns_ThreadInfo *iPtr, void *arg)
-{
-    Tcl_DString *dsPtr = arg;
-    char buf[100];
-
-    Tcl_DStringStartSublist(dsPtr);
-    Tcl_DStringAppendElement(dsPtr, iPtr->name);
-    Tcl_DStringAppendElement(dsPtr, iPtr->parent);
-    sprintf(buf, " %d %d %ld", iPtr->tid, iPtr->flags, iPtr->ctime);
-    Tcl_DStringAppend(dsPtr, buf, -1);
-    Ns_GetProcInfo(dsPtr, (void *) iPtr->proc, iPtr->arg);
-    Tcl_DStringEndSublist(dsPtr);
-}
-
-
-static void
-AppendPool(Ns_PoolInfo *iPtr, void *arg)
-{
-    Tcl_DString *dsPtr = arg;
-    char buf[200];
-    int n;
-
-    Tcl_DStringStartSublist(dsPtr);
-    Tcl_DStringAppendElement(dsPtr, iPtr->name);
-    for (n = 0; n < iPtr->nbuckets; ++n) {
-    	    sprintf(buf, "%d %d %d %d %d %d %d",
-		iPtr->buckets[n].blocksize,
-		iPtr->buckets[n].nfree,
-		iPtr->buckets[n].nget,
-		iPtr->buckets[n].nput,
-		iPtr->buckets[n].nrequest,
-		iPtr->buckets[n].nlock,
-		iPtr->buckets[n].nwait);
-	    Tcl_DStringAppendElement(dsPtr, buf);
-    }
-    Tcl_DStringEndSublist(dsPtr);
 }

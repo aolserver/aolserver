@@ -420,12 +420,6 @@ NsAdpRunPrivate(Tcl_Interp *interp, char *file, Page *pagePtr)
     int chunk, code;
     AdpData *adPtr = NsAdpGetData();
 
-    if (Ns_CheckStack() != NS_OK) {
-        interp->result =  "danger: stack grown too large (recursive adp?)";
-	adPtr->exception = ADP_OVERFLOW;
-        return TCL_ERROR;
-    }
-
     chunk = 0;
     code = TCL_OK;
     while (blockPtr != NULL && adPtr->exception == ADP_OK) {

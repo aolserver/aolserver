@@ -37,7 +37,7 @@
 #define LOG_MAXBACK_INT        10
 
 #define THREAD_MUTEXMETER_BOOL NS_FALSE
-#define THREAD_STACKSIZE_INT   nsThreadStackSize
+#define THREAD_STACKSIZE_INT   (64*1024)
 
 #define SCHED_MAXELAPSED_INT   2
 

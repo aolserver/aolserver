@@ -34,7 +34,7 @@
  *	Various core configuration.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsconf.c,v 1.13 2001/01/16 22:57:04 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsconf.c,v 1.13.4.1 2002/09/17 23:52:03 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #include "nsconf.h"
@@ -152,9 +152,8 @@ NsConfInit(char *server)
      */
 
     i = GetInt(PARAMS, "stacksize", THREAD_STACKSIZE_INT);
-    nsThreadStackSize   = GetInt("ns/threads", "stacksize", i);
-    nsThreadMutexMeter  = GetBool("ns/threads", "mutexmeter", THREAD_MUTEXMETER_BOOL);
-    
+    i = GetInt("ns/threads", "stacksize", i);
+    Ns_ThreadStackSize(i);
 
     /*
      * nsmain.c

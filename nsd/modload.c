@@ -34,23 +34,16 @@
  *	Load .so files into the server and initialize them. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/modload.c,v 1.5 2001/01/16 18:14:27 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/modload.c,v 1.5.4.1 2002/09/17 23:52:03 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
 #if defined(USE_DLSHL)
 #include <dl.h>
-
 #elif defined(USE_DYLD)
 #include <mach-o/dyld.h>
-static int dyld_handlers_installed = 0;
-static void dyld_linkEdit_symbol_handler(NSLinkEditErrors c, int errorNumber,
-      const char *fileName, const char *errorString);
-static NSModule dyld_multiple_symbol_handler(NSSymbol s, NSModule old,
-	NSModule new);
-static void dyld_undefined_symbol_handler(const char *symbolName);
-
-#elif !defined(WIN32)
+static char *dylderr = "";
+#else
 #include <dlfcn.h>
 #ifdef USE_RTLD_LAZY
 #ifdef RTLD_NOW
@@ -64,7 +57,6 @@ static void dyld_undefined_symbol_handler(const char *symbolName);
 #ifndef RTLD_NOW
 #define RTLD_NOW 0
 #endif
-
 #endif
 
 #define DEFAULT_INITPROC "Ns_ModuleInit"
@@ -88,6 +80,7 @@ static Module *firstPtr;
 static Tcl_HashTable modulesTable;
 static void *DlOpen(char *file);
 static void *DlSym(void *handle, char *name);
+static void *DlSym2(void *handle, char *name);
 static char *DlError(void);
 
 
@@ -434,57 +427,36 @@ NsLoadModules(char *server)
 static void *
 DlOpen(char *file)
 {
-#ifdef WIN32
-    return (void *) LoadLibrary(file);
-#elif defined(USE_DLSHL)
-    return (void *) shl_load(file, BIND_VERBOSE|BIND_IMMEDIATE|BIND_RESTRICTED, 0);
-#elif defined(USE_DYLD)
+#if defined(USE_DYLD)
     NSObjectFileImage		image;
-    NSModule			linkedModule;
+    NSModule			module;
     NSObjectFileImageReturnCode	err;
 
-    if (dyld_handlers_installed == 0) {
-	NSLinkEditErrorHandlers handlers;
-
-	handlers.undefined = dyld_undefined_symbol_handler;
-	handlers.multiple  = dyld_multiple_symbol_handler;
-	handlers.linkEdit  = dyld_linkEdit_symbol_handler;
-
-	NSInstallLinkEditErrorHandlers(&handlers);
-	dyld_handlers_installed = 1;
-    }
+    module = NULL;
     err = NSCreateObjectFileImageFromFile(file, &image);
-    if (err != NSObjectFileImageSuccess) {
-	switch (err) {
-	case NSObjectFileImageFailure:
-	    Ns_Log(Error, "modload: failed to load '%s': "
-		   "general failure", file);
+    switch (err) {
+	case NSObjectFileImageSuccess:
+    	    module = NSLinkModule(image, file, TRUE);
 	    break;
 	case NSObjectFileImageInappropriateFile:
-	    Ns_Log(Error, "modload: failed to load '%s': "
-		   "inappropriate Mach-O file", file);
+	    dylderr = "Inappropriate Mach-O file";
 	    break;
 	case NSObjectFileImageArch:
-	    Ns_Log(Error, "modload: failed to load '%s': "
-		   "inappropriate Mach-O architecture", file);
+	    dylderr = "Inappropriate Mach-O architecture";
 	    break;
 	case NSObjectFileImageFormat:
-	    Ns_Log(Error, "modload: failed to load '%s': "
-		   "invalid Mach-O file format", file);
+	    dylderr = "Invalid Mach-O file format";
 	    break;
 	case NSObjectFileImageAccess:
-	    Ns_Log(Error, "modload: failed to load '%s': "
-		   "permission denied trying to load file", file);
+	    dylderr = "Permission denied";
 	    break;
 	default:
-	    Ns_Log(Error, "modload: failed to load '%s': "
-		   "unknown failure", file);
+	    dylderr = "Unknown error";
 	    break;
-	}
-        return NULL;
     }
-    linkedModule = NSLinkModule(image, file, TRUE);
-    return (void *) linkedModule;
+    return (void *) module;
+#elif defined(USE_DLSHL)
+    return (void *) shl_load(file, BIND_VERBOSE|BIND_IMMEDIATE|BIND_RESTRICTED, 0);
 #else
     return dlopen(file, RTLD_NOW|RTLD_GLOBAL);
 #endif
@@ -502,7 +474,7 @@ DlOpen(char *file)
  *	A symbol pointer or null on error. 
  *
  * Side effects:
- *	See shl_findsym. 
+ *	None.
  *
  *----------------------------------------------------------------------
  */
@@ -510,30 +482,42 @@ DlOpen(char *file)
 static void *
 DlSym(void *handle, char *name)
 {
-    void *symbol;
-#ifdef USE_DLSYMPREFIX
     Ns_DString ds;
+    void *symbol;
 
-    Ns_DStringInit(&ds);
-    name = Ns_DStringVarAppend(&ds, "_", name, NULL);
-#endif
+    symbol = DlSym2(handle, name);
+    if (symbol == NULL) {
 
-#ifdef WIN32
-    symbol =  (void *) GetProcAddress((HMODULE) handle, name);
-#elif defined(USE_DLSHL)
+	/*
+	 * Some BSD platforms (e.g., OS/X) prepend an underscore
+	 * to all symbols.
+	 */
+
+    	Ns_DStringInit(&ds);
+	Ns_DStringVarAppend(&ds, "_", name, NULL);
+	symbol = DlSym2(handle, ds.string);
+	Ns_DStringFree(&ds);
+    }
+    return symbol;
+}
+
+static void *
+DlSym2(void *handle, char *name)
+{
+    void *symbol;
+
+#if defined(USE_DLSHL)
     symbol = NULL;
-    if (shl_findsym((shl_t *) &handle, name, TYPE_UNDEFINED,
-		    &symbol) == -1) {
+    if (shl_findsym((shl_t *) &handle, name, TYPE_UNDEFINED, &symbol) == -1) {
 	symbol = NULL;
     }
 #elif (USE_DYLD)
-    symbol = (void *) NSAddressOfSymbol(NSLookupAndBindSymbol(name));
+    symbol = NSLookupSymbolInModule(handle, name);
+    if (symbol != NULL) {
+    	symbol = NSAddressOfSymbol(symbol);
+    }
 #else
     symbol = dlsym(handle, name);
-#endif
-
-#ifdef USE_DLSYMPREFIX
-    Ns_DStringFree(&ds);
 #endif
     return symbol;
 }
@@ -558,94 +542,11 @@ DlSym(void *handle, char *name)
 static char *
 DlError(void)
 {
-#ifdef WIN32
-    return NsWin32ErrMsg(GetLastError());
-#elif defined(USE_DLSHL)
+#if defined(USE_DLSHL)
     return strerror(errno);
 #elif defined(USE_DYLD)
-    return "Unknown dyld error";
+    return dylderr;
 #else
     return (char *) dlerror();
 #endif
 }
-
-#if defined(USE_DYLD)
-
-/*
- *----------------------------------------------------------------------
- *
- * dyld_undefined_symbol_handler --
- *
- *	Handle undefined symbol exceptions from dyld
- *
- * Results:
- *	Process is aborted.
- *
- * Side effects:
- *	None. 
- *
- *----------------------------------------------------------------------
- */
-static void
-dyld_undefined_symbol_handler(const char *symbolName) 
-{
-    Ns_Fatal("modload: no such symbol '%s'", symbolName);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * dyld_multiple_symbol_handler --
- *
- *	Handle multiple symbol exceptions from dyld
- *
- * Results:
- *	New symbol definition is used.  This is basically a memory leak,
- *	but is necessary because there's no way to unload a module.
- *
- * Side effects:
- *	None. 
- *
- *----------------------------------------------------------------------
- */
-
-static NSModule
-dyld_multiple_symbol_handler(NSSymbol s, NSModule old, NSModule new)
-{
-#ifdef DEBUG
-    Ns_Log(Warning, "modload: " 
-	   "multiply-defined symbol '%s' in old module '%s' and new module '%s'",
-	   NSNameOfSymbol(s),  NSNameOfModule(old), NSNameOfModule(new));
-#endif
-
-    return(new);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * dyld_linkEdit_symbol_handler --
- *
- *	Handle link editor errors from dyld.
- *
- * Results:
- *	Error is logged and process is aborted.
- *
- * Side effects:
- *	None. 
- *
- *----------------------------------------------------------------------
- */
-
-static void
-dyld_linkEdit_symbol_handler(NSLinkEditErrors c, int errNumber,
-    const char *filename, const char *errString)
-{
-    Ns_Log(Error, "modload: "
-	   "failed to load '%s': link edit errors: '%s'", filename, errString);
-    abort();
-}
-
-#endif

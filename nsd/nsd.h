@@ -32,6 +32,13 @@
 
 #include "ns.h"
 #include <assert.h>
+#include <fcntl.h>
+#ifndef O_BINARY
+#define O_BINARY 0
+#endif
+#ifndef O_TEXT
+#define O_TEXT 0
+#endif
 
 #ifdef WIN32
 
@@ -91,8 +98,8 @@
  */
 
 #define NSD_NAME             "AOLserver"
-#define NSD_VERSION	     "3.4.2"
-#define NSD_LABEL            "nsd_v3_r4_p2"
+#define NSD_VERSION	     "3.5"
+#define NSD_LABEL            ""
 #define NSD_TAG              "$Name:  $"
 #define NS_CONFIG_PARAMETERS "ns/parameters"
 #define NS_CONFIG_SERVERS    "ns/servers"

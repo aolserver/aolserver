@@ -57,7 +57,7 @@
  * ns_param   "ParserName" "utf8"
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/adp.c,v 1.13.2.2 2001/04/04 00:13:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/adp.c,v 1.13.2.2.2.1 2002/09/17 23:52:03 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -358,12 +358,6 @@ NsAdpEval(Tcl_Interp *interp, char *file, char *chunks)
     AdpData *adPtr;
 
     adPtr = NsAdpGetData();
-    if (Ns_CheckStack() != NS_OK) {
-        interp->result =  "danger: stack grown too large (recursive adp?)";
-	adPtr->exception = ADP_OVERFLOW;
-        return TCL_ERROR;
-    }
-
     if (file == NULL) {
 	file = "<inlined script>";
     }

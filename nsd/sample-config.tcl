@@ -1,5 +1,5 @@
 
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/sample-config.tcl,v 1.2 2000/12/13 21:50:27 kriston Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/sample-config.tcl,v 1.2.4.1 2002/09/17 23:52:03 jgdavidson Exp $
 
 #
 # sample-config.tcl --  The AOLserver Startup Script
@@ -31,7 +31,7 @@ set bindir                 [file dirname [ns_info nsd]]
 set pageroot               ${homedir}/servers/${servername}/pages
 set directoryfile          index.adp,index.html,index.htm
 
-set ext [info sharedlibextension]
+set ext .so
 
 # nsssl: Only loads if keyfile.pem and certfile.pem exist.
 #set sslmodule              nsssl${ext}  ;# Domestic 128-bit/1024-bit SSL.
