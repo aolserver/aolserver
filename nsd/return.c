@@ -34,7 +34,7 @@
  *	Functions that return data to a browser. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.26 2003/01/31 22:47:30 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.27 2003/02/07 03:05:15 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -946,7 +946,7 @@ Ns_ConnReturnBadRequest(Ns_Conn *conn, char *reason)
     Ns_DString ds;
     int        result;
 
-    if (ReturnRedirect(conn, 401, &result)) {
+    if (ReturnRedirect(conn, 400, &result)) {
 	return result;
     }
     Ns_DStringInit(&ds);
