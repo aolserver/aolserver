@@ -1,7 +1,13 @@
+2003-04-10  Mark Page  <mpagenva@aol.com>
+
+	* TAG aolserver_v4_r0_beta_5
+	
 2003-04-07  Mark Page  <mpagenva@aol.com>
 
 	* nsd/tclthread.c (NsTclThread): ensure that the server has
 	completed it's initializtion prior to initiating TclEval.
+	* nsd/nsmain.c (Ns_WaitForStartup): add dirty-read of the
+	conf.started flag.
 
 2003-04-04  Mark Page  <mpagenva@aol.com>
 
