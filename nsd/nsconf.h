@@ -42,23 +42,16 @@
 #define LOG_FLUSHINT_INT       10
 
 #define THREAD_MUTEXMETER_BOOL NS_FALSE
-#define THREAD_STACKSIZE_INT   nsThreadStackSize
+#define THREAD_STACKSIZE_INT   (64*1024)
 
 #define SCHED_MAXELAPSED_INT   2
 
 #define SHUTDOWNTIMEOUT        20
-#define STARTUPTIMEOUT         20
 #define IOBUFSIZE              16000
 #define BACKLOG                32
 
 #define DNS_CACHE_BOOL         NS_TRUE
 #define DNS_TIMEOUT_INT        60
-
-#define DSTRING_MAXSIZE_INT    3*1024
-#define DSTRING_MAXENTRIES_INT 10
-
-#define EXEC_CHECKEXIT_BOOL    NS_TRUE
-#define EXEC_VFORK_BOOL        NS_FALSE
 
 #define KEEPALIVE_MAXKEEP_INT  100
 #define KEEPALIVE_TIMEOUT_INT  30
