@@ -28,7 +28,7 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/http.tcl,v 1.6 2000/12/14 21:57:28 kriston Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/http.tcl,v 1.7 2001/07/17 03:40:46 scottg Exp $
 #
 
 # http.tcl -
@@ -53,6 +53,19 @@
 #
 
 proc ns_httpopen {method url {rqset ""} {timeout 30} {pdata ""}} {
+    #
+    # Determine if url is local; prepend site address if so
+    #
+
+    if [string match /* $url] {
+        set host "http://[ns_config ns/server/[ns_info server]/module/nssock hostname]"
+        set port [ns_config ns/server/[ns_info server]/module/nssock port]             
+        if { $port != 80 } {
+            append host ":$port"
+        }
+        set url "$host$url"
+    }
+
     #
     # Verify that the URL is an HTTP url.
     #
