@@ -34,7 +34,7 @@
  *	Functions that return data to a browser. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.16 2001/03/26 15:34:15 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.17 2001/04/06 23:51:10 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -500,6 +500,7 @@ Ns_ConnPrintfHeader(Ns_Conn *conn, char *fmt,...)
         vsnprintf(buf, sizeof(buf)-1, fmt, ap);
 #endif
         va_end(ap);
+	buf[sizeof(buf)-1] = '\0';
         result = Ns_ConnPuts(conn, buf);
     } else {
         result = NS_OK;
