@@ -33,7 +33,7 @@
  *	AOLserver Ns_Main() startup routine.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.25 2001/03/19 15:45:23 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.26 2001/03/27 00:59:01 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -63,8 +63,8 @@ extern CoreInit NsInitEncodings;
  * Ns_Main --
  *
  *	The AOLserver startup routine called from main().  The
- *	separation from main() is for the benefit of nsd.dll on NT.
- *	It will also be used later for static linking of modules.
+ *	separation from main() is for the benefit of nsd.dll on NT
+ *	and also to allow a custom, static linked server init.
  *
  *	Startup is somewhat complicated to ensure certain things happen
  *	in the correct order, e.g., setting the malloc/ns_malloc flag
@@ -128,7 +128,6 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
     nsconf.build	 = nsBuildDate;
     nsconf.name          = NSD_NAME;
     nsconf.version       = NSD_VERSION;
-    nsconf.config        = NULL;
     nsconf.tcl.version	 = TCL_VERSION;
 
     /*
@@ -172,7 +171,7 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 #endif
 
     opterr = 0;
-    while ((i = getopt(argc, argv, "qhpzifVl:s:t:c:" POPTS)) != -1) {
+    while ((i = getopt(argc, argv, "qhpzifVl:s:t:" POPTS)) != -1) {
         switch (i) {
 	case 'l':
 	    sprintf(cwd, "TCL_LIBRARY=%s", optarg);
@@ -200,14 +199,11 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 	    }
 	    server = optarg;
             break;
-        case 'c':
-	    fprintf(stderr, "\nWARNING: -c option is deprecated.  Use translate-ini to convert to tcl (-t) format.\n\n");
 	case 't':
 	    if (nsconf.config != NULL) {
-		UsageError("multiple -t/-c <file> options");
+		UsageError("multiple -t <file> options");
 	    }
             nsconf.config = optarg;
-	    nsconf.configfmt = i;
             break;
         case 'z':
 	    nsMemPools = 1;
@@ -262,7 +258,7 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 	printf("   Platform:        %s\n", Ns_InfoPlatform());
         return 0;
     } else if (nsconf.config == NULL) {
-        UsageError("required -c/-t <config> option not specified");
+        UsageError("required -t <config> option not specified");
     }
 
     /*
@@ -285,7 +281,8 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
     Ns_DStringFree(&addr);
 
     /*
-     * Find the absolute config pathname and read the config data.
+     * Find the absolute config pathname and read the config data
+     * before a possible chroot().
      */
 
     nsconf.config = FindConfig(nsconf.config);
@@ -297,15 +294,6 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
      * Verify the uid/gid args.
      */
 
-    if (garg != NULL) {
-	gid = Ns_GetGid(garg);
-	if (gid < 0) {
-	    gid = atoi(garg);
-	    if (gid == 0) {
-		Ns_Fatal("nsmain: invalid group '%s'", garg);
-	    }
-	}
-    }
     if (uarg != NULL) {
 	uid = Ns_GetUid(uarg);
 	gid = Ns_GetUserGid(uarg);
@@ -314,6 +302,15 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 	}
 	if (uid == 0) {
 	    Ns_Fatal("nsmain: invalid user '%s'", uarg);
+	}
+    }
+    if (garg != NULL) {
+	gid = Ns_GetGid(garg);
+	if (gid < 0) {
+	    gid = atoi(garg);
+	    if (gid == 0) {
+		Ns_Fatal("nsmain: invalid group '%s'", garg);
+	    }
 	}
     }
 
@@ -347,15 +344,6 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
     }
 
     /*
-     * On Unix, parse non-Tcl style config files in case the
-     * Unix uid/gid are specified.
-     */
-
-    if (nsconf.configfmt == 'c') {
-    	NsConfigParse(nsconf.config, config);
-    }
-
-    /*
      * Initialize the binder now, before a possible setuid from root
      * or chroot which may hide /etc/resolv.conf required to
      * bind to one or more ports given on the command line and/or
@@ -383,27 +371,9 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
      */
 
     if (getuid() == 0) {
-	char *param;
-
-	if (uid == 0 && nsconf.configfmt == 'c') {
-	    if (!Ns_ConfigGetInt(NS_CONFIG_PARAMETERS, "uid", &uid)) {
-	    	param = Ns_ConfigGet(NS_CONFIG_PARAMETERS, "user");
-		if (param != NULL && (uid = Ns_GetUid(param)) < 0) {
-		    Ns_Fatal("nsmain: no such user '%s'", param);
-		}
-	    }
-	}
 	if (uid == 0) {
 	    Ns_Fatal("nsmain: server will not run as root; "
 		     "must specify '-u username' parameter");
-	}
-	if (gid == 0 && nsconf.configfmt == 'c') {
-	    if (!Ns_ConfigGetInt(NS_CONFIG_PARAMETERS, "gid", &gid)) {
-	    	param = Ns_ConfigGet(NS_CONFIG_PARAMETERS, "group");
-	    	if (param != NULL && (gid = Ns_GetGid(param)) < 0) {
-		    Ns_Fatal("nsmain: no such group '%s'", param);
-		}
-	    }
 	}
 
 	/*
@@ -453,9 +423,7 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 
     Tcl_FindExecutable(argv[0]);
     nsconf.nsd = (char *) Tcl_GetNameOfExecutable();
-    if (nsconf.configfmt == 't') {
-    	NsConfigEval(config);
-    }
+    NsConfigEval(config);
     ns_free(config);
 
     /*

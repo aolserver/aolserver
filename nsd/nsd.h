@@ -118,7 +118,6 @@ struct _nsconf {
     char           *home;
     char           *config;
     char           *build;
-    int		    configfmt;
     int             pid;
     time_t          boot_t;
     char            hostname[255];

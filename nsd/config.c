@@ -33,7 +33,7 @@
  *	Support for the configuration file
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/config.c,v 1.6 2001/03/12 22:06:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/config.c,v 1.7 2001/03/27 00:59:01 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #define ISSLASH(c)      ((c) == '/' || (c) == '\\')
@@ -46,8 +46,6 @@ static Tcl_CmdProc SectionCmd;
 static Tcl_CmdProc ParamCmd;
 static Ns_Set     *GetSection(char *section, int create);
 static char       *MakeSection(Ns_DString *pds, char *string);
-static void        ParseConfig(char *file, char *config);
-static void	   ParseAuxConfig(void);
 static char       *ConfigGet(char *section, char *key,
 			     int (*findproc) (Ns_Set *, char *));
 
@@ -434,133 +432,6 @@ NsConfigEval(char *config)
 	Ns_Fatal("config: script error: %s", err);
     }
     Tcl_DeleteInterp(interp);
-    ParseAuxConfig();
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsConfigParse --
- *
- *	The public interface to read the configuration file. 
- *
- * Results:
- *  	None.
- *
- * Side effects:
- *	Initial config parsed.
- *
- *----------------------------------------------------------------------
- */
-
-void
-NsConfigParse(char *file, char *config)
-{
-    ParseConfig(file, config);
-    ParseAuxConfig();
-}
-
-
-/*
- *----------------------------------------------------------------------
- * ParseAuxConfig --
- *
- *	Read just the aux ini configuration files, if any.
- *
- * Results:
- *  	None.
- *
- * Side effects:
- *	Additional config may be parsed.
- *
- *----------------------------------------------------------------------
- */
-
-static void
-ParseAuxConfig(void)
-{
-    char        *auxdir, *config, *file;
-
-    /*
-     * Read any auxiliary config files.
-     */
-
-    auxdir = Ns_ConfigGetValue(NS_CONFIG_PARAMETERS, "auxconfigdir");
-    if (auxdir != NULL) {
-	struct stat     st;
-	DIR            *dp;
-	struct dirent  *ent;
-	Ns_List        *files, *m;
-	Ns_DString	ds1, ds2;
-	char	       *p;
-
-    	Ns_DStringInit(&ds1);
-	Ns_DStringInit(&ds2);
-	
-	/*
-    	 * Locate and/or verify the AuxConfigDir.
-	 */
-	 
-	if (Ns_PathIsAbsolute(auxdir) == 0) {
-    	    p = Ns_ConfigGetValue(NS_CONFIG_PARAMETERS, "home");
-	    if (p == NULL) {
-	    	Ns_Fatal("config: cannot locate auxconfigdir: %s", auxdir);
-	    }
-    	    auxdir = Ns_MakePath(&ds2, p, auxdir, NULL);
-	}
-	if (stat(auxdir, &st) != 0) {
-	    Ns_Fatal("config: stat(%s) failed: %s", auxdir, strerror(errno));
-	}
-	if (S_ISDIR(st.st_mode) == 0) {
-	    Ns_Fatal("config: not a directory: %s", auxdir);
-	}
-	
-	/*
-	 * Read and sort all files ending in .ini in the AuxConfigDir.
-	 */
-	 
-	dp = opendir(auxdir);
-	if (dp == NULL) {
-	    Ns_Fatal("config: opendir(%s) failed: %s",
-		     auxdir, strerror(errno));
-	}
-    	files = NULL;
-	while ((ent = ns_readdir(dp)) != NULL) {
-
-	    /*
-	     * Ignore files with a dot or hash as first character.
-	     */
-	    if ( (ent->d_name[0] == '.')
-		 || (ent->d_name[0] == '#') ) {
-		continue;
-	    }
-	    
-	    p = strrchr(ent->d_name, '.');
-	    if (p != NULL && STREQ(p, ".ini")) {
-		Ns_DStringTrunc(&ds1,0);
-	    	Ns_MakePath(&ds1, auxdir, ent->d_name, NULL);
-		Ns_ListPush(Ns_DStringExport(&ds1), files);
-	    }
-	}
-	files = Ns_ListSort(files, (Ns_SortProc *) strcmp);
-	closedir(dp);
-
-    	/*
-	 * Open and parse each .ini file.
-	 */
-	 
-	for (m = files; m != NULL; m = Ns_ListRest(m)) {
-	    file = Ns_ListFirst(m);
-	    config = NsConfigRead(file);
-	    ParseConfig(file, config);
-	    ns_free(config);
-	}
-	
-	Ns_ListFree(files, ns_free);
-	Ns_DStringFree(&ds1);
-	Ns_DStringFree(&ds2);
-    }
 }
 
 
@@ -763,99 +634,3 @@ GetSection(char *section, int create)
     Ns_DStringFree(&ds);
     return setPtr;
 }
-
-
-/*
- *----------------------------------------------------------------------
- *
- * ParseConfig --
- *
- *	Parse config lines in .ini format.
- *
- * Results:
- *	None 
- *
- * Side effects:
- *	Ns_Sets will be created for each section and linked to from 
- *	the configSections hash table.
- *
- *----------------------------------------------------------------------
- */
-
-static void
-ParseConfig(char *file, char *config)
-{
-    Ns_DString	    ds;
-    Ns_Set         *setPtr;
-    char    	   *line, *nextLine, *s, *e;
-
-    Ns_DStringInit(&ds);
-    setPtr = NULL;
-
-    for (line = config; line != NULL; line = nextLine) {
-
-    	/*
-	 * Locate and trim next line.
-	 */
-	 
-	nextLine = strchr(line, '\n');
-	if (nextLine != NULL) {
-	    *nextLine++ = '\0';
-	}
-	line = Ns_StrTrim(line);
-
-	switch (*line) {
-	    case ';':
-	    case '\0':
-
-		/*
-		 * Skip comments and blank lines.
-		 */
-
-		break;
-
-	    case '[':
-
-		/*
-		 * Parse section name and begin new section.
-		 */
-		 
-		s = line + 1;
-		e = strchr(s, ']');
-		if (e == NULL) {
-		    Ns_Log(Warning, "config: invalid section name '%s'", line);
-		} else {
-		    *e = '\0';
-		    if (*s == '\0') {
-			Ns_Log(Warning, "config: null section name");
-		    } else {
-			setPtr = GetSection(s, 1);
-		    }
-		}
-		break;
-
-	    default:
-
-		/*
-		 * Parse a section entry.
-		 */
-		 
-		if (setPtr == NULL) {
-		    Ns_Log(Warning, "config: entry before section '%s'", line);
-		} else {
-		    e = strchr(line, '=');
-		    if (e == NULL) {
-			Ns_Log(Warning, "config: invalid entry '%s'", line);
-		    } else {
-			*e++ = '\0';
-			e = Ns_StrTrim(e);
-			s = Ns_StrTrim(line);
-			Ns_SetPut(setPtr, s, e);
-		    }
-		}
-		break;
-	}
-    }
-    Ns_DStringFree(&ds);
-}
-
