@@ -28,7 +28,7 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/init.tcl,v 1.16 2003/02/25 15:34:14 shmooved Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/init.tcl,v 1.17 2003/03/05 17:15:31 vasiljevic Exp $
 #
 
 #
@@ -226,22 +226,18 @@ proc ns_reinit {} {
 #
 
 proc _ns_savenamespaces {} {
-    append script [_ns_getpackages] ; # Assure C-level packages load first
-    _ns_getnamespaces namespaces
+    set script [_ns_getpackages]
     set import ""
-    foreach ns $namespaces {
-        foreach {_ns_script _ns_import} [_ns_getscript $ns] {
-            break
-        }
-        append script [list namespace eval $ns $_ns_script] \n
-        if {$_ns_import != ""} {
-            append import [list namespace eval $ns $_ns_import] \n
+    _ns_getnamespaces nslist
+    foreach n $nslist {
+        foreach {ns_script ns_import} [_ns_getscript $n] {
+            append script [list namespace eval $n $ns_script] \n
+            if {$ns_import != ""} {
+                append import [list namespace eval $n $ns_import] \n
+            }
         }
     }
-    if {$import != ""} {
-        append script $import
-    }
-    ns_ictl save $script
+    ns_ictl save [append script \n $import]
 }
 
 
@@ -289,8 +285,8 @@ proc _ns_sourcefiles {shared private} {
     }
 
     #
-    # Append private files, sourcing init.tcl
-    # immediately if it exists.
+    # Append private files, sourcing 
+    # init.tcl immediately if it exists.
     #
 
     foreach file [lsort [glob -nocomplain $private/*.tcl]] {
@@ -333,10 +329,10 @@ proc _ns_sourcefile {file} {
 #   to the variable named by listVar variable.
 #
 
-proc _ns_getnamespaces {listVar {n ""}} {
+proc _ns_getnamespaces {listVar {top "::"}} {
     upvar $listVar list
-    lappend list $n
-    foreach c [namespace children $n] {
+    lappend list $top
+    foreach c [namespace children $top] {
         _ns_getnamespaces list $c
     }
 }
@@ -389,14 +385,17 @@ proc _ns_getpackages {} {
 proc _ns_getscript n {
     namespace eval $n {
 
+        ::set _script "" ; # script to initialize new interp
+        ::set _import "" ; # script to import foreign commands
+
         #
         # Cover namespace variables (arrays and scalars)
         #
 
-        ::set _script ""
         ::foreach _var [::info vars] {
             ::switch -- $_var {
                 _var -
+                _import -
                 _script {
                     continue ; # skip local help variables
                 }
@@ -418,15 +417,15 @@ proc _ns_getscript n {
         }
         
         #
-        # Cover namespace procedures
+        # Cover namespace procedures 
         #
 
-        ::set _import ""
         ::foreach _proc [::info procs] {
             ::set _orig [::namespace origin $_proc]
             ::set _args ""
+            ::set _prcs($_proc) 1
             ::if {$_orig == [::namespace which -command $_proc]} {
-                # original command; get the definition
+                # original procedure; get the definition
                 ::foreach _arg [::info args $_proc] {
                     if {[::info default $_proc $_arg _def]} {
                         ::set _arg [::list $_arg $_def]
@@ -436,12 +435,32 @@ proc _ns_getscript n {
                 ::append _script \
                     [::list proc $_proc $_args [::info body $_proc]] \n
             } else {
-                # command imported from other namespace
+                # procedure imported from other namespace
                 ::append _import [::list namespace import $_orig] \n
             }
         }
 
-        ::append _script [::concat namespace export [::namespace export]] \n
+        #
+        # Cover commands imported from other namespaces
+        #
+
+        ::foreach _cmnd [::info commands [::namespace current]::*] {
+            ::set _orig [::namespace origin $_cmnd]
+            ::if {[::info exists _prcs($_cmnd)] == 0 
+                    && $_orig != [::namespace which -command $_cmnd]} {
+                ::append _import [::list namespace import $_orig] \n
+            }
+        }
+
+        #
+        # Cover commands exported from this namespace
+        #
+
+        ::set _exp [::namespace export]
+        if {[::llength $_exp]} {
+            ::append _script [::concat namespace export $_exp] \n
+        }
+
         ::return [::list $_script $_import]
     }
 }

@@ -1,3 +1,8 @@
+2003-03-05  Zoran Vasiljevic <zoran@archiware.com>
+
+	* nsd/init.tcl: added handling of commands imported from
+	other namespaces in _ns_getscript procedure.
+
 2003-03-05  Mark Page  <mpagenva@aol.com>
 
 	* nsd/adpcmds.c: 
