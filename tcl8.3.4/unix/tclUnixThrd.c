@@ -774,10 +774,13 @@ char *
 TclpInetNtoa(struct in_addr addr)
 {
     ThreadSpecificData *tsdPtr = TCL_TSD_INIT(&dataKey);
-
-    if (!inet_ntop(AF_INET, &addr, tsdPtr->nabuf, sizeof(tsdPtr->nabuf))) {
-	tsdPtr->nabuf[0] = '\0';
-    }
+    union {
+    	unsigned long l;
+    	unsigned char b[4];
+    } u;
+    
+    u.l = (unsigned long) addr.s_addr;
+    sprintf(tsdPtr->nabuf, "%u.%u.%u.%u", u.b[0], u.b[1], u.b[2], u.b[3]);
     return tsdPtr->nabuf;
 }
 
