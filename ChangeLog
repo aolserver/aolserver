@@ -1,3 +1,15 @@
+2004-09-30  Dossy Shiobara <dossy@panoptic.com>
+
+	* include/ns.h (1.55.2.13): BUMP: 4.0.9b
+
+2004-09-30  Dossy Shiobara <dossy@panoptic.com>
+
+	* include/ns.h (1.55.2.12), nsd/tclhttp.c (1.16.2.5),
+	  nsd/sockcallback.c (1.12.2.2): Implement
+	  Ns_SockCancelCallbackEx() in order to correctly cancel actions in
+	  the SockCallbackThread.  Fix for SF Bug #1037196.  Backported
+	  from HEAD for 4.0.9.
+
 2004-09-29  Dossy Shiobara <dossy@panoptic.com>
 
 	* include/ns.h (1.55.2.11), nsd/tclhttp.c (1.16.2.4),
