@@ -33,7 +33,7 @@
  *      All the public types and function declarations for the core
  *	AOLserver.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.30 2001/05/19 21:37:49 jgdavidson Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.31 2001/05/28 22:34:20 jgdavidson Exp $
  */
 
 #ifndef NS_H
@@ -1104,11 +1104,14 @@ NS_EXTERN SOCKET Ns_SockTimedConnect2(char *host, int port, char *lhost, int lpo
 NS_EXTERN int Ns_SockSetNonBlocking(SOCKET sock);
 NS_EXTERN int Ns_SockSetBlocking(SOCKET sock);
 NS_EXTERN int Ns_GetSockAddr(struct sockaddr_in *psa, char *host, int port);
+NS_EXTERN int Ns_SockCloseLater(SOCKET sock);
+
+NS_EXTERN char *Ns_SockError(void);
+NS_EXTERN int   Ns_SockErrno(void);
 NS_EXTERN void Ns_ClearSockErrno(void);
 NS_EXTERN int Ns_GetSockErrno(void);
 NS_EXTERN void Ns_SetSockErrno(int err);
 NS_EXTERN char *Ns_SockStrError(int err);
-NS_EXTERN int Ns_SockCloseLater(SOCKET sock);
 
 /*
  * sockcallback.c:

@@ -107,11 +107,11 @@ NSD_FILE	= lib$(NSD).so
 NSD_PATH	= $(NSD_DIR)/$(NSD_FILE)
 NSD_LIB		= -L$(NSD_DIR) -l$(NSD)
 
-RFLAG		= -R
+RFLAG		= -rpath
 RPATH		= $(RFLAG) $(INSTLIB) $(RFLAG) $(NSTCL_DIR) $(RFLAG) $(NSTHREAD_DIR) $(RFLAG) $(NSD_DIR)
 
-LIBS	     	= -lm $(RPATH)
-MAINLIBS	= $(NSTCL_LIB) $(NSTHREAD_LIB) $(NSD_LIB) $(LIBS)
+LIBS	     	= $(RPATH)
+MAINLIBS	= $(NSTCL_LIB) $(NSTHREAD_LIB) $(NSD_LIB) $(LIBS) -lm
 
 #
 # Figure the OS and architecture.
@@ -129,8 +129,7 @@ ifneq (,$(findstring HP-UX,$(PLAT)))
     else
         CFLAGS+=-mpa-risc-1-0
     endif
-    LDSO=$(LD) -b
-    LDFLAGS=-Wl,-E
+    LDSO=ld -b
     LIBS+=-ldce -lc_r
     CFLAGS+=-D__hp10=1 -DHAVE_PTHREAD_D4=1 -DUSE_DLSHL=1 -DNEED_HERRNO=1
 endif
@@ -141,7 +140,6 @@ endif
 #
 ifneq (,$(findstring Linux,$(PLAT)))
     PLATFORM=linux
-    LDFLAGS+=-Wl,-E
     RFLAG=-Xlinker -rpath -Xlinker
     ## We optimize for either i686 or i586 -- they really are very different.
     ifneq (,$(findstring "i686",$(PLAT)))
@@ -162,7 +160,6 @@ endif
 #
 ifneq (,$(findstring SunOS,$(PLAT)))
     PLATFORM=solaris
-
     ifneq (1,$(GCC))
         CC=$(PURIFY) /opt/SUNWspro/bin/cc
 	ifneq (1,$(DEBUG))
@@ -182,6 +179,7 @@ ifneq (,$(findstring SunOS,$(PLAT)))
         endif
     endif
     LDSO=/usr/ccs/bin/ld -G
+    RFLAG = -R
     RPATH += $(RFLAG) /usr/lib/lwp
     LIBS+=-lsocket -lnsl -ldl -lposix4 -lthread -lresolv
     AR=/usr/ccs/bin/ar
@@ -199,8 +197,7 @@ ifneq (,$(findstring OSF1,$(PLAT)))
     # gcc not verified
     CC=cc
     CFLAGS+=-std1 -pthread -DNO__ENVIRON=1
-    LDFLAGS+=-pthread
-    LDSO=$(LD) -shared -expect_unresolved '*'
+    LDSO=ld -shared -expect_unresolved '*'
     LIBS+=-lrt
 endif
 
@@ -212,16 +209,13 @@ ifneq (,$(findstring IRIX,$(PLAT)))
     PLATFORM=irix
     ## Purify seems to work on Irix o32 only.
     ifneq (1,$(GCC))
-	RFLAG=-rpath
-        ABI=o32
+        ABI=-o32
         ##CCOPT = -g3 -O2
-        CFLAGS  += -$(ABI) -KPIC -fullwarn -DUSE_DUPHIGH=1
+        CFLAGS  += $(ABI) -KPIC -fullwarn -DUSE_DUPHIGH=1
     else
-        ABI=n32
-        CFLAGS += -mcpu=mips
+        ABI=-n32
     endif
-    LDFLAGS += -$(ABI) 
-    LDSO=$(LD) -$(ABI) -shared
+    LDSO=ld $(ABI) -shared -rdata_shared
     CFLAGS+=-D_SGI_MP_SOURCE=1 -DNO_LONGDBL=1
     ifeq ($(USE_SPROC), 0)
     	LIBS += -lpthread
@@ -241,7 +235,6 @@ ifneq (,$(findstring FreeBSD,$(PLAT)))
     ifneq (,$(findstring i386,$(PLAT)))
         CFLAGS+=-mcpu=pentium
     endif
-    LDFLAGS+=-pthread -Wl,-E
     RANLIB=ranlib
     CFLAGS+=-D_THREAD_SAFE=1 -DHAVE_CMMSG=1 -DNO_TIMEZONE=1 \
 	   -DHAVE_TIMEGM=1 -DNO__ENVIRON=1
@@ -258,7 +251,6 @@ ifneq (,$(findstring OpenBSD,$(PLAT)))
     ifneq (,$(findstring i386,$(PLAT)))
         CFLAGS+=-mcpu=pentium
     endif
-    LDFLAGS+=-pthread -Wl,-E
     RANLIB=ranlib
     CFLAGS+=-DHAVE_CMMSG=1 -DUSE_DLSYMPREFIX=1 -DUSE_RTLD_LAZY=1 \
            -DNO_TIMEZONE=1 -DHAVE_TIMEGM=1 -D_THREAD_SAFE=1 \
@@ -273,8 +265,7 @@ ifneq (,$(findstring UnixWare,$(PLAT)))
     PLATFORM=unixware
     CC=cc
     CFLAGS+=-Kpic -Kthread -D__unixware
-    LDFLAGS=-Wl,-B export
-    LDSO=$(LD) -G
+    LDSO=ld -G
     LIBS+=-Kthread -lsocket
     CLFAGS+=-DUSE_PTHREAD_SYSSCOPE=1 -DHAVE_SENDV=1 -DHAVE_CMMSG=1
 endif
@@ -291,9 +282,8 @@ ifneq (,$(findstring Darwin,$(PLAT)))
 endif
 ifeq (osx,$(PLATFORM))
     CC=cc
-    LD=cc
     CFLAGS+=-dynamic -traditional-cpp
-    LDSO=$(LD) -bundle -undefined suppress
+    LDSO=cc -bundle -undefined suppress
     RANLIB=ranlib
     CFLAGS+=-DHAVE_CMMSG=1 -DUSE_DYLD=1 -DUSE_DLSYMPREFIX=1 \
             -DNO_RAND48=1 -DNO_TIMEZONE=1 -DMACOSX=1
