@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Makefile,v 1.37 2002/06/10 22:35:32 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Makefile,v 1.38 2002/07/14 23:15:56 jgdavidson Exp $
 #
 
 INIT	= init.tcl
@@ -38,22 +38,19 @@ PGMOBJS	= main.o
 LIBINIT = NsdInit
 HDRS	= nsd.h
 
-LOBJS = \
-	adpcmds.o adpeval.o adpparse.o adprequest.o auth.o binder.o	\
-	cache.o callbacks.o cls.o config.o conn.o	\
-	connio.o crypt.o dns.o	\
-	driver.o dsprintf.o dstring.o encoding.o exec.o		\
-	fastpath.o fd.o filter.o form.o httptime.o index.o	\
-	info.o lisp.o listen.o log.o mimetypes.o	\
-	modload.o nsconf.o nsmain.o nsthread.o op.o \
-	pathname.o pidfile.o proc.o queue.o quotehtml.o	\
-	random.o request.o return.o rollfile.o sched.o	\
-	server.o set.o sock.o sockcallback.o str.o	\
-	tclatclose.o tclcmds.o tclconf.o tclenv.o tclfile.o tclhttp.o	\
-	tclimg.o tclinit.o tcljob.o tclmisc.o tclobj.o tclrequest.o	\
-	tclresp.o tclsched.o tclset.o tclshare.o tclsock.o tclthread.o	\
-	tclvar.o tclxkeylist.o unix.o url.o	\
-	urlencode.o urlopen.o urlspace.o uuencode.o init.o
+LOBJS = adpcmds.o adpeval.o adpparse.o adprequest.o auth.o binder.o \
+	cache.o callbacks.o cls.o config.o conn.o connio.o crypt.o \
+	dns.o driver.o dsprintf.o dstring.o encoding.o exec.o \
+	fastpath.o fd.o filter.o form.o httptime.o index.o info.o \
+	init.o lisp.o listen.o log.o mimetypes.o modload.o nsconf.o \
+	nsmain.o nsthread.o op.o pathname.o pidfile.o proc.o queue.o \
+	quotehtml.o random.o request.o return.o rollfile.o sched.o \
+	server.o set.o sock.o sockcallback.o str.o tclatclose.o \
+	tclcmds.o tclconf.o tclenv.o tclfile.o tclhttp.o tclimg.o \
+	tclinit.o tcljob.o tclmisc.o tclobj.o tclrequest.o tclresp.o \
+	tclsched.o tclset.o tclshare.o tclsock.o tclthread.o tclvar.o \
+	tclxkeylist.o unix.o url.o urlencode.o urlopen.o urlspace.o \
+	uuencode.o
 
 LIBOBJS=$(LOBJS) stamp.o
 
