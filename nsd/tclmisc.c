@@ -34,7 +34,7 @@
  *	Implements a lot of Tcl API commands. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclmisc.c,v 1.9 2000/11/17 16:52:15 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclmisc.c,v 1.10 2001/01/04 21:13:58 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -1017,40 +1017,63 @@ NsTclInfoCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 int
 NsTclStripHtmlCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 {
-    int   intag;
-    int	  intspec;
-    char *ip;
-    char *op;
+    int   intag;     /* flag to see if are we inside a tag */
+    int	  intspec;   /* flag to see if we are inside a special char */
+    char *inString;  /* copy of input string */
+    char *inPtr;     /* moving pointer to input string */
+    char *outPtr;    /* moving pointer to output string */
 
     if (argc != 2) {
         Tcl_AppendResult(interp, "wrong # of args:  should be \"",
                          argv[0], " page\"", NULL);
         return TCL_ERROR;
     }
-    ip = argv[1];
-    op = ip;
-    intag = 0;
-    intspec = 0;
-    while (*ip != '\0') {
-        if (*ip == '<') {
+
+    /*
+     * Make a copy of the input and point the moving and output ptrs to it.
+     */
+    inString = ns_strdup(argv[1]);
+    inPtr    = inString;
+    outPtr   = inString;
+    intag    = 0;
+    intspec  = 0;
+
+    while (*inPtr != '\0') {
+
+        if (*inPtr == '<') {
             intag = 1;
-        } else if (intag && (*ip == '>')) {
+
+        } else if (intag && (*inPtr == '>')) {
+	    /* inside a tag that closes */
             intag = 0;
-        } else if (intspec && (*ip == ';')) {
+
+        } else if (intspec && (*inPtr == ';')) {
+	    /* inside a special character that closes */
             intspec = 0;		
+
         } else if (!intag && !intspec) {
-            if (*ip == '&') {
-                intspec=WordEndsInSemi(ip);
+	    /* regular text */
+
+            if (*inPtr == '&') {
+		/* starting a new special character */
+                intspec=WordEndsInSemi(inPtr);
 	    }
+
             if (!intspec) {
-                *op++ = *ip;
+		/* incr pointer only if we're not in something htmlish */
+                *outPtr++ = *inPtr;
 	    }
         }
-        ++ip;
+        ++inPtr;
     }
-    *op = '\0';
-    Tcl_SetResult(interp, argv[1], TCL_VOLATILE);
+
+    /* null-terminator */
+    *outPtr = '\0';
+
+    Tcl_SetResult(interp, inString, TCL_VOLATILE);
     
+    ns_free(inString);
+
     return TCL_OK;
 }
 

@@ -1,3 +1,7 @@
+2001-01-04  Kriston J. Rehberg  <kriston@aol.com>
+
+	* nsd/tclmisc.c: ns_striphtml crashing-bug in nsd8x fixed.
+
 2000-12-14  Kriston J. Rehberg  <kriston@aol.com>
 
 	* tcl/http.tcl: Corrected typo _ns_ns_http_readable.
