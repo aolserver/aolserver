@@ -34,7 +34,7 @@
  *Support for pre-bound privileged ports.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/binder.c,v 1.15 2003/03/07 18:08:14 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/binder.c,v 1.16 2003/11/16 15:04:01 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -113,6 +113,7 @@ Ns_SockListenEx(char *address, int port, int backlog)
 void
 NsInitBinder(void)
 {
+    Ns_MutexSetName(&lock, "ns:binder");
     Tcl_InitHashTable(&prebound, sizeof(struct sockaddr_in)/sizeof(int));
 }
 
