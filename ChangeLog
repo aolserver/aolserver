@@ -1,3 +1,8 @@
+2003-03-10  Mark Page  <mpagenva@aol.com>
+
+	* nsd/sched.c: (bug) Fix problem with shutting down event threads
+	(these service detachted thread processing) on a server shutdown.
+
 2003-03-07  Zoran Vasiljevic <zoran@archiware.com>
 	
 	* include/ns.h:
