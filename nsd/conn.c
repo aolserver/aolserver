@@ -34,7 +34,7 @@
  *      Manage the Ns_Conn structure
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.7.2.2 2001/04/04 00:13:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.7.2.3 2001/04/17 14:13:52 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -493,6 +493,12 @@ void
 Ns_SetConnLocationProc(Ns_LocationProc *procPtr)
 {
     locationPtr = procPtr;
+}
+
+void
+Ns_SetLocationProc(char *ignored, Ns_LocationProc *procPtr)
+{
+    Ns_SetConnLocationProc(procPtr);
 }
 
 
