@@ -27,7 +27,7 @@
  * version of this file under either the License or the GPL.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sched.c,v 1.10 2002/06/10 22:35:32 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sched.c,v 1.11 2002/10/14 23:20:47 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 /*
  * sched.c --
@@ -84,15 +84,18 @@ static void FreeEvent(Event *ePtr);	/* Free completed or cancelled event. */
 
 static Tcl_HashTable eventsTable; /* Hash table of events. */
 static Ns_Mutex lock;		/* Lock around heap and hash table. */
-static Ns_Cond  cond;		/* Condition to wakeup AfterThread. */
+static Ns_Cond  schedcond;	/* Condition to wakeup SchedThread. */
+static Ns_Cond  eventcond;	/* Condition to wakeup EventThread(s). */
 static Event  **queue;		/* Heap priority queue (dynamically re-sized). */
 static int      nqueue;		/* Number of events in queue. */
 static int      maxqueue;	/* Max queue events (dynamically re-sized). */
 static int      running;
 static int  	shutdownPending;
 static Ns_Thread schedThread;
-static Ns_Thread lastEventThread;
-static int	neventThreads;
+static int nThreads;
+static int nIdleThreads;
+static Event *threadEventPtr;
+static Ns_Thread *eventThreads;
 
 /*
  * Macro to exchange two events in the heap, used in QueueEvent() and
@@ -480,7 +483,7 @@ NsStartSchedShutdown(void)
     if (running) {
     	Ns_Log(Notice, "sched: shutdown pending");
 	shutdownPending = 1;
-	Ns_CondSignal(&cond);
+	Ns_CondSignal(&schedcond);
     }
     Ns_MutexUnlock(&lock);
 }
@@ -493,7 +496,7 @@ NsWaitSchedShutdown(Ns_Time *toPtr)
     Ns_MutexLock(&lock);
     status = NS_OK;
     while (status == NS_OK && running) {
-	status = Ns_CondTimedWait(&cond, &lock, toPtr);
+	status = Ns_CondTimedWait(&schedcond, &lock, toPtr);
     }
     Ns_MutexUnlock(&lock);
     if (status != NS_OK) {
@@ -579,7 +582,7 @@ QueueEvent(Event *ePtr, time_t *nowPtr)
      */
      
     if (running) {
-        Ns_CondSignal(&cond);
+        Ns_CondSignal(&schedcond);
     } else {
 	running = 1;
 	Ns_ThreadCreate(SchedThread, NULL, 0, &schedThread);
@@ -638,7 +641,7 @@ DeQueueEvent(int k)
  *
  * EventThread --
  *
- *	Run an event in a detached thread.
+ *	Run detached thread events.
  *
  * Results:
  *	None.
@@ -652,34 +655,47 @@ DeQueueEvent(int k)
 static void
 EventThread(void *arg)
 {
-    Event          *ePtr = arg;
-    char	    name[20];
+    Event          *ePtr;
+    char	    name[20], idle[20];
     time_t	    now;
-    Ns_Thread	    joinThread;
 
-    sprintf(name, "-sched:%d-", ePtr->id);
-    Ns_ThreadSetName(name);
-    (*ePtr->proc) (ePtr->arg, ePtr->id);
-    time(&now);
+    sprintf(idle, "-sched:idle%d-", (int) arg);
+    Ns_ThreadSetName(idle);
+    Ns_Log(Notice, "starting");
     Ns_MutexLock(&lock);
-    if (ePtr->hPtr != NULL) {
-	ePtr->flags &= ~NS_SCHED_RUNNING;
-	ePtr->lastend = now;
-    	QueueEvent(ePtr, &now);
-	ePtr = NULL;
-    }
-    joinThread = lastEventThread;
-    Ns_ThreadSelf(&lastEventThread);
-    if (--neventThreads == 0 && shutdownPending) {
-	Ns_CondBroadcast(&cond);
+    while (1) {
+	while (threadEventPtr == NULL && !shutdownPending) {
+	    Ns_CondWait(&eventcond, &lock);
+	}
+	if (threadEventPtr == NULL) {
+	    break;
+	}
+	ePtr = threadEventPtr;
+	threadEventPtr = ePtr->nextPtr;
+	if (threadEventPtr != NULL) {
+	    Ns_CondSignal(&eventcond);
+	}
+	--nIdleThreads;
+	Ns_MutexUnlock(&lock);
+    	sprintf(name, "-sched:%d-", ePtr->id);
+    	Ns_ThreadSetName(name);
+    	(*ePtr->proc) (ePtr->arg, ePtr->id);
+    	Ns_ThreadSetName(idle);
+    	time(&now);
+    	Ns_MutexLock(&lock);
+	++nIdleThreads;
+    	if (ePtr->hPtr == NULL) {
+	    Ns_MutexUnlock(&lock);
+	    FreeEvent(ePtr);
+	    Ns_MutexLock(&lock);
+	} else {
+	    ePtr->flags &= ~NS_SCHED_RUNNING;
+	    ePtr->lastend = now;
+    	    QueueEvent(ePtr, &now);
+    	}
     }
     Ns_MutexUnlock(&lock);
-    if (ePtr != NULL) {
-    	FreeEvent(ePtr);
-    }
-    if (joinThread != NULL) {
-	Ns_ThreadJoin(&joinThread, NULL);
-    }
+    Ns_Log(Notice, "exiting");
 }
 
 
@@ -731,7 +747,6 @@ SchedThread(void *ignored)
     Event          *ePtr, *readyPtr;
     time_t          now;
     Ns_Time         timeout;
-    Ns_Thread	    thread;
     int		    elapsed;
 
     Ns_WaitForStartup();
@@ -755,14 +770,28 @@ SchedThread(void *ignored)
 	    }
 	    ePtr->lastqueue = now;
 	    if (ePtr->flags & NS_SCHED_THREAD) {
-	    	++neventThreads;
 	    	ePtr->flags |= NS_SCHED_RUNNING;
 	    	ePtr->laststart = now;
-		Ns_ThreadCreate(EventThread, ePtr, 0, &thread);
+		ePtr->nextPtr = threadEventPtr;
+		threadEventPtr = ePtr;
 	    } else {
 	    	ePtr->nextPtr = readyPtr;
 	    	readyPtr = ePtr;
 	    }
+	}
+
+	/*
+	 * Dispatch any threaded events.
+	 */
+
+	if (threadEventPtr != NULL) {
+	    if (nIdleThreads == 0) {
+		eventThreads = ns_realloc(eventThreads, sizeof(Ns_Thread) * (nThreads+1));
+		Ns_ThreadCreate(EventThread, (void *) nThreads, 0, &eventThreads[nThreads]);
+		++nIdleThreads;
+		++nThreads;
+	    }
+	    Ns_CondSignal(&eventcond);
 	}
 	
 	/*
@@ -799,11 +828,11 @@ SchedThread(void *ignored)
 	 */
 
 	if (nqueue == 0) {
-	    Ns_CondWait(&cond, &lock);
+	    Ns_CondWait(&schedcond, &lock);
 	} else if (!shutdownPending) {
 	    timeout.sec = queue[1]->nextqueue;
 	    timeout.usec = 0;
-	    (void) Ns_CondTimedWait(&cond, &lock, &timeout);
+	    (void) Ns_CondTimedWait(&schedcond, &lock, &timeout);
 	}
     }
     
@@ -814,17 +843,14 @@ SchedThread(void *ignored)
      */
      
     Ns_Log(Notice, "sched: shutdown started");
-    if (neventThreads > 0) {
-    	Ns_Log(Notice, "sched: waiting for detached procs...");
-	while (neventThreads > 0) {
-	    Ns_CondWait(&cond, &lock);
+    if (nThreads > 0) {
+    	Ns_Log(Notice, "sched: waiting for event threads...");
+	Ns_CondBroadcast(&eventcond);
+	while (--nThreads >= 0) {
+	    Ns_ThreadJoin(&eventThreads[nThreads], NULL);
 	}
     }
     Ns_MutexUnlock(&lock);
-    if (lastEventThread != NULL) {
-	Ns_ThreadJoin(&lastEventThread, NULL);
-	lastEventThread = NULL;
-    }
     while (nqueue > 0) {
 	FreeEvent(queue[nqueue--]);
     }
@@ -833,7 +859,7 @@ SchedThread(void *ignored)
     Ns_Log(Notice, "sched: shutdown complete");
     Ns_MutexLock(&lock);
     running = 0;
-    Ns_CondBroadcast(&cond);
+    Ns_CondBroadcast(&schedcond);
     Ns_MutexUnlock(&lock);
 }
 
