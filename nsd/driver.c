@@ -34,7 +34,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.17.2.2 2003/11/20 02:32:11 pkhincha Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.17.2.3 2004/03/26 20:58:18 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -45,6 +45,28 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
 #define SOCK_READY		0
 #define SOCK_MORE		1
 #define SOCK_ERROR		(-1)
+
+/*
+ * Defines for SockRelease reason codes.
+ *
+ */
+
+typedef enum {
+    Reason_CloseTimeout,
+    Reason_ReadTimeout,
+    Reason_ServerReject,
+    Reason_SockError,
+    Reason_SockShutError
+    } ReleaseReasons;
+
+/*
+ * LoggingFlag mask values
+ */
+#define LOGGING_READTIMEOUT   0x01
+#define LOGGING_SERVERREJECT  0x02
+#define LOGGING_SOCKERROR     0x04
+#define LOGGING_SOCKSHUTERROR 0x08
+
 
 /*
  * The following maintains Host header to server mappings.
@@ -61,7 +83,7 @@ typedef struct ServerMap {
 
 static Ns_ThreadProc DriverThread;
 static Sock *SockAccept(Driver *drvPtr);
-static void SockRelease(Sock *sockPtr);
+static void SockRelease(Sock *sockPtr, ReleaseReasons reason);
 static void SockTrigger(void);
 static Driver *firstDrvPtr; /* First in list of all drivers. */
 static Sock *firstClosePtr; /* First conn ready for graceful close. */
@@ -141,6 +163,7 @@ Ns_DriverInit(char *server, char *module, Ns_DriverInitData *init)
     struct hostent *he;
     Driver *drvPtr;
     NsServer *servPtr = NULL;
+    int controlFlag;
 
     if (server != NULL && (servPtr = NsGetServer(server)) == NULL) {
 	return NS_ERROR;
@@ -285,6 +308,29 @@ Ns_DriverInit(char *server, char *module, Ns_DriverInitData *init)
         n = 1000 * 1024;        /* 1m. */
     }
     drvPtr->maxinput = _MAX(n, 1024);
+
+    /*
+     * Allow specification of logging or not of various deep
+     * socket handling errors.  These all default to Off.
+     */
+    drvPtr->loggingFlags = 0;
+    if (Ns_ConfigGetBool(path, "readtimeoutlogging", &controlFlag)
+        && controlFlag) {
+        drvPtr->loggingFlags |= LOGGING_READTIMEOUT;
+    }
+    if (Ns_ConfigGetBool(path, "serverrejectlogging", &controlFlag)
+        && controlFlag) {
+        drvPtr->loggingFlags |= LOGGING_SERVERREJECT;
+    }
+    if (Ns_ConfigGetBool(path, "sockerrorlogging", &controlFlag)
+        && controlFlag) {
+        drvPtr->loggingFlags |= LOGGING_SOCKERROR;
+    }
+    if (Ns_ConfigGetBool(path, "sockshuterrorlogging", &controlFlag)
+        && controlFlag) {
+        drvPtr->loggingFlags |= LOGGING_SOCKSHUTERROR;
+    }
+
     /*
      * Determine the port and then set the HTTP location string either
      * as specified in the config file or constructed from the
@@ -790,7 +836,7 @@ DriverThread(void *ignored)
 		    }
 		}
 		if (Ns_DiffTime(&sockPtr->timeout, &now, &diff) <= 0) {
-		    SockRelease(sockPtr);
+		    SockRelease(sockPtr, Reason_CloseTimeout);
 		} else {
 		    sockPtr->nextPtr = closePtr;
 		    closePtr = sockPtr;
@@ -809,7 +855,7 @@ DriverThread(void *ignored)
 	    nextPtr = sockPtr->nextPtr;
 	    if (!(pfds[sockPtr->pidx].revents & POLLIN)) {
 		if (Ns_DiffTime(&sockPtr->timeout, &now, &diff) <= 0) {
-		    SockRelease(sockPtr);
+		    SockRelease(sockPtr, Reason_ReadTimeout);
 		} else {
 		    sockPtr->nextPtr = readPtr;
 		    readPtr = sockPtr;
@@ -838,14 +884,14 @@ DriverThread(void *ignored)
 		    break;
 		case SOCK_READY:
 		    if (!SetServer(sockPtr)) {
-			SockRelease(sockPtr);
+			SockRelease(sockPtr, Reason_ServerReject);
 		    } else {
 		    	sockPtr->nextPtr = waitPtr;
 			waitPtr = sockPtr;
 		    }
 		    break;
 		default:
-		    SockRelease(sockPtr);
+		    SockRelease(sockPtr, Reason_SockError);
 		    break;
 		}
 	    }
@@ -955,7 +1001,7 @@ DriverThread(void *ignored)
 		readPtr = sockPtr;
 	    } else {
 		if (shutdown(sockPtr->sock, 1) != 0) {
-		    SockRelease(sockPtr);
+		    SockRelease(sockPtr, Reason_SockShutError);
 		} else {
 		    SockTimeout(sockPtr, &now, sockPtr->drvPtr->closewait);
 		    sockPtr->nextPtr = closePtr;
@@ -1219,8 +1265,47 @@ SockAccept(Driver *drvPtr)
  */
 
 static void
-SockRelease(Sock *sockPtr)
+SockRelease(Sock *sockPtr, ReleaseReasons reason)
 {
+    char *errMsg = NULL;
+
+    switch (reason) {
+    case Reason_CloseTimeout:
+        /* This is normal, never log. */
+        break;
+    case Reason_ReadTimeout:
+        /*
+         * For this case, whether this is acceptable or not
+         * depends upon whether this sock was a keep-alive
+         * that we were allowing to 'linger'.
+         */
+        if (!sockPtr->keep
+            && (sockPtr->drvPtr->loggingFlags & LOGGING_READTIMEOUT) ) {
+            errMsg = "Timeout during read";
+        }
+        break;
+    case Reason_ServerReject:
+        if (sockPtr->drvPtr->loggingFlags & LOGGING_SERVERREJECT) {
+            errMsg = "No Server found for request";
+        }
+        break;
+    case Reason_SockError:
+        if (sockPtr->drvPtr->loggingFlags & LOGGING_SOCKERROR) {
+            errMsg = "Unable to read request";
+        }
+        break;
+    case Reason_SockShutError:
+        if (sockPtr->drvPtr->loggingFlags & LOGGING_SOCKSHUTERROR) {
+            errMsg = "Unable to shutdown socket";
+        }
+        break;
+    }
+    if (errMsg != NULL) {
+        Ns_Log( Error, "Releasing Socket; %s, Peer =  %s:%d", 
+                errMsg, ns_inet_ntoa(sockPtr->sa.sin_addr),
+                ntohs(sockPtr->sa.sin_port) );
+    }
+
     --nactive;
     ns_sockclose(sockPtr->sock);
     sockPtr->sock = INVALID_SOCKET;

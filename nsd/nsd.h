@@ -339,6 +339,7 @@ typedef struct Driver {
     int		 backlog;	    /* listen() backlog. */
 
     int          maxinput;          /* Maximum request bytes to read. */
+    unsigned int loggingFlags;      /* Logging control flags */
 
 } Driver;
 

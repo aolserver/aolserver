@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/Attic/sample-config.tcl,v 1.11 2003/08/08 14:52:17 elizthom Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/Attic/sample-config.tcl,v 1.11.2.1 2004/03/26 20:58:18 mpagenva Exp $
 #
 
 #
@@ -211,6 +211,16 @@ ns_param   port            $httpport
 ns_param   hostname        $hostname
 ns_param   address         $address
 
+                                         # Socket driver logging controls.
+                                         # Default is no logging.
+#ns_param   readtimeoutlogging    true  ;# Timed-out waiting for complete
+                                         # request.
+#ns_param   serverrejectlogging   true  ;# Unable to match request to a virtual
+                                         # server.
+#ns_param   sockerrorlogging      true  ;# Malformed request, or would exceed
+                                         # request limits.
+#ns_param   sockshuterrorlogging  true  ;# Error while attempting to shutdown
+                                         # a socket during connection close.
 
 #
 # Socket driver module (HTTPS) -- nsssl
@@ -224,6 +234,16 @@ ns_param   address         $address
 ns_param   keyfile         $sslkeyfile
 ns_param   certfile        $sslcertfile
 
+                                         # Socket driver logging controls.
+                                         # Default is no logging.
+#ns_param   readtimeoutlogging    true  ;# Timed-out waiting for complete
+                                         # request.
+#ns_param   serverrejectlogging   true  ;# Unable to match request to a virtual
+                                         # server.
+#ns_param   sockerrorlogging      true  ;# Malformed request, or would exceed
+                                         # request limits.
+#ns_param   sockshuterrorlogging  true  ;# Error while attempting to shutdown
+                                         # a socket during connection close.
 
 # Fast Path --
 #

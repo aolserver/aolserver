@@ -1,3 +1,14 @@
+2004-03-26  Mark Page  <mpagenva@aol.com>
+
+	* nsd/nsd.h:
+	* nsd/driver.c:
+	* sample-config.tcl: Add configurable logging of errors which cause the
+	driver to drop a incoming connection socket.  Logging goes to the
+	server log.  Following new bool config params are added to the socket
+	driver's section (e.g., nssock, etc): readtimeoutlogging,
+	serverrejectlogging, sockerrorlogging,
+	sockshuterrorlogging.
+	
 2004-02-27 14:14  Dossy Shiobara <dossy@panoptic.com>
 
 	* include/ns.h: fix for bug #906011 "include/ns.h version not
