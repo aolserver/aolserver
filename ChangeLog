@@ -1,3 +1,36 @@
+2002-02-24  Jim Davidson <jgdavidson@aol.com>
+
+	* nsd/nsd.h
+	* nsd/unix.c:
+	* tcl8.3.4/unix/tclLoadDyld.c: Hacks for routines missing
+	from OS/X. The implementation of sigwait() is not strictly
+	correct but appears good enough for AOLserver's use.
+
+	* Makefile:
+	* nsd/Makefile:
+	* nsmain/Makefile:
+	* include/Makefile.global:
+	* include/Makefile.module:
+	* include/Makefile.library (removed): Updates for
+	linking modules against the nsd shared library and
+	for library filenames which don't end in .so.
+
+	* nsext/Makefile
+	* nspd/Makefile: Moved proxy message code from nsext
+	to  nspd, now a static library.
+
+	* nsd/main.c:
+	* nsd/init.c:
+	* nsd/Makefile:
+	* nsmain/*:
+	* sample-config.tcl:
+	* tcl2ini.tcl:
+	* ini2tcl.tcl:
+	* Makefile: Moved build and install of nsd and init.tcl
+	into nsd directory and install of sample config to top
+	level Makefile.  Added tcl2ini.tcl and ini2tcl.tcl
+	config file utilities.
+
 2002-02-07  Jeff Hobbs  <jeffh@ActiveState.com>
 
 	* nsmain/init.tcl:

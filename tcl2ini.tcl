@@ -25,64 +25,35 @@
 # replace them with the notice and other provisions required by the GPL.
 # If you do not delete the provisions above, a recipient may use your
 # version of this file under either the License or the GPL.
-# 
-#
-# $Header: /Users/dossy/Desktop/cvs/aolserver/Makefile,v 1.28 2002/02/24 21:45:29 jgdavidson Exp $
 #
 
+# tcl2ini.tcl --
 #
-# You may set the following variables here, on the make command line,
-# or via shell environment variables.
+#	Dump old-style nsd.ini format.
 #
-# AOLSERVER:	AOLserver install directory (/usr/local/aolserver)
-# DEBUG		Build with debug symbols (default: 0, no symbols)
-# GCC		Build with gcc compiler (default: 1, use gcc)
+#  Usage:
+#	nsd -ft tcl2ini.tcl nsd.tcl 
 #
 
 
-##################################################################
-#
-# You should not need to edit anything below.
-#
-##################################################################
+proc ns_section s {
+	global _section
+	set _section $s
+}
 
-include include/Makefile.global
+proc ns_param {k v} {
+	global _section _sections
+	lappend _sections($_section) $k $v
+}
 
-MAKEFLAGS 	+= nsbuild=1
-ifdef AOLSERVER
-    MAKEFLAGS	+= AOLSERVER=$(AOLSERVER)
-endif
-ifdef NSDEBUG
-    MAKEFLAGS	+= NSDEBUG=$(NSDEBUG)
-endif
-ifdef NSGCC
-    MAKEFLAGS	+= NSGCC=$(NSGCC)
-endif
+source [lindex $argv 3]
 
-dirs = $(tcldir) nsd nssock nsssl nscgi nscp nslog nsperm nspd nsext
+foreach s [lsort [array names _sections]] {
+	puts "\[$s\]"
+	foreach {k v} $_sections($s) {
+		puts "  $k = $v"
+	}
+	puts ""
+}
 
-all:
-	@for i in $(dirs); do \
-		( cd $$i && $(MAKE) all ) || exit 1; \
-	done
-
-install: all
-	@for i in $(dirs); do \
-		(cd $$i && $(MAKE) $@) || exit 1; \
-	done
-	$(MKDIR)		$(AOLSERVER)/log
-	$(MKDIR)		$(AOLSERVER)/modules
-	$(CP) -r tcl    	$(AOLSERVER)/modules/
-	$(CP) -r include	$(AOLSERVER)/
-	$(CP) sample-config.tcl $(AOLSERVER)/
-
-install-tests:
-	$(CP) -r tests $(INSTSRVPAG)
-
-clean:
-	@for i in $(dirs); do \
-		(cd $$i && $(MAKE) $@) || exit 1; \
-	done
-
-distclean: clean
-	(cd $(tcldir); $(MAKE) distclean)
+exit
