@@ -34,7 +34,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.24 2004/07/29 23:05:48 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.25 2004/07/30 00:35:25 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -1552,6 +1552,7 @@ SockRead(Driver *drvPtr, Sock *sockPtr)
 	 * Update next read pointer to end of this line.
 	 */
 
+        connPtr->roff += (e - s + 1);
 	if (e > s && e[-1] == '\r') {
 	    --e;
 	}
