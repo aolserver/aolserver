@@ -33,7 +33,7 @@
  *	AOLserver Ns_Main() startup routine.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.11 2000/10/13 00:22:49 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.12 2000/10/14 00:21:28 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -256,8 +256,9 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 	    }
 	    nsServer = optarg;
             break;
-	case 't':
         case 'c':
+	    fprintf(stderr, "\nWARNING: -c option is deprecated.  Use translate-ini to convert to tcl (-t) format.\n\n");
+	case 't':
 	    if (nsconf.config != NULL) {
 		UsageError("multiple -t/-c <config> options");
 	    }
@@ -282,6 +283,7 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 	    break;
 	case 'K':
 	case 'k':
+	    fprintf(stderr, "\nWARNING: -k and -K are deprecated.\n\n");
 	    if (kill != 0) {
 		UsageError("only one of -k or -K may be specified");
 	    }
@@ -301,6 +303,7 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 	    break;
 	case 'u':
 	    uid = Ns_GetUid(optarg);
+	    gid = Ns_GetUserGid(optarg);
 	    if (uid < 0) {
 		uid = atoi(optarg);
 	    }
@@ -1295,33 +1298,33 @@ UsageError(char *msg)
 	fprintf(stderr, "\nError: %s\n", msg);
     }
     fprintf(stderr,
-	"\nUsage:\n\n"
-	""
-	"    %s [-h|-V] [-z] " UOPTS "[-s server] {-i|-f" SOPTS "} {-c|-t} <config>\n\n"
-	""
-	"Where:\n\n"
-	""
-	"    -h           Print this usage message and exit.\n"
-	"    -V           Print identification of server and exit.\n"
-	"    -i           Run in installed mode, log output to file.\n"
-	"    -f           Run in foreground mode, log output to screen.\n"
-	"    -z           Enable fast memory allocator (see documentation).\n"
+	"\nUsage:\n"
+	"\n"
+	"%s [-h|-V] [-z] " UOPTS "[-s server] {-i|-f" SOPTS "} [-b address:port]|[-B <file>] {-c|-t} <config>\n"
+	"\n"
+	"  -h           Print this usage message and exit.\n"
+	"  -V           Print identification of server and exit.\n"
+	"  -i           Run in installed mode (inittab) and log output to file.\n"
+	"  -f           Run in foreground mode and log output to screen.\n"
+	"  -z           Enable fast memory allocator (see documentation).\n"
+	"  -q           Start up more quietly.\n"
+	"  -b           Pre-bind to comma-separated list of address:port.\n"
+	"  -B           Pre-bind to newline-separated list of address:port from file.\n"
 #ifdef WIN32
-    	"    -I           Install as an NT service.\n"
-    	"    -R           Remove installed NT service.\n"
+    	"  -I           Install as an NT service.\n"
+    	"  -R           Remove an installed NT service.\n"
 #else
-	"    -k           Kill running server (based on pidfile) and continue.\n"
-	"    -K           Kill running server (based on pidfile) and terminate.\n"
-	"    -d           Ignore SIGINT for debugging on some platforms.\n"
-	"    -r <root>    chroot(root) after reading config file (recommended)\n"
-	"    -u <user>    setuid() to get given uid/user (normally required)\n"
-	"    -g <group>   setgid() to get given gid/group (perhaps useful)\n"
-#endif
-	"    -s <server>  Server to run when > 1 server in config file.\n"
-	"    -c <config>  Path to the config file (.ini format)\n"
-	"    -t <config>  Path to the config file (.tcl format)\n\n"
+	"  -d           Ignore SIGINT for debugging on some platforms.\n"
 	""
-	"Note:  One of {-c|-t} and <config> is required.\n\n", nsconf.argv0);
+	"  -r  <path>   chroot(path) after reading config file.\n"
+	"  -u <user>    run as user/uid (required).\n"
+	"  -g <group>   run as group/gid (optional).\n"
+#endif
+	"  -s <server>  Server to run when > 1 server in config file.\n"
+	"  -c <config>  Path to the config file (.ini format) -- deprecated.\n"
+	"  -t <config>  Path to the config file (.tcl format).\n"
+	"\n"
+	"Note: One of {-c|-t} and <config> is required.\n\n", nsconf.argv0);
     exit(msg ? 1 : 0);
 }
 
