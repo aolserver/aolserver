@@ -1,0 +1,58 @@
+<html>
+<head>
+  <title>nslog</title>
+</head>
+<body bgcolor="#ffffff">
+<h2>nslog -- Access Logging Module</h2>
+<code>$Header: /cvsroot/aolserver/aolserver/nscgi/nscgi.html,v 1.1 2000/10/04&nbsp;
+ 22:27:23 kriston Exp $</code><br>
+<br>
+<a href="#Theory_of_Operation">Theory of Operation</a><br>
+<a href="#Known_Issues">Known Issues</a><br>
+<a href="#Sample_Configuration">Sample Configuration</a><br>
+<br>
+<h3><a name="Theory_of_Operation"></a>Theory of Operation</h3>
+The nslog module implements Common Log Format access logging.&nbsp; This format
+ can be used by any web analyzer tool.&nbsp; It optionally supports NCSA Combined
+ Log Format and supports log file rolling.&nbsp; The log files are stored in the
+ server/server1/modules/nslog directory.<br>
+<br>
+<h3><a name="Known_Issues"></a>Known Issues</h3>
+None at this time.<br>
+<br>
+<h3><a name="Sample_Configuration"></a>Sample Configuration</h3>
+<br>
+<pre></pre>
+<pre>#
+# Access log -- nslog
+#
+ns_section "ns/server/${servername}/module/nslog"
+ns_param   file            "access.log"
+ns_param   formattedtime   true      ;# true=common log format
+ns_param   logcombined     false     ;# true==NCSA combined format
+ns_param   maxbackup       5         ;# Max number to keep around when rolling
+ns_param   rollhour        0         ;# Time to roll log
+ns_param   rolllog         true      ;# Should we roll log?
+ns_param   rollonsignal    true      ;# Roll log on SIGHUP
+
+</pre>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+</body>
+</html>

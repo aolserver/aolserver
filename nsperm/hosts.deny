@@ -1,0 +1,11 @@
+#
+# This is the AOLserver hosts.deny file. It allows you to specify which
+# hosts may not log in as certain users. If you have an entry in this
+# file for a given user, you may not have an entry in hosts.allow for
+# that same user.
+#
+# Example:
+#
+# nsadmin: hacker.badguy.com, .aol.com, 10.2.114.0/255.255.255.0
+#
+

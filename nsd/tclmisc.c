@@ -34,7 +34,7 @@
  *	Implements a lot of Tcl API commands. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclmisc.c,v 1.12.2.1.2.2 2002/11/10 15:02:30 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclmisc.c,v 1.12.2.1.2.3 2003/01/09 18:46:11 elizthom Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -156,8 +156,7 @@ NsIsIdConn(char *connId)
  *	1 if semi, 0 if space. 
  *
  * Side effects:
- *	Behavior is undefined if string ends before either space or 
- *	semi. 
+ *      Undefined behavior if string does not end in null
  *
  *----------------------------------------------------------------------
  */
@@ -165,7 +164,16 @@ NsIsIdConn(char *connId)
 static int
 WordEndsInSemi(char *ip)
 {
-    while((*ip != ' ') && (*ip != ';')) {
+    if (ip == NULL) {
+        return 0;
+    }
+    /* advance past the first '&' so we can check for a second 
+       (i.e. to handle "ben&jerry&nbsp;")
+    */
+    if (*ip == '&') {
+        ip++;
+    }
+    while((*ip != '\0') && (*ip != ' ') && (*ip != ';') && (*ip != '&')) {
         ip++;
     }
     if (*ip == ';') {
