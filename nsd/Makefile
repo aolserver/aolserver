@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Makefile,v 1.35 2002/06/08 14:46:04 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Makefile,v 1.36 2002/06/08 15:52:28 jgdavidson Exp $
 #
 
 INIT	= init.tcl
@@ -52,6 +52,10 @@ LOBJS = \
 	tclresp.o tclsched.o tclset.o tclshare.o tclsock.o tclthread.o	\
 	tclvar.o tclxkeylist.o thread.o time.o tls.o unix.o url.o	\
 	urlencode.o urlopen.o urlspace.o uuencode.o
+
+ifeq (Darwin,$(shell uname))
+  LOBJS += osxcompat.o
+endif
 
 LIBOBJS=$(LOBJS) stamp.o
 

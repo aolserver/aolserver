@@ -45,7 +45,7 @@
 #ifndef __APPLE__
   #include <poll.h>
 #else
-  #include "../nsosx/nsosx.h"
+  #include "osxcompat.h"
   #undef panic
 #endif
 #ifdef __hp
