@@ -34,7 +34,7 @@
  *	Support for the socket callback thread.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sockcallback.c,v 1.8 2001/11/06 01:12:36 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sockcallback.c,v 1.9 2001/11/13 00:05:54 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -352,7 +352,7 @@ SockCallbackThread(void *ignored)
 			pfds[nfds].events |= events[i];
                     }
         	}
-		++n;
+		++nfds;
 	    }
 	    hPtr = Tcl_NextHashEntry(&search);
         }
