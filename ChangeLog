@@ -2,6 +2,8 @@
 
 	* nsd/tclfile.c: Certain command sequence with [ns_chan] may cause
 	  server to crash (see SF BUG #1094480). Fixed now.
+	  Also, fixed channel tables cleanup and channel-closing which also
+	  cored the server due to better Tcl library checking.
 
 2004-12-06  Dossy Shiobara <dossy@panoptic.com>
 
