@@ -33,7 +33,7 @@
  *	Tcl job queueing routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tcljob.c,v 1.2 2001/03/23 00:05:23 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tcljob.c,v 1.3 2001/04/02 19:33:52 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -311,6 +311,22 @@ JobThread(void *arg)
     Ns_Log(Notice, "exiting");
 }
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * FreeJob --
+ *
+ *	Destory a Job structure.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
 
 void
 FreeJob(Job *jobPtr)
