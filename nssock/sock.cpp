@@ -36,11 +36,36 @@
 /* 
  * sock.cpp --
  *
- *	Routines for the nssock and nsssl socket drivers.
+ *	Routines for the nssock and nsssl socket drivers.  This
+ *	code is more complicated than may seem necessary for a few
+ *	reasons:
  *
+ *	1.  The need for a graceful-close, i.e., a shutdown()
+ *	    followed by draining any unread data before the close().
+ *	    This is required to avoid confusing certain clients
+ *	    with a FIN arriving before an ACK of unread data, e.g.,
+ *	    the trailing \r\n not accounted for in the content-length
+ *	    sent on an HTTP POST for the benefit of stupid CGI's.
+ *
+ *	2.  The careful delay of the listen() until just before
+ *	    server startup is complete to avoid connections building
+ *	    up during initialization.
+ *
+ *	3.  The immediate close() of the listen sockets at the start
+ *	    of server shutdown to avoid accepting new connections
+ *	    during the grace period while active connections exit.
+ *
+ *	4.  The hold of a connection which was accepted but could
+ *	    not be queued.  This avoids a situation where the fast
+ *	    moving SockThread could overwhelm the connection 
+ *	    handling queue.
+ *
+ *	While complicated, experience at AOL has shown all these
+ *	tweeks are useful to carefully feed new connections to
+ *	the server core and close client connections.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nssock/Attic/sock.cpp,v 1.3 2000/10/17 23:29:21 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nssock/Attic/sock.cpp,v 1.4 2000/11/03 00:19:42 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 
@@ -68,79 +93,56 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nss
 
 #endif
 
+struct Conn;
+
 /*
- * The Server Busy msg is hard-coded and directly copied out to the socket.
- * NB: the padding at the end defeats MSIE "friendly" error messages.
+ * The following structure maintains the context
+ * for each instance of the loaded socket(ssl) driver.
  */
-#define BUSY \
-    "HTTP/1.0 503 Service Unavailable\r\n"\
-    "MIME-Version: 1.0\r\n"\
-    "Server: AOLserver/3.x\r\n"\
-    "Content-Type: text/html\r\n"\
-    "Connection: close\r\n"\
-    "Expires: now\r\n"\
-    "\r\n"\
-    "<!DOCTYPE HTML PUBLIC \"-//IETF//DTD HTML 2.0//EN\">\n"\
-    "<HTML>\n"\
-    "<HEAD>\n<TITLE>Server Busy</TITLE>\n</HEAD>\n"\
-    "<BODY>\n"\
-    "<H2>Server Busy</H2>\n"\
-    "The server is temporarily too busy to process your request.\n"\
-    "Please try again in a few minutes.\n"\
-    "                                                  "\
-    "                                                  "\
-    "                                                  "\
-    "                                                  "\
-    "\n</BODY>\n</HTML>\n"
 
-struct ConnData;
-
-typedef struct SockDrv {
-    struct SockDrv *nextPtr;
-    struct ConnData *firstFreePtr;
-    Ns_Mutex	 lock;
-    int		 refcnt;
-    Ns_Driver	 driver;
-    char        *name;
-    char        *location;
-    char        *address;
-    char        *bindaddr;
-    int          port;
-    int     	 bufsize;
-    int     	 timeout;
-    int     	 closewait;
-    SOCKET       lsock;
+typedef struct Driver {
+    struct Driver *nextPtr;	    /* Next in list of drivers. */
+    Ns_Driver	 driver;	    /* Ns_RegisterDriver handle. */
+    char        *name;		    /* Config name, e.g., "sock1". */
+    char        *location;	    /* Location, e.g, "http://foo:9090" */
+    char        *address;	    /* Address in location. */
+    int          port;		    /* Port in location. */
+    char        *bindaddr;	    /* Numerical listen address. */
+    SOCKET	 sock;		    /* Listening socket. */
+    struct Conn *firstFreeConnPtr;  /* First free conn, per-driver for
+				     * per-driver bufsizes. */
+    int     	 timeout;	    /* send()/recv() I/O timeout. */
+    int     	 closewait;	    /* Graceful close timeout. */
+    int		 bufsize;	    /* Bufsize (0 for SSL) */
 #ifdef SSL
-    void        *server;
+    void        *dssl;		    /* SSL per-driver context. */
 #endif
-} SockDrv;
+} Driver;
 
-typedef struct ConnData {
-    struct ConnData *nextPtr;
-    struct SockDrv  *sdPtr;
-    SOCKET	sock;
-    char	peer[16];
-    int		port;
-    int		nrecv;
-    int		nsend;
+typedef struct Conn {
+    struct Conn *nextPtr;	    /* Next in closing, free lists. */
+    struct Driver *drvPtr;	    /* Pointer to driver. */
+    SOCKET	sock;		    /* Client socket. */
+    char	peer[16];	    /* Client peer address. */
+    int		port;		    /* Client port. */
+    int		nrecv;		    /* Num bytes received. */
+    int		nsend;		    /* Num bytes sent. */
+    time_t	timeout;	    /* Graceful close absolute timeout. */
 #ifdef SSL
-    void       *conn;
+    void       *cssl;		    /* SSL per-client context. */
 #else
-    int		cnt;
-    char       *base;
-    char	buf[1];
+    int		cnt;		    /* Num bytes in read-ahead buffer. */
+    char       *base;		    /* Base pointer in read-ahead buffer. */
+    char	buf[1];		    /* Read-ahead buffer placeholder, Conn
+				     * structure is actually allocated to 
+				     * per-driver configured bufsize. */
 #endif
-} ConnData;
+
+} Conn;
 
 /*
- * Local functions defined in this file
+ * Driver callbacks defined below.
  */
-
-static Ns_ThreadProc SockThread;
-static void SockFreeConn(SockDrv *sdPtr, ConnData *cdPtr);
-static SockDrv *firstSockDrvPtr;
-static Ns_Thread sockThread;
-static SOCKET trigPipe[2];
 
 static Ns_DriverStartProc SockStart;
 static Ns_DriverStopProc SockStop;
@@ -155,12 +157,14 @@ static Ns_ConnPeerPortProc SockPeerPort;
 static Ns_ConnPortProc SockPort;
 static Ns_ConnHostProc SockHost;
 static Ns_ConnDriverNameProc SockName;
-#ifdef SSL 
 static Ns_ConnInitProc SockInit; 
-#endif 
 #ifdef HAVE_SENDV
 static Ns_ConnSendFdProc SockSendFd;
 #endif
+
+/*
+ * Driver structure passed to Ns_RegisterDriver.
+ */
 
 static Ns_DrvProc sockProcs[] = {
     {Ns_DrvIdStart,        (void *) SockStart},
@@ -176,14 +180,29 @@ static Ns_DrvProc sockProcs[] = {
     {Ns_DrvIdLocation,     (void *) SockLocation},
     {Ns_DrvIdConnectionFd, (void *) SockConnectionFd},
     {Ns_DrvIdDetach,       (void *) SockDetach},
-#ifdef SSL 
     {Ns_DrvIdInit,         (void *) SockInit}, 
-#endif 
 #ifdef HAVE_SENDV
     {Ns_DrvIdSendFd,       (void *) SockSendFd},
 #endif
     {0,                    NULL}
 };
+
+/*
+ * Static functions and variables defined in this file.
+ */
+
+static Ns_Callback SockShutdown;
+static Ns_Callback SockReady;
+static Ns_ThreadProc SockThread;
+static void SockRelease(Conn *connPtr);
+static void SockTrigger(void);
+
+static Driver *firstDrvPtr;  /* First in list of all drivers. */
+static Conn *firstClosePtr; /* First conn ready for graceful close. */
+static Ns_Thread sockThread;/* Running SockThread. */
+static SOCKET trigPipe[2];  /* Trigger to wakeup SockThread select(). */
+static int shutdownPending; /* Flag to indicate shutdown. */
+static Ns_Mutex lock;	    /* Lock around close list and shutdown flag. */
 
 NS_EXPORT int Ns_ModuleVersion = 1;
 
@@ -193,14 +212,15 @@ NS_EXPORT int Ns_ModuleVersion = 1;
  *
  * Ns_ModuleInit --
  *
- *	Sock module init routine.
+ *	Sock module init routine.  Each instance is added to the
+ *	driver list after resolving the locaation, address, and port.
  *
  * Results:
  *	NS_OK if initialized ok, NS_ERROR otherwise.
  *
  * Side effects:
- *	Calls Ns_RegisterLocation as specified by this instance
- *	in the config file.
+ *	Listen socket will be opened later in SockStart called by
+ *	driver core.
  *
  *----------------------------------------------------------------------
  */
@@ -213,20 +233,19 @@ Ns_ModuleInit(char *server, char *name)
     Ns_DString ds;
     struct in_addr  ia;
     struct hostent *he;
-    SockDrv *sdPtr;
-
+    Driver *drvPtr;
 #ifdef SSL 
     char *cert, *key; 
 #endif 
     
-    /*
-     * Determine the hostname used for the local address to bind
-     * to and/or the HTTP location string.
-     */
-
     path = Ns_ConfigGetPath(server, name, NULL);
 
 #ifdef SSL 
+
+    /*
+     * Initialize the global and per-driver SSL.
+     */
+
     if (NsSSLInitialize(server, name) != NS_OK) { 
         Ns_Log(Error, "%s: failed to initialize ssl driver", DRIVER_NAME);
         return NS_ERROR; 
@@ -236,8 +255,19 @@ Ns_ModuleInit(char *server, char *name)
         Ns_Log(Warning, "%s: certfile not specified", DRIVER_NAME); 
         return NS_OK; 
     } 
+#ifdef SSL_EXPORT 
+    n = 40;
+#else
+    n = 128;
+#endif
+    Ns_Log(Notice, "%s: initialized with %d-bit encryption", module, n);
 #endif 
     
+    /*
+     * Determine the hostname used for the local address to bind
+     * to and/or the HTTP location string.
+     */
+
     host = Ns_ConfigGet(path, "hostname");
     bindaddr = address = Ns_ConfigGet(path, "address");
 
@@ -303,73 +333,72 @@ Ns_ModuleInit(char *server, char *name)
     }
 
     /*
+     * Allocate a new driver instance, initialize the SSL context,
+     * and set configurable parameters.
+     */
+
+    drvPtr = ns_calloc(1, sizeof(Driver));
+#ifdef SSL 
+    key = Ns_ConfigGet(path, "keyfile"); 
+    drvPtr->dssl = NsSSLCreateServer(cert, key); 
+    if (drvPtr->dssl == NULL) { 
+        ns_free(drvPtr); 
+        return NS_ERROR; 
+    } 
+    drvPtr->bufsize = 0;
+#else 
+    if (!Ns_ConfigGetInt(path, "bufsize", &n) || n < 1) { 
+        n = 16000; 
+    }
+    drvPtr->bufsize = n;
+#endif 
+    drvPtr->name = name;
+    if (!Ns_ConfigGetInt(path, "socktimeout", &n) || n < 1) {
+	n = 30;		/* NB: 30 seconds. */
+    }
+    drvPtr->timeout = n;
+    if (!Ns_ConfigGetInt(path, "closewait", &n) || n < 0) {
+	n = 2;		/* NB: 2 seconds */
+    }
+    drvPtr->closewait = n;
+
+    /*
      * Determine the port and then set the HTTP location string either
      * as specified in the config file or constructed from the
      * hostname and port.
      */
 
-    sdPtr = ns_calloc(1, sizeof(SockDrv));
-
-#ifdef SSL 
-    key = Ns_ConfigGet(path, "keyfile"); 
-    sdPtr->server = NsSSLCreateServer(cert, key); 
-    if (sdPtr->server == NULL) { 
-        ns_free(sdPtr); 
-        return NS_ERROR; 
-    } 
-    sdPtr->bufsize = 0; 
-#else 
-    if (!Ns_ConfigGetInt(path, "bufsize", &n) || n < 1) { 
-        n = 16000; 
-    } 
-    sdPtr->bufsize = n; 
-#endif 
-    Ns_MutexSetName2(&sdPtr->lock, DRIVER_NAME, name);
-    sdPtr->refcnt = 1;
-    sdPtr->lsock = INVALID_SOCKET;
-    sdPtr->name = name;
-    sdPtr->bindaddr = bindaddr;
-    sdPtr->address = ns_strdup(address);
-    if (!Ns_ConfigGetInt(path, "port", &sdPtr->port)) {
-	sdPtr->port = DEFAULT_PORT;
+    drvPtr->bindaddr = bindaddr;
+    drvPtr->address = ns_strdup(address);
+    if (!Ns_ConfigGetInt(path, "port", &drvPtr->port)) {
+	drvPtr->port = DEFAULT_PORT;
     }
-    sdPtr->location = Ns_ConfigGet(path, "location");
-    if (sdPtr->location != NULL) {
-	sdPtr->location = ns_strdup(sdPtr->location);
+    drvPtr->location = Ns_ConfigGet(path, "location");
+    if (drvPtr->location != NULL) {
+	drvPtr->location = ns_strdup(drvPtr->location);
     } else {
     	Ns_DStringInit(&ds);
 	Ns_DStringVarAppend(&ds, DEFAULT_PROTOCOL "://", host, NULL);
-	if (sdPtr->port != DEFAULT_PORT) {
-	    Ns_DStringPrintf(&ds, ":%d", sdPtr->port);
+	if (drvPtr->port != DEFAULT_PORT) {
+	    Ns_DStringPrintf(&ds, ":%d", drvPtr->port);
 	}
-	sdPtr->location = Ns_DStringExport(&ds);
+	drvPtr->location = Ns_DStringExport(&ds);
     }
-    if (!Ns_ConfigGetInt(path, "socktimeout", &n) || n < 1) {
-	n = 30;
-    }
-    sdPtr->timeout = n;
-    if (!Ns_ConfigGetInt(path, "closewait", &n)) {
-	n = 2000;		/* 2k milliseconds */
-    }
-    sdPtr->closewait = n * 1000;
-    sdPtr->driver = Ns_RegisterDriver(server, name, sockProcs, sdPtr);
-    if (sdPtr->driver == NULL) {
-	SockFreeConn(sdPtr, NULL);
+
+    /*
+     * Register the driver and add to the drivers list.
+     */
+
+    drvPtr->driver = Ns_RegisterDriver(server, name, sockProcs, drvPtr);
+    if (drvPtr->driver == NULL) {
 	return NS_ERROR;
     }
-    sdPtr->nextPtr = firstSockDrvPtr;
-    firstSockDrvPtr = sdPtr;
-
-#ifdef SSL
-#ifdef SSL_EXPORT 
-    Ns_Log(Notice, "%s: initialized with 40-bit export encryption",
-	   DRIVER_NAME);
-#else 
-    Ns_Log(Notice, "%s: initialized with 128-bit domestic encryption",
-	   DRIVER_NAME);
-#endif 
-#endif
-
+    if (firstDrvPtr == NULL) {
+	Ns_MutexSetName(&lock, DRIVER_NAME);
+	Ns_RegisterAtShutdown(SockShutdown, NULL);
+    }
+    drvPtr->nextPtr = firstDrvPtr;
+    firstDrvPtr = drvPtr;
     return NS_OK;
 }
 
@@ -379,15 +408,14 @@ Ns_ModuleInit(char *server, char *name)
  *
  * SockStart --
  *
- *	Configure and then start the SockThread servicing new
- *	connections.  This is the final initializiation routine
- *	called from main().
+ *	Listen on driver instance address/port and start SockThread
+ *	if needed.
  *
  * Results:
- *	None.
+ *	NS_OK or NS_ERROR if driver could not listen.
  *
  * Side effects:
- *	SockThread is created.
+ *	See SockThread.
  *
  *----------------------------------------------------------------------
  */
@@ -395,22 +423,35 @@ Ns_ModuleInit(char *server, char *name)
 static int
 SockStart(char *server, char *label, void **drvDataPtr)
 {
-    SockDrv *sdPtr = *((SockDrv **) drvDataPtr);
-    
-    sdPtr->lsock = Ns_SockListen(sdPtr->bindaddr, sdPtr->port);
-    if (sdPtr->lsock == INVALID_SOCKET) {
-	Ns_Log(Error, "%s: failed to listen on %s:%d: '%s'",
-	       sdPtr->name, sdPtr->address ? sdPtr->address : "*",
-	       sdPtr->port, ns_sockstrerror(ns_sockerrno));
+    Driver *drvPtr = *((Driver **) drvDataPtr);
+
+    /*
+     * Create the listening socket and add to the Ports list.
+     */
+
+    drvPtr->sock = Ns_SockListen(drvPtr->bindaddr, drvPtr->port);
+    if (drvPtr->sock == INVALID_SOCKET) {
+	Ns_Log(Error, "%s: failed to listen on %s:%d: %s",
+	    drvPtr->name, drvPtr->address ? drvPtr->address : "*",
+	    drvPtr->port, ns_sockstrerror(ns_sockerrno));
 	return NS_ERROR;
     }
+    Ns_SockSetNonBlocking(drvPtr->sock);
+
+    /*
+     * Start the SockThread if necessary.
+     */
+
+    Ns_MutexLock(&lock);
     if (sockThread == NULL) {
 	if (ns_sockpair(trigPipe) != 0) {
-	    Ns_Fatal("%s: ns_sockpair() failed: '%s'",
+	    Ns_Fatal("%s: ns_sockpair() failed: %s",
 		     DRIVER_NAME, ns_sockstrerror(ns_sockerrno));
 	}
 	Ns_ThreadCreate(SockThread, NULL, 0, &sockThread);
+	Ns_RegisterAtReady(SockReady, NULL);
     }
+    Ns_MutexUnlock(&lock);
     return NS_OK;
 }
 
@@ -418,47 +459,100 @@ SockStart(char *server, char *label, void **drvDataPtr)
 /*
  *----------------------------------------------------------------------
  *
- * SockFreeConn --
+ * SockStop --
  *
- *	Return a conneciton to the free list, decrement the driver
- *	refcnt, and free the driver if no longer in use.
+ *	Trigger the SockThread to begin shutdown.  This callback is
+ *	invoked by the driver core at the begging of server shutdown.
  *
  * Results:
  *	None.
  *
  * Side effects:
- *	None.
+ *	SockThread will close listen sockets and then exit after all
+ *	outstanding connections are complete and closed.
  *
  *----------------------------------------------------------------------
  */
 
 static void
-SockFreeConn(SockDrv *sdPtr, ConnData *cdPtr)
+SockStop(void *arg)
 {
-    int refcnt;
-
-    Ns_MutexLock(&sdPtr->lock);
-    if (cdPtr != NULL) {
-	cdPtr->nextPtr = sdPtr->firstFreePtr;
-	sdPtr->firstFreePtr = cdPtr;
+    Ns_MutexLock(&lock);
+    if (sockThread != NULL && !shutdownPending) {
+    	Ns_Log(Notice, "%s: triggering shutdown", DRIVER_NAME);
+	shutdownPending = 1;
+	SockTrigger();
     }
-    refcnt = --sdPtr->refcnt;
-    Ns_MutexUnlock(&sdPtr->lock);
+    Ns_MutexUnlock(&lock);
+}
 
-    if (refcnt == 0) {
-    	ns_free(sdPtr->location);
-    	ns_free(sdPtr->address);
-	while ((cdPtr = sdPtr->firstFreePtr) != NULL) {
-	    sdPtr->firstFreePtr = cdPtr->nextPtr;
-	    ns_free(cdPtr);
-	}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * SockReady --
+ *
+ *	Trigger the SockThread to indicate the server is not longer
+ *	busy.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	SockThread will wakeup and retry Ns_QueueConn if a connection
+ *	is pending.
+ *
+ *----------------------------------------------------------------------
+ */
 
+static void
+SockReady(void *arg)
+{
+    Ns_MutexLock(&lock);
+    if (sockThread != NULL) {
+    	Ns_Log(Notice, "%s: server ready - resuming", DRIVER_NAME);
+	SockTrigger();
+    }
+    Ns_MutexUnlock(&lock);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * SockShutdown --
+ *
+ *	Wait for exit of SockThread.  This callback is invoke later by
+ *	the timed shutdown thread.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	SSL context will be destroyed.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+SockShutdown(void *arg)
+{
+    Driver *drvPtr;
+
+    if (sockThread != NULL) {
+	Ns_ThreadJoin(&sockThread, NULL);
+	sockThread = NULL;
+	ns_sockclose(trigPipe[0]);
+	ns_sockclose(trigPipe[1]);
+    }
+    drvPtr = firstDrvPtr;
+    while (drvPtr != NULL) {
 #ifdef SSL 
-        NsSSLDestroyServer(sdPtr->server); 
-#endif 
-	Ns_MutexDestroy(&sdPtr->lock);
-    	ns_free(sdPtr);
+        NsSSLDestroyServer(drvPtr->dssl); 
+#endif
+	drvPtr = drvPtr->nextPtr;
     }
+    Ns_Log(Notice, "%s: shutdown complete", DRIVER_NAME);
 }
 
 
@@ -473,174 +567,426 @@ SockFreeConn(SockDrv *sdPtr, ConnData *cdPtr)
  *	None.
  *
  * Side effects:
- *	Connections are accepted on the configured listen sockets
- *	and placed on the run queue to be serviced.
+ *	Connections are accepted on the configured listen sockets,
+ *	placed on the run queue to be serviced, and gracefully
+ *	closed when done.
  *
  *----------------------------------------------------------------------
  */
+
+static int
+SockQueue(Conn *connPtr)
+{
+    if (Ns_QueueConn(connPtr->drvPtr->driver, connPtr) != NS_OK) {
+	return 0;
+    }
+    return 1;
+}
+
+static int
+SockAccept(SOCKET lsock, SOCKET *sockPtr, struct sockaddr_in *saPtr)
+{
+    SOCKET sock;
+    int slen;
+
+    slen = sizeof(struct sockaddr_in);
+    sock = Ns_SockAccept(lsock, (struct sockaddr *) saPtr, &slen);
+    if (sock == INVALID_SOCKET) {
+	return 0;
+    }
+    *sockPtr = sock;
+    return 1;
+}
 
 static void
 SockThread(void *ignored)
 {
     fd_set set;
     char c;
-    int slen, n, stop;
-    SockDrv *sdPtr, *nextPtr;
-    ConnData *cdPtr;
+    int n, nactive, stopping;
+    Conn *connPtr, *closePtr, *nextPtr, *waitPtr;
+    Driver *activeDrvPtr;
+    Driver *drvPtr, *nextDrvPtr, *idleDrvPtr, *acceptDrvPtr;
     struct sockaddr_in sa;
     SOCKET max, sock;
+    time_t now, timeout;
+    struct timeval tv, *tvPtr;
+    char drain[1024];
     
     Ns_ThreadSetName("-" DRIVER_NAME "-");
     Ns_Log(Notice, "%s: waiting for startup", DRIVER_NAME);
     Ns_WaitForStartup();
     Ns_Log(Notice, "%s: starting", DRIVER_NAME);
-    
-    sdPtr = firstSockDrvPtr;
-    firstSockDrvPtr = NULL;
-    while (sdPtr != NULL) {
-	nextPtr = sdPtr->nextPtr;
-	if (sdPtr->lsock != INVALID_SOCKET) {
-    	    Ns_Log(Notice, "%s: listening on %s (%s:%d)",
-			    sdPtr->name, sdPtr->location,
-	      		    sdPtr->address ? sdPtr->address : "*",
-			    sdPtr->port);
-    	    Ns_SockSetNonBlocking(sdPtr->lsock);
-	    sdPtr->nextPtr = firstSockDrvPtr;
-	    firstSockDrvPtr = sdPtr;
+
+    /*
+     * Build up the list of active drivers.
+     */
+
+    activeDrvPtr = NULL;
+    drvPtr = firstDrvPtr;
+    firstDrvPtr = NULL;
+    while (drvPtr != NULL) {
+	nextDrvPtr = drvPtr->nextPtr;
+	if (drvPtr->sock != INVALID_SOCKET) {
+	    drvPtr->nextPtr = activeDrvPtr;
+	    activeDrvPtr = drvPtr;
+	} else {
+	    drvPtr->nextPtr = firstDrvPtr;
+	    firstDrvPtr = drvPtr;
 	}
-	sdPtr = nextPtr;
+	drvPtr = nextDrvPtr;
     }
 
-    Ns_Log(Notice, "%s: accepting connections", DRIVER_NAME);
+    /*
+     * Loop forever until signalled to shutdown and all
+     * connections are complete and gracefully closed.
+     */
 
-    stop = 0;
-    do {
+    Ns_Log(Notice, "%s: accepting connections", DRIVER_NAME);
+    nactive = 0;
+    closePtr = waitPtr = NULL;
+    time(&now);
+    while (activeDrvPtr || nactive || closePtr || waitPtr) {
+
+	/*
+	 * Set trigger pipe bit.
+	 */
+
 	FD_ZERO(&set);
 	FD_SET(trigPipe[0], &set);
 	max = trigPipe[0];
-    	sdPtr = firstSockDrvPtr;
-	while (sdPtr != NULL) {
-	    FD_SET(sdPtr->lsock, &set);
-	    if (max < sdPtr->lsock) {
-	        max = sdPtr->lsock;
+
+	/*
+	 * Set the bits for all active drivers if a connection
+	 * isn't already pending.
+	 */
+
+	if (waitPtr == NULL) {
+    	    drvPtr = activeDrvPtr;
+	    while (drvPtr != NULL) {
+		FD_SET(drvPtr->sock, &set);
+		if (max < drvPtr->sock) {
+		    max = drvPtr->sock;
+		}
+		drvPtr = drvPtr->nextPtr;
 	    }
-	    sdPtr = sdPtr->nextPtr;
 	}
+
+	/*
+	 * If there are any closing sockets, set the bits
+	 * and determine the minimum relative timeout.
+	 */
+
+	if (closePtr == NULL) {
+	    tvPtr = NULL;
+	} else {
+	    timeout = INT_MAX;
+	    connPtr = closePtr;
+	    while (connPtr != NULL) {
+		FD_SET(connPtr->sock, &set);
+		if (max < connPtr->sock) {
+		    max = connPtr->sock;
+		}
+		if (timeout > connPtr->timeout) {
+		    timeout = connPtr->timeout;
+		}
+		connPtr = connPtr->nextPtr;
+	    }
+	    if (timeout > now) {
+		tv.tv_sec = (int) timeout - now;
+	    } else {
+		tv.tv_sec = 0;
+	    }
+	    tv.tv_usec = 0;
+	    tvPtr = &tv;
+	}
+
+	/*
+	 * Select and drain the trigger pipe if necessary.
+	 */
+
 	do {
-	    n = select(max+1, &set, NULL, NULL, NULL);
+	    n = select(max+1, &set, NULL, NULL, tvPtr);
 	} while (n < 0  && ns_sockerrno == EINTR);
 	if (n < 0) {
-	    Ns_Fatal("%s: select() failed: '%s'",
-		     DRIVER_NAME, ns_sockstrerror(ns_sockerrno));
-	} else if (FD_ISSET(trigPipe[0], &set)) {
-	    if (recv(trigPipe[0], &c, 1, 0) != 1) {
-	    	Ns_Fatal("%s: trigger recv() failed: '%s'",
-			 DRIVER_NAME, ns_sockstrerror(ns_sockerrno));
+	    Ns_Fatal("%s: select() failed: %s", DRIVER_NAME,
+		ns_sockstrerror(ns_sockerrno));
+	}
+	if (FD_ISSET(trigPipe[0], &set) && recv(trigPipe[0], &c, 1, 0) != 1) {
+	    Ns_Fatal("%s: trigger recv() failed: %s", DRIVER_NAME,
+		ns_sockstrerror(ns_sockerrno));
+	}
+
+	/*
+	 * Update the current time and drain and/or release any
+	 * closing sockets.
+	 */
+
+	time(&now);
+	if (closePtr != NULL) {
+	    connPtr = closePtr;
+	    closePtr = NULL;
+	    while (connPtr != NULL) {
+		nextPtr = connPtr->nextPtr;
+		if (FD_ISSET(connPtr->sock, &set)) {
+		    n = recv(connPtr->sock, drain, sizeof(drain), 0);
+		    if (n <= 0) {
+			connPtr->timeout = now;
+		    }
+		}
+		if (connPtr->timeout <= now) {
+		    SockRelease(connPtr);
+		} else {
+		    connPtr->nextPtr = closePtr;
+		    closePtr = connPtr;
+		}
+		connPtr = nextPtr;
 	    }
-	    stop = 1;
-	    --n;
 	}
 	
-	sdPtr = firstSockDrvPtr;
-	while (n > 0 && sdPtr != NULL) {
-	    if (FD_ISSET(sdPtr->lsock, &set)) {
-		--n;
-    		slen = sizeof(sa);
-    		sock = Ns_SockAccept(sdPtr->lsock, (struct sockaddr *) &sa, &slen);
-		if (sock != INVALID_SOCKET) {
-    	    	    Ns_SockSetNonBlocking(sock);
-		    Ns_MutexLock(&sdPtr->lock);
-		    ++sdPtr->refcnt;
-		    cdPtr = sdPtr->firstFreePtr;
-		    if (cdPtr != NULL) {
-			sdPtr->firstFreePtr = cdPtr->nextPtr;
-		    }
-		    Ns_MutexUnlock(&sdPtr->lock);
-		    if (cdPtr == NULL) {
-			cdPtr = ns_malloc(sizeof(ConnData) + sdPtr->bufsize);
-		    }
-		    cdPtr->sdPtr = sdPtr;
-		    cdPtr->sock = sock;
-		    cdPtr->port = ntohs(sa.sin_port);
-#ifdef SSL 
-                    cdPtr->conn = NULL; 
-#else 
-		    cdPtr->cnt = cdPtr->nrecv = cdPtr->nsend = 0;
-		    cdPtr->base = cdPtr->buf;
-#endif
-		    strcpy(cdPtr->peer, ns_inet_ntoa(sa.sin_addr));
-		    if (Ns_QueueConn(sdPtr->driver, cdPtr) != NS_OK) {
-#ifndef SSL
-			(void) send(sock, BUSY, sizeof(BUSY), 0);
-			Ns_Log(Warning, "%s: server too busy: "
-			       "request failed for peer %s",
-			       DRIVER_NAME, cdPtr->peer);
-#endif
-			(void) SockClose(cdPtr);
-		    }
-	    	}
-	    }
-	    sdPtr = sdPtr->nextPtr;
-	}
-    } while (!stop);
+	/*
+	 * Attempt to queue any pending connection.  Otherwise,
+	 * accept new connections as long as they can be queued.
+	 */
 
-    while ((sdPtr = firstSockDrvPtr) != NULL) {
-	firstSockDrvPtr = sdPtr->nextPtr;
-	Ns_Log(Notice, "%s: closing %s", sdPtr->name, sdPtr->location);
-	ns_sockclose(sdPtr->lsock);
-	SockFreeConn(sdPtr, NULL);
+	if (waitPtr != NULL) {
+	    if (SockQueue(waitPtr)) {
+		waitPtr = NULL;
+		++nactive;
+	    }
+	} else {
+	    drvPtr = activeDrvPtr;
+	    activeDrvPtr = idleDrvPtr = acceptDrvPtr = NULL;
+	    while (drvPtr != NULL) {
+		nextDrvPtr = drvPtr->nextPtr;
+		if (waitPtr != NULL
+			|| !FD_ISSET(drvPtr->sock, &set)
+			|| !SockAccept(drvPtr->sock, &sock, &sa)) {
+		    /*
+		     * Add this port to the temporary idle list.
+		     */
+
+		    drvPtr->nextPtr = idleDrvPtr;
+		    idleDrvPtr = drvPtr;
+		} else {
+		    /*
+		     * Add this port to the temporary accepted list.
+		     */
+
+		    drvPtr->nextPtr = acceptDrvPtr;
+		    acceptDrvPtr = drvPtr;
+
+		    /*
+		     * Allocate and/or initialize a connection structure.
+		     */
+
+		    connPtr = drvPtr->firstFreeConnPtr;
+		    if (connPtr != NULL) {
+			drvPtr->firstFreeConnPtr = connPtr->nextPtr;
+		    } else {
+			connPtr = ns_malloc(sizeof(Conn) + drvPtr->bufsize);
+			connPtr->drvPtr = drvPtr;
+		    }
+		    connPtr->nextPtr = NULL;
+		    connPtr->sock = sock;
+		    connPtr->nrecv = connPtr->nsend = 0;
+#ifdef SSL
+		    connPtr->cssl = NULL; 
+#else 
+		    connPtr->cnt = 0;
+		    connPtr->base = connPtr->buf;
+#endif
+		    connPtr->port = ntohs(sa.sin_port);
+		    strcpy(connPtr->peer, ns_inet_ntoa(sa.sin_addr));
+
+		    /*
+		     * Even though the socket should have inherited
+		     * non-blocking from the accept socket, set again
+		     * just to be sure.
+		     */
+
+		    Ns_SockSetNonBlocking(connPtr->sock);
+
+		    /*
+		     * Attempt to queue the socket, holding it if
+		     * necessary to try again later.
+		     */
+
+		    if (!SockQueue(connPtr)) {
+			waitPtr = connPtr;
+		    } else {
+			++nactive;
+		    }
+		}
+		drvPtr = nextDrvPtr;
+	    }
+
+	    /*
+	     * Put the active driver list back together with the idle
+	     * drivers first but otherwise in the original order.  This
+	     * should ensure round-robin service of the drivers.
+	     */
+
+	    while ((drvPtr = acceptDrvPtr) != NULL) {
+		acceptDrvPtr = drvPtr->nextPtr;
+		drvPtr->nextPtr = activeDrvPtr;
+		activeDrvPtr = drvPtr;
+	    }
+	    while ((drvPtr = idleDrvPtr) != NULL) {
+		idleDrvPtr = drvPtr->nextPtr;
+		drvPtr->nextPtr = activeDrvPtr;
+		activeDrvPtr = drvPtr;
+	    }
+	}
+
+	/*
+	 * Check for shutdown and get the list of any closing sockets.
+	 */
+
+	Ns_MutexLock(&lock);
+	connPtr = firstClosePtr;
+	firstClosePtr = NULL;
+	stopping = shutdownPending;
+	Ns_MutexUnlock(&lock);
+
+	/*
+	 * Update the timeout for each closing socket and add to the
+	 * close list if some data has been read from the socket
+	 * (i.e., it's not a closing keep-alive connection).
+	 */
+
+	while (connPtr != NULL) {
+	    nextPtr = connPtr->nextPtr;
+	    --nactive;
+	    if (connPtr->nrecv == 0 || shutdown(connPtr->sock, 1) != 0) {
+		SockRelease(connPtr);
+	    } else {
+		connPtr->nextPtr = closePtr;
+		closePtr = connPtr;
+		connPtr->timeout = now + connPtr->drvPtr->closewait;
+	    }
+	    connPtr = nextPtr;
+	}
+
+	/*
+	 * Close the active drivers if shutdown is pending.
+	 */
+
+	if (stopping) {
+	    while ((drvPtr = activeDrvPtr) != NULL) {
+		activeDrvPtr = drvPtr->nextPtr;
+		ns_sockclose(drvPtr->sock);
+		drvPtr->sock = INVALID_SOCKET;
+		drvPtr->nextPtr = firstDrvPtr;
+		firstDrvPtr = drvPtr;
+	    }
+	}
     }
 
-    ns_sockclose(trigPipe[0]);
-    ns_sockclose(trigPipe[1]);
+    Ns_Log(Notice, "exiting");
 }
 
 
 /*
-*----------------------------------------------------------------------
+ *----------------------------------------------------------------------
  *
- * SockStop --
+ * SockRelease --
  *
- *	Trigger the SockThread to shutdown.
+ *	Close a socket and release the connection structure for
+ *	re-use.
  *
  * Results:
  *	None.
  *
  * Side effects:
- *	SockThread will close ports.
+ *	None.
  *
  *----------------------------------------------------------------------
  */
+
 static void
-SockStop(void *arg)
+SockRelease(Conn *connPtr)
 {
-SockDrv *sdPtr = (SockDrv *) arg;
-    
-    if (sockThread != NULL) {
-    	Ns_Log(Notice, "%s: exiting: triggering shutdown", DRIVER_NAME);
-	if (send(trigPipe[1], "", 1, 0) != 1) {
-	    Ns_Fatal("%s: trigger send() failed: %s",
-		     DRIVER_NAME, ns_sockstrerror(ns_sockerrno));
-	}
-	Ns_ThreadJoin(&sockThread, NULL);
-	sockThread = NULL;
-    	Ns_Log(Notice, "%s: exiting: shutdown complete", DRIVER_NAME);
-	}
-    }
+    ns_sockclose(connPtr->sock);
+    connPtr->sock = INVALID_SOCKET;
+    connPtr->nextPtr = connPtr->drvPtr->firstFreeConnPtr;
+    connPtr->drvPtr->firstFreeConnPtr = connPtr;
+}
 
 
 /*
  *----------------------------------------------------------------------
  *
- * SockClose --
+ * SockTrigger --
  *
- *	Close the socket 
+ *	Wakeup SockThread from blocking select().
  *
  * Results:
- *	NS_OK/NS_ERROR 
+ *	None.
  *
  * Side effects:
- *	Socket will be closed and buffer returned to free list.
+ *	SockThread will wakeup.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+SockTrigger(void)
+{
+    if (send(trigPipe[1], "", 1, 0) != 1) {
+	Ns_Fatal("%s: trigger send() failed: %s", DRIVER_NAME,
+	    ns_sockstrerror(ns_sockerrno));
+    }
+}
+
+
+/* 
+ *---------------------------------------------------------------------- 
+ * 
+ * SockInit -- 
+ * 
+ *      Initialize the SSL connection. 
+ * 
+ * Results: 
+ *      NS_OK/NS_ERROR 
+ * 
+ * Side effects: 
+ *	See NsSSLCreateConn.
+ * 
+ *---------------------------------------------------------------------- 
+ */ 
+
+static int 
+SockInit(void *arg) 
+{ 
+    Conn   *connPtr = arg; 
+ 
+#ifdef SSL 
+    if (connPtr->cssl == NULL) { 
+        connPtr->cssl = NsSSLCreateConn(connPtr->sock,
+			    connPtr->drvPtr->timeout,
+			    connPtr->drvPtr->dssl); 
+        if (connPtr->cssl == NULL) { 
+            return NS_ERROR; 
+        } 
+    } 
+#endif
+    return NS_OK; 
+}
+
+
+/* 
+ *----------------------------------------------------------------------
+ *
+ * SockClose --
+ *
+ *	Return a connction to the SockThread for closing.
+ *
+ * Results:
+ *	NS_OK
+ *
+ * Side effects:
+ *	SSL conn will be flushed and then destroyed.
  *
  *----------------------------------------------------------------------
  */
@@ -648,57 +994,28 @@ SockDrv *sdPtr = (SockDrv *) arg;
 static int
 SockClose(void *arg)
 {
-    ConnData *cdPtr = arg;
-    SockDrv *sdPtr = cdPtr->sdPtr;
+    Conn *connPtr = arg;
+    int trigger = 0;
     
-    if (cdPtr->sock != INVALID_SOCKET) {
-	
 #ifdef SSL 
-        if (cdPtr->conn != NULL) { 
-            (void) NsSSLFlush(cdPtr->conn); 
-            NsSSLDestroyConn(cdPtr->conn); 
-            cdPtr->conn = NULL; 
-        } 
-#endif 
-
-	/*
-	 * Some clients will have trouble if we simply
-	 * close the socket here so instead a shutdown()
-	 * followed by draining any unacknowledge data
-	 * is used.
-	 */
-
-	if (cdPtr->nrecv > 0
-	    && cdPtr->sdPtr->closewait > 0
-	    && shutdown(cdPtr->sock, 1) == 0) {
-	    char drain[1024];
-	    Ns_Time now, wait, diff;
-	    int n;
-	    fd_set set;
-	    struct timeval tv;
-
-	    Ns_GetTime(&wait);
-	    Ns_IncrTime(&wait, 0, cdPtr->sdPtr->closewait);
-	    do {
-		Ns_GetTime(&now);
-		Ns_DiffTime(&wait, &now, &diff);
-		if (diff.sec < 0) {
-		    break;
-		}
-		tv.tv_sec = diff.sec;
-		tv.tv_usec = diff.usec;
-		FD_ZERO(&set);
-		FD_SET(cdPtr->sock, &set);
-		n = select(cdPtr->sock + 1, &set, NULL, NULL, &tv);
-	    } while (n == 1 && recv(cdPtr->sock, drain, sizeof(drain), 0) > 0);
-	}
-	ns_sockclose(cdPtr->sock);
-	cdPtr->sock = INVALID_SOCKET;
+    if (connPtr->cssl != NULL) { 
+        (void) NsSSLFlush(connPtr->cssl); 
+        NsSSLDestroyConn(connPtr->cssl); 
+        connPtr->cssl = NULL;
     }
-    SockFreeConn(cdPtr->sdPtr, cdPtr);
+#endif
+    Ns_MutexLock(&lock);
+    if (firstClosePtr == NULL) {
+	trigger = 1;
+    }
+    connPtr->nextPtr = firstClosePtr;
+    firstClosePtr = connPtr;
+    Ns_MutexUnlock(&lock);
+    if (trigger) {
+	SockTrigger();
+    }
     return NS_OK;
 }
-
 
 
 /*
@@ -708,58 +1025,65 @@ SockClose(void *arg)
  *
  *	Read from the socket 
  *
+ *	NB: May block waiting for requested number of bytes!
+ *
  * Results:
- *	# bytes read 
+ *	Number of bytes read or -1 on timeout or error.
  *
  * Side effects:
- *	Will read from socket 
+ *	Either reads through SSL code or through socket buffer.
  *
  *----------------------------------------------------------------------
  */
 
 static int
-SockRead(void *arg, void *vbuf, int toread)
+SockRead(void *arg, void *vbuf, int len)
 {
-    ConnData   *cdPtr = arg;
+    Conn   *connPtr = arg;
+    int	    nread;
 
 #ifdef SSL 
-    /* 
-     * SSL returns immediately. 
-     */ 
-    return NsSSLRecv(cdPtr->conn, vbuf, toread); 
+    nread = NsSSLRecv(connPtr->cssl, vbuf, len);
 #else 
-    
     char       *buf = (char *) vbuf;
-    int		nread;
-    int         tocopy;
+    int         n;
     
-    nread = 0;
-    while (toread > 0) {
-        if (cdPtr->cnt > 0) {
-            if (cdPtr->cnt > toread) {
-                tocopy = toread;
+    nread = len;
+    while (len > 0) {
+        if (connPtr->cnt > 0) {
+	    /*
+	     * Copy bytes already in read-ahead buffer.
+	     */
+
+            if (connPtr->cnt > len) {
+                n = len;
             } else {
-                tocopy = cdPtr->cnt;
+                n = connPtr->cnt;
             }
-            memcpy(buf, cdPtr->base, tocopy);
-            cdPtr->base += tocopy;
-            cdPtr->cnt -= tocopy;
-            toread -= tocopy;
-            nread += tocopy;
-            buf += tocopy;
+            memcpy(buf, connPtr->base, n);
+            connPtr->base += n;
+            connPtr->cnt -= n;
+            len -= n;
+            buf += n;
         }
-        if (toread > 0) {
-            cdPtr->base = cdPtr->buf;
-	    cdPtr->cnt = Ns_SockRecv(cdPtr->sock, cdPtr->buf,
-		cdPtr->sdPtr->bufsize, cdPtr->sdPtr->timeout);
-	    if (cdPtr->cnt <= 0) {
+        if (len > 0) {
+	    /*
+	     * Attempt to fill the read-ahead buffer.
+	     */
+
+            connPtr->base = connPtr->buf;
+	    connPtr->cnt = Ns_SockRecv(connPtr->sock, connPtr->buf,
+		connPtr->drvPtr->bufsize, connPtr->drvPtr->timeout);
+	    if (connPtr->cnt <= 0) {
 		return -1;
 	    }
-	    cdPtr->nrecv += cdPtr->cnt;
     	}
     }
-    return nread;
 #endif
+    if (nread > 0) {
+	connPtr->nrecv += nread;
+    }
+    return nread;
 }
 
 
@@ -769,10 +1093,11 @@ SockRead(void *arg, void *vbuf, int toread)
  * SockWrite --
  *
  *	Writes data to a socket.
- *	NOTE: This may not write all of the data you send it!
+ *
+ *	NB: May block waiting to send requested number of bytes!
  *
  * Results:
- *	Number of bytes written, -1 for error 
+ *	Number of bytes written or -1 for timeout or error.
  *
  * Side effects:
  *	Bytes may be written to a socket
@@ -781,21 +1106,33 @@ SockRead(void *arg, void *vbuf, int toread)
  */
 
 static int
-SockWrite(void *arg, void *buf, int towrite)
+SockWrite(void *arg, void *vbuf, int len)
 {
-    ConnData   *cdPtr = arg;
-    int nsend;
+    Conn   *connPtr = arg;
+    int	    nwrote;
 
 #ifdef SSL 
-    nsend = NsSSLSend(cdPtr->conn, buf, towrite); 
+    nwrote = NsSSLSend(connPtr->cssl, vbuf, towrite); 
 #else
-    nsend = Ns_SockSend(cdPtr->sock, buf, towrite, cdPtr->sdPtr->timeout);
-#endif
+    int     n;
+    char   *buf;
 
-    if (nsend > 0) {
-	cdPtr->nsend += nsend;
+    nwrote = len;
+    buf = vbuf;
+    while (len > 0) {
+	n = Ns_SockSend(connPtr->sock, buf, len,
+	    connPtr->drvPtr->timeout);
+	if (n < 0) {
+	    return -1;
+	}
+	len -= n;
+	buf += n;
     }
-    return nsend;
+#endif
+    if (nwrote > 0) {
+	connPtr->nsend += nwrote;
+    }
+    return nwrote;
 }
 
 
@@ -818,9 +1155,9 @@ SockWrite(void *arg, void *buf, int towrite)
 static char *
 SockHost(void *arg)
 {
-    ConnData   *cdPtr = arg;
+    Conn   *connPtr = arg;
 
-    return cdPtr->sdPtr->address;
+    return connPtr->drvPtr->address;
 }
 
 
@@ -843,9 +1180,9 @@ SockHost(void *arg)
 static int
 SockPort(void *arg)
 {
-    ConnData   *cdPtr = arg;
+    Conn   *connPtr = arg;
 
-    return cdPtr->sdPtr->port;
+    return connPtr->drvPtr->port;
 }
 
 
@@ -868,9 +1205,9 @@ SockPort(void *arg)
 static char *
 SockName(void *arg)
 {
-    ConnData   *cdPtr = arg;
+    Conn   *connPtr = arg;
 
-    return cdPtr->sdPtr->name;
+    return connPtr->drvPtr->name;
 }
 
 
@@ -893,66 +1230,9 @@ SockName(void *arg)
 static char *
 SockPeer(void *arg)
 {
-    ConnData   *cdPtr = arg;
+    Conn   *connPtr = arg;
 
-    return cdPtr->peer;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * SockConnectionFd --
- *
- *	Get the socket fd 
- *
- * Results:
- *	The socket fd 
- *
- * Side effects:
- *	None 
- *
- *----------------------------------------------------------------------
- */
-
-static int
-SockConnectionFd(void *arg)
-{
-    ConnData   *cdPtr = arg;
-
-#ifdef SSL 
-    if (cdPtr->conn == NULL || (NsSSLFlush(cdPtr->conn) != NS_OK)) { 
-        return -1; 
-    } 
-#endif 
-
-    return (int) cdPtr->sock;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * SockDetach --
- *
- *	Detach the connection data from this conneciton for keep-alive.
- *
- * Results:
- *	Pointer to connection data.
- *
- * Side effects:
- *	None.
- *
- *----------------------------------------------------------------------
- */
-
-static void *
-SockDetach(void *arg)
-{
-    ConnData   *cdPtr = arg;
-
-    cdPtr->nrecv = cdPtr->nsend = 0;
-    return arg;
+    return connPtr->peer;
 }
 
 
@@ -975,9 +1255,9 @@ SockDetach(void *arg)
 static int
 SockPeerPort(void *arg)
 {
-    ConnData   *cdPtr = arg;
+    Conn   *connPtr = arg;
 
-    return cdPtr->port;
+    return connPtr->port;
 }
 
 
@@ -1000,48 +1280,69 @@ SockPeerPort(void *arg)
 static char *
 SockLocation(void *arg)
 {
-    ConnData   *cdPtr = arg;
+    Conn   *connPtr = arg;
 
-    return cdPtr->sdPtr->location;
+    return connPtr->drvPtr->location;
 }
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * SockConnectionFd --
+ *
+ *	Get the socket fd.  This callback is used by the keep-alive
+ *	code to select() for readability.
+ *
+ * Results:
+ *	The socket fd.
+ *
+ * Side effects:
+ *	For SSL, any pending data is flushed.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+SockConnectionFd(void *arg)
+{
+    Conn   *connPtr = arg;
+
+#ifdef SSL 
+    if (connPtr->cssl == NULL || (NsSSLFlush(connPtr->cssl) != NS_OK)) { 
+        return -1; 
+    } 
+#endif 
+    return (int) connPtr->sock;
+}
 
 
-/* 
- *---------------------------------------------------------------------- 
- * 
- * SockInit -- 
- * 
- *      Initialize the SSL connection. 
- * 
- * Results: 
- *      NS_OK/NS_ERROR 
- * 
- * Side effects: 
- *      Data may be written to a socket. 
- * 
- *      NOTE: This is currently only implemented for 
- *      UnixWare. 
- * 
- *---------------------------------------------------------------------- 
- */ 
-#ifdef SSL 
-static int 
-SockInit(void *arg) 
-{ 
-    ConnData   *cdPtr = arg; 
- 
-    if (cdPtr->conn == NULL) { 
-        cdPtr->conn = NsSSLCreateConn(cdPtr->sock, cdPtr->sdPtr->timeout, 
-                                      cdPtr->sdPtr->server); 
-        if (cdPtr->conn == NULL) { 
-            return NS_ERROR; 
-        } 
-    } 
-    return NS_OK; 
-} 
-#endif 
+/*
+ *----------------------------------------------------------------------
+ *
+ * SockDetach --
+ *
+ *	Detach the connection data.  This callback is used by the
+ *	keep-alive code to enable the socket driver to reset the
+ *	data for a new connection.
+ *
+ * Results:
+ *	Pointer to connection data.
+ *
+ * Side effects:
+ *	Connection I/O counts reset.
+ *
+ *----------------------------------------------------------------------
+ */
 
+static void *
+SockDetach(void *arg)
+{
+    Conn   *connPtr = arg;
+
+    connPtr->nrecv = connPtr->nsend = 0;
+    return arg;
+}
 
 
 /* 
@@ -1063,15 +1364,15 @@ SockInit(void *arg)
 void * 
 NsSSLGetConn(Ns_Conn *conn) 
 { 
-    ConnData *cdPtr; 
+    Conn *connPtr; 
     char *name; 
  
     if (conn != NULL) { 
         name = Ns_ConnDriverName(conn); 
         if (name != NULL && STREQ(name, DRIVER_NAME)) { 
-            cdPtr = Ns_ConnDriverContext(conn); 
-            if (cdPtr != NULL) { 
-                return cdPtr->conn; 
+            connPtr = Ns_ConnDriverContext(conn); 
+            if (connPtr != NULL) { 
+                return connPtr->cssl; 
             } 
         } 
     } 
@@ -1079,23 +1380,19 @@ NsSSLGetConn(Ns_Conn *conn)
 } 
 #endif 
 
-
 
 /*
  *----------------------------------------------------------------------
  *
  * SockSendFd --
  *
- *      Sends the contents of a file to a socket.
+ *      Sends the contents of an open fd to a socket.
  *
  * Results:
  *	NS_OK/NS_ERROR
  *
  * Side effects:
- *	Stuff may be written to a socket.
- *
- *      NOTE: This is currently only implemented for
- *      UnixWare.
+ *	None.
  *
  *----------------------------------------------------------------------
  */
@@ -1104,7 +1401,7 @@ NsSSLGetConn(Ns_Conn *conn)
 static int
 SockSendFd(void *arg, int fd, int nsend)
 {
-    ConnData   *cdPtr = arg;
+    Conn   *connPtr = arg;
     struct sendv_iovec vec[1];
     int         n, len, off;
 
@@ -1120,10 +1417,10 @@ SockSendFd(void *arg, int fd, int nsend)
     while (len > 0) {
         vec[0].sendv_off = off;
         vec[0].sendv_len = len;
-        n = sendv(cdPtr->sock, vec, 1);
+        n = sendv(connPtr->sock, vec, 1);
         if (n < 0 && ns_sockerrno == EWOULDBLOCK
-	    && Ns_SockWait(cdPtr->sock, NS_SOCK_WRITE, cdPtr->sdPtr->timeout) == NS_OK) {
-            n = sendv(cdPtr->sock, vec, 1);
+	    && Ns_SockWait(connPtr->sock, NS_SOCK_WRITE, connPtr->drvPtr->timeout) == NS_OK) {
+            n = sendv(connPtr->sock, vec, 1);
         }   
         if (n <= 0) {
 	    return NS_ERROR;
