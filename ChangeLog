@@ -1,3 +1,8 @@
+2004-02-27 14:14  Dossy Shiobara <dossy@panoptic.com>
+
+	* include/ns.h: fix for bug #906011 "include/ns.h version not
+	  bumped"
+
 2004-02-26 14:37  Dossy Shiobara <dossy@panoptic.com>
 
 	* nsd/unix.c: uid_t is supposed to be unsigned, but apparently
