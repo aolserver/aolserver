@@ -47,7 +47,7 @@
 #include <pthread.h>
 #endif
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/test.c,v 1.9 2000/10/22 20:44:55 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/test.c,v 1.10 2000/11/09 00:48:41 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 /*
  * Collection of synchronization objects for tests.
@@ -65,6 +65,7 @@ static Ns_Mutex dlock;
 static Ns_Cond  dcond;
 static int      dstop;
 
+void DumpMem(Ns_Thread *thread);
 /*
  * Msg -
  *
@@ -232,6 +233,7 @@ int             nrunning;
 void
 MemThread(void *arg)
 {
+    Ns_Thread thread;
     int             i;
     void           *ptr;
 
@@ -255,6 +257,10 @@ MemThread(void *arg)
 	    ptr = malloc(10);
 	}
     }
+#if 0
+    Ns_ThreadSelf(&thread);
+    DumpMem(&thread);
+#endif
 }
 
 void
@@ -309,11 +315,42 @@ DumpLocks(Ns_MutexInfo * infoPtr, void *arg)
 }
 
 void
+DumpMem(Ns_Thread *thread)
+{
+    Ns_PoolInfo *infoPtr;
+    int i;
+
+    infoPtr = Ns_ThreadPoolStats(thread);
+    if (infoPtr == NULL) {
+	printf("null infoptr for %p\n", thread);
+    } else {
+	printf("memstats: name: %s sysalloc: %d\n", infoPtr->name,
+		infoPtr->nsysalloc);
+	for (i = 0; i < infoPtr->nbuckets; ++i) {
+	    printf("size: %d lock: %d wait: %d free: %d get: %d "
+		   "put: %d nrequest %ld\n",
+		infoPtr->buckets[i].blocksize,
+		infoPtr->buckets[i].nlock,
+		infoPtr->buckets[i].nwait,
+		infoPtr->buckets[i].nfree,
+		infoPtr->buckets[i].nget,
+		infoPtr->buckets[i].nput,
+		infoPtr->buckets[i].nrequest);
+	}
+    }
+}
+
+
+void
 DumpThreads(Ns_ThreadInfo * iPtr, void *ignored)
 {
+
     printf("\t%d(%d): %s %s %p %p %s", iPtr->tid, iPtr->flags, iPtr->name, iPtr->parent,
 	   iPtr->proc, iPtr->arg, ns_ctime(&iPtr->ctime));
+    DumpMem(iPtr->thread);
 }
+     
+
 
 void
 DumperThread(void *arg)
@@ -332,8 +369,6 @@ DumperThread(void *arg)
 	Ns_ThreadEnum(DumpThreads, NULL);
 	printf("current locks:\n");
 	Ns_MutexEnum(DumpLocks, NULL);
-	printf("memory stats:\n");
-	Ns_ThreadMemStats(stdout);
 	Ns_MutexUnlock(&mlock);
     }
     Ns_MutexUnlock(&dlock);
@@ -406,7 +441,9 @@ int main(int argc, char *argv[])
     Ns_Thread       threads[10];
     Ns_Thread       self, dumper;
     extern int      nsMemPools;
+    extern int      nsMemNumBuckets;
     void *arg;
+    char *p;
 #if PTHREAD_TEST
     pthread_t tids[10];
 #endif
@@ -419,12 +456,17 @@ int main(int argc, char *argv[])
      * Jump directly to memory test if requested. 
      */
 
-    if (argv[1] != NULL && argv[1][0] == 'm') {
-	i = atoi(argv[1] + 1);
-	if (i > 0) {
-	    nthreads = i;
+    for (i = 1; i < argc; ++i) {
+	p = argv[i];
+	switch (*p) {
+	    case 'n':
+	    	nsMemNumBuckets = atoi(p + 1);
+		break;
+	    case 'm':
+	    	nthreads = atoi(p + 1);
+		goto mem;
+		break;
 	}
-	goto mem;
     }
 
     Ns_ThreadCreate(DumperThread, NULL, 0, &dumper);
@@ -462,7 +504,6 @@ int main(int argc, char *argv[])
 	printf("pthread: create %d = %d\n", i, tids[i]);
 	Ns_ThreadYield();
     }
-    Ns_ThreadMemStats(stdout);
     Ns_MutexLock(&plock);
     pgo = 1;
     Ns_MutexUnlock(&plock);
@@ -491,6 +532,5 @@ int main(int argc, char *argv[])
 mem:
     MemTime(0);
     MemTime(1);
-    Ns_ThreadMemStats(stdout);
     return 0;
 }
