@@ -33,7 +33,7 @@
  *      All the public types and function declarations for the core
  *	AOLserver.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.48 2003/03/07 18:08:08 vasiljevic Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.49 2003/03/13 17:18:51 vasiljevic Exp $
  */
 
 #ifndef NS_H
@@ -108,6 +108,7 @@ typedef long INT64;
 typedef __int64                 ns_int64;
 typedef unsigned __int64        ns_uint64;
 #define NS_INT_64_FORMAT_STRING "%I64d"
+#define mode_t                  int     /* Bug: #703061 */ 
 #else
 typedef long long 		ns_int64;
 typedef unsigned long long      ns_uint64;
