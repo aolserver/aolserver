@@ -33,7 +33,7 @@
  *	AOLserver Ns_Main() startup routine.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.6 2000/08/25 21:21:00 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.7 2000/10/03 17:57:13 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -850,7 +850,7 @@ Ns_InfoPlatform(void)
     return "hp11";
 #elif defined(__unixware)
     return "UnixWare";
-#elif defined(__APPLE__)
+#elif defined(MACOSX)
     return "osx";
 #elif defined(WIN32)
     return "win32";
