@@ -33,7 +33,7 @@
  *	Initialization routines for Tcl.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.15 2001/04/12 17:53:29 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.16 2001/04/25 21:06:24 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -195,6 +195,7 @@ Ns_TclAllocateInterp(char *server)
 	Tcl_InitHashTable(&itPtr->sets, TCL_STRING_KEYS);
 	Tcl_InitHashTable(&itPtr->dbs, TCL_STRING_KEYS);	
 	Tcl_InitHashTable(&itPtr->chans, TCL_STRING_KEYS);	
+	Tcl_InitHashTable(&itPtr->https, TCL_STRING_KEYS);	
 	Tcl_SetAssocData(interp, "ns:data", FreeData, itPtr);
 	NsTclAddCmds(itPtr, interp);
 	initPtr = itPtr->servPtr->tcl.firstInitPtr;
@@ -567,9 +568,10 @@ FreeData(ClientData arg, Tcl_Interp *interp)
      * Free the NsInterp resources.
      */
 
-    NsFreeSets(itPtr);
-    NsFreeDbs(itPtr);
     NsFreeAdp(itPtr);
+    Tcl_DeleteHashTable(&itPtr->dbs);
+    Tcl_DeleteHashTable(&itPtr->sets);
     Tcl_DeleteHashTable(&itPtr->chans);
+    Tcl_DeleteHashTable(&itPtr->https);
     ns_free(itPtr);
 }

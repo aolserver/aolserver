@@ -34,7 +34,7 @@
  *	Tcl database access routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/dbtcl.c,v 1.10 2001/03/14 01:40:36 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/dbtcl.c,v 1.11 2001/04/25 21:06:24 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -108,7 +108,17 @@ NsTclDbCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
     }
     cmd = argv[1];
     if (STREQ(cmd, "cleanup")) {
-	NsFreeDbs(itPtr);
+    	Tcl_HashEntry  *hPtr;
+    	Tcl_HashSearch  search;
+
+    	hPtr = Tcl_FirstHashEntry(&itPtr->dbs, &search);
+    	while (hPtr != NULL) {
+	    handlePtr = Tcl_GetHashValue(hPtr);
+    	    Ns_DbPoolPutHandle(handlePtr);
+	    hPtr = Tcl_NextHashEntry(&search);
+    	}
+    	Tcl_DeleteHashTable(&itPtr->dbs);
+    	Tcl_InitHashTable(&itPtr->dbs, TCL_STRING_KEYS);
 	
     } else if (STREQ(cmd, "open") || STREQ(cmd, "close")) {
     	Tcl_AppendResult(interp, "unsupported ns_db command: ", cmd, NULL);
@@ -963,42 +973,4 @@ DbFail(Tcl_Interp *interp, Ns_DbHandle *handle, char *cmd)
         Tcl_AppendResult(interp, ")", NULL);
     }
     return TCL_ERROR;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsFreeDbs --
- *
- *      Release any remaining db handles.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      See Ns_DbPutHandle.
- *
- *----------------------------------------------------------------------
- */
-
-void
-NsFreeDbs(NsInterp *itPtr)
-{
-    Tcl_HashTable *tablePtr;
-    Tcl_HashSearch search;
-    Tcl_HashEntry *hPtr;
-    Ns_DbHandle *handle;
-
-    tablePtr = &itPtr->dbs;
-    if (tablePtr->numEntries > 0) {
-    	hPtr = Tcl_FirstHashEntry(tablePtr, &search);
-    	while (hPtr != NULL) {
-	    handle = Tcl_GetHashValue(hPtr);
-    	    Ns_DbPoolPutHandle(handle);
-	    hPtr = Tcl_NextHashEntry(&search);
-    	}
-    	Tcl_DeleteHashTable(tablePtr);
-    	Tcl_InitHashTable(tablePtr, TCL_STRING_KEYS);
-    }
 }

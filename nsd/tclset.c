@@ -33,7 +33,7 @@
  *	Implements the tcl ns_set commands 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclset.c,v 1.9 2001/04/02 19:34:29 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclset.c,v 1.10 2001/04/25 21:06:24 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -216,8 +216,21 @@ NsTclSetCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
     if (STREQ(cmd, "create")) {
 	cmd = "new";
     }
+
     if (STREQ(cmd, "cleanup")) {
-	NsFreeSets(itPtr);
+    	tablePtr = &itPtr->sets;
+    	hPtr = Tcl_FirstHashEntry(tablePtr, &search);
+    	while (hPtr != NULL) {
+    	    key = Tcl_GetHashKey(tablePtr, hPtr);
+	    if (IS_DYNAMIC(key)) {
+    	       	set = Tcl_GetHashValue(hPtr);
+	       	Ns_SetFree(set);
+	    }
+	    hPtr = Tcl_NextHashEntry(&search);
+	}
+    	Tcl_DeleteHashTable(tablePtr);
+    	Tcl_InitHashTable(tablePtr, TCL_STRING_KEYS);
+
     } else if (STREQ(cmd, "list")) {
 	if (argc == 2) {
 	    tablePtr = &itPtr->sets;
@@ -843,47 +856,4 @@ BadArgs(Tcl_Interp *interp, char **argv, char *args)
         argv[0], " ", argv[1], " ", args, "\"", NULL);
 
     return TCL_ERROR;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsFreeSets --
- *
- *	Removes all set ids from given table, freeing dynamic sets
- *  	as needed.
- *
- * Results:
- *	None.
- *
- * Side effects:
- *	None.
- *
- *----------------------------------------------------------------------
- */
-
-void
-NsFreeSets(NsInterp *itPtr)
-{
-    Tcl_HashEntry *hPtr;
-    Tcl_HashSearch search;
-    Tcl_HashTable *tablePtr;
-    Ns_Set *set;
-    char *id;
-
-    tablePtr = &itPtr->sets;
-    if (tablePtr->numEntries > 0) {
-    	hPtr = Tcl_FirstHashEntry(tablePtr, &search);
-    	while (hPtr != NULL) {
-    	    id = Tcl_GetHashKey(tablePtr, hPtr);
-	    if (IS_DYNAMIC(id)) {
-    	        set = Tcl_GetHashValue(hPtr);
-	        Ns_SetFree(set);
-	    }
-	    hPtr = Tcl_NextHashEntry(&search);
-	}
-    	Tcl_DeleteHashTable(tablePtr);
-    	Tcl_InitHashTable(tablePtr, TCL_STRING_KEYS);
-    }
 }

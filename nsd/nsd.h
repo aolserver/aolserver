@@ -629,17 +629,6 @@ typedef struct NsServer {
 	Ns_Cond		    cond;
     } job;
 
-    /*
-     * The following struct maintains the Tcl HTTP requests.
-     */
-
-    struct {
-	unsigned int  next;
-	Ns_Mutex      lock;
-	Ns_Cond	      cond;
-	Tcl_HashTable ids;
-    } http;
-
 } NsServer;
     
 /*
@@ -732,6 +721,12 @@ typedef struct NsInterp {
 
     Tcl_HashTable chans;
 
+    /*
+     * The following table maintains the Tcl HTTP requests.
+     */
+
+    Tcl_HashTable https;
+
 } NsInterp;
 
 /*
@@ -788,8 +783,6 @@ extern Ns_OpProc NsAdpProc;
 
 extern Ns_Cache *NsFastpathCache(char *server, int size);
 
-extern void NsFreeSets(NsInterp *itPtr);
-extern void NsFreeDbs(NsInterp *itPtr);
 extern void NsFreeAdp(NsInterp *itPtr);
 extern void NsFreeAtClose(NsInterp *itPtr);
 
