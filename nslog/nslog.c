@@ -34,7 +34,7 @@
  *	This file implements the access log using NCSA Common Log format.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nslog/nslog.c,v 1.7.4.5 2003/08/06 19:03:05 elizthom Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nslog/nslog.c,v 1.7.4.6 2003/10/15 18:35:40 pkhincha Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 #include <sys/stat.h>	/* mkdir */
@@ -87,7 +87,6 @@ static Ns_TclInterpInitProc AddCmds;
  *
  */
 
-static Ns_Tls tls;
 static Ns_FilterProc Filter;
 static Ns_Callback FreeBuf;
 
@@ -192,8 +191,6 @@ Ns_ModuleInit(char *server, char *module)
 	logPtr->flags |= LOG_COMBINED;
     }
 
-    Ns_TlsAlloc(&tls, FreeBuf);
-
     if (Ns_ConfigGetBool(path, "logreqtime", &opt)) {
         Ns_RegisterFilter(server, "*", "/*", Filter, NS_FILTER_POST_AUTH, NULL);
         logPtr->flags |= LOG_REQTIME;
@@ -266,7 +263,6 @@ LogTrace(void *arg, Ns_Conn *conn)
     char           buf[100];
     Log		  *logPtr = arg;
     Ns_Time        now, diff;
-    Ns_Time       *timePtr = Ns_TlsGet(&tls); 
 
     if (logPtr->flags & LOG_REQTIME) {
 
@@ -274,11 +270,8 @@ LogTrace(void *arg, Ns_Conn *conn)
          * Compute the request's elapsed time.
          */ 
 
-        if (timePtr != NULL) {
-            Ns_GetTime(&now);
-            Ns_DiffTime(&now, timePtr, &diff);
-            logReqTime = 1;
-        }
+        Ns_GetTime(&now);
+        Ns_DiffTime(&now, Ns_ConnStartTime(conn), &diff);
     }
     
     Ns_DStringInit(&ds);
@@ -799,18 +792,6 @@ LogConfigExtHeaders(Log *logPtr, char *path)
 static int
 Filter(void *context, Ns_Conn *conn, int why)
 {
-    Ns_Time now;
-    Ns_Time *timePtr = Ns_TlsGet(&tls);
-
-    Ns_GetTime(&now);
-
-    if (timePtr == NULL) {
-        timePtr = ns_malloc(sizeof(Ns_Time));
-        Ns_TlsSet(&tls, timePtr);
-    }
- 
-    Ns_GetTime(timePtr);
-
     return NS_OK;
 }
 
@@ -833,7 +814,4 @@ Filter(void *context, Ns_Conn *conn, int why)
 static void
 FreeBuf(void *arg)
 {
-    Ns_Time *timePtr = arg;
-
-    ns_free(timePtr);
 }

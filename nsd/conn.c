@@ -34,7 +34,7 @@
  *      Manage the Ns_Conn structure
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.7.2.3.2.4 2003/03/04 19:25:02 shmooved Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.7.2.3.2.5 2003/10/15 18:35:39 pkhincha Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -672,6 +672,30 @@ Ns_ConnId(Ns_Conn *conn)
     Conn *connPtr = (Conn *) conn;
 
     return connPtr->id;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_ConnStartTime --
+ *
+ *      Return the Start Time
+ *
+ * Results:
+ *      Ns_Time value
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+Ns_Time *
+Ns_ConnStartTime(Ns_Conn *conn)
+{
+    Conn *connPtr = (Conn *) conn;
+
+    return &connPtr->tqueue;
 }
 
 
