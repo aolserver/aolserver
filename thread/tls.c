@@ -35,7 +35,7 @@
  *	library handles thread local storage directly.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/tls.c,v 1.4 2000/11/09 00:33:54 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/tls.c,v 1.5 2001/03/12 21:55:39 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "thread.h"
 
@@ -79,7 +79,7 @@ static Ns_TlsCleanup *cleanupProcs[NS_THREAD_MAXTLS];
 void
 Ns_TlsAlloc(Ns_Tls *tlsPtr, Ns_TlsCleanup *cleanup)
 {
-    static int      nextId = 1;
+    static int nextId = 1;
     int id;
 
     Ns_MasterLock();
@@ -127,10 +127,10 @@ Ns_TlsSet(Ns_Tls *tlsPtr, void *value)
  *	Get this thread's value in a tls slot.
  *
  * Results:
- *	None.
+ *	Pointer in slot.
  *
  * Side effects:
- *	valuePtr is updated with value in this thread's slot.
+ *	None.
  *
  *----------------------------------------------------------------------
  */
@@ -143,7 +143,6 @@ Ns_TlsGet(Ns_Tls *tlsPtr)
     GETSLOT(tlsPtr, slotPtr);
     return *slotPtr;
 }
-
 
 
 /*
@@ -186,4 +185,3 @@ NsCleanupTls(Thread *thrPtr)
 	}
     } while (retry && trys++ < 5);
 }
-
