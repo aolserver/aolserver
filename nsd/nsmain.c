@@ -33,17 +33,11 @@
  *	AOLserver Ns_Main() startup routine.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.34 2001/05/19 21:37:49 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.35 2001/11/05 20:23:15 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
 extern char *nsBuildDate;
-
-#ifdef WIN32
-#define DEVNULL "nul:"
-#else
-#define DEVNULL "/dev/null"
-#endif
 
 /*
  * Local functions defined in this file.
@@ -80,48 +74,26 @@ static char *FindConfig(char *config);
  */
 
 int
-Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
+Ns_Main(int argc, char **argv)
 {
     int            i, fd;
     char          *config;
     Ns_Time 	   timeout;
     char	   cwd[PATH_MAX];
     Ns_DString	   addr;
-#ifndef WIN32
     int		   uid = 0;
     int		   gid = 0;
-    int		   kill = 0;
     int		   debug = 0;
+    int	   	   mode = 0;
     char	  *root = NULL;
     char	  *garg = NULL;
     char	  *uarg = NULL;
     char	  *bindargs = NULL;
     char	  *bindfile = NULL;
+    char	  *procname = NULL;
+    char	  *server = NULL;
+    Ns_Set *servers;
     struct rlimit  rl;
-#endif
-    /*
-     * The following variables are declared static so they
-     * preserve their values when Ns_Main is re-entered by
-     * the Win32 service control manager.
-     */
-
-    static int	   mode = 0;
-    static Ns_Set *servers;
-    static char	  *procname;
-    static char	  *server;
-
-    /*
-     * When run as a Win32 service, Ns_Main will be re-entered
-     * in the service main thread.  In this case, jump past
-     * the point where the initial thread blocked when
-     * connected to the service control manager.
-     */
-     
-#ifdef WIN32
-    if (mode == 'S') {
-    	goto contservice;
-    }
-#endif
 
     /*
      * Set up configuration defaults and initial values.
@@ -138,7 +110,7 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
      * ensure the server never blocks reading stdin.
      */
      
-    fd = open(DEVNULL, O_RDONLY|O_TEXT);
+    fd = open("/dev/null", O_RDONLY);
     if (fd > 0) {
     	dup2(fd, 0);
 	close(fd);
@@ -154,11 +126,11 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
      * SGI sproc-based threads library arena file.
      */
 
-    fd = open(DEVNULL, O_WRONLY|O_TEXT);
+    fd = open("/dev/null", O_WRONLY);
     if (fd > 0 && fd != 1) {
 	close(fd);
     }
-    fd = open(DEVNULL, O_WRONLY|O_TEXT);
+    fd = open("/dev/null", O_WRONLY);
     if (fd > 0 && fd != 2) {
 	close(fd);
     }
@@ -167,14 +139,8 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
      * Parse the command line arguments.
      */
 
-#ifdef WIN32
-#define POPTS	"IRS"
-#else
-#define POPTS	"kKdr:u:g:b:B:"
-#endif
-
     opterr = 0;
-    while ((i = getopt(argc, argv, "hpzifVl:s:t:" POPTS)) != -1) {
+    while ((i = getopt(argc, argv, "hpzifVl:s:t:kKdr:u:g:b:B:")) != -1) {
         switch (i) {
 	case 'l':
 	    sprintf(cwd, "TCL_LIBRARY=%s", optarg);
@@ -186,13 +152,8 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 	case 'f':
 	case 'i':
 	case 'V':
-#ifdef WIN32
-	case 'I':
-	case 'R':
-	case 'S':
-#endif
 	    if (mode != 0) {
-		UsageError("only one of -i, -f, -V, -I, -R, or -S may be specified");
+		UsageError("only one of -i, -f, or -V may be specified");
 	    }
 	    mode = i;
 	    break;
@@ -208,13 +169,10 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 	    }
             nsconf.config = optarg;
             break;
-        case 'z':
-	    nsMemPools = 1;
-            break;
         case 'p':
-	    nsMemPools = 0;
+        case 'z':
+	    /* NB: Ignored. */
             break;
-#ifndef WIN32
 	case 'b':
 	    bindargs = optarg;
 	    break;
@@ -224,12 +182,6 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 	case 'r':
 	    root = optarg;
 	    break;
-	case 'K':
-	case 'k':
-	    if (kill != 0) {
-		UsageError("only one of -k or -K may be specified");
-	    }
-	    kill = i;
 	    break;
         case 'd':
 	    debug = 1;
@@ -240,7 +192,6 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 	case 'u':
 	    uarg = optarg;
 	    break;
-#endif
 	case ':':
 	    sprintf(cwd, "option -%c requires a parameter", optopt);
             UsageError(cwd);
@@ -256,7 +207,6 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 	printf("   CVS Tag:         %s\n", Ns_InfoTag());
 	printf("   Built:           %s\n", Ns_InfoBuildDate());
 	printf("   Tcl version:     %s\n", nsconf.tcl.version);
-	printf("   Thread library:  %s\n", NsThreadLibName());
 	printf("   Platform:        %s\n", Ns_InfoPlatform());
         return 0;
     } else if (nsconf.config == NULL) {
@@ -268,6 +218,7 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
      * some API's to initialize various info useful during config eval.
      */
 
+    NsInitThreads();
     Ns_ThreadSetName("-main-");
 
     time(&nsconf.boot_t);
@@ -289,8 +240,6 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 
     nsconf.config = FindConfig(nsconf.config);
     config = NsConfigRead(nsconf.config);
-
-#ifndef WIN32
 
     /*
      * Verify the uid/gid args.
@@ -377,14 +326,6 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 	    Ns_Fatal("nsmain: server will not run as root; "
 		     "must specify '-u username' parameter");
 	}
-
-	/*
-	 * Before setuid, fork the background binder process to
-	 * listen on ports which were not pre-bound above.
-	 */
-
-	NsForkBinder();
-
 	if (gid != 0 && gid != getgid() && setgid(gid) != 0) {
 	    Ns_Fatal("nsmain: setgid(%d) failed: '%s'", gid, strerror(errno));
 	}
@@ -417,8 +358,6 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 
     NsBlockSignals(debug);
 
-#endif
-
     /*
      * Initialize Tcl and eval the config file.
      */
@@ -433,7 +372,7 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
      * Ensure servers where defined.
      */
 
-    servers = Ns_ConfigGetSection(NS_CONFIG_SERVERS);
+    servers = Ns_ConfigGetSection("ns/servers");
     if (servers == NULL || Ns_SetSize(servers) == 0) {
 	Ns_Fatal("nsmain: no servers defined");
     }
@@ -463,61 +402,13 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
      * Verify and change to the home directory.
      */
      
-    nsconf.home = Ns_ConfigGet(NS_CONFIG_PARAMETERS, "home");
+    nsconf.home = Ns_ConfigGetValue(NS_CONFIG_PARAMETERS, "home");
     if (nsconf.home == NULL) {
 	Ns_Fatal("nsmain: missing: [%s]home", NS_CONFIG_PARAMETERS);
     }
     if (chdir(nsconf.home) != 0) {
 	Ns_Fatal("nsmain: chdir(%s) failed: '%s'", nsconf.home, strerror(errno));
     }
-
-#ifdef WIN32
-
-    /*
-     * On Win32, first perform some additional cleanup of
-     * home, ensuring forward slashes and lowercase.
-     */
-
-    nsconf.home = getcwd(cwd, sizeof(cwd));
-    if (nsconf.home == NULL) {
-	Ns_Fatal("nsmain: getcwd failed: '%s'", strerror(errno));
-    }
-    while (*nsconf.home != '\0') {
-	if (*nsconf.home == '\\') {
-	    *nsconf.home = '/';
-	} else if (isupper(*nsconf.home)) {
-	    *nsconf.home = tolower(*nsconf.home);
-	}
-	++nsconf.home;
-    }
-    nsconf.home = cwd;
-
-    /*
-     * Then, connect to the service control manager if running
-     * as a service (see service comment above).
-     */
-
-    if (mode == 'I' || mode == 'R' || mode == 'S') {
-	int status;
-
-	Ns_ThreadSetName("-service-");
-	switch (mode) {
-	case 'I':
-	    status = NsInstallService(procname);
-	    break;
-	case 'R':
-	    status = NsRemoveService(procname);
-	    break;
-	case 'S':
-    	    status = NsConnectService(initProc);
-	    break;
-	}
-	return (status == NS_OK ? 0 : 1);
-    }
-
-    contservice:
-
-#endif
 
     /*
      * Update core config values.
@@ -535,29 +426,11 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
     }
 
     /*
-     * On Unix, kill the currently running server if requested.
-     */
-     
-#ifndef WIN32
-    if (kill != 0) {
-    	i = NsGetLastPid(procname);
-	if (i > 0) {
-    	    NsKillPid(i);
-	}
-	if (kill == 'K') {
-	    return 0;
-	}
-    }
-#endif
-
-    /*
      * Log the first startup message which should be the first
      * output to the open log file.
      */
      
     StatusMsg(0);
-
-#ifndef WIN32
 
     /*
      * Log the current open file limit.
@@ -571,8 +444,6 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 	       "max files: FD_SETSIZE = %d, rl_cur = %d, rl_max = %d",
 	       FD_SETSIZE, rl.rlim_cur, rl.rlim_max);
     }
-
-#endif
 
     /*
      * Initialize the core.
@@ -588,11 +459,11 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
      */
 
     if (server != NULL) {
-    	NsInitServer(initProc, server);
+    	NsInitServer(server);
     } else {
 	for (i = 0; i < Ns_SetSize(servers); ++i) {
 	    server = Ns_SetKey(servers, i);
-    	    NsInitServer(initProc, server);
+    	    NsInitServer(server);
 	}
     }
 
@@ -620,24 +491,12 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
     NsRunStartupProcs();
 
     /*
-     * Wait for the conn threads to warmup and
-     * the sock and sched callbacks to appear idle.
-     */
-
-    Ns_GetTime(&timeout);
-    Ns_IncrTime(&timeout, nsconf.startuptimeout, 0);
-    NsWaitSockIdle(&timeout);
-    NsWaitSchedIdle(&timeout);
-
-    /*
      * Start the drivers now that the server appears
      * ready.
      */
 
     NsStartDrivers();
-#ifndef WIN32
     NsStopBinder();
-#endif
 
     /*
      * Once the listening thread is started, this thread will just
@@ -763,7 +622,7 @@ NsTclShutdownCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
     Ns_MutexLock(&nsconf.state.lock);
     nsconf.shutdowntimeout = timeout;
     Ns_MutexUnlock(&nsconf.state.lock);
-    NsSendSignal(NS_SIGTERM);
+    NsSendSignal(SIGTERM);
     return TCL_OK;
 }
 
@@ -804,13 +663,11 @@ StatusMsg(int state)
 	break;
     }
     Ns_Log(Notice, "nsmain: %s/%s %s",
-	   Ns_InfoServerName(), Ns_InfoVersion(), what);
-#ifndef WIN32
+	   Ns_InfoServerName(), Ns_InfoServerVersion(), what);
     if (state < 2) {
         Ns_Log(Notice, "nsmain: security info: uid=%d, euid=%d, gid=%d, egid=%d",
 	       getuid(), geteuid(), getgid(), getegid());
     }
-#endif
 }
 
 
@@ -830,14 +687,6 @@ StatusMsg(int state)
  *----------------------------------------------------------------------
  */
 
-#ifdef WIN32
-#define OPTS      "[-I|R]"
-#define OPTS_ARGS ""
-#else
-#define OPTS      "[-d]"
-#define OPTS_ARGS "[-u <user>] [-g <group>] [-r <path>]"
-#endif
-
 static void
 UsageError(char *msg)
 {
@@ -845,22 +694,18 @@ UsageError(char *msg)
 	fprintf(stderr, "\nError: %s\n", msg);
     }
     fprintf(stderr, "\n"
-	    "Usage: %s [-h|V] [-i|f] [-z] " OPTS " " OPTS_ARGS " [-b <address:port>|-B <file>] [-s <server>] -t <file>\n"
+	    "Usage: %s [-h|V] [-i|f] [-b] [-u <user>] "
+		"[-g <group>] [-r <path>] [-b <address:port>|-B <file>] "
+		"[-s <server>] -t <file>\n"
 	    "\n"
 	    "  -h  help (this message)\n"
 	    "  -V  version and release information\n"
 	    "  -i  inittab mode\n"
 	    "  -f  foreground mode\n"
-	    "  -z  zippy memory allocator\n"
-#ifdef WIN32
-	    "  -I  Install win32 service\n"
-	    "  -R  Remove win32 service\n"
-#else
 	    "  -d  debugger-friendly mode (ignore SIGINT)\n"
 	    "  -u  run as <user>\n"
 	    "  -g  run as <group>\n"
 	    "  -r  chroot to <path>\n"
-#endif
 	    "  -b  bind <address:port>\n"
 	    "  -B  bind address:port list from <file>\n"
 	    "  -s  use server named <server> in config file\n"
