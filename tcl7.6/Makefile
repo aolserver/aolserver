@@ -3,7 +3,9 @@
 # Tcl 7.6 Library Makefile
 #
 
-include ../include/Makefile.global
+NSHOME   = ..
+
+include $(NSHOME)/include/Makefile.global
 
 
 ifeq (gcc,$(CC))

@@ -1,5 +1,15 @@
 2000-08-15  Kriston J. Rehberg  <Kriston@AOL.NET>
 
+	* include/Makefile.global (INSTLOG): should have pointed to
+	$(INST)/lib, not $(INST)/modules/lib.
+
+	* Makefile: nsunix resurrected.  All modules are built.  If a
+	module is missing a library, it is not built, but it won't stop
+	the AOLserver build process (no error is thrown).  The build will
+	continue with the next module.
+	
+	* nsftp: guesses if you have TCP_WRAPPERS available.
+
 	* nsext: Ten guesses why $(NSHOME)/include/nsextmsg.h was
 	duplicated here.
 

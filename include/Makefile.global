@@ -12,11 +12,11 @@
 PREFIX       =   /usr/local/aolserver
 INST         =   $(PREFIX)
 INSTBIN      =   $(INST)/bin
+INSTLIB      =   $(INST)/lib
 INSTLOG      =   $(INST)/log
 INSTMOD      =   $(INST)/modules
 INSTTCL      =   $(INSTMOD)/tcl
 INSTINC      =   $(INSTMOD)/include
-INSTLIB      =   $(INSTMOD)/lib
 INSTSRV      =   $(INST)/servers/server1
 INSTSRVMOD   =   $(INSTSRV)/modules
 INSTSRVPAG   =   $(INSTSRV)/pages

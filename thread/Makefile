@@ -1,7 +1,8 @@
 
-include ../include/Makefile.global
+NSHOME    =  ..
 
-NSHOME   =  ..
+include $(NSHOME)/include/Makefile.global
+
 
 OBJS      = compat.o cs.o rwlock.o reentrant.o \
             sema.o thread.o tls.o time.o memory.o debug.o \

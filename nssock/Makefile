@@ -100,7 +100,8 @@ all:
 	@echo "** BSAFE variable not set."
 	@echo "** nsssl will not be built."
 	@echo "** "
-clean: all
+install:   all
+clean:     all
 distclean: all
 endif
 
