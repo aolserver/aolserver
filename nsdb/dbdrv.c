@@ -34,7 +34,7 @@
  *	Routines for handling the loadable db driver interface.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsdb/dbdrv.c,v 1.1 2002/05/15 20:17:49 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsdb/dbdrv.c,v 1.2 2004/06/20 15:54:01 seryakov Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "db.h"
 
@@ -372,6 +372,7 @@ Ns_DbSelect(Ns_DbHandle *handle, char *sql)
     	    if (Ns_DbExec(handle, sql) == NS_ROWS) {
     		setPtr = Ns_DbBindRow(handle);
 	    } else {
+            if(!handle->dsExceptionMsg.length)  
         	Ns_DbSetException(handle, "NSDB",
 		    	"Query was not a statement returning rows.");
 	    }
