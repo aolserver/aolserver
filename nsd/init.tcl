@@ -28,7 +28,7 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/init.tcl,v 1.23 2003/07/01 21:08:52 mpagenva Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/init.tcl,v 1.24 2003/09/11 17:55:49 elizthom Exp $
 #
 
 #
@@ -137,6 +137,7 @@ proc ns_eval {args} {
 #
 
 proc _ns_eval {args} {
+    global _ns_lazyprocdef
     set len [llength $args]
     if {$len == 0} {
         return
@@ -152,6 +153,11 @@ proc _ns_eval {args} {
     } else {
         # Save this interp's namespaces for others.
         _ns_savenamespaces
+    }
+    # With lazyprocdef, need to decr our refcnt we had to 
+    # the previous epoch
+    if { $_ns_lazyprocdef == 1 } { 
+        _ns_cleanupprocs [ expr [ ns_ictl epoch ] - 1 ] 1
     }
     return -code $code $result
 }
@@ -208,8 +214,14 @@ proc ns_adp_include {args} {
 #   by the Ns_TclAllocateInterp C function.
 #
 
+
 proc ns_init {} {
+    global _ns_lazyprocdef
+
     ns_ictl update; # check for proc/namespace update
+    if { $_ns_lazyprocdef == 1} {
+        _ns_lzproc_refcnt
+    }
 }
 
 
@@ -261,6 +273,11 @@ proc ns_cleanupvars {} {
             env {
                 # NB: Save these core Tcl vars.
             }
+            _ns_ictl_currentepoch -
+            _ns_lzproc_loaded -
+            _ns_lazyprocdef {
+               # needed across cleanups for lzproc processing
+            } 
             default {
                 upvar \#0 $g gv
                 if {[info exists gv]} {
@@ -310,6 +327,9 @@ proc _ns_savenamespaces {} {
     set import ""
     _ns_getnamespaces nslist
     foreach n $nslist {
+        if {  [ns_config -bool ns/parameters lazyprocdef 0] } {
+            _ns_lzproc_propogate $n
+        }
         foreach {ns_script ns_import} [_ns_getscript $n] {
             append script [list namespace eval $n $ns_script] \n
             if {$ns_import != ""} {
@@ -431,7 +451,7 @@ proc _ns_getnamespaces {listVar {top "::"}} {
 proc _ns_getpackages {} {
     append script [subst {set ::_pkglist [list [info loaded]]}] \n
     append script {
-        if {[info commands ::tcl::_load] != ""} {
+        if {[::info commands ::tcl::_load] != ""} {
             rename ::tcl::_load ""
         }
         rename ::load ::tcl::_load
@@ -464,7 +484,9 @@ proc _ns_getpackages {} {
 
 proc _ns_getscript n {
     namespace eval $n {
-
+        ::set _ns_lazyprocdef [::ns_config -bool ns/parameters lazyprocdef 0]
+        ::set _ns_ictl_currentepoch [ ::ns_ictl epoch ]
+        ::incr _ns_ictl_currentepoch
         ::set _script "" ; # script to initialize new interp
         ::set _import "" ; # script to import foreign commands
 
@@ -477,9 +499,10 @@ proc _ns_getscript n {
                 _var -
                 _import -
                 env -
+                _ns_lzproc_loaded -
                 _script {
                     continue ; # skip local help variables
-                               # env should also be skipped as redundent.
+                               # env should also be skipped as redundant.
                 }
                 default {
                     ::if {[::info exists [::namespace current]::$_var]} {
@@ -502,7 +525,7 @@ proc _ns_getscript n {
         # Cover namespace procedures 
         #
 
-        ::foreach _proc [::info procs] {
+        ::foreach _proc [::_ns_tclinfo procs] {
             ::set _orig [::namespace origin $_proc]
             ::set _args ""
             ::set _prcs($_proc) 1
@@ -514,19 +537,50 @@ proc _ns_getscript n {
                     }
                     ::lappend _args $_arg
                 }
-                ::append _script \
-                    [::list proc $_proc $_args [::info body $_proc]] \n
+
+                ::if { $_ns_lazyprocdef == 1 } {
+                    switch -glob -- $_proc {
+                        _ns_tclinfo {
+                        }
+                        info {
+                            if { [namespace current] == "::" } {
+                                ::append _script \
+                                [::list proc _ns_tclinfo_wrap $_args [::info body $_proc]] \n
+                            } else {
+                                ::append _script \
+                                [::list proc $_proc $_args [::info body $_proc]] \n
+                            }
+                        }
+                        ns_* -
+                        _ns_* -
+                        unknown {
+                            ::append _script \
+                            [::list proc $_proc $_args [::info body $_proc]] \n
+                        }
+                        default {
+                            ::_ns_lzproc_store $_proc [::list proc $_proc $_args [::info body $_proc]] [ namespace current ]
+                        }
+                    }
+                } else {
+                  ::append _script \
+                      [::list proc $_proc $_args [::info body $_proc]] \n
+                }
             } else {
                 # procedure imported from other namespace
                 ::append _import [::list namespace import -force $_orig] \n
             }
         }
 
+        if { $_ns_lazyprocdef == 1 && [ namespace current ] == "::" } {
+            ::append _script \
+                [::list _ns_lzproc_init] \n
+        }
+
         #
         # Cover commands imported from other namespaces
         #
 
-        ::foreach _cmnd [::info commands [::namespace current]::*] {
+        ::foreach _cmnd [::_ns_tclinfo commands [::namespace current]::*] {
             ::set _orig [::namespace origin $_cmnd]
             ::if {[::info exists _prcs($_cmnd)] == 0 
                     && $_orig != [::namespace which -command $_cmnd]} {
@@ -586,6 +640,312 @@ proc _ns_tclrename { oldName newName } {
 }
 
 
+#
+# Lazy proc processing
+#
+# This config parameter controls the proc initialization behavior. When off,
+# all procs are defined as part of interp initialization. If on, then the
+# proc definitions are stored in a global array and loaded in the interp
+# at the time of the first usage. This is most effective for servers with
+# a large number of procs that must be available, but only a limited number
+# are actually used in any particular thread. This can help speed thread
+# initialization time and reduce overall memory consumption.
+# 
+variable _ns_lazyprocdef [ns_config -bool ns/parameters lazyprocdef 0]
+
+variable _ns_ictl_currentepoch [ ns_ictl epoch ]
+
+if { $_ns_lazyprocdef == 1 } {
+
+    #
+    # _ns_lzproc_init
+    #
+    # Things that need to happen for lazy proc whenever the init script
+    # is evaluated, but need to be cognizant of whether this is the first
+    # time through or a subsequent update.
+    # This handles things like the renaming of 'info'
+    # This is expected to run in the init script after all the proc defs
+    #
+    proc _ns_lzproc_init {} {
+       global _ns_lzproc_loaded
+
+       # have we been run in this interp before?
+       # (rename fails if we have (already been done))
+       if { [catch { rename info _ns_tclinfo } err] == 0 } {
+           # first time through
+           if { [ _ns_tclinfo proc _ns_tclinfo_wrap ] == "_ns_tclinfo_wrap" } {
+               rename _ns_tclinfo_wrap info 
+           }
+       } else {
+           # not first time
+           if { [ _ns_tclinfo proc _ns_tclinfo_wrap ] == "_ns_tclinfo_wrap" } {
+               rename info {}
+               rename _ns_tclinfo_wrap info
+           }
+
+           # for lzproc'd procs, we need to remove any procs
+           # that were loaded into the interp since they may have been redefined
+           foreach { _namesp _proc } $_ns_lzproc_loaded {
+               eval namespace eval $_namesp { rename $_proc {{}} } 
+           }
+       }
+       set _ns_lzproc_loaded [ list ]
+   
+    }
+
+    #
+    # _ns_lzproc_nsvname 
+    #
+    # convenience function for compiling the nsv name
+    #
+    proc _ns_lzproc_nsvname { nameSpace } {
+       global _ns_ictl_currentepoch
+       return _ns_lzproc_nsv,$_ns_ictl_currentepoch,$nameSpace
+    }
+
+    #
+    # _ns_lzproc_load --
+    #
+    # Load a proc (lazy proc definition) from the global store.
+    #
+
+    proc _ns_lzproc_load { procName } {
+        global _ns_lzproc_loaded
+        set procBaseName [ namespace tail $procName ]
+
+        # we load all procs with this name across all namespaces
+        # (since we will no longer be able to count on 'unknown' kicking in)
+        _ns_getnamespaces nsList
+        foreach namesp $nsList {
+            if { [ nsv_exists [ _ns_lzproc_nsvname $namesp ] $procBaseName ] &&
+                 [ _ns_tclinfo proc ${namesp}::$procBaseName ] == "" } {
+                eval namespace eval $namesp { [ nsv_get [ _ns_lzproc_nsvname $namesp ] $procBaseName ] }
+                lappend _ns_lzproc_loaded $namesp $procBaseName
+            }
+        }
+        # did we end up with a valid one for the current context?
+        if { [ uplevel 2 _ns_tclinfo proc $procName ] == "" } {
+            set loaded 0
+        } else {
+            set loaded 1
+        } 
+        return $loaded
+    }
+
+    #
+    # Store the proc in the global store
+    # We incr the epoch count id since we are storing
+    # in preparation for a new epoch
+    #
+    proc _ns_lzproc_store { procName procBody nmspace } {
+        set procBaseName [ namespace tail $procName ]
+        if { $procName == $procBaseName } {
+            set ns $nmspace
+        } else {
+            set ns [ namespace qualifiers $procName ]
+            if { $ns == "" } {
+                set ns "::"
+            }
+        }
+        set ictlNum [ ns_ictl epoch ]
+        incr ictlNum
+        nsv_set _ns_lzproc_nsv,$ictlNum,$ns $procBaseName $procBody 
+    }
+
+    #
+    # _ns_lzproc_propogate -
+    #
+    # In preparation for a new epoch, we copy all existing defs to
+    # the next array (the old one will be cleaned up when its no longer referenced)
+    #
+    proc _ns_lzproc_propogate { namespace } {
+        set currentEpoch [ ns_ictl epoch ]
+        set nextEpoch [ expr $currentEpoch + 1 ]
+        nsv_array set _ns_lzproc_nsv,$nextEpoch,$namespace [ nsv_array get _ns_lzproc_nsv,$currentEpoch,$namespace ]
+    }
+
+    # 
+    # _ns_lzproc_refcnt
+    #
+    # Keep track of references to the lazy proc list so we can cleanup
+    # when its no longer needed (i.e. after ns_evals change the current defs)
+    #
+    proc _ns_lzproc_refcnt {} { 
+        global _ns_ictl_currentepoch
+        nsv_incr [ _ns_lzproc_nsvname REFCNT ] [ns_thread getid ]
+    }
+
+    #
+    # _ns_cleanupprocs
+    #
+    # This gets called on interp cleanup, but does not necessarily
+    # indicate that the interp is done with the lzproc array. We know
+    # it is done when a) the epoch has changed or b) deleteRef is set
+    # (the thread is exiting)
+    #
+    ns_ictl oncleanup "_ns_cleanupprocs"
+    ns_ictl ondelete "_ns_cleanupprocs 0 0 1"
+
+    proc _ns_cleanupprocs { { currentepoch 0 } { decrRefCnt 1 } { deleteRef 0 }} {
+       global _ns_ictl_currentepoch
+       if { $currentepoch == 0 } {
+           set currentepoch $_ns_ictl_currentepoch
+       }
+
+       if { ![nsv_exists _ns_lzproc_nsv,$currentepoch,REFCNT [ns_thread getid]]} {
+           set _refCnt 0
+           set _refExists 0
+       } else {
+           set _refCnt [ nsv_get _ns_lzproc_nsv,$currentepoch,REFCNT [ns_thread getid]]
+           set _refExists 1
+       }
+
+       # Decrement the ref count (deleteRef is set to 1 when we're cleaning on thread delete)
+       if { $deleteRef || $_refCnt <= [ expr 0 + $decrRefCnt ]  } {
+           if { $_refExists } {
+               nsv_unset _ns_lzproc_nsv,$currentepoch,REFCNT [ns_thread getid] 
+           }
+       } else {
+           nsv_set _ns_lzproc_nsv,$currentepoch,REFCNT [ns_thread getid] [expr $_refCnt - $decrRefCnt]
+       }
+ 
+       # Can we clean up no-longer-needed lzproc defs?
+       if { $currentepoch < [ns_ictl epoch] } {
+           set _nsvCleanup 1
+           foreach _thread [ nsv_array names _ns_lzproc_nsv,$currentepoch,REFCNT ] {
+              if { [ nsv_get _ns_lzproc_nsv,$currentepoch,REFCNT $_thread ] > 0 } {
+                  set _nsvCleanup 0
+                  break
+              }
+           }
+           if { $_nsvCleanup } {
+               foreach _nsv [ nsv_names _ns_lzproc_nsv,$currentepoch* ] {
+                   nsv_unset $_nsv
+               }
+           }
+       }
+    }
+
+    #
+    # _ns_lzproc_lookup
+    #
+    # used by our 'info' wrapper to lookup procs matching the given search pattern
+    #
+    proc _ns_lzproc_lookup { procPattern currentNs } {
+        set cmdList [ list ]
+        set patternBase [ namespace tail $procPattern ]
+        if { $procPattern == $patternBase } {
+            set ns $currentNs
+            set parentns $ns
+            set parentnsList [ list $ns ]
+            while { $parentns != "::" } {
+               if { [ catch { set parentns [ namespace parent $parentns ] } err ] } {
+                  break
+               } else {
+                  lappend parentnsList $parentns
+               }
+            }
+
+            foreach namesp $parentnsList {
+                set cmdList [ concat $cmdList [ nsv_array names [ _ns_lzproc_nsvname $namesp ] $patternBase ]]
+            }
+        } else {
+            set ns [ namespace qualifiers $procPattern ]
+            if { $ns == "" } {
+                set ns "::"
+            }
+            set tmpList [ nsv_array names [ _ns_lzproc_nsvname $ns ]  $patternBase ]
+            foreach cmd $tmpList {
+                lappend cmdList ${ns}::${cmd}
+            }
+            
+        }
+        return $cmdList
+    }
+
+
+    #
+    # unknown --
+    #
+    # If the config parameter "lazyprocdef" is defined, we wrap the
+    # tcl 'unknown' proc with our own which will first attempt to 
+    # retrieve the proc from our global store
+    #
+
+ 
+    rename unknown _ns_tclunknown 
+
+    #
+    # Look for an unknown proc in our nsv - if its there, load it in and execute it
+    # else we go to the tcl unknown processing...
+    #
+    proc unknown { args } {
+        set _proc [ lindex $args 0  ]
+        if { [ _ns_lzproc_load $_proc ] } {
+            set arglist [lrange $args 1 end]
+            return [ uplevel 1 $args ]
+        } else {
+            return [ uplevel 1 _ns_tclunknown $args ]
+        }
+    
+    }
+
+
+    #
+    # info --
+    #
+    # In the case of lazy proc definition, we need a wrapper around the tcl 'info' 
+    # command to include the procs not yet loaded
+    # For 'info commands', we return a sum of what is in our global proc store
+    # and what is returned by tcl (removing duplicates). For all other proc-related commands
+    # we will load that proc and then run the tcl info command.
+    #
+    #
+    
+
+    # gets renamed to 'info' in the init script
+    proc _ns_tclinfo_wrap { args } {
+        set _opt [ lindex $args 0 ]
+        switch -glob -- $_opt {
+            comm* -
+            pr*  {
+                set _pattern [ lindex $args 1 ]
+                if { $_pattern == "" } {
+                    set _pattern *
+                }
+                set _lzcmdlist [ _ns_lzproc_lookup $_pattern [ uplevel 1 namespace current ] ]
+                set _cmdlist [ _ns_tclinfo $_opt $_pattern ]
+                foreach _cmd $_cmdlist {
+                   set _index  [ lsearch -exact $_lzcmdlist $_cmd ]
+                   if { $_index == -1 } {
+                       lappend _lzcmdlist $_cmd
+                   }
+                }
+                return $_lzcmdlist
+             } 
+             a* -
+             b* -
+             c* -
+             d* {
+                 set _proc [ lindex $args 1 ]
+                 if  { [ _ns_tclinfo proc $_proc ] == "" } {
+                     _ns_lzproc_load $_proc 
+                 } 
+                 return [ uplevel 1 _ns_tclinfo $args ]
+             }       
+             default {
+                 return [ uplevel 1 _ns_tclinfo $args ]
+             }
+        }
+    }
+} 
+ 
+# wrapper to allow calls within this file that must call the
+# tcl info command whether or not lazyprocdef is on
+# gets replaced by rename of 'info' when lazyprocdef is on
+proc _ns_tclinfo { args } {
+    return [ uplevel 1 ::info $args ]
+}
 
 #
 # _ns_initshutdowncb -
