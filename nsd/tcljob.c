@@ -80,7 +80,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tcljob.c,v 1.22 2003/10/14 01:29:50 pmoosman Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tcljob.c,v 1.23 2003/10/17 21:04:53 pmoosman Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -559,6 +559,7 @@ NsTclJobObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
             int         timeoutFlag = 0;
             Ns_Time     timeout;
             int         timedOut = 0;
+            long        sec, milliSec;
 
             argIndex = 2;
             if ((objc != 4) && (objc != 7)) {
@@ -570,15 +571,17 @@ NsTclJobObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
                 if (strcmp(Tcl_GetString(objv[argIndex++]), "-timeout") == 0) {
                     timeoutFlag = 1;
                     if ((Tcl_GetLongFromObj(interp, objv[argIndex++],
-                                            &timeout.sec) != TCL_OK) ||
+                                            &sec) != TCL_OK) ||
                         (Tcl_GetLongFromObj(interp, objv[argIndex++],
-                                            &timeout.usec) != TCL_OK)) {
+                                            &milliSec) != TCL_OK)) {
                         return TCL_ERROR;
                     }
+                    
                     /*
-                     * Convert the specified milliseconds to microseconds.
+                     * Set the timeout time. This is an absolute time.
                      */
-                    timeout.usec *= 1000;
+                    Ns_GetTime(&timeout);
+                    Ns_IncrTime(&timeout, (time_t)sec, (milliSec * 1000));
                 }
             }
 
@@ -722,6 +725,7 @@ NsTclJobObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
             int         timeoutFlag = 0;
             Ns_Time     timeout;
             int         timedOut = 0;
+            long        sec, milliSec;
 
             argIndex = 2;
             if ((objc != 3) && (objc != 6)) {
@@ -733,15 +737,16 @@ NsTclJobObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
                 if (strcmp(Tcl_GetString(objv[argIndex++]), "-timeout") == 0) {
                     timeoutFlag = 1;
                     if ((Tcl_GetLongFromObj(interp, objv[argIndex++],
-                                            &timeout.sec) != TCL_OK) ||
+                                            &sec) != TCL_OK) ||
                         (Tcl_GetLongFromObj(interp, objv[argIndex++],
-                                            &timeout.usec) != TCL_OK)) {
+                                            &milliSec) != TCL_OK)) {
                         return TCL_ERROR;
                     }
                     /*
-                     * Convert the specified milliseconds to microseconds.
+                     * Set the timeout time. This is an absolute time.
                      */
-                    timeout.usec *= 1000;
+                    Ns_GetTime(&timeout);
+                    Ns_IncrTime(&timeout, (time_t)sec, (milliSec * 1000));
                 }
             }
 
