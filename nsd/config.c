@@ -33,7 +33,7 @@
  *	Support for the configuration file
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/config.c,v 1.11 2001/12/05 22:43:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/config.c,v 1.12 2002/06/05 23:46:55 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #define ISSLASH(c)      ((c) == '/' || (c) == '\\')
@@ -394,7 +394,8 @@ NsConfigRead(char *file)
 void
 NsConfigEval(char *config, int argc, char **argv, int optind)
 {
-    char *err, buf[20];
+    const char *err;
+    char buf[20];
     Tcl_Interp *interp;
     Ns_Set     *set;
     int i;

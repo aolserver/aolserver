@@ -33,7 +33,7 @@
  *	Routines to roll files.
  */
  
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/rollfile.c,v 1.4 2000/08/17 06:09:49 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/rollfile.c,v 1.5 2002/06/05 23:46:55 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -44,7 +44,6 @@ typedef struct File {
 
 static int AppendFile(Ns_DString *dsPtr, char *dir, char *tail);
 static int CmpFile(const void *p1, const void *p2);
-static int RollFiles(char *prev, char *next, int max);
 static int Rename(char *from, char *to);
 static int Exists(char *file);
 static int Unlink(char *file);

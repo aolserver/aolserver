@@ -738,6 +738,17 @@ typedef struct NsInterp {
 
 } NsInterp;
 
+/*
+ * Thread related routines.
+ */
+
+extern void NsInitMaster(void);
+extern void NsInitReentrant(void);
+extern void NsInitThreads(void);
+extern void NsLockInfo(Ns_DString *dsPtr);
+extern void NsThreadFatal(char *func, char *osfunc, int err);
+extern void NsThreadInfo(Ns_DString *dsPtr);
+
 extern int NsQueueConn(Sock *sockPtr, time_t now);
 extern int NsSockSend(Sock *sockPtr, struct iovec *bufs, int nbufs);
 extern void NsSockClose(Sock *sockPtr, int keep);

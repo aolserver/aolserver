@@ -33,7 +33,7 @@
  *	ADP parser.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpparse.c,v 1.7 2002/06/05 23:25:34 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpparse.c,v 1.8 2002/06/05 23:46:55 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -67,9 +67,8 @@ typedef struct {
 
 static void AppendBlock(AdpParse *parsePtr, char *s, char *e, int type);
 static void Parse(AdpParse *parsePtr, NsServer *servPtr, char *utf);
-static Tag   *GetRegTag(NsServer *servPtr, char *tag);
-static int	 RegisterCmd(ClientData arg, Tcl_Interp *interp,
-		    int argc, char **argv, int type);
+static int RegisterCmd(ClientData arg, Tcl_Interp *interp, int argc,
+		char **argv, int type);
 
 
 /*

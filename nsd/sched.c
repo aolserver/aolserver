@@ -27,7 +27,7 @@
  * version of this file under either the License or the GPL.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sched.c,v 1.8 2002/05/15 20:07:48 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sched.c,v 1.9 2002/06/05 23:46:55 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 /*
  * sched.c --
@@ -93,8 +93,6 @@ static int      running;
 static int  	shutdownPending;
 static Ns_Thread schedThread;
 static Ns_Thread lastEventThread;
-static Event   *firstFreeEventPtr;
-static int      nfreeEvents;
 static int	neventThreads;
 
 /*
