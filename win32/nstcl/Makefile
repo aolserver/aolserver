@@ -6,7 +6,7 @@
 # Copyright (c) 1995-1996 Sun Microsystems, Inc.
 # Copyright (c) 1998-1999 by Scriptics Corporation.
 #
-# RCS: @(#) $Id: Makefile,v 1.1 2001/03/15 08:28:40 dossy Exp $
+# RCS: @(#) $Id: Makefile,v 1.2 2001/04/13 19:52:48 jgdavidson Exp $
 
 # Does not depend on the presence of any environment variables in
 # order to compile tcl; all needed information is derived from 
@@ -29,7 +29,7 @@
 # Set this to the appropriate value of /MACHINE: for your platform
 MACHINE		= IX86
 
-ROOT            = ..\..\tcl8.3.2
+ROOT            = ..\..\tcl8.3.3
 INSTALLDIR	= c:\Progra~1\Tcl
 
 !IF "$(MACHINE)" == "IA64"
@@ -121,6 +121,7 @@ TCLTESTOBJS = \
 	$(TMPDIR)\testMain.obj
 
 TCLOBJS = \
+	$(TMPDIR)\nsthreads.obj \
 	$(TMPDIR)\regcomp.obj \
 	$(TMPDIR)\regexec.obj \
 	$(TMPDIR)\regfree.obj \
