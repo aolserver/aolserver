@@ -29,7 +29,12 @@ $(TEST):  $(TEST_OBJS) $(LIBNSTHREAD)
 	$(CC) $(LDFLAGS) -o $(TEST) $(TEST_OBJS) $(LIBS) $(LIBNSTHREAD) 
 
 
-install:
+#
+# Installs to the lib/ directory of the binary distribution.
+#
+install: all
+	$(RM) $(INSTLIB)/libnsthread.a
+	$(CP) libnsthread.a $(INSTLIB)
 
 #
 # Clean the directory to pre-build state.

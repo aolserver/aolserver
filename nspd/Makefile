@@ -27,9 +27,7 @@ $(TARGET): $(OBJS) $(NSEXTMSG)
 
 
 #
-# Installation (empty rule)
-#
-#  Note: libnspd.a should be put in the AOLserver binary distribution here.
+# Installs to the lib/ directory of the binary distribution.
 #
 install: all
 	$(RM) $(INSTLIB)/libnspd.a
