@@ -33,7 +33,7 @@
  *      All the public types and function declarations for the core
  *	AOLserver.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.55.2.10 2004/09/07 17:46:50 dossy Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.55.2.11 2004/09/29 18:59:13 dossy Exp $
  */
 
 #ifndef NS_H
@@ -107,6 +107,7 @@
 #define NS_SOCK_WRITE		  2
 #define NS_SOCK_EXCEPTION	  4
 #define NS_SOCK_EXIT		  8
+#define NS_SOCK_ANY		255
 #define NS_ENCRYPT_BUFSIZE 	 16
 #define NS_DRIVER_ASYNC		  1	/* Use async read-ahead. */
 #define NS_DRIVER_SSL		  2	/* Use SSL port, protocol defaults. */
