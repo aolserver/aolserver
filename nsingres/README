@@ -1,0 +1,12 @@
+$Header: /Users/dossy/Desktop/cvs/aolserver/nsingres/Attic/README,v 1.1.1.1 2004/09/10 02:08:07 dossy Exp $
+
+For more documentation, consult the nsingres page
+on the AOLserver wiki:
+
+  http://panoptic.com/wiki/aolserver/nsingres
+
+This version of nsingres is known to build with Ingres r3.
+
+Make sure the environment variable II_SYSTEM is set to where your
+Ingres is installed in order to build the module.
+
