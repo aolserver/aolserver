@@ -33,7 +33,7 @@
  *	Tcl job queueing routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tcljob.c,v 1.1 2001/03/13 22:32:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tcljob.c,v 1.2 2001/03/23 00:05:23 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -227,6 +227,7 @@ NsTclJobCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 	Tcl_AppendResult(interp, "unknown command \"",
 	    cmd, "\": should be queue, wait, or cancel", NULL);
 	Tcl_SetErrorCode(interp, "ns:job", "usage", interp->result, NULL);
+	return TCL_ERROR;
     }
 
     if (stop) {
