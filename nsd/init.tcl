@@ -28,7 +28,7 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/init.tcl,v 1.26 2003/10/06 14:07:04 elizthom Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/init.tcl,v 1.27 2003/10/07 20:08:36 mpagenva Exp $
 #
 
 #
@@ -91,9 +91,33 @@ proc ns_module {key {val ""}} {
 
 proc ns_eval {args} {
     set len [llength $args]
+    set sync 0
     if {$len == 0} {
         return
-    } elseif {$len == 1} {
+    }
+    if {$len > 1 && [string match "-sync" [lindex $args 0]]} {
+	set sync 1
+	set args [lreplace $args 0 0]
+	incr len -1
+    } elseif {[string match "-pending" [lindex $args 0]]} {
+	if {$len != 1} {
+	    error "ns_eval: command arguments not allowed with -pending"
+	}
+	set jlist [ns_job joblist [nsv_get _ns_eval_jobq [ns_info server]]]
+	set res [list]
+	foreach job $jlist {
+	    array set jstate $job
+	    set scr $jstate(SCRIPT)
+	    # Strip off the constant, non-user supplied cruft
+	    set scr [lindex $scr 1]
+	    set stime $jstate(START_TIME)
+	    # Strip off any trailing newlines
+	    regsub {\n+$} $stime { } stime
+	    lappend res [list $stime $scr]
+	}
+	return $res
+    }
+    if {$len == 1} {
         set args [lindex $args 0]
     }
 
@@ -107,19 +131,23 @@ proc ns_eval {args} {
         # eval the args in a fresh thread to obtain a pristine
         # environment.
         # Note that running the _ns_eval must be serialized for this
-        # server.
-        set lock_id [nsv_get _ns_eval_lock [ns_info server]]
-        ns_mutex lock $lock_id
+        # server.  We are handling this by establishing that the
+	# ns_job queue handling these requests will run only a single
+	# thread.
+	set qid [nsv_get _ns_eval_jobq [ns_info server]]
+	set scr [list _ns_eval $args]
+	if {$sync} {
+	    set th_code [catch {
+		set job_id [ns_job queue $qid $scr]
+		ns_job wait $qid $job_id
+		     } th_result]
+	} else {
+	    set th_code [catch {ns_job queue -detached $qid $scr} th_result]
+	}
+	if {$th_code} {
+	    return -code $th_code $th_result
+	}
 
-        set th_code [catch {
-            set tid [ns_thread begin [list _ns_eval $args]]
-            ns_thread join $tid
-        } th_result]
-
-        ns_mutex unlock $lock_id
-        if {$th_code} {
-            return -code $th_code $th_result
-        }
     } elseif {$code == 1} {
         ns_markfordelete
     }
@@ -947,21 +975,6 @@ proc _ns_tclinfo { args } {
     return [ uplevel 1 ::info $args ]
 }
 
-#
-# _ns_initshutdowncb -
-#
-#   This is a ns_atshutdown callback which takes care of
-#   cleanup of pieces that are placed into global structures
-#   at server startup by code in this file.
-#
-
-proc _ns_initshutdowncb {} {
-    if [nsv_exists _ns_eval_lock [ns_info server]] {
-        ns_mutex destroy [nsv_get _ns_eval_lock [ns_info server]]
-        nsv_unset _ns_eval_lock [ns_info server]
-    }
-}
-
 
 #
 # Source the top level Tcl libraries.
@@ -990,12 +1003,14 @@ _rename rename _ns_tclrename
 _rename _rename rename
 
 #
-# Create a mutex for ns_eval's serialization
+# Create a job queue for ns_eval processing
+#  This queue must be a single-server queue; we don't
+#  want to be processing multiple ns_eval requests
+#  simultanously.
 #
-if {![nsv_exists _ns_eval_lock [ns_info server]]} {
-    nsv_set _ns_eval_lock [ns_info server] [ns_mutex create]
-    # Make sure that we cleanup after ourselves
-    ns_atshutdown _ns_initshutdowncb
+set srv [ns_info server]
+if {![nsv_exists _ns_eval_jobq $srv]} {
+    nsv_set _ns_eval_jobq $srv [ns_job create "ns_eval_q:$srv" 1]
 }
 
 #
