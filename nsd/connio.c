@@ -34,7 +34,7 @@
  *      Handle connection I/O.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/connio.c,v 1.4 2001/04/26 18:46:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/connio.c,v 1.5 2001/04/27 00:17:19 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #define IOBUFSZ 2048
@@ -345,6 +345,100 @@ Ns_ConnRead(Ns_Conn *conn, void *vbuf, int toread)
     reqPtr->next  += toread;
     reqPtr->avail -= toread;
     return toread;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_ConnReadLine --
+ *
+ *	Read a line (\r\n or \n terminated) from the conn.
+ *
+ * Results:
+ *	NS_OK or NS_ERROR 
+ *
+ * Side effects:
+ *	Stuff may be read 
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Ns_ConnReadLine(Ns_Conn *conn, Ns_DString *dsPtr, int *nreadPtr)
+{
+    Conn	   *connPtr = (Conn *) conn;
+    Request	   *reqPtr = connPtr->reqPtr;
+    char           *eol;
+    int             nread, ncopy;
+
+    if (connPtr->sockPtr == NULL
+	|| (eol = strchr(reqPtr->next, '\n')) == NULL
+	|| (nread = (eol - reqPtr->next)) > connPtr->servPtr->limits.maxline) {
+	return NS_ERROR;
+    }
+    ncopy = nread;
+    ++nread;
+    if (nreadPtr != NULL) {
+ 	*nreadPtr = nread;
+    }
+    if (ncopy > 0 && eol[-1] == '\r') {
+	--ncopy;
+    }
+    Ns_DStringNAppend(dsPtr, reqPtr->next, ncopy);
+    reqPtr->next  += nread;
+    reqPtr->avail -= nread;
+    return NS_ERROR;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_ConnReadHeaders --
+ *
+ *	Read the headers and insert them into the passed-in set 
+ *
+ * Results:
+ *	NS_OK/NS_ERROR 
+ *
+ * Side effects:
+ *	Stuff will be read from the conn 
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Ns_ConnReadHeaders(Ns_Conn *conn, Ns_Set *set, int *nreadPtr)
+{
+    Ns_DString      ds;
+    Conn           *connPtr = (Conn *) conn;
+    int             status, nread, nline, maxhdr;
+
+    Ns_DStringInit(&ds);
+    nread = 0;
+    maxhdr = connPtr->servPtr->limits.maxheaders;
+    status = NS_OK;
+    while (nread < maxhdr && status == NS_OK) {
+        Ns_DStringTrunc(&ds, 0);
+        status = Ns_ConnReadLine(conn, &ds, &nline);
+        if (status == NS_OK) {
+            nread += nline;
+            if (nread > maxhdr) {
+                status = NS_ERROR;
+            } else {
+                if (ds.string[0] == '\0') {
+                    break;
+                }
+                status = Ns_ParseHeader(set, ds.string, connPtr->servPtr->opts.hdrcase);
+            }
+        }
+    }
+    if (nreadPtr != NULL) {
+	*nreadPtr = nread;
+    }
+    Ns_DStringFree(&ds);
+    return status;
 }
 
 
