@@ -34,7 +34,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.22 2004/07/14 00:32:10 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.23 2004/07/16 19:49:40 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -1692,7 +1692,8 @@ SetServer(Conn *connPtr)
     connPtr->encoding = connPtr->servPtr->encoding.outputEncoding;
     connPtr->urlEncoding = connPtr->servPtr->encoding.urlEncoding;
     if (!status) {
-	connPtr->request->method = "BAD";
+	ns_free(connPtr->request->method);
+	connPtr->request->method = ns_strdup("BAD");
     }
     return status;
 }
