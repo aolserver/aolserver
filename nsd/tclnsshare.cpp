@@ -180,7 +180,12 @@ NsTclShareVar(Tcl_Interp *interp, char *varName)
 
             valuePtr->objPtr = Tcl_GetVar2Ex(interp, globalizedVarName, NULL, TCL_LEAVE_ERR_MSG);
             if (valuePtr->objPtr != NULL) {
-                valuePtr->objPtr = Tcl_DuplicateObj(valuePtr->objPtr);
+		char *string;
+		int length;
+
+		string = Tcl_GetStringFromObj(valuePtr->objPtr, &length);
+		valuePtr->objPtr = Tcl_NewStringObj(string, length);
+		Tcl_IncrRefCount(valuePtr->objPtr);
                 valuePtr->flags = SHARE_SCALAR;
             } else {
                 if (Tcl_VarEval(interp, "array get ", globalizedVarName, NULL) == TCL_OK) {
@@ -198,6 +203,7 @@ NsTclShareVar(Tcl_Interp *interp, char *varName)
                             int new;
                             newEntry = Tcl_CreateHashEntry(&valuePtr->array, argv[x], &new);
                             newObj = Tcl_NewStringObj(argv[x + 1], -1);
+			    Tcl_IncrRefCount(newObj);
                             Tcl_SetHashValue(newEntry, (ClientData) newObj);
                         }
                         if (argv != NULL) {
@@ -418,6 +424,8 @@ ShareTraceProc(clientData, interp, name1, name2, flags)
     int destroyed = 0;		/* True if share value is destroyed */
     int bail = 0;		/* True if this is a recursive trace */
     char* globalizedName;       /* name1 with :: in front of it. */
+    char* string;               /* String form of shared value */
+    int length;                 /* Length of string */
 
 
     Ns_CsEnter(&shareLock);
@@ -503,7 +511,8 @@ ShareTraceProc(clientData, interp, name1, name2, flags)
 	 */
 
 	objPtr = Tcl_GetVar2Ex(interp, globalizedName, name2, 0);
-	newObjPtr = Tcl_DuplicateObj(objPtr);
+	string = Tcl_GetStringFromObj(objPtr, &length);
+	newObjPtr = Tcl_NewStringObj(string, length);
 	Tcl_IncrRefCount(newObjPtr);
 	if (name2 != NULL) {
 	    /*
