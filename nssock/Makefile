@@ -1,15 +1,14 @@
+
+NSHOME   =  ..
+
 #
-# Stub to include nsssl or nssock makefile.
+# Module name
 #
+MOD      =  nssock.so
 
-all:
-	$(MAKE) -f Makefile.sock
-	$(MAKE) -f Makefile.ssl
+#
+# Objects to build
+#
+OBJS     =  nssock.o
 
-install:
-	$(MAKE) -f Makefile.sock install
-	$(MAKE) -f Makefile.ssl install
-
-clean:
-	$(MAKE) -f Makefile.sock clean
-	$(MAKE) -f Makefile.ssl clean
+include  $(NSHOME)/include/Makefile.module

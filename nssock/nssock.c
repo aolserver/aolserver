@@ -30,12 +30,132 @@
 /* 
  * nssock.c --
  *
- *	Stub to include sock.cpp for nssock.
+ *	Call internal Ns_DriverInit.
  *
  */
 
-#ifdef SSL
-#undef SSL
+#include "ns.h"
+
+static Ns_DriverProc SockProc;
+
+#ifdef WIN32
+#define SYSBUF	WSABUF
+#define sys_buf	buf
+#define sys_len	len
+#else
+#define SYSBUF	struct iovec
+#define sys_buf iov_base
+#define sys_len iov_len
+#endif
+#define NUM_STATIC_BUFS	16
+
+NS_EXPORT int Ns_ModuleVersion = 1;
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_ModuleInit --
+ *
+ *	Sock module init routine.
+ *
+ * Results:
+ *	See Ns_DriverInit.
+ *
+ * Side effects:
+ *	See Ns_DriverInit.
+ *
+ *----------------------------------------------------------------------
+ */
+
+NS_EXPORT int
+Ns_ModuleInit(char *server, char *module)
+{
+    /*
+     * Initialize the driver with the async option so that the driver thread
+     * will perform event-driven read-ahead of the request before
+     * passing to the connection for processing.
+     */
+
+    return Ns_DriverInit(server, module, "nssock", SockProc, NULL, NS_DRIVER_ASYNC);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * SockProc --
+ *
+ *	Socket driver callback proc.  This driver attempts efficient
+ *	scatter/gatter I/O if requested and never blocks.
+ *
+ * Results:
+ *	For close and keep, always 0.  For send and recv, # of bytes
+ *	processed or -1 on error.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+SockProc(Ns_DriverCmd cmd, Ns_Sock *sock, Ns_Buf *bufs, int nbufs)
+{
+    int i, flags, n;
+    SYSBUF *sysbufs, staticBufs[NUM_STATIC_BUFS];
+#ifndef WIN32
+    struct msghdr msg;
 #endif
 
-#include "sock.cpp"
+    switch (cmd) {
+    case DriverRecv:
+    case DriverSend:
+	if (nbufs > NUM_STATIC_BUFS) {
+	    sysbufs = ns_malloc(sizeof(SYSBUF) * nbufs);
+	} else {
+	    sysbufs = staticBufs;
+	}
+	for (i = 0; i < nbufs; ++i) {
+	    sysbufs[i].sys_buf = bufs[i].buf;
+	    sysbufs[i].sys_len = bufs[i].len;
+	}
+#ifdef WIN32
+	if (cmd == DriverSend) {
+	    i = WSASend(sock->sock, sysbufs, nbufs, &n, 0, NULL, NULL);
+	} else {
+	    flags = 0;
+	    i = WSARecv(sock->sock, sysbufs, nbufs, &n, &flags, NULL, NULL);
+	}
+	if (i != 0) {
+	    n = -1;
+	}
+#else
+	msg.msg_iov = sysbufs;
+	msg.msg_iovlen = nbufs;
+	msg.msg_name = msg.msg_accrights = NULL;
+	msg.msg_namelen = msg.msg_accrightslen = 0;
+	if (cmd == DriverSend) {
+	    n = sendmsg(sock, &msg, 0);
+	} else {
+	    n = recvmsg(sock, &msg, 0);
+	}
+#endif
+	if (sysbufs != staticBufs) {
+	    ns_free(sysbufs);
+	}
+	break;
+
+    case DriverKeep:
+    case DriverClose:
+	/* NB: Nothing to do. */
+	n = 0;
+	break;
+
+    default:
+	/* Unsupported command. */
+	n = -1;
+	break;
+    }
+    return n;
+}
