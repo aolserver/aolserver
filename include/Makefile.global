@@ -53,7 +53,7 @@ else
 endif
 
 ifeq (1,$(GCC))
-    CC       	=  gcc -pipe
+    CC       	=  gcc 
     LDSO     	=  gcc -shared -nostartfiles
     NSTCL_CFG  	+= --enable-gcc
 else
@@ -212,6 +212,7 @@ ifneq (,$(findstring IRIX,$(PLAT)))
     PLATFORM=irix
     ## Purify seems to work on Irix o32 only.
     ifneq (1,$(GCC))
+	RFLAG=-rpath
         ABI=o32
         ##CCOPT = -g3 -O2
         CFLAGS  += -$(ABI) -KPIC -fullwarn -DUSE_DUPHIGH=1
