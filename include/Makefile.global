@@ -89,10 +89,10 @@ ifneq (,$(findstring Linux,$(PLAT)))
 
     ## We optimize for either i686 or i586 -- they really are very different.
     ifneq (,$(findstring "i686",$(PLAT)))
-        CFLAGS+=-mcpu=i686
+        CFLAGS+=$(GCCOPT) -mcpu=i686
     endif
     ifneq (,$(findstring "i586",$(PLAT)))
-        CFLAGS+=-mcpu=i586
+        CFLAGS+=$(GCCOPT) -mcpu=i586
     endif
 
     NSDLIBS=-lm
@@ -144,7 +144,7 @@ endif
 ifneq (,$(findstring OSF1,$(PLAT)))
     PLATFORM=osf
     CC=$(PURIFY) cc
-    CFLAGS+=$(GGCCOPT) -std1 -pthread
+    CFLAGS+=$(GCCOPT) -std1 -pthread
     LDFLAGS+=-pthread
     LDSO=$(LD) -shared -expect_unresolved '*'
     NSDLIBS=-lm
@@ -167,7 +167,7 @@ ifneq (,$(findstring IRIX,$(PLAT)))
         CFLAGS  += $(CCOPTIMIZE) -$(ABI) -KPIC -fullwarn -DUSE_DUPHIGH=1
     else
         ABI=n32
-        CFLAGS+=$(GCCOPTS) -mcpu=mips
+        CFLAGS+=$(GCCOPT) -mcpu=mips
     endif
 
     LDFLAGS += -$(ABI)
@@ -183,7 +183,7 @@ endif
 #
 ifneq (,$(findstring FreeBSD,$(PLAT)))
     PLATFORM=freebsd
-    CFLAGS+=$(GGCCOPT) -pthread
+    CFLAGS+=$(GCCOPT) -pthread
 
     ## FreeBSD doesn't make a distinction among processors in the x86 class.
     ifneq (,$(findstring i386,$(PLAT)))
@@ -202,7 +202,7 @@ endif
 #
 ifneq (,$(findstring OpenBSD,$(PLAT)))
     PLATFORM=openbsd
-    CFLAGS+=$(GGCCOPT) -pthread
+    CFLAGS+=$(GCCOPT) -pthread
 
     ## OpenBSD doesn't make a distinction among processors in the x86 class.
     ifneq (,$(findstring i386,$(PLAT)))
