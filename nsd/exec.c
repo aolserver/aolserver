@@ -33,7 +33,7 @@
  *	Routines for creating and waiting for child processes.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/exec.c,v 1.15 2002/06/10 22:35:32 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/exec.c,v 1.16 2002/06/11 21:47:43 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -551,7 +551,6 @@ static void
 ProcThread(void *ignored)
 {
     Args *argsPtr;
-    int result, status, err;
     
     Ns_ThreadSetName("-exec-");
     Ns_Log(Notice, "exec: starting");
