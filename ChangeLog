@@ -1,3 +1,8 @@
+2002-11-06  Jeremy Collins <jcollins@phpsource.net>
+
+        * nsd/adpparse.c: Changed ParseAtts to make it compatible with
+        how parsing works in 3.x.
+
 2002-11-05  Jeremy Collins <jcollins@phpsource.net>
 
         * nsd/adpparse.c: Fixed a bug in Parse.  It was not parsing
