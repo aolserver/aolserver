@@ -40,25 +40,24 @@
 #include <sys/resource.h>
 #include <sys/wait.h>
 #include <sys/ioctl.h>
-#include <poll.h>
-#ifdef __sun
-#include <sys/filio.h>
-#endif
-#ifdef __hp
-#define seteuid(i)     setresuid((-1),(i),(-1))
-#endif
-#ifdef __sun
-#include <sys/systeminfo.h>
-#define gethostname(b,s) (!(sysinfo(SI_HOSTNAME, b, s) > 0))
-#endif
-#ifdef __unixware
-#include <sys/filio.h>
-#include <strings.h>
-#include <sys/uio.h>
-#include <sys/sendv.h>
-#endif
 #include <sys/stat.h>
 #include <ctype.h>
+#ifdef __APPLE__
+  #include "../compat/poll.h"
+#else
+  #include <sys/poll.h>
+#endif
+#ifdef __hp
+  #define seteuid(i)     setresuid((-1),(i),(-1))
+#endif
+#ifdef __sun
+  #include <sys/filio.h>
+  #include <sys/systeminfo.h>
+  #define gethostname(b,s) (!(sysinfo(SI_HOSTNAME, b, s) > 0))
+#endif
+#ifdef __unixware
+  #include <sys/filio.h>
+#endif
 
 #ifndef F_CLOEXEC
 #define F_CLOEXEC 1
