@@ -33,7 +33,7 @@
  *	AOLserver libnsd entry.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/init.c,v 1.5 2003/02/04 23:10:47 jrasmuss23 Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/init.c,v 1.6 2003/11/16 15:04:36 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -45,6 +45,7 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
  *
  *	Library entry point for libnsd.  This routine calls various
  *	data structure initialization functions throughout the core.
+ *	Order of the initialization calls is significant.
  *
  * Results:
  	None.
@@ -74,10 +75,10 @@ NsdInit(void)
     	NsInitModLoad();
     	NsInitProcInfo();
     	NsInitDrivers();
+    	NsInitUrlSpace();
     	NsInitQueue();
     	NsInitSched();
     	NsInitTcl();
-    	NsInitUrlSpace();
     	NsInitRequests();
     }
 }
