@@ -597,7 +597,7 @@ NsSetThread(Thread *thrPtr)
 #ifdef HAVE_PTHREAD_D4
     tid = pthread_getunique_np(&thread);
 #else
-    tid = (int) tid;
+    tid = (int) thread;
 #endif
     err = pthread_setspecific(GetKey(), thrPtr);
     if (err != 0) {
