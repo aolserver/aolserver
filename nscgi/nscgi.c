@@ -28,7 +28,7 @@
  */
 
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscgi/nscgi.c,v 1.6.4.1 2002/09/17 23:54:23 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscgi/nscgi.c,v 1.6.4.2 2002/09/18 00:02:56 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 #include <sys/stat.h>
@@ -50,12 +50,6 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsc
 #else
 #define DEVNULL	    "/dev/null"
 extern char **Ns_GetEnviron(void);
-#else
-#ifdef __sgi
-extern char   *environ[];
-#else
-extern char   **environ;
-#endif
 #endif
 
 /*
