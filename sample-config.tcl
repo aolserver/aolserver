@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/Attic/sample-config.tcl,v 1.4 2003/01/19 15:37:11 shmooved Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/Attic/sample-config.tcl,v 1.5 2003/01/19 17:01:22 shmooved Exp $
 #
 
 #
@@ -190,20 +190,19 @@ ns_param   certfile        $sslcertfile
 #    <user>:<encryptedPassword>:
 #
 #    You can use the ns_crypt Tcl command to generate an encrypted
-#    password. The ns_crypt command uses the same algorithm as
-#    the Unix crypt(3) command. Suppose you have a user "nsadmin"
-#    with a password of "x". The /etc/passwrd entry might look like:
+#    password. The ns_crypt command uses the same algorithm as the 
+#    Unix crypt(3) command. You could also use passwords from the
+#    /etc/passwd file.
 #
-#    nsadmin:t2GqvvaiIUbF2:28:1:Administrator:/:/bin/tcsh
-#
-#    The first two characters of the password are the salt. The
-#    following should generate the same password:
+#    The first two characters of the password are the salt - they can be 
+#    anything since the salt is used to simply introduce disorder into
+#    the encoding algorithm.
 #
 #    ns_crypt <key> <salt>
 #    ns_crypt x t2
 #    
-#    The example below adds the user "nsadmin" with a password
-#    of "x".
+#    The configuration example below adds the user "nsadmin" with a 
+#    password of "x".
 #
 # 4. Make sure the nscp.so module is loaded in the modules section.
 #
