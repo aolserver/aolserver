@@ -2,6 +2,10 @@
 
 	* nsd/init.tcl: (ns_eval) Fix thread-safety issue with ns_eval,
 	where multiple simultanous usages can clobber a change.
+	(_ns_getscript) suppress saving the Tcl global variable 'env' into
+	the init script.  Tcl's init takes care of 'env', and including it
+	into the init script would cause SetEnvs at interp create that are
+	unneeded and undesired.
 
 2003-06-18  Mark Page  <mpagenva@aol.com>
 
