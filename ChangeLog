@@ -1,3 +1,10 @@
+2004-08-20  Dossy Shiobara <dossy@panoptic.com>
+
+	* Makefile (1.50), tests/new/all.tcl (1.1), tests/new/harness.tcl
+	  (1.2), tests/new/ns_hrefs.test (1.1): Implement automated tests
+	  that can be run from a stand-alone tclsh.  New Makefile target
+	  added called "test" which runs the tests.
+
 2004-08-17  Dossy Shiobara <dossy@panoptic.com>
 
 	* tcl/fastpath.tcl (1.10): If _ns_dirlist gets an URL without a
