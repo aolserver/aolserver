@@ -1,3 +1,13 @@
+2003-10-07  Pramod Khincha <pkhincha@aol.com>
+
+    * include/ns.h:
+      nsd/conn.c:
+      nslog/nslog.c: Backport fix from AS4.0 for determining start
+      time for access logging. This will enable comparison of timings
+      between 3.5 and 4.0 to be more accurate.
+  
+    * TAG: aolserver_v35_b11
+
 2003-08-06  Elizabeth Thomas <eathomas93@aol.com>
 
     * nsperm/Makefile: include -lresolv on solaris to find inet_aton
