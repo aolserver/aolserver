@@ -33,12 +33,13 @@
  *      Routines for dealing with HTML FORM's.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/form.c,v 1.16 2005/01/15 23:59:54 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/form.c,v 1.17 2005/01/17 14:02:21 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
 static void ParseQuery(char *form, Ns_Set *set, Tcl_Encoding encoding);
-static void ParseMultiInput(Conn *connPtr, char *start, char *end);
+static void ParseMultiInput(Conn *connPtr, Tcl_Encoding encoding,
+			    char *start, char *end);
 static char *Ext2Utf(Tcl_DString *dsPtr, char *s, int len, Tcl_Encoding encoding);
 static int GetBoundary(Tcl_DString *dsPtr, Ns_Conn *conn);
 static char *NextBoundry(Tcl_DString *dsPtr, char *s, char *e);
@@ -66,25 +67,25 @@ Ns_Set  *
 Ns_ConnGetQuery(Ns_Conn *conn)
 {
     Conn           *connPtr = (Conn *) conn;
+    Tcl_Encoding    encoding;
     Tcl_DString	    bound;
     char	   *s, *e, *form, *formend;
     
-    if (connPtr->query != NULL
-	    && connPtr->queryEncoding != connPtr->urlEncoding) {
+    if (!NsCheckQuery(conn)) {
 	Ns_ConnClearQuery(conn);
     }
     if (connPtr->query == NULL) {
-	connPtr->queryEncoding = connPtr->urlEncoding;
+	encoding = connPtr->queryEncoding = connPtr->urlEncoding;
 	connPtr->query = Ns_SetCreate(NULL);
 	if (!STREQ(connPtr->request->method, "POST")) {
 	    form = connPtr->request->query;
 	    if (form != NULL) {
-		ParseQuery(form, connPtr->query, connPtr->urlEncoding);
+		ParseQuery(form, connPtr->query, encoding);
 	    }
 	} else if ((form = connPtr->content) != NULL) {
 	    Tcl_DStringInit(&bound);
 	    if (!GetBoundary(&bound, conn)) {
-		ParseQuery(form, connPtr->query, connPtr->urlEncoding);
+		ParseQuery(form, connPtr->query, encoding);
 	    } else {
 	    	formend = form + connPtr->contentLength;
 		s = NextBoundry(&bound, form, formend);
@@ -94,7 +95,7 @@ Ns_ConnGetQuery(Ns_Conn *conn)
 		    if (*s == '\n') ++s;
 		    e = NextBoundry(&bound, s, formend);
 		    if (e != NULL) {
-			ParseMultiInput(connPtr, s, e);
+			ParseMultiInput(connPtr, encoding, s, e);
 		    }
 		    s = e;
 		}
@@ -139,7 +140,6 @@ Ns_ConnClearQuery(Ns_Conn *conn)
     
     Ns_SetFree(connPtr->query);
     connPtr->query = NULL;
-    connPtr->queryEncoding = NULL;
 
     hPtr = Tcl_FirstHashEntry(&connPtr->files, &search);
     while (hPtr != NULL) {
@@ -221,6 +221,35 @@ NsTclParseQueryObjCmd(ClientData dummy, Tcl_Interp *interp, int objc, Tcl_Obj **
 /*
  *----------------------------------------------------------------------
  *
+ * NsCheckQuery --
+ *
+ *	Validate the connection query was decoded with the current
+ *	URL encoding.
+ *
+ * Results:
+ *	1 if query is valid, 0 otherwise.
+ *
+ * Side effects:
+ *	None. 
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+NsCheckQuery(Ns_Conn *conn)
+{
+    Conn *connPtr = (Conn *) conn;
+
+    if (connPtr->queryEncoding != connPtr->urlEncoding) {
+	return 0;
+    }
+    return 1;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  * ParseQuery --
  *
  *	Parse the given form string for URL encoded key=value pairs,
@@ -289,9 +318,8 @@ ParseQuery(char *form, Ns_Set *set, Tcl_Encoding encoding)
  */
 
 static void
-ParseMultiInput(Conn *connPtr, char *start, char *end)
+ParseMultiInput(Conn *connPtr, Tcl_Encoding encoding, char *start, char *end)
 {
-    Tcl_Encoding encoding = connPtr->urlEncoding;
     Tcl_DString kds, vds;
     Tcl_HashEntry *hPtr;
     FormFile	  *filePtr;
