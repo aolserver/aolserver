@@ -34,7 +34,7 @@
  *	Manage the server log file.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/log.c,v 1.16 2002/08/25 20:09:47 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/log.c,v 1.17 2002/09/10 23:32:07 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -751,7 +751,7 @@ LogTime(Cache *cachePtr, int gmtoff, long *usecPtr)
 	    bp[n++] = ']';
 	    bp[n] = '\0';
 	} else {
-#ifdef NO_TIMEZONE
+#ifdef HAVE_TM_GMTOFF
 	    gmtoffset = ptm->tm_gmtoff / 60;
 #else
 	    gmtoffset = -timezone / 60;
