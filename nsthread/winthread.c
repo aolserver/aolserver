@@ -706,12 +706,13 @@ void
 NsCreateThread(void *arg, long stacksize, Ns_Thread *resultPtr)
 {
     ThreadArg *argPtr;
-    unsigned hdl, tid;
+    unsigned hdl, tid, flags;
 
+    flags = (resultPtr ? CREATE_SUSPENDED : 0);
     argPtr = ns_malloc(sizeof(ThreadArg));
     argPtr->arg = arg;
     argPtr->self = NULL;
-    hdl = _beginthreadex(NULL, stacksize, ThreadMain, argPtr, 0, &tid);
+    hdl = _beginthreadex(NULL, stacksize, ThreadMain, argPtr, flags, &tid);
     if (hdl == 0) {
     	NsThreadFatal("NsCreateThread", "_beginthreadex", errno);
     }
@@ -719,6 +720,7 @@ NsCreateThread(void *arg, long stacksize, Ns_Thread *resultPtr)
 	CloseHandle((HANDLE) hdl);
     } else {
 	argPtr->self = (HANDLE) hdl;
+	ResumeThread(argPtr->self);
 	*resultPtr = (Ns_Thread) hdl;
     }
 }
