@@ -34,19 +34,38 @@
  *	Implements the tcl ns_set commands 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclset.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclset.c,v 1.4 2001/01/16 18:13:24 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
+
+/*
+ * The following strucute maintains an Ns_Set and
+ * flags (persistent, temp, etc.) for Tcl.
+ */
+ 
+ typedef struct Set {
+    int     flags;
+    Ns_Set *set;
+} Set;
 
 /*
  * Local functions defined in this file
  */
 
 static int BadArgs(Tcl_Interp *interp, char **argv, char *args);
-static TclSet *GetSet(Tcl_Interp *interp, char *setId, int delete);
+static Set *GetSet(Tcl_Interp *interp, char *setId, int delete);
+static void FreeSet(Set *);
+static Ns_Callback FreeSets;
+static Tcl_HashTable *NewTable(void);
+static Tcl_HashTable *GetSharedTable(void);
+static Tcl_HashTable *GetInterpTable(Tcl_Interp *);
+
+/*
+ * The following lock is used to lock around access to the shared
+ * table.
+ */
+ 
 static Ns_Mutex lock;
-static Tcl_HashTable psets;
-static unsigned int pnext;
 
 
 /*
@@ -77,56 +96,45 @@ static unsigned int pnext;
 int
 Ns_TclEnterSet(Tcl_Interp *interp, Ns_Set *set, int flags)
 {
-    TclSet         *tclSet;
-    Tcl_HashEntry  *hePtr;
-    Tcl_HashTable  *htPtr;
-    int             new;
-    TclData        *tdPtr;
+    Set         *sPtr;
+    Tcl_HashTable  *tablePtr;
+    Tcl_HashEntry  *hPtr;
+    int             new, next;
     char            prefix;
-    unsigned int   *nextPtr;
 
     /*
-     * Allocate a new TclSet, which houses a pointer to the
+     * Allocate a new Set, which houses a pointer to the
      * real Ns_Set and the flags (is it persistent, etc.)
      */
     
-    tclSet = (TclSet *) ns_malloc(sizeof(TclSet));
-    tclSet->set = set;
-    tclSet->flags = flags;
-
-    /*
-     * htPtr will hold the pointer to the hashtable containing
-     * the new tclSet. It may point to the global hashtable, in the
-     * event of a persistent set, or the interp's table in the
-     * event of a dynamic set.
-     */
+    sPtr = (Set *) ns_malloc(sizeof(Set));
+    sPtr->set = set;
+    sPtr->flags = flags;
     
-    tdPtr = NsTclGetData(interp);
     if (flags & NS_TCL_SET_PERSISTENT) {
 	/*
-	 * Lock the global mutex and use the global hashtable.
+	 * Lock the global mutex and use the shared sets.
 	 */
 	
+	tablePtr = GetSharedTable();
         Ns_MutexLock(&lock);
-        htPtr = &psets;
         prefix = 'p';
-	nextPtr = &pnext;
     } else {
-        htPtr = &tdPtr->sets;
+	tablePtr = GetInterpTable(interp);
         prefix = 't';
-        nextPtr = &tdPtr->setNum;
     }
 
     /*
      * Allocate a new set IDs until we find an unused one.
      */
     
+    next = tablePtr->numEntries;
     do {
-        sprintf(interp->result, "%c%u", prefix, *nextPtr);
-	*nextPtr += 1;
-        hePtr = Tcl_CreateHashEntry(htPtr, interp->result, &new);
+        sprintf(interp->result, "%c%u", prefix, next);
+	++next;
+        hPtr = Tcl_CreateHashEntry(tablePtr, interp->result, &new);
     } while (!new);
-    Tcl_SetHashValue(hePtr, tclSet);
+    Tcl_SetHashValue(hPtr, sPtr);
 
     /*
      * Unlock the global mutex (locked above) if it's a persistent set.
@@ -157,11 +165,11 @@ Ns_TclEnterSet(Tcl_Interp *interp, Ns_Set *set, int flags)
 Ns_Set *
 Ns_TclGetSet(Tcl_Interp *interp, char *setId)
 {
-    TclSet  *tclSetPtr;
+    Set  *sPtr;
 
-    tclSetPtr = GetSet(interp, setId, NS_FALSE);
-    if (tclSetPtr != NULL) {
-        return tclSetPtr->set;
+    sPtr = GetSet(interp, setId, NS_FALSE);
+    if (sPtr != NULL) {
+        return sPtr->set;
     }
     return NULL;
 }
@@ -184,16 +192,16 @@ Ns_TclGetSet(Tcl_Interp *interp, char *setId)
  */
 
 int
-Ns_TclGetSet2(Tcl_Interp *interp, char *setId, Ns_Set **setPtrPtr)
+Ns_TclGetSet2(Tcl_Interp *interp, char *setId, Ns_Set **setPtr)
 {
-    Ns_Set *setPtr;
+    Ns_Set *set;
 
-    setPtr = Ns_TclGetSet(interp, setId);
-    if (setPtr == NULL) {
+    set = Ns_TclGetSet(interp, setId);
+    if (set == NULL) {
         Tcl_AppendResult(interp, "invalid set id: \"", setId, "\"", NULL);
         return TCL_ERROR;
     }
-    *setPtrPtr = setPtr;
+    *setPtr = set;
     return TCL_OK;
 }
 
@@ -219,13 +227,13 @@ Ns_TclGetSet2(Tcl_Interp *interp, char *setId, Ns_Set **setPtrPtr)
 int
 Ns_TclFreeSet(Tcl_Interp *interp, char *setId)
 {
-    TclSet *tclSetPtr;
+    Set *sPtr;
 
-    tclSetPtr = GetSet(interp, setId, NS_TRUE);
-    if (tclSetPtr == NULL) {
+    sPtr = GetSet(interp, setId, NS_TRUE);
+    if (sPtr == NULL) {
         return NS_ERROR;
     }
-    NsCleanupTclSet(tclSetPtr);
+    FreeSet(sPtr);
     return NS_OK;
 }
 
@@ -256,16 +264,7 @@ NsTclSetCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
     Ns_Set      **setvectorPtrPtr;
     char         *split;
     Tcl_DString   ds;
-    static int    initialized;
 
-    if (!initialized) {
-        Ns_MasterLock();
-        if (!initialized) {
-            Tcl_InitHashTable(&psets, TCL_STRING_KEYS);
-            initialized = 1;
-        }
-        Ns_MasterUnlock();
-    }
     if (argc < 2) {
         Tcl_AppendResult(interp, "wrong # of args: should be \"",
             argv[0], " command ?args?\"", NULL);
@@ -717,9 +716,9 @@ NsTclParseHeaderCmd(ClientData dummy, Tcl_Interp *interp, int argc,
 /*
  *----------------------------------------------------------------------
  *
- * NsCleanupTclSet --
+ * FreeSet --
  *
- *	Free a TclSet and, if it is dynamic, its keys and values as 
+ *	Free a Set and, if it is dynamic, its keys and values as 
  *	well. 
  *
  * Results:
@@ -732,15 +731,12 @@ NsTclParseHeaderCmd(ClientData dummy, Tcl_Interp *interp, int argc,
  */
 
 void
-NsCleanupTclSet(void *value)
+FreeSet(Set *sPtr)
 {
-    TclSet *tclSetPtr;
-
-    tclSetPtr = value;
-    if (tclSetPtr->flags & NS_TCL_SET_DYNAMIC) {
-        Ns_SetFree(tclSetPtr->set);
+    if (sPtr->flags & NS_TCL_SET_DYNAMIC) {
+        Ns_SetFree(sPtr->set);
     }
-    ns_free(tclSetPtr);
+    ns_free(sPtr);
 }
 
 
@@ -749,11 +745,11 @@ NsCleanupTclSet(void *value)
  *
  * GetSet --
  *
- *	Take a tcl set handle and return a matching TclSet. This 
+ *	Take a tcl set handle and return a matching Set. This 
  *	takes both persistent and dynamic set handles. 
  *
  * Results:
- *	A TclSet or NULL if error. 
+ *	A Set or NULL if error. 
  *
  * Side effects:
  *      If delete is NS_TRUE, then the hash entry will be removed.
@@ -761,41 +757,37 @@ NsCleanupTclSet(void *value)
  *----------------------------------------------------------------------
  */
 
-static TclSet *
+static Set *
 GetSet(Tcl_Interp *interp, char *setId, int delete)
 {
-    TclData       *tdPtr;
-    Tcl_HashTable *htPtr;
-    Tcl_HashEntry *hePtr;
-    TclSet        *tclSetPtr;
-
-    tdPtr = NsTclGetData(interp);
+    Tcl_HashTable *tablePtr;
+    Tcl_HashEntry *hPtr;
+    Set        *sPtr;
 
     /*
-     * If it's a persistent set, use the global hash table, otherwise
-     * use the local one.
+     * If it's a persistent set, use the shared table, otherwise
+     * use the interp table.
      */
     
     if (*setId == 'p') {
+	tablePtr = GetSharedTable();
         Ns_MutexLock(&lock);
-        htPtr = &psets;
     } else {
-        htPtr = &tdPtr->sets;
+	tablePtr = GetInterpTable(interp);
     }
-    hePtr = Tcl_FindHashEntry(htPtr, setId);
-    if (hePtr == NULL) {
-        tclSetPtr = NULL;
+    hPtr = Tcl_FindHashEntry(tablePtr, setId);
+    if (hPtr == NULL) {
+        sPtr = NULL;
     } else {
-        tclSetPtr = (TclSet *) Tcl_GetHashValue(hePtr);
+        sPtr = (Set *) Tcl_GetHashValue(hPtr);
         if (delete == NS_TRUE) {
-            Tcl_DeleteHashEntry(hePtr);
+            Tcl_DeleteHashEntry(hPtr);
         }
     }
     if (*setId == 'p') {
         Ns_MutexUnlock(&lock);
     }
-    
-    return tclSetPtr;
+    return sPtr;
 }
 
 
@@ -824,3 +816,102 @@ BadArgs(Tcl_Interp *interp, char **argv, char *args)
     return TCL_ERROR;
 }
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * GetSharedTable --
+ *
+ *	Return the table for persistent sets.
+ *
+ * Results:
+ *	Pointer to static, initialized Tcl_HashTable.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static Tcl_HashTable *
+GetSharedTable(void)
+{
+    static int initialized;
+    static Tcl_HashTable table;    
+
+    if (!initialized) {
+	Ns_MasterLock();
+	if (!initialized) {
+	    Ns_MutexSetName2(&lock, "ns", "sets");
+	    Tcl_InitHashTable(&table, TCL_STRING_KEYS);
+	    initialized = 1;
+	}
+	Ns_MasterUnlock();
+    }
+    return &table;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * GetInterpTable --
+ *
+ *	Return the table for given interp's temporary sets.
+ *
+ * Results:
+ *	Pointer to dynamic, initialized Tcl_HashTable.
+ *
+ * Side effects:
+ *	See FreeSets.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static Tcl_HashTable *
+GetInterpTable(Tcl_Interp *interp)
+{
+    Tcl_HashTable *tablePtr;
+
+    tablePtr = NsTclGetData(interp, NS_TCL_SETS_KEY);
+    if (tablePtr == NULL) {
+	tablePtr = ns_malloc(sizeof(Tcl_HashTable));
+	Tcl_InitHashTable(tablePtr, TCL_STRING_KEYS);
+	NsTclSetData(interp, NS_TCL_SETS_KEY, tablePtr, FreeSets);
+    }
+    return tablePtr;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * FreeSets --
+ *
+ *	Tcl interp data callback to free temporary sets data.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	Table is purged and freed.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+FreeSets(void *arg)
+{
+    Tcl_HashTable *tablePtr = arg;
+    Tcl_HashSearch search;
+    Tcl_HashEntry *hPtr;
+    Set *sPtr;
+
+    hPtr = Tcl_FirstHashEntry(tablePtr, &search);
+    while (hPtr != NULL) {
+	sPtr = Tcl_GetHashValue(hPtr);
+	FreeSet(sPtr);
+	hPtr = Tcl_NextHashEntry(&search);
+    }
+    Tcl_DeleteHashTable(tablePtr);
+    ns_free(tablePtr);
+}

@@ -35,7 +35,7 @@
  *	with registered procs and whatnot.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/tclop.c,v 1.5 2001/01/15 18:53:17 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/tclop.c,v 1.6 2001/01/16 18:13:24 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -74,6 +74,7 @@ static void AppendConnId(Tcl_DString *pds, Ns_Conn *conn);
 static void RunAtClose(Tcl_Interp *interp);
 static int TclDoOp(void *arg, Ns_Conn *conn);
 static Ns_Callback FreeCtx;
+static Ns_Callback FreeAtClose;
 static int RegisterFilter(Tcl_Interp *interp, int when, char **args);
 
 /*
@@ -104,14 +105,14 @@ static TclFilterReturnCode TclFilterReturnCodes[] = {
  */
 
 int
-Ns_TclEval(Ns_DString *pds, char *hServer, char *script)
+Ns_TclEval(Ns_DString *pds, char *server, char *script)
 {
     int         retcode;
     Tcl_Interp *interp;
 
     retcode = NS_ERROR;
 
-    interp = Ns_TclAllocateInterp(hServer);
+    interp = Ns_TclAllocateInterp(server);
     if (interp != NULL) {
         if (Tcl_GlobalEval(interp, script) == TCL_OK) {
             Ns_DStringAppend(pds, interp->result);
@@ -334,11 +335,9 @@ NsTclRegisterFilterCmd(ClientData dummy, Tcl_Interp *interp, int argc,
 int
 NsTclAtCloseCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 {
-    TclData *tdPtr;
-    char    *script = NULL;
+    char    *script;
     AtClose *atPtr;
 
-    tdPtr = NsTclGetData(interp);
     if (argc < 2 || argc > 3) {
 	Tcl_AppendResult (interp, "wrong # args: should be \"",
 			  argv[0], " { script | procname ?arg? }\"", NULL);
@@ -357,13 +356,11 @@ NsTclAtCloseCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 
     atPtr = ns_malloc(sizeof(AtClose) + strlen(script));
     strcpy(atPtr->script, script);
-    atPtr->nextPtr = tdPtr->firstAtClosePtr;
-    tdPtr->firstAtClosePtr = atPtr;
-
+    atPtr->nextPtr = NsTclGetData(interp, NS_TCL_ATCLOSE_KEY);
+    NsTclSetData(interp, NS_TCL_ATCLOSE_KEY, atPtr, FreeAtClose);
     if (script != argv[1]) {
 	ckfree(script);
     }
-    
     return TCL_OK;
 }
 
@@ -475,7 +472,7 @@ NsTclRegisterCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 /*
  *----------------------------------------------------------------------
  *
- * NsTclFreeAtClose --
+ * FreeAtClose --
  *
  *	Dump a list of AtClose callbacks.
  *
@@ -489,10 +486,11 @@ NsTclRegisterCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
  */
 
 void
-NsTclFreeAtClose(struct AtClose *firstPtr)
+FreeAtClose(void *arg)
 {
-    AtClose *atPtr;
+    AtClose *atPtr, *firstPtr;
 
+    firstPtr = arg;
     while (firstPtr != NULL) {
 	atPtr = firstPtr;
 	firstPtr = atPtr->nextPtr;
@@ -595,7 +593,6 @@ TclDoOp(void *arg, Ns_Conn *conn)
     }
     RunAtClose(interp);
     Tcl_DStringFree(&cmd);
-    
     return retval;
 }
 
@@ -779,19 +776,19 @@ RegisterFilter(Tcl_Interp *interp, int when, char **args)
 static void
 RunAtClose(Tcl_Interp *interp)
 {
-    TclData *tdPtr = NsTclGetData(interp);
-    AtClose       *atPtr, *nextPtr;
+    AtClose       *atPtr, *firstPtr;
 
-    atPtr = tdPtr->firstAtClosePtr;
-    tdPtr->firstAtClosePtr = NULL;
-
-    while (atPtr != NULL) {
-	nextPtr = atPtr->nextPtr;
-	if (Tcl_GlobalEval(interp, atPtr->script) != TCL_OK) {
-	    Ns_TclLogError(interp);
-	}
-	ns_free(atPtr);
-	atPtr = nextPtr;
+    firstPtr = NsTclGetData(interp, NS_TCL_ATCLOSE_KEY);
+    if (firstPtr != NULL) {
+    	NsTclSetData(interp, NS_TCL_ATCLOSE_KEY, NULL, NULL);
+    	atPtr = firstPtr;
+    	while (atPtr != NULL) {
+	    if (Tcl_GlobalEval(interp, atPtr->script) != TCL_OK) {
+	    	Ns_TclLogError(interp);
+	    }
+	    atPtr = atPtr->nextPtr;
+    	}
+	FreeAtClose(firstPtr);
     }
 }
 

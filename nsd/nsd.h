@@ -81,7 +81,7 @@
 #else
 #define NS_SIGTERM  SIGTERM
 #define NS_SIGHUP   SIGHUP
-#define NS_SIGTCL   SIGUSR2
+#define NS_SIGTCL   0xff
 #endif
 
 #define UCHAR(c)	((unsigned char) (c))
@@ -112,6 +112,17 @@
 #define STATS_PERURL 2
 
 #define Dev         (Debug+1)
+
+/*
+ * Tcl interp local storage keys.
+ *
+ * NOTE: Order matters!
+ */
+
+#define NS_TCL_ATCLOSE_KEY	0
+#define NS_TCL_SETS_KEY		1
+#define NS_TCL_DBS_KEY		2
+#define NS_TCL_NUMKEYS		3
 
 /*
  * Typedef definitions.
@@ -304,6 +315,7 @@ typedef struct Conn {
      * Visible only in a Conn:
      */
     
+    char	*server;
     struct Conn *prevPtr;
     struct Conn *nextPtr;
     int          id;
@@ -342,27 +354,6 @@ typedef struct Conn {
 /*
  * Tcl support structures.
  */
-
-typedef struct TclSet {
-    int     flags;
-    Ns_Set *set;
-} TclSet;
-
-struct Defer;
-struct AtClose;
-
-typedef struct TclData {
-    Tcl_Interp	  *interp;
-    int		   deleteInterp;
-    Tcl_HashTable  sets;
-    unsigned int   setNum;
-    unsigned int   dbNum;
-    Tcl_HashTable  dbs;
-    char	  *defDb;
-    struct Defer  *firstDeferPtr;
-    struct AtClose *firstAtClosePtr;
-    int		   lastEpoch;
-} TclData;
 
 typedef struct TclCmd {
     char           *name;
@@ -439,7 +430,7 @@ extern void  NsConfigFree(char *buf);
 extern void  NsConfigEval(char *script);
 extern void  NsConfigParse(char *file, char *config);
 extern void  NsConfigParseAux();  /* AuxConfigDir */
-extern void  NsConfInit(void);
+extern void  NsConfInit(char *server);
 
 
 /*
@@ -449,24 +440,17 @@ extern void  NsConfInit(void);
 #ifdef WIN32
 extern void NsInitTls(void);
 extern int NsConnectService(Ns_ServerInitProc *initProc);
-extern int NsInstallService(void);
-extern int NsRemoveService(void);
+extern int NsInstallService(char *server);
+extern int NsRemoveService(char *server);
 #endif
 
 extern void NsTclStatsInit(void);
-extern void NsAdpInit(void);
-extern void NsAdpParsers(void);
-extern void NsDbInit(void);
-extern void NsDbTclInit(void);
+extern void NsDbTclInit(char *server);
 extern void NsInitBinder(char *args, char *file);
 extern void NsForkBinder(void);
 extern void NsStopBinder(void);
-extern void NsInitFastpath(void);
 extern void NsInitMimeTypes(void);
-extern void NsInitReturn(void);
-extern void NsLoadModules(void);
 extern void NsLogOpen(void);
-extern void NsPidFileInit(int fkill);
 extern void NsPortInit(void);
 extern void NsSchedInit(void);
 extern char *NsTclFindExecutable(char *argv0);
@@ -474,10 +458,17 @@ extern void NsTclInit(void);
 extern void NsTclInitGlobal(void);
 extern void NsTclInitScripts(void);
 
+extern void NsAdpInit(char *server);
+extern void NsAdpParsers(char *server);
+extern void NsDbInit(char *server);
+extern void NsInitFastpath(char *server);
+extern void NsInitReturn(char *server);
+extern void NsLoadModules(char *server);
+
 extern void NsEnableDNSCache(int timeout);
-extern void NsCreatePidFile(void);
-extern void NsRemovePidFile(void);
-extern int  NsGetLastPid(void);
+extern void NsCreatePidFile(char *server);
+extern void NsRemovePidFile(char *server);
+extern int  NsGetLastPid(char *server);
 extern void NsKillPid(int pid);
 extern void NsBlockSignals(int debug);
 extern void NsHandleSignals(void);
@@ -485,8 +476,8 @@ extern void NsRestoreSignals(void);
 extern void NsSendSignal(int sig);
 extern void NsShutdown(int timeout);
 
-extern void NsStartServer(void);
-extern void NsStartDrivers(void);
+extern void NsStartServer(char *server);
+extern void NsStartDrivers(char *server);
 extern void NsWaitServerWarmup(Ns_Time *);
 extern void NsWaitSockIdle(Ns_Time *);
 extern void NsWaitSchedIdle(Ns_Time *);
@@ -535,27 +526,24 @@ extern struct DbDriver *NsDbGetDriver(Ns_DbHandle *);
 extern struct DbDriver *NsDbLoadDriver(char *driver);
 extern void 		NsDbLogSql(Ns_DbHandle *, char *sql);
 extern int 		NsDbOpen(Ns_DbHandle *);
-extern void 		NsDbServerInit(struct DbDriver *);
+extern void 		NsDbServerInit(char *server, struct DbDriver *);
 
 /*
  * Tcl support routines.
  */
 
-extern Ns_Callback NsCleanupTclDb;
-extern Ns_Callback NsCleanupTclSet;
 extern char 	  *NsConstructScriptCall(char *script, char *scriptarg);
 extern char 	  *NsTclConnId(Ns_Conn *conn);
 extern int 	   NsIsIdConn(char *inID);
-extern void 	   NsSigRestore(void);
 extern int 	   NsTclEval(Tcl_Interp *interp, char *script);
 extern void 	   NsTclCopyCommands(Tcl_Interp *from, Tcl_Interp *to);
 extern void 	   NsTclCreateCmds(Tcl_Interp *);
 extern void 	   NsTclCreateGenericCmds(Tcl_Interp *);
 extern void 	   NsTclCreateObjCmds(Tcl_Interp *);
-extern void	   NsTclFreeAtClose(struct AtClose *firstPtr);
-extern TclData    *NsTclGetData(Tcl_Interp *);
+extern void       *NsTclGetData(Tcl_Interp *interp, int key);
+extern void        NsTclSetData(Tcl_Interp *interp, int key,
+			void *data, Ns_Callback *cleanupProc);
 extern int	   NsTclShareVar(Tcl_Interp *interp, char *varName);
-
 extern TclCmdInfo *NsTclGetCmdInfo(Tcl_Interp *interp, char *name);
 extern void 	   NsTclCreateCommand(Tcl_Interp *interp, TclCmdInfo *cmdPtr);
 extern void	   NsTclRunInits(void);

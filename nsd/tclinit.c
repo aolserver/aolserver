@@ -34,7 +34,7 @@
  *	Initialization routines for Tcl.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.8 2000/11/09 01:51:55 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.9 2001/01/16 18:13:24 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -92,7 +92,7 @@ static char createProcs[] =
 	"    }\n"
 	"    return $script\n"
 	"}\n";
-	
+
 /*
  * The following structure is used to keep track of procedures
  * to call when interps, created, cleaned up, or destroyed for
@@ -113,7 +113,7 @@ typedef struct TclTrace {
 typedef struct Defer {
     struct Defer    *nextPtr;
     Ns_TclDeferProc *procPtr;
-    void 	    *clientData;
+    void 	    *arg;
 } Defer;
 
 /*
@@ -138,12 +138,24 @@ typedef struct InitScript {
 } InitScript;
 
 /*
+ * The following structure maintains per-thread Tcl state.
+ */
+ 	
+typedef struct TclData {
+    Tcl_Interp	  *interp;
+    int		   deleteInterp;
+    void	  *data[NS_TCL_NUMKEYS];
+    Ns_Callback   *cleanup[NS_TCL_NUMKEYS];
+    Defer	  *firstDeferPtr;
+    int		   lastEpoch;
+} TclData;
+
+/*
  * Local procedures defined in this file
  */
  
-static void     CleanupTable(Tcl_HashTable *tablePtr,
-			     Ns_Callback *cleanupProc);
 static void	CleanupData(TclData *tdPtr);
+static TclData *GetData(Tcl_Interp *interp);
 static Ns_Callback FreeData;
 static int CheckStarting(char *funcName);
 static void CreateInterp(TclData *tdPtr);
@@ -176,7 +188,6 @@ static Tcl_HashTable builtinCmds;
 static int         initTid;
 static Tcl_Interp *initInterp;
 
-
 
 /*
  *----------------------------------------------------------------------
@@ -200,7 +211,7 @@ static Tcl_Interp *initInterp;
  */
 
 int
-Ns_TclInitInterps(char *hServer, Ns_TclInterpInitProc *initProc, void *arg)
+Ns_TclInitInterps(char *server, Ns_TclInterpInitProc *initProc, void *arg)
 {
     Tcl_Interp *interp;
     int code;
@@ -208,8 +219,7 @@ Ns_TclInitInterps(char *hServer, Ns_TclInterpInitProc *initProc, void *arg)
     if (CheckStarting("Ns_TclInitInterps") == NS_FALSE) {
 	return TCL_ERROR;
     }
-
-    interp = Ns_TclAllocateInterp(NULL);
+    interp = Ns_TclAllocateInterp(server);
     code = ((*initProc) (interp, arg));
     Ns_TclDeAllocateInterp(interp);
     return code;
@@ -241,7 +251,6 @@ Ns_TclInitModule(char *server, char *module)
 {
     Ns_DStringAppendArg(&modlist, module);
     nmodules++;
-
     return NS_OK;
 }
 
@@ -305,15 +314,16 @@ Ns_TclRegisterAtDelete(Ns_TclTraceProc *proc, void *arg)
 
 void
 Ns_TclRegisterDeferred(Tcl_Interp *interp, Ns_TclDeferProc *procPtr,
-	void *clientData)
+	void *arg)
 {
     Defer   *deferPtr;
     TclData *tdPtr;
 
-    tdPtr = NsTclGetData(interp);
     deferPtr = ns_malloc(sizeof(Defer));
     deferPtr->procPtr = procPtr;
-    deferPtr->clientData = clientData;
+    deferPtr->arg = arg;
+
+    tdPtr = GetData(interp);
     deferPtr->nextPtr = tdPtr->firstDeferPtr;
     tdPtr->firstDeferPtr = deferPtr;
 }
@@ -340,7 +350,7 @@ Ns_TclMarkForDelete(Tcl_Interp *interp)
 {
     TclData *tdPtr;
 
-    tdPtr = NsTclGetData(NULL);
+    tdPtr = GetData(interp);
     tdPtr->deleteInterp = 1;
 }
     
@@ -387,11 +397,11 @@ Ns_TclDestroyInterp(Tcl_Interp *interp)
  */
 
 Tcl_Interp *
-Ns_TclAllocateInterp(char *ignored)
+Ns_TclAllocateInterp(char *server)
 {
     TclData *tdPtr;
 
-    tdPtr = NsTclGetData(NULL);
+    tdPtr = GetData(NULL);
     if (tdPtr->interp != NULL && tdPtr->interp != initInterp) {
 	Ns_MutexLock(&lock);
 	if (tdPtr->lastEpoch != currentEpoch) {
@@ -426,11 +436,11 @@ Ns_TclAllocateInterp(char *ignored)
  */
 
 void
-Ns_TclDeAllocateInterp(Tcl_Interp *ignored)
+Ns_TclDeAllocateInterp(Tcl_Interp *interp)
 {
     TclData *tdPtr;
 
-    tdPtr = NsTclGetData(NULL);
+    tdPtr = GetData(interp);
     if (tdPtr->interp != NULL) {
 	RunTraces(tdPtr, firstAtCleanupPtr);
     	CleanupData(tdPtr);
@@ -559,73 +569,65 @@ NsTclInit(void)
 	}
 	ckfree((char *) cargv);
     }
-    tdPtr = NsTclGetData(NULL);
+    tdPtr = GetData(NULL);
     tdPtr->interp = initInterp = interp;
     NsTclCreateCmds(interp);
     NsTclStatsInit();
     Ns_TclDeAllocateInterp(interp);
 }
 
+
 
 /*
  *----------------------------------------------------------------------
  *
- * QueueInit --
+ * NsTclGetData --
  *
- *  	Evaluate a script and, if successful, queue it for the next
- *  	iteration of NsTclRunInits.
+ *	Get private interp data.
+ *
+ * Results:
+ *	Pointer to interp data for given key.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void *
+NsTclGetData(Tcl_Interp *interp, int key)
+{
+    TclData *tdPtr;
+
+    tdPtr = GetData(interp);
+    return tdPtr->data[key];
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsTclSetData --
+ *
+ *	Set private interp data and cleanup callback.
  *
  * Results:
  *	None.
  *
  * Side effects:
- *  	This of commands in the parent interp is updated.
+ *	Cleanup callback will be called with data at interp deallocate.
  *
  *----------------------------------------------------------------------
  */
 
-static int
-QueueInit(Tcl_Interp *interp, char *script)
+void
+NsTclSetData(Tcl_Interp *interp, int key, void *data, Ns_Callback *proc)
 {
-    InitScript *initPtr, **nextPtrPtr;
+    TclData *tdPtr;
 
-    /*
-     * Verify the script will execute.
-     */
-     	
-    if (NsTclEval(interp, script) != TCL_OK) {
-    	Ns_TclMarkForDelete(interp);
-	Ns_TclLogError(interp);
-	return TCL_ERROR;
-    }
-
-    /*
-     * Queue the script and trigger the main thread if
-     * necessary.
-     */
-     
-    if (interp == initInterp) {
-	initPtr = NULL;	 /* Update already done. */
-    } else {
-    	initPtr = ns_malloc(sizeof(InitScript) + strlen(script));
-    	strcpy(initPtr->script, script);
-    	initPtr->nextPtr = NULL;
-    }
-
-    Ns_MutexLock(&lock);
-    if (firstInitPtr == NULL) {
-	NsSendSignal(NS_SIGTCL);
-    }
-    if (initPtr != NULL) {
-    	nextPtrPtr = &firstInitPtr;
-    	while (*nextPtrPtr != NULL) {
-	    nextPtrPtr = &((*nextPtrPtr)->nextPtr);
-    	}
-    	*nextPtrPtr = initPtr;
-    }
-    Ns_MutexUnlock(&lock);
-
-    return TCL_OK;
+    tdPtr = GetData(interp);
+    tdPtr->data[key] = data;
+    tdPtr->cleanup[key] = proc;
 }
 
 
@@ -763,40 +765,44 @@ NsTclInitScripts(void)
 /*
  *----------------------------------------------------------------------
  *
- * NsTclGetData --
+ * NsTclEvalCmd --
  *
- *	Get the data associate with a tcl interp, using TLS. 
+ *	Implements ns_eval.
  *
  * Results:
- *	A TclData pointer. 
+ *	The tcl result. 
  *
  * Side effects:
- *	A new TclData will be allocated if one did not exist. 
+ *	See docs. 
  *
  *----------------------------------------------------------------------
  */
 
-TclData *
-NsTclGetData(Tcl_Interp *ignored)
+int
+NsTclEvalCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 {
-    TclData *tdPtr;
-    static Ns_Tls tls;
+    char *script;
+    int   retcode;
 
-    if (tls == NULL) {
-	Ns_MasterLock();
-	if (tls == NULL) {
-	    Ns_TlsAlloc(&tls, FreeData);
-	}
-	Ns_MasterUnlock();
+    if (!nsconf.tcl.nseval) {
+	Tcl_SetResult(interp, "ns_eval not enabled", TCL_STATIC);
+	return TCL_ERROR;
     }
-    tdPtr = (TclData *) Ns_TlsGet(&tls);
-    if (tdPtr == NULL) {
-    	tdPtr = ns_calloc(sizeof(TclData), 1);
-    	Tcl_InitHashTable(&tdPtr->sets, TCL_STRING_KEYS);
-    	Tcl_InitHashTable(&tdPtr->dbs, TCL_STRING_KEYS);
-    	Ns_TlsSet(&tls, tdPtr);
+    if (argc < 2) {
+        Tcl_AppendResult(interp, "wrong # args: should be \"",
+            argv[0], " arg ?arg? ?arg?", NULL);
+        return TCL_ERROR;
     }
-    return tdPtr;
+    if (argc == 2) {
+        script = argv[1];
+    } else {
+        script = Tcl_Concat(argc - 1, argv + 1);
+    }
+    retcode = QueueInit(interp, script);
+    if (script != argv[1]) {
+        ckfree(script);
+    }
+    return retcode;
 }
 
 
@@ -826,6 +832,106 @@ NsTclMarkForDeleteCmd(ClientData dummy, Tcl_Interp *interp, int argc,
 	return TCL_ERROR;
     }
     Ns_TclMarkForDelete(interp);
+
+    return TCL_OK;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * GetData --
+ *
+ *	Get the data associate with a Tcl interp, using TLS. 
+ *
+ * Results:
+ *	A TclData pointer. 
+ *
+ * Side effects:
+ *	A new TclData will be allocated if one did not exist. 
+ *
+ *----------------------------------------------------------------------
+ */
+
+static TclData *
+GetData(Tcl_Interp *interp)
+{
+    TclData *tdPtr;
+    static Ns_Tls tls;
+
+    if (tls == NULL) {
+	Ns_MasterLock();
+	if (tls == NULL) {
+	    Ns_TlsAlloc(&tls, FreeData);
+	}
+	Ns_MasterUnlock();
+    }
+    tdPtr = (TclData *) Ns_TlsGet(&tls);
+    if (tdPtr == NULL) {
+    	tdPtr = ns_calloc(sizeof(TclData), 1);
+    	Ns_TlsSet(&tls, tdPtr);
+    }
+    return tdPtr;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * QueueInit --
+ *
+ *  	Evaluate a script and, if successful, queue it for the next
+ *  	iteration of NsTclRunInits.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *  	This of commands in the parent interp is updated.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+QueueInit(Tcl_Interp *interp, char *script)
+{
+    InitScript *initPtr, **nextPtrPtr;
+
+    /*
+     * Verify the script will execute.
+     */
+     	
+    if (NsTclEval(interp, script) != TCL_OK) {
+    	Ns_TclMarkForDelete(interp);
+	Ns_TclLogError(interp);
+	return TCL_ERROR;
+    }
+
+    /*
+     * Queue the script and trigger the main thread if
+     * necessary.
+     */
+     
+    if (interp == initInterp) {
+	initPtr = NULL;	 /* Update already done. */
+    } else {
+    	initPtr = ns_malloc(sizeof(InitScript) + strlen(script));
+    	strcpy(initPtr->script, script);
+    	initPtr->nextPtr = NULL;
+    }
+
+    Ns_MutexLock(&lock);
+    if (firstInitPtr == NULL) {
+	NsSendSignal(NS_SIGTCL);
+    }
+    if (initPtr != NULL) {
+    	nextPtrPtr = &firstInitPtr;
+    	while (*nextPtrPtr != NULL) {
+	    nextPtrPtr = &((*nextPtrPtr)->nextPtr);
+    	}
+    	*nextPtrPtr = initPtr;
+    }
+    Ns_MutexUnlock(&lock);
 
     return TCL_OK;
 }
@@ -1142,11 +1248,25 @@ FreeData(void *arg)
 	CleanupData(tdPtr);
     	DeleteInterp(tdPtr);
     }
-    Tcl_DeleteHashTable(&tdPtr->sets);
-    Tcl_DeleteHashTable(&tdPtr->dbs);
     ns_free(tdPtr);
 }
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * DeleteInterp --
+ *
+ *	Delete the active interp in the given thread data.
+ *
+ * Results:
+ *	None. 
+ *
+ * Side effects:
+ *	See Tcl_DeleteInterp.
+ *
+ *----------------------------------------------------------------------
+ */
 
 static void
 DeleteInterp(TclData *tdPtr)
@@ -1155,7 +1275,6 @@ DeleteInterp(TclData *tdPtr)
     tdPtr->deleteInterp = 0;
     tdPtr->interp = NULL;
 }
-
 
 
 /*
@@ -1182,6 +1301,9 @@ CleanupData(TclData *tdPtr)
     Defer       *deferPtr, *nextDeferPtr;
     Tcl_Interp  *interp = tdPtr->interp;
     Tcl_DString  script;
+    Ns_Callback *cleanup;
+    void *data;
+    int i;
 
     Tcl_ResetResult(interp);
 
@@ -1207,18 +1329,9 @@ CleanupData(TclData *tdPtr)
     tdPtr->firstDeferPtr = NULL;
     while (deferPtr != NULL) {
 	nextDeferPtr = deferPtr->nextPtr;
-        (*(deferPtr->procPtr)) (interp, deferPtr->clientData);
+        (*(deferPtr->procPtr)) (interp, deferPtr->arg);
 	ns_free(deferPtr);
 	deferPtr = nextDeferPtr;
-    }
-
-    /*
-     * Dump any AtClose callbacks never run.
-     */
-
-    if (tdPtr->firstAtClosePtr != NULL) {
-    	NsTclFreeAtClose(tdPtr->firstAtClosePtr);
-    	tdPtr->firstAtClosePtr = NULL;
     }
 
     /*
@@ -1237,10 +1350,15 @@ CleanupData(TclData *tdPtr)
      * Cleanup the rest of the interp data.
      */
 
-    CleanupTable(&tdPtr->sets, NsCleanupTclSet);
-    CleanupTable(&tdPtr->dbs, NsCleanupTclDb);
-    tdPtr->setNum = 0;
-    tdPtr->dbNum = 0;
+    for (i = 0; i < NS_TCL_NUMKEYS; ++i) {
+	if (tdPtr->cleanup[i] != NULL) {
+	    cleanup = tdPtr->cleanup[i];
+	    data = tdPtr->data[i];
+	    tdPtr->data[i] = NULL;
+	    tdPtr->cleanup[i] = NULL;
+	    (*cleanup)(data);
+	}
+    }
 
     /*
      * Delete the interp if it was marked destroyed.
@@ -1250,37 +1368,6 @@ CleanupData(TclData *tdPtr)
     	Tcl_ResetResult(interp);
     } else {
 	DeleteInterp(tdPtr);
-    }
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * CleanupTable --
- *
- *	Delete all the hash entries in a hash table. 
- *
- * Results:
- *	None. 
- *
- * Side effects:
- *	None. 
- *
- *----------------------------------------------------------------------
- */
-
-static void
-CleanupTable(Tcl_HashTable *tablePtr, Ns_Callback *cleanupProc)
-{
-    Tcl_HashEntry  *hPtr;
-    Tcl_HashSearch  search;
-
-    hPtr = Tcl_FirstHashEntry(tablePtr, &search);
-    while (hPtr != NULL) {
-        (*cleanupProc) (Tcl_GetHashValue(hPtr));
-	Tcl_DeleteHashEntry(hPtr);
-	hPtr = Tcl_NextHashEntry(&search);
     }
 }
 
@@ -1439,48 +1526,4 @@ GetCmds(Tcl_Interp *interp, int *cargcPtr, char ***cargvPtr)
 	return 0;
     }
     return 1;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsTclEvalCmd --
- *
- *	Implements ns_eval.
- *
- * Results:
- *	The tcl result. 
- *
- * Side effects:
- *	See docs. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclEvalCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
-{
-    char *script;
-    int   retcode;
-
-    if (!nsconf.tcl.nseval) {
-	Tcl_SetResult(interp, "ns_eval not enabled", TCL_STATIC);
-	return TCL_ERROR;
-    }
-    if (argc < 2) {
-        Tcl_AppendResult(interp, "wrong # args: should be \"",
-            argv[0], " arg ?arg? ?arg?", NULL);
-        return TCL_ERROR;
-    }
-    if (argc == 2) {
-        script = argv[1];
-    } else {
-        script = Tcl_Concat(argc - 1, argv + 1);
-    }
-    retcode = QueueInit(interp, script);
-    if (script != argv[1]) {
-        ckfree(script);
-    }
-    return retcode;
 }

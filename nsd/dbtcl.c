@@ -34,7 +34,7 @@
  *	Tcl database access routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/dbtcl.c,v 1.6 2000/08/18 00:12:28 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/dbtcl.c,v 1.7 2001/01/16 18:13:24 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -48,6 +48,8 @@ static int DbFail(Tcl_Interp *interp, Ns_DbHandle *handle, char *cmd);
 static void EnterDbHandle(Tcl_Interp *interp, Ns_DbHandle *handle);
 static int DbGetHandle(Tcl_Interp *interp, char *handleId,
 		       Ns_DbHandle **handle, Tcl_HashEntry **phe);
+static Tcl_HashTable *GetTable(Tcl_Interp *);
+static Ns_Callback ReleaseDbs;
 
 /*
  * Local variables defined in this file
@@ -94,34 +96,12 @@ Ns_TclDbGetHandle(Tcl_Interp *interp, char *handleId, Ns_DbHandle **handle)
  */
 
 void
-NsDbTclInit(void)
+NsDbTclInit(char *server)
 {
-    Ns_TclInitInterps(nsServer, EnableCmds, NULL);
-
-    if (Ns_TclInitModule(nsServer, "nsdb") != NS_OK) {
+    Ns_TclInitInterps(server, EnableCmds, NULL);
+    if (Ns_TclInitModule(server, "nsdb") != NS_OK) {
 	Ns_Log(Warning, "dbtcl: failed to initialize nsdb tcl commands");
     }
-}
-
-
-/*
- *----------------------------------------------------------------------
- * NsCleanupTclDb --
- *
- *      Clean up database handle
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      See NsCleanupTclDb().
- *
- *----------------------------------------------------------------------
- */
-void
-NsCleanupTclDb(void *arg)
-{
-    Ns_DbPoolPutHandle((Ns_DbHandle *) arg);
 }
 
 
@@ -358,7 +338,7 @@ NsTclDbCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 
     	    } else if (STREQ(cmd, "releasehandle")) {
 		Tcl_DeleteHashEntry(hPtr);
-		NsCleanupTclDb(handlePtr);
+    		Ns_DbPoolPutHandle(handlePtr);
 
     	    } else if (STREQ(cmd, "resethandle")) {
 		if (Ns_DbResetHandle(handlePtr) != NS_OK) {
@@ -1005,24 +985,22 @@ EnableCmds(Tcl_Interp *interp, void *context)
 
 static int
 DbGetHandle(Tcl_Interp *interp, char *handleId, Ns_DbHandle **handle,
-	    Tcl_HashEntry **phe)
+	    Tcl_HashEntry **hPtrPtr)
 {
-    Tcl_HashEntry  *he;
-    TclData *tdPtr;
+    Tcl_HashEntry  *hPtr;
+    Tcl_HashTable  *tablePtr;
 
-    tdPtr = NsTclGetData(interp);
-    he = Tcl_FindHashEntry(&tdPtr->dbs, handleId);
-    if (he == NULL) {
+    tablePtr = GetTable(interp);
+    hPtr = Tcl_FindHashEntry(tablePtr, handleId);
+    if (hPtr == NULL) {
 	Tcl_AppendResult(interp, "invalid database id:  \"", handleId, "\"",
 	    NULL);
 	return TCL_ERROR;
     }
-
-    *handle = (Ns_DbHandle *) Tcl_GetHashValue(he);
-    if (phe != NULL) {
-	*phe = he;
+    *handle = (Ns_DbHandle *) Tcl_GetHashValue(hPtr);
+    if (hPtrPtr != NULL) {
+	*hPtrPtr = hPtr;
     }
-
     return TCL_OK;
 }
 
@@ -1045,16 +1023,18 @@ DbGetHandle(Tcl_Interp *interp, char *handleId, Ns_DbHandle **handle,
 static void
 EnterDbHandle(Tcl_Interp *interp, Ns_DbHandle *handle)
 {
+    Tcl_HashTable *tablePtr;
     Tcl_HashEntry *he;
-    int            new;
-    TclData       *tdPtr;
+    int            new, next;
+    char	   buf[100];
 
-    tdPtr = NsTclGetData(interp);
+    tablePtr = GetTable(interp);
+    next = tablePtr->numEntries;
     do {
-        sprintf(interp->result, "nsdb%x", tdPtr->dbNum++);
-        he = Tcl_CreateHashEntry(&tdPtr->dbs, interp->result, &new);
-    } while (new == 0);
-
+        sprintf(buf, "nsdb%x", next++);
+        he = Tcl_CreateHashEntry(tablePtr, buf, &new);
+    } while (!new);
+    Tcl_SetResult(interp, buf, TCL_VOLATILE);
     Tcl_SetHashValue(he, handle);
 }
 
@@ -1120,3 +1100,66 @@ DbFail(Tcl_Interp *interp, Ns_DbHandle *handle, char *cmd)
     return TCL_ERROR;
 }
 
+
+/*
+ *----------------------------------------------------------------------
+ * GetTable --
+ *
+ *      Return the table of allocated db handles in the interp.
+ *
+ * Results:
+ *      Pointer to dynamic, initialized Tcl_HashTable of handle ids.
+ *
+ * Side effects:
+ *      See ReleaseDbs.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static Tcl_HashTable *
+GetTable(Tcl_Interp *interp)
+{
+    Tcl_HashTable *tablePtr;
+
+    tablePtr = NsTclGetData(interp, NS_TCL_DBS_KEY);
+    if (tablePtr == NULL) {
+	tablePtr = ns_malloc(sizeof(Tcl_HashTable));
+	Tcl_InitHashTable(tablePtr, TCL_STRING_KEYS);
+	NsTclSetData(interp, NS_TCL_DBS_KEY, tablePtr, ReleaseDbs);
+    }
+    return tablePtr;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ * ReleaseDbs --
+ *
+ *      Tcl interp data callback to free db data.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      Returns all handles not already released and frees the table.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+ReleaseDbs(void *arg)
+{
+    Tcl_HashTable *tablePtr = arg;
+    Tcl_HashSearch search;
+    Tcl_HashEntry *hPtr;
+    Ns_DbHandle *handle;
+
+    hPtr = Tcl_FirstHashEntry(tablePtr, &search);
+    while (hPtr != NULL) {
+	handle = Tcl_GetHashValue(hPtr);
+    	Ns_DbPoolPutHandle(handle);
+	hPtr = Tcl_NextHashEntry(&search);
+    }
+    Tcl_DeleteHashTable(tablePtr);
+    ns_free(tablePtr);
+}
