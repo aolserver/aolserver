@@ -34,7 +34,7 @@
  *	Manage the server log file.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/log.c,v 1.15 2002/07/14 23:08:32 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/log.c,v 1.16 2002/08/25 20:09:47 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -59,12 +59,9 @@ typedef struct Cache {
 
 static int    LogReOpen(void);
 static void   Log(Ns_LogSeverity severity, char *fmt, va_list ap);
-static void   LogWrite(void);
-static Ns_Callback LogFlush;
-
 static Cache *LogGetCache(void);
 static Ns_TlsCleanup LogFreeCache;
-static void   LogFlushCache(Cache *cachePtr);
+static void   LogFlush(Cache *cachePtr);
 static char  *LogTime(Cache *cachePtr, int gmtoff, long *usecPtr);
 static int    LogStart(Cache *cachePtr, Ns_LogSeverity severity);
 static void   LogEnd(Cache *cachePtr);
@@ -73,13 +70,8 @@ static void   LogEnd(Cache *cachePtr);
  * Static variables defined in this file
  */
 
-static Ns_Mutex lock;
-static Ns_Cond cond;
-static Ns_DString buffer;
-static int buffered = 0;
-static int flushing = 0;
-static int nbuffered = 0;
 static Ns_Tls tls;
+static Ns_Mutex lock;
 
 
 /*
@@ -101,10 +93,7 @@ static Ns_Tls tls;
 void
 NsInitLog(void)
 {
-    Ns_MutexInit(&lock);
-    Ns_CondInit(&cond);
     Ns_MutexSetName(&lock, "ns:log");
-    Ns_DStringInit(&buffer);
     Ns_TlsAlloc(&tls, LogFreeCache);
 }
 
@@ -277,18 +266,6 @@ void
 NsLogOpen(void)
 {
     /*
-     * Initialize log buffering.
-     */
-
-    if (nsconf.log.flags & LOG_BUFFER) {
-	buffered = 1;
-	Ns_RegisterAtShutdown(LogFlush, (void *) 1);
-	if (nsconf.log.flushint > 0) {
-	    Ns_ScheduleProc(LogFlush, (void *) 0, 0, nsconf.log.flushint);
-	}
-    }
-
-    /*
      * Open the log and schedule the signal roll.
      */
 
@@ -425,7 +402,7 @@ NsTclLogCtlObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
 	/* FALLTHROUGH */
 
     case CFlushIdx:
-	LogFlushCache(cachePtr);
+	LogFlush(cachePtr);
 	break;
 
     case CCountIdx:
@@ -616,14 +593,13 @@ LogStart(Cache *cachePtr, Ns_LogSeverity severity)
  *
  * LogEnd --
  *
- *	Complete a log entry and either append to buffer or write
- *	immediately.
+ *	Complete a log entry and flush if necessary.
  *
  * Results:
  *	None.
  *
  * Side effects:
- *	May flush log.
+ *	May write to log.
  *
  *----------------------------------------------------------------------
  */
@@ -637,48 +613,8 @@ LogEnd(Cache *cachePtr)
     }
     ++cachePtr->count;
     if (!cachePtr->hold) {
-    	LogFlushCache(cachePtr);
+    	LogFlush(cachePtr);
     }
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * LogFlushCache --
- *
- *	Flush per-thread log entries to buffer or open file.
- *
- * Results:
- *	None.
- *
- * Side effects:
- *	May write to log file.
- *
- *----------------------------------------------------------------------
- */
-
-static void
-LogFlushCache(Cache *cachePtr)
-{
-    Ns_DString *dsPtr = &cachePtr->buffer;
-
-    Ns_MutexLock(&lock);
-    if (!buffered) {
-	Ns_MutexUnlock(&lock);
-	(void) write(2, dsPtr->string, dsPtr->length);
-    } else {
-	while (flushing) {
-	    Ns_CondWait(&cond, &lock);
-	}
-	Ns_DStringNAppend(&buffer, dsPtr->string, dsPtr->length);
-	if (nbuffered++ > nsconf.log.maxbuffer) {
-	    LogWrite();
-	}
-	Ns_MutexUnlock(&lock);
-    }
-    cachePtr->count = 0;
-    Ns_DStringFree(dsPtr);
 }
 
 
@@ -687,74 +623,27 @@ LogFlushCache(Cache *cachePtr)
  *
  * LogFlush --
  *
- *	Flush the buffered log, either from the scheduled proc timeout
- *	or at shutdown.
+ *	Flush per-thread log entries to buffer or open file.
  *
  * Results:
  *	None.
  *
  * Side effects:
- *	May write to log and disables buffering at shutdown.
- *
- *----------------------------------------------------------------------
- */
-
-static void
-LogFlush(void *arg)
-{
-    int exit = (int) arg;
-
-    Ns_MutexLock(&lock);
-
-    /*
-     * Wait for current flushing, if any, to complete.
-     */
-
-    while (flushing) {
-	Ns_CondWait(&cond, &lock);
-    }
-    if (nbuffered > 0) {
-	LogWrite();
-    }
-
-    /*
-     * Disable further buffering at exit time.
-     */
-
-    if (exit) {
-	buffered = 0;
-    }
-    Ns_MutexUnlock(&lock);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * LogWrite --
- *
- *	Write current buffer to log file.
- *
- * Results:
  *	None.
  *
- * Side effects:
- *	Will write data.
- *
  *----------------------------------------------------------------------
  */
 
 static void
-LogWrite(void)
+LogFlush(Cache *cachePtr)
 {
-    flushing = 1;
-    Ns_MutexUnlock(&lock);
-    (void) write(2, buffer.string, buffer.length);
-    Ns_DStringSetLength(&buffer, 0);
+    Ns_DString *dsPtr = &cachePtr->buffer;
+
     Ns_MutexLock(&lock);
-    flushing = 0;
-    nbuffered = 0;
-    Ns_CondBroadcast(&cond);
+    (void) write(2, dsPtr->string, dsPtr->length);
+    Ns_MutexUnlock(&lock);
+    Ns_DStringFree(dsPtr);
+    cachePtr->count = 0;
 }
 
 
@@ -826,13 +715,13 @@ LogReOpen(void)
  *
  * LogTime --
  *
- *	Get formatted local or gmt log time.
+ *	Get formatted local or gmt log time from per-thread cache.
  *
  * Results:
  *	Pointer to per-thread buffer.
  *
  * Side effects:
- *	Buffer is updated if time has changed since check.
+ *	Given usecPtr updated with current microseconds.
  *
  *----------------------------------------------------------------------
  */
@@ -939,6 +828,7 @@ LogFreeCache(void *arg)
 {
     Cache *cachePtr = arg;
 
+    LogFlush(cachePtr);
     Ns_DStringFree(&cachePtr->buffer);
     ns_free(cachePtr);
 }
