@@ -33,7 +33,7 @@
  * 	Connect Tcl command names to the functions that implement them
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.25 2002/06/25 17:51:53 scottg Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.26 2002/07/05 23:30:41 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -44,6 +44,23 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
 extern Tcl_ObjCmdProc
     NsTclAdpAppendObjCmd,
     NsTclAdpPutsObjCmd,
+    NsTclAdpEvalObjCmd,
+    NsTclAdpSafeEvalObjCmd,
+    NsTclAdpIncludeObjCmd,
+    NsTclAdpParseObjCmd,
+    NsTclAdpDirObjCmd,
+    NsTclAdpReturnObjCmd,
+    NsTclAdpBreakObjCmd,
+    NsTclAdpAbortObjCmd,
+    NsTclAdpTellObjCmd,
+    NsTclAdpTruncObjCmd,
+    NsTclAdpDumpObjCmd,
+    NsTclAdpArgcObjCmd,
+    NsTclAdpArgvObjCmd,
+    NsTclAdpBindArgsObjCmd,
+    NsTclAdpExceptionObjCmd,
+    NsTclAdpStreamObjCmd,
+    NsTclAdpMimeTypeObjCmd,
     NsTclAtCloseObjCmd,
     NsTclChanObjCmd,
     NsTclChmodObjCmd,
@@ -59,6 +76,7 @@ extern Tcl_ObjCmdProc
     NsTclGifSizeObjCmd,
     NsTclGmTimeObjCmd,
     NsTclGuessTypeObjCmd,
+    NsTclInfoObjCmd,
     NsTclHTUUDecodeObjCmd,
     NsTclHTUUEncodeObjCmd,
     NsTclHeadersObjCmd,
@@ -270,24 +288,7 @@ extern Tcl_CmdProc
     NsTclGetCsvCmd,
     NsTclEnvCmd,
     NsTclAdpStatsCmd,
-    NsTclAdpEvalCmd,
-    NsTclAdpSafeEvalCmd,
-    NsTclAdpIncludeCmd,
-    NsTclAdpDirCmd,
-    NsTclAdpReturnCmd,
-    NsTclAdpBreakCmd,
-    NsTclAdpAbortCmd,
-    NsTclAdpTellCmd,
-    NsTclAdpTruncCmd,
-    NsTclAdpDumpCmd,
-    NsTclAdpArgcCmd,
-    NsTclAdpArgvCmd,
-    NsTclAdpBindArgsCmd,
-    NsTclAdpExceptionCmd,
-    NsTclAdpStreamCmd,
     NsTclAdpDebugCmd,
-    NsTclAdpParseCmd,
-    NsTclAdpMimeTypeCmd,
     NsTclAdpRegisterAdpCmd,
     NsTclAdpRegisterProcCmd,
     NsTclRegisterTagCmd,
@@ -333,7 +334,7 @@ static Cmd cmds[] = {
 
     {"ns_rand", NsTclRandCmd, NsTclRandObjCmd},
 
-    {"ns_info", NsTclInfoCmd, NULL},
+    {"ns_info", NsTclInfoCmd, NsTclInfoObjCmd},
     {"ns_modulepath", NsTclModulePathCmd, NsTclModulePathObjCmd},
 
     {"ns_log", NsTclLogCmd, NsTclLogObjCmd},
@@ -572,29 +573,30 @@ static Cmd servCmds[] = {
      * adpcmds.c
      */
 
-    {"_ns_adp_include", NsTclAdpIncludeCmd, NULL},
-    {"ns_adp_eval", NsTclAdpEvalCmd, NULL},
-    {"ns_adp_safeeval", NsTclAdpSafeEvalCmd, NULL},
     {"ns_adp_stats", NsTclAdpStatsCmd, NULL},
-    {"ns_adp_parse", NsTclAdpParseCmd, NULL},
+    {"ns_adp_debug", NsTclAdpDebugCmd, NULL},
+
+    {"_ns_adp_include", NULL, NsTclAdpIncludeObjCmd},
+    {"ns_adp_eval", NULL, NsTclAdpEvalObjCmd},
+    {"ns_adp_safeeval", NULL, NsTclAdpSafeEvalObjCmd},
+    {"ns_adp_parse", NULL, NsTclAdpParseObjCmd},
     {"ns_puts", NULL, NsTclAdpPutsObjCmd},
     {"ns_adp_puts", NULL, NsTclAdpPutsObjCmd},
     {"ns_adp_append", NULL, NsTclAdpAppendObjCmd},
-    {"ns_adp_dir", NsTclAdpDirCmd, NULL},
-    {"ns_adp_return", NsTclAdpReturnCmd, NULL},
-    {"ns_adp_break", NsTclAdpBreakCmd, NULL},
-    {"ns_adp_abort", NsTclAdpAbortCmd, NULL},
-    {"ns_adp_tell", NsTclAdpTellCmd, NULL},
-    {"ns_adp_trunc", NsTclAdpTruncCmd, NULL},
-    {"ns_adp_dump", NsTclAdpDumpCmd, NULL},
-    {"ns_adp_argc", NsTclAdpArgcCmd, NULL},
-    {"ns_adp_argv", NsTclAdpArgvCmd, NULL},
-    {"ns_adp_bind_args", NsTclAdpBindArgsCmd, NULL},
-    {"ns_adp_exception", NsTclAdpExceptionCmd, NULL},
-    {"ns_adp_stream", NsTclAdpStreamCmd, NULL},
-    {"ns_adp_debug", NsTclAdpDebugCmd, NULL},
-    {"ns_adp_mime", NsTclAdpMimeTypeCmd, NULL},
-    {"ns_adp_mimetype", NsTclAdpMimeTypeCmd, NULL},
+    {"ns_adp_dir", NULL, NsTclAdpDirObjCmd},
+    {"ns_adp_return", NULL, NsTclAdpReturnObjCmd},
+    {"ns_adp_break", NULL, NsTclAdpBreakObjCmd},
+    {"ns_adp_abort", NULL, NsTclAdpAbortObjCmd},
+    {"ns_adp_tell", NULL, NsTclAdpTellObjCmd},
+    {"ns_adp_trunc", NULL, NsTclAdpTruncObjCmd},
+    {"ns_adp_dump", NULL, NsTclAdpDumpObjCmd},
+    {"ns_adp_argc", NULL, NsTclAdpArgcObjCmd},
+    {"ns_adp_argv", NULL, NsTclAdpArgvObjCmd},
+    {"ns_adp_bind_args", NULL, NsTclAdpBindArgsObjCmd},
+    {"ns_adp_exception", NULL, NsTclAdpExceptionObjCmd},
+    {"ns_adp_stream", NULL, NsTclAdpStreamObjCmd},
+    {"ns_adp_mime", NULL, NsTclAdpMimeTypeObjCmd},
+    {"ns_adp_mimetype", NULL, NsTclAdpMimeTypeObjCmd},
 
     /*
      * tclvar.c
