@@ -1,9 +1,16 @@
+2003-01-28  Nathan Folkman <shmooved@aol.com>
+
+        * nsd/init.tcl: (bug fix) Updated ns_eval command to mark Tcl interp for
+        deletion in the case of a TCL_ERROR only. Updated ns_eval to properly
+        handle an arbitrarly long number of args. SF Bug 675506.
+
 2003-01-24  Elizabeth Thomas <eathomas93@aol.com>
 
-	*Makefile.global.in,README - add $(PURIFY) variable back from 3.4 to facilitate 
-        easy purify compile 
+	* include/Makefile.global.in:
+        * README: Added $(PURIFY) variable back from 3.4 to facilitate 
+        easy purify compile. 
 
-        *configure - make gcc the default value for $CC (instead of cc)
+        * configure: Made gcc the default value for $CC instead of cc.
 
 2003-01-23  Elizabeth Thomas <eathomas93@aol.com>
 
