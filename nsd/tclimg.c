@@ -33,7 +33,7 @@
  *	Commands for image files.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclimg.c,v 1.5 2002/06/13 04:41:21 jcollins Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclimg.c,v 1.6 2003/01/18 19:24:20 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -48,114 +48,6 @@ static int JpegSize(Tcl_Channel chan, int *wPtr, int *hPtr);
 static unsigned int JpegRead2Bytes(Tcl_Channel chan);
 static void AppendDims(Tcl_Interp *interp, int w, int h);
 static int AppendObjDims(Tcl_Interp *interp, int w, int h);
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsTclGifSizeCmd --
- *
- *	Implements ns_gifsize, returning a list of width and height.
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	See docs. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclGifSizeCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv) 
-{
-    int fd;
-    unsigned char  buf[0x300];
-    int depth, colormap, dx, dy, status;
-
-    if (argc != 2) {
-        Tcl_AppendResult(interp, "wrong # args: should be \"",
-                         argv[0], " gif\"", NULL);
-        return TCL_ERROR;
-    }
-    fd = open(argv[1], O_RDONLY);
-    if (fd == -1) {
-        Tcl_AppendResult(interp, "could not open \"", argv[1],
-	    "\": ", Tcl_PosixError(interp), NULL);
-        return TCL_ERROR;
-    }
-    status = TCL_ERROR;
-
-    /*
-     * Read the GIF version number
-     */
-    
-    if (read(fd, buf, 6) == -1) {
-readfail:
-        Tcl_AppendResult(interp, "could not read \"", argv[1],
-	    "\": ", Tcl_PosixError(interp), NULL);
-	goto done;
-    }
-
-    if (strncmp((char *) buf, "GIF87a", 6) && 
-	strncmp((char *) buf, "GIF89a", 6)) {
-badfile:
-        Tcl_AppendResult(interp, "invalid gif file: ", argv[1], NULL);
-        goto done;
-    }
-
-    if (read(fd, buf, 7) == -1) {
-	goto readfail;
-    }
-
-    depth = 1 << ((buf[4] & 0x7) + 1);
-    colormap = (buf[4] & 0x80 ? 1 : 0);
-
-    if (colormap) {
-        if (read(fd,buf,3*depth) == -1) {
-            goto readfail;
-        }
-    }
-
-  outerloop:
-    if (read(fd, buf, 1) == -1) {
-        goto readfail;
-    }
-
-    if (buf[0] == '!') {
-        unsigned char count;
-	
-        if (read(fd, buf, 1) == -1) {
-            goto readfail;
-        }
-      innerloop:
-        if (read(fd, (char *) &count, 1) == -1) {
-            goto readfail;
-        }
-        if (count == 0) {
-            goto outerloop;
-        }
-        if (read(fd, buf, count) == -1) {
-            goto readfail;
-        }
-        goto innerloop;
-    } else if (buf[0] != ',') {
-        goto badfile;
-    }
-
-    if (read(fd,buf,9) == -1) {
-        goto readfail;
-    }
-
-    dx = 0x100 * buf[5] + buf[4];
-    dy = 0x100 * buf[7] + buf[6];
-    AppendDims(interp, dx, dy);
-    status = TCL_OK;
-
-done:
-    close(fd);
-    return status;
-}
 
 
 /*
@@ -267,51 +159,6 @@ badfile:
 done:
     close(fd);
     return status;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsTclJpegSizeCmd --
- *
- *	Implements ns_jpegsize. 
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	See docs. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclJpegSizeCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
-{
-    int   code, w, h;
-    Tcl_Channel chan;
-
-    if (argc != 2) {
-	Tcl_AppendResult(interp, "wrong # args: should be \"",
-	    argv[0], " file\"", NULL);
-	return TCL_ERROR;
-    }
-
-    chan = Tcl_OpenFileChannel(interp, argv[1], "r", 0);
-    if (chan == NULL) {
-	Tcl_AppendResult(interp, "could not open \"",
-	    argv[1], "\": ", Tcl_PosixError(interp), NULL);
-	return TCL_ERROR;
-    }
-    code = JpegSize(chan, &w, &h);
-    Tcl_Close(interp, chan);
-    if (code != TCL_OK) {
-    	Tcl_AppendResult(interp, "invalid jpeg file: ", argv[1], NULL);
-	return TCL_ERROR;
-    }
-    AppendDims(interp, w, h);
-    return TCL_OK;
 }
 
 

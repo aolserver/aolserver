@@ -34,7 +34,7 @@
  *	Manage the server log file.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/log.c,v 1.20 2003/01/14 22:08:30 shmooved Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/log.c,v 1.21 2003/01/18 19:24:20 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -282,32 +282,6 @@ NsLogOpen(void)
     if (nsconf.log.flags & LOG_ROLL) {
 	Ns_RegisterAtSignal((Ns_Callback *) Ns_LogRoll, NULL);
     }
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsTclLogRollCmd --
- *
- *	Implements ns_logroll. 
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	See docs. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclLogRollCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
-{
-    if (Ns_LogRoll() != NS_OK) {
-	Tcl_SetResult(interp, "could not roll server log", TCL_STATIC);
-    }
-    return TCL_OK;
 }
 
 

@@ -34,7 +34,7 @@
  *	Tcl commands that let you do TCP sockets. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclsock.c,v 1.14 2002/10/14 23:21:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclsock.c,v 1.15 2003/01/18 19:24:21 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -75,56 +75,19 @@ static int SockSetBlockingObj(char *value, Tcl_Interp *interp, int objc,
 				Tcl_Obj *CONST objv[]);
 static Ns_SockProc SockListenCallback;
 
-
-/*
- *----------------------------------------------------------------------
- *
- * NsTclGetByCmd --
- *
- *	Performs a forward or reverse DNS lookup.
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	Puts a hostname into the tcl result. 
- *
- *----------------------------------------------------------------------
- */
-
-static int
-GetCmd(Tcl_Interp *interp, int argc, char **argv, int byaddr)
+void
+NsTclSockArgProc(Tcl_DString *dsPtr, void *arg)
 {
-    Ns_DString  ds;
-    int         status;
+    Callback *cbPtr = arg;
 
-    if (argc != 2) {
-        Tcl_AppendResult(interp, "wrong # of args: should be \"",
-			 argv[0], " address\"", NULL);
-        return TCL_ERROR;
-    }
-    Ns_DStringInit(&ds);
-    if (byaddr) {
-	status = Ns_GetAddrByHost(&ds, argv[1]);
-    } else {
-	status = Ns_GetHostByAddr(&ds, argv[1]);
-    }
-    if (status == NS_TRUE) {
-    	Tcl_SetResult(interp, ds.string, TCL_VOLATILE);
-    }
-    Ns_DStringFree(&ds);
-    if (status != NS_TRUE) {
-	Tcl_AppendResult(interp, "could not lookup ", argv[1], NULL);
-	return TCL_ERROR;
-    }
-    return TCL_OK;
+    Tcl_DStringAppendElement(dsPtr, cbPtr->script);
 }
-
+ 
 
 /*
  *----------------------------------------------------------------------
  *
- * NsTclGetByCmd --
+ * NsTclGetHostObjCmd, NsTclGetAddrObjCmd --
  *
  *	Performs a forward or reverse DNS lookup.
  *
@@ -167,53 +130,15 @@ GetObjCmd(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[], int byaddr)
 }
 
 int
-NsTclGetHostCmd(ClientData arg, Tcl_Interp *interp, int argc,
-		       char **argv)
-{
-    return GetCmd(interp, argc, argv, 0);
-}
-
-int
 NsTclGetHostObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     return GetObjCmd(interp, objc, objv, 0);
 }
 
 int
-NsTclGetAddrCmd(ClientData arg, Tcl_Interp *interp, int argc,
-		       char **argv)
-{
-    return GetCmd(interp, argc, argv, 1);
-}
-
-int
 NsTclGetAddrObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     return GetObjCmd(interp, objc, objv, 1);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsTclSockSetBlockingCmd --
- *
- *	Sets a socket blocking. 
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	None. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclSockSetBlockingCmd(ClientData dummy, Tcl_Interp *interp, int argc,
-			 char **argv)
-{
-    return SockSetBlocking("1", interp, argc, argv);
 }
 
 
@@ -243,30 +168,6 @@ NsTclSockSetBlockingObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj
 /*
  *----------------------------------------------------------------------
  *
- * NsTclSockSetNonBlockingCmd --
- *
- *	Sets a socket nonblocking. 
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	None. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclSockSetNonBlockingCmd(ClientData dummy, Tcl_Interp *interp, int argc,
-			    char **argv)
-{
-    return SockSetBlocking("0", interp, argc, argv);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
  * NsTclSockSetNonBlockingObjCmd --
  *
  *	Sets a socket nonblocking. 
@@ -284,53 +185,6 @@ int
 NsTclSockSetNonBlockingObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     return SockSetBlockingObj("0", interp, objc, objv);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsTclSockNReadCmd --
- *
- *	Gets the number of bytes that a socket has waiting to be 
- *	read. 
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	None. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclSockNReadCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
-{
-    int         nread;
-    Tcl_Channel	chan;
-    int      sock;
-    char	buf[20];
-
-    if (argc != 2) {
-        Tcl_AppendResult(interp, "wrong # args: should be \"",
-            argv[0], " sockId\"", NULL);
-        return TCL_ERROR;
-    }
-    chan = Tcl_GetChannel(interp, argv[1], NULL);
-    if (chan == NULL || Ns_TclGetOpenFd(interp, argv[1], 0,
-	    (int *) &sock) != TCL_OK) {
-	return TCL_ERROR;
-    }
-    if (ioctl(sock, FIONREAD, &nread) != 0) {
-        Tcl_AppendResult(interp, "ioctl failed: ", 
-			 Tcl_PosixError(interp), NULL);
-        return TCL_ERROR;
-    }
-    nread += Tcl_InputBuffered(chan);
-    sprintf(buf, "%d", nread);
-    Tcl_SetResult(interp, buf, TCL_VOLATILE);
-    return TCL_OK;
 }
 
 
@@ -383,52 +237,6 @@ NsTclSockNReadObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONS
 /*
  *----------------------------------------------------------------------
  *
- * NsTclSockListenCmd --
- *
- *	Listen on a TCP port. 
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	Will listen on a port. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclSockListenCmd(ClientData dummy, Tcl_Interp *interp, int argc,
-		    char **argv)
-{
-    int  sock;
-    char   *addr;
-    int     port;
-
-    if (argc != 3) {
-        Tcl_AppendResult(interp, "wrong # args: should be \"",
-            argv[0], " address port\"", NULL);
-        return TCL_ERROR;
-    }
-    addr = argv[1];
-    if (STREQ(addr, "*")) {
-        addr = NULL;
-    }
-    if (Tcl_GetInt(interp, argv[2], &port) != TCL_OK) {
-        return TCL_ERROR;
-    }
-    sock = Ns_SockListen(addr, port);
-    if (sock == -1) {
-        Tcl_AppendResult(interp, "could not listen on \"",
-            argv[1], ":", argv[2], "\"", NULL);
-        return TCL_ERROR;
-    }
-    return EnterSock(interp, sock);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
  * NsTclSockListenObjCmd --
  *
  *	Listen on a TCP port. 
@@ -474,46 +282,6 @@ NsTclSockListenObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CON
 /*
  *----------------------------------------------------------------------
  *
- * NsTclSockAcceptCmd --
- *
- *	Accept a connection from a listening socket. 
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	None. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclSockAcceptCmd(ClientData dummy, Tcl_Interp *interp, int argc,
-		    char **argv)
-{
-    int sock;
-
-    if (argc != 2) {
-        Tcl_AppendResult(interp, "wrong # of args: should be \"",
-            argv[0], " sockId\"", NULL);
-        return TCL_ERROR;
-    }
-    if (Ns_TclGetOpenFd(interp, argv[1], 0, (int *) &sock) != TCL_OK) {
-        return TCL_ERROR;
-    }
-    sock = Ns_SockAccept(sock, NULL, 0);
-    if (sock == -1) {
-        Tcl_AppendResult(interp, "accept failed: ",
-			 Tcl_PosixError(interp), NULL);
-        return TCL_ERROR;
-    }
-    return EnterDupedSocks(interp, sock);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
  * NsTclSockAcceptObjCmd --
  *
  *	Accept a connection from a listening socket. 
@@ -546,46 +314,6 @@ NsTclSockAcceptObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CON
         return TCL_ERROR;
     }
     return EnterDupedSocks(interp, sock);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsTclSockCheckCmd --
- *
- *	Check if a socket is still connected, useful for nonblocking. 
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	None. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclSockCheckCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
-{
-    Tcl_Obj *objPtr;
-    int sock;
-
-    if (argc != 2) {
-        Tcl_AppendResult(interp, "wrong # of args: should be \"",
-            argv[0], " sockId\"", NULL);
-        return TCL_ERROR;
-    }
-    if (Ns_TclGetOpenFd(interp, argv[1], 1, (int *) &sock) != TCL_OK) {
-	return TCL_ERROR;
-    }
-    if (send(sock, NULL, 0, 0) != 0) {
-	objPtr = Tcl_NewBooleanObj(0);
-    } else {
-	objPtr = Tcl_NewBooleanObj(1);
-    }
-    Tcl_SetObjResult(interp, objPtr);
-    return TCL_OK;
 }
 
 
@@ -625,97 +353,6 @@ NsTclSockCheckObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONS
     }
     Tcl_SetObjResult(interp, objPtr);
     return TCL_OK;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsTclSockOpenCmd --
- *
- *	Open a tcp connection to a host/port. 
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	Will open a connection. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclSockOpenCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
-{
-    int sock;
-    int port;
-    int timeout;
-    int first;
-    int async;
-
-    if (argc < 3 || argc > 5) {
-        Tcl_AppendResult(interp, "wrong # args: should be \"",
-            argv[0], " ?-nonblock|-timeout seconds? host port\"", NULL);
-        return TCL_ERROR;
-    }
-    first = 1;
-    async = 0;
-    timeout = -1;
-    if (argc == 4) {
-
-	/*
-	 * open -nonblock host port
-	 */
-	
-        if (!STREQ(argv[1], "-nonblock") && !STREQ(argv[1], "-async")) {
-	    Tcl_AppendResult(interp, "wrong # args: should be \"",
-			     argv[0],
-			     " ?-nonblock|-timeout seconds? host port\"",
-			     NULL);
-	    return TCL_ERROR;
-        }
-
-        first = 2;
-        async = 1;
-    } else if (argc == 5) {
-
-	/*
-	 * open -timeout seconds host port
-	 */
-
-        if (!STREQ(argv[1], "-timeout")) {
-	    Tcl_AppendResult(interp, "wrong # args: should be \"",
-			     argv[0],
-			     " ?-nonblock|-timeout seconds? host port\"",
-			     NULL);
-	    return TCL_ERROR;
-        }
-        if (Tcl_GetInt(interp, argv[2], &timeout) != TCL_OK) {
-            return TCL_ERROR;
-        }
-        first = 3;
-    }
-    if (Tcl_GetInt(interp, argv[first + 1], &port) != TCL_OK) {
-        return TCL_ERROR;
-    }
-
-    /*
-     * Perform the connection.
-     */
-    
-    if (async) {
-        sock = Ns_SockAsyncConnect(argv[first], port);
-    } else if (timeout < 0) {
-        sock = Ns_SockConnect(argv[first], port);
-    } else {
-        sock = Ns_SockTimedConnect(argv[first], port, timeout);
-    }
-    if (sock == -1) {
-        Tcl_AppendResult(interp, "could not connect to \"",
-            argv[first], ":", argv[first + 1], "\"", NULL);
-        return TCL_ERROR;
-    }
-    return EnterDupedSocks(interp, sock);
 }
 
 
@@ -802,162 +439,6 @@ NsTclSockOpenObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST
         return TCL_ERROR;
     }
     return EnterDupedSocks(interp, sock);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsTclSelectCmd --
- *
- *	Imlements select: basically a tcl version of
- *	select(2).
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	See docs. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclSelectCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
-{
-    fd_set          rset, wset, eset, *rPtr, *wPtr, *ePtr;
-    int	    maxfd;
-    int             i, status, arg;
-    Tcl_Channel	    chan;
-    struct timeval  tv, *tvPtr;
-    Tcl_DString     dsRfd, dsNbuf;
-    char	  **fargv;
-    int		    fargc;
-
-    status = TCL_ERROR;
-    if (argc != 6 && argc != 4) {
-        Tcl_AppendResult(interp, "wrong # args: should be \"",
-            argv[0], " ?-timeout sec? rfds wfds efds\"", NULL);
-        return TCL_ERROR;
-    }
-    if (argc == 4) {
-        tvPtr = NULL;
-        arg = 1;
-    } else {
-        tvPtr = &tv;
-        if (strcmp(argv[1], "-timeout") != 0) {
-	    Tcl_AppendResult(interp, "wrong # args: should be \"",
-			     argv[0], " ?-timeout sec? rfds wfds efds\"",
-			     NULL);
-	    return TCL_ERROR;
-        }
-        tv.tv_usec = 0;
-        if (Tcl_GetInt(interp, argv[2], &i) != TCL_OK) {
-            return TCL_ERROR;
-        }
-        tv.tv_sec = i;
-        arg = 3;
-    }
-
-    /*
-     * Readable fd's are treated differently because they may
-     * have buffered input. Before doing a select, see if they
-     * have any waiting data that's been buffered by the channel.
-     */
-    
-    if (Tcl_SplitList(interp, argv[arg++], &fargc, &fargv) != TCL_OK) {
-        return TCL_ERROR;
-    }
-    Tcl_DStringInit(&dsRfd);
-    Tcl_DStringInit(&dsNbuf);
-    for (i = 0; i < fargc; ++i) {
-	chan = Tcl_GetChannel(interp, fargv[i], NULL);
-	if (chan == NULL) {
-	    goto done;
-    	}
-	if (Tcl_InputBuffered(chan) > 0) {
-	    Tcl_DStringAppendElement(&dsNbuf, fargv[i]);
-	} else {
-	    Tcl_DStringAppendElement(&dsRfd, fargv[i]);
-	}
-    }
-
-    if (dsNbuf.length > 0) {
-	/*
-	 * Since at least one read fd had buffered input,
-	 * turn the select into a polling select just
-	 * to pick up anything else ready right now.
-	 */
-	
-	tv.tv_sec = 0;
-	tv.tv_usec = 0;
-	tvPtr = &tv;
-    }
-    maxfd = 0;
-    if (GetSet(interp, dsRfd.string, 0, &rPtr, &rset, &maxfd) != TCL_OK) {
-	goto done;
-    }
-    if (GetSet(interp, argv[arg++], 1, &wPtr, &wset, &maxfd) != TCL_OK) {
-	goto done;
-    }
-    if (GetSet(interp, argv[arg++], 0, &ePtr, &eset, &maxfd) != TCL_OK) {
-	goto done;
-    }
-
-    /*
-     * Return immediately if we're not doing a select on anything.
-     */
-    
-    if (dsNbuf.length == 0 &&
-	rPtr == NULL &&
-	wPtr == NULL &&
-	ePtr == NULL &&
-	tvPtr == NULL) {
-	
-	status = TCL_OK;
-    } else {
-
-	/*
-	 * Actually perform the select.
-	 */
-	
-    	do {
-	    i = select(maxfd + 1, rPtr, wPtr, ePtr, tvPtr);
-	} while (i < 0 && errno == EINTR);
-
-    	if (i == -1) {
-	    Tcl_AppendResult(interp, "select failed: ",
-			     Tcl_PosixError(interp), NULL);
-    	} else {
-	    if (i == 0) {
-		/*
-		 * The sets can have any random value now
-		 */
-		
-		if (rPtr != NULL) {
-		    FD_ZERO(rPtr);
-		}
-		if (wPtr != NULL) {
-		    FD_ZERO(wPtr);
-		}
-		if (ePtr != NULL) {
-		    FD_ZERO(ePtr);
-		}
-	    }
-	    AppendReadyFiles(interp, rPtr, 0, dsRfd.string, &dsNbuf);
-	    arg -= 2;
-	    AppendReadyFiles(interp, wPtr, 1, argv[arg++], NULL);
-	    AppendReadyFiles(interp, ePtr, 0, argv[arg++], NULL);
-	    status = TCL_OK;
-	}
-    }
-    
-done:
-    Tcl_DStringFree(&dsRfd);
-    Tcl_DStringFree(&dsNbuf);
-    ckfree((char *) fargv);
-    
-    return status;
 }
 
 
@@ -1117,40 +598,6 @@ done:
 /*
  *----------------------------------------------------------------------
  *
- * NsTclSocketPairCmd --
- *
- *	Create a new socket pair. 
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	None. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclSocketPairCmd(ClientData dummy,Tcl_Interp *interp, int argc, char **argv)
-{
-    int	socks[2];
-
-    if (ns_sockpair(socks) != 0) {
-        Tcl_AppendResult(interp, "ns_sockpair failed:  ", 
-			 Tcl_PosixError(interp), NULL);
-        return TCL_ERROR;
-    }
-    if (EnterSock(interp, socks[0]) != TCL_OK) {
-	close(socks[1]);
-	return TCL_ERROR;
-    }
-    return EnterSock(interp, socks[1]);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
  * NsTclSocketPairObjCmd --
  *
  *	Create a new socket pair. 
@@ -1198,81 +645,6 @@ NsTclSocketPairObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CON
  *
  *----------------------------------------------------------------------
  */
-
-void
-NsTclSockArgProc(Tcl_DString *dsPtr, void *arg)
-{
-    Callback *cbPtr = arg;
-
-    Tcl_DStringAppendElement(dsPtr, cbPtr->script);
-}
- 
-int
-NsTclSockCallbackCmd(ClientData arg, Tcl_Interp *interp, int argc,
-		      char **argv)
-{
-    int  sock;
-    int     when;
-    char   *s;
-    Callback *cbPtr;
-    NsInterp *itPtr = arg;
-
-    if (argc != 4) {
-        Tcl_AppendResult(interp, "wrong # args: should be \"",
-            argv[0], " sockId script when\"", NULL);
-        return TCL_ERROR;
-    }
-    s = argv[3];
-    when = 0;
-    while (*s != '\0') {
-        if (*s == 'r') {
-            when |= NS_SOCK_READ;
-        } else if (*s == 'w') {
-            when |= NS_SOCK_WRITE;
-        } else if (*s == 'e') {
-            when |= NS_SOCK_EXCEPTION;
-        } else if (*s == 'x') {
-            when |= NS_SOCK_EXIT;
-        } else {
-            Tcl_AppendResult(interp, "invalid when specification \"",
-                argv[3], "\": should be one or more of r, w, e, or x", NULL);
-            return TCL_ERROR;
-        }
-        ++s;
-    }
-    if (when == 0) {
-	Tcl_AppendResult(interp, "invalid when specification \"", argv[3],
-			 "\": should be one or more of r, w, e, or x", NULL);
-	return TCL_ERROR;
-    }
-    if (Ns_TclGetOpenFd(interp, argv[1],
-	    (when & NS_SOCK_WRITE), (int *) &sock) != TCL_OK) {
-        return TCL_ERROR;
-    }
-
-    /*
-     * Pass a dup of the socket to the callback thread, allowing
-     * this thread's cleanup to close the current socket.  It's
-     * not possible to simply register the channel again with
-     * a NULL interp because the Tcl channel code is not entirely
-     * thread safe.
-     */
-
-    sock = dup(sock);
-    cbPtr = ns_malloc(sizeof(Callback) + strlen(argv[2]));
-    cbPtr->server = (itPtr->servPtr ? itPtr->servPtr->server : NULL);
-    cbPtr->chan = NULL;
-    cbPtr->when = when;
-    strcpy(cbPtr->script, argv[2]);
-    if (Ns_SockCallback(sock, NsTclSockProc, cbPtr,
-    	    	    	when | NS_SOCK_EXIT) != NS_OK) {
-	Tcl_SetResult(interp, "could not register callback", TCL_STATIC);
-	close(sock);
-        ns_free(cbPtr);
-        return TCL_ERROR;
-    }
-    return TCL_OK;
-}
 
 int
 NsTclSockCallbackObjCmd(ClientData arg, Tcl_Interp *interp, int objc, 
@@ -1339,56 +711,6 @@ NsTclSockCallbackObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
 	Tcl_SetResult(interp, "could not register callback", TCL_STATIC);
 	close(sock);
         ns_free(cbPtr);
-        return TCL_ERROR;
-    }
-    return TCL_OK;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsTclSockListenCallbackCmd --
- *
- *	Listen on a socket and register a callback to run when 
- *	connections arrive. 
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	Will register a callback and listen on a socket. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclSockListenCallbackCmd(ClientData arg, Tcl_Interp *interp, int argc,
-			    char **argv)
-{
-    NsInterp *itPtr = arg;
-    ListenCallback *lcbPtr;
-    int       port;
-    char     *addr;
-
-    if (argc != 4) {
-        Tcl_AppendResult(interp, "wrong # args: should be \"",
-            argv[0], " address port script\"", NULL);
-        return TCL_ERROR;
-    }
-    if (Tcl_GetInt(interp, argv[2], &port) != TCL_OK) {
-        return TCL_ERROR;
-    }
-    addr = argv[1];
-    if (STREQ(addr, "*")) {
-        addr = NULL;
-    }
-    lcbPtr = ns_malloc(sizeof(ListenCallback) + strlen(argv[3]));
-    lcbPtr->server = (itPtr->servPtr ? itPtr->servPtr->server : NULL);
-    strcpy(lcbPtr->script, argv[3]);
-    if (Ns_SockListenCallback(addr, port, SockListenCallback, lcbPtr) != NS_OK) {
-	Tcl_SetResult(interp, "could not register callback", TCL_STATIC);
-        ns_free(lcbPtr);
         return TCL_ERROR;
     }
     return TCL_OK;

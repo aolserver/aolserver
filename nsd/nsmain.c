@@ -33,7 +33,7 @@
  *	AOLserver Ns_Main() startup routine.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.46 2002/10/30 00:01:59 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.47 2003/01/18 19:24:20 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -583,46 +583,6 @@ Ns_StopServer(char *server)
 {
     Ns_Log(Warning, "nsmain: immediate server shutdown requested");
     NsSendSignal(SIGTERM);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsTclShutdownCmd --
- *
- *	Implements ns_shutdown. 
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	See docs. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclShutdownCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
-{
-    int timeout;
-
-    if (argc != 1 && argc != 2) {
-	Tcl_AppendResult(interp, "wrong # args: should be \"",
-	    argv[0], " ?timeout?\"", NULL);
-	return TCL_ERROR;
-    }
-    if (argc == 1) {
-	timeout = nsconf.shutdowntimeout;
-    } else  if (Tcl_GetInt(interp, argv[1], &timeout) != TCL_OK) {
-	return TCL_ERROR;
-    }
-    Tcl_SetObjResult(interp, Tcl_NewIntObj(timeout));
-    Ns_MutexLock(&nsconf.state.lock);
-    nsconf.shutdowntimeout = timeout;
-    Ns_MutexUnlock(&nsconf.state.lock);
-    NsSendSignal(SIGTERM);
-    return TCL_OK;
 }
 
 

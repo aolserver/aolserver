@@ -1,5 +1,31 @@
 2003-01-18  Jim Davidson <jgdavidson@aol.com>
 
+	* nsd/auth.c:
+	* nsd/conn.c:
+	* nsd/form.c:
+	* nsd/httptime.c:
+	* nsd/info.c:
+	* nsd/log.c:
+	* nsd/mimetypes.c:
+	* nsd/nsconf.c:
+	* nsd/nsd.h:
+	* nsd/nsmain.c:
+	* nsd/pathname.c:
+	* nsd/random.c:
+	* nsd/tclcmds.c:
+	* nsd/tclfile.c:
+	* nsd/tclhttp.c:
+	* nsd/tclimg.c:
+	* nsd/tclinit.c:
+	* nsd/tclmisc.c:
+	* nsd/tclrequest.c:
+	* nsd/tclresp.c:
+	* nsd/tclset.c:
+	* nsd/tclsock.c:
+	* nsd/tclthread.c:
+	* nsd/urlencode.c:
+	* nsd/urlopen.c:  Removed old string commands.
+
 	* nsd/conn.c:
 	* nsd/connio.c:
 	* nsd/driver.c:

@@ -33,7 +33,7 @@
  *	URL level HTTP authorization support.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/auth.c,v 1.10 2002/09/28 19:23:05 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/auth.c,v 1.11 2003/01/18 19:24:19 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -101,64 +101,6 @@ Ns_SetRequestAuthorizeProc(char *server, Ns_RequestAuthorizeProc *proc)
     if (servPtr != NULL) {
 	servPtr->request.authProc = proc;
     }
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsTclRequestAuthorizeCmd --
- *
- *	Implments ns_requestauthorize. 
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	See docs. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclRequestAuthorizeCmd(ClientData arg, Tcl_Interp *interp, int argc,
-		    char **argv)
-{
-    NsInterp	   *itPtr = arg;
-    int             status;
-
-    if ((argc != 5) && (argc != 6)) {
-        Tcl_AppendResult(interp, "wrong # args: should be \"",
-                         argv[0], " method url authuser authpasswd [ipaddr]\"",
-			 (char *) NULL);
-        return TCL_ERROR;
-    }
-    status = Ns_AuthorizeRequest(itPtr->servPtr->server, argv[1], argv[2],
-	argv[3], argv[4], argv[5]);
-    switch (status) {
-    case NS_OK:
-        Tcl_SetResult(interp, "OK", TCL_STATIC);
-        break;
-	
-    case NS_ERROR:
-        Tcl_SetResult(interp, "ERROR", TCL_STATIC);
-        break;
-	
-    case NS_FORBIDDEN:
-        Tcl_SetResult(interp, "FORBIDDEN", TCL_STATIC);
-        break;
-	
-    case NS_UNAUTHORIZED:
-        Tcl_SetResult(interp, "UNAUTHORIZED", TCL_STATIC);
-        break;
-	
-    default:
-        Tcl_AppendResult(interp, "Could not check ", argv[2],
-                         " permission of URL ", argv[1], NULL);
-        return TCL_ERROR;
-    }
-    
-    return TCL_OK;
 }
 
 

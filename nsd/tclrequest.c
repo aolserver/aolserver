@@ -34,7 +34,7 @@
  *	Routines for Tcl proc and ADP registered requests.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclrequest.c,v 1.7 2002/08/10 16:03:43 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclrequest.c,v 1.8 2003/01/18 19:24:20 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -98,59 +98,6 @@ Ns_TclRequest(Ns_Conn *conn, char *name)
 /*
  *----------------------------------------------------------------------
  *
- * NsTclRegisterProcCmd --
- *
- *	Implements ns_register_proc. 
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	See docs. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclRegisterProcCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv, int adp)
-{
-    int         flags, idx;
-    Proc       *procPtr;
-    NsInterp   *itPtr = arg;
-    char       *server, *method, *url;
-
-    if (argc < 4 || argc > 7) {
-badargs:
-	Tcl_AppendResult(interp, "wrong # of args:  should be \"",
-            argv[0], " ?-noinherit? method url proc ?args?\"", NULL);
-        return TCL_ERROR;
-    }
-    if (STREQ(argv[1], "-noinherit")) {
-	if (argc < 5) {
-	    goto badargs;
-	}
-	flags = NS_OP_NOINHERIT;
-	idx = 2;
-    } else {
-	if (argc == 7) {
-	    goto badargs;
-	}
-	flags = 0;
-	idx = 1;
-    }
-    server = itPtr->servPtr->server;
-    method = argv[idx++];
-    url = argv[idx++];
-    procPtr = NewProc(argv[idx], argv[idx+1]);
-    Ns_RegisterRequest(server, method, url, ProcRequest, FreeProc,
-	procPtr, flags);
-    return TCL_OK;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
  * NsTclRegisterProcObjCmd --
  *
  *	Implements ns_register_proc as obj command. 
@@ -206,47 +153,6 @@ badargs:
 /*
  *----------------------------------------------------------------------
  *
- * NsTclRegisterAdpCmd --
- *
- *	Implements ns_register_adp.
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	See docs. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclRegisterAdpCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv, int adp)
-{
-    NsInterp   *itPtr = arg;
-    char       *server, *method, *url, *file;
-
-    if (argc != 4 && argc != 5) {
-badargs:
-	Tcl_AppendResult(interp, "wrong # of args:  should be \"",
-            argv[0], " ?-noinherit? method url file\"", NULL);
-        return TCL_ERROR;
-    }
-    if (argc == 5 && !STREQ(argv[1], "-noinherit")) {
-	goto badargs;
-    }
-    server = itPtr->servPtr->server;
-    method = argv[argc-3];
-    url = argv[argc-2];
-    file = ns_strdup(argv[argc-1]);
-    Ns_RegisterRequest(server, method, url, AdpRequest, ns_free,
-	file, argc == 5 ? NS_OP_NOINHERIT : 0);
-    return TCL_OK;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
  * NsTclRegisterAdpObjCmd --
  *
  *	Implements ns_register_adp as obj command.
@@ -287,44 +193,6 @@ badargs:
 /*
  *----------------------------------------------------------------------
  *
- * NsTclUnRegisterCmd --
- *
- *	Implements ns_unregister_proc and ns_unregister_adp commands.
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	See docs. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclUnRegisterCmd(ClientData arg, Tcl_Interp *interp, int argc,
-		    char **argv)
-{
-    NsInterp *itPtr = arg;
-    char *server = itPtr->servPtr->server;
-    
-    if (argc != 3 && argc != 4) {
-        Tcl_AppendResult(interp, "wrong # of args:  should be \"",
-                         argv[0], " ?-noinherit? method url\"", NULL);
-        return TCL_ERROR;
-    }
-    if (argc == 4 && !STREQ(argv[1], "-noinherit")) {
-	Tcl_AppendResult(interp, "unknown flag \"", argv[1],
-	    "\": should be -noinherit", NULL);
-	return TCL_ERROR;
-    }
-    Ns_UnRegisterRequest(server, argv[argc-2], argv[argc-1], argc == 3 ? 1 : 0);
-    return TCL_OK;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
  * NsTclUnRegisterObjCmd --
  *
  *	Implements ns_unregister_proc and ns_unregister_adp commands.
@@ -357,69 +225,6 @@ NsTclUnRegisterObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CON
     Ns_UnRegisterRequest(server, Tcl_GetString(objv[objc-2]), Tcl_GetString(objv[objc-1]), 
 			objc == 3 ? 1 : 0);
     return TCL_OK;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsTclRegisterFilter --
- *
- *	Implements ns_register_filter. 
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	See docs. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclRegisterFilterCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
-{
-    NsInterp *itPtr = arg;
-    int    largc;
-    char **largv;
-    int    when, i;
-
-    if (argc != 5 && argc != 6) {
-        Tcl_AppendResult(interp, "wrong # args: should be \"",
-            argv[0], " when method urlPattern script ?arg?\"", NULL);
-        return TCL_ERROR;
-    }
-    if (Tcl_SplitList(interp, argv[1], &largc, &largv) != TCL_OK) {
-        return TCL_ERROR;
-    }
-    when = 0;
-    if (largc == 0) {
-	Tcl_AppendResult(interp, "blank filter when specification", NULL);
-    } else {
-        for (i = 0; i < largc; ++i) {
-            if (STREQ(largv[i], "preauth")) {
-                when |= NS_FILTER_PRE_AUTH;
-            } else if (STREQ(largv[i], "postauth")) {
-                when |= NS_FILTER_POST_AUTH;
-            } else if (STREQ(largv[i], "trace")) {
-                when |= NS_FILTER_TRACE;
-            } else {
-                Tcl_AppendResult(interp, "unknown when \"", largv[i],
-                    "\": should be preauth, postauth, or trace", NULL);
-                when = 0;
-                break;
-            }
-        }
-        if (when) {
-            RegisterFilter(itPtr, when, argv + 2);
-        }
-    }
-    ckfree((char *) largv);
-    if (when != 0) {
-	return TCL_OK;
-    } else {
-	return TCL_ERROR;
-    }
 }
 
 
@@ -476,36 +281,6 @@ NsTclRegisterFilterObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj 
     }
     RegisterFilterObj(itPtr, when, objc - 2, objv + 2);
     return TCL_OK;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsTclRegisterTraceCmd --
- *
- *	Implements ns_register_trace 
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	See docs. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclRegisterTraceCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
-{
-    NsInterp *itPtr = arg;
-
-    if (argc != 4 && argc != 5) {
-        Tcl_AppendResult(interp, "wrong # args: should be \"",
-            argv[0], " method urlPattern script ?arg?\"", NULL);
-        return TCL_ERROR;
-    }
-    return RegisterFilter(itPtr, NS_FILTER_VOID_TRACE, argv + 1);
 }
 
 

@@ -34,7 +34,7 @@
  *	Encode and decode URLs, as described in RFC 1738.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/urlencode.c,v 1.9 2002/07/08 02:50:37 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/urlencode.c,v 1.10 2003/01/18 19:24:21 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -239,44 +239,6 @@ Ns_DecodeUrl(Ns_DString *dsPtr, char *string)
 /*
  *----------------------------------------------------------------------
  *
- * NsTclUrlEncodeCmd, NsTclUrlDecodeCmd --
- *
- *	Implments ns_urlencode and ns_urldecode.
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	See docs. 
- *
- *----------------------------------------------------------------------
- */
-
-static int
-EncodeCmd(Tcl_Interp *interp, int argc, char **argv, int encode)
-{
-    Ns_DString ds;
-
-    if (argc != 2) {
-        Tcl_AppendResult(interp, "wrong # args: should be \"",
-                         argv[0], " url\"", NULL);
-        return TCL_ERROR;
-    }
-    Ns_DStringInit(&ds);
-    if (encode) {
-	Ns_EncodeUrl(&ds, argv[1]);
-    } else {
-	Ns_DecodeUrl(&ds, argv[1]);
-    }
-    Tcl_SetResult(interp, ds.string, TCL_VOLATILE);
-    Ns_DStringFree(&ds);
-    return TCL_OK;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
  * NsTclUrlEncodeObjCmd, NsTclUrlDecodeObjCmd --
  *
  *	Implments ns_urlencode and ns_urldecode.
@@ -311,21 +273,9 @@ EncodeObjCmd(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[], int encode)
 }
 
 int
-NsTclUrlDecodeCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
-{
-    return EncodeCmd(interp, argc, argv, 0);
-}
-
-int
 NsTclUrlDecodeObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     return EncodeObjCmd(interp, objc, objv, 0);
-}
-
-int
-NsTclUrlEncodeCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
-{
-    return EncodeCmd(interp, argc, argv, 1);
 }
 
 int

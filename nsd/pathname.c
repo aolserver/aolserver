@@ -34,7 +34,7 @@
  *	Functions that manipulate or return paths. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/pathname.c,v 1.11 2002/07/08 02:51:03 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/pathname.c,v 1.12 2003/01/18 19:24:20 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -280,51 +280,6 @@ Ns_ModulePath(Ns_DString *dest, char *server, char *module, ...)
     path = MakePath(dest, &ap);
     va_end(ap);
     return path;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsTclModulePathCmd --
- *
- *	Implements ns_modulepath; basically a wrapper around 
- *	Ns_ModulePath. 
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	None (deprecated) 
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclModulePathCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
-{
-    Ns_DString      ds;
-
-    Ns_DStringInit(&ds);
-
-    if (0/*(argc < 2) || (argc > 3)*/) {
-        Tcl_AppendResult(interp, "wrong # args: should be \"",
-                         argv[0], " server ?module?\"", NULL);
-        return TCL_ERROR;
-    }
-    if (1) {
-	/* NB: Seems broken - assume goes away with string commands. */
-	Ns_MakePath(&ds, argv[1], argv[2], argv[3], argv[4], argv[5], NULL);
-    } else {
-	if (argc == 3) {
-	    Ns_ModulePath(&ds, argv[1], argv[2], NULL);
-	} else {
-	    Ns_ModulePath(&ds, argv[1], NULL, NULL);
-	}
-    }
-    Tcl_SetResult(interp, ds.string, TCL_VOLATILE);
-    Ns_DStringFree(&ds);
-    return TCL_OK;
 }
 
 

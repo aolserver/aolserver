@@ -34,63 +34,13 @@
  *	Tcl commands for returning data to the user agent. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclresp.c,v 1.14 2002/08/10 16:21:36 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclresp.c,v 1.15 2003/01/18 19:24:21 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
 static int CheckId(Tcl_Interp *interp, char *id);
 static int Result(Tcl_Interp *interp, int result);
 static int GetConn(ClientData arg, Tcl_Interp *interp, Ns_Conn **connPtr);
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsTclHeadersCmd --
- *
- *	Spit out initial HTTP response; this is for backwards 
- *	compatibility only. 
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	None. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclHeadersCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
-{
-    int      status, len;
-    Ns_Conn *conn;
-    char    *type;
-
-    if (argc < 3 || argc > 5) {
-        Tcl_AppendResult(interp, "wrong # of args:  should be \"",
-            argv[0], " connid status ?type len?\"", NULL);
-        return TCL_ERROR;
-    }
-    if (GetConn(arg, interp, &conn) != TCL_OK) {
-	return TCL_ERROR;
-    }
-    if (Tcl_GetInt(interp, argv[2], &status) != TCL_OK) {
-        return TCL_ERROR;
-    }
-    if (argc < 4) {
-        type = NULL;
-    } else {
-        type = argv[3];
-    }
-    if (argc < 5) {
-        len = 0;
-    } else if (Tcl_GetInt(interp, argv[4], &len) != TCL_OK) {
-	return TCL_ERROR;
-    }
-    Ns_ConnSetRequiredHeaders(conn, type, len);
-    return Result(interp, Ns_ConnFlushHeaders(conn, status));
-}
 
 
 /*
@@ -145,47 +95,6 @@ NsTclHeadersObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST 
 /*
  *----------------------------------------------------------------------
  *
- * NsTclReturnCmd --
- *
- *	Implements ns_return. 
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	See docs. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclReturnCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
-{
-    Ns_Conn *conn;
-    int      status, result;
-
-    if (argc != 4 && argc != 5) {
-        Tcl_AppendResult(interp, "wrong # of args: should be \"",
-			 argv[0], " ?connid? status type string\"", NULL);
-        return TCL_ERROR;
-    }
-    if (argc == 5 && !CheckId(interp, argv[1])) {
-	return TCL_ERROR;
-    }
-    if (GetConn(arg, interp, &conn) != TCL_OK) {
-	return TCL_ERROR;
-    }
-    if (Tcl_GetInt(interp, argv[argc-3], &status) != TCL_OK) {
-	return TCL_ERROR;
-    }
-    result = Ns_ConnReturnData(conn, status, argv[argc-1], -1, argv[argc-2]);
-    return Result(interp, result);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
  * NsTclReturnObjCmd --
  *
  *	Implements ns_return as obj command. 
@@ -221,174 +130,6 @@ NsTclReturnObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST o
     result = Ns_ConnReturnData(conn, status, Tcl_GetString(objv[objc-1]), -1, 
 	    Tcl_GetString(objv[objc-2]));
     return Result(interp, result);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsTclRespondCmd --
- *
- *	Implements ns_respond. 
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	See ns_respond. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclRespondCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
-{
-    int          status;
-    char        *type;
-    char        *string;
-    char        *filename;
-    Tcl_Channel	 chan;
-    int          length;
-    Ns_Conn     *conn;
-    int          retval;
-    int          i;
-
-    status = 200;
-    type = NULL;
-    string = NULL;
-    filename = NULL;
-    chan = NULL;
-    length = -1;
-
-    if (argc < 3) {
-        Tcl_AppendResult(interp, "wrong # of args: should be \"",
-            argv[0], " ?-status status? ?-type type? { ?-string string?"
-            " | ?-file filename? | ?-fileid fileid? }"
-            " ?-length length? ?-headers setid?\"", NULL);
-        return TCL_ERROR;
-    }
-    if (GetConn(arg, interp, &conn) != TCL_OK) {
-	return TCL_ERROR;
-    }
-
-    /*
-     * Loop over every argument and set the appropriate options.
-     */
-    
-    retval = TCL_OK;
-    for (i = 0; (i < argc) && (retval == TCL_OK); i++) {
-        if (*argv[i] == '-') {
-            if (strcasecmp(argv[i], "-status") == 0) {
-                if (!((++i < argc) &&
-                        (Tcl_GetInt(interp, argv[i], &status) == TCL_OK))) {
-                    retval = TCL_ERROR;
-                }
-
-            } else if (strcasecmp(argv[i], "-type") == 0) {
-                if (++i >= argc) {
-                    retval = TCL_ERROR;
-                } else {
-                    type = argv[i];
-                }
-
-            } else if (strcasecmp(argv[i], "-string") == 0) {
-                if (++i >= argc) {
-                    retval = TCL_ERROR;
-                } else {
-                    string = argv[i];
-                }
-
-            } else if (strcasecmp(argv[i], "-file") == 0) {
-                if (++i >= argc) {
-                    retval = TCL_ERROR;
-                } else {
-                    filename = argv[i];
-                }
-
-            } else if (strcasecmp(argv[i], "-fileid") == 0) {
-                if (!((++i < argc) &&
-                        (Ns_TclGetOpenChannel(interp, argv[i], 0, 1,
-					      &chan) == TCL_OK))) {
-                    retval = TCL_ERROR;
-                }
-
-            } else if (strcasecmp(argv[i], "-length") == 0) {
-                if (!((++i < argc) &&
-                        (Tcl_GetInt(interp, argv[i], &length) == TCL_OK))) {
-                    retval = TCL_ERROR;
-                }
-
-            } else if (strcasecmp(argv[i], "-headers") == 0) {
-                if (++i >= argc) {
-                    retval = TCL_ERROR;
-                } else {
-                    Ns_Set         *set;
-
-                    set = Ns_TclGetSet(interp, argv[i]);
-                    if (set == NULL) {
-                        Tcl_AppendResult(interp, "Illegal ns_set id: \"",
-                            argv[i], "\"", NULL);
-                        return TCL_ERROR;
-                    }
-                    Ns_ConnReplaceHeaders(conn, set);
-                }
-            }
-        }
-    }
-
-    /*
-     * Exactly one of chan, filename, string must be specified.
-     */
-    
-    i = (chan != NULL ? 1 : 0) +
-	(filename != NULL ? 1 : 0) +
-	(string != NULL ? 1 : 0);
-    if (i != 1) {
-	Tcl_AppendResult(interp, 
-			 "Need to specify at least one of -string, -file, or "
-			 "-type \n", NULL);
-        retval = TCL_ERROR;
-    }
-
-    /*
-     * If an error has been set prior to now, complain and return.
-     */
-    
-    if (retval == TCL_ERROR) {
-        Tcl_AppendResult(interp, "wrong # of args: should be \"",
-            argv[0], " ?-status status? ?-type type? { ?-string string?"
-            " | ?-file filename? | ?-fileid fileid? }"
-            " ?-length length? ?-headers setid?\"", NULL);
-        return TCL_ERROR;
-    }
-    if (chan != NULL) {
-	/*
-	 * We'll be returning an open channel
-	 */
-	
-        if (length < 0) {
-            Tcl_AppendResult(interp, "length required when -fileid is used.",
-                NULL);
-            return TCL_ERROR;
-        }
-	retval = Ns_ConnReturnOpenChannel(conn, status, type, chan, length);
-
-    } else if (filename != NULL) {
-	/*
-	 * We'll be returining a file by name
-	 */
-	
-        retval = Ns_ConnReturnFile(conn, status, type, filename);
-
-    } else {
-	/*
-	 * We'll be returning a string now.
-	 */
-
-	retval = Ns_ConnReturnData(conn, status, string, length, type);
-    }
-
-    return Result(interp, retval);
 }
 
 
@@ -561,46 +302,6 @@ NsTclRespondObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST 
 /*
  *----------------------------------------------------------------------
  *
- * NsTclReturnFile --
- *
- *	Return an open file. (ns_returnfile) 
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	See docs. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclReturnFileCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
-{
-    int      status;
-    Ns_Conn *conn;
-
-    if (argc != 4 && argc != 5) {
-        Tcl_AppendResult(interp, "wrong # of args: should be \"",
-            argv[0], " ?connid? status type file\"", NULL);
-        return TCL_ERROR;
-    }
-    if (argc == 5 && !CheckId(interp, argv[1])) {
-	return TCL_ERROR;
-    }
-    if (GetConn(arg, interp, &conn) != TCL_OK) {
-	return TCL_ERROR;
-    }
-    if (Tcl_GetInt(interp, argv[argc-3], &status) != TCL_OK) {
-        return TCL_ERROR;
-    }
-    return Result(interp, Ns_ConnReturnFile(conn, status, argv[argc-2], argv[argc-1]));
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
  * NsTclReturnFileObjCmd --
  *
  *	Return an open file. (ns_returnfile) 
@@ -635,53 +336,6 @@ NsTclReturnFileObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CON
     }
     return Result(interp, Ns_ConnReturnFile(conn, status, Tcl_GetString(objv[objc-2]), 
 				Tcl_GetString(objv[objc-1])));
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsTclReturnFpCmd --
- *
- *	Implements ns_returnfp. (actually accepts any open channel)
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	See docs. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclReturnFpCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
-{
-    int          len, status;
-    Tcl_Channel	 chan;
-    Ns_Conn     *conn;
-
-    if (argc != 5 && argc != 6) {
-        Tcl_AppendResult(interp, "wrong # of args: should be \"",
-            argv[0], " ?connid? status type fileId len\"", NULL);
-        return TCL_ERROR;
-    }
-    if (argc == 6 && !CheckId(interp, argv[1])) {
-	return TCL_ERROR;
-    }
-    if (GetConn(arg, interp, &conn) != TCL_OK) {
-	return TCL_ERROR;
-    }
-    if (Tcl_GetInt(interp, argv[argc-4], &status) != TCL_OK) {
-        return TCL_ERROR;
-    }
-    if (Tcl_GetInt(interp, argv[argc-1], &len) != TCL_OK) {
-        return TCL_ERROR;
-    }
-    if (Ns_TclGetOpenChannel(interp, argv[argc-2], 0, 1, &chan) != TCL_OK) {
-        return TCL_ERROR;
-    }
-    return Result(interp, Ns_ConnReturnOpenChannel(conn, status, argv[argc-3], chan, len));
 }
 
 
@@ -728,43 +382,6 @@ NsTclReturnFpObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST
         return TCL_ERROR;
     }
     return Result(interp, Ns_ConnReturnOpenChannel(conn, status, Tcl_GetString(objv[objc-3]), chan, len));
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsTclReturnBadRequestCmd --
- *
- *	Implements ns_returnbadrequest. 
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	See docs. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclReturnBadRequestCmd(ClientData arg, Tcl_Interp *interp, int argc,
-			  char **argv)
-{
-    Ns_Conn *conn;
-
-    if (argc != 2 && argc != 3) {
-        Tcl_AppendResult(interp, "wrong # of args: should be \"",
-                         argv[0], " ?connid? reason\"", NULL);
-        return TCL_ERROR;
-    }
-    if (argc == 3 && !CheckId(interp, argv[1])) {
-	return TCL_ERROR;
-    }
-    if (GetConn(arg, interp, &conn) != TCL_OK) {
-	return TCL_ERROR;
-    }
-    return Result(interp, Ns_ConnReturnBadRequest(conn, argv[argc-1]));
 }
 
 
@@ -821,25 +438,6 @@ NsTclReturnBadRequestObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Ob
  *----------------------------------------------------------------------
  */
 
-static int
-ReturnCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv, int (*proc) (Ns_Conn *))
-{
-    Ns_Conn *conn;
-
-    if (argc != 1 && argc != 2) {
-        Tcl_AppendResult(interp, "wrong # of args: should be \"",
-                         argv[0], " ?connid?\"", NULL);
-        return TCL_ERROR;
-    }
-    if (argc == 2 && !CheckId(interp, argv[1])) {
-	return TCL_ERROR;
-    }
-    if (GetConn(arg, interp, &conn) != TCL_OK) {
-	return TCL_ERROR;
-    }
-    return Result(interp, (*proc)(conn));
-}
-
 
 /*
  *----------------------------------------------------------------------
@@ -879,21 +477,9 @@ ReturnObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
 }
 
 int
-NsTclReturnNotFoundCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
-{
-    return ReturnCmd(arg, interp, argc, argv, Ns_ConnReturnNotFound);
-}
-
-int
 NsTclReturnNotFoundObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     return ReturnObjCmd(arg, interp, objc, objv, Ns_ConnReturnNotFound);
-}
-
-int
-NsTclReturnUnauthorizedCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
-{
-    return ReturnCmd(arg, interp, argc, argv, Ns_ConnReturnUnauthorized);
 }
 
 int
@@ -903,57 +489,9 @@ NsTclReturnUnauthorizedObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_
 }
 
 int
-NsTclReturnForbiddenCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
-{
-    return ReturnCmd(arg, interp, argc, argv, Ns_ConnReturnForbidden);
-}
-
-int
 NsTclReturnForbiddenObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     return ReturnObjCmd(arg, interp, objc, objv, Ns_ConnReturnForbidden);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsTclReturnErrorCmd --
- *
- *	Implements ns_tclreturnerror 
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	See docs. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclReturnErrorCmd(ClientData arg, Tcl_Interp *interp, int argc,
-		    char **argv)
-{
-    int      status;
-    Ns_Conn *conn;
-
-    if (argc != 3 && argc != 4) {
-        Tcl_AppendResult(interp, "wrong # of args: should be \"",
-            argv[0], " ?connid? status message\"", NULL);
-        return TCL_ERROR;
-    }
-    if (argc == 4 && !CheckId(interp, argv[1])) {
-	return TCL_ERROR;
-    }
-    if (GetConn(arg, interp, &conn) != TCL_OK) {
-	return TCL_ERROR;
-    }
-    if (Tcl_GetInt(interp, argv[argc-2], &status) != TCL_OK) {
-        return TCL_ERROR;
-    }
-    return Result(interp,
-	Ns_ConnReturnAdminNotice(conn, status, "Request Error", argv[argc-1]));
 }
 
 
@@ -1092,43 +630,6 @@ NsTclReturnAdminNoticeCmd(ClientData arg, Tcl_Interp *interp, int argc, char **a
 /*
  *----------------------------------------------------------------------
  *
- * NsTclReturnRedirectCmd --
- *
- *	Implements ns_returnredirect. 
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	See docs. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclReturnRedirectCmd(ClientData arg, Tcl_Interp *interp, int argc,
-		       char **argv)
-{
-    Ns_Conn *conn;
-
-    if (argc != 2 && argc != 3) {
-        Tcl_AppendResult(interp, "wrong # of args: should be \"",
-                         argv[0], " ?connid? location ", NULL);
-        return TCL_ERROR;
-    }
-    if (argc == 3 && !CheckId(interp, argv[1])) {
-	return TCL_ERROR;
-    }
-    if (GetConn(arg, interp, &conn) != TCL_OK) {
-	return TCL_ERROR;
-    }
-    return Result(interp, Ns_ConnReturnRedirect(conn, argv[argc-1]));
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
  * NsTclReturnRedirectObjCmd --
  *
  *	Implements ns_returnredirect as obj command. 
@@ -1159,42 +660,6 @@ NsTclReturnRedirectObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj 
     }
     return Result(interp, Ns_ConnReturnRedirect(conn, 
 				Tcl_GetString(objv[objc-1])));
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsTclWriteCmd --
- *
- *	Implements ns_write 
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	See docs. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclWriteCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
-{
-    Ns_Conn *conn;
-
-    if (argc != 2 && argc != 3) {
-        Tcl_AppendResult(interp, "wrong # of args: should be \"",
-                         argv[0], " ?connid? string", NULL);
-        return TCL_ERROR;
-    }
-    if (argc == 3 && !CheckId(interp, argv[1])) {
-	return TCL_ERROR;
-    }
-    if (GetConn(arg, interp, &conn) != TCL_OK) {
-	return TCL_ERROR;
-    }
-    return Result(interp, Ns_ConnPuts(conn, argv[argc-1]));
 }
 
 
@@ -1234,56 +699,6 @@ NsTclWriteObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST ob
 
     bytes = (char *) Tcl_GetByteArrayFromObj(objv[objc-1], &length);
     return Result(interp,Ns_WriteConn(conn, bytes, length));
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsTclConnSendFpCmd --
- *
- *	Implements ns_connsendfp.
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	See docs. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclConnSendFpCmd(ClientData arg, Tcl_Interp *interp, int argc,
-		    char **argv)
-{
-    Ns_Conn     *conn;
-    Tcl_Channel	 chan;
-    int          len;
-
-    if (argc != 3 && argc != 4) {
-        Tcl_AppendResult(interp, "wrong # of args: should be \"",
-                         argv[0], " ?connid? fp len ", NULL);
-        return TCL_ERROR;
-    }
-    if (argc == 4 && !CheckId(interp, argv[1])) {
-	return TCL_ERROR;
-    }
-    if (GetConn(arg, interp, &conn) != TCL_OK) {
-	return TCL_ERROR;
-    }
-    if (Ns_TclGetOpenChannel(interp, argv[argc-2], 0, 1, &chan) != TCL_OK) {
-        return TCL_ERROR;
-    }
-    if (Tcl_GetInt(interp, argv[argc-1], &len) != TCL_OK) {
-        return TCL_ERROR;
-    }
-    if (Ns_ConnSendChannel(conn, chan, len) != NS_OK) {
-	Tcl_AppendResult(interp, "could not send ", argv[argc-1],
-	    " bytes from channel ", argv[argc-2], NULL);
-	return TCL_ERROR;
-    }
-    return TCL_OK;
 }
 
 

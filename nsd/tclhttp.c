@@ -33,7 +33,7 @@
  *	Support for the ns_http command.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclhttp.c,v 1.11 2002/08/10 16:22:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclhttp.c,v 1.12 2003/01/18 19:24:20 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -72,153 +72,6 @@ static int HttpAbort(Http *httpPtr);
 static char *HttpResult(char *response, Ns_Set *hdrs);
 static Ns_Mutex lock;
 static Ns_Cond cond;
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsTclHttpCmd --
- *
- *	Implements ns_http to handle async HTTP requests.
- *
- * Results:
- *	Standard Tcl result.
- *
- * Side effects:
- *	May queue an HTTP request.
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclHttpCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
-{
-    NsInterp *itPtr = arg;
-    Http *httpPtr;
-    char *cmd, buf[20];
-    CONST char *result;
-    int new, status, n;
-    Ns_Time timeout;
-    Ns_Set *hdrs;
-    Tcl_HashEntry *hPtr;
-    Tcl_HashSearch search;
-
-    if (argc < 2) {
-    	Tcl_AppendResult(interp, "wrong # args: should be \"",
-	    argv[0], " command ?args ...?\"", NULL);
-    	return TCL_ERROR;
-    }
-
-    cmd = argv[1];
-    if (STREQ(cmd, "queue")) {
-	if (argc != 3 && argc != 4) {
-	    Tcl_AppendResult(interp, "wrong # args: should be \"",
-		argv[0], " ", cmd, " url ?headers?\"", NULL);
-	    return TCL_ERROR;
-	}
-	if (argc == 3) {
-	    hdrs = NULL;
-	} else if (Ns_TclGetSet2(interp, argv[3], &hdrs) != TCL_OK) {
-	    return TCL_ERROR;
-	}
-	httpPtr = HttpOpen(argv[2], hdrs);
-	if (httpPtr == NULL) {
-	    Tcl_AppendResult(interp, "could not connect to : ", argv[2], NULL);
-	    return TCL_ERROR;
-	}
-    	Ns_SockCallback(httpPtr->sock, HttpSend, httpPtr, NS_SOCK_WRITE);
-	n = itPtr->https.numEntries;
-	do {
-    	    sprintf(buf, "http%d", n++);
-	    hPtr = Tcl_CreateHashEntry(&itPtr->https, buf, &new);
-	} while (!new);
-	Tcl_SetHashValue(hPtr, httpPtr);
-	Tcl_SetResult(interp, buf, TCL_VOLATILE);
-
-    } else if (STREQ(cmd, "cancel")) {
-	if (argc != 3) {
-	    Tcl_AppendResult(interp, "wrong # args: should be \"",
-		argv[0], " cancel id\"", NULL);
-	    return TCL_ERROR;
-	}
-	hPtr = Tcl_FindHashEntry(&itPtr->https, argv[2]);
-	if (hPtr == NULL) {
-	    Tcl_AppendResult(interp, "no such request: ", argv[2], NULL);
-	    return TCL_ERROR;
-	}
-	httpPtr = Tcl_GetHashValue(hPtr);
-	Tcl_DeleteHashEntry(hPtr);
-	sprintf(buf, "%d", HttpAbort(httpPtr));
-	Tcl_SetResult(interp, buf, TCL_VOLATILE);
-
-    } else if (STREQ(cmd, "wait")) {
-	if (argc < 4 || argc > 6) {
-	    Tcl_AppendResult(interp, "wrong # args: should be \"",
-		argv[0], " wait id resultsVar ?timeout? ?headers?\"", NULL);
-	    return TCL_ERROR;
-	}
-	if (argc < 5) {
-	    n = 2;
-	} else if (Tcl_GetInt(interp, argv[4], &n) != TCL_OK) {
-	    return TCL_ERROR;
-	}
-	Ns_GetTime(&timeout);
-	Ns_IncrTime(&timeout, n, 0);
-	if (argc < 6) {
-	    hdrs = NULL;
-	} else if (Ns_TclGetSet2(interp, argv[5], &hdrs) != TCL_OK) {
-	    return TCL_ERROR;
-	}
-	hPtr = Tcl_FindHashEntry(&itPtr->https, argv[2]);
-	if (hPtr == NULL) {
-	    Tcl_AppendResult(interp, "no such request: ", argv[2], NULL);
-	    return TCL_ERROR;
-	}
-	httpPtr= Tcl_GetHashValue(hPtr);
-	status = NS_OK;
-	Ns_MutexLock(&lock);
-    	while (status == NS_OK && !(httpPtr->state & REQ_DONE)) {
-	    status = Ns_CondTimedWait(&cond, &lock, &timeout);
-    	}
-	Ns_MutexUnlock(&lock);
-	if (status != NS_OK) {
-	    httpPtr = NULL;
-	    result = "timeout";
-	} else {
-	    if (httpPtr->state & REQ_EOF) {
-		result = HttpResult(httpPtr->ds.string, hdrs);
-	    } else {
-		status = NS_ERROR;
-		result = "error";
-	    }
-	}
-	result = Tcl_SetVar(interp, argv[3], result, TCL_LEAVE_ERR_MSG);
-	if (httpPtr != NULL) {
-	    Tcl_DeleteHashEntry(hPtr);
-	    HttpClose(httpPtr, 0);
-	} 
-	if (result == NULL) {
-	    return TCL_ERROR;
-	}
-	Tcl_SetResult(interp, status == NS_OK ? "1" : "0", TCL_STATIC);
-
-    } else if (STREQ(cmd, "cleanup")) {
-	hPtr = Tcl_FirstHashEntry(&itPtr->https, &search);
-	while (hPtr != NULL) {
-	    httpPtr = Tcl_GetHashValue(hPtr);
-	    (void) HttpAbort(httpPtr);
-	    hPtr = Tcl_NextHashEntry(&search);
-	}
-	Tcl_DeleteHashTable(&itPtr->https);
-	Tcl_InitHashTable(&itPtr->https, TCL_STRING_KEYS);
-
-    } else {
-    	Tcl_AppendResult(interp, "unknown command \"", cmd,
-	    "\": should be queue, wait, or cancel", NULL);
-    }
-
-    return TCL_OK;
-}
 
 
 /*

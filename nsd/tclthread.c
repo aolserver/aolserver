@@ -34,7 +34,7 @@
  *	Tcl wrappers around all thread objects 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclthread.c,v 1.16 2002/10/14 23:21:19 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclthread.c,v 1.17 2003/01/18 19:24:21 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #ifdef NS_NOCOMPAT
 #undef NS_NOCOMPAT
@@ -102,66 +102,6 @@ NsTclInitAddrType(void)
 /*
  *----------------------------------------------------------------------
  *
- * NsTclMutexCmd --
- *
- *	Implements ns_mutex. 
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	See docs. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclMutexCmd(ClientData data, Tcl_Interp *interp, int argc, char **argv)
-{
-    Ns_Mutex *lockPtr;
-
-    if (argc < 2) {
-        Tcl_AppendResult(interp, "wrong # args: should be \"",
-            argv[0], " command ...\"", NULL);
-        return TCL_ERROR;
-    }
-    if (STREQ(argv[1], "create")) {
-        lockPtr = ns_malloc(sizeof(Ns_Mutex));
-	Ns_MutexInit(lockPtr);
-	if (argc > 2) {
-	    Ns_MutexSetName(lockPtr, argv[2]);
-	}
-        SetAddr(interp, 'm', lockPtr);
-    } else {
-        if (argc != 3) {
-            Tcl_AppendResult(interp, "wrong # args: should be \"",
-                argv[0], " ", argv[1], " lock\"", NULL);
-            return TCL_ERROR;
-        } else if (GetAddr(interp, 'm', argv[2],
-			  (void **) &lockPtr) != TCL_OK) {
-            return TCL_ERROR;
-        }
-        if (STREQ(argv[1], "lock")) {
-	    Ns_MutexLock(lockPtr);
-        } else if (STREQ(argv[1], "unlock")) {
-	    Ns_MutexUnlock(lockPtr);
-        } else if (STREQ(argv[1], "destroy")) {
-	    Ns_MutexDestroy(lockPtr);
-            ns_free(lockPtr);
-        } else {
-            Tcl_AppendResult(interp, "unknown command \"",
-                argv[1], "\": should be create, destroy, lock or unlock",
-			     NULL);
-            return TCL_ERROR;
-        }
-    }
-    return TCL_OK;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
  * NsTclMutexObjCmd --
  *
  *	Implements ns_mutex as obj command. 
@@ -215,62 +155,6 @@ NsTclMutexObjCmd(ClientData data, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 /*
  *----------------------------------------------------------------------
  *
- * NsTclCritSecCmd --
- *
- *	Implements ns_critsec. 
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	See doc. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclCritSecCmd(ClientData data, Tcl_Interp *interp, int argc, char **argv)
-{
-    Ns_Cs *csPtr;
-
-    if (argc < 2) {
-        Tcl_AppendResult(interp, "wrong # args: should be \"",
-            argv[0], " command ...\"", NULL);
-        return TCL_ERROR;
-    }
-    if (STREQ(argv[1], "create")) {
-        csPtr = ns_malloc(sizeof(Ns_Cs));
-	Ns_CsInit(csPtr);
-        SetAddr(interp, 'c', csPtr);
-    } else {
-        if (argc != 3) {
-            Tcl_AppendResult(interp, "wrong # args: should be \"",
-                argv[0], " ", argv[1], " cs\"", NULL);
-            return TCL_ERROR;
-        } else if (GetAddr(interp, 'c', argv[2], (void **) &csPtr) != TCL_OK) {
-            return TCL_ERROR;
-        }
-        if (STREQ(argv[1], "enter")) {
-	    Ns_CsEnter(csPtr);
-        } else if (STREQ(argv[1], "leave")) {
-	    Ns_CsLeave(csPtr);
-        } else if (STREQ(argv[1], "destroy")) {
-	    Ns_CsDestroy(csPtr);
-            ns_free(csPtr);
-        } else {
-            Tcl_AppendResult(interp, "unknown command \"",
-                argv[1], "\": should be create, destroy, enter or leave",
-			     NULL);
-            return TCL_ERROR;
-        }
-    }
-    return TCL_OK;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
  * NsTclCritSecObjCmd --
  *
  *	Implements ns_critsec. 
@@ -314,74 +198,6 @@ NsTclCritSecObjCmd(ClientData data, Tcl_Interp *interp, int objc,
 	Ns_CsDestroy(csPtr);
         ns_free(csPtr);
 	break;
-    }
-    return TCL_OK;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsTclSemaCmd --
- *
- *	Implements ns_sema. 
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	See docs. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclSemaCmd(ClientData data, Tcl_Interp *interp, int argc, char **argv)
-{
-    Ns_Sema *semaPtr;
-    int      cnt;
-
-    if (argc < 2) {
-        Tcl_AppendResult(interp, "wrong # args: should be \"",
-            argv[0], " command ...\"", NULL);
-        return TCL_ERROR;
-    }
-    if (STREQ(argv[1], "create")) {
-        if (argc < 3) {
-            cnt = 0;
-        } else if (Tcl_GetInt(interp, argv[2], &cnt) != TCL_OK) {
-            return TCL_ERROR;
-        }
-        semaPtr = ns_malloc(sizeof(Ns_Sema));
-	Ns_SemaInit(semaPtr, cnt);
-        SetAddr(interp, 's', semaPtr);
-    } else {
-        if (argc < 3) {
-            Tcl_AppendResult(interp, "wrong # args: should be \"",
-                argv[0], " ", argv[1], " sema ?cnt?\"", NULL);
-            return TCL_ERROR;
-        } else if (GetAddr(interp, 's', argv[2], 
-				      (void **) &semaPtr) != TCL_OK) {
-            return TCL_ERROR;
-        }
-        if (STREQ(argv[1], "release")) {
-            if (argc < 4) {
-                cnt = 1;
-            } else if (Tcl_GetInt(interp, argv[3], &cnt) != TCL_OK) {
-                return TCL_ERROR;
-            }
-	    Ns_SemaPost(semaPtr, cnt);
-        } else if (STREQ(argv[1], "wait")) {
-	    Ns_SemaWait(semaPtr);
-        } else if (STREQ(argv[1], "destroy")) {
-	    Ns_SemaDestroy(semaPtr);
-            ns_free(semaPtr);
-        } else {
-            Tcl_AppendResult(interp, "unknown command \"", argv[1], 
-			     "\": should be create, destroy, release or wait", 
-			     NULL);
-            return TCL_ERROR;
-        }
     }
     return TCL_OK;
 }
@@ -444,109 +260,6 @@ NsTclSemaObjCmd(ClientData data, Tcl_Interp *interp, int objc,
 	Ns_SemaDestroy(semaPtr);
         ns_free(semaPtr);
 	break;
-    }
-    return TCL_OK;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsTclEventCmd --
- *
- *	Implements ns_event.
- *
- * Results:
- *	See docs. 
- *
- * Side effects:
- *	See docs.  NOTE: it's actually implemented with a cond.
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclEventCmd(ClientData data, Tcl_Interp *interp, int argc, char **argv)
-{
-    Tcl_Obj *objPtr;
-    Ns_Cond *condPtr;
-
-    if (argc < 2) {
-        Tcl_AppendResult(interp, "wrong # args: should be \"",
-            argv[0], " command ...\"", NULL);
-        return TCL_ERROR;
-    }
-    if (STREQ(argv[1], "create")) {
-        condPtr = ns_malloc(sizeof(Ns_Cond));
-	Ns_CondInit(condPtr);
-        SetAddr(interp, 'e', condPtr);
-    } else {
-        if (argc < 3) {
-            Tcl_AppendResult(interp, "wrong # args: should be \"",
-                argv[0], " ", argv[1], " event ?...?\"", NULL);
-            return TCL_ERROR;
-        } else if (GetAddr(interp, 'e', argv[2], 
-				      (void **) &condPtr) != TCL_OK) {
-            return TCL_ERROR;
-        }
-        if (STREQ(argv[1], "timedwait") || STREQ(argv[1], "wait")
-		|| STREQ(argv[1], "abswait")) {
-            Ns_Mutex       *lock;
-            int             timeout, result;
-
-            if (argc < 4) {
-                Tcl_AppendResult(interp, "wrong # args: should be \"",
-                    argv[0], " ", argv[1], " event lock ?timeout?\"", NULL);
-                return TCL_ERROR;
-            } else if (GetAddr(interp, 'm', argv[3], 
-					  (void **) &lock) != TCL_OK) {
-                return TCL_ERROR;
-            }
-            if (argc < 5) {
-                timeout = 0;
-            } else if (Tcl_GetInt(interp, argv[4], &timeout) != TCL_OK) {
-                return TCL_ERROR;
-            }
-	    if (argv[1][0] == 't') {
-		if (timeout == 0) {
-		    Ns_CondWait(condPtr, lock);
-		    result = NS_OK;
-		} else {
-		    Ns_Time to;
-		    to.sec = timeout;
-		    to.usec = 0;
-		    result = Ns_CondTimedWait(condPtr, lock, &to);
-		}
-	    } else if (argv[1][0] == 'a') {
-            	result = Ns_AbsTimedWaitForEvent((Ns_Event *) condPtr, lock, timeout);
-	    } else {
-            	result = Ns_TimedWaitForEvent((Ns_Event *) condPtr, lock, timeout);
-	    }
-	    switch (result) {
-            case NS_OK:
-		objPtr = Tcl_NewBooleanObj(1);
-                break;
-            case NS_TIMEOUT:
-		objPtr = Tcl_NewBooleanObj(0);
-                break;
-            default:
-                return TCL_ERROR;
-                break;
-            }
-	    Tcl_SetObjResult(interp, objPtr);
-        } else if (STREQ(argv[1], "broadcast")) {
-	    Ns_CondBroadcast(condPtr);
-        } else if (STREQ(argv[1], "set")) {
-	    Ns_CondSignal(condPtr);
-        } else if (STREQ(argv[1], "destroy")) {
-	    Ns_CondDestroy(condPtr);
-            ns_free(condPtr);
-        } else {
-            Tcl_AppendResult(interp, "unknown command \"", argv[1],
-			     "\": should be create, destroy, wait, set, or "
-			     "broadcast", NULL);
-            return TCL_ERROR;
-        }
     }
     return TCL_OK;
 }
@@ -650,73 +363,6 @@ NsTclCondObjCmd(ClientData data, Tcl_Interp *interp, int objc,
 	break;
     }
     return TCL_OK;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsTclRWLockCmd --
- *
- *	Implements ns_rwlock. 
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	See docs. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclRWLockCmd(ClientData data, Tcl_Interp *interp, int argc, char **argv)
-{
-    Ns_RWLock *rwlockPtr;
-
-    if (argc < 2) {
-	Tcl_AppendResult(interp, "wrong # args: should be \"",
-			 argv[0], " command ...\"", NULL);
-	return TCL_ERROR;
-    }
-    
-    if (STREQ(argv[1], "create")) {
-	rwlockPtr = ns_malloc(sizeof(Ns_RWLock));
-	Ns_RWLockInit(rwlockPtr);
-	SetAddr(interp, 'r', rwlockPtr);
-    } else {
-	if (argc < 3) {
-	    Tcl_AppendResult(interp, "wrong # args: should be \"",
-			     argv[0], " ", argv[1], " rwlock ?...?\"", NULL);
-	    return TCL_ERROR;
-	} else if (GetAddr(interp, 'r', argv[2], 
-				      (void**) &rwlockPtr) != TCL_OK) {
-	    return TCL_ERROR;
-	}
-
-	if (STREQ(argv[1], "destroy")) {
-	    Ns_RWLockDestroy(rwlockPtr);
-	    ns_free(rwlockPtr);
-	} else if (STREQ(argv[1], "readlock")) {
-	    Ns_RWLockRdLock(rwlockPtr);
-	} else if (STREQ(argv[1], "readunlock")) {
-	    Ns_RWLockUnlock(rwlockPtr);
-	} else if (STREQ(argv[1], "writelock")) {
-	    Ns_RWLockWrLock(rwlockPtr);
-	} else if (STREQ(argv[1], "writeunlock")) {
-	    Ns_RWLockUnlock(rwlockPtr);
-	} else if (STREQ(argv[1], "unlock")) {
-	    Ns_RWLockUnlock(rwlockPtr);
-	} else {
-	    Tcl_AppendResult(interp, "unknown command \"",
-			     argv[1], "\":should be create, destroy, "
-			     "readlock, readunlock, writelock, "
-			     "writeunlock", NULL);
-	    return TCL_ERROR;
-	}
-    }
-    return TCL_OK;
-
 }
 
 

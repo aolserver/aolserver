@@ -33,7 +33,7 @@
  *	Initialization routines for Tcl.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.30 2003/01/18 18:24:43 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.31 2003/01/18 19:24:20 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -516,38 +516,6 @@ NsInterp *
 NsGetInterp(Tcl_Interp *interp)
 {
     return (NsInterp *) Tcl_GetAssocData(interp, "ns:data", NULL);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsTclMarkForDeleteCmd --
- *
- *	Implements ns_markfordelete. 
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	See docs. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclMarkForDeleteCmd(ClientData arg, Tcl_Interp *interp, int argc,
-		      char **argv)
-{
-    NsInterp *itPtr = arg;
-
-    if (argc != 1) {
-	Tcl_AppendResult(interp, "wrong # args: should be \"",
-	    argv[0], "\"", NULL);
-	return TCL_ERROR;
-    }
-    itPtr->delete = 1;
-    return TCL_OK;
 }
 
 

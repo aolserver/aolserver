@@ -34,7 +34,7 @@
  *	This file implements the "ns_rand" command.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/random.c,v 1.13 2002/09/16 19:48:27 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/random.c,v 1.14 2003/01/18 19:24:20 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -63,60 +63,7 @@ static Ns_Sema sema;	/* Semaphore that controls counting threads. */
 static Ns_Cs lock;
 static volatile int initialized;
 
-/*
- *----------------------------------------------------------------------
- *
- * NsTclRandCmd --
- *
- *	This procedure implements the AOLserver Tcl 
- *
- *	    ns_rand ?maximum?
- *
- *	command.  
- *
- * Results:
- *	The Tcl result string contains a random number, either a
- *	double >= 0.0 and < 1.0 or a integer >= 0 and < max.
- *
- * Side effects:
- *	None external.
- *
- * Note:
- *	Interpreters share the static variables which randomizes the
- *	the random numbers even more.
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclRandCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
-{
-    double d;
-    int max;
-	
-    if (argc > 2) {
-	Tcl_AppendResult(interp, argv[0], ": wrong number args: should be \"", 
-	    argv[0], " ?maximum?\"", (char *) NULL);
-	return TCL_ERROR;
-    }
-    if (argc == 2) {
-    	if (Tcl_GetInt(interp, argv[1], &max) != TCL_OK) {
-	    return TCL_ERROR;
-	} else if (max <= 0) {
-	    Tcl_AppendResult(interp, "invalid max \"", argv[1],
-	    	"\": must be > 0", NULL);
-	    return TCL_ERROR;
-	}
-    }
-    d = Ns_DRand();
-    if (argc == 1) {
-	Tcl_SetObjResult(interp, Tcl_NewDoubleObj(d));
-    } else {
-	Tcl_SetObjResult(interp, Tcl_NewIntObj((int) (d * max)));
-    }
-    return TCL_OK;
-}
-
+
 /*
  *----------------------------------------------------------------------
  *

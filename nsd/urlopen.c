@@ -33,7 +33,7 @@
  *	Make outgoing HTTP requests.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/urlopen.c,v 1.14 2002/07/14 23:13:49 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/urlopen.c,v 1.15 2003/01/18 19:24:21 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -221,71 +221,6 @@ Ns_FetchURL(Ns_DString *dsPtr, char *url, Ns_Set *headers)
     }
     Ns_DStringFree(&ds);
     return status;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsTclGetUrlCmd --
- *
- *	Implements ns_geturl. 
- *
- * Results:
- *	Tcl result.
- *
- * Side effects:
- *	See docs. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclGetUrlCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
-{
-    NsInterp *itPtr = arg;
-    Ns_DString  ds;
-    Ns_Set     *headers;
-    int         status, code;
-
-    if ((argc != 3) && (argc != 2)) {
-        Tcl_AppendResult(interp, "wrong # of args:  should be \"",
-                         argv[0], " url ?headersSetIdVar?", NULL);
-        return TCL_ERROR;
-    }
-
-    code = TCL_ERROR;
-    if (argc == 2) {
-        headers = NULL;
-    } else {
-        headers = Ns_SetCreate(NULL);
-    }
-    Ns_DStringInit(&ds);
-    if (*argv[1] == '/') {
-	status = Ns_FetchPage(&ds, argv[1], itPtr->servPtr->server);
-    } else {
-        status = Ns_FetchURL(&ds, argv[1], headers);
-    }
-    if (status != NS_OK) {
-        Tcl_AppendResult(interp, "could not fetch: ", argv[1], NULL);
-	if (headers != NULL) {
-	    Ns_SetFree(headers);
-	}
-	goto done;
-    }
-    if (argc == 3) {
-        Ns_TclEnterSet(interp, headers, NS_TCL_SET_DYNAMIC);
-        if (Tcl_SetVar(interp, argv[2], Tcl_GetStringResult(interp),
-		TCL_LEAVE_ERR_MSG) == NULL) {
-	    goto done;
-	}
-    }
-    Tcl_SetResult(interp, ds.string, TCL_VOLATILE);
-    code = TCL_OK;
-
-done:
-    Ns_DStringFree(&ds);
-    return code;
 }
 
 

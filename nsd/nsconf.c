@@ -33,7 +33,7 @@
  *	Various core configuration.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsconf.c,v 1.29 2002/10/14 23:20:33 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsconf.c,v 1.30 2003/01/18 19:24:20 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #include "nsconf.h"
@@ -85,7 +85,6 @@ NsInitConf(void)
     time(&nsconf.boot_t);
     nsconf.pid = getpid();
     nsconf.home = getcwd(cwd, sizeof(cwd));
-    nsconf.tcl.objcmds = 1;
     if (gethostname(nsconf.hostname, sizeof(nsconf.hostname)) != 0) {
         strcpy(nsconf.hostname, "localhost");
     }
@@ -221,14 +220,6 @@ NsConfUpdate(void)
     Ns_HomePath(&ds, "modules", "tcl", NULL);
     nsconf.tcl.sharedlibrary = Ns_DStringExport(&ds);
 
-    /*
-     * tclcmds.c
-     */
-
-    if (GetBool("objcmds", 1)) {
-	nsconf.tcl.objcmds = 1;
-    }
-    
     Ns_DStringFree(&ds);
 }
 

@@ -33,7 +33,7 @@
  *	Ns_Info* API and ns_info command support.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/info.c,v 1.11 2002/10/30 00:01:44 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/info.c,v 1.12 2003/01/18 19:24:20 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -469,147 +469,6 @@ char *
 Ns_InfoTag(void)
 {
     return NSD_TAG;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsTclInfoCmd --
- *
- *	Implements ns_info. 
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	See docs. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclInfoCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
-{
-    NsInterp *itPtr = arg;
-    char *elog, *cmd;
-    Tcl_DString ds;
-
-    if (argc != 2) {
-        Tcl_AppendResult(interp, "wrong # args:  should be \"",
-                         argv[0], " command", NULL);
-        return TCL_ERROR;
-    }
-
-    cmd = argv[1];
-    Tcl_DStringInit(&ds);
-    if (STREQ(cmd, "argv0")) {
-	Tcl_SetResult(interp, nsconf.argv0, TCL_STATIC);
-    } else if (STREQ(cmd, "nsd")) {
-	Tcl_SetResult(interp, nsconf.nsd, TCL_STATIC);
-    } else if (STREQ(cmd, "name")) {
-        Tcl_SetResult(interp, Ns_InfoServerName(), TCL_STATIC);
-    } else if (STREQ(cmd, "config")) {
-	Tcl_SetResult(interp, Ns_InfoConfigFile(), TCL_STATIC);
-    } else if (STREQ(cmd, "callbacks")) {
-    	NsGetCallbacks(&ds);
-	Tcl_DStringResult(interp, &ds);
-    } else if (STREQ(cmd, "sockcallbacks")) {
-    	NsGetSockCallbacks(&ds);
-	Tcl_DStringResult(interp, &ds);
-    } else if (STREQ(cmd, "scheduled")) {
-    	NsGetScheduled(&ds);
-	Tcl_DStringResult(interp, &ds);
-    } else if (STREQ(cmd, "locks")) {
-	Ns_MutexList(&ds);
-	Tcl_DStringResult(interp, &ds);
-    } else if (STREQ(cmd, "threads")) {
-	Ns_ThreadList(&ds, ThreadArgProc);
-	Tcl_DStringResult(interp, &ds);
-    } else if (STREQ(cmd, "pools")) {
-	Tcl_GetMemoryInfo(&ds);
-	Tcl_DStringResult(interp, &ds);
-    } else if (STREQ(cmd, "log")) {
-        elog = Ns_InfoErrorLog();
-	Tcl_SetResult(interp, elog == NULL ? "STDOUT" : elog, TCL_STATIC);
-    } else if (STREQ(cmd, "platform")) {
-	Tcl_SetResult(interp, Ns_InfoPlatform(), TCL_STATIC);
-    } else if (STREQ(cmd, "hostname")) {
-	Tcl_SetResult(interp, Ns_InfoHostname(), TCL_STATIC);
-    } else if (STREQ(cmd, "address")) {
-	Tcl_SetResult(interp, Ns_InfoAddress(), TCL_STATIC);
-    } else if (STREQ(cmd, "uptime")) {
-	Tcl_SetObjResult(interp, Tcl_NewIntObj(Ns_InfoUptime()));
-    } else if (STREQ(cmd, "boottime")) {
-	Tcl_SetObjResult(interp, Tcl_NewIntObj(Ns_InfoBootTime()));
-    } else if (STREQ(cmd, "pid")) {
-	Tcl_SetObjResult(interp, Tcl_NewIntObj(Ns_InfoPid()));
-    } else if (STREQ(cmd, "major")) {
-	Tcl_SetObjResult(interp, Tcl_NewIntObj(NS_MAJOR_VERSION));
-    } else if (STREQ(cmd, "minor")) {
-	Tcl_SetObjResult(interp, Tcl_NewIntObj(NS_MINOR_VERSION));
-    } else if (STREQ(cmd, "version")) {
-	Tcl_SetResult(interp, NS_VERSION, TCL_STATIC);
-    } else if (STREQ(cmd, "patchlevel")) {
-	Tcl_SetResult(interp, NS_PATCH_LEVEL, TCL_STATIC);
-    } else if (STREQ(cmd, "home")) {
-	Tcl_SetResult(interp, Ns_InfoHomePath(), TCL_STATIC);
-    } else if (STREQ(cmd, "winnt")) {
-	Tcl_SetResult(interp, "0", TCL_STATIC);
-    } else if (STREQ(cmd, "label")) {
-	Tcl_SetResult(interp, Ns_InfoLabel(), TCL_STATIC);
-    } else if (STREQ(cmd, "builddate")) {
-	Tcl_SetResult(interp, Ns_InfoBuildDate(), TCL_STATIC);
-    } else if (STREQ(cmd, "tag")) {
-	Tcl_SetResult(interp, Ns_InfoTag(), TCL_STATIC);
-    } else if (STREQ(cmd, "servers")) {
-	Tcl_SetResult(interp, nsconf.servers.string, TCL_STATIC);
-    } else if (STREQ(cmd, "tcllib")
-	|| STREQ(cmd, "pageroot")
-	|| STREQ(cmd, "server")) {
-	if (itPtr->servPtr == NULL) {
-	    Tcl_SetResult(interp, "no server", TCL_STATIC);
-	    return TCL_ERROR;
-	}
-	switch (*cmd) {
-	case 's':
-            Tcl_SetResult(interp, itPtr->servPtr->server, TCL_STATIC);
-	    break;
-	case 't':
-	    Tcl_SetResult(interp, itPtr->servPtr->tcl.library, TCL_STATIC);
-	    break;
-	case 'p':
-	    Tcl_SetResult(interp, itPtr->servPtr->fastpath.pageroot, TCL_STATIC);
-	    break;
-	}
-    } else {
-        Tcl_AppendResult(interp, "unknown command \"", cmd,
-                         "\":  should be "
-                         "address, "
-                         "argv0, "
-                         "builddate, "
-                         "callbacks, "
-                         "config, "
-                         "hostname, "
-                         "label, "
-                         "locks, "
-                         "log, "
-                         "name, "
-                         "pageroot, "
-			 "pid, "
-                         "platform, "
-                         "scheduled, "
-                         "server, "
-                         "servers, "
-                         "sockcallbacks, "
-                         "tag, "
-                         "tcllib, "
-                         "threads, "
-                         "version, "
-                         "or winnt", NULL);
-        return TCL_ERROR;
-    }
-    return TCL_OK;
 }
 
 

@@ -172,7 +172,6 @@ struct _nsconf {
     } keepalive;
 
     struct {
-	int   objcmds;
 	char *sharedlibrary;
 	char *version;
     } tcl;

@@ -34,7 +34,7 @@
  *      Manage the Ns_Conn structure
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.32 2003/01/18 18:24:42 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.33 2003/01/18 19:24:20 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -975,56 +975,6 @@ NsTclConnObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 	    
     }
 
-    return TCL_OK;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsTclWriteContentCmd --
- *
- *	Implments ns_writecontent. 
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	See docs. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclWriteContentCmd(ClientData arg, Tcl_Interp *interp, int argc,
-		     char **argv)
-{
-    NsInterp	*itPtr = arg;
-    Tcl_Channel  chan;
-
-    if (argc != 2 && argc != 3) {
-        Tcl_AppendResult(interp, "wrong # of args: should be \"",
-                         argv[0], " ?connid? channel", NULL);
-        return TCL_ERROR;
-    }
-    if (argc == 3 && !NsIsIdConn(argv[1])) {
-	Tcl_AppendResult(interp, "bad connid: \"", argv[1], "\"", NULL);
-	return TCL_ERROR;
-    }
-    if (itPtr->conn == NULL) {
-        Tcl_AppendResult(interp, "no connection", NULL);
-        return TCL_ERROR;
-    }
-    if (GetChan(interp, argv[argc-1], &chan) != TCL_OK) {
-	return TCL_ERROR;
-    }
-    Tcl_Flush(chan);
-    if (Ns_ConnCopyToChannel(itPtr->conn, itPtr->conn->contentLength, chan) != NS_OK) {
-        Tcl_SetResult(interp, "could not copy content (likely client disconnect)",
-	    TCL_STATIC);
-        return TCL_ERROR;
-    }
-    
     return TCL_OK;
 }
 

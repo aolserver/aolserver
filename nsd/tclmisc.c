@@ -34,7 +34,7 @@
  *	Implements a lot of Tcl API commands. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclmisc.c,v 1.26 2003/01/16 16:41:13 elizthom Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclmisc.c,v 1.27 2003/01/18 19:24:20 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -120,38 +120,6 @@ NsTclStripHtmlCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
     Tcl_SetResult(interp, inString, TCL_VOLATILE);
     
     ns_free(inString);
-
-    return TCL_OK;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsTclCryptCmd --
- *
- *	Implements ns_crypt. 
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	See docs. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclCryptCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
-{
-    char buf[NS_ENCRYPT_BUFSIZE];
-
-    if (argc != 3) {
-        Tcl_AppendResult(interp, "wrong # args: should be \"",
-                         argv[0], " key salt\"", (char *) NULL);
-        return TCL_ERROR;
-    }
-    Tcl_SetResult(interp, Ns_Encrypt(argv[1], argv[2], buf), TCL_VOLATILE);
 
     return TCL_OK;
 }
@@ -266,102 +234,6 @@ NsTclHrefsCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 /*
  *----------------------------------------------------------------------
  *
- * NsTclLocalTimeCmd, NsTclGmTimeCmd --
- *
- *	Implements the ns_gmtime and ns_localtime commands. 
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	See docs. 
- *
- *----------------------------------------------------------------------
- */
-
-static int
-TmCmd(ClientData isgmt, Tcl_Interp *interp, int argc, char **argv)
-{
-    time_t     tt_now = time(NULL);
-    char       buf[10];
-    struct tm *ptm;
-
-    if (isgmt) {
-        if (argc != 1) {
-            Tcl_AppendResult(interp, "wrong # args: should be \"",
-                 argv[0], "\"", NULL);
-            return TCL_ERROR;
-        }
-        ptm = ns_gmtime(&tt_now);
-    } else {
-        static Ns_Mutex lock;
-        char *oldTimezone = NULL;
-
-        if (argc > 2) {
-            Tcl_AppendResult(interp, "wrong # args: should be \"",
-                 argv[0], " ?tz?\"", NULL);
-            return TCL_ERROR;
-        }
-
-        Ns_MutexLock(&lock);
-
-        if (argc == 2) {
-            Ns_DString dsNewTimezone;
-            Ns_DStringInit(&dsNewTimezone);
-
-            oldTimezone = getenv("TZ");
-            Ns_DStringAppend(&dsNewTimezone, "TZ=");
-            Ns_DStringAppend(&dsNewTimezone, argv[1]);
-
-            putenv(dsNewTimezone.string);
-            tzset();
-
-            Ns_DStringFree(&dsNewTimezone);
-        }
-
-        ptm = ns_localtime(&tt_now);
-
-        if (oldTimezone != NULL) {
-            Ns_DString dsNewTimezone;
-            Ns_DStringInit(&dsNewTimezone);
-
-            Ns_DStringAppend(&dsNewTimezone, "TZ=");
-            Ns_DStringAppend(&dsNewTimezone, oldTimezone);
-
-            putenv(dsNewTimezone.string);
-
-            Ns_DStringFree(&dsNewTimezone);
-        }
-
-        Ns_MutexUnlock(&lock);
-    }
-
-    sprintf(buf, "%d", ptm->tm_sec);
-    Tcl_AppendElement(interp, buf);
-    sprintf(buf, "%d", ptm->tm_min);
-    Tcl_AppendElement(interp, buf);
-    sprintf(buf, "%d", ptm->tm_hour);
-    Tcl_AppendElement(interp, buf);
-    sprintf(buf, "%d", ptm->tm_mday);
-    Tcl_AppendElement(interp, buf);
-    sprintf(buf, "%d", ptm->tm_mon);
-    Tcl_AppendElement(interp, buf);
-    sprintf(buf, "%d", ptm->tm_year);
-    Tcl_AppendElement(interp, buf);
-    sprintf(buf, "%d", ptm->tm_wday);
-    Tcl_AppendElement(interp, buf);
-    sprintf(buf, "%d", ptm->tm_yday);
-    Tcl_AppendElement(interp, buf);
-    sprintf(buf, "%d", ptm->tm_isdst);
-    Tcl_AppendElement(interp, buf);
-
-    return TCL_OK;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
  * NsTclLocalTimeObjCmd, NsTclGmTimeObjCmd --
  *
  *	Implements the ns_gmtime and ns_localtime commands. 
@@ -406,66 +278,15 @@ TmObjCmd(ClientData isgmt, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 }
 
 int
-NsTclGmTimeCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
-{
-    return TmCmd((ClientData) 1, interp, argc, argv);
-}
-
-int
 NsTclGmTimeObjCmd(ClientData dummy, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 {
     return TmObjCmd((ClientData) 1, interp, objc, objv);
 }
 
 int
-NsTclLocalTimeCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
-{
-    return TmCmd(NULL, interp, argc, argv);
-}
-
-int
 NsTclLocalTimeObjCmd(ClientData dummy, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 {
     return TmObjCmd(NULL, interp, objc, objv);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsTclSleepCmd --
- *
- *	Tcl result. 
- *
- * Results:
- *	See docs. 
- *
- * Side effects:
- *	See docs. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclSleepCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
-{
-    int seconds;
-
-    if (argc != 2) {
-        Tcl_AppendResult(interp, "wrong # args:  should be \"",
-                         argv[0], " seconds\"", NULL);
-        return TCL_ERROR;
-    }
-    if (Tcl_GetInt(interp, argv[1], &seconds) != TCL_OK) {
-        return TCL_ERROR;
-    }
-    if (seconds < 0) {
-	Tcl_AppendResult(interp, "invalid sections \"", argv[1],
-	    "\": shoudl be >= 0", NULL);
-        return TCL_ERROR;
-    }
-    sleep(seconds);
-    return TCL_OK;
 }
 
 
@@ -513,46 +334,6 @@ NsTclSleepObjCmd(ClientData dummy, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 /*
  *----------------------------------------------------------------------
  *
- * NsTclHTUUEncodeCmd --
- *
- *	Implements ns_uuencode 
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	See docs. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclHTUUEncodeCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
-{
-    char bufcoded[1 + (4 * 48) / 2];
-    int  nbytes;
-
-    if (argc != 2) {
-        Tcl_AppendResult(interp, "wrong # of args: should be \"",
-                         argv[0], " string\"", NULL);
-        return TCL_ERROR;
-    }
-    nbytes = strlen(argv[1]);
-    if (nbytes > 48) {
-        Tcl_AppendResult(interp, "invalid string \"",
-                         argv[1], "\": must be less than 48 characters", NULL);
-        return TCL_ERROR;
-    }
-    Ns_HtuuEncode((unsigned char *) argv[1], nbytes, bufcoded);
-    Tcl_SetResult(interp, bufcoded, TCL_VOLATILE);
-    
-    return TCL_OK;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
  * NsTclHTUUEncodeObjCmd --
  *
  *	Implements ns_uuencode as obj command.
@@ -585,43 +366,6 @@ NsTclHTUUEncodeObjCmd(ClientData dummy, Tcl_Interp *interp, int objc, Tcl_Obj **
     }
     Ns_HtuuEncode((unsigned char *) string, nbytes, bufcoded);
     Tcl_SetResult(interp, bufcoded, TCL_VOLATILE);
-    return TCL_OK;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * HTUUDecodeCmd --
- *
- *	Implements ns_uudecode. 
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	See docs. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclHTUUDecodeCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
-{
-    int   n;
-    char *decoded;
-
-    if (argc != 2) {
-        Tcl_AppendResult(interp, "wrong # of args: should be \"",
-                         argv[0], " string\"", NULL);
-        return TCL_ERROR;
-    }
-    n = strlen(argv[1]) + 3;
-    decoded = ns_malloc(n);
-    n = Ns_HtuuDecode(argv[1], (unsigned char *) decoded, n);
-    decoded[n] = '\0';
-    Tcl_SetResult(interp, decoded, (Tcl_FreeProc *) ns_free);
-    
     return TCL_OK;
 }
 
@@ -774,52 +518,6 @@ NsTclTimeObjCmd(ClientData dummy, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 	}
     	Ns_TclSetTimeObj(Tcl_GetObjResult(interp), &result);
     }
-    return TCL_OK;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsTclStrftimeCmd --
- *
- *	Implements ns_fmttime. 
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	See docs. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclStrftimeCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
-{
-    char   *fmt, buf[200];
-    time_t  time;
-    int     i;
-
-    if (argc != 2 && argc != 3) {
-        Tcl_AppendResult(interp, "wrong # of args: should be \"",
-                         argv[0], " string\"", NULL);
-        return TCL_ERROR;
-    }
-    if (Tcl_GetInt(interp, argv[1], &i) != TCL_OK) {
-        return TCL_ERROR;
-    }
-    if (argv[2] != NULL) {
-        fmt = argv[2];
-    } else {
-        fmt = "%c";
-    }
-    time = i;
-    if (strftime(buf, sizeof(buf), fmt, ns_localtime(&time)) == 0) {
-	Tcl_AppendResult(interp, "invalid time: ", argv[1], NULL);
-        return TCL_ERROR;
-    }
-    Tcl_SetResult(interp, buf, TCL_VOLATILE);
     return TCL_OK;
 }
 

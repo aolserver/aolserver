@@ -35,7 +35,7 @@
  *	by HTSUtils.c from CERN. See also RFC 1123.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/httptime.c,v 1.8 2002/09/11 03:06:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/httptime.c,v 1.9 2003/01/18 19:24:20 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -251,39 +251,6 @@ Ns_ParseHttpTime(char *str)
 /*
  *----------------------------------------------------------------------
  *
- * NsTclParseHttpTimeCmd --
- *
- *	Implements ns_parsehttptime. 
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	See docs. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclParseHttpTimeCmd(ClientData dummy, Tcl_Interp *interp, int argc,
-		      char **argv)
-{
-    time_t t;
-
-    if (argc != 2) {
-        Tcl_AppendResult(interp, "wrong # of args: should be \"",
-                         argv[0], " httptime\"", NULL);
-        return TCL_ERROR;
-    }
-    t = Ns_ParseHttpTime(argv[1]);
-    Tcl_SetObjResult(interp, Tcl_NewIntObj((int) t));
-    return TCL_OK;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
  * NsTclParseHttpTimeObjCmd --
  *
  *	Implements ns_parsehttptime as obj command. 
@@ -313,46 +280,6 @@ NsTclParseHttpTimeObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *
 	return TCL_ERROR;
     }
     Tcl_SetLongObj(Tcl_GetObjResult(interp), time);
-    return TCL_OK;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsTclHttpTimeCmd --
- *
- *	Implements ns_httptime. 
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	See docs. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclHttpTimeCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
-{
-    Ns_DString ds;
-    int        itime;
-    time_t     time;
-
-    if (argc != 2) {
-        Tcl_AppendResult(interp, "wrong # of args: should be \"",
-                         argv[0], " time\"", NULL);
-        return TCL_ERROR;
-    }
-    if (Tcl_GetInt(interp, argv[1], &itime) != TCL_OK) {
-        return TCL_ERROR;
-    }
-    time = (time_t) itime;
-    Ns_DStringInit(&ds);
-    Ns_HttpTime(&ds, &time);
-    Tcl_SetResult(interp, Ns_DStringExport(&ds), (Tcl_FreeProc *) ns_free);
-    Ns_DStringFree(&ds);
     return TCL_OK;
 }
 
