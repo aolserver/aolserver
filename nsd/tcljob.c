@@ -80,7 +80,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tcljob.c,v 1.26 2004/07/29 04:24:51 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tcljob.c,v 1.27 2005/01/18 18:34:29 shmooved Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -602,11 +602,8 @@ NsTclJobObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
             if ((jobPtr->type == JOB_DETACHED) ||
                 (jobPtr->req == JOB_CANCEL) ||
                 (jobPtr->req == JOB_WAIT)) {
-                Tcl_AppendResult(interp,
-                                 "Cannot wait on job. Job ID : Job Req: %s",
-                                 Tcl_DStringValue(&jobPtr->id),
-                                 GetJobReqStr(jobPtr->req),
-                                 NULL);
+                Tcl_AppendResult(interp, "cannot wait on job: ",
+                    Tcl_DStringValue(&jobPtr->id), NULL);
                 ReleaseQueue(queuePtr, 0);
                 return TCL_ERROR;
             }
