@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/configure.in,v 1.9 2002/09/28 19:21:48 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/configure.in,v 1.10 2002/10/03 22:21:59 jgdavidson Exp $
 #
 
 #
@@ -85,8 +85,10 @@ case "$system" in
     Darwin)
 	LDLIB="cc -dynamiclib -install_name \$(INSTLIB)/\$(LIBFILE)"
 	LDSO="cc -bundle"
-	CCRPATH=
-	LDRPATH=
+	CCRFLAG=
+	LDRFLAG=
+	CCRPATHS=
+	LDRPATHS=
 	;;
     *)
 	LDLIB="$TCL_SHLIB_LD"
@@ -105,23 +107,33 @@ case "$system" in
 	LDRPATH="\$(TCL_LD_SEARCH_FLAGS)\$(INSTLIB)"
 	if test "$TCL_EXEC_PREFIX" != "$prefix"
 	then
-		CCRPATH="$CCRPATH \$(TCL_CC_SEARCH_FLAGS)\$(TCL_EXEC_PREFIX)/lib"
-		LDRPATH="$LDRPATH \$(TCL_LD_SEARCH_FLAGS)\$(TCL_EXEC_PREFIX)/lib"
+		CCRPATH="$CCRPATH \$(CCRFLAG)\$(TCL_EXEC_PREFIX)/lib"
+		LDRPATH="$LDRPATH \$(LDRFLAG)\$(TCL_EXEC_PREFIX)/lib"
 	fi
 	if test -d /usr/lib/lwp
 	then
-		CCRPATH="$CCRPATH \$(TCL_CC_SEARCH_FLAGS)/usr/lib/lwp"
-		LDRPATH="$LDRPATH \$(TCL_LD_SEARCH_FLAGS)/usr/lib/lwp"
+		CCRPATH="$CCRPATH \$(CCRFLAG)/usr/lib/lwp"
+		LDRPATH="$LDRPATH \$(LDRFLAG)/usr/lib/lwp"
 	fi
 	LDSO="\$(LDLIB)"
+	CCRPATHS="\$(CCRPATH)"
+	LDRPATHS="\$(LDRPATH)"
+	CCRFLAG=$TCL_CC_SEARCH_FLAGS
+	LDRFLAG=$TCL_LD_SEARCH_FLAGS
 	;;
 esac
 SRCDIR=`cd $srcdir; pwd`
+AOLSERVER=$prefix
 AC_SUBST(SRCDIR)
 AC_SUBST(LDLIB)
 AC_SUBST(LDSO)
+AC_SUBST(CCRFLAG)
+AC_SUBST(LDRFLAG)
 AC_SUBST(CCRPATH)
 AC_SUBST(LDRPATH)
+AC_SUBST(CCRPATHS)
+AC_SUBST(LDRPATHS)
+AC_SUBST(AOLSERVER)
 
 #
 # Additional AOLserver checks.
