@@ -2,7 +2,7 @@
  * The contents of this file are subject to the AOLserver Public License
  * Version 1.1 (the "License"); you may not use this file except in
  * compliance with the License. You may obtain a copy of the License at
- * http://aolserver.lcs.mit.edu/.
+ * http://aolserver.com/.
  *
  * Software distributed under the License is distributed on an "AS IS"
  * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
@@ -36,16 +36,38 @@
 /* 
  * nssock.c --
  *
- *	Routines for the fast socket driver.
+ *	Routines for the nssock and nsssl socket drivers.
+ *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nssock/nssock.c,v 1.2 2000/05/02 14:39:31 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nssock/Attic/sock.c,v 1.1 2000/07/13 18:43:54 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 
+#ifdef SSL
+/*
+ * nsssl
+ */
+#include "ssl.h"
+#include "ssltcl.h"
+#include "x509.h"
+
+#define DEFAULT_PORT            443
+#define DEFAULT_PROTOCOL        "https"
+#define DEFAULT_NAME            "nsssl"
+#define DRIVER_NAME             "nsssl"
+
+#else
+/*
+ * nssock
+ */
 #define DEFAULT_PORT		80
 #define DEFAULT_PROTOCOL 	"http"
 #define DEFAULT_NAME		"nssock"
+#define DRIVER_NAME             "nssock"
+
+#endif
+
 #define BUSY \
 	"HTTP/1.0 503 Server Busy\r\n"\
 	"Content-type: text/html\r\n"\
@@ -76,6 +98,9 @@ typedef struct SockDrv {
     int     	 timeout;
     int     	 closewait;
     SOCKET       lsock;
+#ifdef SSL
+    void        *server;
+#endif
 } SockDrv;
 
 typedef struct ConnData {
@@ -86,9 +111,13 @@ typedef struct ConnData {
     int		port;
     int		nrecv;
     int		nsend;
+#ifdef SSL
+    void       *conn;
+#else
     int		cnt;
     char       *base;
     char	buf[1];
+#endif
 } ConnData;
 
 /*
@@ -114,6 +143,9 @@ static Ns_ConnPeerPortProc SockPeerPort;
 static Ns_ConnPortProc SockPort;
 static Ns_ConnHostProc SockHost;
 static Ns_ConnDriverNameProc SockName;
+#ifdef SSL 
+static Ns_ConnInitProc SockInit; 
+#endif 
 #ifdef HAVE_SENDV
 static Ns_ConnSendFdProc SockSendFd;
 #endif
@@ -132,6 +164,9 @@ static Ns_DrvProc sockProcs[] = {
     {Ns_DrvIdLocation,     (void *) SockLocation},
     {Ns_DrvIdConnectionFd, (void *) SockConnectionFd},
     {Ns_DrvIdDetach,       (void *) SockDetach},
+#ifdef SSL 
+    {Ns_DrvIdInit,         (void *) SockInit}, 
+#endif 
 #ifdef HAVE_SENDV
     {Ns_DrvIdSendFd,       (void *) SockSendFd},
 #endif
@@ -167,6 +202,10 @@ Ns_ModuleInit(char *server, char *name)
     struct in_addr  ia;
     struct hostent *he;
     SockDrv *sdPtr;
+
+#ifdef SSL 
+    char *cert, *key; 
+#endif 
     
     /*
      * Determine the hostname used for the local address to bind
@@ -174,6 +213,21 @@ Ns_ModuleInit(char *server, char *name)
      */
 
     path = Ns_ConfigGetPath(server, name, NULL);
+
+#ifdef SSL 
+    if (NsSSLInitialize(server, name) != NS_OK) { 
+        Ns_Log(Error, "%s:Ns_ModuleInit: "
+	       "could not initialize SSL", DRIVER_NAME);
+        return NS_ERROR; 
+    } 
+    cert = Ns_ConfigGet(path, "certfile"); 
+    if (cert == NULL) { 
+        Ns_Log(Warning, "%s:Ns_ModuleInit: "
+	       "certfile not specified - will not listen.", DRIVER_NAME); 
+        return NS_OK; 
+    } 
+#endif 
+    
     host = Ns_ConfigGet(path, "hostname");
     bindaddr = address = Ns_ConfigGet(path, "address");
 
@@ -205,13 +259,15 @@ Ns_ModuleInit(char *server, char *name)
 	 */
 
         if (he == NULL || he->h_name == NULL) {
-            Ns_Log(Error, "nssock(%s):  Could not resolve '%s':  %s", name,
-		host ? host : Ns_InfoHostname(), strerror(errno));
+            Ns_Log(Error, "%s:Ns_ModuleInit(%s): "
+		   "Could not resolve '%s':  %s", DRIVER_NAME,
+		   name, host ? host : Ns_InfoHostname(), strerror(errno));
 	    return NS_ERROR;
 	}
         if (*(he->h_addr_list) == NULL) {
-            Ns_Log(Error, "nssock(%s): NULL address list in (derived) "
-	           "host entry for '%s'", name, he->h_name);
+            Ns_Log(Error, "%s:Ns_ModuleInit(%s): "
+		   "NULL address list in (derived) host entry for '%s'",
+		   DRIVER_NAME, name, he->h_name);
 	    return NS_ERROR;
 	}
         memcpy(&ia.s_addr, *(he->h_addr_list), sizeof(ia.s_addr));
@@ -243,10 +299,24 @@ Ns_ModuleInit(char *server, char *name)
      */
 
     sdPtr = ns_calloc(1, sizeof(SockDrv));
-    if (!Ns_ConfigGetInt(path, "bufsize", &n) || n < 1) {
-	n = 16000;
-    }
-    Ns_MutexSetName2(&sdPtr->lock, "nssock", name);
+
+#ifdef SSL 
+    key = Ns_ConfigGet(path, "keyfile"); 
+    sdPtr->server = NsSSLCreateServer(cert, key); 
+    if (sdPtr->server == NULL) { 
+        ns_free(sdPtr); 
+        return NS_ERROR; 
+    } 
+    sdPtr->bufsize = 0; 
+#else 
+ 
+    if (!Ns_ConfigGetInt(path, "bufsize", &n) || n < 1) { 
+        n = 16000; 
+    } 
+    sdPtr->bufsize = n; 
+#endif 
+
+    Ns_MutexSetName2(&sdPtr->lock, DRIVER_NAME, name);
     sdPtr->bufsize = n;
     sdPtr->refcnt = 1;
     sdPtr->lsock = INVALID_SOCKET;
@@ -282,6 +352,17 @@ Ns_ModuleInit(char *server, char *name)
     }
     sdPtr->nextPtr = firstSockDrvPtr;
     firstSockDrvPtr = sdPtr;
+
+#ifdef SSL
+#ifdef SSL_EXPORT 
+    Ns_Log(Notice, "nsssl:Ns_ModuleInit: " 
+           "initialized with EXPORT 40-bit/512-bit encryption."); 
+#else 
+    Ns_Log(Notice, "nsssl:Ns_ModuleInit: " 
+           "initialized with DOMESTIC 128-bit/1024-bit encryption."); 
+#endif 
+#endif
+
     return NS_OK;
 }
 
@@ -311,7 +392,7 @@ SockStart(char *server, char *label, void **drvDataPtr)
     
     sdPtr->lsock = Ns_SockListen(sdPtr->bindaddr, sdPtr->port);
     if (sdPtr->lsock == INVALID_SOCKET) {
-	Ns_Log(Error, "%s: could not listen on %s:%d: %s",
+	Ns_Log(Error, "%s:SockStart: could not listen on %s:%d: %s",
 	       sdPtr->name, sdPtr->address ? sdPtr->address : "*",
 	       sdPtr->port, ns_sockstrerror(ns_sockerrno));
 	return NS_ERROR;
@@ -364,6 +445,10 @@ SockFreeConn(SockDrv *sdPtr, ConnData *cdPtr)
 	    sdPtr->firstFreePtr = cdPtr->nextPtr;
 	    ns_free(cdPtr);
 	}
+
+#ifdef SSL 
+        NsSSLDestroyServer(sdPtr->server); 
+#endif 
 	Ns_MutexDestroy(&sdPtr->lock);
     	ns_free(sdPtr);
     }
@@ -397,12 +482,12 @@ SockThread(void *ignored)
     ConnData *cdPtr;
     struct sockaddr_in sa;
     SOCKET max, sock;
-
-    Ns_ThreadSetName("-nssock-");
-    Ns_Log(Notice, "waiting for startup");
+    
+    Ns_ThreadSetName("-" DRIVER_NAME "-");
+    Ns_Log(Notice, "%s: waiting for startup", DRIVER_NAME);
     Ns_WaitForStartup();
-    Ns_Log(Notice, "starting");
-
+    Ns_Log(Notice, "%s: starting", DRIVER_NAME);
+    
     sdPtr = firstSockDrvPtr;
     firstSockDrvPtr = NULL;
     while (sdPtr != NULL) {
@@ -419,7 +504,21 @@ SockThread(void *ignored)
 	sdPtr = nextPtr;
     }
 
-    Ns_Log(Notice, "accepting connections");
+#ifdef SSL
+#ifdef SSL_EXPORT 
+    Ns_Log(Notice, "%s: "
+	   "accepting connections (EXPORT 40-bit/512-bit encryption).",
+	   DRIVER_NAME); 
+#else 
+    Ns_Log(Notice, "%s: "
+	   "accepting connections (DOMESTIC 128-bit/1024-bit encryption).",
+	   DRIVER_NAME); 
+#endif 
+#else
+    Ns_Log(Notice, "%s: "
+	   "accepting connections", DRIVER_NAME);
+#endif
+
     stop = 0;
     do {
 	FD_ZERO(&set);
@@ -468,11 +567,17 @@ SockThread(void *ignored)
 		    cdPtr->sdPtr = sdPtr;
 		    cdPtr->sock = sock;
 		    cdPtr->port = ntohs(sa.sin_port);
+#ifdef SSL 
+                    cdPtr->conn = NULL; 
+#else 
 		    cdPtr->cnt = cdPtr->nrecv = cdPtr->nsend = 0;
 		    cdPtr->base = cdPtr->buf;
+#endif
 		    strcpy(cdPtr->peer, ns_inet_ntoa(sa.sin_addr));
 		    if (Ns_QueueConn(sdPtr->driver, cdPtr) != NS_OK) {
+#ifndef SSL
 			(void) send(sock, BUSY, sizeof(BUSY), 0);
+#endif
 			(void) SockClose(cdPtr);
 		    }
 	    	}
@@ -494,7 +599,7 @@ SockThread(void *ignored)
 
 
 /*
- *----------------------------------------------------------------------
+*----------------------------------------------------------------------
  *
  * SockStop --
  *
@@ -508,23 +613,22 @@ SockThread(void *ignored)
  *
  *----------------------------------------------------------------------
  */
-
 static void
 SockStop(void *arg)
 {
-    SockDrv *sdPtr = (SockDrv *) arg;
-
+SockDrv *sdPtr = (SockDrv *) arg;
+    
     if (sockThread != NULL) {
-    	Ns_Log(Notice, DEFAULT_NAME ":  exiting: triggering shutdown");
+    	Ns_Log(Notice, "%s: exiting: triggering shutdown", DRIVER_NAME);
 	if (send(trigPipe[1], "", 1, 0) != 1) {
 	    Ns_Fatal("trigger send() failed: %s",
 		     ns_sockstrerror(ns_sockerrno));
 	}
 	Ns_ThreadJoin(&sockThread, NULL);
 	sockThread = NULL;
-    	Ns_Log(Notice, DEFAULT_NAME ":  exiting: shutdown complete");
+    	Ns_Log(Notice, "%s: exiting: shutdown complete", DRIVER_NAME);
+	}
     }
-}
 
 
 /*
@@ -548,8 +652,16 @@ SockClose(void *arg)
 {
     ConnData *cdPtr = arg;
     SockDrv *sdPtr = cdPtr->sdPtr;
-
+    
     if (cdPtr->sock != INVALID_SOCKET) {
+	
+#ifdef SSL 
+        if (cdPtr->conn != NULL) { 
+            (void) NsSSLFlush(cdPtr->conn); 
+            NsSSLDestroyConn(cdPtr->conn); 
+            cdPtr->conn = NULL; 
+        } 
+#endif 
 
 	/*
 	 * Some clients will have trouble if we simply
@@ -611,10 +723,18 @@ static int
 SockRead(void *arg, void *vbuf, int toread)
 {
     ConnData   *cdPtr = arg;
+
+#ifdef SSL 
+    /* 
+     * SSL returns immediately. 
+     */ 
+    return NsSSLRecv(cdPtr->conn, vbuf, toread); 
+#else 
+    
     char       *buf = (char *) vbuf;
     int		nread;
     int         tocopy;
-
+    
     nread = 0;
     while (toread > 0) {
         if (cdPtr->cnt > 0) {
@@ -633,7 +753,7 @@ SockRead(void *arg, void *vbuf, int toread)
         if (toread > 0) {
             cdPtr->base = cdPtr->buf;
 	    cdPtr->cnt = Ns_SockRecv(cdPtr->sock, cdPtr->buf, toread,
-	    	    	    	  cdPtr->sdPtr->timeout);
+				     cdPtr->sdPtr->timeout);
 	    if (cdPtr->cnt <= 0) {
 		return -1;
 	    }
@@ -641,6 +761,7 @@ SockRead(void *arg, void *vbuf, int toread)
     	}
     }
     return nread;
+#endif
 }
 
 
@@ -667,7 +788,12 @@ SockWrite(void *arg, void *buf, int towrite)
     ConnData   *cdPtr = arg;
     int nsend;
 
+#ifdef SSL 
+    nsend = NsSSLSend(cdPtr->conn, buf, towrite); 
+#else
     nsend = Ns_SockSend(cdPtr->sock, buf, towrite, cdPtr->sdPtr->timeout);
+#endif
+
     if (nsend > 0) {
 	cdPtr->nsend += nsend;
     }
@@ -733,7 +859,7 @@ SockPort(void *arg)
  *	Return the name of this driver 
  *
  * Results:
- *	"nssock" (the standard socket)
+ *	nssock or nsssl
  *
  * Side effects:
  *	None 
@@ -795,6 +921,12 @@ static int
 SockConnectionFd(void *arg)
 {
     ConnData   *cdPtr = arg;
+
+#ifdef SSL 
+    if (cdPtr->conn == NULL || (NsSSLFlush(cdPtr->conn) != NS_OK)) { 
+        return -1; 
+    } 
+#endif 
 
     return (int) cdPtr->sock;
 }
@@ -874,6 +1006,81 @@ SockLocation(void *arg)
 
     return cdPtr->sdPtr->location;
 }
+
+
+
+/* 
+ *---------------------------------------------------------------------- 
+ * 
+ * SockInit -- 
+ * 
+ *      Initialize the SSL connection. 
+ * 
+ * Results: 
+ *      NS_OK/NS_ERROR 
+ * 
+ * Side effects: 
+ *      Data may be written to a socket. 
+ * 
+ *      NOTE: This is currently only implemented for 
+ *      UnixWare. 
+ * 
+ *---------------------------------------------------------------------- 
+ */ 
+#ifdef SSL 
+static int 
+SockInit(void *arg) 
+{ 
+    ConnData   *cdPtr = arg; 
+ 
+    if (cdPtr->conn == NULL) { 
+        cdPtr->conn = NsSSLCreateConn(cdPtr->sock, cdPtr->sdPtr->timeout, 
+                                      cdPtr->sdPtr->server); 
+        if (cdPtr->conn == NULL) { 
+            return NS_ERROR; 
+        } 
+    } 
+    return NS_OK; 
+} 
+#endif 
+
+
+
+/* 
+ *---------------------------------------------------------------------- 
+ * 
+ * NsSSLGetConn -- 
+ * 
+ *      Return the SSL connection.  Used by SSL Tcl. 
+ * 
+ * Results: 
+ *      Pointer to SSL connection or NULL. 
+ * 
+ * Side effects: 
+ *      None. 
+ * 
+ *---------------------------------------------------------------------- 
+ */ 
+#ifdef SSL 
+void * 
+NsSSLGetConn(Ns_Conn *conn) 
+{ 
+    ConnData *cdPtr; 
+    char *name; 
+ 
+    if (conn != NULL) { 
+        name = Ns_ConnDriverName(conn); 
+        if (name != NULL && STREQ(name, DRIVER_NAME)) { 
+            cdPtr = Ns_ConnDriverContext(conn); 
+            if (cdPtr != NULL) { 
+                return cdPtr->conn; 
+            } 
+        } 
+    } 
+    return  NULL; 
+} 
+#endif 
+
 
 
 /*

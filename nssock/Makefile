@@ -1,3 +1,107 @@
+#
+# nssock/nsssl --
+#
+#      Socket driver for HTTP and HTTPS connections.
+#
+
+#
+# AOLserver's location
+#
+#  Since your module probably doesn't live inside the "aolserver"
+#  directory, you can tell make where to find aolserver.
+#
+#NSHOME   =  /home/user/cvs/aolserver
+NSHOME   =  ..
+
+ifeq ($(SSL),1)
+
+##################################################
+#
+# Make the nsssl (HTTPS) module.
+#
+
+#BSAFE=/usr/local/bsafe
+
+#
+# Module name
+#
+#  nsssl.so   is the domestic version.
+#  nsssle.so  is the export version.
+#
+ifeq ($(SSL_DOMESTIC),1)
+  MOD    =  nsssl.so
+  CFLAGS =  -DSSL=1 -I$(BSAFE)/include
+else
+  MOD    =  nsssle.so
+  CFLAGS =  -DSSL_EXPORT=1 -DSSL=1 -I$(BSAFE)/include
+endif
+
+#
+# Objects to build.
+#
+OBJS      =  sock.o ssl.o ssltcl.o t_stdlib.o x509.o
+
+#
+# Header files
+#
+HDRS      =  ssl.h ssltcl.h x509.h
+
+#
+# Extra libraries
+#
+#  BSAFE can be obtained from http://www.rsasecurity.com/
+#
+MODLIBS   =  $(BSAFE)/lib/libbsafe.a
+
+#
+# Module directory (for installation)
+#
+MODDIR    =  nsssl
+
+
+############################################################
+#
+# Special copy of ../include/Makefile.module appears below
+#
+#  Note:  This is atypical of most modules.  The standard
+#         Makefile.module is usually all you will ever need.
+#
+
+include ../include/Makefile.global
+
+all: clean $(MOD)
+
+# Override LIBS variable.
+LIBS=
+
+$(MOD): $(OBJS)
+	$(RM) $(MOD)
+	$(LDSO) -o $(MOD) $(OBJS) $(MODLIBS)
+
+$(OBJS): $(HDRS)
+
+install: all
+	$(RM) $(INSTBIN)/$(MOD)
+	$(CP) $(MOD) $(INSTBIN)
+	$(MKDIR) $(INSTMOD)/$(MODDIR)
+	$(CP) keygen.tcl $(INSTMOD)/$(MODDIR)
+	$(MKDIR) $(INSTSRVMOD)/$(MODDIR)
+
+clean: clobber
+	$(RM) $(OBJS) $(MOD) so_locations
+
+clobber:
+	$(RM) *.so *.o *.a *~ so_locations
+
+distclean: clobber
+	$(RM) TAGS core
+
+else
+
+##################################################
+#
+# Make the nssock (HTTP) module.
+#
 
 #
 # Module name
@@ -7,7 +111,13 @@ MOD       =  nssock.so
 #
 # Objects to build.
 #
-OBJS      =  nssock.o
+OBJS      =  sock.o
 
+all: objclean $(MOD)
 
-include  ../include/Makefile.module
+objclean:
+	$(RM) *.o
+
+include ../include/Makefile.module
+
+endif
