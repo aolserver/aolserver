@@ -55,7 +55,7 @@
 #define ERRTIMEDOUT(e)		((e) == ETIMEDOUT)
 #define MUTEX_INIT_ATTR         0
 #define COND_INIT_ATTR          0
-#define MASTER_NO_OWNER	        (-1)
+#define MASTER_NO_OWNER	        (pthread_t) (-1)
 #else
 #define ERRLOCKOK(e)		((e) == 1)
 #define ERRLOCKBUSY(e)		((e) == 0)
