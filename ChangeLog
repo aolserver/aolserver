@@ -1,3 +1,25 @@
+2002-07-07  Jim Davidson <jgdavidson@aol.com>
+
+	* include/Makefile.global
+	* Makefile:  Updated for Tcl beta1 release.
+
+	* nsd/tclvar.c:  Removed string commands.
+
+	* nsd/info.c:
+	* nsd/queue.c:
+	* nsd/tclset.c:  Added object commands
+
+	* nsd/tclobj.c:
+	* nsd/tclmisc.c:  Updated Ns_Time type code to handle
+	simple single-integer times without microseconds.
+
+	* include/ns.h
+	* include/Makefile.global
+	* Makefile:  Updated for AOLserver beta4 release to
+	coincide with Tcl beta1 release.
+
+	Otherwise, several minor edits to new object commands.
+	
 2002-06-25  Scott S. Goodwin <scott@scottg.net>
 
 	* nsd/tclvar.c:
