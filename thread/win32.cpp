@@ -135,6 +135,10 @@ DllMain(HANDLE hModule, DWORD why, LPVOID lpReserved)
     case DLL_PROCESS_DETACH:
 	wPtr = TlsGetValue(tlskey);
 	if (wPtr != NULL) {
+	    if (wPtr->thrPtr != NULL) {
+		NsCleanupThread(wPtr->thrPtr);
+		wPtr->thrPtr = NULL;
+	    }
 	    if (!CloseHandle(wPtr->event)) {
 		NsThreadFatal("DllMain", "CloseHandle", GetLastError());
 	    }
@@ -626,7 +630,7 @@ NsThreadLibName(void)
 void
 NsThreadCreate(Thread *thrPtr)
 {
-    if (_beginthread(WinThreadMain, thrPtr->stackSize, thrPtr) == 0) {
+    if (_beginthread(NsThreadMain, thrPtr->stackSize, thrPtr) == 0) {
 	NsThreadFatal("NsThreadCreate", "CreateThread", GetLastError());
     }
 }
@@ -674,13 +678,12 @@ NsThreadExit(void)
  */
 
 void
-NsSetThread(Thread *thisPtr)
+NsSetThread(Thread *thrPtr)
 {
     WinThread *wPtr = GetWinThread();
 
-    thisPtr->tid = GetCurrentThreadId();
-    wPtr->thrPtr = thisPtr;
-    NsSetThread2(thisPtr);
+    wPtr->thrPtr = thrPtr;
+    NsInitThread(thrPtr, GetCurrentThreadId());
 }
 
 
@@ -704,8 +707,14 @@ Thread      *
 NsGetThread(void)
 {
     WinThread *wPtr = GetWinThread();
+    Thread    *thrPtr;
     
-    return (wPtr->thrPtr ? wPtr->thrPtr : NsGetThread2());
+    thrPtr = wPtr->thrPtr;
+    if (thrPtr == NULL) {
+	thrPtr = NsNewThread();
+	NsSetThread(thrPtr);
+    }
+    return thrPtr;
 }
 
 

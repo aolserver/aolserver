@@ -34,7 +34,7 @@
  *	Routines for creating, exiting, and joining threads.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/thread.c,v 1.8 2000/10/20 22:00:31 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/thread.c,v 1.9 2000/10/20 22:45:41 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "thread.h"
 
@@ -493,8 +493,7 @@ static Thread *
 NewThread(Ns_ThreadProc *proc, void *arg, long stacksize, int flags,
     	   Thread *parentPtr)
 {
-    Thread *thrPtr, *thisPtr;
-    static int state;
+    Thread *thrPtr;
 
     thrPtr = calloc(1, sizeof(Thread));
     if (thrPtr == NULL) {
@@ -507,20 +506,6 @@ NewThread(Ns_ThreadProc *proc, void *arg, long stacksize, int flags,
     thrPtr->flags = flags;
     if (parentPtr != NULL) {
     	strcpy(thrPtr->parent, parentPtr->name);
-    }
-    if (state != 0) {
-	Ns_MutexLock(&lock);
-    }
-    thrPtr->nextPtr = firstPtr;
-    firstPtr = thrPtr;
-    if (state == 0) {
-	++state;
-    } else {
-	if (state == 1) {
-	    Ns_MutexSetName2(&lock, "nsthread", "new");
-	    ++state;
-	}
-	Ns_MutexUnlock(&lock);
     }
     return thrPtr;
 }
@@ -559,8 +544,6 @@ NsNewThread(void)
 void
 NsCleanupThread(Thread *thisPtr)
 {
-    char stats[200];
-
     NsCleanupTls(thisPtr);
     if (thisPtr->pool != NULL) {
 	Ns_PoolDestroy(thisPtr->pool);
@@ -610,4 +593,21 @@ FreeThread(Thread *thrPtr)
     *thrPtrPtr = thrPtr->nextPtr;
     thrPtr->nextPtr = NULL;
     free(thrPtr);
+}
+
+
+void
+NsInitThread(Thread *thrPtr, int tid)
+{
+    static int initialized;
+
+    if (!initialized) {
+	Ns_MutexSetName2(&lock, "nsthread", "list");
+	initialized = 1;
+    }
+    thrPtr->tid = tid;
+    Ns_MutexLock(&lock);
+    thrPtr->nextPtr = firstPtr;
+    firstPtr = thrPtr;
+    Ns_MutexUnlock(&lock);
 }

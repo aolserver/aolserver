@@ -33,7 +33,7 @@
  *
  *	Internal nsthread definitions.
  *
- * RCS: $Id: thread.h,v 1.5 2000/10/20 21:54:09 jgdavidson Exp $
+ * RCS: $Id: thread.h,v 1.6 2000/10/20 22:45:41 jgdavidson Exp $
  *
  */
 
@@ -97,6 +97,7 @@ typedef struct Mutex {
 
 extern Thread  *NsGetThread(void);
 extern void     NsSetThread(Thread *thrPtr);
+extern void     NsInitThread(Thread *thrPtr, int tid);
 extern Thread  *NsNewThread(void);
 extern Thread  *NsNewThread2(Ns_ThreadProc *proc, void *arg, long stack, int flags);
 extern void     NsCleanupThread(Thread *thrPtr);
