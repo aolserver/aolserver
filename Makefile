@@ -29,12 +29,12 @@ include $(NSHOME)/include/Makefile.global
 
 MODULES   =  nssock nscgi nscp nslog nsperm nsext nspd 
 
-ALLDIRS   = nsd $(MODULES)
+ALLDIRS   = thread $(TCL_DIR) nsd $(MODULES) 
 
 #
 # Main build rule.
 #
-all: libtcl76 libtcl8x libnsthread
+all:
 	@for i in $(ALLDIRS); do \
 		$(ECHO) "building \"$$i\""; \
 		( cd $$i && $(MAKE) all ) || exit 1; \
@@ -74,8 +74,11 @@ install-tests:
 #
 # Cleaning rule.
 #
-clean: libtcl8x-clean libtcl76-clean libnsthread-clean
+clean: 
 	@for i in $(ALLDIRS); do \
 		$(ECHO) "cleaning \"$$i\""; \
 		( cd $$i && $(MAKE) $@) || exit 1; \
 	done
+
+distclean: clean
+	(cd $(TCL_DIR); make distclean)
