@@ -33,7 +33,7 @@
  *	Support for the configuration file
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/config.c,v 1.7 2001/03/27 00:59:01 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/config.c,v 1.8 2001/03/27 16:42:57 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #define ISSLASH(c)      ((c) == '/' || (c) == '\\')
@@ -126,18 +126,12 @@ Ns_ConfigGetInt(char *section, char *key, int *valuePtr)
     char           *s;
 
     s = Ns_ConfigGet(section, key);
-    if (s == NULL) {
-        return NS_FALSE;
-    } else if (sscanf(s, "%d", valuePtr) != 1) {
-        Ns_Log(Warning, "config: failed to convert [%s]%s='%s' to int",
-	       section, key, s);
+    if (s == NULL || sscanf(s, "%d", valuePtr) != 1) {
         return NS_FALSE;
     }
-
     return NS_TRUE;
 }
 
-#ifndef WIN32
 
 /*
  *----------------------------------------------------------------------
@@ -162,17 +156,11 @@ Ns_ConfigGetInt64(char *section, char *key, INT64 *valuePtr)
     char           *s;
 
     s = Ns_ConfigGet(section, key);
-    if (s == NULL) {
-        return NS_FALSE;
-    } else if (sscanf(s, NS_INT_64_FORMAT_STRING, valuePtr) != 1) {
-        Ns_Log(Warning, "config: failed to convert [%s]%s='%s' to int64",
-	       section, key, s);
+    if (s == NULL || sscanf(s, NS_INT_64_FORMAT_STRING, valuePtr) != 1) {
         return NS_FALSE;
     }
-
     return NS_TRUE;
 }
-#endif
 
 
 /*
@@ -218,11 +206,8 @@ Ns_ConfigGetBool(char *section, char *key, int *valuePtr)
 
         *valuePtr = 0;
     } else if (sscanf(s, "%d", valuePtr) != 1) {
-        Ns_Log(Warning, "config: failed to convert [%s]%s='%s' to boolean",
-	       section, key, s);
         return NS_FALSE;
     }
-
     return NS_TRUE;
 }
 
