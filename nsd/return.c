@@ -34,7 +34,7 @@
  *	Functions that return data to a browser. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.8 2000/12/14 21:57:28 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.9 2001/01/12 22:49:59 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -531,7 +531,11 @@ Ns_ConnPrintfHeader(Ns_Conn *conn, char *fmt,...)
         va_list ap;
 
         va_start(ap, fmt);
+#ifdef NO_VSNPRINTF
         vsprintf(buf, fmt, ap);
+#else
+        vsnprintf(buf, sizeof(buf)-1, fmt, ap);
+#endif
         va_end(ap);
         result = Ns_PutsConn(conn, buf);
     } else {
@@ -796,7 +800,7 @@ Ns_ConnReturnRedirect(Ns_Conn *conn, char *url)
         Ns_DStringAppend(&ds, url);
         Ns_HeadersPut(conn, "Location", ds.string);
 	Ns_DStringVarAppend(&msg, "<A HREF=\"", ds.string,
-			    "\">The requested URL has moved here.</A>", NULL);
+		"\">The requested URL has moved here.</A>", NULL);
 	result = Ns_ReturnNotice(conn, 302, "Redirection", msg.string);
     } else {
 	result = Ns_ReturnNotice(conn, 204, "No Content", msg.string);
@@ -835,7 +839,7 @@ Ns_ConnReturnBadRequest(Ns_Conn *conn, char *reason)
     }
     Ns_DStringInit(&ds);
     Ns_DStringAppend(&ds,
-		     "The HTTP request presented by your browser is invalid.");
+	"The HTTP request presented by your browser is invalid.");
     if (reason != NULL) {
         Ns_DStringVarAppend(&ds, "<P>\n", reason, NULL);
     }
@@ -877,8 +881,8 @@ Ns_ConnReturnUnauthorized(Ns_Conn *conn)
     Ns_DStringFree(&ds);
 
     return Ns_ReturnNotice(conn, 401, "Access Denied",
-			   "The requested URL cannot be accessed because a "
-			   "valid username and password are required.");
+	"The requested URL cannot be accessed because a "
+	"valid username and password are required.");
 }
 
 
@@ -907,8 +911,7 @@ Ns_ConnReturnForbidden(Ns_Conn *conn)
 	return result;
     }
     return Ns_ReturnNotice(conn, 403, "Forbidden",
-			   "The requested URL cannot be accessed "
-			   "by this server.");
+	"The requested URL cannot be accessed by this server.");
 }
 
 
@@ -937,7 +940,7 @@ Ns_ConnReturnNotFound(Ns_Conn *conn)
 	return result;
     }
     return Ns_ReturnNotice(conn, 404, "Not Found",
-			   "The requested URL was not found on this server.");
+	"The requested URL was not found on this server.");
 }
 
 
@@ -989,8 +992,8 @@ Ns_ConnReturnNotImplemented(Ns_Conn *conn)
 	return result;
     }
     return Ns_ReturnNotice(conn, 501, "Not Implemented",
-			   "The requested URL or method is not "
-			   "implemented by this server.");
+	"The requested URL or method is not implemented "
+	"by this server.");
 }
 
 
@@ -1020,8 +1023,8 @@ Ns_ConnReturnInternalError(Ns_Conn *conn)
 	return result;
     }
     return Ns_ReturnNotice(conn, 500, "Server Error",
-			   "The requested URL cannot be accessed "
-			   "due to a system error on this server.");
+	"The requested URL cannot be accessed "
+	"due to a system error on this server.");
 }
 
 
@@ -1128,89 +1131,6 @@ Ns_ConnReturnOpenFd(Ns_Conn *conn, int status, char *type, int fd, int len)
 /*
  *----------------------------------------------------------------------
  *
- * Ns_ConnReturnFile --
- *
- *	Send the contents of a file out the conn. 
- *
- * Results:
- *	NS_OK/NS_ERROR 
- *
- * Side effects:
- *	Will set required headers, including mime type if type is null.
- *
- *----------------------------------------------------------------------
- */
-
-int
-Ns_ConnReturnFile(Ns_Conn *conn, int status, char *type, char *filename)
-{
-    struct stat st;
-    int         fd;
-    int         result;
-
-    /*
-     * Make sure the file exists, or return an appropriate error.
-     */
-    
-    if (stat(filename, &st) != 0) {
-        if (errno == ENOENT) {
-            return Ns_ReturnNotFound(conn);
-        } else if (errno == EACCES) {
-            return Ns_ReturnForbidden(conn);
-        } else {
-            Ns_Log(Error, "return: failed to return file: "
-		   "returnfile(%s): stat(%s) failed: '%s'",
-		   Ns_ConnServer(conn), filename, strerror(errno));
-            return Ns_ReturnInternalError(conn);
-        }
-    } else if (!Ns_ConnModifiedSince(conn, st.st_mtime)) {
-        return Ns_ReturnNotModified(conn);
-    }
-    
-    /*
-     * Determine the mime type for this file if none was specified.
-     */
-    
-    if (type == NULL) {
-        type = Ns_GetMimeType(filename);
-    }
-
-    /*
-     * Set sundry required headers.
-     */
-    
-    Ns_HeadersRequired(conn, type, st.st_size);
-    Ns_ConnSetLastModifiedHeader(conn, &st.st_mtime);
-
-    /*
-     * If this is a HEAD request, just flush the
-     * headers.  Otherwise. flush the headers
-     * and then open and return the file content.
-     */
-
-    if (conn->flags & NS_CONN_SKIPBODY) {
-	result = Ns_ConnFlushHeaders(conn, status);
-    } else {
-    	fd = open(filename, O_RDONLY|O_BINARY);
-    	if (fd < 0) {
-            return Ns_ReturnInternalError(conn);
-	}
-    	result = Ns_ConnFlushHeaders(conn, status);
-    	if (result == NS_OK) {
-            result = Ns_ConnSendFd(conn, fd, st.st_size);
-	}
-    	close(fd);
-    }
-    if (result == NS_OK) {
-        result = Ns_ConnClose(conn);
-    }
-    return result;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
  * NsInitReturn --
  *
  *	Initialize this file. 
@@ -1307,8 +1227,8 @@ ReturnRedirect(Ns_Conn *conn, int status, int *resultPtr)
  */
 
 static int
-ReturnOpen(Ns_Conn *conn, int status, char *type, Tcl_Channel chan, FILE *fp,
-	   int fd, int len)
+ReturnOpen(Ns_Conn *conn, int status, char *type, Tcl_Channel chan,
+	FILE *fp, int fd, int len)
 {
     int result;
 
@@ -1328,4 +1248,3 @@ ReturnOpen(Ns_Conn *conn, int status, char *type, Tcl_Channel chan, FILE *fp,
     }
     return result;
 }
-
