@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Makefile.global,v 1.40 2001/05/29 23:58:27 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Makefile.global,v 1.41 2001/05/31 20:16:36 jgdavidson Exp $
 #
 
 #
@@ -85,6 +85,7 @@ endif
 ifeq (1,$(NSGCC))
     CC       	=  gcc 
     LDSO     	=  gcc -shared -nostartfiles
+    CFLAGS	+= -fPIC
 else
     CC	     =   $(PURIFY) cc
 endif
@@ -95,10 +96,6 @@ RM           =   /bin/rm -f
 CP           =   /bin/cp -fp
 ECHO         =   /bin/echo
 FIND         =   find
-MV           =   /bin/mv
-LN           =   ln -s
-AR           =   ar
-ARFLAGS      =   rv
 
 #
 # Tcl version config.
@@ -129,22 +126,23 @@ NSD_DIR		= $(NSHOME)/nsd
 # Library config.
 #
 
+LIBS	     	= -lm
+SOEXT		= so
+RFLAG		= -rpath
+RPATH		= -Wl,$(RFLAG),$(INSTLIB) 
+
 NSTCL_CFG	+= --prefix=$(AOLSERVER)
 NSTCL		= tcl$(NSTCL_VERSION)$(NSTCL_DBG)
-NSTCL_FILE	= lib$(NSTCL).so
+NSTCL_FILE	= lib$(NSTCL).$(SOEXT)
 NSTCL_LIB	= -L$(NSTCL_DIR) -l$(NSTCL)
 
 NSTHREAD	= nsthread
-NSTHREAD_FILE	= lib$(NSTHREAD).so
+NSTHREAD_FILE	= lib$(NSTHREAD).$(SOEXT)
 NSTHREAD_LIB	= -L$(NSTHREAD_DIR) -l$(NSTHREAD)
 
 NSD	 	= nsd
-NSD_FILE	= lib$(NSD).so
+NSD_FILE	= lib$(NSD).$(SOEXT)
 NSD_LIB		= -L$(NSD_DIR) -l$(NSD)
-
-RFLAG		= -rpath
-RPATH		= $(RFLAG) $(INSTLIB) 
-LIBS	     	= -lm
 
 #
 # Figure the OS and architecture.
@@ -159,11 +157,13 @@ PLAT     = $(shell uname -a)
 
 ifneq (,$(findstring HP-UX,$(PLAT)))
     PLATFORM=hp10
-    ifneq (1,$(NSGCC))
-        CFLAGS+=-Ae +DAportable +z
-    else
+    ifeq (1,$(NSGCC))
         CFLAGS+=-mpa-risc-1-0
+    else
+        CFLAGS+=-Ae +DAportable +z
     endif
+    RFLAG=+b
+    SOEXT=sl
     LDSO=ld -b
     LIBS+=-ldce -lc_r
     CFLAGS+=-D__hp10=1 -DHAVE_PTHREAD_D4=1 -DUSE_DLSHL=1 -DNEED_HERRNO=1
@@ -176,7 +176,6 @@ endif
 
 ifneq (,$(findstring Linux,$(PLAT)))
     PLATFORM=linux
-    RFLAG=-Xlinker -rpath -Xlinker
     ## We optimize for either i686 or i586 -- they really are very different.
     ifneq (,$(findstring "i686",$(PLAT)))
         CFLAGS+=-mcpu=i686
@@ -197,7 +196,13 @@ endif
 
 ifneq (,$(findstring SunOS,$(PLAT)))
     PLATFORM=solaris
-    ifneq (1,$(NSGCC))
+    ifeq (1,$(NSGCC))
+        ifneq (,$(findstring sparc,$(PLAT)))
+            CFLAGS+=-mcpu=ultrasparc
+        else
+            CFLAGS+=-mcpu=pentium
+        endif
+    else
         CC=$(PURIFY) /opt/SUNWspro/bin/cc
 	ifneq (1,$(NSDEBUG))
             CCOPT = -xO2
@@ -208,18 +213,11 @@ ifneq (,$(findstring SunOS,$(PLAT)))
         else
             CFLAGS+=-xpentium
         endif
-    else
-        ifneq (,$(findstring sparc,$(PLAT)))
-            CFLAGS+=-mcpu=ultrasparc
-        else
-            CFLAGS+=-mcpu=pentium
-        endif
     endif
     LDSO=/usr/ccs/bin/ld -G
     RFLAG = -R
-    RPATH += $(RFLAG) /usr/lib/lwp
+    RPATH += -Wl,$(RFLAG),/usr/lib/lwp
     LIBS+=-lsocket -lnsl -ldl -lposix4 -lthread -lresolv
-    AR=/usr/ccs/bin/ar
     CFLAGS+=-D_POSIX_PTHREAD_SEMANTICS=1 -DUSE_PTHREAD_SYSSCOPE=1 \
             -DUSE_PTHREAD_PSHARED=1 -DHAVE_ETIME_BUG=1 \
             -DUSE_DUPHIGH=1 -DHAVE_FORK1=1
@@ -246,12 +244,12 @@ endif
 ifneq (,$(findstring IRIX,$(PLAT)))
     PLATFORM=irix
     ## Purify seems to work on Irix o32 only.
-    ifneq (1,$(NSGCC))
+    ifeq (1,$(NSGCC))
+        ABI=-n32
+    else
         ABI=-o32
         ##CCOPT = -g3 -O2
         CFLAGS  += $(ABI) -KPIC -fullwarn -DUSE_DUPHIGH=1
-    else
-        ABI=-n32
     endif
     LDSO=ld $(ABI) -shared -rdata_shared
     CFLAGS+=-D_SGI_MP_SOURCE=1 -DNO_LONGDBL=1
