@@ -25,7 +25,7 @@ your AOLserver source directory):
 		COMPAT_OBJS =  strtoll.o strtoull.o
 
 	to:
-		COMPAT_OBJS =  strtoll.o strtoull.o ../../aolserver/nsosx/libnsosx.a
+		COMPAT_OBJS =  strtoll.o strtoull.o ../../aolserver/nsosx/nsosx.o
 
 5.	Build everything normally:
 
