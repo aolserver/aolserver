@@ -33,7 +33,7 @@
  *	ADP string and file eval.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.7 2001/04/02 19:39:57 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.8 2001/06/26 22:09:59 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -383,8 +383,9 @@ AdpRun(NsInterp *itPtr, char *file, int argc, char **argv, Tcl_DString *outputPt
 		Ns_CacheUnlock(cachePtr);
 		status = ParseFile(itPtr, file, st.st_size, &chunks);
 		Ns_CacheLock(cachePtr);
+		ePtr = Ns_CacheCreateEntry(cachePtr, key, &new);
 		if (status != TCL_OK) {
-                    Ns_CacheDeleteEntry(ePtr);
+                    Ns_CacheFlushEntry(ePtr);
 		} else {
 		    pagePtr = NewPage(&chunks, &st, 0);
                     Ns_CacheSetValueSz(ePtr, pagePtr, pagePtr->size);
