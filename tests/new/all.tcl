@@ -31,12 +31,12 @@ exec tclsh "$0" "$@"
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/tests/new/all.tcl,v 1.1 2004/08/20 04:32:17 dossy Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/tests/new/all.tcl,v 1.2 2004/08/22 00:28:21 dossy Exp $
 #
 
 package require Tcl 8.4
 
-if {!$tcl_platform(threaded)} {
+if {![info exists ::tcl_platform(threaded)] || !$::tcl_platform(threaded)} {
     error "tests must run from a threaded tclsh"
 }
 
