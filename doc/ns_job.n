@@ -28,7 +28,7 @@
 '\" version of this file under either the License or the GPL.
 '\" 
 '\"
-'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_job.n,v 1.9 2003/10/21 17:36:54 pmoosman Exp $
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_job.n,v 1.10 2003/10/21 18:26:47 mpagenva Exp $
 '\"
 '\" 
 .so man.macros
@@ -45,9 +45,9 @@ ns_job \- commands
 
 \fBns_job\fR queue \fI?-detached? queueId  script \fR
 
-\fBns_job\fR wait \fI?-timeout seconds milliseconds? queueId  jobId \fR
+\fBns_job\fR wait \fI?-timeout seconds:microseconds? queueId  jobId \fR
 
-\fBns_job\fR waitany \fI?-timeout seconds milliseconds? queueId \fR
+\fBns_job\fR waitany \fI?-timeout seconds:microseconds? queueId \fR
 
 \fBns_job\fR cancel \fIqueueId jobId \fR
 
@@ -100,7 +100,7 @@ The new job's ID is returned.
 \fBwait\fR
 
 .RS
-wait \fI?-timeout seconds milliseconds? queueId jobId \fR
+wait \fI?-timeout seconds:microseconds? queueId jobId \fR
 
 Wait for the specified queued or running job to finish. \fIwait\fR returns the results of the script.
 
@@ -110,7 +110,7 @@ An error is thrown if the specified timeout period is reached.
 \fBwaitany\fR
 
 .RS
-waitany \fI?-timeout seconds milliseconds? queueId \fR
+waitany \fI?-timeout seconds:microseconds? queueId \fR
 
 Wait for any job on the queue complete.
 
