@@ -32,7 +32,7 @@
  *
  *	Core threading and system headers.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/nsthread.h,v 1.27 2004/09/24 17:47:50 dossy Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/nsthread.h,v 1.28 2004/11/20 01:53:14 dossy Exp $
  */
 
 #ifndef NSTHREAD_H
@@ -136,6 +136,9 @@ NS_EXTERN int closedir(DIR *dp);
 #include <assert.h>
 #ifndef PATH_MAX
 #define PATH_MAX 1024
+#endif
+#ifdef HAVE_INTTYPES_H
+#include <inttypes.h>
 #endif
 
 /*
