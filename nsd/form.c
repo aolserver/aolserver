@@ -33,7 +33,7 @@
  *      Routines for dealing with HTML FORM's.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/form.c,v 1.3 2001/04/13 22:14:58 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/form.c,v 1.4 2001/04/23 21:13:30 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -66,27 +66,21 @@ Ns_ConnGetQuery(Ns_Conn *conn)
 {
     Conn           *connPtr = (Conn *) conn;
     Tcl_DString	    bound;
-    int		    len;
-    char	   *s, *e;
+    char	   *s, *e, *form;
     
     if (connPtr->query == NULL) {
-	if (connPtr->form == NULL) {
-	    connPtr->form = connPtr->request->query;
-	    len = conn->contentLength;
-	    if (STREQ(connPtr->request->method, "POST")
-		&& connPtr->nContent == 0
-		&& len <= connPtr->servPtr->limits.maxpost
-		&& Ns_ConnCopyToDString(conn, len, &connPtr->content) == NS_OK) {
-		connPtr->form = connPtr->content.string;
-	    }
+	connPtr->query = Ns_SetCreate(NULL);
+	if (STREQ(connPtr->request->method, "POST")) {
+	    form = connPtr->reqPtr->content;
+	} else {
+	    form = connPtr->request->query;
 	}
-	if (connPtr->form != NULL) {
-	    connPtr->query = Ns_SetCreate(NULL);
+	if (form != NULL) {
 	    Tcl_DStringInit(&bound);
 	    if (!GetBoundary(&bound, conn)) {
-		ParseQuery(connPtr->form, connPtr->query, connPtr->encoding);
+		ParseQuery(form, connPtr->query, connPtr->encoding);
 	    } else {
-		s = strstr(connPtr->form, bound.string);
+		s = strstr(form, bound.string);
 		while (s != NULL) {
 		    s += bound.length;
 		    if (*s == '\r') ++s;
@@ -335,7 +329,7 @@ ParseMultiInput(Conn *connPtr, char *start, char *end)
     Tcl_Encoding encoding = connPtr->encoding;
     Tcl_DString kds, vds;
     char *s, *e, *ks, *ke, *fs, *fe, save, saveend;
-    char *key, *value;
+    char *key, *value, buf[100];
 
     Tcl_DStringInit(&kds);
     Tcl_DStringInit(&vds);
@@ -391,7 +385,9 @@ ParseMultiInput(Conn *connPtr, char *start, char *end)
 	    value = Ext2Utf(&vds, start, end-start, encoding);
 	} else {
 	    value = Ext2Utf(&vds, fs, fe-fs, encoding);
-	    /* NB: TODO - start to end to tmp file. */
+	    sprintf(buf, "%d %d", start - connPtr->reqPtr->content, end - start);
+	    Tcl_DStringAppendElement(&connPtr->files, key);
+	    Tcl_DStringAppendElement(&connPtr->files, buf);
 	}
 	Ns_SetPut(connPtr->query, key, value);
     }
