@@ -1,3 +1,12 @@
+2004-09-08  Dossy Shiobara <dossy@panoptic.com>
+
+	* nslog/nslog.html (1.2): Updated nslog module documentation.
+	  Closes SF Bug #466236.
+
+2004-09-08  Dossy Shiobara <dossy@panoptic.com>
+
+	* nscgi/nscgi.html (1.3): Add datatype for config options to doc.
+
 2004-09-07  Dossy Shiobara <dossy@panoptic.com>
 
 	* tests/new/all.tcl (1.3): Fix test runner script to work when
