@@ -1,3 +1,12 @@
+2003-09-22  Mark Page  <mpagenva@aol.com>
+
+        * TAG aolserver_v4_r0_beta_15
+
+2003-09-22  Paul Moosman <pwmoosman@aol.com>
+
+        * nsd/tcljob.c: Add options to ns_job Api, for waitany, delete(queue), 
+          listjobs, etc.
+
 2003-09-19  Mark Page  <mpagenva@aol.com>
 
         * nsd/adprequest.c:
