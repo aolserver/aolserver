@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Attic/Makefile.global.in,v 1.11 2002/10/03 22:21:59 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Attic/Makefile.global.in,v 1.12 2003/01/24 18:29:15 elizthom Exp $
 #
 
 #
@@ -60,7 +60,7 @@ LDRFLAG		= @LDRFLAG@
 CCRPATH		+= @CCRPATH@
 LDRPATH		+= @LDRPATH@
 
-CC		= @TCL_CC@
+CC		= $(PURIFY) @TCL_CC@
 CFLAGS_DEBUG	= @TCL_CFLAGS_DEBUG@
 CFLAGS_OPTIMIZE = @TCL_CFLAGS_OPTIMIZE@
 CFLAGS_WARNING	= @TCL_CFLAGS_WARNING@
