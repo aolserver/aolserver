@@ -2,6 +2,8 @@
 
     * nsperm/Makefile: include -lresolv on solaris to find inet_aton
 
+    * nslog/nslog.c: fix formatting of usecs on logreqtime
+
     * TAG: aolserver_v35_b10
 
 2003-05-28  Elizabeth Thomas <eathomas93@aol.com>
