@@ -33,10 +33,12 @@
  * Support for simple gzip compression using Zlib.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/compress.c,v 1.1 2004/11/19 14:00:25 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/compress.c,v 1.2 2004/11/20 01:46:00 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
+#ifdef HAVE_ZLIB_H
 #include <zlib.h>
+#endif
 
 static char header[] = {
     037, 0213,  /* GZIP magic number. */
@@ -62,6 +64,8 @@ static char header[] = {
  *
  *----------------------------------------------------------------------
  */
+
+#ifdef HAVE_LIBZ
 
 int
 Ns_Compress(char *buf, int len, Tcl_DString *outPtr, int level)
@@ -104,4 +108,14 @@ Ns_Compress(char *buf, int len, Tcl_DString *outPtr, int level)
 
     return NS_OK;
 }
+
+#else
+
+int
+Ns_Compress(char *buf, int len, Tcl_DString *outPtr, int level)
+{
+    return NS_ERROR;
+}
+
+#endif
 

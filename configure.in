@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/configure.in,v 1.17 2004/09/22 18:02:27 dossy Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/configure.in,v 1.18 2004/11/20 01:46:00 dossy Exp $
 #
 
 #
@@ -139,6 +139,7 @@ AC_SUBST(AOLSERVER)
 # Additional AOLserver checks.
 #
 
+AC_CHECK_HEADERS(inttypes.h)
 AC_CHECK_FUNCS(timegm fork1 poll drand48 random _NSGetEnviron)
 AC_CHECK_HEADER(mach-o/dyld.h, AC_DEFINE(USE_DYLD),)
 AC_CHECK_HEADER(dl.h, AC_DEFINE(USE_DLSHL),)
@@ -186,13 +187,9 @@ else
 fi
 AC_SUBST(STATIC_BUILD)
 
-dnl
-dnl autoconf complains that AC_HAVE_LIBRARY is obsolete, but it is
-dnl the right way to do the next test.
-dnl
-
 has_threadsafe_dns=no
-AC_HAVE_LIBRARY(socket)
+AC_CHECK_LIB(socket, getaddrinfo)
+AC_CHECK_LIB(socket, getnameinfo)
 AC_CHECK_FUNCS(getaddrinfo getnameinfo)
 if test "${ac_cv_func_getaddrinfo}" = "yes" \
     -a "${ac_cv_func_getnameinfo}" = "yes" ; then
@@ -208,6 +205,25 @@ if test "${has_threadsafe_dns}" != "yes" ; then
 fi
 if test "${has_threadsafe_dns}" != "yes" ; then
   AC_MSG_WARN([dns queries will use non-threadsafe calls which could result in server instability])
+fi
+
+AC_MSG_CHECKING([whether to include zlib compression support])
+AC_ARG_WITH(zlib,
+    [  --with-zlib=DIR         build and link with Zlib [--with-zlib]],
+    [
+        ac_zlib=$withval
+        if test "${ac_zlib}" != "no" ; then
+            ac_zlib=yes
+        fi
+        if test -d "$withval" ; then
+            CPPFLAGS="$CPPFLAGS -I$withval/include"
+            LDFLAGS="$LDFLAGS -L$withval/lib"
+        fi
+    ], [ac_zlib=yes])
+AC_MSG_RESULT($ac_zlib)
+if test "${ac_zlib}" = "yes" ; then
+    AC_CHECK_HEADERS(zlib.h)
+    AC_CHECK_LIB(z, compress2)
 fi
 
 #
