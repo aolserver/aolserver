@@ -34,7 +34,7 @@
  *	Tcl commands for returning data to the user agent. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclresp.c,v 1.13 2002/06/14 01:51:26 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclresp.c,v 1.14 2002/08/10 16:21:36 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -512,8 +512,8 @@ NsTclRespondObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST 
 	(filename != NULL ? 1 : 0) +
 	(string != NULL ? 1 : 0);
     if (i != 1) {
-		Tcl_SetResult(interp, "Need to specify at least one of -string, -file, 
-				or -type \n", TCL_STATIC);
+	Tcl_SetResult(interp, "must specify at least one of -string, -file, "
+			      "or -type \n", TCL_STATIC);
         retval = TCL_ERROR;
     }
 
