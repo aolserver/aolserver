@@ -35,7 +35,7 @@
  *  	Tcl commands.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscp/nscp.c,v 1.4 2000/08/15 20:24:33 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscp/nscp.c,v 1.5 2000/08/21 17:53:02 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 
@@ -54,7 +54,7 @@ static Ns_ThreadProc EvalThread;
 static Ns_SockProc AcceptProc;
 static Tcl_CmdProc ExitCmd;
 static int Login(SOCKET sock);
-static int GetLine(SOCKET sock, char *prompt, Tcl_DString *dsPtr);
+static int GetLine(SOCKET sock, char *prompt, Tcl_DString *dsPtr, int echo);
 static char *server;
 static Tcl_HashTable users;
 static char *addr;
@@ -295,7 +295,7 @@ EvalThread(void *arg)
 retry:
 	sprintf(buf, "nscp %d> ", ncmd);
 	while (1) {
-	    if (!GetLine(aPtr->sock, buf, &ds)) {
+	    if (!GetLine(aPtr->sock, buf, &ds, 1)) {
 		goto done;
 	    }
 	    if (Tcl_CommandComplete(ds.string)) {
@@ -348,29 +348,94 @@ done:
  */
 
 static int
-GetLine(SOCKET sock, char *prompt, Tcl_DString *dsPtr)
+GetLine(SOCKET sock, char *prompt, Tcl_DString *dsPtr, int echo)
 {
-    char buf[1024];
+
+#define TN_IAC  255
+#define TN_WILL 251
+#define TN_WONT 252
+#define TN_DO   253
+#define TN_DONT 254
+
+#define TN_ECHO   1
+
+#define TN_EOF  236
+#define TN_IP   244
+
+    char do_echo[]    = {TN_IAC, TN_DO,   TN_ECHO};
+    char dont_echo[]  = {TN_IAC, TN_DONT, TN_ECHO};
+    char will_echo[]  = {TN_IAC, TN_WILL, TN_ECHO};
+    char wont_echo[]  = {TN_IAC, TN_WONT, TN_ECHO};
+
+    unsigned char buf[2048];
     int n;
+    int result = 0;
+
+    /*
+     * Suppress output on things like password prompts.
+     */
+    if (!echo) {
+	send(sock, will_echo, 3, 0);
+	send(sock, dont_echo, 3, 0);
+	recv(sock, buf, sizeof(buf), 0); /* flush client ack thingies */
+    }
 
     n = strlen(prompt);
     if (send(sock, prompt, n, 0) != n) {
-	return 0;
+	result = 0;
+	goto bail;
     }
+
     do {
 	if ((n = recv(sock, buf, sizeof(buf), 0)) <= 0) {
-	    return 0;
+	    result = 0;
+	    goto bail;
 	}
 	if (n > 1 && buf[n-1] == '\n' && buf[n-2] == '\r') {
 	    buf[n-2] = '\n';
 	    --n;
 	}
+
+	/*
+	 * This EOT checker cannot happen in the context of telnet.
+	 */
 	if (n == 1 && buf[0] == 4) {
-	    return 0;	/* Received single EOT (i.e., ^D). */
+	    result = 0;
+	    goto bail;
 	}
+	
+	/*
+	 * Deal with telnet IAC commands in some sane way.
+	 */
+	if (n > 1 && buf[0] == TN_IAC) {
+	    if ( buf[1] == TN_EOF) {
+		result = 0;
+		goto bail;
+	    } else if ( buf[1] == TN_IP) {
+		result = 0;
+		goto bail;
+	    } else {
+		Ns_Log(Warning, "nscp: "
+		       "unsupported telnet code received from client");
+		result = 0;
+		goto bail;
+	    }
+	}
+	
 	Tcl_DStringAppend(dsPtr, buf, n);
+	result = 1;
+
     } while (buf[n-1] != '\n');
-    return 1;
+
+ bail:
+
+    if (!echo) {
+	send(sock, wont_echo, 3, 0);
+	send(sock, do_echo, 3, 0);
+	recv(sock, buf, sizeof(buf), 0); /* flush client ack thingies */
+    }
+
+    return result;
 }
 
 
@@ -402,8 +467,8 @@ Login(SOCKET sock)
     ok = 0;
     Tcl_DStringInit(&uds);
     Tcl_DStringInit(&pds);
-    if (GetLine(sock, "login: ", &uds) &&
-	GetLine(sock, "password: ", &pds)) {
+    if (GetLine(sock, "login: ", &uds, 1) &&
+	GetLine(sock, "password: ", &pds, 0)) {
 	user = Ns_StrTrim(uds.string);
 	pass = Ns_StrTrim(pds.string);
     	hPtr = Tcl_FindHashEntry(&users, user);
@@ -423,10 +488,10 @@ Login(SOCKET sock)
     }
     if (ok) {
 	Ns_Log(Notice, "nscp: logged in: %s", user);
-	msg = "Welcome to AOLserver\n";
+	msg = "\nWelcome to AOLserver\n";
     } else {
 	Ns_Log(Warning, "nscp: login failed: %s", user ? user : "?");
-	msg = "Access denied\n";
+	msg = "\nAccess denied\n";
     }
     (void) send(sock, msg, strlen(msg), 0);
     Tcl_DStringFree(&uds);
@@ -464,6 +529,6 @@ ExitCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 
     stopPtr = (int *) arg;
     *stopPtr = 1;
-    Tcl_SetResult(interp, "Goodbye.", TCL_STATIC);
+    Tcl_SetResult(interp, "\nGoodbye\n", TCL_STATIC);
     return TCL_OK;
 }
