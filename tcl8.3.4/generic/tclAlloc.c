@@ -170,6 +170,7 @@ static void MoveObjs(Cache *fromPtr, Cache *toPtr, int nmove);
 static int initialized = 0;
 static pthread_mutex_t listlock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t objlock  = PTHREAD_MUTEX_INITIALIZER;
+static pthread_once_t once = PTHREAD_ONCE_INIT;
 static pthread_key_t key;
 static Cache     sharedCache;
 static Cache    *sharedPtr = &sharedCache;
@@ -192,6 +193,18 @@ static Cache    *firstCachePtr = &sharedCache;
  *----------------------------------------------------------------------
  */
 
+static void
+Init(void)
+{
+    int err;
+
+    err = pthread_key_create(&key, FreeCache);
+    if (err != 0) {
+	panic("alloc: pthread_key_create: %s", strerror(err));
+    }
+    initialized = 1;
+}
+
 static Cache *
 GetCache(void)
 {
@@ -203,15 +216,7 @@ GetCache(void)
      */
 
     if (!initialized) {
-	TclpMasterLock();
-	if (!initialized) {
-    	    err = pthread_key_create(&key, FreeCache);
-    	    if (err != 0) {
-		panic("alloc: pthread_key_create: %s", strerror(err));
-    	    }
-	    initialized = 1;
-	}
-	TclpMasterUnlock();
+	pthread_once(&once, Init);
     }
 
     /*
