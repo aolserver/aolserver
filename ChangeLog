@@ -1,3 +1,9 @@
+2003-04-25  Mark Page  <mpagenva@aol.com>
+
+	* nsd/tclvar.c (NsTclNsvArrayObjCmd): (bug fix) nsv_array exists
+	must return true if an nsv exists, regardless of the number of
+	array elements in the nsv.
+
 2003-04-24  Mark Page  <mpagenva@aol.com>
 
 	* nsd/queue.c (ConnRun): Ensure that a Internal Error status is
