@@ -34,7 +34,7 @@
  *	Tcl database access routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/dbtcl.c,v 1.7 2001/01/16 18:13:24 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/dbtcl.c,v 1.8 2001/03/12 22:06:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -42,20 +42,11 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
  * Local functions defined in this file
  */
 
-static int EnableCmds(Tcl_Interp *interp, void *context);
 static int BadArgs(Tcl_Interp *interp, char **argv, char *args);
 static int DbFail(Tcl_Interp *interp, Ns_DbHandle *handle, char *cmd);
-static void EnterDbHandle(Tcl_Interp *interp, Ns_DbHandle *handle);
-static int DbGetHandle(Tcl_Interp *interp, char *handleId,
+static void EnterDbHandle(NsInterp *itPtr, Tcl_Interp *interp, Ns_DbHandle *handle);
+static int DbGetHandle(NsInterp *itPtr, Tcl_Interp *interp, char *handleId,
 		       Ns_DbHandle **handle, Tcl_HashEntry **phe);
-static Tcl_HashTable *GetTable(Tcl_Interp *);
-static Ns_Callback ReleaseDbs;
-
-/*
- * Local variables defined in this file
- */
-
-static int cmdsEnabled;
 
 
 /*
@@ -74,39 +65,20 @@ static int cmdsEnabled;
  */
 
 int
-Ns_TclDbGetHandle(Tcl_Interp *interp, char *handleId, Ns_DbHandle **handle)
+Ns_TclDbGetHandle(Tcl_Interp *interp, char *id, Ns_DbHandle **handlePtr)
 {
-    return DbGetHandle(interp, handleId, handle, NULL);
-}
+    NsInterp *itPtr = NsGetInterp(interp);
 
-
-/*
- *----------------------------------------------------------------------
- * NsDbTclInit --
- *
- *      Initialization routine.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *     None.
- *
- *----------------------------------------------------------------------
- */
-
-void
-NsDbTclInit(char *server)
-{
-    Ns_TclInitInterps(server, EnableCmds, NULL);
-    if (Ns_TclInitModule(server, "nsdb") != NS_OK) {
-	Ns_Log(Warning, "dbtcl: failed to initialize nsdb tcl commands");
+    if (itPtr == NULL) {
+	return TCL_ERROR;
     }
+    return DbGetHandle(itPtr, interp, id, handlePtr, NULL);
 }
 
 
 /*
  *----------------------------------------------------------------------
+ *
  * NsTclDbCmd --
  *
  *      Implement the AOLserver ns_db Tcl command.
@@ -121,8 +93,9 @@ NsDbTclInit(char *server)
  */
 
 int
-NsTclDbCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
+NsTclDbCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 {
+    NsInterp	   *itPtr = arg;
     Ns_DbHandle    *handlePtr;
     Ns_Set         *rowPtr;
     char           *cmd;
@@ -133,15 +106,11 @@ NsTclDbCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
             argv[0], " command ?args ...?", NULL);
         return TCL_ERROR;
     }
-    if (cmdsEnabled == NS_FALSE) {
-        Tcl_AppendResult(interp, "command \"", argv[0],
-			 "\" is not enabled", NULL);
-        return TCL_ERROR;
-    }
-
     cmd = argv[1];
-
-    if (STREQ(cmd, "open") || STREQ(cmd, "close")) {
+    if (STREQ(cmd, "cleanup")) {
+	NsFreeDbs(itPtr);
+	
+    } else if (STREQ(cmd, "open") || STREQ(cmd, "close")) {
     	Tcl_AppendResult(interp, "unsupported ns_db command: ", cmd, NULL);
     	return TCL_ERROR;
 
@@ -149,7 +118,7 @@ NsTclDbCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
         if (argc != 2) {
             return BadArgs(interp, argv, NULL);
         }
-        pool = Ns_DbPoolList(Ns_TclInterpServer(interp));
+        pool = Ns_DbPoolList(itPtr->servPtr->server);
         if (pool != NULL) {
             while (*pool != '\0') {
                 Tcl_AppendElement(interp, pool);
@@ -193,13 +162,13 @@ NsTclDbCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
        
         pool = argv[0];
         if (pool == NULL) {
-            pool = Ns_DbPoolDefault(Ns_TclInterpServer(interp));
+            pool = Ns_DbPoolDefault(itPtr->servPtr->server);
             if (pool == NULL) {
                 Tcl_SetResult(interp, "no defaultpool configured", TCL_STATIC);
                 return TCL_ERROR;
             }
         }
-        if (Ns_DbPoolAllowable(Ns_TclInterpServer(interp), pool) == NS_FALSE) {
+        if (Ns_DbPoolAllowable(itPtr->servPtr->server, pool) == NS_FALSE) {
             Tcl_AppendResult(interp, "no access to pool: \"", pool, "\"",
 			     NULL);
             return TCL_ERROR;
@@ -234,7 +203,7 @@ NsTclDbCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 	    
             Tcl_DStringInit(&ds);
 	    for (i = 0; i < nhandles; ++i) {
-                EnterDbHandle(interp, handlesPtrPtr[i]);
+                EnterDbHandle(itPtr, interp, handlesPtrPtr[i]);
                 Tcl_DStringAppendElement(&ds, interp->result);
             }
             Tcl_DStringResult(interp, &ds);
@@ -254,7 +223,7 @@ NsTclDbCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
         if (argc != 3) {
             return BadArgs(interp, argv, "dbId");
         }
-        if (DbGetHandle(interp, argv[2], &handlePtr, NULL) != TCL_OK) {
+        if (DbGetHandle(itPtr, interp, argv[2], &handlePtr, NULL) != TCL_OK) {
             return TCL_ERROR;
         }
         Tcl_AppendElement(interp, handlePtr->cExceptionCode);
@@ -271,7 +240,7 @@ NsTclDbCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
         if (argc < 3) {
             return BadArgs(interp, argv, "dbId ?args?");
         }
-        if (DbGetHandle(interp, argv[2], &handlePtr, &hPtr) != TCL_OK) {
+        if (DbGetHandle(itPtr, interp, argv[2], &handlePtr, &hPtr) != TCL_OK) {
             return TCL_ERROR;
         }
         Ns_DStringFree(&handlePtr->dsExceptionMsg);
@@ -334,7 +303,7 @@ NsTclDbCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
                 if (rowPtr == NULL) {
                     return DbFail(interp, handlePtr, cmd);
                 }
-                Ns_TclEnterSet(interp, rowPtr, 0);
+                Ns_TclEnterSet(interp, rowPtr, NS_TCL_SET_STATIC);
 
     	    } else if (STREQ(cmd, "releasehandle")) {
 		Tcl_DeleteHashEntry(hPtr);
@@ -381,7 +350,7 @@ NsTclDbCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 		if (rowPtr == NULL) {
 		    return DbFail(interp, handlePtr, cmd);
 		}
-		Ns_TclEnterSet(interp, rowPtr, 0);
+		Ns_TclEnterSet(interp, rowPtr, NS_TCL_SET_STATIC);
 	    }
 		
 
@@ -420,7 +389,7 @@ NsTclDbCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
                 if (rowPtr == NULL) {
                     return DbFail(interp, handlePtr, cmd);
                 }
-                Ns_TclEnterSet(interp, rowPtr, 1);
+                Ns_TclEnterSet(interp, rowPtr, NS_TCL_SET_DYNAMIC);
 
     	    } else if (STREQ(cmd, "0or1row")) {
     	    	int nrows;
@@ -432,7 +401,7 @@ NsTclDbCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
                 if (nrows == 0) {
                     Ns_SetFree(rowPtr);
                 } else {
-                    Ns_TclEnterSet(interp, rowPtr, 1);
+                    Ns_TclEnterSet(interp, rowPtr, NS_TCL_SET_DYNAMIC);
                 }
 
     	    } else if (STREQ(cmd, "select")) {
@@ -440,7 +409,7 @@ NsTclDbCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
                 if (rowPtr == NULL) {
                     return DbFail(interp, handlePtr, cmd);
                 }
-                Ns_TclEnterSet(interp, rowPtr, 0);
+                Ns_TclEnterSet(interp, rowPtr, NS_TCL_SET_STATIC);
 
     	    } else if (STREQ(cmd, "exec")) {
                 switch (Ns_DbExec(handlePtr, argv[3])) {
@@ -580,10 +549,10 @@ NsTclDbCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
  *----------------------------------------------------------------------
  */
 
-int
-NsTclDbErrorCodeCmd(ClientData dummy, Tcl_Interp *interp, int argc,
-		    char **argv)
+static int
+ErrorCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv, int cmd)
 {
+    NsInterp *itPtr = arg;
     Ns_DbHandle *handle;
 
     if (argc != 2) {
@@ -591,59 +560,28 @@ NsTclDbErrorCodeCmd(ClientData dummy, Tcl_Interp *interp, int argc,
             argv[0], " dbId\"", NULL);
         return TCL_ERROR;
     }
-    if (cmdsEnabled == NS_FALSE) {
-        Tcl_AppendResult(interp, "command \"", argv[0],
-			 "\" is not enabled", NULL);
+    if (DbGetHandle(itPtr, interp, argv[1], &handle, NULL) != TCL_OK) {
         return TCL_ERROR;
     }
-
-    if (Ns_TclDbGetHandle(interp, argv[1], &handle) != TCL_OK) {
-        return TCL_ERROR;
+    if (cmd == 'c') {
+    	Tcl_SetResult(interp, handle->cExceptionCode, TCL_VOLATILE);
+    } else {
+    	Tcl_SetResult(interp, handle->dsExceptionMsg.string, TCL_VOLATILE);
     }
-    Tcl_SetResult(interp, handle->cExceptionCode, TCL_VOLATILE);
-
     return TCL_OK;
 }
 
-
-/*
- *----------------------------------------------------------------------
- * NsTclDbErrorMsgCmd --
- *
- *      Get database exception message for the database handle.
- *
- * Results:
- *      Returns TCL_OK and database exception message is set as Tcl result
- *	or TCL_ERROR if failure.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
+int
+NsTclDbErrorCodeCmd(ClientData arg, Tcl_Interp *interp, int argc,
+		    char **argv)
+{
+    return ErrorCmd(arg, interp, argc, argv, 'c');
+}
 
 int
-NsTclDbErrorMsgCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
+NsTclDbErrorMsgCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 {
-    Ns_DbHandle    *handle;
-
-    if (argc != 2) {
-        Tcl_AppendResult(interp, "wrong # args:  should be \"",
-            argv[0], " dbId\"", NULL);
-        return TCL_ERROR;
-    }
-    if (cmdsEnabled == NS_FALSE) {
-        Tcl_AppendResult(interp, "command \"", argv[0],
-			 "\" is not enabled", NULL);
-        return TCL_ERROR;
-    }
-
-    if (Ns_TclDbGetHandle(interp, argv[1], &handle) != TCL_OK) {
-        return TCL_ERROR;
-    }
-    Tcl_SetResult(interp, handle->dsExceptionMsg.string, TCL_VOLATILE);
-
-    return TCL_OK;
+    return ErrorCmd(arg, interp, argc, argv, 'm');
 }
 
 
@@ -664,26 +602,19 @@ NsTclDbErrorMsgCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
  */
 
 int
-NsTclDbConfigPathCmd(ClientData dummy, Tcl_Interp *interp, int argc,
+NsTclDbConfigPathCmd(ClientData arg, Tcl_Interp *interp, int argc,
 		     char **argv)
 {
-    char *configSection;
+    NsInterp *itPtr = arg;
+    char *section;
 
     if (argc != 1) {
         Tcl_AppendResult(interp, "wrong # of args: should be \"", argv[0],
 			 "\"", NULL);
         return TCL_ERROR;
     }
-    if (cmdsEnabled == NS_FALSE) {
-        Tcl_AppendResult(interp, "command \"", argv[0],
-			 "\" is not enabled", NULL);
-        return TCL_ERROR;
-    }
-
-    configSection = Ns_ConfigPath(Ns_TclInterpServer(interp), NULL, "db",
-				  NULL);
-    Tcl_SetResult(interp, configSection, TCL_STATIC);
-
+    section = Ns_ConfigPath(itPtr->servPtr->server, NULL, "db", NULL);
+    Tcl_SetResult(interp, section, TCL_STATIC);
     return TCL_OK;
 }
 
@@ -705,7 +636,7 @@ NsTclDbConfigPathCmd(ClientData dummy, Tcl_Interp *interp, int argc,
  */
 
 int
-NsTclPoolDescriptionCmd(ClientData dummy, Tcl_Interp *interp, int argc,
+NsTclPoolDescriptionCmd(ClientData arg, Tcl_Interp *interp, int argc,
 			char **argv)
 {
     if (argc != 2) {
@@ -713,14 +644,7 @@ NsTclPoolDescriptionCmd(ClientData dummy, Tcl_Interp *interp, int argc,
 			 " poolname\"", NULL);
         return TCL_ERROR;
     }
-    if (cmdsEnabled == NS_FALSE) {
-        Tcl_AppendResult(interp, "command \"", argv[0],
-			 "\" is not enabled", NULL);
-        return TCL_ERROR;
-    }
-
     Tcl_SetResult(interp, Ns_DbPoolDescription(argv[1]), TCL_STATIC);
-
     return TCL_OK;
 }
 
@@ -742,7 +666,7 @@ NsTclPoolDescriptionCmd(ClientData dummy, Tcl_Interp *interp, int argc,
  */
 
 int
-NsTclQuoteListToListCmd(ClientData cd, Tcl_Interp *interp, int argc,
+NsTclQuoteListToListCmd(ClientData arg, Tcl_Interp *interp, int argc,
 			char **argv)
 {
     char       *quotelist;
@@ -789,7 +713,6 @@ NsTclQuoteListToListCmd(ClientData cd, Tcl_Interp *interp, int argc,
         Tcl_AppendElement(interp, ds.string);
     }
     Ns_DStringFree(&ds);
-
     return TCL_OK;
 }
 
@@ -812,7 +735,7 @@ NsTclQuoteListToListCmd(ClientData cd, Tcl_Interp *interp, int argc,
  */
 
 int
-NsTclGetCsvCmd(ClientData cd, Tcl_Interp *interp, int argc, char **argv)
+NsTclGetCsvCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 {
     int             ncols, inquote, quoted, blank;
     char            c, *p, buf[20];
@@ -827,7 +750,7 @@ NsTclGetCsvCmd(ClientData cd, Tcl_Interp *interp, int argc, char **argv)
     if (Ns_TclGetOpenChannel(interp, argv[1], 0, 0, &chan) == TCL_ERROR) {
         return TCL_ERROR;
     }
-
+    
     Tcl_DStringInit(&line);
     if (Tcl_Gets(chan, &line) < 0) {
 	Tcl_DStringFree(&line);
@@ -917,59 +840,6 @@ loopstart:
 
 /*
  *----------------------------------------------------------------------
- *
- * NsTclUnsupDbCmd --
- *
- *	Return an error for various unsupported Tcl commands.
- *
- * Results:
- *	A standard Tcl result.
- *
- * Side effects:
- *	None.
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclUnsupDbCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
-{
-    Tcl_AppendResult(interp, "unsupported nsdb command: ", argv[0], NULL);
-
-    return TCL_ERROR;
-}
-
- 
-/*
- *----------------------------------------------------------------------
- * EnableCmds --
- *
- *      Add database Tcl commands during initialization.
- *
- * Results:
- *      Return NS_OK.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-static int
-EnableCmds(Tcl_Interp *interp, void *context)
-{
-    cmdsEnabled = NS_TRUE;
-
-    /*
-     * Tcl commands were added in tclcmds.c
-     */
-
-    return NS_OK;
-}
-
-
-/*
- *----------------------------------------------------------------------
  * DbGetHandle --
  *
  *      Get database handle from its handle id.
@@ -984,16 +854,14 @@ EnableCmds(Tcl_Interp *interp, void *context)
  */
 
 static int
-DbGetHandle(Tcl_Interp *interp, char *handleId, Ns_DbHandle **handle,
+DbGetHandle(NsInterp *itPtr, Tcl_Interp *interp, char *id, Ns_DbHandle **handle,
 	    Tcl_HashEntry **hPtrPtr)
 {
     Tcl_HashEntry  *hPtr;
-    Tcl_HashTable  *tablePtr;
 
-    tablePtr = GetTable(interp);
-    hPtr = Tcl_FindHashEntry(tablePtr, handleId);
+    hPtr = Tcl_FindHashEntry(&itPtr->dbs.table, id);
     if (hPtr == NULL) {
-	Tcl_AppendResult(interp, "invalid database id:  \"", handleId, "\"",
+	Tcl_AppendResult(interp, "invalid database id:  \"", id, "\"",
 	    NULL);
 	return TCL_ERROR;
     }
@@ -1021,21 +889,19 @@ DbGetHandle(Tcl_Interp *interp, char *handleId, Ns_DbHandle **handle,
  */
 
 static void
-EnterDbHandle(Tcl_Interp *interp, Ns_DbHandle *handle)
+EnterDbHandle(NsInterp *itPtr, Tcl_Interp *interp, Ns_DbHandle *handle)
 {
-    Tcl_HashTable *tablePtr;
-    Tcl_HashEntry *he;
+    Tcl_HashEntry *hPtr;
     int            new, next;
     char	   buf[100];
 
-    tablePtr = GetTable(interp);
-    next = tablePtr->numEntries;
+    next = itPtr->dbs.table.numEntries;
     do {
         sprintf(buf, "nsdb%x", next++);
-        he = Tcl_CreateHashEntry(tablePtr, buf, &new);
+        hPtr = Tcl_CreateHashEntry(&itPtr->dbs.table, buf, &new);
     } while (!new);
     Tcl_SetResult(interp, buf, TCL_VOLATILE);
-    Tcl_SetHashValue(he, handle);
+    Tcl_SetHashValue(hPtr, handle);
 }
 
 
@@ -1096,70 +962,43 @@ DbFail(Tcl_Interp *interp, Ns_DbHandle *handle, char *cmd)
         }
         Tcl_AppendResult(interp, ")", NULL);
     }
-
     return TCL_ERROR;
 }
 
 
 /*
  *----------------------------------------------------------------------
- * GetTable --
  *
- *      Return the table of allocated db handles in the interp.
+ * NsFreeDbs --
  *
- * Results:
- *      Pointer to dynamic, initialized Tcl_HashTable of handle ids.
- *
- * Side effects:
- *      See ReleaseDbs.
- *
- *----------------------------------------------------------------------
- */
-
-static Tcl_HashTable *
-GetTable(Tcl_Interp *interp)
-{
-    Tcl_HashTable *tablePtr;
-
-    tablePtr = NsTclGetData(interp, NS_TCL_DBS_KEY);
-    if (tablePtr == NULL) {
-	tablePtr = ns_malloc(sizeof(Tcl_HashTable));
-	Tcl_InitHashTable(tablePtr, TCL_STRING_KEYS);
-	NsTclSetData(interp, NS_TCL_DBS_KEY, tablePtr, ReleaseDbs);
-    }
-    return tablePtr;
-}
-
-
-/*
- *----------------------------------------------------------------------
- * ReleaseDbs --
- *
- *      Tcl interp data callback to free db data.
+ *      Release any remaining db handles.
  *
  * Results:
  *      None.
  *
  * Side effects:
- *      Returns all handles not already released and frees the table.
+ *      See Ns_DbPutHandle.
  *
  *----------------------------------------------------------------------
  */
 
-static void
-ReleaseDbs(void *arg)
+void
+NsFreeDbs(NsInterp *itPtr)
 {
-    Tcl_HashTable *tablePtr = arg;
+    Tcl_HashTable *tablePtr;
     Tcl_HashSearch search;
     Tcl_HashEntry *hPtr;
     Ns_DbHandle *handle;
 
-    hPtr = Tcl_FirstHashEntry(tablePtr, &search);
-    while (hPtr != NULL) {
-	handle = Tcl_GetHashValue(hPtr);
-    	Ns_DbPoolPutHandle(handle);
-	hPtr = Tcl_NextHashEntry(&search);
+    tablePtr = &itPtr->dbs.table;
+    if (tablePtr->numEntries > 0) {
+    	hPtr = Tcl_FirstHashEntry(tablePtr, &search);
+    	while (hPtr != NULL) {
+	    handle = Tcl_GetHashValue(hPtr);
+    	    Ns_DbPoolPutHandle(handle);
+	    hPtr = Tcl_NextHashEntry(&search);
+    	}
+    	Tcl_DeleteHashTable(tablePtr);
+    	Tcl_InitHashTable(tablePtr, TCL_STRING_KEYS);
     }
-    Tcl_DeleteHashTable(tablePtr);
-    ns_free(tablePtr);
 }

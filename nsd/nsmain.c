@@ -33,10 +33,11 @@
  *	AOLserver Ns_Main() startup routine.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.22 2001/01/16 18:14:27 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.23 2001/03/12 22:06:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
-#include "nsconf.h"
+
+extern char *nsBuildDate;
 
 #ifdef WIN32
 #define DEVNULL "nul:"
@@ -51,26 +52,6 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
 static void UsageError(char *msg);
 static void StatusMsg(int state);
 static char *FindConfig(char *config);
-
-/*
- * The following global variable specifies the name
- * of the single running server.
- */
- 
-char *nsServer;
-
-/*
- * The following strucuture is used to maintain and
- * signal the top level states of the server.
- */
-
-struct {
-    int started;
-    int stopping;
-    int shutdowntimeout;
-    Ns_Mutex lock;
-    Ns_Cond cond;
-} status;
 
 
 /*
@@ -103,10 +84,12 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 {
     int            i, fd;
     char          *config;
+    char	  *procname;
     char	  *server = NULL;
     Ns_Time 	   timeout;
     char	   cwd[PATH_MAX];
     Ns_DString	   addr;
+    Ns_Set	  *servers = NULL;
 #ifndef WIN32
     int		   uid = 0;
     int		   gid = 0;
@@ -137,15 +120,13 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
     /*
      * Set up configuration defaults and initial values.
      */
+
     nsconf.argv0         = argv[0];
-    nsconf.log.debug     = LOG_DEBUG_BOOL;
-    nsconf.log.dev       = LOG_DEV_BOOL;
-    nsconf.log.expanded  = LOG_EXPANDED_BOOL;
-    nsconf.log.maxback   = LOG_MAXBACK_INT;
+    nsconf.build	 = nsBuildDate;
     nsconf.name          = NSD_NAME;
     nsconf.version       = NSD_VERSION;
-    nsconf.quiet         = SERV_QUIET_BOOL;
     nsconf.config        = NULL;
+    nsconf.tcl.version	 = TCL_VERSION;
 
     /*
      * AOLserver requires file descriptor 0 be open on /dev/null to
@@ -192,9 +173,6 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
         switch (i) {
 	case 'h':
 	    UsageError(NULL);
-	    break;
-	case 'q':
-	    nsconf.quiet = NS_TRUE;
 	    break;
 	case 'f':
 	case 'i':
@@ -272,7 +250,7 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
         printf("AOLserver/%s (%s)\n", NSD_VERSION, Ns_InfoLabel()); 
 	printf("   CVS Tag:         %s\n", Ns_InfoTag());
 	printf("   Built:           %s\n", Ns_InfoBuildDate());
-	printf("   Tcl version:     %s\n", nsTclVersion);
+	printf("   Tcl version:     %s\n", nsconf.tcl.version);
 	printf("   Thread library:  %s\n", NsThreadLibName());
 	printf("   Platform:        %s\n", Ns_InfoPlatform());
         return 0;
@@ -466,32 +444,42 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
      * Initialize Tcl and eval the config file.
      */
 
-    nsconf.nsd = NsTclFindExecutable(argv[0]);
+    Tcl_FindExecutable(argv[0]);
+    nsconf.nsd = (char *) Tcl_GetNameOfExecutable();
     if (nsconf.configfmt == 't') {
     	NsConfigEval(config);
     }
     ns_free(config);
 
     /*
-     * Determine the server to run.
+     * Ensure servers where defined.
+     */
+
+    servers = Ns_ConfigGetSection(NS_CONFIG_SERVERS);
+    if (servers == NULL || Ns_SetSize(servers) == 0) {
+	Ns_Fatal("nsmain: no servers defined");
+    }
+
+    /*
+     * If a single server was specified, ensure it exists
+     * and update the pointer to the config string (the
+     * config server strings are considered the unique
+     * server "handles").
      */
 
     if (server != NULL) {
-	if (Ns_ConfigGet(NS_CONFIG_SERVERS, server) == NULL) {
+	i = Ns_SetFind(servers, server);
+	if (i < 0) {
 	    Ns_Fatal("nsmain: no such server '%s'", server);
 	}
-    } else {
-	Ns_Set *set;
-
-	set = Ns_ConfigGetSection(NS_CONFIG_SERVERS);
-	if (set == NULL || Ns_SetSize(set) != 1) {
-	    Ns_Fatal("nsmain: no server specified: "
-		     "specify '-s' parameter or specify "
-		     NS_CONFIG_SERVERS " in config file");
-	}
-	server = Ns_SetKey(set, 0);
+	server = Ns_SetKey(servers, i);
     }
-    nsconf.server = nsServer = server;
+
+    /*
+     * Set the procname used for the pid file and NT service name.
+     */
+
+    procname = (server ? server : Ns_SetKey(servers, 0));
 
     /*
      * Verify and change to the home directory.
@@ -537,10 +525,10 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 	Ns_ThreadSetName("-service-");
 	switch (mode) {
 	case 'I':
-	    status = NsInstallService(server);
+	    status = NsInstallService(procname);
 	    break;
 	case 'R':
-	    status = NsRemoveService(server);
+	    status = NsRemoveService(procname);
 	    break;
 	case 'S':
     	    status = NsConnectService(initProc);
@@ -553,7 +541,7 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 
 #endif
 
-    Ns_MutexSetName2(&status.lock, "ns", "status");
+    Ns_MutexSetName2(&nsconf.state.lock, "nsconf", "state");
 
     /*
      * Open the log file now that the home directory and runtime
@@ -570,7 +558,7 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
      
 #ifndef WIN32
     if (kill != 0) {
-    	i = NsGetLastPid(server);
+    	i = NsGetLastPid(procname);
 	if (i > 0) {
     	    NsKillPid(i);
 	}
@@ -605,59 +593,33 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 #endif
 
     /*
-     * Now, call several server initialization routines.  Most of
-     * these routines simply initialize various data structures but
-     * some are quite interesting, e.g., NsTclInit() and NsDbInit().
-     * Also, what happens in NsLoadModules() depends of course on
-     * the modules loaded, e.g., detached threads, scheduled procs,
-     * registered URL service procs, etc.
-     *
-     * Tcl-wise, this is how server startup goes:
-     *
-     * foreach module
-     *    load .so
-     * eval private top level files
-     * eval top level shared where not in private
-     * foreach module
-     *    eval private module files
-     *    eval shared module files where not in private
+     * Initialize the core.
      */
 
-    NsConfInit(server);
-    NsCreatePidFile(server);
-    NsTclInit();
+    NsConfInit();
     NsInitMimeTypes();
-    NsInitReturn(server);
-    NsInitProxyRequests();
-    NsInitFastpath(server);
-    NsDbInit(server);
-    NsAdpInit(server);
-    if (initProc != NULL && (*initProc)(server) != NS_OK) {
-	Ns_Fatal("nsmain: Ns_ServerInitProc failed");
-    }
-    NsLoadModules(server);
-    NsAdpParsers(server);    
+    NsCreatePidFile(procname);
+    NsDbInitPools();
 
     /*
-     * Eval top level shared/private files, then
-     * modules' shared/private files.
+     * Initialize the virtual servers.
      */
-    
-    NsTclInitScripts();
-    
+
+    if (server != NULL) {
+    	NsInitServer(initProc, server);
+    } else {
+	for (i = 0; i < Ns_SetSize(servers); ++i) {
+	    server = Ns_SetKey(servers, i);
+    	    NsInitServer(initProc, server);
+	}
+    }
+
     /*
-     * Now that the core server is initialized, stop the child binder
-     * process (privileged listening ports should not be created at
-     * run time), start the server listening thread, print the
-     * "server started" status message, signal the server is
-     * started for any threads waiting in Ns_WaitForStartup() (e.g.,
-     * threads blocked in Ns_TclAllocateInterp()), and then run
-     * any procedures scheduled to run after startup.
+     * Run pre-startups and start the servers.
      */
 
     NsRunPreStartupProcs();
-    NsTclRunInits();
-    NsStartServer(server);
+    NsStartServers();
     NsStartKeepAlive();
 
     /*
@@ -665,11 +627,10 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
      */
 
     StatusMsg(1);
-    Ns_MutexLock(&status.lock);
-    status.shutdowntimeout = nsconf.shutdowntimeout;
-    status.started = 1;
-    Ns_CondBroadcast(&status.cond);
-    Ns_MutexUnlock(&status.lock);
+    Ns_MutexLock(&nsconf.state.lock);
+    nsconf.state.started = 1;
+    Ns_CondBroadcast(&nsconf.state.cond);
+    Ns_MutexUnlock(&nsconf.state.lock);
 
     /*
      * Run any post-startup procs.
@@ -684,7 +645,6 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 
     Ns_GetTime(&timeout);
     Ns_IncrTime(&timeout, nsconf.startuptimeout, 0);
-    NsWaitServerWarmup(&timeout);
     NsWaitSockIdle(&timeout);
     NsWaitSchedIdle(&timeout);
 
@@ -714,14 +674,14 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
      */
 
     StatusMsg(2);
-    Ns_MutexLock(&status.lock);
-    status.stopping = 1;
-    if (status.shutdowntimeout < 0) {
-	status.shutdowntimeout = 0;
+    Ns_MutexLock(&nsconf.state.lock);
+    nsconf.state.stopping = 1;
+    if (nsconf.shutdowntimeout < 0) {
+	nsconf.shutdowntimeout = 0;
     }
     Ns_GetTime(&timeout);
-    Ns_IncrTime(&timeout, status.shutdowntimeout, 0);
-    Ns_MutexUnlock(&status.lock);
+    Ns_IncrTime(&timeout, nsconf.shutdowntimeout, 0);
+    Ns_MutexUnlock(&nsconf.state.lock);
 
     /*
      * First, stop the drivers and keepalive threads.
@@ -729,7 +689,7 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 
     NsStopDrivers();
     NsStopKeepAlive();
-    NsStopServer(&timeout);
+    NsStopServers(&timeout);
 
     /*
      * Next, start and then wait for other systems to shutdown
@@ -753,341 +713,9 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
      */
 
     NsRunAtExitProcs();
-    NsRemovePidFile(server);
+    NsRemovePidFile(procname);
     StatusMsg(3);
     return 0;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Ns_StopServer --
- *
- *	Signal the server to shutdown.
- *
- * Results:
- *	None.
- *
- * Side effects:
- *	Server will begin shutdown.
- *
- *----------------------------------------------------------------------
- */
-
-void
-Ns_StopServer(char *server)
-{
-    Ns_Log(Warning, "nsmain: immediate server shutdown requested");
-    NsSendSignal(NS_SIGTERM);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Ns_InfoHomePath --
- *
- *	Return the home dir. 
- *
- * Results:
- *	Home dir. 
- *
- * Side effects:
- *	None. 
- *
- *----------------------------------------------------------------------
- */
-
-char *
-Ns_InfoHomePath(void)
-{
-    return nsconf.home;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Ns_InfoServerName --
- *
- *	Return the server name. 
- *
- * Results:
- *	Server name 
- *
- * Side effects:
- *	None. 
- *
- *----------------------------------------------------------------------
- */
-
-char *
-Ns_InfoServerName(void)
-{
-    return nsconf.name;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Ns_InfoServerVersion --
- *
- *	Returns the server version 
- *
- * Results:
- *	String server version. 
- *
- * Side effects:
- *	None. 
- *
- *----------------------------------------------------------------------
- */
-
-char *
-Ns_InfoServerVersion(void)
-{
-    return nsconf.version;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Ns_InfoConfigFile --
- *
- *	Returns path to config file. 
- *
- * Results:
- *	Path to config file. 
- *
- * Side effects:
- *	None. 
- *
- *----------------------------------------------------------------------
- */
-
-char *
-Ns_InfoConfigFile(void)
-{
-    return nsconf.config;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Ns_InfoPid --
- *
- *	Returns server's PID 
- *
- * Results:
- *	PID (tread like pid_t) 
- *
- * Side effects:
- *	None. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-Ns_InfoPid(void)
-{
-    return nsconf.pid;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Ns_InfoNameOfExecutable --
- *
- *	Returns the name of the nsd executable.  Quirky name is from Tcl.
- *
- * Results:
- *	Name of executable, string.
- *
- * Side effects:
- *	None. 
- *
- *----------------------------------------------------------------------
- */
-
-char *
-Ns_InfoNameOfExecutable(void)
-{
-    return nsconf.nsd;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- *   --
- *
- *	Return platform name 
- *
- * Results:
- *	Platform name, string. 
- *
- * Side effects:
- *	None. 
- *
- *----------------------------------------------------------------------
- */
-
-char *
-Ns_InfoPlatform(void)
-{
-
-#if defined(__linux)
-    return "linux";
-#elif defined(__FreeBSD__)
-    return "freebsd";
-#elif defined(__OpenBSD__)
-    return "openbsd";
-#elif defined(__sgi)
-    return "irix";
-#elif defined(__sun)
-
-#if defined(__i386)
-    return "solaris/intel";
-#else
-    return "solaris";
-#endif
-
-#elif defined(__alpha)
-    return "OSF/1 - Alpha";
-#elif defined(__hp10)
-    return "hp10";
-#elif defined(__hp11)
-    return "hp11";
-#elif defined(__unixware)
-    return "UnixWare";
-#elif defined(MACOSX)
-    return "osx";
-#elif defined(WIN32)
-    return "win32";
-#else
-    return "?";
-#endif
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Ns_InfoUptime --
- *
- *	Returns time server has been up. 
- *
- * Results:
- *	Seconds server has been running.
- *
- * Side effects:
- *	None. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-Ns_InfoUptime(void)
-{
-    return (int) difftime(time(NULL), nsconf.boot_t);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Ns_InfoBootTime --
- *
- *	Returns time server started. 
- *
- * Results:
- *	Treat as time_t. 
- *
- * Side effects:
- *	None. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-Ns_InfoBootTime(void)
-{
-    return nsconf.boot_t;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Ns_InfoHostname --
- *
- *	Return server hostname 
- *
- * Results:
- *	Hostname 
- *
- * Side effects:
- *	None. 
- *
- *----------------------------------------------------------------------
- */
-
-char *
-Ns_InfoHostname(void)
-{
-    return nsconf.hostname;
-}
-
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Ns_InfoAddress --
- *
- *	Return server IP address
- *
- * Results:
- *	Primary (first) IP address of this machine.
- *
- * Side effects:
- *	None. 
- *
- *----------------------------------------------------------------------
- */
-
-char *
-Ns_InfoAddress(void)
-{
-    return nsconf.address;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Ns_InfoBuildDate --
- *
- *	Returns time server was compiled. 
- *
- * Results:
- *	String build date and time. 
- *
- * Side effects:
- *	None. 
- *
- *----------------------------------------------------------------------
- */
-
-char *
-Ns_InfoBuildDate(void)
-{
-    return nsBuildDate;
 }
 
 
@@ -1111,137 +739,12 @@ Ns_InfoBuildDate(void)
 int
 Ns_WaitForStartup(void)
 {
-    Ns_MutexLock(&status.lock);
-    while (!status.started) {
-        Ns_CondWait(&status.cond, &status.lock);
+    Ns_MutexLock(&nsconf.state.lock);
+    while (!nsconf.state.started) {
+        Ns_CondWait(&nsconf.state.cond, &nsconf.state.lock);
     }
-    Ns_MutexUnlock(&status.lock);
+    Ns_MutexUnlock(&nsconf.state.lock);
     return NS_OK;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Ns_InfoShutdownPending --
- *
- *	Boolean: is a shutdown pending? 
- *
- * Results:
- *	NS_TRUE: yes, NS_FALSE: no 
- *
- * Side effects:
- *	None. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-Ns_InfoShutdownPending(void)
-{
-    int stopping;
-
-    Ns_MutexLock(&status.lock);
-    stopping = status.stopping;
-    Ns_MutexUnlock(&status.lock);
-    return stopping;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Ns_InfoStarted --
- *
- *	Boolean: has the server started up all the way yet? 
- *
- * Results:
- *	NS_TRUE: yes, NS_FALSE: no 
- *
- * Side effects:
- *	None. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-Ns_InfoStarted(void)
-{
-    int             started;
-
-    Ns_MutexLock(&status.lock);
-    started = status.started;
-    Ns_MutexUnlock(&status.lock);
-    return started;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Ns_InfoServersStarted --
- *
- *	Compatability function, same as Ns_InfoStarted 
- *
- * Results:
- *	See Ns_InfoStarted 
- *
- * Side effects:
- *	None.
- *
- *----------------------------------------------------------------------
- */
-
-int
-Ns_InfoServersStarted(void)
-{
-    return Ns_InfoStarted();
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Ns_InfoLabel --
- *
- *	Returns version information about this build. 
- *
- * Results:
- *	A string version name. 
- *
- * Side effects:
- *	None. 
- *
- *----------------------------------------------------------------------
- */
-
-char *
-Ns_InfoLabel(void)
-{
-    return NSD_LABEL;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Ns_InfoTag --
- *
- *	Returns CVS tag of this build (can be meaningless).
- *
- * Results:
- *	A string version name. 
- *
- * Side effects:
- *	None. 
- *
- *----------------------------------------------------------------------
- */
-
-char *
-Ns_InfoTag(void)
-{
-    return NSD_TAG;
 }
 
 
@@ -1277,9 +780,9 @@ NsTclShutdownCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 	return TCL_ERROR;
     }
     sprintf(interp->result, "%d", timeout);
-    Ns_MutexLock(&status.lock);
-    status.shutdowntimeout = timeout;
-    Ns_MutexUnlock(&status.lock);
+    Ns_MutexLock(&nsconf.state.lock);
+    nsconf.shutdowntimeout = timeout;
+    Ns_MutexUnlock(&nsconf.state.lock);
     NsSendSignal(NS_SIGTERM);
     return TCL_OK;
 }

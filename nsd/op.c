@@ -35,7 +35,7 @@
  *  	routines (previously known as "op procs").
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/op.c,v 1.6 2001/01/16 18:14:27 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/op.c,v 1.7 2001/03/12 22:06:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -55,14 +55,13 @@ typedef struct {
  * Static functions defined in this file.
  */
 
-static void DeleteReq(void *arg);
+static void FreeReq(void *arg);
 
 /*
  * Static variables defined in this file.
  */
 
 static int            reqId = -1;
-static Tcl_HashTable  proxyReqHash;
 
 
 /*
@@ -95,9 +94,10 @@ Ns_RegisterRequest(char *server, char *method, char *url, Ns_OpProc *procPtr,
     reqPtr->arg = arg;
     reqPtr->flags = flags;
     if (reqId < 0) {
+	/* NB: Save via single thread init. */
 	reqId = Ns_UrlSpecificAlloc();
     }
-    Ns_UrlSpecificSet(server, method, url, reqId, reqPtr, flags, DeleteReq);
+    Ns_UrlSpecificSet(server, method, url, reqId, reqPtr, flags, FreeReq);
 }
 
 
@@ -234,9 +234,9 @@ Ns_ConnRedirect(Ns_Conn *conn, char *url)
      * Re-authorize and run the request.
      */
 
-    status = Ns_AuthorizeRequest(NULL, conn->request->method,
-    	    	    	         conn->request->url, conn->authUser,
-				 conn->authPasswd, Ns_ConnPeer(conn));
+    status = Ns_AuthorizeRequest(Ns_ConnServer(conn),
+	conn->request->method, conn->request->url, conn->authUser,
+	 conn->authPasswd, Ns_ConnPeer(conn));
     switch (status) {
     case NS_OK:
         status = Ns_ConnRunRequest(conn);
@@ -284,43 +284,25 @@ void
 Ns_RegisterProxyRequest(char *server, char *method, char *protocol,
     Ns_OpProc *procPtr, Ns_Callback *deleteProcPtr, void *arg)
 {
+    NsServer   *servPtr = NsGetServer(server);
+    Req *reqPtr;
     Ns_DString  ds;
     Tcl_HashEntry *hPtr;
     int 	new;
 
     Ns_DStringInit(&ds);
-
-    if (Ns_InfoStarted()) {
-	Ns_Log(Error, "op: failed to register proxy request: "
-	       "cannot do so after server startup");
-	goto done;
-    }
-
     Ns_DStringVarAppend(&ds, method, protocol, NULL);
-    hPtr = Tcl_CreateHashEntry(&proxyReqHash, Ns_DStringValue(&ds),
-	&new);
-    if (new) {
-	Req *reqPtr;
-
-	reqPtr = (Req *) ns_malloc(sizeof(Req));
-	reqPtr->procPtr = procPtr;
-	reqPtr->deleteProcPtr = deleteProcPtr;
-	reqPtr->arg = arg;
-	reqPtr->flags = 0;
-	Tcl_SetHashValue(hPtr, reqPtr);
+    hPtr = Tcl_CreateHashEntry(&servPtr->request.proxy, ds.string, &new);
+    if (!new) {
+	reqPtr = (Req *) Tcl_GetHashValue(hPtr);
+	FreeReq(reqPtr);
     }
-    else {
-	Ns_Log(Error, "op: failed to register proxy request: "
-	       "a proxy request is already registered "
-	       "for method '%s', protocol '%s'", method, protocol);
-    }
-
-    if (new) {
-	Ns_Log(Debug, "op: proxy request registered for method: %s, protocol: %s",
-	       method, protocol);
-    }
-    
- done:
+    reqPtr = (Req *) ns_malloc(sizeof(Req));
+    reqPtr->procPtr = procPtr;
+    reqPtr->deleteProcPtr = deleteProcPtr;
+    reqPtr->arg = arg;
+    reqPtr->flags = 0;
+    Tcl_SetHashValue(hPtr, reqPtr);
     Ns_DStringFree(&ds);
     
 }
@@ -346,52 +328,20 @@ Ns_RegisterProxyRequest(char *server, char *method, char *protocol,
 void
 Ns_UnRegisterProxyRequest(char *server, char *method, char *protocol)
 {
+    NsServer	  *servPtr = NsGetServer(server);
     Req		  *reqPtr;
     Ns_DString 	   ds;
     Tcl_HashEntry *hPtr;
 
     Ns_DStringInit(&ds);
-
-    if (Ns_InfoShutdownPending() == NS_FALSE) {
-	Ns_Log(Error, "op: failed to unregister proxy request: "
-	       "can not do so before server shutdown");
-	goto done;
-    }
-
     Ns_DStringVarAppend(&ds, method, protocol, NULL);
-    hPtr = Tcl_FindHashEntry(&proxyReqHash, Ns_DStringValue(&ds));
+    hPtr = Tcl_FindHashEntry(&servPtr->request.proxy, ds.string);
     if (hPtr != NULL) {
 	reqPtr = (Req *) Tcl_GetHashValue(hPtr);
-        assert (reqPtr != NULL);
-    } else {
-	Ns_Log(Error, "op: "
-	       "failed to unregister proxy request for method '%s', protocol '%s'",
-	       method, protocol);
-	goto done;
+    	FreeReq(reqPtr);
+    	Tcl_DeleteHashEntry(hPtr);
     }
-
-    DeleteReq(reqPtr);
-    Tcl_DeleteHashEntry(hPtr);
-    Ns_Log(Debug, "op: proxy request unregistered for method '%s', protocol '%s'",
-	   method, protocol);
-done:
     Ns_DStringFree(&ds);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsInitProxyRequests --
- *
- *	This routine initializes the Tcl hash for proxy requests.
- *
- *----------------------------------------------------------------------
- */
-
-void NsInitProxyRequests(void)
-{
-    Tcl_InitHashTable(&proxyReqHash, TCL_STRING_KEYS);
 }
 
 
@@ -415,25 +365,24 @@ void NsInitProxyRequests(void)
 int
 NsConnRunProxyRequest(Ns_Conn *conn)
 {
+    Conn	  *connPtr = (Conn *) conn;
+    NsServer	  *servPtr = connPtr->servPtr;
+    Ns_Request    *request = conn->request;
     Req		  *reqPtr;
     Ns_DString 	   ds;
     Tcl_HashEntry *hPtr;
     int		   status;
 
     Ns_DStringInit(&ds);
-    Ns_DStringVarAppend(&ds, conn->request->method, conn->request->protocol,
-			NULL);
-    hPtr = Tcl_FindHashEntry(&proxyReqHash, Ns_DStringValue(&ds));
+    Ns_DStringVarAppend(&ds, request->method, request->protocol, NULL);
+    hPtr = Tcl_FindHashEntry(&servPtr->request.proxy, ds.string);
     if (hPtr != NULL) {
 	reqPtr = (Req *) Tcl_GetHashValue(hPtr);
-        assert (reqPtr != NULL);
 	status = (*reqPtr->procPtr) (reqPtr->arg, conn);
     } else {
 	status = Ns_ConnReturnNotFound(conn);
     }
-
     Ns_DStringFree(&ds);
-
     return status;
 }
 
@@ -441,7 +390,7 @@ NsConnRunProxyRequest(Ns_Conn *conn)
 /*
  *----------------------------------------------------------------------
  *
- * DeleteReq --
+ * FreeReq --
  *
  *  	URL space callback to delete a request structure.
  *
@@ -455,7 +404,7 @@ NsConnRunProxyRequest(Ns_Conn *conn)
  */
 
 static void
-DeleteReq(void *arg)
+FreeReq(void *arg)
 {
     Req *reqPtr = (Req *) arg;
 

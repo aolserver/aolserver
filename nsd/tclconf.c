@@ -34,7 +34,7 @@
  *	Tcl commands for reading config file info. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclconf.c,v 1.4 2000/08/25 13:49:57 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclconf.c,v 1.5 2001/03/12 22:06:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -166,7 +166,7 @@ NsTclConfigSectionCmd(ClientData dummy, Tcl_Interp *interp, int argc,
     if (sectionPtr == NULL) {
         Tcl_SetResult(interp, "", TCL_STATIC);
     } else {
-        Ns_TclEnterSet(interp, sectionPtr, 0);
+        Ns_TclEnterSet(interp, sectionPtr, NS_TCL_SET_STATIC);
     }
     return TCL_OK;
 }
@@ -207,7 +207,7 @@ NsTclConfigSectionsCmd(ClientData dummy, Tcl_Interp *interp, int argc,
 
         saveResult = interp->result;
         interp->result = setId;
-        Ns_TclEnterSet(interp, setvectorPtrPtr[i], 0);
+        Ns_TclEnterSet(interp, setvectorPtrPtr[i], NS_TCL_SET_STATIC);
         interp->result = saveResult;
         Tcl_AppendElement(interp, setId);
     }

@@ -77,11 +77,9 @@
 #ifdef WIN32
 #define NS_SIGTERM  1
 #define NS_SIGHUP   2
-#define NS_SIGTCL   4
 #else
 #define NS_SIGTERM  SIGTERM
 #define NS_SIGHUP   SIGHUP
-#define NS_SIGTCL   0xff
 #endif
 
 #define UCHAR(c)	((unsigned char) (c))
@@ -91,16 +89,12 @@
  */
 
 #define NSD_NAME             "AOLserver"
-#define NSD_VERSION	     "3.3"
-#define NSD_LABEL            "aolserver3_3"
+#define NSD_VERSION	     "4.0b1"
+#define NSD_LABEL            "aolserver4_0"
 #define NSD_TAG              "$Name:  $"
 #define NS_CONFIG_PARAMETERS "ns/parameters"
 #define NS_CONFIG_SERVERS    "ns/servers"
 #define NS_CONFIG_THREADS    "ns/threads"
-
-#define DEFAULT_MAXLINE       8192
-#define DEFAULT_MAXHEADERS   16384
-#define DEFAULT_MAXPOST      65536
 
 #define ADP_OK       0
 #define ADP_BREAK    1
@@ -108,21 +102,7 @@
 #define ADP_OVERFLOW 3
 #define ADP_RETURN   4
 
-#define STATS_GLOBAL 1
-#define STATS_PERURL 2
-
 #define Dev         (Debug+1)
-
-/*
- * Tcl interp local storage keys.
- *
- * NOTE: Order matters!
- */
-
-#define NS_TCL_ATCLOSE_KEY	0
-#define NS_TCL_SETS_KEY		1
-#define NS_TCL_DBS_KEY		2
-#define NS_TCL_NUMKEYS		3
 
 /*
  * Typedef definitions.
@@ -132,23 +112,33 @@ typedef int bool;
 
 struct _nsconf {
     char    	   *argv0;
-    char    	   *nsd;
+    char	   *nsd;
     char           *name;
     char           *version;
     char           *home;
     char           *config;
+    char           *build;
     int		    configfmt;
     int             pid;
-    int		    quiet;
     time_t          boot_t;
     char            hostname[255];
     char	    address[16];
     int             shutdowntimeout;
     int		    startuptimeout;
     int             backlog;
-    char           *server;
-    int             bufsize;
+    Tcl_DString     servers;
 
+    /*
+     * The following struct maintains server state.
+     */
+
+    struct {
+    	Ns_Mutex	lock;
+    	Ns_Cond	    	cond;
+    	int		started;
+    	int		stopping;
+    } state;
+    
     struct {
 	bool dev;
 	bool debug;
@@ -161,33 +151,6 @@ struct _nsconf {
     } sched;
 
     struct {
-	char *errorpage;
-	char *startpage;
-	bool cache;
-	bool threadcache;
-	int cachesize;
-	bool enableexpire;
-	bool enabledebug;
-	char *debuginit;
-	bool taglocks;
-	char *defaultparser;
-    } adp;
-
-    struct {
-    	int maxheaders;
-    	int maxline;
-    	int maxpost;
-	bool flushcontent;
-    	bool modsince;
-	Ns_HeaderCaseDisposition hdrcase;
-    } conn;
-
-    struct {
-	bool cache;
-	int timeout;
-    } dns;
-
-    struct {
 	int maxentries;
 	int maxsize;
     } dstring;
@@ -197,18 +160,6 @@ struct _nsconf {
     } exec;
 
     struct {
-	char *pageroot;
-	char **dirv;
-	int dirc;
-	char *dirproc;
-	char *diradp;
-	bool mmap;
-	bool cache;
-	int cachesize;
-	int cachemaxentry;
-    } fastpath;
-
-    struct {
 	bool enabled;
 	int timeout;
 	int maxkeep;
@@ -216,31 +167,10 @@ struct _nsconf {
     } keepalive;
 
     struct {
-	char *library;
 	char *sharedlibrary;
-	bool autoclose;
-	bool debug;
-	int  statlevel;
-	int  statmaxbuf;
-	int  nsvbuckets;
+	char *version;
     } tcl;
 
-    struct {
-	char *realm;
-	bool aolpress;
-	int sendfdmin;
-	int maxconns;
-	int maxdropped;
-	int connsperthread;
-	int minthreads;
-	int maxthreads;
-	int threadtimeout;
-	int stats;
-	int maxurlstats;
-	int errorminsize;
-	int noticedetail;
-    } serv;
-    
 };
 
 extern struct _nsconf nsconf;
@@ -252,8 +182,9 @@ extern struct _nsconf nsconf;
 
 typedef struct Driver {
     struct Driver      *nextPtr;
+    char	       *server;
     char               *label;
-    void               *drvData;
+    void               *arg;
     int                 running;
 
     /*
@@ -296,6 +227,8 @@ typedef enum {
     Content
 } ConnState;
 
+struct NsServer;
+
 typedef struct Conn {
 
     /*
@@ -314,32 +247,18 @@ typedef struct Conn {
      * Visible only in a Conn:
      */
     
-    char	*server;
+    struct NsServer *servPtr;
     struct Conn *prevPtr;
     struct Conn *nextPtr;
     int          id;
+    char	 idstr[16];
     time_t	 startTime;
-    Ns_Time	 tqueue;
-    Ns_Time	 tstart;
-    Ns_Time	 tclose;
     Driver      *drvPtr;
     void        *drvData;
     Ns_Set      *query;
     char	*peer;
     char	 peerBuf[32];
-
-    /*
-     * Tcl state for the ns_conn command.
-     */
-
     Tcl_Interp  *interp;
-    int		 tclInit;
-    char         tclHdrs[20];
-    char         tclOutputHdrs[20];
-    int     	 tclFormInit;
-    char         tclForm[20];
-    char         tclConn[20];
-
     ConnState    readState;
     ConnState    sendState;
     int          nContent;
@@ -351,53 +270,399 @@ typedef struct Conn {
 } Conn;
 
 /*
- * Tcl support structures.
+ * The following structure maintains new interp init callbacks.
  */
 
-typedef struct TclCmd {
-    char           *name;
-    Tcl_CmdProc    *proc;
-    ClientData      clientData;
-} TclCmd;
-
-typedef struct TclCmdInfo {
-    struct TclCmdInfo *nextPtr;
-} TclCmdInfo;
+typedef struct Init {
+    struct Init *nextPtr;
+    Ns_TclInterpInitProc *proc;
+    void *arg;
+} Init;
 
 /*
- * The following structure maintains per-thread ADP context.
+ * The following structure defines a collection of arrays.  
+ * Only the arrays within a given bucket share a lock,
+ * allowing for more concurency in nsv.
  */
 
-typedef struct AdpData {
-    int	               exception;
-    int                depth;
-    int                argc;
-    char             **argv;
-    char              *cwd;
-    char              *mimeType;
-    int                evalLevel;
-    int                errorLevel;
-    int                debugLevel;
-    int                debugInit;
-    char              *debugFile;
-    Ns_DString	       output;
-    Ns_Conn           *conn;
-    int                fStream;
-    Ns_AdpParserProc  *parserProc;
-    Ns_Cache	      *cachePtr;
-} AdpData;
+typedef struct Bucket {
+    Ns_Mutex lock;
+    Tcl_HashTable arrays;
+} Bucket;
 
 /*
- * The following structure defines a parsed page in the ADP cache.
+ * The following structure maintains scripts to evaluate
+ * when a connection closes.
  */
 
-typedef struct Page {
-    time_t  mtime;
-    off_t   size;
-    off_t   length;
-    void   *pdPtr;	    /* Page data, used by adp81. */
-    char    chunks[4];
-} Page;
+typedef struct AtClose {
+    struct AtClose *nextPtr;
+    char script[1];
+} AtClose;
+
+/*
+ * The following structure maintains callbacks to registered
+ * to be executed at interp deallocate time.
+ */
+ 
+typedef struct AtCleanup {
+    struct AtCleanup *nextPtr;
+    Ns_TclDeferProc *procPtr;
+    void 	    *arg;
+} AtCleanup;
+
+/*
+ * The following stuctures maintain connection filters
+ * and traces.
+ */
+
+typedef struct Filter {
+    struct Filter *nextPtr;
+    Ns_FilterProc *proc;
+    char 	  *method;
+    char          *url;
+    int	           when;
+    void	  *arg;
+} Filter;
+
+typedef struct Trace {
+    struct Trace    *nextPtr;
+    Ns_TraceProc    *proc;
+    void    	    *arg;
+} Trace;
+
+/*
+ * The following structure is allocated for each virtual server.
+ */
+
+typedef struct NsServer {
+
+    char    	    	   *server;
+    
+    /* 
+     * The following struct maintains various server options.
+     */
+
+    struct {
+	bool	    	    aolpress;
+	bool	    	    flushcontent;
+	bool	    	    modsince;
+	bool 	    	    noticedetail;
+    	char 	    	   *realm;
+	Ns_HeaderCaseDisposition hdrcase;
+    } opts;
+    
+    /* 
+     * The following struct maintains conn-related limits.
+     */
+
+    struct {
+    	int 	    	    maxheaders;
+	int 	    	    maxline;
+	int 	    	    maxpost;
+	int	    	    sendfdmin;
+    	int 	    	    errorminsize;
+    } limits;
+
+    /*
+     * The following struct maintains the active and waiting connection
+     * queues, the free conn list, the next conn id, and the number
+     * of waiting connects.  If yield is set, Ns_QueueConn will yield
+     * after adding a conn to the waiting list.
+     */
+
+    struct {
+    	int 	    	    yield;
+	unsigned int	    nextid;
+    	Conn	    	   *freePtr;
+	struct {
+	    int     	    num;
+    	    Conn    	   *firstPtr;
+    	    Conn    	   *lastPtr;
+	} wait;
+	struct {
+    	    Conn    	   *firstPtr;
+	    Conn    	   *lastPtr;
+	} active;
+	Ns_Mutex    	    lock;
+	Ns_Cond     	    cond;
+	bool	    	    shutdown;
+    } queue;
+
+    /*
+     * The following struct maintins the state of the threads.  Min and max
+     * threads are determined at startup and then Ns_QueueConn ensure the
+     * current number of threads remains within that range with individual
+     * threads waiting no more than the timeout for a connection to
+     * arrive.  The number of idle threads is maintained for the benefit of
+     * the ns_server command. 
+     */
+
+    struct {
+	unsigned int	    nextid;
+	int 	    	    min;
+	int 	    	    max;
+    	int 	    	    current;
+	int 	    	    idle;
+	int 	    	    timeout;
+	Ns_Thread   	    last;
+    } threads;
+
+    struct {
+	char	    	   *pageroot;
+	char	    	  **dirv;
+	int 	    	    dirc;
+	char	    	   *dirproc;
+	char	    	   *diradp;
+	bool	    	    mmap;
+	int 	    	    cachemaxentry;
+	Ns_UrlToFileProc   *url2file;
+	Ns_Cache    	   *cache;
+    } fastpath;
+
+    /*
+     * The following struct maintains request tables.
+     */
+
+    struct {
+	Ns_RequestAuthorizeProc *authProc;
+	Tcl_HashTable	    redirect;
+	Tcl_HashTable	    proxy;
+    } request;
+
+    /*
+     * The following struct maintains filters and traces.
+     */
+
+    struct {
+	Filter *firstFilterPtr;
+	Trace  *firstTracePtr;
+	Trace  *firstCleanupPtr;
+    } filter;
+
+    /*
+     * The following struct maintains the core Tcl config.
+     */
+
+    struct {         
+	char	           *library;
+	Init               *firstInitPtr;
+	char	    	   *initfile;
+    } tcl;
+    
+    /*
+     * The following struct maintains ADP config and
+     * possibly a shared cache.
+     */
+
+    struct {
+	char	    	   *errorpage;
+	char	    	   *startpage;
+	bool	    	    enableexpire;
+	bool	    	    enabledebug;
+	char	    	   *debuginit;
+	char	    	   *defaultparser;
+	bool	    	    threadcache;
+	int 	    	    cachesize;
+	Ns_Cache    	   *cache;
+	Tcl_HashTable	    tags;
+	Ns_Mutex	    lock;
+    } adp;
+    
+    /*
+     * The following struct maintains the Ns_Set's
+     * entered into Tcl with NS_TCL_SET_SHARED.
+     */
+
+    struct {
+	Ns_Mutex    	    lock;
+	Tcl_HashTable	    table;
+    } sets;    
+    
+    /*
+     * The following struct maintains the arrays
+     * for the nsv commands.
+     */
+
+    struct {
+	Bucket      	   *buckets;
+	int 	    	    nbuckets;
+    } nsv;
+    
+    /*
+     * The following struct maintains the vars and
+     * lock for the old ns_var command.
+     */
+
+    struct {
+	Ns_Mutex    	    lock;
+	Tcl_HashTable	    table;
+    } var;
+    
+    /*
+     * The following struct maintains the init state
+     * of ns_share variables, updated with the
+     * ns_share -init command.
+     */
+
+    struct {
+	Ns_Cs    	    cs;
+	Ns_Mutex    	    lock;
+	Ns_Cond     	    cond;
+    	Tcl_HashTable	    inits;
+    	Tcl_HashTable	    vars;
+    } share;
+
+    /*
+     * The following struct maintains the default
+     * and allowed database pool lists.
+     */
+
+    struct {
+	char		   *defpool;
+	char		   *allowed;
+    } db;
+    
+} NsServer;
+    
+/*
+ * The following structure is allocated for each interp.
+ */
+
+typedef struct NsInterp {
+
+    Tcl_Interp		  *interp;
+    NsServer  	    	  *servPtr;
+    bool		   delete;
+    Tcl_HashEntry	  *hPtr;
+
+    /*
+     * The following pointer maintains the first in
+     * a FIFO list of callbacks to invoke at interp
+     * de-allocate time.
+     */
+
+    AtCleanup		  *firstAtCleanupPtr;
+
+    /*
+     * The following pointer maintains the first in
+     * a LIFO list of scripts to evaluate when a
+     * connection closes.
+     */
+
+    AtClose		  *firstAtClosePtr;
+
+    /*
+     * The following pointer and struct maintain state for
+     * the active connection, if any, and support the ns_conn
+     * command.
+     */
+
+#define CONN_TCLFORM		1
+#define CONN_TCLHDRS		2
+#define CONN_TCLOUTHDRS		4
+
+    Ns_Conn		  *conn;
+
+    struct {
+	int		   flags;
+	char	   	   form[16];
+	char	   	   hdrs[16];
+	char	   	   outhdrs[16];
+    } nsconn;
+
+    /*
+     * The following struct maintains per-interp ADP
+     * context including the output buffer and
+     * eval stack.
+     */
+
+    struct {
+	bool               stream;
+	int	           exception;
+	int                depth;
+	int                argc;
+	char             **argv;
+	char		  *file;
+	char              *cwd;
+	char              *mimetype;
+	int                evalLevel;
+	int                errorLevel;
+	int                debugLevel;
+	int                debugInit;
+	char              *debugFile;
+	Ns_DString	   output;
+	Ns_Cache	  *cache;
+    } adp;
+    
+    /*
+     * The following struct maintains a table of
+     * private Ns_Set's entered into this interp.
+     */
+
+    struct {
+    	Tcl_HashTable table;
+    } sets;
+    
+    /*
+     * The following struct maintains a table of
+     * allocated database handles.
+     */
+    struct {
+        Tcl_HashTable table;
+    } dbs;
+
+} NsInterp;
+
+/*
+ * The following structure is allocated by NsGetTls
+ * for each thread.
+ */
+
+typedef struct NsTls {
+    struct {
+	Tcl_HashTable	    owned;
+    } db;
+
+    struct {
+	Ns_DString	   *firstPtr;
+	int		    ncached;
+    } dstring;
+
+    /*
+     * The following struct maintains a table of
+     * Tcl interps keyed by virtual server.
+     */
+
+    struct {
+	Tcl_HashTable	    interps;
+    } tcl;
+
+#ifdef WIN32
+    struct {
+	char		    errmsg[32];
+    } win;
+#endif
+
+} NsTls;
+
+extern NsTls    *NsGetTls(void);
+extern NsServer *NsGetServer(char *server);
+extern NsInterp *NsGetInterp(Tcl_Interp *interp);
+
+extern Ns_OpProc NsFastGet;
+extern Ns_OpProc NsAdpProc;
+
+extern Ns_Cache *NsFastpathCache(char *server, int size);
+
+extern void NsFreeSets(NsInterp *itPtr);
+extern void NsFreeDbs(NsInterp *itPtr);
+extern void NsFreeAdp(NsInterp *itPtr);
+extern void NsFreeAtClose(NsInterp *itPtr);
+
+extern void NsRunAtClose(Tcl_Interp *interp);
+
+extern int NsUrlToFile(Ns_DString *dsPtr, NsServer *servPtr, char *url);
 
 /*
  * External callback functions.
@@ -429,7 +694,7 @@ extern void  NsConfigFree(char *buf);
 extern void  NsConfigEval(char *script);
 extern void  NsConfigParse(char *file, char *config);
 extern void  NsConfigParseAux();  /* AuxConfigDir */
-extern void  NsConfInit(char *server);
+extern void  NsConfInit(void);
 
 
 /*
@@ -443,28 +708,21 @@ extern int NsInstallService(char *server);
 extern int NsRemoveService(char *server);
 #endif
 
-extern void NsTclStatsInit(void);
-extern void NsDbTclInit(char *server);
 extern void NsInitBinder(char *args, char *file);
 extern void NsForkBinder(void);
 extern void NsStopBinder(void);
+
 extern void NsInitMimeTypes(void);
 extern void NsLogOpen(void);
-extern void NsPortInit(void);
-extern void NsSchedInit(void);
-extern char *NsTclFindExecutable(char *argv0);
-extern void NsTclInit(void);
-extern void NsTclInitGlobal(void);
-extern void NsTclInitScripts(void);
+extern void NsDbInitPools(void);
 
-extern void NsAdpInit(char *server);
-extern void NsAdpParsers(char *server);
-extern void NsDbInit(char *server);
-extern void NsInitFastpath(char *server);
-extern void NsInitReturn(char *server);
+extern void NsInitServer(Ns_ServerInitProc *proc, char *server);
+extern void NsDbInitServer(char *server);
+extern void NsTclInitServer(char *server);
 extern void NsLoadModules(char *server);
 
 extern void NsEnableDNSCache(int timeout);
+
 extern void NsCreatePidFile(char *server);
 extern void NsRemovePidFile(char *server);
 extern int  NsGetLastPid(char *server);
@@ -475,7 +733,12 @@ extern void NsRestoreSignals(void);
 extern void NsSendSignal(int sig);
 extern void NsShutdown(int timeout);
 
-extern void NsStartServer(char *server);
+extern void NsStartServers(void);
+extern void NsStopServers(Ns_Time *toPtr);
+extern void NsStartServer(NsServer *servPtr);
+extern void NsStopServer(NsServer *servPtr);
+extern void NsWaitServer(NsServer *servPtr, Ns_Time *toPtr);
+
 extern void NsStartDrivers(char *server);
 extern void NsWaitServerWarmup(Ns_Time *);
 extern void NsWaitSockIdle(Ns_Time *);
@@ -484,7 +747,6 @@ extern void NsWaitSchedIdle(Ns_Time *);
 extern void NsStopDrivers(void);
 extern void NsStartKeepAlive(void);
 extern void NsStopKeepAlive(void);
-extern void NsStopServer(Ns_Time *toPtr);
 
 extern void NsStartSchedShutdown(void);
 extern void NsWaitSchedShutdown(Ns_Time *toPtr);
@@ -499,21 +761,15 @@ extern void NsWaitShutdownProcs(Ns_Time *toPtr);
  * ADP routines.
  */
 
-extern int      NsAdpEval(Tcl_Interp *, char *file, char *chunks);
-extern void     NsAdpFancyInit(char *server, char *path);
-extern void     NsAdpFlush(AdpData *adPtr);
-extern AdpData *NsAdpGetData(void);
-extern Page    *NsAdpCopyShared(Ns_DString *dsPtr, struct stat *stPtr);
-extern Page    *NsAdpCopyPrivate(Ns_DString *dsPtr, struct stat *stPtr);
-extern int      NsAdpRunPrivate(Tcl_Interp *, char *file, Page *pagePtr);
-extern void     NsAdpFreePrivate(Page *pagePtr);
-extern void	NsAdpLogError(Tcl_Interp *, char *file, int chunk);
-
-/*
- * Fancy ADP routines.
- */
-
-extern void NsAdpFancyInit();
+extern Ns_Cache *NsAdpCache(char *server, int size);
+extern void NsAdpParse(NsServer *servPtr, Ns_DString *outPtr, char *in);
+extern void NsAdpSetMimeType(NsInterp *itPtr, char *type);
+extern void NsAdpFlush(NsInterp *itPtr);
+extern void NsAdpStream(NsInterp *itPtr);
+extern int NsAdpDebug(NsInterp *itPtr, char *host, char *port, char *procs);
+extern int NsAdpEval(NsInterp *itPtr, char *script, int argc, char **argv);
+extern int NsAdpSource(NsInterp *itPtr, char *file, int argc, char **argv);
+extern int NsAdpInclude(NsInterp *itPtr, char *file, int argc, char **argv);
 
 /*
  * Database routines.
@@ -525,27 +781,18 @@ extern struct DbDriver *NsDbGetDriver(Ns_DbHandle *);
 extern struct DbDriver *NsDbLoadDriver(char *driver);
 extern void 		NsDbLogSql(Ns_DbHandle *, char *sql);
 extern int 		NsDbOpen(Ns_DbHandle *);
-extern void 		NsDbServerInit(char *server, struct DbDriver *);
+extern void 		NsDbDriverInit(char *server, struct DbDriver *);
 
 /*
  * Tcl support routines.
  */
 
-extern char 	  *NsConstructScriptCall(char *script, char *scriptarg);
+extern Ns_TclInterpInitProc NsTclCreateCmds;
 extern char 	  *NsTclConnId(Ns_Conn *conn);
 extern int 	   NsIsIdConn(char *inID);
 extern int 	   NsTclEval(Tcl_Interp *interp, char *script);
-extern void 	   NsTclCopyCommands(Tcl_Interp *from, Tcl_Interp *to);
-extern void 	   NsTclCreateCmds(Tcl_Interp *);
 extern void 	   NsTclCreateGenericCmds(Tcl_Interp *);
-extern void 	   NsTclCreateObjCmds(Tcl_Interp *);
-extern void       *NsTclGetData(Tcl_Interp *interp, int key);
-extern void        NsTclSetData(Tcl_Interp *interp, int key,
-			void *data, Ns_Callback *cleanupProc);
 extern int	   NsTclShareVar(Tcl_Interp *interp, char *varName);
-extern TclCmdInfo *NsTclGetCmdInfo(Tcl_Interp *interp, char *name);
-extern void 	   NsTclCreateCommand(Tcl_Interp *interp, TclCmdInfo *cmdPtr);
-extern void	   NsTclRunInits(void);
 
 /*
  * Callback routines.
@@ -584,19 +831,25 @@ extern int 	  NsKeepAlive(Ns_Conn *connPtr);
  * Proxy support
  */
 
-extern void NsInitProxyRequests(void);
 extern int NsConnRunProxyRequest(Ns_Conn *conn);
 
 /*
  * AOLserver Tcl commands
  */
 
+extern void NsTclAddCmds(NsInterp *itPtr, Tcl_Interp *interp);
 extern Tcl_CmdProc NsTclAfterCmd;
 extern Tcl_CmdProc NsTclAtCloseCmd;
 extern Tcl_CmdProc NsTclAtExitCmd;
 extern Tcl_CmdProc NsTclAtShutdownCmd;
 extern Tcl_CmdProc NsTclAtSignalCmd;
+extern Tcl_CmdProc NsTclSchedCmd;
+extern Tcl_CmdProc NsTclSchedDailyCmd;
+extern Tcl_CmdProc NsTclSchedWeeklyCmd;
 extern Tcl_CmdProc NsTclCancelCmd;
+extern Tcl_CmdProc NsTclPauseCmd;
+extern Tcl_CmdProc NsTclResumeCmd;
+extern Tcl_CmdProc NsTclUnscheduleCmd;
 extern Tcl_CmdProc NsTclChmodCmd;
 extern Tcl_CmdProc NsTclConfigCmd;
 extern Tcl_CmdProc NsTclConfigSectionCmd;
@@ -608,7 +861,6 @@ extern Tcl_CmdProc NsTclCritSecCmd;
 extern Tcl_CmdProc NsTclEvalCmd;
 extern Tcl_CmdProc NsTclEventCmd;
 extern Tcl_CmdProc NsTclFTruncateCmd;
-extern Tcl_CmdProc NsTclGetByCmd;
 extern Tcl_CmdProc NsTclHeadersCmd;
 extern Tcl_CmdProc NsTclKillCmd;
 extern Tcl_CmdProc NsTclLinkCmd;
@@ -636,13 +888,15 @@ extern Tcl_CmdProc NsTclReturnNoticeCmd;
 extern Tcl_CmdProc NsTclReturnRedirectCmd;
 extern Tcl_CmdProc NsTclRmdirCmd;
 extern Tcl_CmdProc NsTclRollFileCmd;
-extern Tcl_CmdProc NsTclSchedCmd;
-extern Tcl_CmdProc NsTclSchedDailyCmd;
-extern Tcl_CmdProc NsTclSchedWeeklyCmd;
+extern Tcl_CmdProc NsTclPurgeFilesCmd;
 extern Tcl_CmdProc NsTclSelectCmd;
 extern Tcl_CmdProc NsTclSemaCmd;
 extern Tcl_CmdProc NsTclSetCmd;
-extern Tcl_CmdProc NsTclSimpleReturnCmd;
+extern Tcl_CmdProc NsTclReturnNotFoundCmd;
+extern Tcl_CmdProc NsTclReturnUnauthorizedCmd;
+extern Tcl_CmdProc NsTclReturnForbiddenCmd;
+extern Tcl_CmdProc NsTclGetHostCmd;
+extern Tcl_CmdProc NsTclGetAddrCmd;
 extern Tcl_CmdProc NsTclSockAcceptCmd;
 extern Tcl_CmdProc NsTclSockCallbackCmd;
 extern Tcl_CmdProc NsTclSockCheckCmd;
@@ -705,23 +959,6 @@ extern Tcl_CmdProc NsTclUrlEncodeCmd;
 extern Tcl_CmdProc NsTclVarCmd;
 extern Tcl_CmdProc NsTclWriteContentCmd;
 
-extern Tcl_CmdProc NsTclPutsCmd;
-extern Tcl_CmdProc NsTclDirCmd;
-extern Tcl_CmdProc NsTclIncludeCmd;
-extern Tcl_CmdProc NsTclAdpEvalCmd;
-extern Tcl_CmdProc NsTclAdpParseCmd;
-extern Tcl_CmdProc NsTclBreakCmd;
-extern Tcl_CmdProc NsTclTellCmd;
-extern Tcl_CmdProc NsTclTruncCmd;
-extern Tcl_CmdProc NsTclArgcCmd;
-extern Tcl_CmdProc NsTclArgvCmd;
-extern Tcl_CmdProc NsTclBindCmd;
-extern Tcl_CmdProc NsTclDumpCmd;
-extern Tcl_CmdProc NsTclExceptionCmd;
-extern Tcl_CmdProc NsTclStreamCmd;
-extern Tcl_CmdProc NsTclDebugCmd;
-extern Tcl_CmdProc NsTclAdpMimeCmd;
-
 extern Tcl_CmdProc NsTclRegisterTagCmd;
 extern Tcl_CmdProc NsTclRegisterAdpCmd;
 
@@ -730,7 +967,6 @@ extern Tcl_CmdProc NsTclCacheFlushCmd;
 extern Tcl_CmdProc NsTclCacheNamesCmd;
 extern Tcl_CmdProc NsTclCacheSizeCmd;
 extern Tcl_CmdProc NsTclCacheKeysCmd;
-
 extern Tcl_CmdProc NsTclDbCmd;
 extern Tcl_CmdProc NsTclDbConfigPathCmd;
 extern Tcl_CmdProc NsTclPoolDescriptionCmd;
@@ -738,22 +974,38 @@ extern Tcl_CmdProc NsTclDbErrorCodeCmd;
 extern Tcl_CmdProc NsTclDbErrorMsgCmd;
 extern Tcl_CmdProc NsTclQuoteListToListCmd;
 extern Tcl_CmdProc NsTclGetCsvCmd;
-extern Tcl_CmdProc NsTclUnsupDbCmd;
-
 extern Tcl_CmdProc NsTclEnvCmd;
-extern Tcl_CmdProc NsTclGetChannelsCmd;
 
-extern Tcl_CmdProc NsTclVGetCmd;
-extern Tcl_CmdProc NsTclVSetCmd;
-extern Tcl_CmdProc NsTclVArrayCmd;
-extern Tcl_CmdProc NsTclVUnsetCmd;
-extern Tcl_CmdProc NsTclVIncrCmd;
-extern Tcl_CmdProc NsTclVAppendCmd;
-extern Tcl_CmdProc NsTclVNamesCmd;
+extern Tcl_CmdProc NsTclAdpEvalCmd;
+extern Tcl_CmdProc NsTclAdpIncludeCmd;
+extern Tcl_CmdProc NsTclAdpPutsCmd;
+extern Tcl_CmdProc NsTclAdpDirCmd;
+extern Tcl_CmdProc NsTclAdpReturnCmd;
+extern Tcl_CmdProc NsTclAdpBreakCmd;
+extern Tcl_CmdProc NsTclAdpAbortCmd;
+extern Tcl_CmdProc NsTclAdpTellCmd;
+extern Tcl_CmdProc NsTclAdpTruncCmd;
+extern Tcl_CmdProc NsTclAdpDumpCmd;
+extern Tcl_CmdProc NsTclAdpArgcCmd;
+extern Tcl_CmdProc NsTclAdpArgvCmd;
+extern Tcl_CmdProc NsTclAdpBindArgsCmd;
+extern Tcl_CmdProc NsTclAdpExceptionCmd;
+extern Tcl_CmdProc NsTclAdpStreamCmd;
+extern Tcl_CmdProc NsTclAdpDebugCmd;
+extern Tcl_CmdProc NsTclAdpParseCmd;
+extern Tcl_CmdProc NsTclAdpMimeCmd;
 
-extern Tcl_CmdProc NsTclStatsCmd;
-
-extern char     *nsServer;
-extern char     *nsBuildDate;
+extern Tcl_CmdProc NsTclNsvGetCmd;
+extern Tcl_CmdProc NsTclNsvExistsCmd;
+extern Tcl_CmdProc NsTclNsvSetCmd;
+extern Tcl_CmdProc NsTclNsvIncrCmd;
+extern Tcl_CmdProc NsTclNsvAppendCmd;
+extern Tcl_CmdProc NsTclNsvLappendCmd;
+extern Tcl_CmdProc NsTclNsvArrayCmd;
+extern Tcl_CmdProc NsTclNsvUnsetCmd;
+extern Tcl_CmdProc NsTclNsvNamesCmd;
+extern Tcl_CmdProc NsTclVarCmd;
+extern Tcl_CmdProc NsTclShareCmd;
 
 #endif
+

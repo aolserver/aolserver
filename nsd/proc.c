@@ -34,16 +34,23 @@
  *	callbacks, scheduled procs, etc.).
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/proc.c,v 1.4 2001/01/12 22:51:46 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/proc.c,v 1.5 2001/03/12 22:06:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
-static Tcl_HashTable *GetTable(void);
+/*
+ * The following struct maintains callback and description for
+ * Ns_GetProcInfo.
+ */
 
 typedef struct Info {
     Ns_ArgProc *proc;
     char *desc;
 } Info;
+
+/*
+ * The following struct array defines common procs in nsd.
+ */
 
 struct proc {
 	void *procAddr;
@@ -60,6 +67,32 @@ struct proc {
 	{NULL, NULL, NULL}
 };
 
+/*
+ * Static functions defined in this file.
+ */
+
+static void AppendAddr(Tcl_DString *dsPtr, char *prefix, void *addr);
+static Tcl_HashTable *GetTable(void);
+
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_RegisterProcInfo --
+ *
+ *	Register a callback to describe the arguments to a proc,
+ *	e.g., a thread start arg.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	Given argProc will be invoked for given procAddr by
+ *	Ns_GetProcInfo.
+ *
+ *----------------------------------------------------------------------
+ */
 
 void
 Ns_RegisterProcInfo(void *procAddr, char *desc, Ns_ArgProc *argProc)
@@ -69,7 +102,9 @@ Ns_RegisterProcInfo(void *procAddr, char *desc, Ns_ArgProc *argProc)
     int new;
 
     hPtr = Tcl_CreateHashEntry(GetTable(), (char *) procAddr, &new);
-    if (new) {
+    if (!new) {
+	iPtr = Tcl_GetHashValue(hPtr);
+    } else {
     	iPtr = ns_malloc(sizeof(Info));
     	Tcl_SetHashValue(hPtr, iPtr);
     }
@@ -77,20 +112,23 @@ Ns_RegisterProcInfo(void *procAddr, char *desc, Ns_ArgProc *argProc)
     iPtr->proc = argProc;
 }
 
-
-static void
-AppendAddr(Tcl_DString *dsPtr, char *prefix, void *addr)
-{
-    char buf[30];
-
-    if (addr == NULL) {
-    	sprintf(buf, "%s:0x0", prefix);
-    } else {
-	sprintf(buf, "%s:%p", prefix, addr);
-    }
-    Tcl_DStringAppendElement(dsPtr, buf);
-}
-
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_GetProcInfo --
+ *
+ *	Format a string of information for the given proc
+ *	and arg, invoking the argProc callback if it exists.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	String will be appended to given dsPtr.
+ *
+ *----------------------------------------------------------------------
+ */
 
 void
 Ns_GetProcInfo(Tcl_DString *dsPtr, void *procAddr, void *arg)
@@ -117,6 +155,52 @@ Ns_GetProcInfo(Tcl_DString *dsPtr, void *procAddr, void *arg)
     }
 }
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * AppendAddr -- 
+ *
+ *	Format a simple string with the given address.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	String will be appended to given dsPtr.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+AppendAddr(Tcl_DString *dsPtr, char *prefix, void *addr)
+{
+    char buf[30];
+
+    if (addr == NULL) {
+    	sprintf(buf, "%s:0x0", prefix);
+    } else {
+	sprintf(buf, "%s:%p", prefix, addr);
+    }
+    Tcl_DStringAppendElement(dsPtr, buf);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * GetTable --
+ *
+ *	Return the proc info table, initializing if needed.
+ *
+ * Results:
+ *	Pointer to Tcl_HashTable.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
 
 static Tcl_HashTable *
 GetTable(void)

@@ -29,15 +29,12 @@
 
 
 /* 
- * drv.c --
+ * driver.c --
  *
  *	Support for modular socket drivers.
- *
- *      This is where the  queueing and thread support for handling connections
- *      happens. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/drv.c,v 1.5 2001/01/16 18:14:27 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.1 2001/03/12 22:06:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -71,11 +68,14 @@ static Driver *firstDrvPtr;
  */
 
 Ns_Driver
-Ns_RegisterDriver(char *ignored, char *label, Ns_DrvProc *procs, void *drvData)
+Ns_RegisterDriver(char *server, char *label, Ns_DrvProc *procs, void *arg)
 {
     Driver         *drvPtr;
 
     drvPtr = ns_calloc(1, sizeof(Driver));
+    drvPtr->server = server;
+    drvPtr->label = label;
+    drvPtr->arg = arg;
 
     while (procs->proc != NULL) {
 	switch (procs->id) {
@@ -163,12 +163,8 @@ Ns_RegisterDriver(char *ignored, char *label, Ns_DrvProc *procs, void *drvData)
 	ns_free(drvPtr);
 	return NULL;
     }
-
-    drvPtr->label = label;
-    drvPtr->drvData = drvData;
     drvPtr->nextPtr = firstDrvPtr;
     firstDrvPtr = drvPtr;
-
     return (Ns_Driver) drvPtr;
 }
 
@@ -178,10 +174,10 @@ Ns_RegisterDriver(char *ignored, char *label, Ns_DrvProc *procs, void *drvData)
  *
  * Ns_GetDriverContext --
  *
- *	Return the driver's context 
+ *	Return the driver's context.
  *
  * Results:
- *	A pointer to a driver context 
+ *	A pointer to a driver context.
  *
  * Side effects:
  *	None 
@@ -190,11 +186,36 @@ Ns_RegisterDriver(char *ignored, char *label, Ns_DrvProc *procs, void *drvData)
  */
 
 void *
-Ns_GetDriverContext(Ns_Driver drv)
+Ns_GetDriverContext(Ns_Driver  driver)
 {
-    Driver *drvPtr = (Driver *)drv;
+    Driver *drvPtr = (Driver *) driver;
 
-    return drvPtr->drvData;
+    return drvPtr->arg;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_GetDriverServer --
+ *
+ *	Return the driver's server. 
+ *
+ * Results:
+ *	A pointer to a driver server. 
+ *
+ * Side effects:
+ *	None 
+ *
+ *----------------------------------------------------------------------
+ */
+
+char *
+Ns_GetDriverServer(Ns_Driver driver)
+{
+    Driver *drvPtr = (Driver *) driver;
+
+    return drvPtr->server;
 }
 
 
@@ -224,7 +245,7 @@ NsStartDrivers(char *server)
     while (drvPtr != NULL) {
 	if (drvPtr->startProc == NULL ||
 	    (*drvPtr->startProc)(server, drvPtr->label,
-			         &drvPtr->drvData) == NS_OK) {
+			         &drvPtr->arg) == NS_OK) {
 	    drvPtr->running = 1;
             if (drvPtr->acceptProc != NULL) {
 	        Ns_ThreadCreate(RunDriver, (void *) drvPtr, 0, NULL);
@@ -261,7 +282,7 @@ NsStopDrivers(void)
     drvPtr = firstDrvPtr;
     while (drvPtr != NULL) {
 	if (drvPtr->running && drvPtr->stopProc != NULL) {
-	    (*drvPtr->stopProc)(drvPtr->drvData);
+	    (*drvPtr->stopProc)(drvPtr->arg);
 	}
 	drvPtr = drvPtr->nextPtr;
     }
@@ -290,31 +311,31 @@ NsStopDrivers(void)
 static void
 RunDriver(void *arg)
 {
-    Driver         *dPtr = arg;
+    Ns_Driver      *driver = arg;
+    Driver         *drvPtr = arg;
     int             status;
-    void           *dData, *cData;
+    void           *conn;
     char	   *loc;
 
     Ns_WaitForStartup();
 
-    dPtr = arg;
-    dData = dPtr->drvData;
-    if (dPtr->locationProc != NULL) {
-	loc = (*dPtr->locationProc)(dData);
+    drvPtr = arg;
+    if (drvPtr->locationProc != NULL) {
+	loc = (*drvPtr->locationProc)(drvPtr->arg);
     } else {
 	loc = "<unknown>";
     }
-    Ns_Log(Notice, "drv: driver '%s' accepting '%s'", dPtr->label, loc);
+    Ns_Log(Notice, "drv: driver '%s' accepting '%s'", drvPtr->label, loc);
 
-    while ((status = ((*dPtr->acceptProc)(dData, &cData))) == NS_OK) {
-	if (Ns_QueueConn(dData, cData) != NS_OK) {
-	   (*dPtr->closeProc)(dData);
+    while ((status = ((*drvPtr->acceptProc)(drvPtr->arg, &conn))) == NS_OK) {
+	if (Ns_QueueConn((Ns_Driver) drvPtr, conn) != NS_OK) {
+	   (*drvPtr->closeProc)(conn);
 	}
     }
     if (status == NS_SHUTDOWN) {
-	Ns_Log(Notice, "drv: driver '%s' stopping '%s'", dPtr->label, loc);
+	Ns_Log(Notice, "drv: driver '%s' stopping '%s'", drvPtr->label, loc);
     } else {
 	Ns_Log(Error, "drv: driver '%s' failed for '%s': error %d",
-	       dPtr->label, loc, status);
+	       drvPtr->label, loc, status);
     }
 }

@@ -7,75 +7,39 @@ include $(NSHOME)/include/Makefile.global
 LIBS	+= $(NSDLIBS)
 
 OBJS = \
-        adp.o adpfancy.o auth.o binder.o cache.o callbacks.o config.o \
-        conn.o crypt.o dbdrv.o dbinit.o dbtcl.o dbutil.o dns.o drv.o \
-        dstring.o exec.o fastpath.o fd.o filter.o httptime.o htuu.o \
-        id.o index.o keepalive.o lisp.o listen.o log.o main.o \
-        mimetypes.o modload.o nsconf.o nsmain.o \
-        nsthread.o op.o pathname.o pidfile.o proc.o \
-        quotehtml.o random.o request.o return.o rollfile.o sched.o \
-        serv.o set.o sock.o sockcallback.o str.o \
-        tclcmds.o tclconf.o tclenv.o tclfile.o tclinit.o tclmisc.o \
-        tclop.o tclresp.o tclsched.o tclset.o tclsock.o tclstats.o \
-        tclxkeylist.o tclthread.o tclvar.o unix.o url.o \
-        urlencode.o urlopen.o urlspace.o
+	adpparse.c adpcmds.c adpeval.c adprequest.c
+	info.o
+        auth.o binder.o cache.o callbacks.o config.o 
+        conn.o crypt.o dbdrv.o dbinit.o dbtcl.o dbutil.o dns.o driver.o 
+        dstring.o exec.o fastpath.o fd.o filter.o httptime.o htuu.o 
+        index.o keepalive.o lisp.o listen.o log.o main.o 
+        mimetypes.o modload.o nsconf.o nsmain.o 
+        nsthread.o op.o pathname.o pidfile.o proc.o 
+        queue.o set.o sock.o sockcallback.o str.o 
+        quotehtml.o random.o request.o return.o rollfile.o sched.o 
+        tclcmds.o tclconf.o tclenv.o tclfile.o tclinit.o tclmisc.o 
+        tclop.o tclresp.o tclsched.o tclset.o tclsock.o 
+        tclxkeylist.o tclthread.o tclvar.o unix.o url.o 
+        urlencode.o urlopen.o urlspace.o tclshare.o server.o nstls.o 
 
-TCL76STUB = tclstub76.o
-TCL8XSTUB = tclstub8x.o
 
 
 #
 # Name the executables
 #
-NSD7      = nsd76
-NSD8      = nsd8x
 
+NSD      = nsd
+all: $(NSD)
 
-all: $(NSD7) $(NSD8)
-
-#
-# Tcl 7.6
-#
-$(NSD7): libtcl76 libnsthread $(TCL76STUB) $(OBJS) stamp.c
+$(NSD): $(LIBTCL) ../thread/libnsthread.so $(OBJS) stamp.c
 	$(CC) -c stamp.c
-	$(CC) $(LDFLAGS) $(TCL76STUB) stamp.o $(OBJS) $(LIBTCL76) $(LIBNSTHREAD) $(LIBS) -o $@
-
-
-#
-# Tcl 8.x
-#
-$(NSD8): libtcl8x libnsthread $(TCL8XSTUB) $(OBJS) stamp.c
-	$(CC) -c stamp.c
-	$(CC) $(LDFLAGS) $(TCL8XSTUB) stamp.o $(OBJS) $(LIBTCL8X) $(LIBNSTHREAD) $(LIBS) -o $@
-
-
-#
-# Tcl-dependent objects
-#
-$(TCL76STUB) $(TCL8XSTUB): tclstubs.cpp tclnsshare.cpp tclinvoke.cpp
+	$(CC) $(LDFLAGS) stamp.o $(OBJS) $(LIBTCL) -L../thread -lnsthread $(LIBS) -o $@
 
 $(OBJS): nsd.h nsconf.h
 
+install: $(NSD)
+	$(RM) $(INSTBIN)/$(NSD)
+	$(CP) $(NSD) $(INSTBIN)/
 
-#
-# Installation
-#
-#   Tcl 7.6 is nsd76.  Tcl 8.x is nsd8x.
-#
-install: $(NSD7) $(NSD8)
-	$(RM) $(INSTBIN)/nsd82 $(INSTBIN)/nsd
-	$(RM) $(INSTBIN)/$(NSD7) $(INSTBIN)/$(NSD8)
-	$(CP) $(NSD7) $(NSD8) $(INSTBIN)
-	cd $(INSTBIN) ; $(RM) nsd ; $(LN) ./$(NSD8) nsd
-
-#
-# Clean the directory to pre-built state.
-#
 clean:
-	$(RM) $(NSD7) $(NSD8) $(OBJS) $(TCL76STUB) $(TCL8XSTUB) so_locations
-
-clobber: clean
-	$(RM) *.so *.o *.a *~
-
-distclean: clobber
-	$(RM) TAGS core
+	$(RM) $(NSD) $(OBJS) so_locations

@@ -34,38 +34,33 @@
  *	Implements the tcl ns_set commands 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclset.c,v 1.4 2001/01/16 18:13:24 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclset.c,v 1.5 2001/03/12 22:06:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
 /*
- * The following strucute maintains an Ns_Set and
- * flags (persistent, temp, etc.) for Tcl.
+ * The following represent the valid combinations of
+ * NS_TCL_SET flags
  */
  
- typedef struct Set {
-    int     flags;
-    Ns_Set *set;
-} Set;
+#define SET_DYNAMIC 		'd'
+#define SET_STATIC    		't'
+#define SET_SHARED_DYNAMIC	's'
+#define SET_SHARED_STATIC  	'p'
+
+#define IS_DYNAMIC(type)    \
+	((type) == SET_DYNAMIC || (type) == SET_SHARED_DYNAMIC)
+#define IS_SHARED(type)     \
+	((type) == SET_SHARED_DYNAMIC || (type) == SET_SHARED_STATIC)
 
 /*
  * Local functions defined in this file
  */
 
 static int BadArgs(Tcl_Interp *interp, char **argv, char *args);
-static Set *GetSet(Tcl_Interp *interp, char *setId, int delete);
-static void FreeSet(Set *);
-static Ns_Callback FreeSets;
-static Tcl_HashTable *NewTable(void);
-static Tcl_HashTable *GetSharedTable(void);
-static Tcl_HashTable *GetInterpTable(Tcl_Interp *);
-
-/*
- * The following lock is used to lock around access to the shared
- * table.
- */
- 
-static Ns_Mutex lock;
+static int LookupSet(NsInterp *itPtr, Tcl_Interp *interp, char *id,
+	int delete, Ns_Set **setPtr);
+static int EnterSet(NsInterp *itPtr, Tcl_Interp *interp, Ns_Set *set, int flags);
 
 
 /*
@@ -73,17 +68,10 @@ static Ns_Mutex lock;
  *
  * Ns_TclEnterSet --
  *
- *	Give this Tcl interpreter access to an existing Ns_Set. A new 
- *	set handle is allocated and appended to interp->result.
- *	flags are an OR of:
- *	NS_TCL_SET_DYNAMIC:	Free the set and all its data on
- *				connection close.
- *	NS_TCL_SET_TEMPORARY:	Default behavior; opposite of persistent.
- *				(this is currently ignored).
- *	NS_TCL_SET_PERSISTENT:	Set lives until explicitly freed.
+ *	Give this Tcl interpreter access to an existing Ns_Set.
  *
  * Results:
- *	TCL_OK. 
+ *	TCL_OK or TCL_ERROR.
  *
  * Side effects:
  *	A pointer to the NsSet is put into the interpreter's list of 
@@ -96,53 +84,9 @@ static Ns_Mutex lock;
 int
 Ns_TclEnterSet(Tcl_Interp *interp, Ns_Set *set, int flags)
 {
-    Set         *sPtr;
-    Tcl_HashTable  *tablePtr;
-    Tcl_HashEntry  *hPtr;
-    int             new, next;
-    char            prefix;
+    NsInterp *itPtr = NsGetInterp(interp);
 
-    /*
-     * Allocate a new Set, which houses a pointer to the
-     * real Ns_Set and the flags (is it persistent, etc.)
-     */
-    
-    sPtr = (Set *) ns_malloc(sizeof(Set));
-    sPtr->set = set;
-    sPtr->flags = flags;
-    
-    if (flags & NS_TCL_SET_PERSISTENT) {
-	/*
-	 * Lock the global mutex and use the shared sets.
-	 */
-	
-	tablePtr = GetSharedTable();
-        Ns_MutexLock(&lock);
-        prefix = 'p';
-    } else {
-	tablePtr = GetInterpTable(interp);
-        prefix = 't';
-    }
-
-    /*
-     * Allocate a new set IDs until we find an unused one.
-     */
-    
-    next = tablePtr->numEntries;
-    do {
-        sprintf(interp->result, "%c%u", prefix, next);
-	++next;
-        hPtr = Tcl_CreateHashEntry(tablePtr, interp->result, &new);
-    } while (!new);
-    Tcl_SetHashValue(hPtr, sPtr);
-
-    /*
-     * Unlock the global mutex (locked above) if it's a persistent set.
-     */
-    if (flags & NS_TCL_SET_PERSISTENT) {
-        Ns_MutexUnlock(&lock);
-    }
-    return TCL_OK;
+    return EnterSet(itPtr, interp, set, flags);
 }
 
 
@@ -163,15 +107,14 @@ Ns_TclEnterSet(Tcl_Interp *interp, Ns_Set *set, int flags)
  */
 
 Ns_Set *
-Ns_TclGetSet(Tcl_Interp *interp, char *setId)
+Ns_TclGetSet(Tcl_Interp *interp, char *id)
 {
-    Set  *sPtr;
+    Ns_Set *set;
 
-    sPtr = GetSet(interp, setId, NS_FALSE);
-    if (sPtr != NULL) {
-        return sPtr->set;
+    if (LookupSet(NULL, interp, id, 0, &set) != TCL_OK) {
+	return NULL;
     }
-    return NULL;
+    return set;
 }
 
 
@@ -192,17 +135,9 @@ Ns_TclGetSet(Tcl_Interp *interp, char *setId)
  */
 
 int
-Ns_TclGetSet2(Tcl_Interp *interp, char *setId, Ns_Set **setPtr)
+Ns_TclGetSet2(Tcl_Interp *interp, char *id, Ns_Set **setPtr)
 {
-    Ns_Set *set;
-
-    set = Ns_TclGetSet(interp, setId);
-    if (set == NULL) {
-        Tcl_AppendResult(interp, "invalid set id: \"", setId, "\"", NULL);
-        return TCL_ERROR;
-    }
-    *setPtr = set;
-    return TCL_OK;
+    return LookupSet(NULL, interp, id, 0, setPtr);
 }
 
 
@@ -211,8 +146,7 @@ Ns_TclGetSet2(Tcl_Interp *interp, char *setId, Ns_Set **setPtr)
  *
  * Ns_TclFreeSet --
  *
- *	Free a set (based on a set handle) and each key and
- *	value with ns_free. 
+ *	Free a set id, and if own by Tcl, the underlying Ns_Set.
  *
  * Results:
  *	NS_OK/NS_ERROR. 
@@ -225,16 +159,17 @@ Ns_TclGetSet2(Tcl_Interp *interp, char *setId, Ns_Set **setPtr)
  */
 
 int
-Ns_TclFreeSet(Tcl_Interp *interp, char *setId)
+Ns_TclFreeSet(Tcl_Interp *interp, char *id)
 {
-    Set *sPtr;
+    Ns_Set  *set;
 
-    sPtr = GetSet(interp, setId, NS_TRUE);
-    if (sPtr == NULL) {
-        return NS_ERROR;
+    if (LookupSet(NULL, interp, id, 1, &set) != TCL_OK) {
+	return TCL_ERROR;
     }
-    FreeSet(sPtr);
-    return NS_OK;
+    if (IS_DYNAMIC(*id)) {
+    	Ns_SetFree(set);
+    }
+    return TCL_OK;
 }
 
 
@@ -255,15 +190,19 @@ Ns_TclFreeSet(Tcl_Interp *interp, char *setId)
  */
 
 int
-NsTclSetCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
+NsTclSetCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 {
-    Ns_Set       *setPtr, *set2Ptr;
-    int           i;
+    Ns_Set       *set, *set2Ptr;
+    int           locked, i;
     char         *cmd;
     int           flags;
     Ns_Set      **setvectorPtrPtr;
     char         *split;
     Tcl_DString   ds;
+    Tcl_HashTable *tablePtr;
+    Tcl_HashEntry *hPtr;
+    Tcl_HashSearch search;
+    NsInterp	  *itPtr = arg;
 
     if (argc < 2) {
         Tcl_AppendResult(interp, "wrong # of args: should be \"",
@@ -271,30 +210,45 @@ NsTclSetCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
         return TCL_ERROR;
     }
     cmd = argv[1];
-
-    /*
-     * Handle new, copy, and split first.
-     */
-
     if (STREQ(cmd, "create")) {
 	cmd = "new";
     }
-    if (STREQ(cmd, "new")  ||
+    if (STREQ(cmd, "cleanup")) {
+	NsFreeSets(itPtr);
+    } else if (STREQ(cmd, "list")) {
+	if (argc == 2) {
+	    tablePtr = &itPtr->sets.table;
+    	    locked = 0;
+	} else if (STREQ(argv[2], "-shared")) {
+	    tablePtr = &itPtr->servPtr->sets.table;
+	    locked = 1;
+	    Ns_MutexLock(&itPtr->servPtr->sets.lock);
+	} else {
+    	    return BadArgs(interp, argv, "?-shared?");
+	}
+	if (tablePtr != NULL) {
+	    hPtr = Tcl_FirstHashEntry(tablePtr, &search);
+	    while (hPtr != NULL) {
+		Tcl_AppendElement(interp, Tcl_GetHashKey(tablePtr, hPtr));
+		hPtr = Tcl_NextHashEntry(&search);
+	    }
+	}
+	if (locked) {
+	    Ns_MutexUnlock(&itPtr->servPtr->sets.lock);
+	}
+    } else if (STREQ(cmd, "new")  ||
 	STREQ(cmd, "copy") ||
 	STREQ(cmd, "split")) {
-
 	/*
-	 * The set is going to be dynamic; only string data can
-	 * be stored in it, and will be freed with ns_free.
+	 * The set will be dynamic and possibly shared.
 	 */
 	
         flags = NS_TCL_SET_DYNAMIC;
         i = 2;
-        if (argv[2] != NULL && STREQ(argv[2], "-persist")) {
-            flags |= NS_TCL_SET_PERSISTENT;
+        if (argv[2] != NULL &&
+	    (STREQ(argv[2], "-shared") || STREQ(argv[2], "-persist"))) {
+            flags |= NS_TCL_SET_SHARED;
             ++i;
-        } else {
-            flags |= NS_TCL_SET_TEMPORARY;
         }
 	
         switch (*cmd) {
@@ -304,9 +258,9 @@ NsTclSetCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 	     */
 	    
             if (argv[i] != NULL && argv[i + 1] != NULL) {
-                return BadArgs(interp, argv, "?-persist? ?name?");
+                return BadArgs(interp, argv, "?-shared? ?name?");
             }
-            Ns_TclEnterSet(interp, Ns_SetCreate(argv[i]), flags);
+            EnterSet(itPtr, interp, Ns_SetCreate(argv[i]), flags);
             break;
         case 'c':
 	    /*
@@ -314,12 +268,12 @@ NsTclSetCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 	     */
 	    
             if (argv[i] == NULL || argv[i + 1] != NULL) {
-                return BadArgs(interp, argv, "?-persist? setId");
+                return BadArgs(interp, argv, "?-shared? setId");
             }
-            if (Ns_TclGetSet2(interp, argv[i], &setPtr) != TCL_OK) {
+	    if (LookupSet(itPtr, interp, argv[i], 0, &set) != TCL_OK) {
                 return TCL_ERROR;
             }
-            Ns_TclEnterSet(interp, Ns_SetCopy(setPtr), flags);
+            EnterSet(itPtr, interp, Ns_SetCopy(set), flags);
             break;
         case 's':
 	    /*
@@ -328,10 +282,9 @@ NsTclSetCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 	    
             if (argv[i] == NULL ||
 		(argv[i + 1] != NULL && argv[i + 2] != NULL)) {
-		
-                return BadArgs(interp, argv, "?-persist? setId ?splitChar?");
+                return BadArgs(interp, argv, "?-shared? setId ?splitChar?");
             }
-            if (Ns_TclGetSet2(interp, argv[i++], &setPtr) != TCL_OK) {
+	    if (LookupSet(itPtr, interp, argv[i++], 0, &set) != TCL_OK) {
                 return TCL_ERROR;
             }
             split = argv[i];
@@ -339,10 +292,9 @@ NsTclSetCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
                 split = ".";
             }
             Tcl_DStringInit(&ds);
-            setvectorPtrPtr = Ns_SetSplit(setPtr, *split);
+            setvectorPtrPtr = Ns_SetSplit(set, *split);
             for (i = 0; setvectorPtrPtr[i] != NULL; i++) {
-                Ns_TclEnterSet(interp, setvectorPtrPtr[i],
-			       NS_TCL_SET_TEMPORARY | NS_TCL_SET_DYNAMIC);
+                EnterSet(itPtr, interp, setvectorPtrPtr[i], flags);
                 Tcl_DStringAppendElement(&ds, interp->result);
             }
             ns_free(setvectorPtrPtr);
@@ -357,11 +309,12 @@ NsTclSetCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
         if (argc < 3) {
             return BadArgs(interp, argv, "setId ?args?");
         }
-        if (Ns_TclGetSet2(interp, argv[2], &setPtr) != TCL_OK) {
+	if (LookupSet(itPtr, interp, argv[2], 0, &set) != TCL_OK) {
             return TCL_ERROR;
         }
         if (STREQ(cmd, "size")  ||
 	    STREQ(cmd, "name")  ||
+	    STREQ(cmd, "array") ||
 	    STREQ(cmd, "print") ||
 	    STREQ(cmd, "free")) {
 	    
@@ -369,12 +322,20 @@ NsTclSetCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
                 return BadArgs(interp, argv, "setId");
             }
             switch (*cmd) {
+	    case 'a':
+		Tcl_DStringInit(&ds);
+		for (i = 0; i < Ns_SetSize(set); ++i) {
+		    Tcl_DStringAppendElement(&ds, Ns_SetKey(set, i));
+		    Tcl_DStringAppendElement(&ds, Ns_SetValue(set, i));
+		}
+		Tcl_DStringResult(interp, &ds);
+
             case 's':
 		/*
 		 * ns_set size
 		 */
 		
-                sprintf(interp->result, "%d", Ns_SetSize(setPtr));
+                sprintf(interp->result, "%d", Ns_SetSize(set));
                 break;
 		
             case 'n':
@@ -382,7 +343,7 @@ NsTclSetCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 		 * ns_set name
 		 */
 		
-                Tcl_SetResult(interp, setPtr->name, TCL_STATIC);
+                Tcl_SetResult(interp, set->name, TCL_STATIC);
                 break;
 		
             case 'p':
@@ -390,7 +351,7 @@ NsTclSetCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 		 * ns_set print
 		 */
 		
-                Ns_SetPrint(setPtr);
+                Ns_SetPrint(set);
                 break;
 		
             case 'f':
@@ -419,7 +380,7 @@ NsTclSetCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 		 * ns_set find
 		 */
 		
-                sprintf(interp->result, "%d", Ns_SetFind(setPtr, argv[3]));
+                sprintf(interp->result, "%d", Ns_SetFind(set, argv[3]));
                 break;
 		
             case 'g':
@@ -427,7 +388,7 @@ NsTclSetCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 		 * ns_set get
 		 */
 		
-                Tcl_SetResult(interp, Ns_SetGet(setPtr, argv[3]), TCL_STATIC);
+                Tcl_SetResult(interp, Ns_SetGet(set, argv[3]), TCL_STATIC);
                 break;
 		
             case 'd':
@@ -435,7 +396,7 @@ NsTclSetCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 		 * ns_set delete
 		 */
 		
-                Ns_SetDeleteKey(setPtr, argv[3]);
+                Ns_SetDeleteKey(set, argv[3]);
                 break;
 		
             case 'u':
@@ -443,7 +404,7 @@ NsTclSetCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 		 * ns_set unique
 		 */
 		
-                sprintf(interp->result, "%d", Ns_SetUnique(setPtr, argv[3]));
+                sprintf(interp->result, "%d", Ns_SetUnique(set, argv[3]));
                 break;
 		
             case 'i':
@@ -454,7 +415,7 @@ NsTclSetCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 		     */
 		    
                     sprintf(interp->result, "%d",
-			    Ns_SetIFind(setPtr, argv[3]));
+			    Ns_SetIFind(set, argv[3]));
                     break;
 		    
                 case 'g':
@@ -462,7 +423,7 @@ NsTclSetCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 		     * ns_set iget
 		     */
 		    
-                    Tcl_SetResult(interp, Ns_SetIGet(setPtr, argv[3]),
+                    Tcl_SetResult(interp, Ns_SetIGet(set, argv[3]),
 				  TCL_STATIC);
                     break;
 		    
@@ -471,7 +432,7 @@ NsTclSetCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 		     * ns_set idelete
 		     */
 		    
-                    Ns_SetIDeleteKey(setPtr, argv[3]);
+                    Ns_SetIDeleteKey(set, argv[3]);
                     break;
 		    
                 case 'u':
@@ -480,7 +441,7 @@ NsTclSetCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 		     */
 		    
                     sprintf(interp->result, "%d",
-			    Ns_SetIUnique(setPtr, argv[3]));
+			    Ns_SetIUnique(set, argv[3]));
                     break;
                 }
             }
@@ -505,11 +466,11 @@ NsTclSetCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
                 sprintf(interp->result, "Specified negative index (%d)", i);
                 return TCL_ERROR;
             }
-            if (i >= Ns_SetSize(setPtr)) {
+            if (i >= Ns_SetSize(set)) {
                 sprintf(interp->result,
 			"Can't access index %d; set only has %d field%s",
-			i, Ns_SetSize(setPtr),
-			Ns_SetSize(setPtr) != 1 ? "s" : "");
+			i, Ns_SetSize(set),
+			Ns_SetSize(set) != 1 ? "s" : "");
                 return TCL_ERROR;
             }
             switch (*cmd) {
@@ -518,7 +479,7 @@ NsTclSetCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 		 * ns_set value
 		 */
 		
-                Tcl_SetResult(interp, Ns_SetValue(setPtr, i), TCL_STATIC);
+                Tcl_SetResult(interp, Ns_SetValue(set, i), TCL_STATIC);
                 break;
 		
             case 'i':
@@ -526,7 +487,7 @@ NsTclSetCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 		 * ns_set isnull
 		 */
 		
-                Tcl_SetResult(interp, Ns_SetValue(setPtr, i) ? "0" : "1",
+                Tcl_SetResult(interp, Ns_SetValue(set, i) ? "0" : "1",
 			      TCL_STATIC);
                 break;
 		
@@ -535,7 +496,7 @@ NsTclSetCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 		 * ns_set key
 		 */
 		
-                Tcl_SetResult(interp, Ns_SetKey(setPtr, i), TCL_STATIC);
+                Tcl_SetResult(interp, Ns_SetKey(set, i), TCL_STATIC);
                 break;
 		
             case 'd':
@@ -543,7 +504,7 @@ NsTclSetCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 		 * ns_set delete
 		 */
 		
-                Ns_SetDelete(setPtr, i);
+                Ns_SetDelete(set, i);
                 break;
 		
             case 't':
@@ -551,7 +512,7 @@ NsTclSetCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 		 * ns_set truncate
 		 */
 		
-                Ns_SetTrunc(setPtr, i);
+                Ns_SetTrunc(set, i);
                 break;
             }
         } else if (STREQ(cmd, "put")    ||
@@ -568,8 +529,8 @@ NsTclSetCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 		 * ns_set update
 		 */
 		
-                Ns_SetDeleteKey(setPtr, argv[3]);
-                i = Ns_SetPut(setPtr, argv[3], argv[4]);
+                Ns_SetDeleteKey(set, argv[3]);
+                i = Ns_SetPut(set, argv[3], argv[4]);
 		break;
 		
 	    case 'i':
@@ -577,9 +538,9 @@ NsTclSetCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 		 * ns_set icput
 		 */
 		
-                i = Ns_SetIFind(setPtr, argv[3]);
+                i = Ns_SetIFind(set, argv[3]);
 		if (i < 0) {
-		    i = Ns_SetPut(setPtr, argv[3], argv[4]);
+		    i = Ns_SetPut(set, argv[3], argv[4]);
 		}
 		break;
 		
@@ -588,9 +549,9 @@ NsTclSetCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 		 * ns_set cput
 		 */
 		
-                i = Ns_SetFind(setPtr, argv[3]);
+                i = Ns_SetFind(set, argv[3]);
 		if (i < 0) {
-		    i = Ns_SetPut(setPtr, argv[3], argv[4]);
+		    i = Ns_SetPut(set, argv[3], argv[4]);
 		}
 		break;
 		
@@ -599,7 +560,7 @@ NsTclSetCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 		 * ns_set put
 		 */
 
-		i = Ns_SetPut(setPtr, argv[3], argv[4]);
+		i = Ns_SetPut(set, argv[3], argv[4]);
 		break;
             }
             sprintf(interp->result, "%d", i);
@@ -609,7 +570,7 @@ NsTclSetCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
             if (argc != 4) {
                 return BadArgs(interp, argv, "setTo, setFrom");
             }
-            if (Ns_TclGetSet2(interp, argv[3], &set2Ptr) != TCL_OK) {
+            if (LookupSet(itPtr, interp, argv[3], 0, &set2Ptr) != TCL_OK) {
                 return TCL_ERROR;
             }
 	    switch (cmd[1]) {
@@ -618,7 +579,7 @@ NsTclSetCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 		 * ns_set merge
 		 */
 		
-                Ns_SetMerge(setPtr, set2Ptr);
+                Ns_SetMerge(set, set2Ptr);
 		break;
 		
 	    case 'o':
@@ -626,7 +587,7 @@ NsTclSetCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 		 * ns_set move
 		 */
 		
-                Ns_SetMove(setPtr, set2Ptr);
+                Ns_SetMove(set, set2Ptr);
 		break;
             }
             Tcl_SetResult(interp, argv[2], TCL_VOLATILE);
@@ -643,11 +604,13 @@ NsTclSetCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
                 "idelkey, "
                 "iunique, "
                 "key, "
+                "list, "
                 "merge, "
                 "move, "
                 "name, "
                 "new, "
                 "print, "
+                "purge, "
                 "put, "
                 "size, "
                 "split, "
@@ -678,10 +641,10 @@ NsTclSetCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
  */
 
 int
-NsTclParseHeaderCmd(ClientData dummy, Tcl_Interp *interp, int argc,
-		     char **argv)
+NsTclParseHeaderCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 {
-    Ns_Set *setPtr;
+    NsInterp *itPtr = arg;
+    Ns_Set *set;
     Ns_HeaderCaseDisposition disp;
 
     if (argc != 3 && argc != 4) {
@@ -689,7 +652,7 @@ NsTclParseHeaderCmd(ClientData dummy, Tcl_Interp *interp, int argc,
             argv[0], " set header ?tolower|toupper|preserve?\"", NULL);
         return TCL_ERROR;
     }
-    if (Ns_TclGetSet2(interp, argv[1], &setPtr) != TCL_OK) {
+    if (LookupSet(itPtr, interp, argv[1], 0, &set) != TCL_OK) {
         return TCL_ERROR;
     }
     if (argc < 4) {
@@ -705,9 +668,59 @@ NsTclParseHeaderCmd(ClientData dummy, Tcl_Interp *interp, int argc,
             "\":  should be toupper, tolower, or preserve", NULL);
         return TCL_ERROR;
     }
-    if (Ns_ParseHeader(setPtr, argv[2], disp) != NS_OK) {
+    if (Ns_ParseHeader(set, argv[2], disp) != NS_OK) {
         Tcl_AppendResult(interp, "invalid header:  ", argv[2], NULL);
         return TCL_ERROR;
+    }
+    return TCL_OK;
+}
+
+static int
+EnterSet(NsInterp *itPtr, Tcl_Interp *interp, Ns_Set *set, int flags)
+{
+    Tcl_HashTable  *tablePtr;
+    Tcl_HashEntry  *hPtr;
+    int             new, next;
+    unsigned char   type;
+
+    if (flags & NS_TCL_SET_SHARED) {
+	/*
+	 * Lock the global mutex and use the shared sets.
+	 */
+	
+	if (flags & NS_TCL_SET_DYNAMIC) {
+	    type = SET_SHARED_DYNAMIC;
+	} else {
+	    type = SET_SHARED_STATIC;
+	}
+	tablePtr = &itPtr->servPtr->sets.table;
+        Ns_MutexLock(&itPtr->servPtr->sets.lock);
+    } else {
+	tablePtr = &itPtr->sets.table;
+	if (flags & NS_TCL_SET_DYNAMIC) {
+	    type = SET_DYNAMIC;
+	} else {
+            type = SET_STATIC;
+	}
+    }
+
+    /*
+     * Allocate a new set IDs until we find an unused one.
+     */
+    
+    next = tablePtr->numEntries;
+    do {
+        sprintf(interp->result, "%c%u", type, next);
+	++next;
+        hPtr = Tcl_CreateHashEntry(tablePtr, interp->result, &new);
+    } while (!new);
+    Tcl_SetHashValue(hPtr, set);
+
+    /*
+     * Unlock the global mutex (locked above) if it's a persistent set.
+     */
+    if (flags & NS_TCL_SET_SHARED) {
+        Ns_MutexUnlock(&itPtr->servPtr->sets.lock);
     }
     return TCL_OK;
 }
@@ -716,78 +729,66 @@ NsTclParseHeaderCmd(ClientData dummy, Tcl_Interp *interp, int argc,
 /*
  *----------------------------------------------------------------------
  *
- * FreeSet --
- *
- *	Free a Set and, if it is dynamic, its keys and values as 
- *	well. 
- *
- * Results:
- *	None. 
- *
- * Side effects:
- *	If dynamic, keys and values will be freed. 
- *
- *----------------------------------------------------------------------
- */
-
-void
-FreeSet(Set *sPtr)
-{
-    if (sPtr->flags & NS_TCL_SET_DYNAMIC) {
-        Ns_SetFree(sPtr->set);
-    }
-    ns_free(sPtr);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * GetSet --
+ * LookupSet --
  *
  *	Take a tcl set handle and return a matching Set. This 
  *	takes both persistent and dynamic set handles. 
  *
  * Results:
- *	A Set or NULL if error. 
+ *	TCL_OK or TCL_ERROR.
  *
  * Side effects:
- *      If delete is NS_TRUE, then the hash entry will be removed.
+ *      If delete is set, then the hash entry will be removed.
+ *  	Set will be returned in given setPtr.
  *
  *----------------------------------------------------------------------
  */
 
-static Set *
-GetSet(Tcl_Interp *interp, char *setId, int delete)
+static int
+LookupSet(NsInterp *itPtr, Tcl_Interp *interp, char *id, int delete, Ns_Set **setPtr)
 {
     Tcl_HashTable *tablePtr;
     Tcl_HashEntry *hPtr;
-    Set        *sPtr;
+    Ns_Set        *set;
 
     /*
+     * Get the NsInterp structure if not yet known.
+     */
+
+    if (itPtr == NULL) {
+	itPtr = NsGetInterp(interp);
+    }
+    
+    /*
      * If it's a persistent set, use the shared table, otherwise
-     * use the interp table.
+     * use the private table.
      */
     
-    if (*setId == 'p') {
-	tablePtr = GetSharedTable();
-        Ns_MutexLock(&lock);
+    set = NULL;
+    if (IS_SHARED(*id)) {
+    	tablePtr = &itPtr->servPtr->sets.table;
+        Ns_MutexLock(&itPtr->servPtr->sets.lock);
     } else {
-	tablePtr = GetInterpTable(interp);
+	tablePtr = &itPtr->sets.table;
     }
-    hPtr = Tcl_FindHashEntry(tablePtr, setId);
-    if (hPtr == NULL) {
-        sPtr = NULL;
-    } else {
-        sPtr = (Set *) Tcl_GetHashValue(hPtr);
-        if (delete == NS_TRUE) {
-            Tcl_DeleteHashEntry(hPtr);
-        }
+    if (tablePtr != NULL) {
+    	hPtr = Tcl_FindHashEntry(tablePtr, id);
+    	if (hPtr != NULL) {
+            set = (Ns_Set *) Tcl_GetHashValue(hPtr);
+            if (delete) {
+        	Tcl_DeleteHashEntry(hPtr);
+            }
+	}
     }
-    if (*setId == 'p') {
-        Ns_MutexUnlock(&lock);
+    if (IS_SHARED(*id)) {
+        Ns_MutexUnlock(&itPtr->servPtr->sets.lock);
     }
-    return sPtr;
+    if (set == NULL) {
+	Tcl_AppendResult(interp, "no such set: ", id, NULL);
+	return TCL_ERROR;
+    }
+    *setPtr = set;
+    return TCL_OK;
 }
 
 
@@ -820,12 +821,13 @@ BadArgs(Tcl_Interp *interp, char **argv, char *args)
 /*
  *----------------------------------------------------------------------
  *
- * GetSharedTable --
+ * NsFreeSets --
  *
- *	Return the table for persistent sets.
+ *	Removes all set ids from given table, freeing dynamic sets
+ *  	as needed.
  *
  * Results:
- *	Pointer to static, initialized Tcl_HashTable.
+ *	None.
  *
  * Side effects:
  *	None.
@@ -833,85 +835,27 @@ BadArgs(Tcl_Interp *interp, char **argv, char *args)
  *----------------------------------------------------------------------
  */
 
-static Tcl_HashTable *
-GetSharedTable(void)
+void
+NsFreeSets(NsInterp *itPtr)
 {
-    static int initialized;
-    static Tcl_HashTable table;    
-
-    if (!initialized) {
-	Ns_MasterLock();
-	if (!initialized) {
-	    Ns_MutexSetName2(&lock, "ns", "sets");
-	    Tcl_InitHashTable(&table, TCL_STRING_KEYS);
-	    initialized = 1;
-	}
-	Ns_MasterUnlock();
-    }
-    return &table;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * GetInterpTable --
- *
- *	Return the table for given interp's temporary sets.
- *
- * Results:
- *	Pointer to dynamic, initialized Tcl_HashTable.
- *
- * Side effects:
- *	See FreeSets.
- *
- *----------------------------------------------------------------------
- */
-
-static Tcl_HashTable *
-GetInterpTable(Tcl_Interp *interp)
-{
-    Tcl_HashTable *tablePtr;
-
-    tablePtr = NsTclGetData(interp, NS_TCL_SETS_KEY);
-    if (tablePtr == NULL) {
-	tablePtr = ns_malloc(sizeof(Tcl_HashTable));
-	Tcl_InitHashTable(tablePtr, TCL_STRING_KEYS);
-	NsTclSetData(interp, NS_TCL_SETS_KEY, tablePtr, FreeSets);
-    }
-    return tablePtr;
-}
-
-/*
- *----------------------------------------------------------------------
- *
- * FreeSets --
- *
- *	Tcl interp data callback to free temporary sets data.
- *
- * Results:
- *	None.
- *
- * Side effects:
- *	Table is purged and freed.
- *
- *----------------------------------------------------------------------
- */
-
-static void
-FreeSets(void *arg)
-{
-    Tcl_HashTable *tablePtr = arg;
-    Tcl_HashSearch search;
     Tcl_HashEntry *hPtr;
-    Set *sPtr;
+    Tcl_HashSearch search;
+    Tcl_HashTable *tablePtr;
+    Ns_Set *set;
+    char *id;
 
-    hPtr = Tcl_FirstHashEntry(tablePtr, &search);
-    while (hPtr != NULL) {
-	sPtr = Tcl_GetHashValue(hPtr);
-	FreeSet(sPtr);
-	hPtr = Tcl_NextHashEntry(&search);
+    tablePtr = &itPtr->sets.table;
+    if (tablePtr->numEntries > 0) {
+    	hPtr = Tcl_FirstHashEntry(tablePtr, &search);
+    	while (hPtr != NULL) {
+    	    id = Tcl_GetHashKey(tablePtr, hPtr);
+	    if (IS_DYNAMIC(*id)) {
+    	        set = Tcl_GetHashValue(hPtr);
+	        Ns_SetFree(set);
+	    }
+	    hPtr = Tcl_NextHashEntry(&search);
+	}
+    	Tcl_DeleteHashTable(tablePtr);
+    	Tcl_InitHashTable(tablePtr, TCL_STRING_KEYS);
     }
-    Tcl_DeleteHashTable(tablePtr);
-    ns_free(tablePtr);
 }

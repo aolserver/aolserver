@@ -34,7 +34,7 @@
  *	Routines for handling the loadable db driver interface.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/dbdrv.c,v 1.5 2001/01/16 18:14:27 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/dbdrv.c,v 1.6 2001/03/12 22:06:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -669,7 +669,7 @@ NsDbLoadDriver(char *driver)
  */
 
 void
-NsDbServerInit(char *server, DbDriver *driverPtr)
+NsDbDriverInit(char *server, DbDriver *driverPtr)
 {
     if (driverPtr->initProc != NULL &&
 	((*driverPtr->initProc) (server, "db", driverPtr->name)) != NS_OK) {

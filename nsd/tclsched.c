@@ -34,19 +34,27 @@
  *	Implement scheduled procs in Tcl. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclsched.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclsched.c,v 1.4 2001/03/12 22:06:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
+
+typedef void *(AtProc)(Ns_Callback *, void *);
+
+typedef struct {
+    char *server;
+    char *script;
+} Callback;
 
 /*
  * Local functions defined in this file
  */
 
-static Ns_Callback EvalScript;
-static Ns_Callback FreeScript;
+static Callback *NewCallback(Tcl_Interp *interp, char *proc, char *arg);
+static Ns_Callback EvalCallback;
+static Ns_Callback FreeCallback;
 static Ns_SchedProc FreeSched;
-static int ReturnValidId(Tcl_Interp *interp, int id, char *script);
-static char *NewScript(char *proc, char *arg);
+static int ReturnValidId(Tcl_Interp *interp, int id, Callback *cbPtr);
+static int AtCmd(AtProc *procPtr, Tcl_Interp *interp, int argc, char **argv);
 
 
 /*
@@ -68,7 +76,10 @@ static char *NewScript(char *proc, char *arg);
 int
 Ns_TclThread(Tcl_Interp *interp, char *script, Ns_Thread *thrPtr)
 {
-    Ns_ThreadCreate(NsTclThread, ns_strdup(script), 0, thrPtr);
+    Callback *cbPtr;
+
+    cbPtr = NewCallback(interp, script, NULL);
+    Ns_ThreadCreate(NsTclThread, cbPtr, 0, thrPtr);
     return NS_OK;
 }
 
@@ -112,38 +123,39 @@ Ns_TclDetachedThread(Tcl_Interp *interp, char *script)
  *----------------------------------------------------------------------
  */
 
-typedef void *(AtProc)(Ns_Callback *, void *);
-
 static int
 AtCmd(AtProc *procPtr, Tcl_Interp *interp, int argc, char **argv)
 {
+    Callback *cbPtr;
+
     if (argc != 2 && argc != 3) {
         Tcl_AppendResult(interp, "wrong # args: should be \"",
             argv[0], " script | procname ?arg?\"", NULL);
         return TCL_ERROR;
     }
+    cbPtr = NewCallback(interp, argv[1], argv[2]);
     if (procPtr == Ns_RegisterAtSignal) {
-    	(*procPtr) (NsTclSignalProc, NewScript(argv[1], argv[2]));
+    	(*procPtr) (NsTclSignalProc, cbPtr);
     } else {
-    	(*procPtr) (NsTclCallback, NewScript(argv[1], argv[2]));
+    	(*procPtr) (NsTclCallback, cbPtr);
     }
     return TCL_OK;
 }
     
 int
-NsTclAtSignalCmd(ClientData ctx, Tcl_Interp *interp, int argc, char **argv)
+NsTclAtSignalCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 {
     return AtCmd(Ns_RegisterAtSignal, interp, argc, argv);
 }
 
 int
-NsTclAtShutdownCmd(ClientData ctx, Tcl_Interp *interp, int argc, char **argv)
+NsTclAtShutdownCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 {
     return AtCmd(Ns_RegisterShutdown, interp, argc, argv);
 }
 
 int
-NsTclAtExitCmd(ClientData ctx, Tcl_Interp *interp, int argc, char **argv)
+NsTclAtExitCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 {
     return AtCmd(Ns_RegisterAtExit, interp, argc, argv);
 }
@@ -166,10 +178,10 @@ NsTclAtExitCmd(ClientData ctx, Tcl_Interp *interp, int argc, char **argv)
  */
 
 int
-NsTclAfterCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
+NsTclAfterCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 {
     int id, seconds;
-    char *script;
+    Callback *cbPtr;
 
     if (argc != 3) {
 	Tcl_AppendResult(interp, "wrong # args: should be \"",
@@ -179,18 +191,19 @@ NsTclAfterCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
     if (Tcl_GetInt(interp, argv[1], &seconds) != TCL_OK) {
 	return TCL_ERROR;
     }
-    script = NewScript(argv[2], NULL);
-    id = Ns_After(seconds, (Ns_Callback *) NsTclSchedProc, script, FreeScript);
-    return ReturnValidId(interp, id, script);
+    cbPtr = NewCallback(interp, argv[2], NULL);
+    id = Ns_After(seconds, (Ns_Callback *) NsTclSchedProc, cbPtr, FreeCallback);
+    return ReturnValidId(interp, id, cbPtr);
 }
    
 
 /*
  *----------------------------------------------------------------------
  *
- * NsTclCancelCmd --
+ * SchedCmd --
  *
- *	Implements ns_unschedule_proc and ns_cancel commands.
+ *	Implements ns_unschedule_proc, ns_cancel, ns_pause, and
+ *	ns_resume commands.
  *
  * Results:
  *	Tcl result. 
@@ -201,11 +214,11 @@ NsTclAfterCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
  *----------------------------------------------------------------------
  */
 
-int
-NsTclCancelCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
+static int
+SchedCmd(Tcl_Interp *interp, int argc, char **argv, int cmd)
 {
     int id, ok;
-    int cmd = (int) arg;
+    char buf[10];
 
     if (argc != 2) {
         Tcl_AppendResult(interp, "wrong # args: should be \"",
@@ -226,11 +239,38 @@ NsTclCancelCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
     case 'r':
     	ok = Ns_Resume(id);
 	break;
+    default:
+	ok = -1;
     }
     if (cmd != 'u') {
-    	sprintf(interp->result, "%d", ok);
+    	sprintf(buf, "%d", ok);
+	Tcl_SetResult(interp, buf, TCL_VOLATILE);
     }
     return TCL_OK;
+}
+
+int
+NsTclCancelCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
+{
+    return SchedCmd(interp, argc, argv, 'c');
+}
+
+int
+NsTclPauseCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
+{
+    return SchedCmd(interp, argc, argv, 'p');
+}
+
+int
+NsTclResumeCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
+{
+    return SchedCmd(interp, argc, argv, 'r');
+}
+
+int
+NsTclUnscheduleCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
+{
+    return SchedCmd(interp, argc, argv, 'u');
 }
 
 
@@ -251,9 +291,9 @@ NsTclCancelCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
  */
 
 int
-NsTclSchedDailyCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
+NsTclSchedDailyCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 {
-    char    	*script;
+    Callback    *cbPtr;
     int          flags;
     int          first;
     int          id;
@@ -323,10 +363,10 @@ NsTclSchedDailyCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
      * so assume that there are no switches when reading the 4 here.
      */
 
-    script = NewScript(argv[first], argv[first+1]);
-    id = Ns_ScheduleDaily(NsTclSchedProc, script, flags,
+    cbPtr = NewCallback(interp, argv[first], argv[first+1]);
+    id = Ns_ScheduleDaily(NsTclSchedProc, cbPtr, flags,
 			  hour, minute, FreeSched);
-    return ReturnValidId(interp, id, script);
+    return ReturnValidId(interp, id, cbPtr);
 }
 
 
@@ -347,10 +387,10 @@ NsTclSchedDailyCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
  */
 
 int
-NsTclSchedWeeklyCmd(ClientData dummy, Tcl_Interp *interp, int argc,
+NsTclSchedWeeklyCmd(ClientData arg, Tcl_Interp *interp, int argc,
 		     char **argv)
 {
-    char        *script;
+    Callback    *cbPtr;
     int          flags;
     int          first;
     int          id;
@@ -423,10 +463,10 @@ NsTclSchedWeeklyCmd(ClientData dummy, Tcl_Interp *interp, int argc,
 			 "\": should be >= 0 and <= 59", NULL);
         return TCL_ERROR;
     }
-    script = NewScript(argv[first], argv[first+1]);
-    id = Ns_ScheduleWeekly(NsTclSchedProc, script, flags,
+    cbPtr = NewCallback(interp, argv[first], argv[first+1]);
+    id = Ns_ScheduleWeekly(NsTclSchedProc, cbPtr, flags,
     	    	    	   day, hour, minute, FreeSched);
-    return ReturnValidId(interp, id, script);
+    return ReturnValidId(interp, id, cbPtr);
 }
 
 
@@ -447,9 +487,9 @@ NsTclSchedWeeklyCmd(ClientData dummy, Tcl_Interp *interp, int argc,
  */
 
 int
-NsTclSchedCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
+NsTclSchedCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 {
-    char        *script;
+    Callback	*cbPtr;
     int          interval;
     int          flags;
     int          first;
@@ -500,9 +540,9 @@ NsTclSchedCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
     if (Tcl_GetInt(interp, argv[first++], &interval) != TCL_OK) {
         return TCL_ERROR;
     }
-    script = NewScript(argv[first], argv[first+1]);
-    id = Ns_ScheduleProcEx(NsTclSchedProc, script, flags, interval, FreeSched);
-    return ReturnValidId(interp, id, script);
+    cbPtr = NewCallback(interp, argv[first], argv[first+1]);
+    id = Ns_ScheduleProcEx(NsTclSchedProc, cbPtr, flags, interval, FreeSched);
+    return ReturnValidId(interp, id, cbPtr);
 }
 
 
@@ -524,14 +564,17 @@ NsTclSchedCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
  */
 
 static int
-ReturnValidId(Tcl_Interp *interp, int id, char *script)
+ReturnValidId(Tcl_Interp *interp, int id, Callback *cbPtr)
 {
+    char buf[10];
+
     if (id == NS_ERROR) {
-        interp->result = "could not schedule procedure";
-	FreeScript(script);
+	Tcl_SetResult(interp, "could not schedule procedure", TCL_STATIC);
+	FreeCallback(cbPtr);
         return TCL_ERROR;
     }
-    sprintf(interp->result, "%d", id);
+    sprintf(buf, "%d", id);
+    Tcl_SetResult(interp, buf, TCL_VOLATILE);
     return TCL_OK;
 }
 
@@ -539,7 +582,7 @@ ReturnValidId(Tcl_Interp *interp, int id, char *script)
 /*
  *----------------------------------------------------------------------
  *
- * EvalScript --
+ * EvalCallback --
  *
  *	This is a callback function that runs scheduled tcl 
  *	procedures registered with ns_schedule_*. 
@@ -554,27 +597,23 @@ ReturnValidId(Tcl_Interp *interp, int id, char *script)
  */
 
 static void
-EvalScript(void *arg)
+EvalCallback(void *arg)
 {
-    Tcl_Interp *interp;
+    Callback *cbPtr = arg;
     
-    interp = Ns_TclAllocateInterp(NULL);
-    if (Tcl_Eval(interp, (char *) arg) != TCL_OK) {
-    	Ns_TclLogError(interp);
-    }
-    Ns_TclDeAllocateInterp(interp);
+    (void) Ns_TclEval(NULL, cbPtr->server, cbPtr->script);
 }
 
 
 /*
  *----------------------------------------------------------------------
  *
- * NewScript --
+ * NewCallback --
  *
- *	Create a new script.
+ *	Create a new script callback.
  *
  * Results:
- *	Dynamic memory from Tcl_Concat.
+ *	Pointer to Callback.
  *
  * Side effects:
  *	None.
@@ -582,23 +621,27 @@ EvalScript(void *arg)
  *----------------------------------------------------------------------
  */
 
-static char *
-NewScript(char *proc, char *arg)
+static Callback *
+NewCallback(Tcl_Interp *interp, char *proc, char *arg)
 {
+    Callback *cbPtr;
     char *argv[2];
 
     argv[0] = proc;
     argv[1] = arg;
-    return Tcl_Concat(arg ? 2 : 1, argv);
+    cbPtr = ns_malloc(sizeof(Callback));
+    cbPtr->server = Ns_TclInterpServer(interp);
+    cbPtr->script = Tcl_Concat(arg ? 2 : 1, argv);
+    return cbPtr;
 }
 
 
 /*
  *----------------------------------------------------------------------
  *
- * FreeScript --
+ * FreeCallback --
  *
- *	Free a script created with NewScript.
+ *	Free a Callback created with NewCallback.
  *
  * Results:
  *	None.
@@ -610,15 +653,18 @@ NewScript(char *proc, char *arg)
  */
 
 static void
-FreeScript(void *arg)
+FreeCallback(void *arg)
 {
-    ckfree((char *) arg);
+    Callback *cbPtr = arg;
+
+    ckfree(cbPtr->script);
+    ns_free(cbPtr);
 }
 
 static void
 FreeSched(void *arg, int id)
 {
-    FreeScript(arg);
+    FreeCallback(arg);
 }
 
 
@@ -641,32 +687,32 @@ FreeSched(void *arg, int id)
 void
 NsTclSchedProc(void *arg, int id)
 {
-    EvalScript(arg);
+    EvalCallback(arg);
 }
 
 void
 NsTclSignalProc(void *arg)
 {
-    EvalScript(arg);
+    EvalCallback(arg);
 }
 
 void
 NsTclCallback(void *arg)
 {
-    EvalScript(arg);
-    FreeScript(arg);
+    EvalCallback(arg);
+    FreeCallback(arg);
 }
 
 void
 NsTclThread(void *arg)
 {
-    EvalScript(arg);
-    FreeScript(arg);
+    NsTclCallback(arg);
 }
 
 void
 NsTclArgProc(Tcl_DString *dsPtr, void *arg)
 {
-     Tcl_DStringAppendElement(dsPtr, (char *) arg);
-}
+     Callback *cbPtr = arg;
 
+     Tcl_DStringAppendElement(dsPtr, cbPtr->script);
+}

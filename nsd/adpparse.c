@@ -49,26 +49,19 @@
  * Removed check for comments so that server side includes
  * or similar constructs can be registered with fancy tags.
  */ 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/adpfancy.c,v 1.7 2001/01/16 18:14:27 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpparse.c,v 1.1 2001/03/12 22:06:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
-
-/*
- * Config file stuff
- */
-#define CONFIG_TAGLOCKS "TagLocks"
-
-#define DEFAULT_TAGLOCKS NS_FALSE
 
 /*
  * Types
  */
 
 typedef struct {
-    char          *tag;        /* The name of the tag (e.g., "netscape") */
-    char          *endtag;     /* The closing tag or null (e.g., "/netscape")*/
-    char          *procname;   /* TCL proc handler (e.g., "ns_adp_netscape") */
-    char          *adpstring;  /* ADP to evaluate */
+    char          *tag;     /* The name of the tag (e.g., "netscape") */
+    char          *endtag;  /* The closing tag or null (e.g., "/netscape")*/
+    char          *string;  /* Proc (e.g., "ns_adp_netscape") or ADP string. */
+    int		   isproc;  /* Arg is a proc, not ADP string. */
 } RegTag;
 
 /*
@@ -83,58 +76,24 @@ static void      EndChunk(Ns_DString *dsPtr);
 static void      AddTextChunk(Ns_DString *dsPtr, char *text, int length);
 static void      AppendTclEscaped(Ns_DString *ds, char *in);
 static void      NAppendTclEscaped(Ns_DString *ds, char *in, int n);
-static void      FancyParsePage(Ns_DString *outPtr, char *in);
 static Ns_Set   *TagToSet(char *sTag);
 static char     *ReadToken(char *in, Ns_DString *tagPtr);
 static char     *BalancedEndTag(char *in, RegTag *rtPtr);
-static RegTag   *GetRegTag(char *tag);
-
-/*
- * Static variables
- */
-
-static Tcl_HashTable htTags;
-static Ns_RWLock     tlock;
-
-
-/*
- *----------------------------------------------------------------------
- * NsAdpFancyInit --
- *
- *      Initialization function.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-void
-NsAdpFancyInit(char *server, char *path)
-{
-    Tcl_InitHashTable(&htTags, TCL_STRING_KEYS);
-
-    /*
-     * Register ourselves.
-     */
-    
-    Ns_AdpRegisterParser("fancy", FancyParsePage);
-}
+static RegTag   *GetRegTag(NsServer *servPtr, char *tag);
+static int	 RegisterCmd(ClientData arg, Tcl_Interp *interp,
+		    int argc, char **argv, int isproc);
 
 
 /*
  *----------------------------------------------------------------------
  *
- * NsTclRegisterTagCmd --
+ * NsTclRegisterTagCmd, NsTclRegisterAdpCmd --
  *
- *	Register an ADP tag.
+ *	Register an ADP proc or string tag.
  *	
  *
  * Results:
- *	Std tcl retval.
+ *	Standard Tcl result.
  *
  * Side effects:
  *	An ADP tag may be added to the hashtable.
@@ -143,69 +102,55 @@ NsAdpFancyInit(char *server, char *path)
  */
 
 int
-NsTclRegisterTagCmd(ClientData ignored, Tcl_Interp *interp, int argc,
+NsTclRegisterTagCmd(ClientData arg, Tcl_Interp *interp, int argc,
 		    char **argv)
 {
-    char           *tag, *endtag, *proc;
-    Tcl_HashEntry  *he;
+    return RegisterCmd(arg, interp, argc, argv, 1);
+}
+
+int
+NsTclRegisterAdpCmd(ClientData arg, Tcl_Interp *interp, int argc,
+		    char **argv)
+{
+    return RegisterCmd(arg, interp, argc, argv, 0);
+}
+
+static int
+RegisterCmd(ClientData arg, Tcl_Interp *interp, int argc,
+		    char **argv, int isproc)
+{
+    NsInterp       *itPtr = arg;
+    NsServer	   *servPtr = itPtr->servPtr;
+    char           *tag, *endtag, *string;
+    Tcl_HashEntry  *hPtr;
     int             new;
     RegTag         *rtPtr;
-    AdpData        *adPtr;
     
     if (argc != 4 && argc != 3) {
 	Tcl_AppendResult(interp, "wrong # args: should be \"",
 			 argv[0], " tag ?endtag? proc\"", NULL);
 	return TCL_ERROR;
     }
+    tag = argv[1];
+    string = argv[argc-1];
+    endtag = (argc == 3 ? NULL : argv[2]);
 
-    if (argc == 3) {
-	tag = argv[1];
-	endtag = NULL;
-	proc = argv[2];
-    } else {
-	tag = argv[1];
-	endtag = argv[2];
-	proc = argv[3];
-
+    Ns_MutexLock(&servPtr->adp.lock);
+    hPtr = Tcl_CreateHashEntry(&servPtr->adp.tags, tag, &new);
+    if (new) {
+    	rtPtr = ns_malloc(sizeof(RegTag));
+    	rtPtr->tag = ns_strdup(tag);
+    	rtPtr->endtag = endtag ? ns_strdup(endtag) : NULL;
+    	rtPtr->string = ns_strdup(string);
+    	rtPtr->isproc = isproc;
+    	Tcl_SetHashValue(hPtr, (void *) rtPtr);
     }
-    adPtr = NsAdpGetData();
-    if (nsconf.adp.taglocks) {
-	/* LOCK */
-	if (adPtr->depth > 0) {
-	    /*
-	     * Called from within an ADP, so unlock the read lock first
-	     * to prevent deadlock
-	     */
-	    Ns_RWLockUnlock(&tlock);
-	}
-	Ns_RWLockWrLock(&tlock);
-    }
-
-    he = Tcl_CreateHashEntry(&htTags, tag, &new);
-    if (new == 0) {
+    Ns_MutexUnlock(&servPtr->adp.lock);
+    if (!new) {
 	Tcl_AppendResult(interp, "ADP tag \"", tag, "\" already registered.",
 			 NULL);
 	return TCL_ERROR;
     }
-    rtPtr = ns_malloc(sizeof(RegTag));
-    rtPtr->tag = ns_strdup(tag);
-    rtPtr->endtag = endtag ? ns_strdup(endtag) : NULL;
-    rtPtr->procname = ns_strdup(proc);
-    rtPtr->adpstring = NULL;
-    Tcl_SetHashValue(he, (void *) rtPtr);
-
-    if (nsconf.adp.taglocks) {
-	/* UNLOCK */
-	Ns_RWLockUnlock(&tlock);
-	if (adPtr->depth > 0) {
-	    /*
-	     * We were called from within an ADP, so re-lock the read
-	     * lock now.
-	     */
-	    Ns_RWLockRdLock(&tlock);
-	}
-    }
-
     return TCL_OK;
 }
 
@@ -213,85 +158,215 @@ NsTclRegisterTagCmd(ClientData ignored, Tcl_Interp *interp, int argc,
 /*
  *----------------------------------------------------------------------
  *
- * NsTclRegisterAdpCmd --
+ * NsAdpParse --
  *
- *	Register an ADP tag which is an ADP.
- *	
+ *	Takes an ADP as input and forms a chunky ADP as output.
  *
  * Results:
- *	Std tcl retval.
+ *	A chunked ADP is put in outPtr.
  *
  * Side effects:
- *	An ADP tag may be added to the hashtable.
+ *	None.
  *
  *----------------------------------------------------------------------
  */
 
-int
-NsTclRegisterAdpCmd(ClientData ignored, Tcl_Interp *interp, int argc,
-		    char **argv)
+void
+NsAdpParse(NsServer *servPtr, Ns_DString *outPtr, char *in)
 {
-    char           *tag, *endtag, *adpstring;
-    Tcl_HashEntry  *he;
-    int             new;
-    RegTag         *rtPtr;
-    AdpData        *adPtr;
+    char       *top, *oldtop, *end;
+    Ns_DString  tag;
+    Ns_Set     *params;
+    RegTag     *rtPtr;
     
-    if (argc != 4 && argc != 3) {
-	Tcl_AppendResult(interp, "wrong # args: should be \"",
-			 argv[0], " tag ?endtag? adpstring\"", NULL);
-	return TCL_ERROR;
-    }
+    /*
+     * Tags we care about:
+     * <%
+     * <script
+     * <regtag
+     */
 
-    if (argc == 3) {
-	tag = argv[1];
-	endtag = NULL;
-	adpstring = argv[2];
-    } else {
-	tag = argv[1];
-	endtag = argv[2];
-	adpstring = argv[3];
-
-    }
-    adPtr = NsAdpGetData();
-    if (nsconf.adp.taglocks) {
-	/* LOCK */
-	if (adPtr->depth > 0) {
+    Ns_DStringInit(&tag);
+    oldtop = top = in;
+    while ((top = ReadToken(top, &tag)) != NULL) {
+	/*
+	 * top points at the character after the tag.
+	 * tag is a dstring containg either one tag or a bunch of text.
+	 * oldtop points at where tag starts in the original string.
+	 *
+	 * <script language=tcl runat=server> ns_puts hi
+	 * ^                                 ^
+	 * oldtop                            top
+	 *
+	 * tag="<script language=tcl runat=server>"
+	 */
+	
+	if (strncmp(tag.string, "<%", 2) == 0) {
 	    /*
-	     * Called from within an ADP, so unlock the read lock first
-	     * to prevent deadlock
+	     * Find %> tag and add script if there, otherwise spit out
+	     * a warning and add as text.
 	     */
-	    Ns_RWLockUnlock(&tlock);
-	}
-	Ns_RWLockWrLock(&tlock);
-    }
-
-    he = Tcl_CreateHashEntry(&htTags, tag, &new);
-    if (new == 0) {
-	Tcl_AppendResult(interp, "ADP tag \"", tag, "\" already registered.",
-			 NULL);
-	return TCL_ERROR;
-    }
-    rtPtr = ns_malloc(sizeof(RegTag));
-    rtPtr->tag = ns_strdup(tag);
-    rtPtr->endtag = endtag ? ns_strdup(endtag) : NULL;
-    rtPtr->procname = NULL;
-    rtPtr->adpstring = ns_strdup(adpstring);
-    Tcl_SetHashValue(he, (void *) rtPtr);
-
-    if (nsconf.adp.taglocks) {
-	/* UNLOCK */
-	Ns_RWLockUnlock(&tlock);
-	if (adPtr->depth > 0) {
+	    end = strstr(top, "%>");
+	    if (end == NULL) {
+		Ns_Log(Warning, "adpfancy: unterminated script");
+		AddTextChunk(outPtr, oldtop, strlen(oldtop));
+		break;
+	    } else {
+		StartScript(outPtr);
+		if (tag.string[2] == '=') {
+		    NAppendChunk(outPtr, "ns_puts -nonewline ",
+ 				  sizeof("ns_puts -nonewline ")-1);
+		}
+		NAppendChunk(outPtr, top, end-top);
+		EndChunk(outPtr);
+		top = end + 2;
+	    }
+	} else if (strncasecmp(tag.string, "<script", 7) == 0) {
+	    char *lang, *runat, *stream;
 	    /*
-	     * We were called from within an ADP, so re-lock the read
-	     * lock now.
+	     * Get the paramters to the tag and then add the
+	     * script chunk if appropriate, otherwise it's just
+	     * text
 	     */
-	    Ns_RWLockRdLock(&tlock);
-	}
-    }
+	    
+	    params = TagToSet(tag.string);
+	    lang = Ns_SetIGet(params, "language");
+	    stream = Ns_SetIGet(params, "stream");
+	    runat = Ns_SetIGet(params, "runat");
+	    if (runat != NULL &&
+		strcasecmp(runat, "server") == 0 &&
+		(lang == NULL || strcasecmp(lang, "tcl") == 0)) {
 
-    return TCL_OK;
+		/*
+		 * This is a server-side script chunk!
+		 * If there is an end tag, add it as a script, else
+		 * spit out a warning and add as text.
+		 */
+		
+		end = Ns_StrNStr(top, "</script>");
+		if (end == NULL) {
+		    Ns_Log(Warning, "adpfancy: unterminated script");
+		    AddTextChunk(outPtr, oldtop, strlen(oldtop));
+                    Ns_SetFree(params);
+		    break;
+		} else {
+		    StartScript(outPtr);
+		    if (stream != NULL && strcasecmp(stream, "on") == 0) {
+			AppendChunk(outPtr, "ns_adp_stream\n");
+		    }
+		    NAppendChunk(outPtr, top, end-top);
+		    EndChunk(outPtr);
+		    top = end + 9;
+		}
+	    } else {
+		/*
+		 * Not a server-side script, so add as text.
+		 */
+		
+		AddTextChunk(outPtr, tag.string, tag.length);
+	    }
+            Ns_SetFree(params);
+	} else if (tag.string[0] == '<'
+	    && (rtPtr = GetRegTag(servPtr, tag.string + 1)) != NULL) {
+
+	    /*
+	     * It is a registered tag. In this case, we generate
+	     * a bolus of tcl code that will call it.
+	     */
+
+	    int         i;
+	    char       *end = NULL;
+
+	    params = TagToSet(tag.string);
+
+	    /*
+	     * If it requires an endtag then ensure that there
+	     * is one. If not, warn and spew text.
+	     */
+	    
+	    if (rtPtr->endtag &&
+		((end = BalancedEndTag(top, rtPtr)) == NULL)) {
+
+		Ns_Log(Warning, "adpfancy: unterminated registered tag '%s'",
+		       rtPtr->tag);
+		AddTextChunk(outPtr, oldtop, strlen(oldtop));
+                Ns_SetFree(params);
+		break;
+	    }
+
+	    /*
+	     * Write Tcl code to put all the parameters into a set, then
+	     * call the proc with that set (and the input, if any).
+	     */
+	    
+	    StartScript(outPtr);
+	    AppendChunk(outPtr, "set _ns_tempset [ns_set create \"\"]\n");
+	    for (i=0; i < Ns_SetSize(params); i++) {
+		AppendChunk(outPtr, "ns_set put $_ns_tempset \"");
+		AppendTclEscaped(outPtr, Ns_SetKey(params, i));
+		AppendChunk(outPtr, "\" \"");
+		AppendTclEscaped(outPtr, Ns_SetValue(params, i));
+	        AppendChunk(outPtr, "\"\n");
+	    }
+	    AppendChunk(outPtr, "ns_puts -nonewline [");
+	    if (rtPtr->isproc) {
+		/*
+		 * This uses the old-style registered procedure
+		 */
+		AppendChunk(outPtr, rtPtr->string);
+	    } else {
+		/*
+		 * This uses the new and improved registered ADP.
+		 */
+		AppendChunk(outPtr, "ns_adp_eval \"");
+		AppendTclEscaped(outPtr, rtPtr->string);
+		AppendChunk(outPtr, "\" ");
+	    }
+	    AppendChunk(outPtr, " ");
+
+	    /*
+	     * Backwards compatibility is broken here because a conn is
+	     * never passed
+	     */
+	    if (end != NULL) {
+		/*
+		 * This takes an endtag, so pass it content (the text between
+		 * the start and end tags).
+		 */
+		AppendChunk(outPtr, "\"");
+		NAppendTclEscaped(outPtr, top, end-top-1);
+		AppendChunk(outPtr, "\" ");
+	    }
+	    AppendChunk(outPtr, "$_ns_tempset]\n");
+	    EndChunk(outPtr);
+
+	    /*
+	     * Advance top past the end of the close tag
+	     * (if there is no closetag, top should already be
+	     * properly advanced thanks get ReadToken)
+	     */
+	    if (end != NULL) {
+		while (*end != '\0' && *end != '>') {
+		    end++;
+		}
+		if (*end == '>') {
+		    end++;
+		}
+		top = end;
+	    }
+            Ns_SetFree(params);
+	} else {
+	    /*
+	     * It's just a chunk of text.
+	     */
+
+	    AddTextChunk(outPtr, tag.string, tag.length);
+	}
+	Ns_DStringTrunc(&tag, 0);
+
+	oldtop = top;
+    }
+    Ns_DStringFree(&tag);
 }
 
 
@@ -503,228 +578,6 @@ NAppendTclEscaped(Ns_DString *ds, char *in, int n)
 	Ns_DStringNAppend(ds, in, 1);
 	in++;
     }
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * FancyParsePage --
- *
- *	Takes an ADP as input and forms a chunky ADP as output.
- *
- * Results:
- *	A chunked ADP is put in outPtr.
- *
- * Side effects:
- *	None.
- *
- *----------------------------------------------------------------------
- */
-
-static void
-FancyParsePage(Ns_DString *outPtr, char *in)
-{
-    char       *top, *oldtop, *end;
-    Ns_DString  tag;
-    Ns_Set     *params;
-    RegTag     *rtPtr;
-    
-    /*
-     * Tags we care about:
-     * <%
-     * <script
-     * <regtag
-     */
-
-    Ns_DStringInit(&tag);
-    oldtop = top = in;
-    
-    if (nsconf.adp.taglocks) {
-	Ns_RWLockRdLock(&tlock);
-    }
-    while ((top = ReadToken(top, &tag)) != NULL) {
-	/*
-	 * top points at the character after the tag.
-	 * tag is a dstring containg either one tag or a bunch of text.
-	 * oldtop points at where tag starts in the original string.
-	 *
-	 * <script language=tcl runat=server> ns_puts hi
-	 * ^                                 ^
-	 * oldtop                            top
-	 *
-	 * tag="<script language=tcl runat=server>"
-	 */
-	
-	if (strncmp(tag.string, "<%", 2) == 0) {
-	    /*
-	     * Find %> tag and add script if there, otherwise spit out
-	     * a warning and add as text.
-	     */
-	    end = strstr(top, "%>");
-	    if (end == NULL) {
-		Ns_Log(Warning, "adpfancy: unterminated script");
-		AddTextChunk(outPtr, oldtop, strlen(oldtop));
-		break;
-	    } else {
-		StartScript(outPtr);
-		if (tag.string[2] == '=') {
-		    NAppendChunk(outPtr, "ns_puts -nonewline ",
- 				  sizeof("ns_puts -nonewline ")-1);
-		}
-		NAppendChunk(outPtr, top, end-top);
-		EndChunk(outPtr);
-		top = end + 2;
-	    }
-	} else if (strncasecmp(tag.string, "<script", 7) == 0) {
-	    char *lang, *runat, *stream;
-	    /*
-	     * Get the paramters to the tag and then add the
-	     * script chunk if appropriate, otherwise it's just
-	     * text
-	     */
-	    
-	    params = TagToSet(tag.string);
-	    lang = Ns_SetIGet(params, "language");
-	    stream = Ns_SetIGet(params, "stream");
-	    runat = Ns_SetIGet(params, "runat");
-	    if (runat != NULL &&
-		strcasecmp(runat, "server") == 0 &&
-		(lang == NULL || strcasecmp(lang, "tcl") == 0)) {
-
-		/*
-		 * This is a server-side script chunk!
-		 * If there is an end tag, add it as a script, else
-		 * spit out a warning and add as text.
-		 */
-		
-		end = Ns_StrNStr(top, "</script>");
-		if (end == NULL) {
-		    Ns_Log(Warning, "adpfancy: unterminated script");
-		    AddTextChunk(outPtr, oldtop, strlen(oldtop));
-                    Ns_SetFree(params);
-		    break;
-		} else {
-		    StartScript(outPtr);
-		    if (stream != NULL && strcasecmp(stream, "on") == 0) {
-			AppendChunk(outPtr, "ns_adp_stream\n");
-		    }
-		    NAppendChunk(outPtr, top, end-top);
-		    EndChunk(outPtr);
-		    top = end + 9;
-		}
-	    } else {
-		/*
-		 * Not a server-side script, so add as text.
-		 */
-		
-		AddTextChunk(outPtr, tag.string, tag.length);
-	    }
-            Ns_SetFree(params);
-	} else if (tag.string[0] == '<'
-	    && (rtPtr = GetRegTag(tag.string + 1)) != NULL) {
-
-	    /*
-	     * It is a registered tag. In this case, we generate
-	     * a bolus of tcl code that will call it.
-	     */
-
-	    int         i;
-	    char       *end = NULL;
-
-	    params = TagToSet(tag.string);
-
-	    /*
-	     * If it requires an endtag then ensure that there
-	     * is one. If not, warn and spew text.
-	     */
-	    
-	    if (rtPtr->endtag &&
-		((end = BalancedEndTag(top, rtPtr)) == NULL)) {
-
-		Ns_Log(Warning, "adpfancy: unterminated registered tag '%s'",
-		       rtPtr->tag);
-		AddTextChunk(outPtr, oldtop, strlen(oldtop));
-                Ns_SetFree(params);
-		break;
-	    }
-
-	    /*
-	     * Write Tcl code to put all the parameters into a set, then
-	     * call the proc with that set (and the input, if any).
-	     */
-	    
-	    StartScript(outPtr);
-	    AppendChunk(outPtr, "set _ns_tempset [ns_set create \"\"]\n");
-	    for (i=0; i < Ns_SetSize(params); i++) {
-		AppendChunk(outPtr, "ns_set put $_ns_tempset \"");
-		AppendTclEscaped(outPtr, Ns_SetKey(params, i));
-		AppendChunk(outPtr, "\" \"");
-		AppendTclEscaped(outPtr, Ns_SetValue(params, i));
-	        AppendChunk(outPtr, "\"\n");
-	    }
-	    AppendChunk(outPtr, "ns_puts -nonewline [");
-	    if (rtPtr->procname) {
-		/*
-		 * This uses the old-style registered procedure
-		 */
-		AppendChunk(outPtr, rtPtr->procname);
-	    } else {
-		/*
-		 * This uses the new and improved registered ADP.
-		 */
-		AppendChunk(outPtr, "ns_adp_eval \"");
-		AppendTclEscaped(outPtr, rtPtr->adpstring);
-		AppendChunk(outPtr, "\" ");
-	    }
-	    AppendChunk(outPtr, " ");
-
-	    /*
-	     * Backwards compatibility is broken here because a conn is
-	     * never passed
-	     */
-	    if (end != NULL) {
-		/*
-		 * This takes an endtag, so pass it content (the text between
-		 * the start and end tags).
-		 */
-		AppendChunk(outPtr, "\"");
-		NAppendTclEscaped(outPtr, top, end-top-1);
-		AppendChunk(outPtr, "\" ");
-	    }
-	    AppendChunk(outPtr, "$_ns_tempset]\n");
-	    EndChunk(outPtr);
-
-	    /*
-	     * Advance top past the end of the close tag
-	     * (if there is no closetag, top should already be
-	     * properly advanced thanks get ReadToken)
-	     */
-	    if (end != NULL) {
-		while (*end != '\0' && *end != '>') {
-		    end++;
-		}
-		if (*end == '>') {
-		    end++;
-		}
-		top = end;
-	    }
-            Ns_SetFree(params);
-	} else {
-	    /*
-	     * It's just a chunk of text.
-	     */
-
-	    AddTextChunk(outPtr, tag.string, tag.length);
-	}
-	Ns_DStringTrunc(&tag, 0);
-
-	oldtop = top;
-    }
-    if (nsconf.adp.taglocks) {
-	Ns_RWLockUnlock(&tlock);
-    }
-    Ns_DStringFree(&tag);
 }
 
 
@@ -975,36 +828,42 @@ ReadToken(char *in, Ns_DString *tagPtr)
  */
 
 static RegTag *
-GetRegTag(char *tag)
+GetRegTag(NsServer *servPtr, char *tag)
 {
-    RegTag        *rtPtr;
     char          *end, temp;
-    Tcl_HashEntry *he;
+    Tcl_HashEntry *hPtr;
     
-    rtPtr = NULL;
-    end = tag;
     /*
      * Locate the end of the tag
      */
-    while (*end != '\0' && *end != '>' &&
-	isspace(UCHAR(*end)) == 0) {
 
+    end = tag;
+    while (*end != '\0'
+	&& *end != '>'
+	&& !isspace(UCHAR(*end))) {
 	end++;
     }
     if (*end == '\0') {
-	goto done;
+	return NULL;
     }
+
+    /*
+     * Find the tag.  Note it's safe to
+     * return the tag after releaseing
+     * the lock because (currently) there
+     * is no way to unregister a tag.
+     */
+
     temp = *end;
     *end = '\0';
-    he = Tcl_FindHashEntry(&htTags, tag);
+    Ns_MutexLock(&servPtr->adp.lock);
+    hPtr = Tcl_FindHashEntry(&servPtr->adp.tags, tag);
+    Ns_MutexUnlock(&servPtr->adp.lock);
     *end = temp;
-    if (he == NULL) {
-	goto done;
+    if (hPtr == NULL) {
+	return NULL;
     }
-    rtPtr = Tcl_GetHashValue(he);
-    
- done:
-    return rtPtr;
+    return Tcl_GetHashValue(hPtr) ;
 }
 
 static char * 

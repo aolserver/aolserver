@@ -34,7 +34,7 @@
  *	Functions that return data to a browser. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.11 2001/01/16 18:14:27 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.12 2001/03/12 22:06:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -94,44 +94,7 @@ static struct {
     {505, "HTTP Version Not Supported"}
 };
 
-static Tcl_HashTable   redirectTable;
 static int             nreasons = (sizeof(reasons) / sizeof(reasons[0]));
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Ns_RegisterReturn --
- *
- *      Associate a URL with a status. Rather than return the
- *	default error page for this status, a redirect will be
- *	issued to the url.
- *
- * Results:
- *	None. 
- *
- * Side effects:
- *	None. 
- *
- *----------------------------------------------------------------------
- */
-
-void
-Ns_RegisterReturn(int status, char *url)
-{
-    Tcl_HashEntry *hPtr;
-    int            new;
-
-    hPtr = Tcl_CreateHashEntry(&redirectTable, (char *) status, &new);
-    if (!new) {
-	ns_free(Tcl_GetHashValue(hPtr));
-    }
-    if (url == NULL) {
-	Tcl_DeleteHashEntry(hPtr);
-    } else {
-	Tcl_SetHashValue(hPtr, ns_strdup(url));
-    }
-}
 
 
 /*
@@ -364,6 +327,7 @@ Ns_ConnReplaceHeaders(Ns_Conn *conn, Ns_Set *newheaders)
 void
 Ns_ConnSetRequiredHeaders(Ns_Conn *conn, char *type, int length)
 {
+    Conn *connPtr = (Conn *) conn;
     Ns_DString ds;
 
     /*
@@ -380,7 +344,7 @@ Ns_ConnSetRequiredHeaders(Ns_Conn *conn, char *type, int length)
      * if AOLpress support is enabled.
      */
 
-    if (nsconf.serv.aolpress) {
+    if (connPtr->servPtr->opts.aolpress) {
     	Ns_DStringAppend(&ds, "NaviServer/2.0 ");
     }
     Ns_DStringVarAppend(&ds, Ns_InfoServerName(), "/", Ns_InfoServerVersion(), NULL);
@@ -612,6 +576,7 @@ Ns_ConnReturnAdminNotice(Ns_Conn *conn, int status, char *title, char *notice)
 int
 Ns_ConnReturnNotice(Ns_Conn *conn, int status, char *title, char *notice)
 {
+    Conn *connPtr = (Conn *) conn;
     Ns_DString ds;
     int        result;
 
@@ -632,7 +597,7 @@ Ns_ConnReturnNotice(Ns_Conn *conn, int status, char *title, char *notice)
     /*
      * Detailed server information at the bottom of the page.
      */
-    if (nsconf.serv.noticedetail) {
+    if (connPtr->servPtr->opts.noticedetail) {
 	Ns_DStringVarAppend(&ds, "<P ALIGN=RIGHT><SMALL><I>",
 			    Ns_InfoServerName(), "/",
 			    Ns_InfoServerVersion(), " on ",
@@ -645,7 +610,7 @@ Ns_ConnReturnNotice(Ns_Conn *conn, int status, char *title, char *notice)
      * NB: Because we pad inside the body we may pad more than needed.
      */
     if (status >= 400) {
-	while (ds.length < nsconf.serv.errorminsize) {
+	while (ds.length < connPtr->servPtr->limits.errorminsize) {
 	    Ns_DStringAppend(&ds, "                    ");
 	}
     }
@@ -869,6 +834,7 @@ Ns_ConnReturnBadRequest(Ns_Conn *conn, char *reason)
 int
 Ns_ConnReturnUnauthorized(Ns_Conn *conn)
 {
+    Conn *connPtr = (Conn *) conn;
     Ns_DString  ds;
     int	        result;
 
@@ -876,7 +842,8 @@ Ns_ConnReturnUnauthorized(Ns_Conn *conn)
 	return result;
     }
     Ns_DStringInit(&ds);
-    Ns_DStringVarAppend(&ds, "Basic realm=\"", nsconf.serv.realm, "\"", NULL);
+    Ns_DStringVarAppend(&ds, "Basic realm=\"",
+	connPtr->servPtr->opts.realm, "\"", NULL);
     Ns_ConnSetHeaders(conn, "WWW-Authenticate", ds.string);
     Ns_DStringFree(&ds);
 
@@ -1131,51 +1098,6 @@ Ns_ConnReturnOpenFd(Ns_Conn *conn, int status, char *type, int fd, int len)
 /*
  *----------------------------------------------------------------------
  *
- * NsInitReturn --
- *
- *	Initialize this file. 
- *
- * Results:
- *	None. 
- *
- * Side effects:
- *	Checks config file. 
- *
- *----------------------------------------------------------------------
- */
-
-void
-NsInitReturn(char *server)
-{
-    Ns_Set *set;
-    int     status, i;
-    char   *path, *key, *url;
-
-    Tcl_InitHashTable(&redirectTable, TCL_ONE_WORD_KEYS);
-
-    /*
-     * Process return redirects, e.g., not found 404.
-     */
-
-    path = Ns_ConfigGetPath(server, NULL, "redirects", NULL);
-    set = Ns_ConfigGetSection(path);
-    for (i = 0; set != NULL && i < Ns_SetSize(set); ++i) {
-	key = Ns_SetKey(set, i);
-	url = Ns_SetValue(set, i);
-	status = atoi(key);
-	if (status <= 0) {
-	    Ns_Log(Error, "return: invalid redirect '%s=%s'", key, url);
-	} else {
-	    Ns_Log(Notice, "return: redirecting '%d' to '%s'", status, url);
-	    Ns_RegisterReturn(status, url);
-	}
-    }
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
  * ReturnRedirect --
  *
  *	Return the appropriate redirect for a given status code. 
@@ -1194,9 +1116,11 @@ ReturnRedirect(Ns_Conn *conn, int status, int *resultPtr)
 {
     Tcl_HashEntry *hPtr;
     Conn    	  *connPtr;
+    NsServer      *servPtr;
 
     connPtr = (Conn *) conn;
-    hPtr = Tcl_FindHashEntry(&redirectTable, (char *) status);
+    servPtr = connPtr->servPtr;
+    hPtr = Tcl_FindHashEntry(&servPtr->request.redirect, (char *) status);
     if (hPtr != NULL) {
 	if (++connPtr->recursionCount > MAX_RECURSION) {
 	    Ns_Log(Error, "return: failed to redirect '%d': "

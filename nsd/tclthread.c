@@ -34,7 +34,7 @@
  *	Tcl wrappers around all thread objects 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclthread.c,v 1.4 2000/11/09 01:53:35 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclthread.c,v 1.5 2001/03/12 22:06:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -416,6 +416,7 @@ NsTclRWLockCmd(ClientData data, Tcl_Interp *interp, int argc, char **argv)
 int
 NsTclThreadCmd(ClientData data, Tcl_Interp *interp, int argc, char **argv)
 {
+    void *status;
     Ns_Thread tid;
 
     if (argc < 2) {
@@ -423,7 +424,7 @@ NsTclThreadCmd(ClientData data, Tcl_Interp *interp, int argc, char **argv)
             argv[0], " command arg\"", NULL);
         return TCL_ERROR;
     }
-    if (STREQ(argv[1], "begin")) {
+    if (STREQ(argv[1], "begin") || STREQ(argv[1], "create")) {
         if (argc < 3) {
             Tcl_AppendResult(interp, "wrong # args: should be \"",
                 argv[0], " ", argv[1], " script\"", NULL);
@@ -442,9 +443,7 @@ NsTclThreadCmd(ClientData data, Tcl_Interp *interp, int argc, char **argv)
         if (Ns_TclDetachedThread(interp, argv[2]) != NS_OK) {
             return TCL_ERROR;
         }
-    } else if (STREQ(argv[1], "wait")) {
-	void *status;
-
+    } else if (STREQ(argv[1], "wait") || STREQ(argv[1], "join")) {
         if (argc < 3) {
             Tcl_AppendResult(interp, "wrong # args: should be \"",
                 argv[0], " ", argv[1], " tid\"", NULL);
@@ -459,19 +458,19 @@ NsTclThreadCmd(ClientData data, Tcl_Interp *interp, int argc, char **argv)
     } else if (STREQ(argv[1], "get")) {
         Ns_ThreadSelf(&tid);
         SetObj(interp, 't', tid);
-    } else if (STREQ(argv[1], "getid")) {
+    } else if (STREQ(argv[1], "getid") || STREQ(argv[1], "id")) {
         sprintf(interp->result, "%d", Ns_ThreadId());
     } else if (STREQ(argv[1], "name")) {
 	if (argc > 2) {
 	    Ns_ThreadSetName(argv[2]);
 	}
-	Tcl_SetResult(interp, Ns_ThreadGetName(), TCL_STATIC);
+	Tcl_SetResult(interp, Ns_ThreadGetName(), TCL_VOLATILE);
     } else if (STREQ(argv[1], "yield")) {
         Ns_ThreadYield();
     } else {
         Tcl_AppendResult(interp, "unknown command \"",
-            argv[1], "\":  should be begin, begindetached, "
-            "get, getid, wait, or yield", NULL);
+            argv[1], "\":  should be begin, begindetached, create "
+            "get, getid, id, join, wait, or yield", NULL);
         return TCL_ERROR;
     }
 

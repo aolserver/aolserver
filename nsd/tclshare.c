@@ -43,7 +43,7 @@
  */
 
 
-#include	"ns.h"
+#include	"nsd.h"
 
 /*
  * Shared variables are implemented with a process-wide hash table
@@ -52,9 +52,6 @@
  * reduce the number of locks by sharing them among variables.
  */
 
-static Tcl_HashTable shareTable;/* Table of shared variables. */
-static Ns_Cs shareLock;	        /* Lock around access to shareTable. */
-static int init = 0;		/* Initialization flag */
 typedef struct NsShareVar {
     Ns_Cs lock;                	/* Lock to serialize access to the value */
     int shareCount;		/* Number of threads sharing the value */
@@ -73,22 +70,118 @@ typedef struct NsShareVar {
  * This requires a hash table in thread local storage.
  */
 
-static Ns_Tls tls;
-
-
-#if TCL_MAJOR_VERSION >= 8
-
-static void DeleteShare(void *arg);
-static void RegisterShare(Tcl_Interp *interp, char *varName, NsShareVar *valuePtr);
 static void ShareUnsetVar(Tcl_Interp *interp, char *varName,
 	NsShareVar *valuePtr);
 static char *ShareTraceProc(ClientData clientData, Tcl_Interp *interp,
 	char *name1, char *name2, int flags);
+static int ShareVar(NsInterp *itPtr, Tcl_Interp *interp, char *varName);
+static int InitShare(NsServer *servPtr, Tcl_Interp *interp,
+	char *varName, char *script);
+static void RegisterShare(NsInterp *itPtr, Tcl_Interp *interp,
+	char *varName, NsShareVar *valuePtr);
 
+
 /*
  *----------------------------------------------------------------------
  *
- * NsTclShareVar --
+ * NsTclShareCmd --
+ *
+ *	This procedure is invoked to process the "ns_share" Tcl command.
+ *      It links the variables passed in to values that are shared.
+ *	NOTE:  This procedure requires the NsTclShareVar() routine
+ *	defined somewhere else.
+ *
+ * Results:
+ *	A standard Tcl result value.
+ *
+ * Side effects:
+ *	Very similar to "global"
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+NsTclShareCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
+{
+    NsInterp *itPtr = arg;
+ 
+    if (argc < 2) {
+	Tcl_AppendResult(interp, "wrong # args: should be \"",
+		argv[0], " ?-init script? varName ?varName ...?\"", NULL);
+	return TCL_ERROR;
+    }
+    if (itPtr == NULL) {
+	Tcl_SetResult(interp, "no server", TCL_STATIC);
+	return TCL_ERROR;
+    }
+    
+    if (STREQ(argv[1], "-init")) {
+        if (argc != 4) {
+	    Tcl_AppendResult(interp, "wrong # args: should be \"",
+			     argv[0], " -init script varName\"", NULL);
+	    return TCL_ERROR;
+        }
+        if (ShareVar(itPtr, interp, argv[3]) != TCL_OK ||
+    	    InitShare(itPtr->servPtr, interp, argv[3], argv[2]) != TCL_OK) {
+	    return TCL_ERROR;
+	}
+    } else {
+        for (argc--, argv++; argc > 0; argc--, argv++) {
+	    if (ShareVar(itPtr, interp, *argv) != TCL_OK) {
+		return TCL_ERROR;
+	    }
+        }
+    }
+    return TCL_OK;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * InitShare --
+ *
+ *	Helper routine to initialize a shared variable once, invoke
+ *	by a call to ns_share -init. 
+ *
+ * Results:
+ *	A standard Tcl result value.
+ *
+ * Side effects:
+ *	Init script is evaluated once.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+InitShare(NsServer *servPtr, Tcl_Interp *interp, char *varName, char *script)
+{
+    Tcl_HashEntry *hPtr;
+    int new, result;
+
+    Ns_MutexLock(&servPtr->share.lock);
+    hPtr = Tcl_CreateHashEntry(&servPtr->share.inits, varName, &new);
+    if (!new) {
+	while (Tcl_GetHashValue(hPtr) == NULL) {
+    	    Ns_CondWait(&servPtr->share.cond, &servPtr->share.lock);
+	}
+        result = TCL_OK;
+    } else {
+	Ns_MutexUnlock(&servPtr->share.lock);
+	result = NsTclEval(interp, script);
+	Ns_MutexLock(&servPtr->share.lock);
+	Tcl_SetHashValue(hPtr, (ClientData) 1);
+	Ns_CondBroadcast(&servPtr->share.cond);
+    }
+    Ns_MutexUnlock(&servPtr->share.lock);
+    return result;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * ShareVar --
  *
  *	Declare that a variable is shared among interpreters.
  *
@@ -102,31 +195,15 @@ static char *ShareTraceProc(ClientData clientData, Tcl_Interp *interp,
  *----------------------------------------------------------------------
  */
 
-int
-NsTclShareVar(Tcl_Interp *interp, char *varName)
+static int
+ShareVar(NsInterp *itPtr, Tcl_Interp *interp, char *varName)
 {
+    NsServer *servPtr = itPtr->servPtr;
     Tcl_HashEntry *hPtr;
     NsShareVar *valuePtr;
     char *s;
     char* globalizedVarName;
     int new;
-
-    /*
-     * Initialize the global table of shared variable names.
-     */
-
-    if (init == 0) {
-	Ns_MasterLock();
-	if (init == 0) {
-	    Tcl_InitHashTable(&shareTable, TCL_STRING_KEYS);
-	    Ns_TlsAlloc(&tls, DeleteShare);
-	    init = 1;
-	    /*
-	     * Leak - should have an exit handler to Delete the hash table.
-	     */
-	}
-	Ns_MasterUnlock();
-    }
 
     /*
      * Ensure the variable to share is a scalar or whole array.
@@ -149,8 +226,8 @@ NsTclShareVar(Tcl_Interp *interp, char *varName)
         strcpy(globalizedVarName, varName);
     }
 
-    Ns_CsEnter(&shareLock);
-    hPtr = Tcl_CreateHashEntry(&shareTable, globalizedVarName, &new);
+    Ns_CsEnter(&servPtr->share.cs);
+    hPtr = Tcl_CreateHashEntry(&servPtr->share.vars, globalizedVarName, &new);
     if (!new) {
     	valuePtr = Tcl_GetHashValue(hPtr);
     } else {
@@ -224,13 +301,13 @@ NsTclShareVar(Tcl_Interp *interp, char *varName)
      * Declare it as a global variable.
      */
 
-    RegisterShare(interp, globalizedVarName, valuePtr);
+    RegisterShare(itPtr, interp, globalizedVarName, valuePtr);
     Tcl_VarEval(interp, "global ", varName, NULL);
 
-    Ns_CsLeave(&shareLock);
+    Ns_CsLeave(&servPtr->share.cs);
 
     /*
-     * The value of the shareTable is independent of the values
+     * The value in the shared table is independent of the values
      * in each thread's shared variable.  If a thread deletes its
      * global variable, the UNSET trace will hook up to the
      * shared value again.  There is no need to put extra
@@ -238,31 +315,6 @@ NsTclShareVar(Tcl_Interp *interp, char *varName)
      */
     ns_free(globalizedVarName);
     return TCL_OK;
-}
-
-/*
- *----------------------------------------------------------------------
- *
- * DeleteShare --
- *
- *	Clean up the per-thread hash table of share names.
- *
- * Results:
- *	None.
- *
- * Side effects:
- *	Tcl_DeleteHashTable
- *
- *----------------------------------------------------------------------
- */
-
-static void
-DeleteShare(void *arg)
-{
-    Tcl_HashTable *tablePtr = arg;
-
-    Tcl_DeleteHashTable(tablePtr);
-    ns_free(tablePtr);
 }
 
 /*
@@ -282,23 +334,14 @@ DeleteShare(void *arg)
  */
 
 static void
-RegisterShare(interp, varName, valuePtr)
+RegisterShare(itPtr, interp, varName, valuePtr)
+    NsInterp *itPtr;		/* Virtual server. */
     Tcl_Interp *interp;		/* The interpreter */
     char *varName;		/* Share name */
     NsShareVar *valuePtr;	/* Handle on shared value */
 {
-    Tcl_HashTable *tablePtr = Ns_TlsGet(&tls);
-    Tcl_HashEntry *hPtr;
-    int new;
     int traceFlags = TCL_TRACE_WRITES | TCL_TRACE_UNSETS | TCL_TRACE_READS | TCL_TRACE_ARRAY;
     ClientData data, shareData;
-
-    if (tablePtr == NULL) {
-        tablePtr = ns_malloc(sizeof(Tcl_HashTable));
-        Tcl_InitHashTable(tablePtr, TCL_STRING_KEYS);
-        Ns_TlsSet(&tls, tablePtr);
-    }
-    hPtr = Tcl_CreateHashEntry(tablePtr, varName, &new);
     
     /*
      * Check if there's an existing ns_share trace on the variable. 
@@ -426,16 +469,17 @@ ShareTraceProc(clientData, interp, name1, name2, flags)
     char* globalizedName;       /* name1 with :: in front of it. */
     char* string;               /* String form of shared value */
     int length;                 /* Length of string */
+    NsInterp *itPtr = NsGetInterp(interp);
+    NsServer *servPtr = itPtr->servPtr;
 
-
-    Ns_CsEnter(&shareLock);
+    Ns_CsEnter(&servPtr->share.cs);
     globalizedName = ns_malloc(strlen("::") + strlen(name1) + 1);
     if (strncmp("::", name1, 2) != 0) {
         sprintf(globalizedName, "::%s", name1);
     } else {
         strcpy(globalizedName, name1);
     }
-    hPtr = Tcl_FindHashEntry(&shareTable, globalizedName);
+    hPtr = Tcl_FindHashEntry(&servPtr->share.vars, globalizedName);
     if (hPtr == NULL) {
 	/*
 	 * This trace is firing on an upvar alias to the shared variable.
@@ -444,7 +488,7 @@ ShareTraceProc(clientData, interp, name1, name2, flags)
 	 * variable in the interpreter without reflecting the unset
 	 * down into the shared value.  HACK ALERT.
 	 */
-	Ns_CsLeave(&shareLock);
+	Ns_CsLeave(&servPtr->share.cs);
         ns_free(globalizedName);
 	return NULL;
     }
@@ -478,7 +522,7 @@ ShareTraceProc(clientData, interp, name1, name2, flags)
     if (valuePtr->flags & SHARE_TRACE) {
 	bail = 1;
     }
-    Ns_CsLeave(&shareLock);
+    Ns_CsLeave(&servPtr->share.cs);
 
     if (bail) {
         ns_free(globalizedName);
@@ -616,5 +660,3 @@ ShareTraceProc(clientData, interp, name1, name2, flags)
     ns_free(globalizedName);
     return NULL;
 }
-#endif
-

@@ -34,7 +34,7 @@
  *	Functions that deal with strings. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/str.c,v 1.4 2000/08/25 13:49:57 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/str.c,v 1.5 2001/03/12 22:06:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -84,12 +84,9 @@ Ns_StrTrim(char *string)
 char *
 Ns_StrTrimLeft(char *string)
 {
-    assert(string != NULL);
-
     while (isspace(UCHAR(*string))) {
         ++string;
     }
-    
     return string;
 }
 
@@ -117,8 +114,6 @@ Ns_StrTrimRight(char *string)
 {
     int len;
 
-    assert(string != NULL);
-
     len = strlen(string);
     while ((len-- >= 0) &&
 	   (isspace(UCHAR(string[len])) ||
@@ -126,7 +121,6 @@ Ns_StrTrimRight(char *string)
 	
         string[len] = '\0';
     }
-    
     return string;
 }
 
@@ -159,7 +153,6 @@ Ns_StrToLower(char *string)
         }
         ++s;
     }
-    
     return string;
 }
 
@@ -192,47 +185,7 @@ Ns_StrToUpper(char *string)
         }
         ++s;
     }
-    
     return string;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Ns_StrCaseFind --
- *
- *	A case-insensitive version of strstr. 
- *
- * Results:
- *	A pointer in s1 to where s2 begins. 
- *
- * Side effects:
- *	None. 
- *
- *----------------------------------------------------------------------
- */
-
-char *
-Ns_StrCaseFind(char *s1, char *s2)
-{
-    Ns_DString  ds1;
-    Ns_DString  ds2;
-    char       *p;
-
-    Ns_DStringInit(&ds1);
-    Ns_DStringInit(&ds2);
-    Ns_DStringAppend(&ds1, s1);
-    Ns_DStringAppend(&ds1, s2);
-    Ns_StrToLower(ds1.string);
-    Ns_StrToLower(ds2.string);
-    p = strstr(ds1.string, ds2.string);
-    if (p != NULL) {
-        p = s1 + (p - ds1.string);
-    }
-    Ns_DStringFree(&ds1);
-    Ns_DStringFree(&ds2);
-    return p;
 }
 
 
@@ -257,8 +210,8 @@ Ns_StrCaseFind(char *s1, char *s2)
 char *
 Ns_Match(char *a, char *b)
 {
-    if (a && b) {
-        while (*a && *b) {
+    if (a != NULL && b != NULL) {
+        while (*a != '\0' && *b != '\0') {
             char            c1, c2;
 
             c1 = islower(UCHAR(*a)) ? *a : tolower(UCHAR(*a));
@@ -300,7 +253,6 @@ Ns_NextWord(char *line)
     while (*line != '\0' && isspace(UCHAR(*line))) {
         ++line;
     }
-    
     return line;
 }
 
@@ -308,12 +260,12 @@ Ns_NextWord(char *line)
 /*
  *----------------------------------------------------------------------
  *
- * Ns_StrNStr --
+ * Ns_StrCaseStr --
  *
- *	Search through pattern for expression, case insensitively. 
+ *	Search for first substring within string, case insensitive. 
  *
  * Results:
- *	A pointer to where the match begins. 
+ *	A pointer to where substring starts or NULL.
  *
  * Side effects:
  *	None. 
@@ -322,38 +274,21 @@ Ns_NextWord(char *line)
  */
 
 char *
-Ns_StrNStr(char *pattern, char *expression)
+Ns_StrNStr(char *string, char *substring)
 {
-    char *top;
-    int   plen, elen, epos, ppos;
-    
-    plen = strlen(pattern);
-    elen = strlen(expression);
-    if (elen > plen) {
-	/*
-	 * Expression is longer than pattern, so no way there's a match
-	 */
-	return NULL;
-    }
-
-    epos=0;
-    ppos=0;
-    for (top=pattern; top <= pattern + plen - elen; top++) {
-	while (epos < elen && toupper(UCHAR(top[ppos])) ==
-	       toupper(UCHAR(expression[epos]))) {
-	    ppos++;
-	    epos++;
-	}
-	if (epos == elen) {
-	    return top;
-	}
-	ppos=0;
-	epos=0;
-    }
-
-    return NULL;
+    return Ns_StrCaseFind(string, substring);
 }
 
-
-
-
+char *
+Ns_StrCaseFind(char *string, char *substring)
+{
+    if (strlen(string) > strlen(substring)) {
+    	while (*string != '\0') {
+	    if (Ns_Match(string, substring)) {
+	        return string;
+	    }
+	    ++string;
+	}
+    }
+    return NULL;
+}

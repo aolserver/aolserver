@@ -34,21 +34,19 @@
  *      Manage the Ns_Conn structure
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.7 2001/01/16 18:14:27 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.8 2001/03/12 22:06:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
+#define IOBUFSZ 2048
 
 /*
  * Local functions defined in this file
  */
 
-static int UrlVHackCmd(ClientData dummy, Tcl_Interp *interp,
-		       int argc, char **argv);
 static int ConnSend(Ns_Conn *, int nsend, Tcl_Channel chan,
     	    	    FILE *fp, int fd);
 static int ConnCopy(Ns_Conn *conn, size_t tocopy, Ns_DString *dsPtr,
     	    	    Tcl_Channel chan, FILE *fp, int fd);
-
 
 static Ns_LocationProc *locationPtr = NULL;
 
@@ -191,10 +189,10 @@ Ns_ConnClose(Ns_Conn *conn)
         if (!NsKeepAlive(conn)) {
     	    (*connPtr->drvPtr->closeProc)(connPtr->drvData);
 	}
-	if (nsconf.serv.stats) {
-	    Ns_GetTime(&connPtr->tclose);
-	}
 	connPtr->flags |= NS_CONN_CLOSED;
+	if (connPtr->interp != NULL) {
+	    NsRunAtClose(connPtr->interp);
+	}
     }
     return NS_OK;
 }
@@ -336,7 +334,7 @@ Ns_ConnServer(Ns_Conn *conn)
 {
     Conn           *connPtr = (Conn *) conn;
 
-    return connPtr->server;
+    return connPtr->servPtr->server;
 }
 
 
@@ -685,6 +683,7 @@ Ns_ConnId(Ns_Conn *conn)
 int
 Ns_ConnReadLine(Ns_Conn *conn, Ns_DString *dsPtr, int *nreadPtr)
 {
+    Conn	   *connPtr = (Conn *) conn;
     char            buf[1];
     int             n, nread;
     int		    ret = NS_OK;
@@ -700,7 +699,7 @@ Ns_ConnReadLine(Ns_Conn *conn, Ns_DString *dsPtr, int *nreadPtr)
                 Ns_DStringNAppend(dsPtr, buf, 1);
             }
         }
-    } while (n == 1 && nread <= nsconf.conn.maxline);
+    } while (n == 1 && nread <= connPtr->servPtr->limits.maxline);
     if (n < 0) {
         ret = NS_ERROR;
     } else {
@@ -833,11 +832,12 @@ int
 Ns_ConnSendFd(Ns_Conn *conn, int fd, int nsend)
 {
     Conn *connPtr = (Conn*) conn;
-    int status;
+    int status, min;
 
+    min = connPtr->servPtr->limits.sendfdmin;
     if (CONN_CLOSED(connPtr)) {
 	status = NS_ERROR; 
-    } else if (connPtr->drvPtr->sendFdProc != NULL && nsend > nsconf.serv.sendfdmin) {
+    } else if (connPtr->drvPtr->sendFdProc != NULL && nsend > min) {
     	status = (*connPtr->drvPtr->sendFdProc)(connPtr->drvData, fd, nsend);
     } else {
         status = ConnSend(conn, nsend, NULL, NULL, fd);
@@ -909,18 +909,17 @@ int
 Ns_ConnFlushContent(Ns_Conn *conn)
 {
     Conn           *connPtr;
-    char           *buf;
-    int             bufsize, nread, nflush, toread, status;
+    char            buf[IOBUFSZ];
+    int             nread, nflush, toread, status;
 
     connPtr = (Conn *) conn;
     status = NS_OK;
-    if (nsconf.conn.flushcontent && connPtr->contentLength > 0) {
-    	NsGetBuf(&buf, &bufsize);
+    if (connPtr->servPtr->opts.flushcontent && connPtr->contentLength > 0) {
         nflush = connPtr->contentLength - connPtr->nContent;
         while (nflush > 0) {
             toread = nflush;
-            if (toread > bufsize) {
-                toread = bufsize;
+            if (toread > sizeof(buf)) {
+                toread = sizeof(buf);
             }
             nread = Ns_ConnRead(conn, buf, toread);
             if (nread <= 0) {
@@ -958,9 +957,10 @@ Ns_ConnFlushContent(Ns_Conn *conn)
 int
 Ns_ConnModifiedSince(Ns_Conn *conn, time_t since)
 {
+    Conn	   *connPtr = (Conn *) conn;
     char           *hdr;
 
-    if (nsconf.conn.modsince) {
+    if (connPtr->servPtr->opts.modsince) {
         hdr = Ns_SetIGet(conn->headers, "If-Modified-Since");
         if (hdr != NULL && Ns_ParseHttpTime(hdr) >= since) {
 	    return NS_FALSE;
@@ -1028,24 +1028,26 @@ Ns_ConnReadHeaders(Ns_Conn *conn, Ns_Set *set, int *nreadPtr)
 {
     Ns_DString      ds;
     Conn           *connPtr = (Conn *) conn;
-    int             status, nread, nline;
+    int             status, nread, nline, max;
 
     Ns_DStringInit(&ds);
     nread = 0;
     status = NS_OK;
-    while (nread < nsconf.conn.maxheaders && status == NS_OK) {
+    max = connPtr->servPtr->limits.maxheaders;
+    while (nread < max && status == NS_OK) {
         Ns_DStringTrunc(&ds, 0);
         status = Ns_ConnReadLine(conn, &ds, &nline);
         if (status == NS_OK) {
             nread += nline;
-            if (nread > nsconf.conn.maxheaders) {
+            if (nread > max) {
                 status = NS_ERROR;
             } else {
                 if (ds.string[0] == '\0') {
 		    connPtr->readState = Content;
                     break;
                 }
-                status = Ns_ParseHeader(set, ds.string, nsconf.conn.hdrcase);
+                status = Ns_ParseHeader(set, ds.string,
+			connPtr->servPtr->opts.hdrcase);
             }
         }
     }
@@ -1160,15 +1162,17 @@ Ns_ConnGetQuery(Ns_Conn *conn)
 {
     Ns_DString     *dsPtr;
     Conn           *connPtr = (Conn *) conn;
+    int		    max;
     
+    max = connPtr->servPtr->limits.maxpost;
     dsPtr = Ns_DStringPop();
     if (connPtr->query == NULL) {
         if (STREQ(conn->request->method, "POST") && conn->contentLength > 0) {
             if (connPtr->nContent == 0 
-		&& conn->contentLength > nsconf.conn.maxpost) {
+		&& conn->contentLength > max) {
 		Ns_Log(Warning, "conn: "
 		       "post size %d exceeds maxpost limit of %d",
-		       conn->contentLength, nsconf.conn.maxpost);
+		       conn->contentLength, max);
 	    } else if (Ns_ConnCopyToDString(conn, conn->contentLength,
 					 dsPtr) != NS_OK) {
 		goto bailout;
@@ -1309,46 +1313,14 @@ NsTclParseQueryCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 	    argv[0], " querystring\"", (char *) NULL);
 	return TCL_ERROR;
     }
-
     set = Ns_SetCreate(NULL);
     if (Ns_QueryToSet(argv[1], set) != NS_OK) {
 	Tcl_AppendResult(interp, argv[0], ": could not parse: \"",
 	    argv[1], "\"", (char *) NULL);
+	Ns_SetFree(set);
 	return TCL_ERROR;
     }
-    
-    return Ns_TclEnterSet(interp, set,
-			 NS_TCL_SET_TEMPORARY | NS_TCL_SET_DYNAMIC);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Ns_GetConnInterp --
- *
- *	Get an interp for use in a connection thread.  Using this
- *	interface will ensure an automatic call to
- *	Ns_TclDeAllocateInterp() at the end of the connection.
- *
- * Results:
- *	See Ns_TclAllocateInterp().
- *
- * Side effects:
- *	Interp will be deallocated when connection is complete.
- *
- *----------------------------------------------------------------------
- */
-
-Tcl_Interp *
-Ns_GetConnInterp(Ns_Conn *conn)
-{
-    Conn *connPtr = (Conn *) conn;
-
-    if (connPtr->interp == NULL) {
-	connPtr->interp = Ns_TclAllocateInterp(connPtr->server);
-    }
-    return connPtr->interp;
+    return Ns_TclEnterSet(interp, set, NS_TCL_SET_DYNAMIC);
 }
 
 
@@ -1369,124 +1341,191 @@ Ns_GetConnInterp(Ns_Conn *conn)
  */
 
 int
-NsTclConnCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
+NsTclConnCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 {
-    Ns_Conn    *conn;
-    Conn       *connPtr;
+    NsInterp   *itPtr = arg;
+    Ns_Conn    *conn = itPtr->conn;
+    Conn       *connPtr = (Conn *) conn;
     Ns_Request *request;
     Ns_Set     *form;
+    int		urlv, idx;
 
-    /*
-     * Assumed that all ns_conn commands just take the secondary command
-     * name and no additional arguments.
-     *
-     * Urlv takes an extra undocumented argument, so it's hacked here.
-     */
-
-    if (argc >= 2 && STREQ(argv[1], "urlv")) {
-	return UrlVHackCmd(dummy, interp, argc, argv);
-    }
-
-    if (argc == 3) {
-	/*
-	 * They must have specified a conn ID.  Make sure it's a valid
-	 * conn ID.  If not, it's an error.
-	 */
-	
-	if (NsIsIdConn(argv[2]) == NS_FALSE) {
-	    Tcl_AppendResult(interp, "bad connid: \"", argv[2], "\"", NULL);
-	    return TCL_ERROR;
-	}
-    } else if (argc > 3 || argc < 2) {
+    if (argc < 2) {
+badargs:
         Tcl_AppendResult(interp, "wrong # of args: should be \"",
                          argv[0], " cmd ", NULL);
         return TCL_ERROR;
     }
-    connPtr = (Conn *) Ns_GetConn();
+    urlv = STREQ(argv[1], "urlv");
+    if (!urlv) {
+	if (argc > 3) {
+	    goto badargs;
+	}
+	if (argc == 3 && !NsIsIdConn(argv[2])) {
+badconn:
+	    Tcl_AppendResult(interp, "invalid connid: \"", argv[2], "\"", NULL);
+	    return TCL_ERROR;
+	}
+    } else {
+	/*
+	 * Special treatment for urlv command.
+	 */
+
+	switch (argc) {
+	case 2:
+	    idx = -1;
+	    break;
+
+	case 3:
+	    /* NB: Ambiguous, check conn id then assume arg is index. */
+	    if (NsIsIdConn(argv[2])) {
+		idx = -1;
+	    } else if (Tcl_GetInt(interp, argv[2], &idx) != TCL_OK) {
+		return TCL_ERROR;
+	    }
+	    break;
+
+	case 4:
+	    if (!NsIsIdConn(argv[2])) {
+		goto badconn;
+	    }
+	    if (Tcl_GetInt(interp, argv[3], &idx) != TCL_OK) {
+		return TCL_ERROR;
+	    }
+	    break;
+
+	default:
+	    goto badargs;
+	}
+    }
+
     if (STREQ(argv[1], "isconnected")) {
 	Tcl_SetResult(interp, (connPtr == NULL) ? "0" : "1", TCL_STATIC);
 	return TCL_OK;
     }
+
+    /*
+     * All remaining commands require a conn.
+     */
+
     if (connPtr == NULL) {
         Tcl_AppendResult(interp, "no current connection", NULL);
         return TCL_ERROR;
     }
-    if (!connPtr->tclInit) {
-        Ns_TclEnterSet(interp, connPtr->headers, 0);
-        strcpy(connPtr->tclHdrs, interp->result);
-        Ns_TclEnterSet(interp, connPtr->outputheaders, 0);
-        strcpy(connPtr->tclOutputHdrs, interp->result);
-	Tcl_ResetResult(interp);
-	connPtr->tclInit = 1;
-    }
-    conn = (Ns_Conn *) connPtr;
     request = connPtr->request;
-    
-    if (STREQ(argv[1], "authuser")) {
+    if (urlv) {
+	if (idx < 0) {
+	    for (idx = 0; idx < request->urlc; idx++) {
+	        Tcl_AppendElement(interp, request->urlv[idx]);
+	    }
+	} else if (idx >= 0 && idx < request->urlc) {
+	    Tcl_SetResult(interp, request->urlv[idx], TCL_VOLATILE);
+	}
+    } else if (STREQ(argv[1], "authuser")) {
         Tcl_SetResult(interp, connPtr->authUser, TCL_STATIC);
+
     } else if (STREQ(argv[1], "authpassword")) {
         Tcl_SetResult(interp, connPtr->authPasswd, TCL_STATIC);
+
     } else if (STREQ(argv[1], "contentlength")) {
         sprintf(interp->result, "%u", (unsigned) conn->contentLength);
+
     } else if (STREQ(argv[1], "peeraddr")) {
         Tcl_SetResult(interp, Ns_ConnPeer(conn), TCL_STATIC);
+
     } else if (STREQ(argv[1], "peerport")) {
 	sprintf(interp->result, "%d", Ns_ConnPeerPort(conn));
+
     } else if (STREQ(argv[1], "headers")) {
-        Tcl_SetResult(interp, connPtr->tclHdrs, TCL_STATIC);
-    } else if (STREQ(argv[1], "outputheaders")) {
-        Tcl_SetResult(interp, connPtr->tclOutputHdrs, TCL_STATIC);
-    } else if (STREQ(argv[1], "form")) {
-    	if (!connPtr->tclFormInit) {
-            form = Ns_ConnGetQuery(conn);
-            if (form != NULL) {
-                Ns_TclEnterSet(interp, Ns_SetCopy(form), 1);
-        	strcpy(connPtr->tclForm, interp->result);
-	    }
-	    connPtr->tclFormInit = 1;
+	if (itPtr->nsconn.flags & CONN_TCLHDRS) {
+            Tcl_SetResult(interp, itPtr->nsconn.hdrs, TCL_STATIC);
+	} else {
+            Ns_TclEnterSet(interp, connPtr->headers, NS_TCL_SET_STATIC);
+	    strcpy(interp->result, itPtr->nsconn.hdrs);
+	    itPtr->nsconn.flags |= CONN_TCLHDRS;
 	}
-        Tcl_SetResult(interp, connPtr->tclForm, TCL_STATIC);
+
+    } else if (STREQ(argv[1], "outputheaders")) {
+	if (itPtr->nsconn.flags & CONN_TCLHDRS) {
+            Tcl_SetResult(interp, itPtr->nsconn.outhdrs, TCL_STATIC);
+	} else {
+            Ns_TclEnterSet(interp, connPtr->outputheaders, NS_TCL_SET_STATIC);
+	    strcpy(interp->result, itPtr->nsconn.outhdrs);
+	    itPtr->nsconn.flags |= CONN_TCLOUTHDRS;
+	}
+
+    } else if (STREQ(argv[1], "form")) {
+	if (itPtr->nsconn.flags & CONN_TCLFORM) {
+            Tcl_SetResult(interp, itPtr->nsconn.form, TCL_STATIC);
+	} else {
+            form = Ns_ConnGetQuery(conn);
+            if (form == NULL) {
+        	itPtr->nsconn.form[0] = '\0';
+	    } else {
+		form = Ns_SetCopy(form);
+                Ns_TclEnterSet(interp, form, NS_TCL_SET_DYNAMIC);
+        	strcpy(itPtr->nsconn.form, interp->result);
+	    }
+	    itPtr->nsconn.flags |= CONN_TCLFORM;
+	}
+
     } else if (STREQ(argv[1], "request")) {
         Tcl_SetResult(interp, request->line, TCL_STATIC);
+
     } else if (STREQ(argv[1], "method")) {
         Tcl_SetResult(interp, request->method, TCL_STATIC);
+
     } else if (STREQ(argv[1], "protocol")) {
         Tcl_SetResult(interp, request->protocol, TCL_STATIC);
+
     } else if (STREQ(argv[1], "host")) {
         Tcl_SetResult(interp, request->host, TCL_STATIC);
+
     } else if (STREQ(argv[1], "port")) {
         sprintf(interp->result, "%d", request->port);
+
     } else if (STREQ(argv[1], "url")) {
         Tcl_SetResult(interp, request->url, TCL_STATIC);
+
     } else if (STREQ(argv[1], "query")) {
         Tcl_SetResult(interp, request->query, TCL_STATIC);
+
     } else if (STREQ(argv[1], "urlc")) {
         sprintf(interp->result, "%d", request->urlc);
+
     } else if (STREQ(argv[1], "version")) {
         sprintf(interp->result, "%1.1f", request->version);
-        return TCL_OK;
+
     } else if (STREQ(argv[1], "location")) {
         Tcl_SetResult(interp, Ns_ConnLocation(conn), TCL_STATIC);
+
     } else if (STREQ(argv[1], "driver")) {
 	Tcl_AppendResult(interp, Ns_ConnDriverName(conn), NULL);
-	return TCL_OK;
+
     } else if (STREQ(argv[1], "server")) {
         Tcl_SetResult(interp, Ns_ConnServer(conn), TCL_STATIC);
+
     } else if (STREQ(argv[1], "status")) {
         sprintf(interp->result, "%d", Ns_ConnResponseStatus(conn));
+
     } else if (STREQ(argv[1], "sock")) {
 	sprintf(interp->result, "%d", Ns_ConnSock(conn));
+
     } else if (STREQ(argv[1], "id")) {
 	sprintf(interp->result, "%d", Ns_ConnId(conn));
+
     } else if (STREQ(argv[1], "flags")) {
 	sprintf(interp->result, "%d", connPtr->flags);
+
     } else if (STREQ(argv[1], "start")) {
 	sprintf(interp->result, "%d", (int) connPtr->startTime);
+
     } else if (STREQ(argv[1], "close")) {
         if (Ns_ConnClose(conn) != NS_OK) {
             Tcl_SetResult(interp, "could not close connection", TCL_STATIC);
             return TCL_ERROR;
         }
+
     } else {
         Tcl_AppendResult(interp, "unknown command \"", argv[1],
 			 "\":  should be "
@@ -1519,92 +1558,6 @@ NsTclConnCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
                          "or version", NULL);
         return TCL_ERROR;
     }
-
-    return TCL_OK;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * UrlVHackCmd --
- *
- *	There's an undocumented behavior of ns_conn urlv - if you 
- *	pass another argument, it does the equivalent of an lindex of 
- *	that arg. Since this is the only ns_conn command that has 
- *	this extra parameter, it's been put in its own ghetto to keep 
- *	the rest of ns_conn's implementation straightforward. 
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	See docs for ns_conn urlv. 
- *
- *----------------------------------------------------------------------
- */
-
-static int
-UrlVHackCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
-{
-    int        i;
-    int        indexArg = 0;
-    Ns_Request *request;
-    Conn       *connPtr;
-
-    /* There are 4 cases to consider (in the order they're checked)
-     *       0    1    2      3
-     *   ns_conn urlv conn   index           (4 args)
-     *   ns_conn urlv conn                   (3 args)
-     *   ns_conn urlv index                  (3 args)
-     *   ns_conn urlv                        (2 args)
-     */
-
-    if (argc == 4) {
-	indexArg = 3;
-
-	if (NsIsIdConn(argv[2]) == NS_FALSE) {
-	    Tcl_AppendResult(interp, "bad connid: \"", argv[2], "\"", NULL);
-	    return TCL_ERROR;
-	}
-
-    } else if (argc == 3) {
-	/*
-	 * This case is ambiguious if they pass a dummy conn that doesn't
-	 * look like 'cns%d'.  If they do, it'll be interpreted as an
-	 * integer
-	 */
-	
-	if (NsIsIdConn(argv[2]) == NS_FALSE) {
-	    indexArg = 2;
-	}
-
-    } else if (argc != 2) {
-        Tcl_AppendResult(interp, "wrong # of args: should be \"",
-                         argv[0], " urlv ", NULL);
-        return TCL_ERROR;
-    }
-
-    connPtr = (Conn *) Ns_GetConn();
-    if (connPtr == NULL) {
-        Tcl_AppendResult(interp, "no current connection", NULL);
-        return TCL_ERROR;
-    }
-    request = connPtr->request;
-
-    if (indexArg != 0) {
-	if (Tcl_GetInt(interp, argv[indexArg], &i) != TCL_OK) {
-	    return TCL_ERROR;
-	}
-	if (i >= 0 && i < request->urlc) {
-	    Tcl_SetResult(interp, request->urlv[i], TCL_VOLATILE);
-	}
-    } else {
-	for (i = 0; i < request->urlc; i++) {
-	    Tcl_AppendElement(interp, request->urlv[i]);
-	}
-    }
-
     return TCL_OK;
 }
 
@@ -1626,11 +1579,11 @@ UrlVHackCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
  */
 
 int
-NsTclWriteContentCmd(ClientData dummy, Tcl_Interp *interp, int argc,
+NsTclWriteContentCmd(ClientData arg, Tcl_Interp *interp, int argc,
 		     char **argv)
 {
+    NsInterp	*itPtr = arg;
     int          mode;
-    Ns_Conn     *conn;
     int	         fileArg = 1;   /* assume no-conn parameter usage */
     Tcl_Channel  chan;
 
@@ -1650,9 +1603,7 @@ NsTclWriteContentCmd(ClientData dummy, Tcl_Interp *interp, int argc,
                          argv[0], " cmd ", NULL);
         return TCL_ERROR;
     }
-
-    conn = Ns_TclGetConn(interp);
-    if (conn == NULL) {
+    if (itPtr->conn == NULL) {
         Tcl_AppendResult(interp, "no connection", NULL);
         return TCL_ERROR;
     }
@@ -1666,7 +1617,7 @@ NsTclWriteContentCmd(ClientData dummy, Tcl_Interp *interp, int argc,
         return TCL_ERROR;
     }
     Tcl_Flush(chan);
-    if (Ns_ConnCopyToChannel(conn, conn->contentLength, chan) != NS_OK) {
+    if (Ns_ConnCopyToChannel(itPtr->conn, itPtr->conn->contentLength, chan) != NS_OK) {
         Tcl_AppendResult(interp, "Error writing content: ",
 	    Tcl_PosixError(interp), NULL);
         return TCL_ERROR;
@@ -1696,15 +1647,14 @@ static int
 ConnCopy(Ns_Conn *conn, size_t tocopy, Ns_DString *dsPtr,
     	 Tcl_Channel chan, FILE *fp, int fd)
 {
-    char       *buf;
+    char        buf[IOBUFSZ];
     char       *bufPtr;
-    int		bufsize, toread, towrite, nread, nwrote;
+    int		toread, towrite, nread, nwrote;
 
-    NsGetBuf(&buf, &bufsize);
     while (tocopy > 0) {
         toread = tocopy;
-        if (toread > bufsize) {
-            toread = bufsize;
+        if (toread > sizeof(buf)) {
+            toread = sizeof(buf);
         }
         nread = Ns_ConnRead(conn, buf, toread);
 	if (nread < 0) {
@@ -1759,15 +1709,14 @@ static int
 ConnSend(Ns_Conn *conn, int nsend, Tcl_Channel chan, FILE *fp, int fd)
 {
     Conn    	   *connPtr = (Conn *) conn;
-    int             bufsize, toread, nread, status;
-    char           *buf;
+    int             toread, nread, status;
+    char            buf[IOBUFSZ];
 
-    NsGetBuf(&buf, &bufsize);
     status = NS_OK;
     while (status == NS_OK && nsend > 0) {
         toread = nsend;
-        if (toread > bufsize) {
-            toread = bufsize;
+        if (toread > sizeof(buf)) {
+            toread = sizeof(buf);
         }
 	if (chan != NULL) {
 	    nread = Tcl_Read(chan, buf, toread);

@@ -34,7 +34,7 @@
  *	Implements a lot of Tcl API commands. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclmisc.c,v 1.12 2001/01/16 23:03:05 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclmisc.c,v 1.13 2001/03/12 22:06:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -77,48 +77,10 @@ static int ChanGetc(Tcl_Channel chan);
 static int CopyToChan(Ns_Conn *conn, Tcl_Channel chan, char *boundary);
 static int CopyToDString(Ns_Conn *conn, Ns_DString *pdsData, char *boundary);
 static int GetMultipartFormdata(Ns_Conn *conn, char *key, Tcl_Channel chan,
-				Ns_DString *pdsFilename, Ns_Set *formdata);
-static int InitShare(Tcl_Interp *interp, char *varName, char *script);
+				Ns_DString *dsPtr, Ns_Set *formdata);
 static unsigned int JpegRead2Bytes(Tcl_Channel chan);
 static int JpegNextMarker(Tcl_Channel chan);
 static int JpegSize(Tcl_Channel chan, int *wPtr, int *hPtr);
-static void AppendThread(Ns_ThreadInfo *iPtr, void *arg);
-static void AppendPool(Ns_PoolInfo *iPtr, void *arg);
-static void AppendMutex(Ns_MutexInfo *iPtr, void *arg);
-
-/*
- * Static variables defined in this file
- */
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsTclConnId --
- *
- *	Return the connection ID string.
- *
- * Results:
- *	Pointer to conn string.
- *
- * Side effects:
- *	None. 
- *
- *----------------------------------------------------------------------
- */
-
-#define CID_PREFIX "cns"
-
-char *
-NsTclConnId(Ns_Conn *conn)
-{
-    Conn *connPtr = (Conn *) conn;
-
-    if (!connPtr->tclConn[0]) {
-	sprintf(connPtr->tclConn, CID_PREFIX "%d", connPtr->id);
-    }
-    return connPtr->tclConn;
-}
 
 
 /*
@@ -126,8 +88,7 @@ NsTclConnId(Ns_Conn *conn)
  *
  * NsIsIdConn --
  *
- *	Given an conn ID, could this be a conn ID? Assumes that conn IDs 
- *	start with "cns" as constructed in NsTclGetConn above.
+ *	Given an conn ID, could this be a conn ID?
  *
  * Results:
  *	Boolean. 
@@ -371,7 +332,7 @@ CopyToDString(Ns_Conn *conn, Ns_DString *pdsData, char *boundary)
 
 static int
 GetMultipartFormdata(Ns_Conn *conn, char *key, Tcl_Channel chan,
-		     Ns_DString *pdsFilename, Ns_Set *formdata)
+		     Ns_DString *dsPtr, Ns_Set *formdata)
 {
     Ns_Set     *headers;
     char       *contenttype, *p;
@@ -457,7 +418,7 @@ GetMultipartFormdata(Ns_Conn *conn, char *key, Tcl_Channel chan,
                     p += 10;
                     q = strstr(p, "\"");
                     if (q != NULL) {
-                        Ns_DStringNAppend(pdsFilename, p, q-p);
+                        Ns_DStringNAppend(dsPtr, p, q-p);
                     }
                 }
             }
@@ -582,418 +543,6 @@ JpegNextMarker(Tcl_Channel chan)
     }
 
     return c;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsTclVarCmd --
- *
- *	Implements ns_var; deprecated. (see ns_share)
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	None. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclVarCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
-{
-    Tcl_HashEntry        *he;
-    Tcl_HashSearch        hs;
-    int                   new, code;
-    static Ns_Mutex       lock;
-    static Tcl_HashTable  table;
-    static int            initialized = 0;
-
-    if (argc < 2) {
-        Tcl_AppendResult(interp, "wrong # args:  should be \"",
-                         argv[0], " command ?args?", NULL);
-        return TCL_ERROR;
-    }
-    code = TCL_OK;
-
-    Ns_MutexLock(&lock);
-    if (!initialized) {
-	Tcl_InitHashTable(&table, TCL_STRING_KEYS);
-	initialized = 1;
-    }
-    if (STREQ(argv[1], "get") ||
-	STREQ(argv[1], "exists") ||
-	STREQ(argv[1], "unset")) {
-	
-        if (argc != 3) {
-            Tcl_AppendResult(interp, "wrong # args:  should be \"",
-                             argv[0], " ", argv[1], " var\"", NULL);
-            code = TCL_ERROR;
-        } else {
-            he = Tcl_FindHashEntry(&table, argv[2]);
-            if (he == NULL) {
-                if (argv[1][0] == 'e') {
-                    Tcl_SetResult(interp, "0", TCL_STATIC);
-                } else {
-                    Tcl_AppendResult(interp, "no such variable \"", argv[2],
-				     "\"", NULL);
-                    code = TCL_ERROR;
-                }
-            } else {
-                if (argv[1][0] == 'e') {
-                    Tcl_SetResult(interp, "1", TCL_STATIC);
-                } else if (argv[1][0] == 'g') {
-                    Tcl_SetResult(interp, (char *) Tcl_GetHashValue(he),
-				  TCL_VOLATILE);
-                } else {
-                    ns_free(Tcl_GetHashValue(he));
-                    Tcl_DeleteHashEntry(he);
-                }
-            }
-        }
-    } else if (STREQ(argv[1], "set")) {
-        if (argc != 4) {
-            Tcl_AppendResult(interp, "wrong # args:  should be \"",
-                             argv[0], " ", argv[1], " var value\"", NULL);
-            code = TCL_ERROR;
-        } else {
-            he = Tcl_CreateHashEntry(&table, argv[2], &new);
-            if (!new) {
-                ns_free(Tcl_GetHashValue(he));
-            }
-            Tcl_SetHashValue(he, ns_strdup(argv[3]));
-            Tcl_SetResult(interp, argv[3], TCL_VOLATILE);
-        }
-    } else if (STREQ(argv[1], "list")) {
-        he = Tcl_FirstHashEntry(&table, &hs);
-        while (he != NULL) {
-            Tcl_AppendElement(interp, (char *) Tcl_GetHashKey(&table, he));
-            he = Tcl_NextHashEntry(&hs);
-        }
-    } else {
-        Tcl_AppendResult(interp, "unknown command \"",
-                         argv[1],
-			 "\": should be get, set, unset, exists, or list",
-			 NULL);
-        code = TCL_ERROR;
-    }
-    Ns_MutexUnlock(&lock);
-
-    return code;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsTclShareCmd --
- *
- *	This procedure is invoked to process the "ns_share" Tcl command.
- *      It links the variables passed in to values that are shared.
- *	NOTE:  This procedure requires the NsTclShareVar() routine
- *	defined somewhere else.
- *
- * Results:
- *	A standard Tcl result value.
- *
- * Side effects:
- *	Very similar to "global"
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclShareCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
-{
-    if (argc < 2) {
-	Tcl_AppendResult(interp, "wrong # args: should be \"",
-		argv[0], " ?-init script? varName ?varName ...?\"", NULL);
-	return TCL_ERROR;
-    }
-    
-    if (STREQ(argv[1], "-init")) {
-        if (argc != 4) {
-	    Tcl_AppendResult(interp, "wrong # args: should be \"",
-			     argv[0], " -init script varName\"", NULL);
-	    return TCL_ERROR;
-        }
-        if (NsTclShareVar(interp, argv[3]) != TCL_OK ||
-    	    InitShare(interp, argv[3], argv[2]) != TCL_OK) {
-	    return TCL_ERROR;
-	}
-    } else {
-        for (argc--, argv++; argc > 0; argc--, argv++) {
-	    if (NsTclShareVar(interp, *argv) != TCL_OK) {
-		return TCL_ERROR;
-	    }
-        }
-    }
-    return TCL_OK;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * InitShare --
- *
- *	Helper routine to initialize a shared variable once, invoke
- *	by a call to ns_share -init. 
- *
- * Results:
- *	A standard Tcl result value.
- *
- * Side effects:
- *	Init script is evaluated once.
- *
- *----------------------------------------------------------------------
- */
-
-static int
-InitShare(Tcl_Interp *interp, char *varName, char *script)
-{
-    static Ns_Mutex lock;
-    static Ns_Cond cond;
-    static Tcl_HashTable sharedVars;
-    static int initialized;
-    Tcl_HashEntry *hPtr;
-    int new, result;
-
-    Ns_MutexLock(&lock);
-    if (!initialized) {
-	Tcl_InitHashTable(&sharedVars, TCL_STRING_KEYS);
-	initialized = 1;
-    }
-    hPtr = Tcl_CreateHashEntry(&sharedVars, varName, &new);
-    if (!new) {
-	while (Tcl_GetHashValue(hPtr) == NULL) {
-	    Ns_CondWait(&cond, &lock);
-	}
-        result = TCL_OK;
-    } else {
-	Ns_MutexUnlock(&lock);
-	result = NsTclEval(interp, script);
-	Ns_MutexLock(&lock);
-	Tcl_SetHashValue(hPtr, (ClientData) 1);
-	Ns_CondBroadcast(&cond);
-    }
-    Ns_MutexUnlock(&lock);
-    return result;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsTclLibraryCmd --
- *
- *	Implements ns_library. 
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	See docs. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclLibraryCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
-{
-    if (argc != 2) {
-	Tcl_AppendResult(interp, "wrong # args: should be \"",
-	    argv[0], " library\"", NULL);
-	return TCL_ERROR;
-    }
-    if (STREQ(argv[1], "private")) {
-    	Tcl_SetResult(interp, nsconf.tcl.library, TCL_STATIC);
-    } else if (STREQ(argv[1], "shared")) {
-    	Tcl_SetResult(interp, nsconf.tcl.sharedlibrary, TCL_STATIC);
-    } else {
-	Tcl_AppendResult(interp, "unknown library \"",
-	   argv[1], "\": should be private or shared", NULL);
-	return TCL_ERROR;
-    }
-    return TCL_OK;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Implements ns_module. --
- *
- *	Implements ns_module; deprecated. 
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	None. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclModuleCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
-{
-    char        **val;
-    static char  *module;
-    static char  *library;
-
-    if (argc != 2 && argc != 3) {
-        Tcl_AppendResult(interp, "wrong # of args: should be \"",
-                         argv[0], " command ?arg?\"", NULL);
-        return TCL_ERROR;
-    }
-    if (STREQ(argv[1], "clear")) {
-        ns_free(module);
-        ns_free(library);
-        module = library = NULL;
-    } else {
-        if (STREQ(argv[1], "name")) {
-            val = &module;
-        } else if (STREQ(argv[1], "library")) {
-            val = &library;
-        } else {
-            Tcl_AppendResult(interp, "unknown variable \"",
-                             argv[1],
-			     "\": should be clear, name, or library", NULL);
-            return TCL_ERROR;
-        }
-        if (argv[2] != NULL) {
-            ns_free(*val);
-            *val = ns_strdup(argv[2]);
-        }
-        Tcl_SetResult(interp, *val, TCL_STATIC);
-    }
-
-    return TCL_OK;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsTclInfoCmd --
- *
- *	Implements ns_info. 
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	See docs. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclInfoCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
-{
-    char *elog;
-    Tcl_DString ds;
-
-    if (argc != 2) {
-        Tcl_AppendResult(interp, "wrong # args:  should be \"",
-                         argv[0], " command", NULL);
-        return TCL_ERROR;
-    }
-    Tcl_DStringInit(&ds);
-    if (STREQ(argv[1], "argv0")) {
-	Tcl_SetResult(interp, nsconf.argv0, TCL_STATIC);
-    } else if (STREQ(argv[1], "nsd")) {
-	Tcl_SetResult(interp, nsconf.nsd, TCL_STATIC);
-    } else if (STREQ(argv[1], "pageroot")) {
-	Tcl_SetResult(interp, Ns_PageRoot(NULL), TCL_STATIC);
-    } else if (STREQ(argv[1], "server") || STREQ(argv[1], "servers")) {
-        Tcl_SetResult(interp, Ns_TclInterpServer(interp), TCL_STATIC);
-    } else if (STREQ(argv[1], "name")) {
-        Tcl_SetResult(interp, Ns_InfoServerName(), TCL_STATIC);
-    } else if (STREQ(argv[1], "config")) {
-	Tcl_SetResult(interp, Ns_InfoConfigFile(), TCL_STATIC);
-    } else if (STREQ(argv[1], "callbacks")) {
-    	NsGetCallbacks(&ds);
-	Tcl_DStringResult(interp, &ds);
-    } else if (STREQ(argv[1], "sockcallbacks")) {
-    	NsGetSockCallbacks(&ds);
-	Tcl_DStringResult(interp, &ds);
-    } else if (STREQ(argv[1], "scheduled")) {
-    	NsGetScheduled(&ds);
-	Tcl_DStringResult(interp, &ds);
-    } else if (STREQ(argv[1], "locks")) {
-	Ns_MutexEnum(AppendMutex, &ds);
-	Tcl_DStringResult(interp, &ds);
-    } else if (STREQ(argv[1], "threads")) {
-	Ns_ThreadEnum(AppendThread, &ds);
-	Tcl_DStringResult(interp, &ds);
-    } else if (STREQ(argv[1], "pools")) {
-	Ns_PoolEnum(AppendPool, &ds);
-	Tcl_DStringResult(interp, &ds);
-    } else if (STREQ(argv[1], "log")) {
-        elog = Ns_InfoErrorLog();
-	Tcl_SetResult(interp, elog == NULL ? "STDOUT" : elog, TCL_STATIC);
-    } else if (STREQ(argv[1], "platform")) {
-	Tcl_SetResult(interp, Ns_InfoPlatform(), TCL_STATIC);
-    } else if (STREQ(argv[1], "hostname")) {
-	Tcl_SetResult(interp, Ns_InfoHostname(), TCL_STATIC);
-    } else if (STREQ(argv[1], "address")) {
-	Tcl_SetResult(interp, Ns_InfoAddress(), TCL_STATIC);
-    } else if (STREQ(argv[1], "uptime")) {
-        sprintf(interp->result, "%d", Ns_InfoUptime());
-    } else if (STREQ(argv[1], "boottime")) {
-        sprintf(interp->result, "%d", Ns_InfoBootTime());
-    } else if (STREQ(argv[1], "pid")) {
-        sprintf(interp->result, "%d", Ns_InfoPid());
-    } else if (STREQ(argv[1], "version")) {
-	Tcl_SetResult(interp, Ns_InfoServerVersion(), TCL_STATIC);
-    } else if (STREQ(argv[1], "home")) {
-	Tcl_SetResult(interp, Ns_InfoHomePath(), TCL_STATIC);
-    } else if (STREQ(argv[1], "tcllib")) {
-	Tcl_SetResult(interp, Ns_TclLibrary(), TCL_STATIC);
-    } else if (STREQ(argv[1], "winnt")) {
-#ifdef WIN32
-        interp->result = "1";
-#else
-        interp->result = "0";
-#endif
-    } else if (STREQ(argv[1], "label")) {
-	Tcl_SetResult(interp, Ns_InfoLabel(), TCL_STATIC);
-    } else if (STREQ(argv[1], "builddate")) {
-	Tcl_SetResult(interp, Ns_InfoBuildDate(), TCL_STATIC);
-    } else if (STREQ(argv[1], "tag")) {
-	Tcl_SetResult(interp, Ns_InfoTag(), TCL_STATIC);
-    } else {
-        Tcl_AppendResult(interp, "unknown command \"", argv[1],
-                         "\":  should be "
-                         "address, "
-                         "argv0, "
-                         "builddate, "
-                         "callbacks, "
-                         "config, "
-                         "hostname, "
-                         "label, "
-                         "locks, "
-                         "log, "
-                         "name, "
-                         "pageroot, "
-			 "pid, "
-                         "platform, "
-                         "scheduled, "
-                         "server, "
-                         "sockcallbacks, "
-                         "tag, "
-                         "tcllib, "
-                         "threads, "
-                         "version, "
-                         "or winnt", NULL);
-        return TCL_ERROR;
-    }
-
-    return TCL_OK;
 }
 
 
@@ -1454,11 +1003,11 @@ NsTclStrftimeCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
  */
 
 int
-NsTclGetMultipartFormdataCmd(ClientData dummy, Tcl_Interp *interp, int argc,
+NsTclGetMultipartFormdataCmd(ClientData arg, Tcl_Interp *interp, int argc,
 			char **argv)
 {
-    Ns_DString   dsFilename;
-    Ns_Conn     *conn;
+    NsInterp    *itPtr = arg;
+    Ns_DString   ds;
     Tcl_Channel  chan;
     Ns_Set      *formdata;
     int          status;
@@ -1469,20 +1018,23 @@ NsTclGetMultipartFormdataCmd(ClientData dummy, Tcl_Interp *interp, int argc,
                          NULL);
         return TCL_ERROR;
     }
+    if (itPtr->conn == NULL) {
+	Tcl_SetResult(interp, "no connection", TCL_STATIC);
+	return TCL_ERROR;
+    }
     status = NS_OK;
-    conn = Ns_TclGetConn(interp);
     if (Ns_TclGetOpenChannel(interp, argv[3], 1, 1, &chan) == TCL_ERROR) {
         return TCL_ERROR;
     }
     formdata = Ns_SetCreate(NULL);
     status = TCL_OK;
-    Ns_DStringInit(&dsFilename);
-    if (GetMultipartFormdata(conn, argv[2], chan, &dsFilename,
+    Ns_DStringInit(&ds);
+    if (GetMultipartFormdata(itPtr->conn, argv[2], chan, &ds,
 			     formdata) != NS_OK) {
 	
         Tcl_SetResult(interp, "Failed.", TCL_STATIC);
         Ns_SetFree(formdata);
-        Ns_DStringFree(&dsFilename);
+        Ns_DStringFree(&ds);
         status = TCL_ERROR;
     } else {
 	/*
@@ -1491,15 +1043,15 @@ NsTclGetMultipartFormdataCmd(ClientData dummy, Tcl_Interp *interp, int argc,
 	 */
 	
         if (argc == 5) {
-            Ns_TclEnterSet(interp, formdata, 1);
+            Ns_TclEnterSet(interp, formdata, NS_TCL_SET_DYNAMIC);
             Tcl_SetVar(interp, argv[4], interp->result, 0);
         } else {
             Ns_SetFree(formdata);
         }
-        Tcl_SetResult(interp, Ns_DStringExport(&dsFilename), 
+        Tcl_SetResult(interp, Ns_DStringExport(&ds), 
                       (Tcl_FreeProc *) ns_free);
     }
-    Ns_DStringFree(&dsFilename);
+    Ns_DStringFree(&ds);
     return status;
 }
 
@@ -1729,60 +1281,4 @@ JpegSize(Tcl_Channel chan, int *wPtr, int *hPtr)
 	}
     }
     return TCL_ERROR;
-}
-
-
-static void
-AppendMutex(Ns_MutexInfo *iPtr, void *arg)
-{
-    Tcl_DString *dsPtr = arg;
-    char buf[100], *owner;
-
-    owner = iPtr->owner;
-    Tcl_DStringStartSublist(dsPtr);
-    Tcl_DStringAppendElement(dsPtr, iPtr->name);
-    Tcl_DStringAppendElement(dsPtr, owner ? owner : "");
-    sprintf(buf, " %d %lu %lu", iPtr->id, iPtr->nlock, iPtr->nbusy);
-    Tcl_DStringAppend(dsPtr, buf, -1);
-    Tcl_DStringEndSublist(dsPtr);
-}
-
-
-static void
-AppendThread(Ns_ThreadInfo *iPtr, void *arg)
-{
-    Tcl_DString *dsPtr = arg;
-    char buf[100];
-
-    Tcl_DStringStartSublist(dsPtr);
-    Tcl_DStringAppendElement(dsPtr, iPtr->name);
-    Tcl_DStringAppendElement(dsPtr, iPtr->parent);
-    sprintf(buf, " %d %d %ld", iPtr->tid, iPtr->flags, iPtr->ctime);
-    Tcl_DStringAppend(dsPtr, buf, -1);
-    Ns_GetProcInfo(dsPtr, (void *) iPtr->proc, iPtr->arg);
-    Tcl_DStringEndSublist(dsPtr);
-}
-
-
-static void
-AppendPool(Ns_PoolInfo *iPtr, void *arg)
-{
-    Tcl_DString *dsPtr = arg;
-    char buf[200];
-    int n;
-
-    Tcl_DStringStartSublist(dsPtr);
-    Tcl_DStringAppendElement(dsPtr, iPtr->name);
-    for (n = 0; n < iPtr->nbuckets; ++n) {
-    	    sprintf(buf, "%d %d %d %d %d %d %d",
-		iPtr->buckets[n].blocksize,
-		iPtr->buckets[n].nfree,
-		iPtr->buckets[n].nget,
-		iPtr->buckets[n].nput,
-		iPtr->buckets[n].nrequest,
-		iPtr->buckets[n].nlock,
-		iPtr->buckets[n].nwait);
-	    Tcl_DStringAppendElement(dsPtr, buf);
-    }
-    Tcl_DStringEndSublist(dsPtr);
 }

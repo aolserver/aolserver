@@ -33,7 +33,7 @@
  *	Make outgoing HTTP requests.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/urlopen.c,v 1.7 2001/01/16 23:03:05 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/urlopen.c,v 1.8 2001/03/12 22:06:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -242,17 +242,20 @@ Ns_FetchURL(Ns_DString *dsPtr, char *url, Ns_Set *headers)
  */
 
 int
-NsTclGetUrlCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
+NsTclGetUrlCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 {
+    NsInterp *itPtr = arg;
     Ns_DString  ds;
     Ns_Set     *headers;
-    int         status;
+    int         status, code;
 
     if ((argc != 3) && (argc != 2)) {
         Tcl_AppendResult(interp, "wrong # of args:  should be \"",
                          argv[0], " url ?headersSetIdVar?", NULL);
         return TCL_ERROR;
     }
+
+    code = TCL_ERROR;
     if (argc == 2) {
         headers = NULL;
     } else {
@@ -260,34 +263,29 @@ NsTclGetUrlCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
     }
     Ns_DStringInit(&ds);
     if (*argv[1] == '/') {
-        if (Ns_FetchPage(&ds, argv[1], Ns_TclInterpServer(interp)) != NS_OK) {
-            Tcl_AppendResult(interp, "Could not get contents of URL \"",
-                             argv[1], "\"", NULL);
-            status = TCL_ERROR;
-            goto done;
-        }
+	status = Ns_FetchPage(&ds, argv[1], itPtr->servPtr->server);
     } else {
-        if (Ns_FetchURL(&ds, argv[1], headers) != NS_OK) {
-            Tcl_AppendResult(interp, "Could not get contents of URL \"",
-                             argv[1], "\"", NULL);
-            if (headers != NULL) {
-                Ns_SetFree(headers);
-            }
-            status = TCL_ERROR;
-            goto done;
-        }
+        status = Ns_FetchURL(&ds, argv[1], headers);
+    }
+    if (status != NS_OK) {
+        Tcl_AppendResult(interp, "could not fetch: ", argv[1], NULL);
+	if (headers != NULL) {
+	    Ns_SetFree(headers);
+	}
+	goto done;
     }
     if (argc == 3) {
-        Ns_TclEnterSet(interp, headers, 1);
-        Tcl_SetVar(interp, argv[2], interp->result, 0);
+        Ns_TclEnterSet(interp, headers, NS_TCL_SET_DYNAMIC);
+        if (Tcl_SetVar(interp, argv[2], interp->result, TCL_LEAVE_ERR_MSG) == NULL) {
+	    goto done;
+	}
     }
     Tcl_SetResult(interp, ds.string, TCL_VOLATILE);
-    status = TCL_OK;
-    
-  done:
+    code = TCL_OK;
+
+done:
     Ns_DStringFree(&ds);
-    
-    return status;
+    return code;
 }
 
 

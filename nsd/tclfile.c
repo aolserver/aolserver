@@ -34,7 +34,7 @@
  *	Tcl commands that do stuff to the filesystem. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclfile.c,v 1.5 2000/10/17 15:26:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclfile.c,v 1.6 2001/03/12 22:06:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #ifdef WIN32
@@ -78,6 +78,44 @@ Ns_TclGetOpenChannel(Tcl_Interp *interp, char *chanId, int write,
 	    write ? "write" : "read", NULL);
 	return TCL_ERROR;
     }
+    return TCL_OK;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_TclGetOpenFd --
+ *
+ *	Return an open Unix file descriptor for the given channel.
+ *	This routine is used by the AOLserver ns_sock* routines
+ *	to provide access to the underlying socket.
+ *
+ * Results:
+ *	TCL_OK or TCL_ERROR.
+ *
+ * Side effects:
+ *	The value at fdPtr is updated with a valid Unix file descriptor.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Ns_TclGetOpenFd(Tcl_Interp *interp, char *chanId, int write, int *fdPtr)
+{
+    Tcl_Channel chan;
+    ClientData data;
+
+    if (Ns_TclGetOpenChannel(interp, chanId, write, 1, &chan) != TCL_OK) {
+	return TCL_ERROR;
+    }
+    if (Tcl_GetChannelHandle(chan, write ? TCL_WRITABLE : TCL_READABLE,
+			     (ClientData*) &data) != TCL_OK) {
+	Tcl_AppendResult(interp, "could not get handle for channel: ",
+			 chanId, NULL);
+	return TCL_ERROR;
+    }
+    *fdPtr = (int) data;
     return TCL_OK;
 }
 
@@ -363,11 +401,10 @@ NsTclRmdirCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
  *----------------------------------------------------------------------
  */
 
-int
-NsTclRollFileCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
+static int
+FileCmd(Tcl_Interp *interp, int argc, char **argv, char *cmd)
 {
     int max, status;
-    char *cmd = arg;
 
     if (argc != 3) {
         Tcl_AppendResult(interp, "wrong # args: should be \"",
@@ -393,6 +430,18 @@ NsTclRollFileCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 	return TCL_ERROR;
     }
     return TCL_OK;
+}
+
+int
+NsTclRollFileCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
+{
+    return FileCmd(interp, argc, argv, "roll");
+}
+
+int
+NsTclPurgeFilesCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
+{
+    return FileCmd(interp, argc, argv, "purge");
 }
 
 
@@ -562,8 +611,9 @@ NsTclNormalizePathCmd(ClientData dummy, Tcl_Interp *interp, int argc,
  */
 
 int
-NsTclUrl2FileCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
+NsTclUrl2FileCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 {
+    NsInterp *itPtr = arg;
     Ns_DString ds;
 
     if (argc != 2) {
@@ -572,7 +622,7 @@ NsTclUrl2FileCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
         return TCL_ERROR;
     }
     Ns_DStringInit(&ds);
-    Ns_UrlToFile(&ds, Ns_TclInterpServer(interp), argv[1]);
+    NsUrlToFile(&ds, itPtr->servPtr, argv[1]);
     Tcl_SetResult(interp, ds.string, TCL_VOLATILE);
     Ns_DStringFree(&ds);
     
@@ -772,14 +822,12 @@ NsTclRenameCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
  */
 
 int
-NsTclWriteFpCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
+NsTclWriteFpCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 {
-    Ns_Conn    *conn;
+    NsInterp   *itPtr = arg;
     Tcl_Channel chan;
     int	        nbytes = INT_MAX;
     int	        result;
-
-    conn = Ns_TclGetConn (interp);
 
     if (argc != 2 && argc != 3) {
 	Tcl_AppendResult(interp, "wrong # of args:  should be \"",
@@ -789,16 +837,14 @@ NsTclWriteFpCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
     if (Ns_TclGetOpenChannel(interp, argv[1], 0, 1, &chan) != TCL_OK) {
 	return TCL_ERROR;
     }
-    
-    /*
-     * Snarf the nbytes parameter
-     */
-    if (argc == 3) {
-	if (Tcl_GetInt(interp, argv[2], &nbytes) != TCL_OK) {
-	    return TCL_ERROR;
-	}
+    if (argc == 3 && Tcl_GetInt(interp, argv[2], &nbytes) != TCL_OK) {
+	return TCL_ERROR;
     }
-    result = Ns_ConnSendChannel(conn, chan, nbytes);
+    if (itPtr->conn == NULL) {
+	Tcl_SetResult(interp, "no connection", TCL_STATIC);
+	return TCL_ERROR;
+    }
+    result = Ns_ConnSendChannel(itPtr->conn, chan, nbytes);
     if (result != NS_OK) {
 	Tcl_AppendResult(interp, "i/o failed", NULL);
 	return TCL_ERROR;
@@ -933,36 +979,5 @@ NsTclChmodCmd(ClientData dummy,Tcl_Interp *interp, int argc, char **argv)
         return TCL_ERROR;
     }
 
-    return TCL_OK;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsTclGetChannelsCmd --
- *
- *	NsTclGetChannelsCmd 
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	See docs. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclGetChannelsCmd(ClientData dummy,Tcl_Interp *interp, int argc, char **argv)
-{
-    if (argc != 1) {
-	Tcl_AppendResult(interp, "wrong # of args: should be \"",
-            argv[0], "\"", NULL);
-	return TCL_ERROR;
-    }
-    if (Tcl_GetChannelNames(interp) != TCL_OK) {
-    	return TCL_ERROR;
-    }
     return TCL_OK;
 }

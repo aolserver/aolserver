@@ -27,658 +27,328 @@
  * version of this file under either the License or the GPL.
  */
 
-
 /*
  * tclcmds.c --
  *
  * 	Connect Tcl command names to the functions that implement them
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.8 2001/01/16 22:57:31 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.9 2001/03/12 22:06:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
-static TclCmd serverCmds[ ] = {
+static struct {
+    char *name;
+    Tcl_CmdProc *proc;
+} cmds[] = {
 
-    /*
-     * tclop.c
-     */
+    {"ns_crypt", NsTclCryptCmd},
 
-    {
-        "ns_register_filter", NsTclRegisterFilterCmd, NULL
-    },
-    {
-        "ns_register_trace", NsTclRegisterTraceCmd, NULL
-    },
-    {
-        "ns_register_proc", NsTclRegisterCmd, NULL
-    },
-    {
-        "ns_unregister_proc", NsTclUnRegisterCmd, NULL
-    },
-    {
-        "ns_eval", NsTclEvalCmd, NULL
-    },
-    {
-	"ns_atclose", NsTclAtCloseCmd, NULL
-    },
+    {"ns_sleep", NsTclSleepCmd},
 
-    /*
-     * tclresp.c
-     */
+    {"ns_localtime", NsTclLocalTimeCmd},
+    {"ns_gmtime", NsTclGmTimeCmd},
+    {"ns_time", NsTclTimeCmd},
+    {"ns_fmttime", NsTclStrftimeCmd},
+    {"ns_httptime", NsTclHttpTimeCmd},
+    {"ns_parsehttptime", NsTclParseHttpTimeCmd},
 
-    {
-        "ns_return", NsTclReturnCmd, NULL
-    },
-    {
-        "ns_respond", NsTclRespondCmd, NULL
-    },
-    {
-        "ns_returnfile", NsTclReturnFileCmd, NULL
-    },
-    {
-        "ns_returnfp", NsTclReturnFpCmd, NULL
-    },
-    {
-        "ns_returnbadrequest", NsTclReturnBadRequestCmd, NULL
-    },
-    {
-        "ns_returnerror", NsTclReturnErrorCmd, NULL
-    },
-    {
-        "ns_returnnotice", NsTclReturnNoticeCmd, NULL
-    },
-    {
-        "ns_returnadminnotice", NsTclReturnAdminNoticeCmd, NULL
-    },
-    {
-        "ns_returnredirect", NsTclReturnRedirectCmd, NULL
-    },
-    {
-        "ns_headers", NsTclHeadersCmd, NULL
-    },
-    {
-        "ns_write", NsTclWriteCmd, NULL
-    },
-    {
-        "ns_connsendfp", NsTclConnSendFpCmd, NULL
-    },
+
+    {"ns_rand", NsTclRandCmd},
+
+    {"ns_info", NsTclInfoCmd},
+    {"ns_modulepath", NsTclModulePathCmd},
+
+    {"ns_log", NsTclLogCmd},
+
+    {"ns_urlencode", NsTclUrlEncodeCmd},
+    {"ns_urldecode", NsTclUrlDecodeCmd},
+    {"ns_uuencode", NsTclHTUUEncodeCmd},
+    {"ns_uudecode", NsTclHTUUDecodeCmd},
+    {"ns_gifsize", NsTclGifSizeCmd},
+    {"ns_jpegsize", NsTclJpegSizeCmd},
 
     /*
      * tclfile.c
      */
 
-    {
-        "ns_url2file", NsTclUrl2FileCmd, NULL
-    },
-
-    /*
-     * log.c
-     */
-
-    {
-        "ns_logroll", NsTclLogRollCmd, NULL
-    },
-
-    /*
-     * tclcmds.c (this file)
-     */
-
-    {
-        "ns_library", NsTclLibraryCmd, NULL
-    },
-    {
-        "ns_guesstype", NsTclGuessTypeCmd, NULL
-    },
-    {
-        "ns_geturl", NsTclGetUrlCmd, NULL
-    },
-    {
-        "ns_conncptofp", NsTclWriteContentCmd, NULL
-    },
-    {
-        "ns_writecontent", NsTclWriteContentCmd, NULL
-    },
-    {
-        "ns_conn", NsTclConnCmd, NULL
-    },
-    {
-        "ns_checkurl", NsTclRequestAuthorizeCmd, NULL
-    },
-    {
-        "ns_requestauthorize", NsTclRequestAuthorizeCmd, NULL
-    },
-    {
-        "ns_module", NsTclModuleCmd, NULL
-    },
-    {
-        "ns_modulepath", NsTclModulePathCmd, NULL
-    },
-    {
-        "ns_get_multipart_formdata", NsTclGetMultipartFormdataCmd, NULL
-    },
-    {
-	"ns_markfordelete", NsTclMarkForDeleteCmd, NULL
-    },
-
-    /*
-     * tcladmin.c
-     */
-
-    {
-        "ns_server", NsTclServerCmd, NULL
-    },
-    {
-        "ns_shutdown", NsTclShutdownCmd, NULL
-    },
-
-    /*
-     * conn.c
-     */
-
-    {
-	"ns_parsequery", NsTclParseQueryCmd, NULL
-    },
-
-    /*
-     * adp.c
-     */
-
-    {
-	"ns_puts", NsTclPutsCmd, NULL
-    },
-    {
-	"ns_adp_puts", NsTclPutsCmd, NULL
-    },
-    {
-	"ns_adp_dir", NsTclDirCmd, NULL
-    },
-    {
-	"ns_adp_break", NsTclBreakCmd, (ClientData) ADP_BREAK
-    },
-    {
-	"ns_adp_return", NsTclBreakCmd, (ClientData) ADP_RETURN
-    },
-    {
-	"ns_adp_abort", NsTclBreakCmd, (ClientData) ADP_ABORT
-    },
-    {
-	"ns_adp_exception", NsTclExceptionCmd, NULL
-    },
-    {
-	"ns_adp_argc", NsTclArgcCmd, NULL
-    },
-    {
-	"ns_adp_argv", NsTclArgvCmd, NULL
-    },
-    {
-	"ns_adp_bind_args", NsTclBindCmd, NULL
-    },
-    {
-	"ns_adp_tell", NsTclTellCmd, NULL
-    },
-    {
-	"ns_adp_trunc", NsTclTruncCmd, NULL
-    },
-    {
-	"ns_adp_dump", NsTclDumpCmd, NULL
-    },
-    {
-	"ns_adp_eval", NsTclAdpEvalCmd, NULL
-    },
-    {
-	"ns_adp_parse", NsTclAdpParseCmd, NULL
-    },
-    {
-	"ns_adp_stream", NsTclStreamCmd, NULL
-    },
-    {
-	"ns_adp_debug", NsTclDebugCmd, NULL
-    },
-    {
-	"ns_adp_mimetype", NsTclAdpMimeCmd, NULL
-    },
-
-    /*
-     * adpfancy.c
-     */
-
-    {
-	"ns_register_adptag", NsTclRegisterTagCmd, NULL
-    },
-    {
-	"ns_adp_registeradp", NsTclRegisterAdpCmd, NULL
-    },
-    {
-	"ns_adp_registertag", NsTclRegisterAdpCmd, NULL
-    },
-
-    /*
-     * dbtcl.c
-     */
-
-    {
-	"ns_db", NsTclDbCmd, NULL
-    },
-    {
-	"ns_dbconfigpath", NsTclDbConfigPathCmd, NULL
-    },
-    {
-	"ns_pooldescription", NsTclPoolDescriptionCmd, NULL
-    },
-    {
-	"ns_dberrorcode", NsTclDbErrorCodeCmd, NULL
-    },
-    {
-	"ns_dberrormsg", NsTclDbErrorMsgCmd, NULL
-    },
-    {
-	"ns_quotelisttolist", NsTclQuoteListToListCmd, NULL
-    },
-    {
-	"ns_getcsv", NsTclGetCsvCmd, NULL
-    },
-    {
-	"ns_column", NsTclUnsupDbCmd, NULL
-    },
-    {
-	"ns_table", NsTclUnsupDbCmd, NULL
-    },
-    {
-	"ns_dbreturnerror", NsTclUnsupDbCmd, NULL
-    },
-
-    {
-        "ns_share", NsTclShareCmd, NULL
-    },
-
-    /*
-     * tclstats.c
-     */
-
-    {
-    	"ns_stats", NsTclStatsCmd, NULL
-    },
-
-    /*
-     * tclthread.c
-     */
-
-    {
-        "ns_thread", NsTclThreadCmd, NULL
-    },
-
-    {
-        NULL, NULL, NULL
-    }
-};
-
-
-static TclCmd genericCmds[ ] = {
-
-    /*
-     * tclfile.c
-     */
-
-    {
-        "ns_unlink", NsTclUnlinkCmd, NULL
-    },
-    {
-        "ns_mkdir", NsTclMkdirCmd, NULL
-    },
-    {
-        "ns_rmdir", NsTclRmdirCmd, NULL
-    },
-    {
-        "ns_cp", NsTclCpCmd, NULL
-    },
-    {
-        "ns_cpfp", NsTclCpFpCmd, NULL
-    },
-    {
-        "ns_rollfile", NsTclRollFileCmd, (ClientData) "roll"
-    },
-    {
-        "ns_purgefiles", NsTclRollFileCmd, (ClientData) "purge"
-    },
-    {
-        "ns_mktemp", NsTclMkTempCmd, NULL
-    },
-    {
-        "ns_tmpnam", NsTclTmpNamCmd, NULL
-    },
-    {
-        "ns_normalizepath", NsTclNormalizePathCmd, NULL
-    },
-    {
-        "ns_link", NsTclLinkCmd, NULL
-    },
-    {
-	"ns_symlink", NsTclSymlinkCmd, NULL
-    },
-    {
-        "ns_rename", NsTclRenameCmd, NULL
-    },
-    {
-        "ns_kill", NsTclKillCmd, NULL
-    },
-    {
-        "ns_writefp", NsTclWriteFpCmd, NULL
-    },
-    {
-	"ns_truncate", NsTclTruncateCmd, NULL
-    },
-    {
-	"ns_ftruncate", NsTclFTruncateCmd, NULL
-    },
-    {
-	"ns_chmod", NsTclChmodCmd, NULL
-    },
-    {
-	"ns_getchannels", NsTclGetChannelsCmd, NULL
-    },
-
-    /*
-     * tclthread.c
-     */
-
-    {
-        "ns_mutex", NsTclMutexCmd, NULL
-    },
-    {
-        "ns_cond", NsTclEventCmd, NULL
-    },
-    {
-        "ns_event", NsTclEventCmd, NULL
-    },
-    {
-	"ns_rwlock", NsTclRWLockCmd, NULL
-    },
-    {
-        "ns_sema", NsTclSemaCmd, NULL
-    },
-    {
-        "ns_critsec", NsTclCritSecCmd, NULL
-    },
-
-    /*
-     * random.c
-     */
-
-    {
-	"ns_rand", NsTclRandCmd, NULL
-    },
-
-    /*
-     * cache.c
-     */
-
-    {
-	"ns_cache_flush", NsTclCacheFlushCmd, NULL
-    },
-    {
-	"ns_cache_stats", NsTclCacheStatsCmd, NULL
-    },
-    {
-	"ns_cache_names", NsTclCacheNamesCmd, NULL
-    },
-    {
-	"ns_cache_size", NsTclCacheSizeCmd, NULL
-    },
-    {
-	"ns_cache_keys", NsTclCacheKeysCmd, NULL
-    },
+    {"ns_unlink", NsTclUnlinkCmd},
+    {"ns_mkdir", NsTclMkdirCmd},
+    {"ns_rmdir", NsTclRmdirCmd},
+    {"ns_cp", NsTclCpCmd},
+    {"ns_cpfp", NsTclCpFpCmd},
+    {"ns_rollfile", NsTclRollFileCmd},
+    {"ns_purgefiles", NsTclPurgeFilesCmd},
+    {"ns_mktemp", NsTclMkTempCmd},
+    {"ns_tmpnam", NsTclTmpNamCmd},
+    {"ns_normalizepath", NsTclNormalizePathCmd},
+    {"ns_link", NsTclLinkCmd},
+    {"ns_symlink", NsTclSymlinkCmd},
+    {"ns_rename", NsTclRenameCmd},
+    {"ns_kill", NsTclKillCmd},
+    {"ns_writefp", NsTclWriteFpCmd},
+    {"ns_truncate", NsTclTruncateCmd},
+    {"ns_ftruncate", NsTclFTruncateCmd},
+    {"ns_chmod", NsTclChmodCmd},
 
     /*
      * tclenv.c
      */
 
-    {
-	"ns_env", NsTclEnvCmd, NULL
-    },
-    {
-	"env", NsTclEnvCmd, NULL	/* NB: Backwards compatible. */
-    },
-    
-    {
-        "ns_crypt", NsTclCryptCmd, NULL
-    },
-    {
-        "ns_localtime", NsTclLocalTimeCmd
-    },
-    {
-        "ns_gmtime", NsTclGmTimeCmd
-    },
-    {
-        "ns_time", NsTclTimeCmd, NULL
-    },
-    {
-        "ns_fmttime", NsTclStrftimeCmd, NULL
-    },
-    {
-        "ns_sleep", NsTclSleepCmd, NULL
-    },
-    {
-        "ns_urlencode", NsTclUrlEncodeCmd, NULL
-    },
-    {
-        "ns_urldecode", NsTclUrlDecodeCmd, NULL
-    },
-
-    /*
-     * tclset.c
-     */
-
-    {
-        "ns_parseheader", NsTclParseHeaderCmd, NULL
-    },
-    {
-        "ns_set", NsTclSetCmd, NULL
-    },
-
-
-    /*
-     * tclsched.c
-     */
-
-    {
-        "ns_schedule_proc", NsTclSchedCmd, NULL
-    },
-    {
-        "ns_schedule_daily", NsTclSchedDailyCmd, NULL
-    },
-    {
-        "ns_schedule_weekly", NsTclSchedWeeklyCmd, NULL
-    },
-    {
-        "ns_atsignal", NsTclAtSignalCmd, NULL
-    },
-    {
-        "ns_atshutdown", NsTclAtShutdownCmd, NULL
-    },
-    {
-        "ns_atexit", NsTclAtExitCmd, NULL
-    },
-    {
-        "ns_after", NsTclAfterCmd, NULL
-    },
-    {
-        "ns_cancel", NsTclCancelCmd, (ClientData) 'c'
-    },
-    {
-        "ns_pause", NsTclCancelCmd, (ClientData) 'p'
-    },
-    {
-        "ns_resume", NsTclCancelCmd, (ClientData) 'r'
-    },
-    {
-        "ns_unschedule_proc", NsTclCancelCmd, (ClientData) 'u'
-    },
-
-    /*
-     * tclconf.c
-     */
-
-    {
-        "ns_config", NsTclConfigCmd, NULL
-    },
-    {
-        "ns_configsection", NsTclConfigSectionCmd, NULL
-    },
-    {
-        "ns_configsections", NsTclConfigSectionsCmd, NULL
-    },
-
-    {
-        "ns_var", NsTclVarCmd, NULL
-    },
-    {
-        "ns_info", NsTclInfoCmd, NULL
-    },
-    {
-        "ns_log", NsTclLogCmd, NULL
-    },
-
-    {
-        "ns_striphtml", NsTclStripHtmlCmd, NULL
-    },
-    {
-        "ns_quotehtml", NsTclQuoteHtmlCmd, NULL
-    },
-    {
-        "ns_hrefs", NsTclHrefsCmd, NULL
-    },
-    {
-        "ns_uuencode", NsTclHTUUEncodeCmd, NULL
-    },
-    {
-        "ns_uudecode", NsTclHTUUDecodeCmd, NULL
-    },
-    {
-        "ns_httptime", NsTclHttpTimeCmd, NULL
-    },
-    {
-        "ns_parsehttptime", NsTclParseHttpTimeCmd, NULL
-    },
-    {
-	"ns_gifsize", NsTclGifSizeCmd, NULL
-    },
-    {
-	"ns_jpegsize", NsTclJpegSizeCmd, NULL
-    },
+    {"ns_env", NsTclEnvCmd},
+    {"env", NsTclEnvCmd}, /* NB: Backwards compatible. */
 
     /*
      * tclsock.c
      */
 
-    {
-        "ns_sockblocking", NsTclSockSetBlockingCmd, NULL
-    },
-    {
-        "ns_socknonblocking", NsTclSockSetNonBlockingCmd, NULL
-    },
-    {
-        "ns_socknread", NsTclSockNReadCmd, NULL
-    },
-    {
-        "ns_sockopen", NsTclSockOpenCmd, NULL
-    },
-    {
-        "ns_socklisten", NsTclSockListenCmd, NULL
-    },
-    {
-        "ns_sockaccept", NsTclSockAcceptCmd, NULL
-    },
-    {
-        "ns_sockcallback", NsTclSockCallbackCmd, NULL
-    },
-    {
-        "ns_socklistencallback", NsTclSockListenCallbackCmd, NULL
-    },
-    {
-        "ns_sockcheck", NsTclSockCheckCmd, NULL
-    },
-    {
-        "ns_sockselect", NsTclSelectCmd, NULL
-    },
-    {
-	"ns_socketpair", NsTclSocketPairCmd, NULL
-    },
-    {
-        "ns_hostbyaddr", NsTclGetByCmd, NULL
-    },
-    {
-        "ns_addrbyhost", NsTclGetByCmd, (ClientData) 1
-    },
-
-    /*
-     * tclvar.c
-     */
-
-    {
-    	"nsv_array", NsTclVArrayCmd, NULL,
-    },
-    {
-    	"nsv_get", NsTclVGetCmd, (ClientData) 'g'
-    },
-    {
-    	"nsv_exists", NsTclVGetCmd, (ClientData) 'e'
-    },
-    {
-    	"nsv_set", NsTclVSetCmd, (ClientData) 's'
-    },
-    {
-    	"nsv_append", NsTclVAppendCmd, (ClientData) 'a'
-    },
-    {
-    	"nsv_lappend", NsTclVAppendCmd, (ClientData) 'l'
-    },
-    {
-    	"nsv_unset", NsTclVUnsetCmd, NULL
-    },
-    {
-    	"nsv_incr", NsTclVIncrCmd, NULL
-    },
-    {
-    	"nsv_names", NsTclVNamesCmd, NULL
-    },
+    {"ns_sockblocking", NsTclSockSetBlockingCmd},
+    {"ns_socknonblocking", NsTclSockSetNonBlockingCmd},
+    {"ns_socknread", NsTclSockNReadCmd},
+    {"ns_sockopen", NsTclSockOpenCmd},
+    {"ns_socklisten", NsTclSockListenCmd},
+    {"ns_sockaccept", NsTclSockAcceptCmd},
+    {"ns_sockcheck", NsTclSockCheckCmd},
+    {"ns_sockselect", NsTclSelectCmd},
+    {"ns_socketpair", NsTclSocketPairCmd},
+    {"ns_hostbyaddr", NsTclGetHostCmd},
+    {"ns_addrbyhost", NsTclGetAddrCmd},
 
     /*
      * tclxkeylist.c
      */
 
-    {
-        "keyldel", Tcl_KeyldelCmd, NULL
-    },
-    {
-        "keylget", Tcl_KeylgetCmd, NULL
-    },
-    {
-        "keylkeys", Tcl_KeylkeysCmd, NULL
-    },
-    {
-        "keylset", Tcl_KeylsetCmd, NULL
-    },
+    {"keyldel", Tcl_KeyldelCmd},
+    {"keylget", Tcl_KeylgetCmd},
+    {"keylkeys", Tcl_KeylkeysCmd},
+    {"keylset", Tcl_KeylsetCmd},
 
     /*
-     * add more Tcl commands here 
+     * Add more basic Tcl commands here.
      */
 
-    {
-        NULL, NULL, NULL
-    }
+    {NULL, NULL}
+};
+
+static struct {
+    char *name;
+    Tcl_CmdProc *proc;
+} servcmds[] = {
+
+    /*
+     * tclsock.c
+     */
+
+    {"ns_sockcallback", NsTclSockCallbackCmd},
+    {"ns_socklistencallback", NsTclSockListenCallbackCmd},
+
+    /*
+     * tclop.c
+     */
+
+    {"ns_register_filter", NsTclRegisterFilterCmd},
+    {"ns_register_trace", NsTclRegisterTraceCmd},
+    {"ns_register_proc", NsTclRegisterCmd},
+    {"ns_unregister_proc", NsTclUnRegisterCmd},
+    {"ns_atclose", NsTclAtCloseCmd},
+
+    /*
+     * tclresp.c
+     */
+
+    {"ns_return", NsTclReturnCmd},
+    {"ns_respond", NsTclRespondCmd},
+    {"ns_returnfile", NsTclReturnFileCmd},
+    {"ns_returnfp", NsTclReturnFpCmd},
+    {"ns_returnbadrequest", NsTclReturnBadRequestCmd},
+    {"ns_returnerror", NsTclReturnErrorCmd},
+    {"ns_returnnotice", NsTclReturnNoticeCmd},
+    {"ns_returnadminnotice", NsTclReturnAdminNoticeCmd},
+    {"ns_returnredirect", NsTclReturnRedirectCmd},
+    {"ns_headers", NsTclHeadersCmd},
+    {"ns_write", NsTclWriteCmd},
+    {"ns_connsendfp", NsTclConnSendFpCmd},
+    {"ns_returnforbidden", NsTclReturnForbiddenCmd},
+    {"ns_returnunauthorized", NsTclReturnUnauthorizedCmd},
+    {"ns_returnnotfound", NsTclReturnNotFoundCmd},
+
+    /*
+     * tclfile.c
+     */
+
+    {"ns_url2file", NsTclUrl2FileCmd},
+
+    /*
+     * log.c
+     */
+
+    {"ns_logroll", NsTclLogRollCmd},
+
+    {"ns_library", NsTclLibraryCmd},
+    {"ns_guesstype", NsTclGuessTypeCmd},
+    {"ns_geturl", NsTclGetUrlCmd},
+
+    {"ns_checkurl", NsTclRequestAuthorizeCmd},
+    {"ns_requestauthorize", NsTclRequestAuthorizeCmd},
+    {"ns_get_multipart_formdata", NsTclGetMultipartFormdataCmd},
+    {"ns_markfordelete", NsTclMarkForDeleteCmd},
+
+    /*
+     * tcladmin.c
+     */
+
+    {"ns_shutdown", NsTclShutdownCmd},
+
+    /*
+     * conn.c
+     */
+
+    {"ns_parsequery", NsTclParseQueryCmd},
+    {"ns_conncptofp", NsTclWriteContentCmd},
+    {"ns_writecontent", NsTclWriteContentCmd},
+    {"ns_conn", NsTclConnCmd},
+
+    /*
+     * adpfancy.c
+     */
+
+    {"ns_register_adptag", NsTclRegisterTagCmd},
+    {"ns_adp_registeradp", NsTclRegisterAdpCmd},
+    {"ns_adp_registertag", NsTclRegisterAdpCmd},
+
+    /*
+     * dbtcl.c
+     */
+
+    {"ns_db", NsTclDbCmd},
+    {"ns_quotelisttolist", NsTclQuoteListToListCmd},
+    {"ns_getcsv", NsTclGetCsvCmd},
+    {"ns_dberrorcode", NsTclDbErrorCodeCmd},
+    {"ns_dberrormsg", NsTclDbErrorMsgCmd},
+    {"ns_getcsv", NsTclGetCsvCmd},
+    {"ns_dbconfigpath", NsTclDbConfigPathCmd},
+    {"ns_pooldescription", NsTclPoolDescriptionCmd},
+
+    /*
+     * tclthread.c
+     */
+
+    {"ns_thread", NsTclThreadCmd},
+    {"ns_mutex", NsTclMutexCmd},
+    {"ns_cond", NsTclEventCmd},
+    {"ns_event", NsTclEventCmd},
+    {"ns_rwlock", NsTclRWLockCmd},
+    {"ns_sema", NsTclSemaCmd},
+    {"ns_critsec", NsTclCritSecCmd},
+
+    /*
+     * cache.c
+     */
+
+    {"ns_cache_flush", NsTclCacheFlushCmd},
+    {"ns_cache_stats", NsTclCacheStatsCmd},
+    {"ns_cache_names", NsTclCacheNamesCmd},
+    {"ns_cache_size", NsTclCacheSizeCmd},
+    {"ns_cache_keys", NsTclCacheKeysCmd},
+
+    /*
+     * tclsched.c
+     */
+
+    {"ns_schedule_proc", NsTclSchedCmd},
+    {"ns_schedule_daily", NsTclSchedDailyCmd},
+    {"ns_schedule_weekly", NsTclSchedWeeklyCmd},
+    {"ns_atsignal", NsTclAtSignalCmd},
+    {"ns_atshutdown", NsTclAtShutdownCmd},
+    {"ns_atexit", NsTclAtExitCmd},
+    {"ns_after", NsTclAfterCmd},
+    {"ns_cancel", NsTclCancelCmd},
+    {"ns_pause", NsTclPauseCmd},
+    {"ns_resume", NsTclResumeCmd},
+    {"ns_unschedule_proc", NsTclUnscheduleCmd},
+
+    /*
+     * tclconf.c
+     */
+
+    {"ns_config", NsTclConfigCmd},
+    {"ns_configsection", NsTclConfigSectionCmd},
+    {"ns_configsections", NsTclConfigSectionsCmd},
+
+    {"ns_striphtml", NsTclStripHtmlCmd},
+    {"ns_quotehtml", NsTclQuoteHtmlCmd},
+    {"ns_hrefs", NsTclHrefsCmd},
+
+    /*
+     * tclset.c
+     */
+
+    {"ns_set", NsTclSetCmd},
+    {"ns_parseheader", NsTclParseHeaderCmd},
+
+    /*
+     * adp.c
+     */
+
+    {"_ns_adp_include", NsTclAdpIncludeCmd},
+    {"ns_adp_eval", NsTclAdpEvalCmd},
+    {"ns_adp_parse", NsTclAdpParseCmd},
+    {"ns_puts", NsTclAdpPutsCmd},
+    {"ns_adp_puts", NsTclAdpPutsCmd},
+    {"ns_adp_dir", NsTclAdpDirCmd},
+    {"ns_adp_return", NsTclAdpReturnCmd},
+    {"ns_adp_break", NsTclAdpBreakCmd},
+    {"ns_adp_abort", NsTclAdpAbortCmd},
+    {"ns_adp_tell", NsTclAdpTellCmd},
+    {"ns_adp_trunc", NsTclAdpTruncCmd},
+    {"ns_adp_dump", NsTclAdpDumpCmd},
+    {"ns_adp_argc", NsTclAdpArgcCmd},
+    {"ns_adp_argv", NsTclAdpArgvCmd},
+    {"ns_adp_bind_args", NsTclAdpBindArgsCmd},
+    {"ns_adp_exception", NsTclAdpExceptionCmd},
+    {"ns_adp_stream", NsTclAdpStreamCmd},
+    {"ns_adp_debug", NsTclAdpDebugCmd},
+    {"ns_adp_mime", NsTclAdpMimeCmd},
+
+    /*
+     * tclvar.c
+     */
+
+    {"ns_share", NsTclShareCmd},
+    {"ns_var", NsTclVarCmd},
+    {"nsv_get", NsTclNsvGetCmd},
+    {"nsv_exists", NsTclNsvExistsCmd},
+    {"nsv_set", NsTclNsvSetCmd},
+    {"nsv_incr", NsTclNsvIncrCmd},
+    {"nsv_append", NsTclNsvAppendCmd},
+    {"nsv_lappend", NsTclNsvLappendCmd},
+    {"nsv_array", NsTclNsvArrayCmd},
+    {"nsv_unset", NsTclNsvUnsetCmd},
+    {"nsv_names", NsTclNsvNamesCmd},
+
+    /*
+     * serv.c
+     */
+
+    {"ns_server", NsTclServerCmd},
+
+    /*
+     * Add more server Tcl commands here.
+     */
+
+    {NULL, NULL}
 };
 
 
 /*
  *----------------------------------------------------------------------
  *
- * NsTclCreateCmds --
+ * NsTclAddCmds --
  *
- *	Loop over all the tcl commands in this file and create them. 
+ *	Create basic and server Tcl commands.
  *
  * Results:
- *	None. 
+ *	TCL_OK. 
  *
  * Side effects:
  *	None. 
@@ -686,40 +356,17 @@ static TclCmd genericCmds[ ] = {
  *----------------------------------------------------------------------
  */
 
-static void
-AddCmds(Tcl_Interp *interp, TclCmd *cmd)
+void
+NsTclAddCmds(NsInterp *itPtr, Tcl_Interp *interp)
 {
-    while (cmd->name != NULL) {
-	Tcl_CreateCommand(interp, cmd->name, cmd->proc, cmd->clientData, NULL);
-        ++cmd;
+    int i;
+
+    for (i = 0; cmds[i].name != NULL; ++i) {
+	Tcl_CreateCommand(interp, cmds[i].name, cmds[i].proc, itPtr, NULL);
+    }
+    if (itPtr != NULL) {
+    	for (i = 0; servcmds[i].name != NULL; ++i) {
+	    Tcl_CreateCommand(interp, servcmds[i].name, servcmds[i].proc, itPtr, NULL);
+        }
     }
 }
-
-void
-NsTclCreateGenericCmds(Tcl_Interp *interp)
-{
-    AddCmds(interp, genericCmds);
-}
-
-void
-NsTclCreateCmds(Tcl_Interp *interp)
-{
-    char          *crash;
-
-    NsTclCreateGenericCmds(interp);
-    AddCmds(interp, serverCmds);
-
-    Tcl_CreateCommand(interp, "ns_returnforbidden", NsTclSimpleReturnCmd,
-		      (void *) Ns_ConnReturnForbidden, NULL);
-    Tcl_CreateCommand(interp, "ns_returnunauthorized",
-		      NsTclSimpleReturnCmd,
-		      (void *) Ns_ConnReturnUnauthorized, NULL);
-    Tcl_CreateCommand(interp, "ns_returnnotfound", NsTclSimpleReturnCmd,
-		      (void *) Ns_ConnReturnNotFound, NULL);
-
-    crash = Ns_ConfigGet(NS_CONFIG_PARAMETERS, "CrashCmd");
-    if (crash != NULL) {
-        Tcl_CreateCommand(interp, crash, NsTclCrashCmd, NULL, NULL);
-    }
-}
-

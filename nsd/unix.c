@@ -34,10 +34,13 @@
  *	Unix specific routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/unix.c,v 1.9 2001/01/16 22:58:08 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/unix.c,v 1.10 2001/03/12 22:06:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
+#include <pwd.h>
+#include <grp.h>
 
+static Ns_Mutex lock;
 static int Kill(int pid, int sig);
 static int Wait(int pid, int seconds);
 static int debugMode;
@@ -78,7 +81,7 @@ NsBlockSignals(int debug)
     sigemptyset(&set);
     sigaddset(&set, SIGPIPE);
     sigaddset(&set, SIGTERM);
-    sigaddset(&set, NS_SIGHUP);
+    sigaddset(&set, SIGHUP);
     if (!debugMode) {
         /* NB: Don't block SIGINT in debug mode for Solaris dbx. */
         sigaddset(&set, SIGINT);
@@ -128,85 +131,44 @@ NsRestoreSignals(void)
  *	None.
  *
  * Side effects:
- *	HUP and/or Tcl init callbacks may be called.
+ *	HUP callbacks may be called.
  *
  *----------------------------------------------------------------------
  */
-
-static int trigger[2] = {-1, -1};
-
-static void Wakeup(int sig)
-{
-    unsigned char c = (unsigned char) sig;
-
-    if (trigger[1] >= 0 && write(trigger[1], &c, 1) != 1) {
-	Ns_Fatal("signal: wakeup trigger write() failed: %s",
-	    strerror(errno));
-    }
-}
 
 void
 NsHandleSignals(void)
 {
     sigset_t set;
-    int err;
-    unsigned char c;
+    int err, sig;
     
     /*
-     * Create the trigger pipe.
-     */
-
-    if (ns_pipe(trigger) != 0) {
-	Ns_Fatal("signal: pipe() failed: %s", strerror(errno));
-    }
-
-    /*
-     * Install trigger wakeup handler and unblock signals.
+     * Wait endlessly for trigger wakeups.
      */
 
     sigemptyset(&set);
     sigaddset(&set, SIGTERM);
     sigaddset(&set, SIGHUP);
-    ns_signal(SIGHUP, Wakeup);
-    ns_signal(SIGTERM, Wakeup);
     if (!debugMode) {
         sigaddset(&set, SIGINT);
-	ns_signal(SIGINT, Wakeup);
     }
-    ns_sigmask(SIG_UNBLOCK, &set, NULL);
-
-    /*
-     * Wait endlessly for trigger wakeups.
-     */
-
-    while (1) {
+    do {
 	do {
-	    err = read(trigger[0], &c, 1);
-	} while (err < 0 && errno == EINTR);
-	if (err < 0) {
-	    Ns_Fatal("signal: wakupe trigger read() failed: %s",
-		strerror(errno));
+	    err = ns_sigwait(&set, &sig);
+	} while (err == EINTR);
+	if (err != 0) {
+	    Ns_Fatal("signal: ns_sigwait failed: %s", strerror(errno));
 	}
-	if (c == SIGHUP) {
+	if (sig == SIGHUP) {
 	    NsRunSignalProcs();
-	} else if (c == NS_SIGTCL) {
-	    NsTclRunInits();
-	} else if (c == SIGTERM || c == SIGINT) {
-	    break;
-	} else {
-	    Ns_Fatal("signal: unexpected wakeup signal: %u", c);
 	}
-    }
+    } while (sig == SIGHUP);
 
     /*
-     * Restore the default signal handlers and exit.
+     * Unblock the signals and exit.
      */
 
-    ns_signal(SIGHUP, SIG_DFL);
-    ns_signal(SIGTERM, SIG_DFL);
-    if (!debugMode) {
-	ns_signal(SIGINT, SIG_DFL);
-    }
+    ns_sigmask(SIG_UNBLOCK, &set, NULL);
 }
 
 
@@ -215,7 +177,7 @@ NsHandleSignals(void)
  *
  * NsSendSignal --
  *
- *	Send an NS_SIG signal to the main thread.
+ *	Send a signal to the main thread.
  *
  * Results:
  *	None.
@@ -229,9 +191,7 @@ NsHandleSignals(void)
 void
 NsSendSignal(int sig)
 {
-    if (sig == NS_SIGTCL) {
-	Wakeup(NS_SIGTCL);
-    } else if (kill(Ns_InfoPid(),  sig) != 0) {
+    if (kill(Ns_InfoPid(),  sig) != 0) {
     	Ns_Fatal("unix: kill() failed: '%s'", strerror(errno));
     }
 }
@@ -371,4 +331,140 @@ Wait(int pid, int seconds)
     	sleep(1);
     }
     return (alive ? 0 : 1);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ * Ns_GetUserHome --
+ *
+ *      Get the home directory name for a user name
+ *
+ * Results:
+ *      Return NS_TRUE if user name is found in /etc/passwd file and 
+ * 	NS_FALSE otherwise.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Ns_GetUserHome(Ns_DString *pds, char *user)
+{
+    struct passwd  *pw;
+    int             retcode;
+
+    Ns_MutexLock(&lock);
+    pw = getpwnam(user);
+    if (pw == NULL) {
+        retcode = NS_FALSE;
+    } else {
+        Ns_DStringAppend(pds, pw->pw_dir);
+        retcode = NS_TRUE;
+    }
+    Ns_MutexUnlock(&lock);
+    return retcode;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ * Ns_GetGid --
+ *
+ *      Get the group id from a group name.
+ *
+ * Results:
+ * 	Group id or -1 if not found.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Ns_GetGid(char *group)
+{
+    int             retcode;
+    struct group   *grent;
+
+    Ns_MutexLock(&lock);
+    grent = getgrnam(group);
+    if (grent == NULL) {
+        retcode = -1;
+    } else {
+        retcode = grent->gr_gid;
+    }
+    Ns_MutexUnlock(&lock);
+    return retcode;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ * Ns_GetUserGid --
+ *
+ *      Get the group id for a user name
+ *
+ * Results:
+ *      Returns group id of the user name found in /etc/passwd or -1
+ *	otherwise.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Ns_GetUserGid(char *user)
+{
+    struct passwd  *pw;
+    int             retcode;
+
+    Ns_MutexLock(&lock);
+    pw = getpwnam(user);
+    if (pw == NULL) {
+        retcode = -1;
+    } else {
+        retcode = pw->pw_gid;
+    }
+    Ns_MutexUnlock(&lock);
+    return retcode;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ * Ns_GetUid --
+ *
+ *      Get user id for a user name.
+ *
+ * Results:
+ *      Return NS_TRUE if user name is found in /etc/passwd file and 
+ * 	NS_FALSE otherwise.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Ns_GetUid(char *user)
+{
+    struct passwd  *pw;
+    int retcode;
+
+    Ns_MutexLock(&lock);
+    pw = getpwnam(user);
+    if (pw == NULL) {
+        retcode = -1;
+    } else {
+        retcode = pw->pw_uid;
+    }
+    Ns_MutexUnlock(&lock);
+    return retcode;
 }

@@ -35,7 +35,7 @@
  *	pools of database handles.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/dbinit.c,v 1.6 2001/01/16 18:14:27 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/dbinit.c,v 1.7 2001/03/12 22:06:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -115,7 +115,6 @@ static Ns_Callback CheckPools;
 static int      IsStale(Handle *, time_t now);
 static int	Connect(Handle *);
 static Pool    *CreatePool(char *pool, char *path, char *driver);
-static void	FreeCounts(void *arg);
 static int	IncrCount(Pool *poolPtr, int incr);
 
 /*
@@ -123,9 +122,6 @@ static int	IncrCount(Pool *poolPtr, int incr);
  */
 
 static Tcl_HashTable poolsTable;
-static char    *defaultPool;
-static char    *allowedPools;
-
 
 
 /*
@@ -153,7 +149,6 @@ Ns_DbPoolDescription(char *pool)
     if (poolPtr == NULL) {
         return NULL;
     }
-
     return poolPtr->desc;
 }
 
@@ -177,7 +172,9 @@ Ns_DbPoolDescription(char *pool)
 char *
 Ns_DbPoolDefault(char *server)
 {
-    return defaultPool;
+    NsServer *servPtr = NsGetServer(server);
+
+    return servPtr->db.defpool;
 }
 
 
@@ -200,7 +197,9 @@ Ns_DbPoolDefault(char *server)
 char *
 Ns_DbPoolList(char *server)
 {
-    return allowedPools;
+    NsServer *servPtr = NsGetServer(server);
+
+    return servPtr->db.allowed;
 }
 
 
@@ -225,7 +224,7 @@ Ns_DbPoolAllowable(char *server, char *pool)
 {
     register char *p;
 
-    p = allowedPools;
+    p = Ns_DbPoolList(server);
     if (p != NULL) {
         while (*p != '\0') {
             if (STREQ(pool, p)) {
@@ -234,7 +233,6 @@ Ns_DbPoolAllowable(char *server, char *pool)
             p = p + strlen(p) + 1;
         }
     }
-
     return NS_FALSE;
 }
 
@@ -550,7 +548,7 @@ Ns_DbBouncePool(char *pool)
 /*
  *----------------------------------------------------------------------
  *
- * NsDbInit --
+ * NsDbInitPools --
  *
  *	Initialize the database pools at startup.
  *
@@ -564,114 +562,123 @@ Ns_DbBouncePool(char *pool)
  */
 
 void
-NsDbInit(char *server)
+NsDbInitPools(void)
 {
     Tcl_HashEntry  *hPtr;
-    Tcl_HashSearch  search;
     Pool           *poolPtr;
     Ns_Set         *pools;
-    Ns_DString	    ds;
-    char           *path, *allowed, *pool, *driver;
-    register char  *p;
+    char           *path, *pool, *driver;
     int		    new, i, tcheck;
 
-    Ns_DStringInit(&ds);
+    /*
+     * Attempt to create each database pool.
+     */
+
     Tcl_InitHashTable(&poolsTable, TCL_STRING_KEYS);
-
-    /*
-     * Add the allowed pools to the poolsTable.
-     */
-
-    path = Ns_ConfigGetPath(server, NULL, "db", NULL);
-    allowed = Ns_ConfigGet(path, "pools");
-    defaultPool = Ns_ConfigGet(path, "defaultpool");
-
     pools = Ns_ConfigSection("ns/db/pools");
-    if (pools != NULL && allowed != NULL) {
-	if (STREQ(allowed, "*")) {
-	    for (i = 0; i < Ns_SetSize(pools); ++i) {
-		pool = Ns_SetKey(pools, i);
-		Tcl_CreateHashEntry(&poolsTable, pool, &new);
-	    }
-	} else {
-	    p = allowed;
-	    while (p != NULL && *p != '\0') {
-		p = strchr(allowed, ',');
-		if (p != NULL) {
-		    *p = '\0';
-		}
-		Tcl_CreateHashEntry(&poolsTable, allowed, &new);
-		if (p != NULL) {
-		    *p++ = ',';
-		}
-		allowed = p;
-	    }
+    tcheck = INT_MAX;
+    for (i = 0; pools != NULL && i < Ns_SetSize(pools); ++i) {
+	pool = Ns_SetKey(pools, i);
+	hPtr = Tcl_CreateHashEntry(&poolsTable, pool, &new);
+	if (!new) {
+	    Ns_Log(Error, "dbinit: duplicate pool: %s", pool);
+	    continue;	
 	}
-    }
-
-    /*
-     * Attempt to create a database pool for each entry in the poolsTable.
-     */
-
-    hPtr = Tcl_FirstHashEntry(&poolsTable, &search);
-    while (hPtr != NULL) {
-	pool = Tcl_GetHashKey(&poolsTable, hPtr);
 	path = Ns_ConfigGetPath(NULL, NULL, "db", "pool", pool, NULL);
 	driver = Ns_ConfigGet(path, "driver");
-	poolPtr = NULL;
-	if (driver == NULL) {
-	    Ns_Log(Error, "dbinit: no driver defined for pool '%s'", pool);
-	} else {
-	    poolPtr = CreatePool(pool, path, driver);
-	}
-	if (poolPtr != NULL) {
-	    Tcl_SetHashValue(hPtr, poolPtr);
-	} else {
+	poolPtr = CreatePool(pool, path, driver);
+	if (poolPtr == NULL) {
 	    Tcl_DeleteHashEntry(hPtr);
+	} else {
+	    Tcl_SetHashValue(hPtr, poolPtr);
+	    if (tcheck > poolPtr->maxidle) {
+	    	tcheck = poolPtr->maxidle;
+	    }
 	}
-	hPtr = Tcl_NextHashEntry(&search);
     }
+    if (tcheck > 0) {
+	Ns_ScheduleProc(CheckPools, NULL, 1, tcheck);
+    }
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsDbInitServer --
+ *
+ *	Initialize a virtual server allowed and default options.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+NsDbInitServer(char *server)
+{
+    Pool	   *poolPtr;
+    NsServer       *servPtr = NsGetServer(server);
+    Tcl_HashEntry  *hPtr;
+    Tcl_HashSearch  search;
+    char           *path, *pool, *p;
+    Ns_DString	    ds;
+
+    path = Ns_ConfigGetPath(server, NULL, "db", NULL);
 
     /*
      * Verify the default pool exists, if any.
      */
 
-    if (defaultPool != NULL) {
-    	hPtr = Tcl_FindHashEntry(&poolsTable, defaultPool);
-    	if (hPtr == NULL) {
-	    Ns_Log(Error, "dbinit: no such default pool '%s'", defaultPool);
-	    defaultPool = NULL;
-    	}
+    servPtr->db.defpool = Ns_ConfigGet(path, "defaultpool");
+    if (servPtr->db.defpool != NULL &&
+	(Tcl_FindHashEntry(&poolsTable, servPtr->db.defpool) == NULL)) {
+	Ns_Log(Error, "dbinit: no such default pool '%s'", servPtr->db.defpool);
+	servPtr->db.defpool = NULL;
     }
 
     /*
-     * Construct the allowedPools list and initialize the nsdb Tcl
-     * commands if any pools were actually created.
+     * Construct the allowed list and call the server-specific init.
      */
 
-    if (poolsTable.numEntries == 0) {
-	Ns_Log(Debug, "dbinit: no configured pools");
-	allowedPools = "";
-    } else {
-	tcheck = INT_MAX;
-    	Ns_DStringInit(&ds);
-    	hPtr = Tcl_FirstHashEntry(&poolsTable, &search);
-    	while (hPtr != NULL) {
-	    poolPtr = Tcl_GetHashValue(hPtr);
-	    if (tcheck > poolPtr->maxidle) {
-		tcheck = poolPtr->maxidle;
+    servPtr->db.allowed = "";
+    pool = Ns_ConfigGet(path, "pools");
+    if (pool != NULL && poolsTable.numEntries > 0) {
+	Ns_DStringInit(&ds);
+    	if (STREQ(pool, "*")) {
+	    hPtr = Tcl_FirstHashEntry(&poolsTable, &search);
+	    while (hPtr != NULL) {
+	    	poolPtr = Tcl_GetHashValue(hPtr);
+	    	NsDbDriverInit(server, poolPtr->driverPtr);
+	    	Ns_DStringAppendArg(&ds, poolPtr->name);
+		hPtr = Tcl_NextHashEntry(&search);
 	    }
-	    NsDbServerInit(server, poolPtr->driverPtr);
-	    Ns_DStringAppendArg(&ds, poolPtr->name);
-	    hPtr = Tcl_NextHashEntry(&search);
-    	}
-    	allowedPools = ns_malloc(ds.length + 1);
-    	memcpy(allowedPools, ds.string, ds.length + 1);
-    	Ns_DStringFree(&ds);
-	NsDbTclInit(server);
-	if (tcheck > 0) {
-	    Ns_ScheduleProc(CheckPools, NULL, 1, tcheck);
+	} else {
+	    p = pool;
+	    while (p != NULL && *p != '\0') {
+		p = strchr(pool, ',');
+		if (p != NULL) {
+		    *p = '\0';
+		}
+		hPtr = Tcl_FindHashEntry(&poolsTable, pool);
+		if (hPtr != NULL) {
+		    poolPtr = Tcl_GetHashValue(hPtr);
+	    	    NsDbDriverInit(server, poolPtr->driverPtr);
+	    	    Ns_DStringAppendArg(&ds, poolPtr->name);
+		}
+		if (p != NULL) {
+		    *p++ = ',';
+		}
+		pool = p;
+	    }
 	}
+    	servPtr->db.allowed = ns_malloc(ds.length + 1);
+    	memcpy(servPtr->db.allowed, ds.string, ds.length + 1);
+    	Ns_DStringFree(&ds);
     }
 }
 
@@ -1003,14 +1010,17 @@ CreatePool(char *pool, char *path, char *driver)
     int              i;
     char	    *source;
 
+    if (driver == NULL) {
+	Ns_Log(Error, "dbinit: no driver for pool '%s'", pool);
+	return NULL;
+    }
     driverPtr = NsDbLoadDriver(driver);
     if (driverPtr == NULL) {
 	return NULL;
     }
     source = Ns_ConfigGet(path, CONFIG_SOURCE);
     if (source == NULL) {
-	Ns_Log(Error, "dbinit: required datasource missing for pool '%s'",
-	       pool);
+	Ns_Log(Error, "dbinit: missing datasource for pool '%s'", pool);
 	return NULL;
     }
     poolPtr = ns_malloc(sizeof(Pool));
@@ -1137,25 +1147,11 @@ Connect(Handle *handlePtr)
 static int
 IncrCount(Pool *poolPtr, int incr)
 {
-    Tcl_HashTable *tablePtr;
     Tcl_HashEntry *hPtr;
-    static Ns_Tls tls;
+    NsTls *tlsPtr = NsGetTls();
     int prev, count, new;
 
-    if (tls == NULL) {
-	Ns_MasterLock();
-	if (tls == NULL) {
-	    Ns_TlsAlloc(&tls, FreeCounts);
-	}
-	Ns_MasterUnlock();
-    }
-    tablePtr = Ns_TlsGet(&tls);
-    if (tablePtr == NULL) {
-	tablePtr = ns_malloc(sizeof(Tcl_HashTable));
-	Tcl_InitHashTable(tablePtr, TCL_ONE_WORD_KEYS);
-	Ns_TlsSet(&tls, tablePtr);
-    }
-    hPtr = Tcl_CreateHashEntry(tablePtr, (char *) poolPtr, &new);
+    hPtr = Tcl_CreateHashEntry(&tlsPtr->db.owned, (char *) poolPtr, &new);
     if (new) {
 	prev = 0;
     } else {
@@ -1168,30 +1164,4 @@ IncrCount(Pool *poolPtr, int incr)
 	Tcl_SetHashValue(hPtr, (ClientData) count);
     }
     return prev;
-}
-
-
-
-/*
- *----------------------------------------------------------------------
- *
- * FreeCounts --
- *
- *	TLS cleanup to delete per-thread handle counts table.
- *
- * Results:
- *	None.
- *
- * Side effects:
- *	None.
- *
- *----------------------------------------------------------------------
- */
-
-static void
-FreeCounts(void *arg) {
-    Tcl_HashTable *tablePtr = arg;
-
-    Tcl_DeleteHashTable(tablePtr);
-    ns_free(tablePtr);
 }

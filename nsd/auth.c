@@ -27,24 +27,15 @@
  * version of this file under either the License or the GPL.
  */
 
-
 /* 
  * auth.c --
  *
  *	URL level HTTP authorization support.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/auth.c,v 1.5 2001/01/15 18:53:16 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/auth.c,v 1.6 2001/03/12 22:06:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
-
-/*
- * The following pointers specify the procs to call when authorizing
- * requests/users.  By default, no authorization is performed.
- */
-
-static Ns_RequestAuthorizeProc *authProcPtr;
-static Ns_UserAuthorizeProc    *userProcPtr; 
 
 
 /*
@@ -70,37 +61,12 @@ int
 Ns_AuthorizeRequest(char *server, char *method, char *url,
 	char *user, char *passwd, char *peer)
 {
-    if (authProcPtr == NULL) {
+    NsServer *servPtr = NsGetServer(server);
+
+    if (servPtr == NULL || servPtr->request.authProc == NULL) {
     	return NS_OK;
     }
-    return (*authProcPtr)(server, method, url, user, passwd, peer);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Ns_AuthorizeUser --
- *
- *	Verify that a user's password matches his name.
- *	passwd is the unencrypted password.
- *
- * Results:
- *	NS_OK or NS_ERROR; if none registered, NS_ERROR.
- *
- * Side effects:
- *	Depends on the supplied routine.
- *
- *----------------------------------------------------------------------
- */
-
-int
-Ns_AuthorizeUser(char *user, char *passwd)
-{
-    if (userProcPtr == NULL) {
-	return NS_ERROR;
-    }
-    return (*userProcPtr)(user, passwd);
+    return (*servPtr->request.authProc)(server, method, url, user, passwd, peer);
 }
 
 
@@ -121,32 +87,13 @@ Ns_AuthorizeUser(char *user, char *passwd)
  */
 
 void
-Ns_SetRequestAuthorizeProc(char *server, Ns_RequestAuthorizeProc *procPtr)
+Ns_SetRequestAuthorizeProc(char *server, Ns_RequestAuthorizeProc *proc)
 {
-    authProcPtr = procPtr;
-}
+    NsServer *servPtr = NsGetServer(server);
 
-
-/*
- *----------------------------------------------------------------------
- *
- * Ns_SetUserAuthorizeProc --
- *
- *	Set the proc to call when authorizing users.
- *
- * Results:
- *	None.
- *
- * Side effects:
- *	None.
- *
- *----------------------------------------------------------------------
- */
-
-void
-Ns_SetUserAuthorizeProc(Ns_UserAuthorizeProc *procPtr)
-{
-    userProcPtr = procPtr;
+    if (servPtr != NULL) {
+	servPtr->request.authProc = proc;
+    }
 }
 
 
@@ -167,9 +114,10 @@ Ns_SetUserAuthorizeProc(Ns_UserAuthorizeProc *procPtr)
  */
 
 int
-NsTclRequestAuthorizeCmd(ClientData dummy, Tcl_Interp *interp, int argc,
+NsTclRequestAuthorizeCmd(ClientData arg, Tcl_Interp *interp, int argc,
 		    char **argv)
 {
+    NsInterp	   *itPtr = arg;
     int             status;
 
     if ((argc != 5) && (argc != 6)) {
@@ -178,15 +126,8 @@ NsTclRequestAuthorizeCmd(ClientData dummy, Tcl_Interp *interp, int argc,
 			 (char *) NULL);
         return TCL_ERROR;
     }
-    if (argc == 5) {
-        status = Ns_AuthorizeRequest(Ns_TclInterpServer(interp),
-                                     argv[1], argv[2], argv[3], argv[4], NULL);
-    } else {
-        status = Ns_AuthorizeRequest(Ns_TclInterpServer(interp),
-                                     argv[1], argv[2], argv[3], argv[4],
-				     argv[5]);
-    }
-    
+    status = Ns_AuthorizeRequest(itPtr->servPtr->server, argv[1], argv[2],
+	argv[3], argv[4], argv[5]);
     switch (status) {
     case NS_OK:
         Tcl_SetResult(interp, "OK", TCL_STATIC);
@@ -212,4 +153,3 @@ NsTclRequestAuthorizeCmd(ClientData dummy, Tcl_Interp *interp, int argc,
     
     return TCL_OK;
 }
-

@@ -33,30 +33,12 @@
  * Support for connection filters, traces, and cleanups.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/filter.c,v 1.5 2001/01/16 18:14:27 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/filter.c,v 1.6 2001/03/12 22:06:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
-typedef struct Filter {
-    struct Filter *nextPtr;
-    Ns_FilterProc *proc;
-    char 	  *method;
-    char          *url;
-    int	           when;
-    void	  *arg;
-} Filter;
-
-typedef struct Trace {
-    struct Trace    *nextPtr;
-    Ns_TraceProc    *proc;
-    void    	    *arg;
-} Trace;
-
-static Filter *firstFilterPtr;
-static Trace *firstTracePtr;
-static Trace *firstCleanupPtr;
 static Trace *NewTrace(Ns_TraceProc *proc, void *arg);
-static void RunTraces(Trace *firstPtr, Ns_Conn *conn);
+static void RunTraces(Ns_Conn *conn, int trace);
 
 
 /*
@@ -79,8 +61,12 @@ void *
 Ns_RegisterFilter(char *server, char *method, char *url,
     Ns_FilterProc *proc, int when, void *arg)
 {
+    NsServer *servPtr = NsGetServer(server);
     Filter *fPtr, **fPtrPtr;
 
+    if (servPtr == NULL) {
+	return NULL;
+    }
     fPtr = ns_malloc(sizeof(Filter));
     fPtr->proc = proc;
     fPtr->method = method;
@@ -88,7 +74,7 @@ Ns_RegisterFilter(char *server, char *method, char *url,
     fPtr->when = when;
     fPtr->arg = arg;
     fPtr->nextPtr = NULL;
-    fPtrPtr = &firstFilterPtr;
+    fPtrPtr = &servPtr->filter.firstFilterPtr;
     while (*fPtrPtr != NULL) {
     	fPtrPtr = &((*fPtrPtr)->nextPtr);
     }
@@ -115,11 +101,12 @@ Ns_RegisterFilter(char *server, char *method, char *url,
 int
 NsRunFilters(Ns_Conn *conn, int why)
 {
+    Conn *connPtr = (Conn *) conn;
     Filter *fPtr;
     int status;
 
     status = NS_OK;
-    fPtr = firstFilterPtr;
+    fPtr = connPtr->servPtr->filter.firstFilterPtr;
     while (fPtr != NULL && status == NS_OK) {
 	if ((fPtr->when & why)
 	    && conn->request != NULL
@@ -159,16 +146,20 @@ NsRunFilters(Ns_Conn *conn, int why)
 void *
 Ns_RegisterServerTrace(char *server, Ns_TraceProc * proc, void *arg)
 {
-    Trace *tPtr, **tPtrPtr;
+    NsServer *servPtr = NsGetServer(server);
+    Trace *tracePtr, **tPtrPtr;
 
-    tPtr = NewTrace(proc, arg);
-    tPtrPtr = &firstTracePtr;
+    if (servPtr == NULL) {
+	return NULL;
+    }
+    tracePtr = NewTrace(proc, arg);
+    tPtrPtr = &servPtr->filter.firstTracePtr;
     while (*tPtrPtr != NULL) {
     	tPtrPtr = &((*tPtrPtr)->nextPtr);
     }
-    *tPtrPtr = tPtr;
-    tPtr->nextPtr = NULL;
-    return (void *) tPtr;
+    *tPtrPtr = tracePtr;
+    tracePtr->nextPtr = NULL;
+    return (void *) tracePtr;
 }
 
 
@@ -192,14 +183,18 @@ Ns_RegisterServerTrace(char *server, Ns_TraceProc * proc, void *arg)
  */
 
 void *
-Ns_RegisterCleanup(Ns_TraceProc *proc, void *arg)
+Ns_RegisterCleanup(char *server, Ns_TraceProc *proc, void *arg)
 {
-    Trace *tPtr;
-    
-    tPtr = NewTrace(proc, arg);
-    tPtr->nextPtr = firstCleanupPtr;
-    firstCleanupPtr = tPtr;
-    return (void *) tPtr;
+    NsServer *servPtr = NsGetServer(server);
+    Trace *tracePtr;
+
+    if (servPtr == NULL) {
+	return NULL;
+    }
+    tracePtr = NewTrace(proc, arg);
+    tracePtr->nextPtr = servPtr->filter.firstCleanupPtr;
+    servPtr->filter.firstCleanupPtr = tracePtr;
+    return (void *) tracePtr;
 }
 
 
@@ -219,24 +214,31 @@ Ns_RegisterCleanup(Ns_TraceProc *proc, void *arg)
  */
 
 void
-NsRunCleanups(Ns_Conn *conn)
-{
-    RunTraces(firstCleanupPtr, conn);
-}
-
-
-void
 NsRunTraces(Ns_Conn *conn)
 {
-    RunTraces(firstTracePtr, conn);
+    RunTraces(conn, 1);
+}
+
+void
+NsRunCleanups(Ns_Conn *conn)
+{
+    RunTraces(conn, 0);
 }
 
 static void
-RunTraces(Trace *tPtr, Ns_Conn *conn)
+RunTraces(Ns_Conn *conn, int trace)
 {
-    while (tPtr != NULL) {
-    	(*tPtr->proc)(tPtr->arg, conn);
-	tPtr = tPtr->nextPtr;
+    Conn *connPtr = (Conn *) conn;
+    Trace *tracePtr;
+
+    if (trace) {
+	tracePtr = connPtr->servPtr->filter.firstTracePtr;
+    } else {
+	tracePtr = connPtr->servPtr->filter.firstCleanupPtr;
+    }
+    while (tracePtr != NULL) {
+    	(*tracePtr->proc)(tracePtr->arg, conn);
+	tracePtr = tracePtr->nextPtr;
     }
 }
 
@@ -260,10 +262,10 @@ RunTraces(Trace *tPtr, Ns_Conn *conn)
 static Trace *
 NewTrace(Ns_TraceProc *proc, void *arg)
 {
-    Trace *tPtr;
+    Trace *tracePtr;
 
-    tPtr = ns_malloc(sizeof(Trace));
-    tPtr->proc = proc;
-    tPtr->arg = arg;
-    return tPtr;
+    tracePtr = ns_malloc(sizeof(Trace));
+    tracePtr->proc = proc;
+    tracePtr->arg = arg;
+    return tracePtr;
 }

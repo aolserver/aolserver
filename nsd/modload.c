@@ -34,7 +34,7 @@
  *	Load .so files into the server and initialize them. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/modload.c,v 1.5 2001/01/16 18:14:27 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/modload.c,v 1.6 2001/03/12 22:06:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -70,18 +70,6 @@ static void dyld_undefined_symbol_handler(const char *symbolName);
 #define DEFAULT_INITPROC "Ns_ModuleInit"
 
 /*
- * The following structure is used for static module loading.
- */
-
-typedef struct Module {
-    struct Module *nextPtr;
-    char *name;
-    Ns_ModuleInitProc *proc;
-} Module;
-
-static Module *firstPtr;
-
-/*
  * Static variables defined in this file.
  */
 
@@ -89,43 +77,6 @@ static Tcl_HashTable modulesTable;
 static void *DlOpen(char *file);
 static void *DlSym(void *handle, char *name);
 static char *DlError(void);
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Ns_RegisterModule --
- *
- *	Register a static module.  This routine is typically called
- * 	from a custom Ns_ServerInit() to initialize static code
- * 	by name in a manner similar to dynamic modules, i.e.,
- *	the init proc will be called and any cooresponding Tcl
- * 	script files later evaluated.
- *
- * Results:
- *	None.
- *
- * Side effects:
- *	None. 
- *
- *----------------------------------------------------------------------
- */
-
-void
-Ns_RegisterModule(char *name, Ns_ModuleInitProc *proc)
-{
-    Module *modPtr, **nextPtrPtr;
-
-    modPtr = ns_malloc(sizeof(Module));
-    modPtr->name = name;
-    modPtr->proc = proc;
-    modPtr->nextPtr = NULL;
-    nextPtrPtr = &firstPtr;
-    while (*nextPtrPtr != NULL) {
-	nextPtrPtr = &((*nextPtrPtr)->nextPtr); 
-    }
-    *nextPtrPtr = modPtr;
-}
 
 
 /*
@@ -318,7 +269,6 @@ Ns_ModuleGetSymbol(char *name)
 void 
 NsLoadModules(char *server)
 {
-    Module *modPtr, *nextPtr;
     Ns_Set *modules;
     int     i;
     char   *file, *module, *init, *s, *e;
@@ -373,14 +323,10 @@ NsLoadModules(char *server)
 		Ns_ModuleLoad(server, module, file, init) != NS_OK) {
 		Ns_Fatal("modload: failed to load module '%s'", file);
             }
-	    Ns_Log(Debug, "modload: initializing module '%s'", module);
 
 	    /*
-	     * Append this module to the list of modules that need
-	     * initialization (tcl sourcing, eventually).
+	     * Restore the strings.
 	     */
-	    
-            Ns_TclInitModule(server, module);
 
             if (s != NULL) {
                 *s = '(';
@@ -389,28 +335,6 @@ NsLoadModules(char *server)
                 }
             }
         }
-    }
-
-    /*
-     * Initialize the static modules (if any).  Note
-     * that a static module could add a new static module
-     * and so the loop is repeated until they're all gone.
-     */
-
-    while (firstPtr != NULL) {
-    	modPtr = firstPtr;
-	firstPtr = NULL;
-    	while (modPtr != NULL) {
-	    nextPtr = modPtr->nextPtr;
-	    Ns_Log(Notice, "modload: initializing module '%s'", modPtr->name);
-	    if ((*modPtr->proc)(server, modPtr->name) != NS_OK) {
-	    	Ns_Fatal("modload: failed to initialize module '%s'",
-			 modPtr->name);
-	    }
-            Ns_TclInitModule(server, modPtr->name);
-	    ns_free(modPtr);
-	    modPtr = nextPtr;
-	}
     }
 }
 

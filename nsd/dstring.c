@@ -35,22 +35,10 @@
  *	with Tcl_DString's.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/dstring.c,v 1.9 2001/01/10 18:35:25 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/dstring.c,v 1.10 2001/03/12 22:06:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
-/*
- * The following structure is used to maintain the per-thread
- * DString cache.
- */
- 
-typedef struct {
-    Ns_DString *firstPtr;
-    int ncached;
-} Stack;
-
-static Ns_Tls tls;  	    	    /* Cache TLS. */
-static Ns_Callback FlushDStrings;   /* Cache TLS cleannup. */
 static void GrowDString(Ns_DString *dsPtr, int length);
 
 
@@ -472,29 +460,17 @@ Ns_DStringValue(Ns_DString *dsPtr)
 Ns_DString *
 Ns_DStringPop(void)
 {
-    Stack *sPtr;
+    NsTls *tlsPtr = NsGetTls();
     Ns_DString *dsPtr;
 
-    if (tls == NULL) {
-	Ns_MasterLock();
-	if (tls == NULL) {
-	    Ns_TlsAlloc(&tls, FlushDStrings);
-	}
-	Ns_MasterUnlock();
-    }
-    sPtr = Ns_TlsGet(&tls);
-    if (sPtr == NULL) {
-	sPtr = ns_calloc(1, sizeof(Stack));
-	Ns_TlsSet(&tls, sPtr);
-    }
-    if (sPtr->firstPtr == NULL) {
+    if (tlsPtr->dstring.firstPtr == NULL) {
 	dsPtr = ns_malloc(sizeof(Ns_DString));
 	Ns_DStringInit(dsPtr);
     } else {
-	dsPtr = sPtr->firstPtr;
-	sPtr->firstPtr = *((Ns_DString **) dsPtr->staticSpace);
+	dsPtr = tlsPtr->dstring.firstPtr;
+	tlsPtr->dstring.firstPtr = *((Ns_DString **) dsPtr->staticSpace);
     	dsPtr->staticSpace[0] = 0;
-	--sPtr->ncached;
+	--tlsPtr->dstring.ncached;
     }
     return dsPtr;
 }
@@ -519,9 +495,9 @@ Ns_DStringPop(void)
 void
 Ns_DStringPush(Ns_DString *dsPtr)
 {
-    Stack *sPtr = Ns_TlsGet(&tls);
+    NsTls *tlsPtr = NsGetTls();
 
-    if (sPtr->ncached >= nsconf.dstring.maxentries) {
+    if (tlsPtr->dstring.ncached >= nsconf.dstring.maxentries) {
 	Ns_DStringFree(dsPtr);
 	ns_free(dsPtr);
     } else {
@@ -530,40 +506,10 @@ Ns_DStringPush(Ns_DString *dsPtr)
 	} else {
     	    Ns_DStringTrunc(dsPtr, 0);
 	}
-	*((Ns_DString **) dsPtr->staticSpace) = sPtr->firstPtr;
-	sPtr->firstPtr = dsPtr;
-	++sPtr->ncached;
+	*((Ns_DString **) dsPtr->staticSpace) = tlsPtr->dstring.firstPtr;
+	tlsPtr->dstring.firstPtr = dsPtr;
+	++tlsPtr->dstring.ncached;
     }
-}
-
-
-/*
- *----------------------------------------------------------------------
- * FlushDStrings --
- *
- *	TLS callback to flush the DString cache.
- *
- * Results:
- *	None.
- *
- * Side effects:
- *  	None.
- *
- *----------------------------------------------------------------------
- */
-
-static void
-FlushDStrings(void *arg)
-{
-    Stack *sPtr = arg;
-    Ns_DString *dsPtr;
-
-    while ((dsPtr = sPtr->firstPtr) != NULL) {
-	sPtr->firstPtr = *((Ns_DString **) dsPtr->staticSpace);
-	Ns_DStringFree(dsPtr);
-	ns_free(dsPtr);
-    }
-    ns_free(sPtr);
 }
 
 

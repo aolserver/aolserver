@@ -38,7 +38,7 @@
  *	For full details see the file doc/urlspace.txt.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/urlspace.c,v 1.5 2001/01/16 18:14:27 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/urlspace.c,v 1.6 2001/03/12 22:06:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -1864,9 +1864,6 @@ JunctionDelete(Junction *juncPtr, char *seq, int id, int flags)
 static void
 MkSeq(Ns_DString *dsPtr, char *server, char *method, char *url)
 {
-    if (server == NULL) {
-	server = nsServer;
-    }
     if ((method != NULL) && (url != NULL)) {
         char *p;
         int   done;

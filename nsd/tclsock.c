@@ -34,7 +34,7 @@
  *	Tcl commands that let you do TCP sockets. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclsock.c,v 1.4 2000/08/25 13:49:09 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclsock.c,v 1.5 2001/03/12 22:06:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -44,6 +44,7 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
 
 typedef struct Callback {
     int    when;
+    char  *server;
     char   script[1];
 } Callback;
 
@@ -85,9 +86,8 @@ static Ns_SockProc SockListenCallback;
  *----------------------------------------------------------------------
  */
 
-int
-NsTclGetByCmd(ClientData arg, Tcl_Interp *interp, int argc,
-		       char **argv)
+static int
+GetCmd(Tcl_Interp *interp, int argc, char **argv, int byaddr)
 {
     Ns_DString  ds;
     int         status;
@@ -98,7 +98,7 @@ NsTclGetByCmd(ClientData arg, Tcl_Interp *interp, int argc,
         return TCL_ERROR;
     }
     Ns_DStringInit(&ds);
-    if ((int) arg) {
+    if (byaddr) {
 	status = Ns_GetAddrByHost(&ds, argv[1]);
     } else {
 	status = Ns_GetHostByAddr(&ds, argv[1]);
@@ -112,6 +112,20 @@ NsTclGetByCmd(ClientData arg, Tcl_Interp *interp, int argc,
 	return TCL_ERROR;
     }
     return TCL_OK;
+}
+
+int
+NsTclGetHostCmd(ClientData arg, Tcl_Interp *interp, int argc,
+		       char **argv)
+{
+    return GetCmd(interp, argc, argv, 0);
+}
+
+int
+NsTclGetAddrCmd(ClientData arg, Tcl_Interp *interp, int argc,
+		       char **argv)
+{
+    return GetCmd(interp, argc, argv, 1);
 }
 
 
@@ -647,13 +661,14 @@ NsTclSockArgProc(Tcl_DString *dsPtr, void *arg)
 }
  
 int
-NsTclSockCallbackCmd(ClientData dummy, Tcl_Interp *interp, int argc,
+NsTclSockCallbackCmd(ClientData arg, Tcl_Interp *interp, int argc,
 		      char **argv)
 {
     SOCKET  sock;
     int     when;
     char   *s;
     Callback *cbPtr;
+    NsInterp *itPtr = arg;
 
     if (argc != 4) {
         Tcl_AppendResult(interp, "wrong # args: should be \"",
@@ -694,6 +709,7 @@ NsTclSockCallbackCmd(ClientData dummy, Tcl_Interp *interp, int argc,
 	return TCL_ERROR;
     }
     cbPtr = ns_malloc(sizeof(Callback) + strlen(argv[2]));
+    cbPtr->server = itPtr->servPtr->server;
     cbPtr->when = when;
     strcpy(cbPtr->script, argv[2]);
     if (Ns_SockCallback(sock, NsTclSockProc, cbPtr,
@@ -972,34 +988,6 @@ EnterDupedSocks(Tcl_Interp *interp, SOCKET sock)
 /*
  *----------------------------------------------------------------------
  *
- * NewCallback --
- *
- *	Allocate and initialize a new callback structure.
- *
- * Results:
- *	Pointer to new structure.
- *
- * Side effects:
- *	None.
- *
- *----------------------------------------------------------------------
- */
-
-static Callback *
-NewCallback(char *script, int when)
-{
-    Callback *cbPtr;
-
-    cbPtr = ns_malloc(sizeof(Callback) + strlen(script));
-    cbPtr->when = when;
-    strcpy(cbPtr->script, script);
-    return cbPtr;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
  * NsTclSockProc --
  *
  *	This is the C wrapper callback that is registered from 
@@ -1024,7 +1012,7 @@ NsTclSockProc(SOCKET sock, void *arg, int why)
     Callback    *cbPtr = arg;
 
     if (why != NS_SOCK_EXIT || (cbPtr->when & NS_SOCK_EXIT)) {
-	interp = Ns_TclAllocateInterp(NULL);
+	interp = Ns_TclAllocateInterp(cbPtr->server);
 	result = EnterDup(interp, sock);
 	if (result == TCL_OK) {
 	    Tcl_DStringInit(&script);
@@ -1085,7 +1073,7 @@ SockListenCallback(SOCKET sock, void *arg, int why)
     char       **sockv;
     int          sockc, result;
 
-    interp = Ns_TclAllocateInterp(NULL);
+    interp = Ns_TclAllocateInterp(cbPtr->server);
     result = EnterDupedSocks(interp, sock);
     if (result == TCL_OK) {
 	Tcl_SplitList(interp, interp->result, &sockc, &sockv);

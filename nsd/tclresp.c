@@ -34,9 +34,13 @@
  *	Tcl commands for returning data to the user agent. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclresp.c,v 1.5 2001/01/15 18:53:17 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclresp.c,v 1.6 2001/03/12 22:06:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
+
+static int CheckId(Tcl_Interp *interp, char *id);
+static int Result(Tcl_Interp *interp, int result);
+static int GetConn(ClientData arg, Tcl_Interp *interp, Ns_Conn **connPtr);
 
 
 /*
@@ -57,10 +61,9 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
  */
 
 int
-NsTclHeadersCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
+NsTclHeadersCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 {
-    int      status;
-    int      len;
+    int      status, len;
     Ns_Conn *conn;
     char    *type;
 
@@ -69,10 +72,8 @@ NsTclHeadersCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
             argv[0], " connid status ?type len?\"", NULL);
         return TCL_ERROR;
     }
-    conn = Ns_TclGetConn(interp);
-    if (conn == NULL) {
-        Tcl_AppendResult(interp, "no such connid \"", argv[1], "\"", NULL);
-        return TCL_ERROR;
+    if (GetConn(arg, interp, &conn) != TCL_OK) {
+	return TCL_ERROR;
     }
     if (Tcl_GetInt(interp, argv[2], &status) != TCL_OK) {
         return TCL_ERROR;
@@ -87,19 +88,8 @@ NsTclHeadersCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
     } else if (Tcl_GetInt(interp, argv[4], &len) != TCL_OK) {
 	return TCL_ERROR;
     }
-
-    /*
-     * Set the required headers and then flush them out.
-     */
-    
     Ns_ConnSetRequiredHeaders(conn, type, len);
-    if (Ns_ConnFlushHeaders(conn, status) == NS_OK) {
-        Tcl_AppendResult(interp, "1", NULL);
-    } else {
-        Tcl_AppendResult(interp, "0", NULL);
-    }
-    
-    return TCL_OK;
+    return Result(interp, Ns_ConnFlushHeaders(conn, status));
 }
 
 
@@ -120,51 +110,34 @@ NsTclHeadersCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
  */
 
 int
-NsTclReturnCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
+NsTclReturnCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 {
-    int      status;
-    int      len;
     Ns_Conn *conn;
-    int      statusArg = 1, typeArg = 2, stringArg = 3;
+    int      status, len, result;
+    char    *str;
 
-    if (argc == 5) {
-	if (NsIsIdConn(argv[1]) == NS_FALSE) {
-	    Tcl_AppendResult(interp, "bad connid: \"", argv[1], "\"", NULL);
-	    return TCL_ERROR;
-	}
-	statusArg = 2;
-	typeArg = 3;
-	stringArg = 4;
-    } else if (argc < 4 || argc > 5) {
+    if (argc != 4 && argc != 5) {
         Tcl_AppendResult(interp, "wrong # of args: should be \"",
-			 argv[0], " status type string\"", NULL);
+			 argv[0], " ?connid? status type string\"", NULL);
         return TCL_ERROR;
     }
-
-    conn = Ns_TclGetConn(interp);
-
-    if (conn == NULL) {
-        Tcl_AppendResult(interp, "no connection", NULL);
-        return TCL_ERROR;
+    if (argc == 5 && !CheckId(interp, argv[1])) {
+	return TCL_ERROR;
     }
-
-    if (Tcl_GetInt(interp, argv[statusArg], &status) != TCL_OK) {
-        return TCL_ERROR;
+    if (GetConn(arg, interp, &conn) != TCL_OK) {
+	return TCL_ERROR;
     }
-
-    len = strlen(argv[stringArg]);
-
-    Ns_ConnSetRequiredHeaders(conn, argv[typeArg], len);
-
-    if ((Ns_ConnFlushHeaders(conn, status) == NS_OK) &&
-        (Ns_WriteConn(conn, argv[stringArg], len) == NS_OK)) {
-	
-	Tcl_AppendResult(interp, "1", NULL);
-    } else {
-	Tcl_AppendResult(interp, "0", NULL);
+    if (Tcl_GetInt(interp, argv[argc-3], &status) != TCL_OK) {
+	return TCL_ERROR;
     }
-
-    return TCL_OK;
+    str = argv[argc-1];
+    len = strlen(str);
+    Ns_ConnSetRequiredHeaders(conn, argv[argc-2], len);
+    result = Ns_ConnFlushHeaders(conn, status);
+    if (result == NS_OK) {
+        result = Ns_WriteConn(conn, str, len);
+    }
+    return Result(interp, result);
 }
 
 
@@ -185,7 +158,7 @@ NsTclReturnCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
  */
 
 int
-NsTclRespondCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
+NsTclRespondCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 {
     int          status;
     char        *type;
@@ -211,10 +184,8 @@ NsTclRespondCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
             " ?-length length? ?-headers setid?\"", NULL);
         return TCL_ERROR;
     }
-    conn = Ns_TclGetConn(interp);
-    if (conn == NULL) {
-        Tcl_AppendResult(interp, "no connection", NULL);
-        return TCL_ERROR;
+    if (GetConn(arg, interp, &conn) != TCL_OK) {
+	return TCL_ERROR;
     }
 
     /*
@@ -317,18 +288,15 @@ NsTclRespondCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
                 NULL);
             return TCL_ERROR;
         }
-        if (Ns_ConnReturnOpenChannel(conn, status, type, chan,
-				     length) != NS_OK) {
-            retval = TCL_ERROR;
-        }
+	retval = Ns_ConnReturnOpenChannel(conn, status, type, chan, length);
+
     } else if (filename != NULL) {
 	/*
 	 * We'll be returining a file by name
 	 */
 	
-        if (Ns_ConnReturnFile(conn, status, type, filename) != NS_OK) {
-            retval = TCL_ERROR;
-        }
+        retval = Ns_ConnReturnFile(conn, status, type, filename);
+
     } else {
 	/*
 	 * We'll be returning a string now.
@@ -338,20 +306,13 @@ NsTclRespondCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
             length = strlen(string);
         }
         Ns_ConnSetRequiredHeaders(conn, type, length);
-        if ((Ns_ConnFlushHeaders(conn, status) == NS_OK) &&
-            (Ns_WriteConn(conn, string, length) == NS_OK)) {
-            retval = TCL_OK;
-        } else {
-            retval = TCL_ERROR;
-        }
-    }
-    if (retval == TCL_OK) {
-	Tcl_AppendResult(interp, "1", NULL);
-    } else {
-	Tcl_AppendResult(interp, "0", NULL);
+	retval = Ns_ConnFlushHeaders(conn, status);
+	if (retval == NS_OK) {
+            retval = Ns_WriteConn(conn, string, length);
+	}
     }
 
-    return TCL_OK;
+    return Result(interp, retval);
 }
 
 
@@ -372,49 +333,26 @@ NsTclRespondCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
  */
 
 int
-NsTclReturnFileCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
+NsTclReturnFileCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 {
     int      status;
     Ns_Conn *conn;
-    int	     statusArg = 1, typeArg = 2, filenameArg = 3;
 
-    if (argc == 5) {
-	/*
-	 * They must have specified a conn ID.  Make sure it's a valid
-	 * conn ID.  If not, it's an error.
-	 */
-	
-	if (NsIsIdConn(argv[1]) == NS_FALSE) {
-	    Tcl_AppendResult(interp, "bad connid: \"", argv[1], "\"", NULL);
-	    return TCL_ERROR;
-	}
-	statusArg = 2;
-	typeArg = 3;
-	filenameArg = 4;
-    } else if (argc < 4 || argc > 5) {
+    if (argc != 4 && argc != 5) {
         Tcl_AppendResult(interp, "wrong # of args: should be \"",
-            argv[0], " status type file\"", NULL);
+            argv[0], " ?connid? status type file\"", NULL);
         return TCL_ERROR;
     }
-
-    conn = Ns_TclGetConn(interp);
-
-    if (conn == NULL) {
-        Tcl_AppendResult(interp, "no connection", NULL);
+    if (argc == 5 && !CheckId(interp, argv[1])) {
+	return TCL_ERROR;
+    }
+    if (GetConn(arg, interp, &conn) != TCL_OK) {
+	return TCL_ERROR;
+    }
+    if (Tcl_GetInt(interp, argv[argc-3], &status) != TCL_OK) {
         return TCL_ERROR;
     }
-
-    if (Tcl_GetInt(interp, argv[statusArg], &status) != TCL_OK) {
-        return TCL_ERROR;
-    }
-    if (Ns_ConnReturnFile(conn, status, argv[typeArg], 
-		      argv[filenameArg]) == NS_OK) {
-	Tcl_AppendResult(interp, "1", NULL);
-    } else {
-	Tcl_AppendResult(interp, "0", NULL);
-    }
-
-    return TCL_OK;
+    return Result(interp, Ns_ConnReturnFile(conn, status, argv[argc-2], argv[argc-1]));
 }
 
 
@@ -435,58 +373,33 @@ NsTclReturnFileCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
  */
 
 int
-NsTclReturnFpCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
+NsTclReturnFpCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 {
-    int          length;
-    int          status;
+    int          len, status;
     Tcl_Channel	 chan;
     Ns_Conn     *conn;
-    int		 statusArg = 1, typeArg = 2, fileIdArg = 3, lengthArg = 4;
 
-    if (argc == 6) {
-	/*
-	 * They must have specified a conn ID.  Make sure it's a valid
-	 * conn ID.  If not, it's an error.
-	 */
-	
-	if (!NsIsIdConn(argv[1])) {
-	    Tcl_AppendResult(interp, "bad connid: \"", argv[1], "\"", NULL);
-	    return TCL_ERROR;
-	}
-	statusArg = 2;
-	typeArg = 3;
-	fileIdArg = 4;
-	lengthArg = 5;
-    } else if (argc < 5 || argc > 6) {
+    if (argc != 5 && argc != 6) {
         Tcl_AppendResult(interp, "wrong # of args: should be \"",
-            argv[0], " status type fileId len\"", NULL);
+            argv[0], " ?connid? status type fileId len\"", NULL);
         return TCL_ERROR;
     }
-
-    conn = Ns_TclGetConn(interp);
-
-    if (conn == NULL) {
-        Tcl_AppendResult(interp, "no connection", NULL);
+    if (argc == 6 && !CheckId(interp, argv[1])) {
+	return TCL_ERROR;
+    }
+    if (GetConn(arg, interp, &conn) != TCL_OK) {
+	return TCL_ERROR;
+    }
+    if (Tcl_GetInt(interp, argv[argc-4], &status) != TCL_OK) {
         return TCL_ERROR;
     }
-
-    if (Tcl_GetInt(interp, argv[statusArg], &status) != TCL_OK) {
+    if (Tcl_GetInt(interp, argv[argc-1], &len) != TCL_OK) {
         return TCL_ERROR;
     }
-    if (Tcl_GetInt(interp, argv[lengthArg], &length) != TCL_OK) {
+    if (Ns_TclGetOpenChannel(interp, argv[argc-2], 0, 1, &chan) != TCL_OK) {
         return TCL_ERROR;
     }
-    if (Ns_TclGetOpenChannel(interp, argv[fileIdArg], 0, 1, &chan) != TCL_OK) {
-        return TCL_ERROR;
-    }
-    if (Ns_ConnReturnOpenChannel(conn, status, argv[typeArg], chan,
-				 length) == NS_OK) {
-
-	Tcl_AppendResult(interp, "1", NULL);
-    } else {
-	Tcl_AppendResult(interp, "0", NULL);
-    }
-    return TCL_OK;
+    return Result(interp, Ns_ConnReturnOpenChannel(conn, status, argv[argc-3], chan, len));
 }
 
 
@@ -507,37 +420,23 @@ NsTclReturnFpCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
  */
 
 int
-NsTclReturnBadRequestCmd(ClientData dummy, Tcl_Interp *interp, int argc,
+NsTclReturnBadRequestCmd(ClientData arg, Tcl_Interp *interp, int argc,
 			  char **argv)
 {
     Ns_Conn *conn;
-    int	     reasonArg = 1;
 
-    if (argc == 3) {
-	if (NsIsIdConn(argv[1]) == NS_FALSE) {
-	    Tcl_AppendResult(interp, "bad connid: \"", argv[1], "\"", NULL);
-	    return TCL_ERROR;
-	}
-	reasonArg = 2;
-    } else if (argc < 2 || argc > 3) {
+    if (argc != 2 && argc != 3) {
         Tcl_AppendResult(interp, "wrong # of args: should be \"",
-                         argv[0], " reason\"", NULL);
+                         argv[0], " ?connid? reason\"", NULL);
         return TCL_ERROR;
     }
-
-    conn = Ns_TclGetConn(interp);
-
-    if (conn == NULL) {
-        Tcl_AppendResult(interp, "no connection", NULL);
-        return TCL_ERROR;
+    if (argc == 3 && !CheckId(interp, argv[1])) {
+	return TCL_ERROR;
     }
-
-    if (Ns_ConnReturnBadRequest(conn, argv[reasonArg]) != NS_OK) {
-	Tcl_AppendResult(interp, "0", NULL);
-    } else {
-	Tcl_AppendResult(interp, "1", NULL);
+    if (GetConn(arg, interp, &conn) != TCL_OK) {
+	return TCL_ERROR;
     }
-    return TCL_OK;
+    return Result(interp, Ns_ConnReturnBadRequest(conn, argv[argc-1]));
 }
 
 
@@ -559,40 +458,41 @@ NsTclReturnBadRequestCmd(ClientData dummy, Tcl_Interp *interp, int argc,
  *----------------------------------------------------------------------
  */
 
-int
-NsTclSimpleReturnCmd(ClientData clientData, Tcl_Interp *interp, 
-		      int argc, char **argv)
+static int
+ReturnCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv, int (*proc) (Ns_Conn *))
 {
-    int      (*proc) (Ns_Conn *);
     Ns_Conn *conn;
 
-    conn = Ns_TclGetConn(interp);
-
-    if (conn == NULL) {
-        Tcl_AppendResult(interp, "no connection", NULL);
-        return TCL_ERROR;
-    }
-
-    proc = (int (*) (Ns_Conn *)) clientData;
-
-    if (argc == 2) {
-	if (!NsIsIdConn(argv[1])) {
-	    Tcl_AppendResult(interp, "bad connid: \"", argv[1], "\"", NULL);
-	    return TCL_ERROR;
-	}
-    } else if (argc < 1 || argc > 2) {
+    if (argc != 1 && argc != 2) {
         Tcl_AppendResult(interp, "wrong # of args: should be \"",
-                         argv[0], "\"", NULL);
+                         argv[0], " ?connid?\"", NULL);
         return TCL_ERROR;
     }
-
-    if ((*proc) (conn) != NS_OK) {
-	Tcl_AppendResult(interp, "0", NULL);
-    } else {
-	Tcl_AppendResult(interp, "1", NULL);
+    if (argc == 2 && !CheckId(interp, argv[1])) {
+	return TCL_ERROR;
     }
+    if (GetConn(arg, interp, &conn) != TCL_OK) {
+	return TCL_ERROR;
+    }
+    return Result(interp, (*proc)(conn));
+}
 
-    return TCL_OK;
+int
+NsTclReturnNotFoundCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
+{
+    return ReturnCmd(arg, interp, argc, argv, Ns_ConnReturnNotFound);
+}
+
+int
+NsTclReturnUnauthorizedCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
+{
+    return ReturnCmd(arg, interp, argc, argv, Ns_ConnReturnUnauthorized);
+}
+
+int
+NsTclReturnForbiddenCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
+{
+    return ReturnCmd(arg, interp, argc, argv, Ns_ConnReturnForbidden);
 }
 
 
@@ -613,59 +513,37 @@ NsTclSimpleReturnCmd(ClientData clientData, Tcl_Interp *interp,
  */
 
 int
-NsTclReturnErrorCmd(ClientData dummy, Tcl_Interp *interp, int argc,
+NsTclReturnErrorCmd(ClientData arg, Tcl_Interp *interp, int argc,
 		    char **argv)
 {
     int      status;
     Ns_Conn *conn;
-    int	     statusArg = 1, messageArg = 2;
 
-    if (argc == 4) {
-	/*
-	 * They must have specified a conn ID.  Make sure it's a valid
-	 * conn ID.  If not, it's an error.
-	 */
-	
-	if (NsIsIdConn(argv[1]) == NS_FALSE) {
-	    Tcl_AppendResult(interp, "bad connid: \"", argv[1], "\"", NULL);
-	    return TCL_ERROR;
-	}
-	statusArg = 2;
-	messageArg = 3;
-    } else if (argc < 3 || argc > 4) {
+    if (argc != 3 && argc != 4) {
         Tcl_AppendResult(interp, "wrong # of args: should be \"",
-            argv[0], " status message\"", NULL);
+            argv[0], " ?connid? status message\"", NULL);
         return TCL_ERROR;
     }
-
-    conn = Ns_TclGetConn(interp);
-
-    if (conn == NULL) {
-        Tcl_AppendResult(interp, "no connection", NULL);
+    if (argc == 4 && !CheckId(interp, argv[1])) {
+	return TCL_ERROR;
+    }
+    if (GetConn(arg, interp, &conn) != TCL_OK) {
+	return TCL_ERROR;
+    }
+    if (Tcl_GetInt(interp, argv[argc-2], &status) != TCL_OK) {
         return TCL_ERROR;
     }
-
-    if (Tcl_GetInt(interp, argv[statusArg], &status) != TCL_OK) {
-        return TCL_ERROR;
-    }
-
-    if (Ns_ConnReturnAdminNotice(conn, status, "Request Error",
-			     argv[messageArg]) == NS_OK) {
-	
-	Tcl_AppendResult(interp, "1", NULL);
-    } else {
-	Tcl_AppendResult(interp, "0", NULL);
-    }
-    return TCL_OK;
+    return Result(interp,
+	Ns_ConnReturnAdminNotice(conn, status, "Request Error", argv[argc-1]));
 }
 
 
 /*
  *----------------------------------------------------------------------
  *
- * NsTclReturnNoticeCmd --
+ * ReturnNoticeCmd --
  *
- *	Implements ns_returnnotice. 
+ *	Implements ns_returnnotice and ns_returnadminnotice commands.
  *
  * Results:
  *	Tcl result. 
@@ -676,25 +554,13 @@ NsTclReturnErrorCmd(ClientData dummy, Tcl_Interp *interp, int argc,
  *----------------------------------------------------------------------
  */
 
-int
-NsTclReturnNoticeCmd(ClientData dummy, Tcl_Interp *interp, 
-		     int argc, char **argv)
+static int
+ReturnNoticeCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv, int admin)
 {
-    int      status;
+    int      status, result;
     Ns_Conn *conn;
     char    *longMessage = NULL;
     int      statusArg = 0, messageArg = 0, longMessageArg = 0;
-
-    /*
-     * This function is pretty much identical to NsTclReturnAdminNoticeCmd
-     */
-
-    conn = Ns_TclGetConn(interp);
-
-    if (conn == NULL) {
-        Tcl_AppendResult(interp, "no connection", NULL);
-        return TCL_ERROR;
-    }
 
     /* find the arguments.  There are 4 cases (in the order they're checked):
      *    0     1       2       3        4
@@ -728,9 +594,9 @@ NsTclReturnNoticeCmd(ClientData dummy, Tcl_Interp *interp,
             argv[0], " status title ?message?\"", NULL);
         return TCL_ERROR;
     }
-
-    assert (statusArg != 0);
-    assert (messageArg != 0);
+    if (GetConn(arg, interp, &conn) != TCL_OK) {
+	return TCL_ERROR;
+    }
 
     /*
      * Get the status value
@@ -739,116 +605,27 @@ NsTclReturnNoticeCmd(ClientData dummy, Tcl_Interp *interp,
     if (Tcl_GetInt(interp, argv[statusArg], &status) != TCL_OK) {
 	return TCL_ERROR;
     }
-
     if (longMessageArg != 0) {
 	longMessage = argv[longMessageArg];
     }
-
-
-    if (Ns_ConnReturnNotice(conn, status, argv[messageArg],
-			longMessage) == NS_OK) {
-
-	Tcl_AppendResult(interp, "1", NULL);
+    if (admin) {
+	result = Ns_ConnReturnAdminNotice(conn, status, argv[messageArg], longMessage);
     } else {
-	Tcl_AppendResult(interp, "0", NULL);
+	result = Ns_ConnReturnNotice(conn, status, argv[messageArg], longMessage);
     }
-
-    return TCL_OK;
+    return Result(interp, result);
 }
 
-
-/*
- *----------------------------------------------------------------------
- *
- * NsTclReturnAdminNoticeCmd --
- *
- *	Implements ns_returnadminnotice. 
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	See docs. 
- *
- *----------------------------------------------------------------------
- */
+int
+NsTclReturnNoticeCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
+{
+    return ReturnNoticeCmd(arg, interp, argc, argv, 0);
+}
 
 int
-NsTclReturnAdminNoticeCmd(ClientData dummy, Tcl_Interp *interp, int argc,
-			   char **argv)
+NsTclReturnAdminNoticeCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 {
-    int      status;
-    Ns_Conn *conn;
-    char    *longMessage = NULL;
-    int	     statusArg = 0, messageArg = 0, longMessageArg = 0;
-
-    /*
-     * This function is pretty much identical to NsTclReturnNoticeCmd
-     */
-
-    conn = Ns_TclGetConn(interp);
-
-    if (conn == NULL) {
-        Tcl_AppendResult(interp, "no connection", NULL);
-        return TCL_ERROR;
-    }
-
-    /* find the arguments.  There are 4 cases (in the order they're checked):
-     *    0     1       2       3        4
-     *   cmd  status  msg                       (3 args)
-     *   cmd  connId  status  msg               (4 args)
-     *   cmd  status  msg     longmsg           (4 args)
-     *   cmd  connId  status  msg      longmsg  (5 args)
-     */
-
-    if (argc == 3) {
-	statusArg = 1;
-	messageArg = 2;
-
-    } else if (argc == 4) {
-	if (NsIsIdConn(argv[1])) {
-	    statusArg = 2;
-	    messageArg = 3;
-	} else {
-	    statusArg = 1;
-	    messageArg = 2;
-	    longMessageArg = 3;
-	}
-
-    } else if (argc == 5) {
-	statusArg = 2;
-	messageArg = 3;
-	longMessageArg = 4;
-
-    } else {
-        Tcl_AppendResult(interp, "wrong # of args: should be \"",
-            argv[0], " status title ?message?\"", NULL);
-        return TCL_ERROR;
-    }
-
-    assert (statusArg != 0);
-    assert (messageArg != 0);
-
-    /*
-     * Get the status value
-     */
-    
-    if (Tcl_GetInt(interp, argv[statusArg], &status) != TCL_OK) {
-	return TCL_ERROR;
-    }
-
-    if (longMessageArg != 0) {
-	longMessage = argv[longMessageArg];
-    }
-
-    if (Ns_ConnReturnAdminNotice(conn, status, argv[messageArg], 
-			     longMessage) == NS_OK) {
-	Tcl_AppendResult(interp, "1", NULL);
-    } else {
-	Tcl_AppendResult(interp, "0", NULL);
-    }
-
-    return TCL_OK;
+    return ReturnNoticeCmd(arg, interp, argc, argv, 1);
 }
 
 
@@ -869,42 +646,23 @@ NsTclReturnAdminNoticeCmd(ClientData dummy, Tcl_Interp *interp, int argc,
  */
 
 int
-NsTclReturnRedirectCmd(ClientData dummy, Tcl_Interp *interp, int argc,
+NsTclReturnRedirectCmd(ClientData arg, Tcl_Interp *interp, int argc,
 		       char **argv)
 {
     Ns_Conn *conn;
-    int	     locationArg = 1;
 
-    if (argc == 3) {
-	/*
-	 * They must have specified a conn ID.  Make sure it's a valid
-	 * conn ID.  If not, it's an error
-	 */
-	if (NsIsIdConn(argv[1]) == NS_FALSE) {
-	    Tcl_AppendResult(interp, "bad connid: \"", argv[1], "\"", NULL);
-	    return TCL_ERROR;
-	}
-	locationArg = 2;
-    } else if (argc > 3 || argc < 2) {
+    if (argc != 2 && argc != 3) {
         Tcl_AppendResult(interp, "wrong # of args: should be \"",
-                         argv[0], " location ", NULL);
+                         argv[0], " ?connid? location ", NULL);
         return TCL_ERROR;
     }
-
-    conn = Ns_TclGetConn(interp);
-
-    if (conn == NULL) {
-        Tcl_AppendResult(interp, "no connection", NULL);
-        return TCL_ERROR;
+    if (argc == 3 && !CheckId(interp, argv[1])) {
+	return TCL_ERROR;
     }
-
-    if (Ns_ConnReturnRedirect(conn, argv[locationArg]) == NS_OK) {
-	Tcl_AppendResult(interp, "1", NULL);
-    } else {
-	Tcl_AppendResult(interp, "0", NULL);
+    if (GetConn(arg, interp, &conn) != TCL_OK) {
+	return TCL_ERROR;
     }
-
-    return TCL_OK;
+    return Result(interp, Ns_ConnReturnRedirect(conn, argv[argc-1]));
 }
 
 
@@ -925,39 +683,22 @@ NsTclReturnRedirectCmd(ClientData dummy, Tcl_Interp *interp, int argc,
  */
 
 int
-NsTclWriteCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
+NsTclWriteCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 {
     Ns_Conn *conn;
-    int	     stringArg = 1; /* Assume no-conn parameter usage */
 
-    if (argc == 3) {
-	/*
-	 * They must have specified a conn ID.  Make sure it's a valid
-	 * conn ID.  If not, it's an error
-	 */
-	
-	if (NsIsIdConn(argv[1]) == NS_FALSE) {
-	    Tcl_AppendResult(interp, "bad connid: \"", argv[1], "\"", NULL);
-	    return TCL_ERROR;
-	}
-	stringArg = 2;
-    } else if (argc < 2 || argc > 3) {
+    if (argc != 2 && argc != 3) {
         Tcl_AppendResult(interp, "wrong # of args: should be \"",
-                         argv[0], " string", NULL);
+                         argv[0], " ?connid? string", NULL);
         return TCL_ERROR;
     }
-
-    conn = Ns_TclGetConn(interp);
-    if (conn == NULL) {
-        Tcl_AppendResult(interp, "no connection", NULL);
-        return TCL_ERROR;
+    if (argc == 3 && !CheckId(interp, argv[1])) {
+	return TCL_ERROR;
     }
-    if (Ns_ConnPuts(conn, argv[stringArg]) == NS_OK) {
-	Tcl_AppendResult(interp, "1", NULL);
-    } else {
-	Tcl_AppendResult(interp, "0", NULL);
+    if (GetConn(arg, interp, &conn) != TCL_OK) {
+	return TCL_ERROR;
     }
-    return TCL_OK;
+    return Result(interp, Ns_ConnPuts(conn, argv[argc-1]));
 }
 
 
@@ -978,7 +719,7 @@ NsTclWriteCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
  */
 
 int
-NsTclConnSendFpCmd(ClientData dummy, Tcl_Interp *interp, int argc,
+NsTclConnSendFpCmd(ClientData arg, Tcl_Interp *interp, int argc,
 		    char **argv)
 {
     Ns_Conn     *conn;
@@ -986,43 +727,60 @@ NsTclConnSendFpCmd(ClientData dummy, Tcl_Interp *interp, int argc,
     int          len;
     int		 fpArg = 1, lengthArg = 2;
 
-    if (argc == 4) {
-	/*
-	 * They must have specified a conn ID.  Make sure it's a valid
-	 * conn ID.  If not, it's an error
-	 */
-	
-	if (NsIsIdConn(argv[1]) == NS_FALSE) {
-	    Tcl_AppendResult(interp, "bad connid: \"", argv[1], "\"", NULL);
-	    return TCL_ERROR;
-	}
-	fpArg = 2;
-	lengthArg = 3;
-    } else if (argc > 4 || argc < 3) {
+    if (argc != 3 && argc != 4) {
         Tcl_AppendResult(interp, "wrong # of args: should be \"",
-                         argv[0], " fp len ", NULL);
+                         argv[0], " ?connid? fp len ", NULL);
         return TCL_ERROR;
     }
-    
-    conn = Ns_TclGetConn(interp);
-
-    if (conn == NULL) {
-        Tcl_AppendResult(interp, "no connection", NULL);
+    if (argc == 4 && !CheckId(interp, argv[1])) {
+	return TCL_ERROR;
+    }
+    if (GetConn(arg, interp, &conn) != TCL_OK) {
+	return TCL_ERROR;
+    }
+    if (Ns_TclGetOpenChannel(interp, argv[argc-2], 0, 1, &chan) != TCL_OK) {
         return TCL_ERROR;
     }
-
-    if (Ns_TclGetOpenChannel(interp, argv[fpArg], 0, 1, &chan) != TCL_OK) {
-        return TCL_ERROR;
-    }
-    if (Tcl_GetInt(interp, argv[lengthArg], &len) != TCL_OK) {
+    if (Tcl_GetInt(interp, argv[argc-1], &len) != TCL_OK) {
         return TCL_ERROR;
     }
     if (Ns_ConnSendChannel(conn, chan, len) != NS_OK) {
-        sprintf(interp->result, "could not send %d bytes from %s", 
-		len, argv[2]);
-        return TCL_ERROR;
+	Tcl_AppendResult(interp, "could not send ", argv[argc-1],
+	    " bytes from channel ", argv[argc-2], NULL);
+	return TCL_ERROR;
     }
     return TCL_OK;
 }
 
 
+static int
+CheckId(Tcl_Interp *interp, char *id)
+{
+    if (*id != 'c') {
+	Tcl_AppendResult(interp, "invalid connid: ", id, NULL);
+	return TCL_ERROR;
+    }
+    return TCL_OK;
+}
+
+
+static int
+Result(Tcl_Interp *interp, int result)
+{
+    Tcl_SetResult(interp, result == NS_OK ? "1" : "0", TCL_STATIC);
+    return TCL_OK;
+}
+
+
+static int
+GetConn(ClientData arg, Tcl_Interp *interp, Ns_Conn **connPtr)
+{
+    NsInterp *itPtr = arg;
+
+    if (itPtr->conn == NULL) {
+	Tcl_SetResult(interp, "no connection", TCL_STATIC);
+	return TCL_ERROR;
+    }
+    *connPtr = itPtr->conn;
+    return TCL_OK;
+}

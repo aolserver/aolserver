@@ -34,11 +34,11 @@
  *	Implement the PID file routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/pidfile.c,v 1.5 2001/01/16 18:14:27 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/pidfile.c,v 1.6 2001/03/12 22:06:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
-static char *GetFile(char *server);
+static char *GetFile(char *procname);
 
 
 /*
@@ -59,11 +59,11 @@ static char *GetFile(char *server);
  */
 
 int
-NsGetLastPid(char *server)
+NsGetLastPid(char *procname)
 {
     char buf[10];
     int fd, pid, n;
-    char *file = GetFile(server);
+    char *file = GetFile(procname);
     
     pid = -1;
     fd = open(file, O_RDONLY|O_TEXT);
@@ -89,11 +89,11 @@ NsGetLastPid(char *server)
 
 
 void
-NsCreatePidFile(char *server)
+NsCreatePidFile(char *procname)
 {
     int	  fd, n;
     char  buf[10];
-    char *file = GetFile(server);
+    char *file = GetFile(procname);
 
     fd = open(file, O_WRONLY|O_TRUNC|O_CREAT|O_TEXT, 0644);
     if (fd < 0) {
@@ -111,9 +111,9 @@ NsCreatePidFile(char *server)
 
 
 void
-NsRemovePidFile(char *server)
+NsRemovePidFile(char *procname)
 {
-    char *file = GetFile(server);
+    char *file = GetFile(procname);
     
     if (unlink(file) != 0) {
     	Ns_Log(Error, "pidfile: failed to remove '%s': '%s'",
@@ -123,7 +123,7 @@ NsRemovePidFile(char *server)
 
 
 static char *
-GetFile(char *server)
+GetFile(char *procname)
 {
     static char *file;
     
@@ -134,7 +134,7 @@ GetFile(char *server)
 
 	    Ns_DStringInit(&ds);
 	    Ns_HomePath(&ds, "log/nspid.", NULL);
-	    Ns_DStringAppend(&ds, server);
+	    Ns_DStringAppend(&ds, procname);
 	    file = Ns_DStringExport(&ds);
 	}
     }
