@@ -1,5 +1,14 @@
 2004-08-13  Dossy Shiobara <dossy@panoptic.com>
 
+	* win32/: nscgi/nscgi.dsp (1.6), nscp/nscp.dsp (1.6), nsd/nsd.dsp
+	  (1.15), nsdb/nsdb.dsp (1.2), nslog/nslog.dsp (1.6),
+	  nsperm/nsperm.dsp (1.6), nssock/nssock.dsp (1.9),
+	  nsthread/nsthread.dsp (1.8), threadtest/threadtest.dsp (1.6):
+	  Change Win32 .dsp files to reflect change in Tcl from
+	  "tcl84td.lib" to "tcl84tg.lib".  Fixes SF Bug #996342.
+
+2004-08-13  Dossy Shiobara <dossy@panoptic.com>
+
 	* nsd/tclmisc.c (1.31), tests/new/test-ns_hrefs.adp (1.1): ns_hrefs
 	  is now more robust.  Fixes SF Bug #995078.
 
