@@ -34,7 +34,7 @@
  *	Functions that return data to a browser. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.32 2003/08/19 22:30:29 shmooved Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.33 2003/08/25 20:41:04 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -841,7 +841,11 @@ ReturnCharData(Ns_Conn *conn, int status, char *data, int len, char *type,
     Ns_ConnSetRequiredHeaders(conn, type, len);
     Ns_ConnQueueHeaders(conn, status);
     result = NS_OK;
-    if (data != NULL && !(conn->flags & NS_CONN_SKIPBODY)) {
+    if (data != NULL) {
+        if (conn->flags & NS_CONN_SKIPBODY) {
+            data = NULL;
+            len = 0;
+        }
         result = Ns_WriteConn(conn, data, len);
     }
     if (result == NS_OK) {

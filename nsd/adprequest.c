@@ -33,7 +33,7 @@
  *	ADP connection request support.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adprequest.c,v 1.13 2003/08/12 20:01:53 elizthom Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adprequest.c,v 1.14 2003/08/25 20:41:04 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -371,6 +371,11 @@ AdpFlush(NsInterp *itPtr, int stream)
      * Write the output buffer and if not streaming, close the
      * connection.
      */
+
+    if (conn->flags & NS_CONN_SKIPBODY) {
+        buf = NULL;
+        len = 0;
+    }
 
     result = Ns_WriteConn(conn, buf, len);
     if (result == NS_OK && !stream) {
