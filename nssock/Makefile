@@ -84,10 +84,7 @@ install: all
 	$(MKDIR) $(INSTMOD)/$(MODDIR)
 	$(CP) keygen.tcl $(INSTMOD)/$(MODDIR)
 	$(MKDIR) $(INSTSRVMOD)/$(MODDIR)
-	test -f $(INSTSRVMOD)/$(MODDIR)/certfile.pem \
-		|| $(CP) certfile.pem $(INSTSRVMOD)/$(MODDIR)
-	test -f $(INSTSRVMOD)/$(MODDIR)/keyfile.pem \
-		|| $(CP) keyfile.pem $(INSTSRVMOD)/$(MODDIR)
+	$(CP) *.pem $(INSTSRVMOD)/$(MODDIR)
 
 clean: clobber
 	$(RM) $(OBJS) $(MOD) so_locations

@@ -52,25 +52,27 @@ all: libtcl76 libtcl8x libnsthread
 #  Note:  Dependencies are checked in the individual directories.
 #
 install:
-	$(MKDIR) $(INSTBIN)
-	$(MKDIR) $(INSTLOG)
-	$(MKDIR) $(INSTTCL)
-	$(MKDIR) $(INSTLIB)
-	$(MKDIR) $(INSTSRVMOD)
-	$(MKDIR) $(INSTSRVPAG)
-	$(CP) -r tcl $(INSTMOD)
-	$(CP) scripts/translate-ini $(INSTBIN)
-	$(CP) -r include $(INSTINC)
-	test -f $(INST)/nsd.tcl \
-		|| $(CP) scripts/nsd.tcl $(INST)
+	$(MKDIR)                    $(INSTBIN)
+	$(MKDIR)                    $(INSTLOG)
+	$(MKDIR)                    $(INSTTCL)
+	$(MKDIR)                    $(INSTLIB)
+	$(MKDIR)                    $(INSTSRVMOD)
+	$(MKDIR)                    $(INSTSRVPAG)
+	$(CP) -r tcl                $(INSTMOD)
+	$(CP) nsd/translate-ini     $(INSTBIN)
+	$(CP) -r include            $(INSTINC)
+	$(CP) nsd/sample-config.tcl $(INST)
 	test -f $(INSTSRVPAG)/index.html \
-		|| $(CP) scripts/index.html $(INSTSRVPAG)
+		|| $(CP) doc/default-home.html $(INSTSRVPAG)/index.html
 	@for i in $(ALLDIRS); do \
 		$(ECHO) "installing \"$$i\""; \
 		( cd $$i && $(MAKE) install) || exit 1; \
 	done
 	(cd thread && $(MAKE) install)
 	(cd nssock && $(MAKE) SSL=1 install)
+
+install-tests:
+	$(CP) -r tests $(INSTSRVPAG)
 
 #
 # Cleaning

@@ -31,12 +31,12 @@
 # translate-ini --
 #
 #	This Tcl script attempts to translates an old-style nsd.ini into an 
-#	new-style nsd.tcl.
+#	new-style config.tcl.
 #
 #       Note:  This script is entirely unsupported.
 #
 #  Usage:
-#	tclsh bin/translate-ini < nsd.ini > nsd.tcl
+#	tclsh bin/translate-ini < nsd.ini > config.tcl
 #
 
 
