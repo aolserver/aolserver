@@ -33,7 +33,7 @@
  *	Initialization routines for Tcl.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.38 2003/07/18 18:01:16 elizthom Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.39 2003/08/26 18:12:54 elizthom Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -882,11 +882,12 @@ NsTclICtlObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
     NsInterp *itPtr = arg;
     static CONST char *opts[] = {
 	"addmodule", "cleanup", "epoch", "get", "getmodules", "save",
-	"update", "oncreate", "oncleanup", "oninit", NULL
+	"update", "oncreate", "oncleanup", "oninit", "ondelete", NULL
     };
     enum {
 	IAddModuleIdx, ICleanupIdx, IEpochIdx, IGetIdx, IGetModulesIdx,
-	ISaveIdx, IUpdateIdx, IOnCreateIdx, IOnCleanupIdx, IOnInitIdx
+	ISaveIdx, IUpdateIdx, IOnCreateIdx, IOnCleanupIdx, IOnInitIdx,
+        IOnDeleteIdx
     } opt;
     char *script;
     int length, result;
@@ -986,6 +987,7 @@ NsTclICtlObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
     case IOnCreateIdx:
     case IOnCleanupIdx:
     case IOnInitIdx:
+    case IOnDeleteIdx:
         if (objc != 3) {
             Tcl_WrongNumArgs(interp, 1, objv, "when script");
 	    return TCL_ERROR;
@@ -997,7 +999,10 @@ NsTclICtlObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
             status = Ns_TclRegisterAtCreate(TclScriptTraceCB, objPtr);
             break;
         case IOnCleanupIdx:
-            status = Ns_TclRegisterAtCreate(TclScriptTraceCB, objPtr);
+            status = Ns_TclRegisterAtCleanup(TclScriptTraceCB, objPtr);
+            break;
+        case IOnDeleteIdx:
+            status = Ns_TclRegisterAtDelete(TclScriptTraceCB, objPtr);
             break;
         case IOnInitIdx:
             status = Ns_TclInitInterps(itPtr->servPtr->server, 
@@ -1262,7 +1267,6 @@ FreeData(ClientData arg, Tcl_Interp *interp)
 {
     NsInterp *itPtr = arg;
 
-    RunTraces(itPtr, TRACE_DELETE);
     NsFreeAdp(itPtr);
     Tcl_DeleteHashTable(&itPtr->sets);
     Tcl_DeleteHashTable(&itPtr->chans);
@@ -1299,6 +1303,7 @@ DeleteInterps(void *arg)
     while (hPtr != NULL) {
 	while ((itPtr = Tcl_GetHashValue(hPtr)) != NULL) {
 	    Tcl_SetHashValue(hPtr, itPtr->nextPtr);
+            RunTraces(itPtr, TRACE_DELETE);
 	    Tcl_DeleteInterp(itPtr->interp);
 	}
 	hPtr = Tcl_NextHashEntry(&search);

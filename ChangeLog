@@ -2,6 +2,13 @@
 
 	* TAG aolserver_v4_r0_beta_12
 
+2003-08-26  Elizabeth Thomas <eathomas93@aol.com>
+
+        * nsd/tclinit.c: Fix the 'oncleanup' option of ns_ictl.
+        Modify behavior of Ns_RegisterAtDelete so callbacks are
+        run before the interp is destroyed. Expose with new 'ondelete'
+        option to ns_ictl.
+
 2003-08-25  Mark Page  <mpagenva@aol.com>
 
 	* nsd/adprequest.c (): Suppress production of the result data for
