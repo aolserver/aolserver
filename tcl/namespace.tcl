@@ -28,7 +28,7 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/Attic/namespace.tcl,v 1.4 2000/08/18 21:51:16 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/Attic/namespace.tcl,v 1.4.6.1 2001/03/14 20:35:58 kriston Exp $
 #
 
 #
@@ -64,9 +64,16 @@ proc _ns_getinit {} {
     ns_log notice "tcl: generating interp init script"
     _ns_getnamespaces namespaces
     set init ""
+    set import_procs ""
     foreach ns $namespaces {
-	append init [list namespace eval $ns [_ns_getnamespace $ns]]\n
+        foreach {_ns_script _ns_export} [_ns_getnamespace $ns] {}
+	append init         [list namespace eval $ns $_ns_script]\n
+        if { $_ns_export != {} } {
+           append import_procs [list namespace eval $ns $_ns_export]\n
+        }
     }
+    append init $import_procs
+    #catch { set fh [open init_interp_code.tcl w] ; puts $fh $init ; close $fh }
     return $init
 }
 
@@ -101,6 +108,7 @@ proc _ns_getnamespace n {
 	    switch $v {
 		n -
 		v -
+                import_procs -
 		script continue
 		default {
 		    if [info exists ${n}::$v] {
@@ -114,17 +122,24 @@ proc _ns_getnamespace n {
 		}
 	    }
 	}
+        set import_procs ""
 	foreach p [info procs] {
 	    set args ""
-	    foreach a [info args $p] {
-		if [info default $p $a def] {
-		    set a [list $a $def]
-		}
-		lappend args $a
-	    }
-	    append script [list proc $p $args [info body $p]]\n
+            if { [namespace origin $p] == [namespace which -command $p] } {
+	       foreach a [info args $p] {
+		  if [info default $p $a def] {
+		      set a [list $a $def]
+		  }
+		  lappend args $a
+	       }
+	       append script [list proc $p $args [info body $p]]\n
+            } else {
+               append import_procs [list namespace import [namespace origin $p]]\n
+               # ns_log Notice "@ namespace import [namespace origin $p]"
+            }
 	}
 	append script [concat namespace export [namespace export]]\n
-	return $script
+	return [list $script $import_procs]
     }
 }
+
