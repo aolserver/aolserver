@@ -34,7 +34,7 @@
  *	Implements a lot of Tcl API commands. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclmisc.c,v 1.30 2003/03/07 18:08:40 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclmisc.c,v 1.31 2004/08/13 15:04:30 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -192,36 +192,43 @@ NsTclHrefsCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 	}
 	if ((*s == 'a' || *s == 'A') && isspace(UCHAR(s[1]))) {
 	    ++s;
-	    while (*s && isspace(UCHAR(*s))) {
-	    	++s;
-	    }
-	    if (!strncasecmp(s, "href", 4)) {
-		s += 4;
-		while (*s && isspace(UCHAR(*s))) {
-		    ++s;
-		}
-		if (*s == '=') {
-	    	    ++s;
-	    	    while (*s && isspace(UCHAR(*s))) {
-	    		++s;
-	    	    }
-		    he = NULL;
-		    if (*s == '\'' || *s == '"') {
-			he = strchr(s+1, *s);
-			++s;
-		    }
-		    if (he == NULL) {
-			he = s;
-			while (!isspace(UCHAR(*he))) {
-			    ++he;
-			}
-		    }
-		    save = *he;
-		    *he = '\0';
-		    Tcl_AppendElement(interp, s);
-		    *he = save;
-		}
-	    }
+	    while (*s) {
+                if (!strncasecmp(s, "href", 4)) {
+                    s += 4;
+                    while (*s && isspace(UCHAR(*s))) {
+                        ++s;
+                    }
+                    if (*s == '=') {
+                        ++s;
+                        while (*s && isspace(UCHAR(*s))) {
+                            ++s;
+                        }
+                        he = NULL;
+                        if (*s == '\'' || *s == '"') {
+                            he = strchr(s+1, *s);
+                            ++s;
+                        }
+                        if (he == NULL) {
+                            he = s;
+                            while (!isspace(UCHAR(*he))) {
+                                ++he;
+                            }
+                        }
+                        save = *he;
+                        *he = '\0';
+                        Tcl_AppendElement(interp, s);
+                        *he = save;
+                        break;
+                    }
+                }
+                if (*s == '\'' || *s == '\"') {
+                    while (*s && (*s != '\'' || *s != '\"')) {
+                        ++s;
+                    }
+                    continue;
+                }
+                ++s;
+            }
 	}
 	*e++ = '>';
 	p = e;
