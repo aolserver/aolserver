@@ -28,7 +28,7 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/init.tcl,v 1.1 2001/03/12 22:06:14 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/init.tcl,v 1.2 2001/03/14 01:11:05 jgdavidson Exp $
 #
 
 #
@@ -115,6 +115,8 @@ proc ns_eval script {
 proc ns_cleanup {} {
     if [catch {
 	_ns_unsetglobals
+	# NB: Must be before _ns_closechannels.
+	ns_chan cleanup
 	_ns_closechannels
 	ns_set cleanup
 	ns_db cleanup
