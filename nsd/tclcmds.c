@@ -33,7 +33,7 @@
  * 	Connect Tcl command names to the functions that implement them
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.46 2005/01/15 23:56:52 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.47 2005/03/25 00:38:25 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -64,6 +64,7 @@ extern Tcl_ObjCmdProc
     NsTclAdpExceptionObjCmd,
     NsTclAdpStreamObjCmd,
     NsTclAdpMimeTypeObjCmd,
+    NsTclAtCloseObjCmd,
     NsTclChanObjCmd,
     NsTclChmodObjCmd,
     NsTclCondObjCmd,
@@ -118,6 +119,7 @@ extern Tcl_ObjCmdProc
     NsTclPurgeFilesObjCmd,
     NsTclRandObjCmd,
     NsTclRegisterAdpObjCmd,
+    NsTclRegisterEncodingObjCmd,
     NsTclRegisterFilterObjCmd,
     NsTclRegisterProcObjCmd,
     NsTclRegisterTraceObjCmd,
@@ -179,7 +181,6 @@ extern Tcl_CmdProc
     NsTclAdpRegisterProcCmd,
     NsTclAdpStatsCmd,
     NsTclAfterCmd,
-    NsTclAtCloseCmd,
     NsTclAtExitCmd,
     NsTclAtShutdownCmd,
     NsTclAtSignalCmd,
@@ -373,7 +374,7 @@ static Cmd servCmds[] = {
     {"ns_adp_stream", NULL, NsTclAdpStreamObjCmd},
     {"ns_adp_tell", NULL, NsTclAdpTellObjCmd},
     {"ns_adp_trunc", NULL, NsTclAdpTruncObjCmd},
-    {"ns_atclose", NsTclAtCloseCmd, NULL},
+    {"ns_atclose", NULL, NsTclAtCloseObjCmd},
     {"ns_chan", NULL, NsTclChanObjCmd},
     {"ns_checkurl", NULL, NsTclRequestAuthorizeObjCmd},
     {"ns_conn", NULL, NsTclConnObjCmd},
@@ -386,6 +387,7 @@ static Cmd servCmds[] = {
     {"ns_puts", NULL, NsTclAdpPutsObjCmd},
     {"ns_register_adp", NULL, NsTclRegisterAdpObjCmd},
     {"ns_register_adptag", NsTclRegisterTagCmd, NULL},
+    {"ns_register_encoding", NULL, NsTclRegisterEncodingObjCmd},
     {"ns_register_filter", NULL, NsTclRegisterFilterObjCmd},
     {"ns_register_proc", NULL, NsTclRegisterProcObjCmd},
     {"ns_register_trace", NULL, NsTclRegisterTraceObjCmd},
