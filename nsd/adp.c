@@ -57,7 +57,7 @@
  * ns_param   "ParserName" "utf8"
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/adp.c,v 1.12 2000/10/17 14:26:27 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/adp.c,v 1.13 2001/01/16 18:14:27 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -171,7 +171,7 @@ Ns_AdpRegisterParser(char *extension, Ns_AdpParserProc *newParserProc)
  */
 
 void
-NsAdpInit(void)
+NsAdpInit(char *server)
 {
     Ns_Set *set;
     char *path, *map;
@@ -190,13 +190,13 @@ NsAdpInit(void)
      * Add the Tcl commands
      */
 
-    Ns_TclInitInterps(nsServer, EnableCmds, NULL);
+    Ns_TclInitInterps(server, EnableCmds, NULL);
 
     /*
      * Register ADP for any requested URLs.
      */
 
-    path = Ns_ConfigPath(nsServer, NULL, "adp", NULL);
+    path = Ns_ConfigPath(server, NULL, "adp", NULL);
     map = NULL;
     set = Ns_ConfigGetSection(path);
     for (i = 0; set != NULL && i < Ns_SetSize(set); ++i) {
@@ -205,11 +205,11 @@ NsAdpInit(void)
 	key = Ns_SetKey(set, i);
 	if (!strcasecmp(key, "map")) {
 	    map = Ns_SetValue(set, i);
-	    Ns_RegisterRequest(nsServer, "GET", map, AdpProc, NULL,
+	    Ns_RegisterRequest(server, "GET", map, AdpProc, NULL,
 			       NULL, 0);
-	    Ns_RegisterRequest(nsServer, "HEAD", map, AdpProc, NULL,
+	    Ns_RegisterRequest(server, "HEAD", map, AdpProc, NULL,
 			       NULL, 0);
-	    Ns_RegisterRequest(nsServer, "POST", map, AdpProc, NULL,
+	    Ns_RegisterRequest(server, "POST", map, AdpProc, NULL,
 			       NULL, 0);
 	    Ns_Log(Notice, "adp: mapped %s", map);
 	}
@@ -244,7 +244,7 @@ NsAdpInit(void)
  */
 
 void
-NsAdpParsers(void)
+NsAdpParsers(char *server)
 {
     char             *path;
     Tcl_HashEntry    *hePtr;
@@ -253,9 +253,9 @@ NsAdpParsers(void)
     int               i, new;
     Ns_AdpParserProc *parserProc;
 
-    path = Ns_ConfigPath(nsServer, NULL, "adp", "parsers", NULL);
+    path = Ns_ConfigPath(server, NULL, "adp", "parsers", NULL);
 
-    NsAdpFancyInit(nsServer, path);
+    NsAdpFancyInit(server, path);
     Ns_AdpRegisterParser("adp", ParsePage);
 
     if (path != NULL) {

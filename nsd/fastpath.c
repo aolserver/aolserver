@@ -34,7 +34,7 @@
  *      Get page possibly from a file cache.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/fastpath.c,v 1.6 2001/01/15 18:53:16 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/fastpath.c,v 1.7 2001/01/16 18:14:27 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #ifndef WIN32
@@ -267,15 +267,15 @@ UrlIs(char *server, char *url, int dir)
  */
 
 void
-NsInitFastpath(void)
+NsInitFastpath(char *server)
 {
     if (nsconf.fastpath.cache) {
 	cachePtr = Ns_CacheCreateSz("ns_fastpath", sizeof(Key) / sizeof(int),
 				    nsconf.fastpath.cachesize, FreeEntry);
     }
-    Ns_RegisterRequest(NULL, "GET", "/", FastGet, NULL, NULL, 0);
-    Ns_RegisterRequest(NULL, "HEAD", "/", FastGet, NULL, NULL, 0);
-    Ns_RegisterRequest(NULL, "POST", "/", FastGet, NULL, NULL, 0);
+    Ns_RegisterRequest(server, "GET", "/", FastGet, NULL, NULL, 0);
+    Ns_RegisterRequest(server, "HEAD", "/", FastGet, NULL, NULL, 0);
+    Ns_RegisterRequest(server, "POST", "/", FastGet, NULL, NULL, 0);
 }
 
 
@@ -329,11 +329,12 @@ FastGet(void *ignored, Ns_Conn *conn)
 {
     Ns_DString      ds;
     char	   *url = conn->request->url;
+    char	   *server = Ns_ConnServer(conn);
     int             result, i;
     struct stat	    st;
 
     Ns_DStringInit(&ds);
-    if (Ns_UrlToFile(&ds, nsServer, url) != NS_OK
+    if (Ns_UrlToFile(&ds, server, url) != NS_OK
     	    || !FastStat(ds.string, &st)) {
 	goto notfound;
     }
@@ -342,7 +343,7 @@ FastGet(void *ignored, Ns_Conn *conn)
 	 * Return ordinary files as with Ns_ConnReturnFile.
 	 */
 
-	FastReturn(conn, 200, NULL, ds.string, &st);
+	result = FastReturn(conn, 200, NULL, ds.string, &st);
 
     } else if (S_ISDIR(st.st_mode)) {
 	/*
@@ -352,7 +353,7 @@ FastGet(void *ignored, Ns_Conn *conn)
 
     	for (i = 0; i < nsconf.fastpath.dirc; ++i) {
 	    Ns_DStringTrunc(&ds, 0);
-	    if (Ns_UrlToFile(&ds, nsServer, url) != NS_OK) {
+	    if (Ns_UrlToFile(&ds, server, url) != NS_OK) {
 		goto notfound;
 	    }
 	    Ns_DStringVarAppend(&ds, "/", nsconf.fastpath.dirv[i], NULL);

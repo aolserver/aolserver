@@ -33,7 +33,7 @@
  *	AOLserver Ns_Main() startup routine.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.21 2001/01/12 22:51:46 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.22 2001/01/16 18:14:27 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #include "nsconf.h"
@@ -103,6 +103,7 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 {
     int            i, fd;
     char          *config;
+    char	  *server = NULL;
     Ns_Time 	   timeout;
     char	   cwd[PATH_MAX];
     Ns_DString	   addr;
@@ -209,10 +210,10 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 	    mode = i;
 	    break;
         case 's':
-	    if (nsServer != NULL) {
+	    if (server != NULL) {
 		UsageError("multiple -s <server> options");
 	    }
-	    nsServer = optarg;
+	    server = optarg;
             break;
         case 'c':
 	    fprintf(stderr, "\nWARNING: -c option is deprecated.  Use translate-ini to convert to tcl (-t) format.\n\n");
@@ -475,9 +476,9 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
      * Determine the server to run.
      */
 
-    if (nsServer != NULL) {
-	if (Ns_ConfigGet(NS_CONFIG_SERVERS, nsServer) == NULL) {
-	    Ns_Fatal("nsmain: no such server '%s'", nsServer);
+    if (server != NULL) {
+	if (Ns_ConfigGet(NS_CONFIG_SERVERS, server) == NULL) {
+	    Ns_Fatal("nsmain: no such server '%s'", server);
 	}
     } else {
 	Ns_Set *set;
@@ -488,9 +489,9 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 		     "specify '-s' parameter or specify "
 		     NS_CONFIG_SERVERS " in config file");
 	}
-	nsServer = Ns_SetKey(set, 0);
+	server = Ns_SetKey(set, 0);
     }
-    nsconf.server = nsServer;
+    nsconf.server = nsServer = server;
 
     /*
      * Verify and change to the home directory.
@@ -536,10 +537,10 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 	Ns_ThreadSetName("-service-");
 	switch (mode) {
 	case 'I':
-	    status = NsInstallService();
+	    status = NsInstallService(server);
 	    break;
 	case 'R':
-	    status = NsRemoveService();
+	    status = NsRemoveService(server);
 	    break;
 	case 'S':
     	    status = NsConnectService(initProc);
@@ -569,7 +570,7 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
      
 #ifndef WIN32
     if (kill != 0) {
-    	i = NsGetLastPid();
+    	i = NsGetLastPid(server);
 	if (i > 0) {
     	    NsKillPid(i);
 	}
@@ -622,20 +623,20 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
      *    eval shared module files where not in private
      */
 
-    NsConfInit();
-    NsCreatePidFile();
+    NsConfInit(server);
+    NsCreatePidFile(server);
     NsTclInit();
     NsInitMimeTypes();
-    NsInitReturn();
+    NsInitReturn(server);
     NsInitProxyRequests();
-    NsInitFastpath();
-    NsDbInit();
-    NsAdpInit();
-    if (initProc != NULL && (*initProc)(nsServer) != NS_OK) {
+    NsInitFastpath(server);
+    NsDbInit(server);
+    NsAdpInit(server);
+    if (initProc != NULL && (*initProc)(server) != NS_OK) {
 	Ns_Fatal("nsmain: Ns_ServerInitProc failed");
     }
-    NsLoadModules();
-    NsAdpParsers();    
+    NsLoadModules(server);
+    NsAdpParsers(server);    
 
     /*
      * Eval top level shared/private files, then
@@ -656,7 +657,7 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 
     NsRunPreStartupProcs();
     NsTclRunInits();
-    NsStartServer();
+    NsStartServer(server);
     NsStartKeepAlive();
 
     /*
@@ -692,7 +693,7 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
      * ready.
      */
 
-    NsStartDrivers();
+    NsStartDrivers(server);
 #ifndef WIN32
     NsStopBinder();
 #endif
@@ -752,7 +753,7 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
      */
 
     NsRunAtExitProcs();
-    NsRemovePidFile();
+    NsRemovePidFile(server);
     StatusMsg(3);
     return 0;
 }

@@ -38,7 +38,7 @@
  *	For full details see the file doc/urlspace.txt.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/urlspace.c,v 1.4 2000/08/25 13:49:57 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/urlspace.c,v 1.5 2001/01/16 18:14:27 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -141,7 +141,7 @@ static void  BranchDestroy(Branch *branchPtr);
  * Utility functions
  */
 
-static void MkSeq(Ns_DString *dsPtr, char *handle, char *method, char *url);
+static void MkSeq(Ns_DString *dsPtr, char *server, char *method, char *url);
 #ifdef DEBUG
 static void indentspace(int n);
 static void PrintTrie(Trie *triePtr, int indent);
@@ -251,13 +251,13 @@ Ns_UrlSpecificAlloc(void)
  */
 
 void
-Ns_UrlSpecificSet(char *handle, char *method, char *url, int id, void *data,
+Ns_UrlSpecificSet(char *server, char *method, char *url, int id, void *data,
 		  int flags, void (*deletefunc) (void *))
 {
     Ns_DString ds;
 
     Ns_DStringInit(&ds);
-    MkSeq(&ds, handle, method, url);
+    MkSeq(&ds, server, method, url);
     Ns_MutexLock(&lock);
     JunctionAdd(&urlspace, ds.string, id, data, flags, deletefunc);
     Ns_MutexUnlock(&lock);
@@ -283,13 +283,13 @@ Ns_UrlSpecificSet(char *handle, char *method, char *url, int id, void *data,
  */
 
 void *
-Ns_UrlSpecificGet(char *handle, char *method, char *url, int id)
+Ns_UrlSpecificGet(char *server, char *method, char *url, int id)
 {
     Ns_DString  ds;
     void       *data;
 
     Ns_DStringInit(&ds);
-    MkSeq(&ds, handle, method, url);
+    MkSeq(&ds, server, method, url);
     Ns_MutexLock(&lock);
     data = JunctionFind(&urlspace, ds.string, id, 0);
     Ns_MutexUnlock(&lock);
@@ -317,13 +317,13 @@ Ns_UrlSpecificGet(char *handle, char *method, char *url, int id)
  */
 
 void *
-Ns_UrlSpecificGetFast(char *handle, char *method, char *url, int id)
+Ns_UrlSpecificGetFast(char *server, char *method, char *url, int id)
 {
     Ns_DString  ds;
     void       *data;
 
     Ns_DStringInit(&ds);
-    MkSeq(&ds, handle, method, url);
+    MkSeq(&ds, server, method, url);
     Ns_MutexLock(&lock);
     data = JunctionFind(&urlspace, ds.string, id, 1);
     Ns_MutexUnlock(&lock);
@@ -350,14 +350,14 @@ Ns_UrlSpecificGetFast(char *handle, char *method, char *url, int id)
  */
 
 void *
-Ns_UrlSpecificGetExact(char *handle, char *method, char *url, int id,
+Ns_UrlSpecificGetExact(char *server, char *method, char *url, int id,
 		       int flags)
 {
     Ns_DString  ds;
     void       *data;
 
     Ns_DStringInit(&ds);
-    MkSeq(&ds, handle, method, url);
+    MkSeq(&ds, server, method, url);
     Ns_MutexLock(&lock);
     data = JunctionFindExact(&urlspace, ds.string, id, flags, 0);
     Ns_MutexUnlock(&lock);
@@ -387,13 +387,13 @@ Ns_UrlSpecificGetExact(char *handle, char *method, char *url, int id,
  */
 
 void *
-Ns_UrlSpecificDestroy(char *handle, char *method, char *url, int id, int flags)
+Ns_UrlSpecificDestroy(char *server, char *method, char *url, int id, int flags)
 {
     Ns_DString  ds;
     void       *data = NULL;
 
     Ns_DStringInit(&ds);
-    MkSeq(&ds, handle, method, url);
+    MkSeq(&ds, server, method, url);
     Ns_MutexLock(&lock);
     if (flags & NS_OP_RECURSE) {
 	JunctionBranchTrunc(&urlspace, ds.string, id);
@@ -1849,8 +1849,8 @@ JunctionDelete(Junction *juncPtr, char *seq, int id, int flags)
  *
  * MkSeq --
  *
- *	Build a "sequence" out of a handle/method/url; turns it into 
- *	"handle\0method\0urltoken\0...\0\0" 
+ *	Build a "sequence" out of a server/method/url; turns it into 
+ *	"server\0method\0urltoken\0...\0\0" 
  *
  * Results:
  *	None 
@@ -1862,12 +1862,11 @@ JunctionDelete(Junction *juncPtr, char *seq, int id, int flags)
  */
 
 static void
-MkSeq(Ns_DString *dsPtr, char *handle, char *method, char *url)
+MkSeq(Ns_DString *dsPtr, char *server, char *method, char *url)
 {
-    if (handle == NULL) {
-	handle = nsServer;
+    if (server == NULL) {
+	server = nsServer;
     }
-
     if ((method != NULL) && (url != NULL)) {
         char *p;
         int   done;
@@ -1877,7 +1876,7 @@ MkSeq(Ns_DString *dsPtr, char *handle, char *method, char *url)
 	 * if we get here.
 	 */
 	
-        Ns_DStringNAppend(dsPtr, handle, strlen(handle) + 1);
+        Ns_DStringNAppend(dsPtr, server, strlen(server) + 1);
         Ns_DStringNAppend(dsPtr, method, strlen(method) + 1);
 
 	/*
@@ -1920,7 +1919,7 @@ MkSeq(Ns_DString *dsPtr, char *handle, char *method, char *url)
 	 * be one element.
 	 */
 	
-        Ns_DStringNAppend(dsPtr, handle, strlen(handle) + 1);
+        Ns_DStringNAppend(dsPtr, server, strlen(server) + 1);
         Ns_DStringNAppend(dsPtr, "\0", 1);
     }
 }

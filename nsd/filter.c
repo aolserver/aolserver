@@ -33,7 +33,7 @@
  * Support for connection filters, traces, and cleanups.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/filter.c,v 1.4 2000/08/25 13:49:57 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/filter.c,v 1.5 2001/01/16 18:14:27 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -157,7 +157,7 @@ NsRunFilters(Ns_Conn *conn, int why)
  */
 
 void *
-Ns_RegisterServerTrace(char *hServer, Ns_TraceProc * proc, void *arg)
+Ns_RegisterServerTrace(char *server, Ns_TraceProc * proc, void *arg)
 {
     Trace *tPtr, **tPtrPtr;
 

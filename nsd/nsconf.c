@@ -34,7 +34,7 @@
  *	Various core configuration.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsconf.c,v 1.11 2001/01/12 22:52:32 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsconf.c,v 1.12 2001/01/16 18:14:27 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #include "nsconf.h"
@@ -125,7 +125,7 @@ GetFile(char *path, char *key)
 #define PARAMS "ns/parameters"
 
 void
-NsConfInit(void)
+NsConfInit(char *server)
 {
     char *s, *p, *path, *olddf, *oldp;
     int i;
@@ -223,8 +223,8 @@ NsConfInit(void)
      */
 
     Ns_DStringTrunc(&pds, 0);
-    path = Ns_DStringVarAppend(&pds, "ns/server/", nsServer, NULL);
-    nsconf.serv.realm = GetString(path, "realm", nsServer);
+    path = Ns_DStringVarAppend(&pds, "ns/server/", server, NULL);
+    nsconf.serv.realm = GetString(path, "realm", server);
     nsconf.serv.aolpress = GetBool(path, "enableaolpress", SERV_AOLPRESS_BOOL);
     nsconf.serv.sendfdmin = GetInt(path, "sendfdthreshold", SERV_SENDFDMIN_INT);
     nsconf.serv.maxconns = GetInt(path, "maxconnections", SERV_MAXCONNS_INT);
@@ -283,7 +283,7 @@ NsConfInit(void)
      */
 
     Ns_DStringTrunc(&pds, 0);
-    path = Ns_DStringVarAppend(&pds, "ns/server/", nsServer, "/fastpath", NULL);
+    path = Ns_DStringVarAppend(&pds, "ns/server/", server, "/fastpath", NULL);
     nsconf.fastpath.mmap = GetBool(path, "mmap", FASTPATH_MMAP_BOOL);
     nsconf.fastpath.cache = GetBool(path, "cache", FASTPATH_CACHE_BOOL);
     if (nsconf.fastpath.cache) {
@@ -313,7 +313,7 @@ NsConfInit(void)
     	nsconf.fastpath.pageroot = GetString(path, "pageroot", oldp);
     } else {
     	Ns_DStringTrunc(&ds, 0);
-    	Ns_ModulePath(&ds, nsServer, NULL, "pages", NULL);
+    	Ns_ModulePath(&ds, server, NULL, "pages", NULL);
 	nsconf.fastpath.pageroot = GetString2(path, "pageroot", &ds);
     }
 
@@ -322,11 +322,11 @@ NsConfInit(void)
      */
      
     Ns_DStringTrunc(&pds, 0);
-    path = Ns_DStringVarAppend(&pds, "ns/server/", nsServer, "/tcl", NULL);
+    path = Ns_DStringVarAppend(&pds, "ns/server/", server, "/tcl", NULL);
     nsconf.tcl.autoclose = GetBool(path, "autoclose", TCL_AUTOCLOSE_BOOL);
     nsconf.tcl.debug = GetBool(path, "debug", TCL_DEBUG_BOOL);
     Ns_DStringTrunc(&ds, 0);
-    Ns_ModulePath(&ds, nsServer, "tcl", NULL);
+    Ns_ModulePath(&ds, server, "tcl", NULL);
     nsconf.tcl.library = GetString2(path, "library", &ds);
     Ns_DStringTrunc(&ds, 0);
     Ns_HomePath(&ds, "modules", "tcl", NULL);
@@ -341,7 +341,7 @@ NsConfInit(void)
      */
 
     Ns_DStringTrunc(&pds, 0);
-    path = Ns_DStringVarAppend(&pds, "ns/server/", nsServer, "/adp", NULL);
+    path = Ns_DStringVarAppend(&pds, "ns/server/", server, "/adp", NULL);
     nsconf.adp.errorpage = GetFile(path, "errorpage");
     nsconf.adp.startpage = GetFile(path, "startpage");
     nsconf.adp.enableexpire = GetBool(path, "enableexpire", ADP_ENABLEEXPIRE_BOOL);

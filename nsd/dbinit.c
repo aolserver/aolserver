@@ -35,7 +35,7 @@
  *	pools of database handles.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/dbinit.c,v 1.5 2000/08/28 13:11:12 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/dbinit.c,v 1.6 2001/01/16 18:14:27 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -175,7 +175,7 @@ Ns_DbPoolDescription(char *pool)
  */
 
 char *
-Ns_DbPoolDefault(char *hServer)
+Ns_DbPoolDefault(char *server)
 {
     return defaultPool;
 }
@@ -198,7 +198,7 @@ Ns_DbPoolDefault(char *hServer)
  */
 
 char *
-Ns_DbPoolList(char *hServer)
+Ns_DbPoolList(char *server)
 {
     return allowedPools;
 }
@@ -221,7 +221,7 @@ Ns_DbPoolList(char *hServer)
  */
 
 int
-Ns_DbPoolAllowable(char *hServer, char *pool)
+Ns_DbPoolAllowable(char *server, char *pool)
 {
     register char *p;
 
@@ -564,7 +564,7 @@ Ns_DbBouncePool(char *pool)
  */
 
 void
-NsDbInit(void)
+NsDbInit(char *server)
 {
     Tcl_HashEntry  *hPtr;
     Tcl_HashSearch  search;
@@ -582,7 +582,7 @@ NsDbInit(void)
      * Add the allowed pools to the poolsTable.
      */
 
-    path = Ns_ConfigGetPath(nsServer, NULL, "db", NULL);
+    path = Ns_ConfigGetPath(server, NULL, "db", NULL);
     allowed = Ns_ConfigGet(path, "pools");
     defaultPool = Ns_ConfigGet(path, "defaultpool");
 
@@ -661,14 +661,14 @@ NsDbInit(void)
 	    if (tcheck > poolPtr->maxidle) {
 		tcheck = poolPtr->maxidle;
 	    }
-	    NsDbServerInit(poolPtr->driverPtr);
+	    NsDbServerInit(server, poolPtr->driverPtr);
 	    Ns_DStringAppendArg(&ds, poolPtr->name);
 	    hPtr = Tcl_NextHashEntry(&search);
     	}
     	allowedPools = ns_malloc(ds.length + 1);
     	memcpy(allowedPools, ds.string, ds.length + 1);
     	Ns_DStringFree(&ds);
-	NsDbTclInit();
+	NsDbTclInit(server);
 	if (tcheck > 0) {
 	    Ns_ScheduleProc(CheckPools, NULL, 1, tcheck);
 	}

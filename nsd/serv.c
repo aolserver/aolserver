@@ -33,7 +33,7 @@
  *	Routines for the core server connection threads.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/serv.c,v 1.14 2001/01/15 18:53:17 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/serv.c,v 1.15 2001/01/16 18:14:27 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -182,6 +182,7 @@ Ns_QueueConn(void *drvPtr, void *drvData)
 	connPtr->tqueue = now;
 	connPtr->drvPtr = drvPtr;
 	connPtr->drvData = drvData;
+	connPtr->server = nsServer;
 	if (firstWaitConnPtr == NULL) {
 	    firstWaitConnPtr = connPtr;
 	} else {
@@ -377,7 +378,7 @@ NsTclServerCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
  */
 
 void
-NsStartServer(void)
+NsStartServer(char *server)
 {
     int n;
 
@@ -867,7 +868,7 @@ ConnRun(Conn *connPtr)
 	goto done;
     }
 
-    status = Ns_AuthorizeRequest(nsServer,
+    status = Ns_AuthorizeRequest(connPtr->server,
 		connPtr->request->method, connPtr->request->url, 
 		connPtr->authUser, connPtr->authPasswd, 
 		Ns_ConnPeer(conn));

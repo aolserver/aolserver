@@ -35,7 +35,7 @@
  *  	routines (previously known as "op procs").
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/op.c,v 1.5 2001/01/15 18:53:16 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/op.c,v 1.6 2001/01/16 18:14:27 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -97,8 +97,7 @@ Ns_RegisterRequest(char *server, char *method, char *url, Ns_OpProc *procPtr,
     if (reqId < 0) {
 	reqId = Ns_UrlSpecificAlloc();
     }
-
-    Ns_UrlSpecificSet(nsServer, method, url, reqId, reqPtr, flags, DeleteReq);
+    Ns_UrlSpecificSet(server, method, url, reqId, reqPtr, flags, DeleteReq);
 }
 
 
@@ -120,12 +119,12 @@ Ns_RegisterRequest(char *server, char *method, char *url, Ns_OpProc *procPtr,
  */
 
 void
-Ns_GetRequest(char *ignored, char *method, char *url, Ns_OpProc **procPtrPtr,
+Ns_GetRequest(char *server, char *method, char *url, Ns_OpProc **procPtrPtr,
     Ns_Callback **deleteProcPtrPtr, void **argPtr, int *flagsPtr)
 {
     Req *reqPtr;
 
-    reqPtr = (Req *) Ns_UrlSpecificGet(nsServer, method, url, reqId);
+    reqPtr = (Req *) Ns_UrlSpecificGet(server, method, url, reqId);
     if (reqPtr != NULL) {
         *procPtrPtr = reqPtr->procPtr;
         *deleteProcPtrPtr = reqPtr->deleteProcPtr;
@@ -160,7 +159,7 @@ Ns_GetRequest(char *ignored, char *method, char *url, Ns_OpProc **procPtrPtr,
 void
 Ns_UnRegisterRequest(char *server, char *method, char *url, int inherit)
 {
-    Ns_UrlSpecificDestroy(nsServer, method, url, reqId,
+    Ns_UrlSpecificDestroy(server, method, url, reqId,
     	inherit ? 0 : NS_OP_NOINHERIT);
 }
 
@@ -187,8 +186,9 @@ Ns_ConnRunRequest(Ns_Conn *conn)
 {
     Req *reqPtr;
     int  status;
+    char *server = Ns_ConnServer(conn);
 
-    reqPtr = (Req *) Ns_UrlSpecificGet(nsServer, conn->request->method,
+    reqPtr = (Req *) Ns_UrlSpecificGet(server, conn->request->method,
     	    	    	    	       conn->request->url, reqId);
     if (reqPtr == NULL) {
 	status = Ns_ConnReturnNotFound(conn);

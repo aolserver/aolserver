@@ -34,7 +34,7 @@
  *	Load .so files into the server and initialize them. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/modload.c,v 1.4 2000/08/17 06:09:49 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/modload.c,v 1.5 2001/01/16 18:14:27 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -316,7 +316,7 @@ Ns_ModuleGetSymbol(char *name)
  */
 
 void 
-NsLoadModules(void)
+NsLoadModules(char *server)
 {
     Module *modPtr, *nextPtr;
     Ns_Set *modules;
@@ -339,7 +339,7 @@ NsLoadModules(void)
      *
      */
 
-    modules = Ns_ConfigSection(Ns_ConfigPath(nsServer, NULL, "modules", NULL));
+    modules = Ns_ConfigSection(Ns_ConfigPath(server, NULL, "modules", NULL));
     if (modules != NULL) {
 	/*
 	 * Spin over the modules specified in this subsection
@@ -370,7 +370,7 @@ NsLoadModules(void)
 	     */
 	    
             if (!STRIEQ(file, "tcl") &&
-		Ns_ModuleLoad(nsServer, module, file, init) != NS_OK) {
+		Ns_ModuleLoad(server, module, file, init) != NS_OK) {
 		Ns_Fatal("modload: failed to load module '%s'", file);
             }
 	    Ns_Log(Debug, "modload: initializing module '%s'", module);
@@ -380,7 +380,7 @@ NsLoadModules(void)
 	     * initialization (tcl sourcing, eventually).
 	     */
 	    
-            Ns_TclInitModule(nsServer, module);
+            Ns_TclInitModule(server, module);
 
             if (s != NULL) {
                 *s = '(';
@@ -403,11 +403,11 @@ NsLoadModules(void)
     	while (modPtr != NULL) {
 	    nextPtr = modPtr->nextPtr;
 	    Ns_Log(Notice, "modload: initializing module '%s'", modPtr->name);
-	    if ((*modPtr->proc)(nsServer, modPtr->name) != NS_OK) {
+	    if ((*modPtr->proc)(server, modPtr->name) != NS_OK) {
 	    	Ns_Fatal("modload: failed to initialize module '%s'",
 			 modPtr->name);
 	    }
-            Ns_TclInitModule(nsServer, modPtr->name);
+            Ns_TclInitModule(server, modPtr->name);
 	    ns_free(modPtr);
 	    modPtr = nextPtr;
 	}

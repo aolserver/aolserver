@@ -34,7 +34,7 @@
  *	Win32 specific routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nswin32.c,v 1.8 2000/12/19 00:47:01 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nswin32.c,v 1.9 2001/01/16 18:14:27 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -49,7 +49,7 @@ static VOID WINAPI ServiceHandler(DWORD code);
 static BOOL WINAPI ConsoleHandler(DWORD code);
 static void ReportStatus(DWORD state, DWORD code, DWORD hint);
 static void ExitService(void);
-static char *GetServiceName(Ns_DString *dsPtr);
+static char *GetServiceName(Ns_DString *dsPtr, char *server);
 static SERVICE_STATUS_HANDLE hStatus = 0;
 static SERVICE_STATUS curStatus;
 static Ns_Tls   tls;
@@ -210,7 +210,7 @@ NsConnectService(Ns_ServerInitProc *initProc)
  */
 
 int
-NsRemoveService(void)
+NsRemoveService(char *server)
 {
     SC_HANDLE       hmgr, hsrv;
     SERVICE_STATUS  status;
@@ -218,7 +218,7 @@ NsRemoveService(void)
     BOOL            ok;
 
     Ns_DStringInit(&name);
-    GetServiceName(&name);
+    GetServiceName(&name, server);
     ok = FALSE;
     hmgr = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
     if (hmgr != NULL) {
@@ -258,7 +258,7 @@ NsRemoveService(void)
  */
 
 int
-NsInstallService(void)
+NsInstallService(char *server)
 {
     SC_HANDLE       hmgr, hsrv;
     BOOL	    ok;
@@ -275,11 +275,11 @@ NsInstallService(void)
 	Ns_DStringInit(&name);
 	Ns_DStringInit(&cmd);
 	Ns_DStringVarAppend(&cmd, "\"", nsd, "\"",
-	    " -S -s ", nsServer, carg, "\"", config, "\"", NULL);
+	    " -S -s ", server, carg, "\"", config, "\"", NULL);
     	if (nsMemPools) {
 	    Ns_DStringAppend(&cmd, " -z");
 	}
-	GetServiceName(&name);
+	GetServiceName(&name, server);
 	Ns_Log(Notice, "nswin32: installing %s service: %s",
 	    name.string, cmd.string);
 	hmgr = OpenSCManager(NULL, NULL, SC_MANAGER_ALL_ACCESS);
@@ -688,9 +688,9 @@ ConsoleHandler(DWORD ignored)
  */
 
 static char *
-GetServiceName(Ns_DString *dsPtr)
+GetServiceName(Ns_DString *dsPtr, char *server)
 {
-    Ns_DStringVarAppend(dsPtr, NSD_NAME, "-", nsServer, NULL);
+    Ns_DStringVarAppend(dsPtr, NSD_NAME, "-", server, NULL);
     return dsPtr->string;
 }
 

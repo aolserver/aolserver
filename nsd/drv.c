@@ -37,7 +37,7 @@
  *      happens. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/drv.c,v 1.4 2000/08/17 06:09:49 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/drv.c,v 1.5 2001/01/16 18:14:27 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -216,14 +216,14 @@ Ns_GetDriverContext(Ns_Driver drv)
  */
 
 void
-NsStartDrivers(void)
+NsStartDrivers(char *server)
 {
     Driver  *drvPtr;
 
     drvPtr = firstDrvPtr;
     while (drvPtr != NULL) {
 	if (drvPtr->startProc == NULL ||
-	    (*drvPtr->startProc)(nsServer, drvPtr->label,
+	    (*drvPtr->startProc)(server, drvPtr->label,
 			         &drvPtr->drvData) == NS_OK) {
 	    drvPtr->running = 1;
             if (drvPtr->acceptProc != NULL) {

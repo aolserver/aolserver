@@ -49,7 +49,7 @@
  * Removed check for comments so that server side includes
  * or similar constructs can be registered with fancy tags.
  */ 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/adpfancy.c,v 1.6 2000/10/17 14:26:27 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/adpfancy.c,v 1.7 2001/01/16 18:14:27 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -113,7 +113,7 @@ static Ns_RWLock     tlock;
  */
 
 void
-NsAdpFancyInit(char *hServer, char *path)
+NsAdpFancyInit(char *server, char *path)
 {
     Tcl_InitHashTable(&htTags, TCL_STRING_KEYS);
 
