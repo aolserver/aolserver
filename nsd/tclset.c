@@ -33,7 +33,7 @@
  *	Implements the tcl ns_set commands 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclset.c,v 1.16 2003/08/06 20:30:12 elizthom Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclset.c,v 1.17 2003/11/16 15:04:58 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -57,7 +57,6 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
  */
 
 static int NoServer(Tcl_Interp *interp);
-static int BadArgs(Tcl_Interp *interp, char **argv, char *args);
 static int LookupSet(NsInterp *itPtr, char *id, int delete, Ns_Set **setPtr);
 static int LookupObjSet(NsInterp *itPtr, Tcl_Obj *idPtr, int delete,
 			Ns_Set **setPtr);
@@ -777,32 +776,6 @@ LookupSet(NsInterp *itPtr, char *id, int delete, Ns_Set **setPtr)
     }
     *setPtr = set;
     return TCL_OK;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * BadArgs --
- *
- *	Complain that the wrong # args were recieved. 
- *
- * Results:
- *	TCL result. 
- *
- * Side effects:
- *	Error message appended to interp result.
- *
- *----------------------------------------------------------------------
- */
-
-static int
-BadArgs(Tcl_Interp *interp, char **argv, char *args)
-{
-    Tcl_AppendResult(interp, "wrong # of args: should be \"",
-        argv[0], " ", argv[1], " ", args, "\"", NULL);
-
-    return TCL_ERROR;
 }
 
 static int

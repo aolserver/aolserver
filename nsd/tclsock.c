@@ -34,7 +34,7 @@
  *	Tcl commands that let you do TCP sockets. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclsock.c,v 1.17 2003/03/07 18:08:41 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclsock.c,v 1.18 2003/11/16 15:04:58 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -69,8 +69,6 @@ static void AppendReadyFiles(Tcl_Interp *interp, fd_set * pset, int write,
 static int EnterSock(Tcl_Interp *interp, SOCKET sock);
 static int EnterDup(Tcl_Interp *interp, SOCKET sock);
 static int EnterDupedSocks(Tcl_Interp *interp, SOCKET sock);
-static int SockSetBlocking(char *value, Tcl_Interp *interp, int argc,
-			   	char **argv);
 static int SockSetBlockingObj(char *value, Tcl_Interp *interp, int objc, 
 				Tcl_Obj *CONST objv[]);
 static Ns_SockProc SockListenCallback;
@@ -763,40 +761,6 @@ NsTclSockListenCallbackObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
         return TCL_ERROR;
     }
     return TCL_OK;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * SockSetBlocking --
- *
- *	Set a socket blocking. 
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	None. 
- *
- *----------------------------------------------------------------------
- */
-
-static int
-SockSetBlocking(char *value, Tcl_Interp *interp, int argc, char **argv)
-{
-    Tcl_Channel chan;
-
-    if (argc != 2) {
-        Tcl_AppendResult(interp, "wrong # args: should be \"",
-            argv[0], " sockId\"", NULL);
-        return TCL_ERROR;
-    }
-    chan = Tcl_GetChannel(interp, argv[1], NULL);
-    if (chan == NULL) {
-	return TCL_ERROR;
-    }
-    return Tcl_SetChannelOption(interp, chan, "-blocking", value);
 }
 
 
