@@ -1,3 +1,8 @@
+2003-11-03  pkhincha <pkhincha@aol.com>
+
+	* nsd/urlspace.c: removed initing of mutex
+	* nsd/nsmain.c: calling NsWaitDriversShutdown
+
 2003-11-01  Zoran Vasiljevic <zv@archiware.com>
 
 	* tcl/file.tcl: fixed broken argument convention for the

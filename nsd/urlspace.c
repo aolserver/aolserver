@@ -38,7 +38,7 @@
  *	For full details see the file doc/urlspace.txt.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/urlspace.c,v 1.10 2003/03/07 18:08:44 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/urlspace.c,v 1.11 2003/11/03 19:23:26 pkhincha Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -215,7 +215,6 @@ static Ns_Mutex lock;
 void
 NsInitUrlSpace(void)
 {
-    Ns_MutexInit(&lock);
     Ns_MutexSetName(&lock, "ns:urlspace");
     JunctionInit(&urlspace);
 }
