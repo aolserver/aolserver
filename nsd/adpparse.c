@@ -33,7 +33,7 @@
  *	ADP parser.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpparse.c,v 1.15 2004/08/14 21:26:06 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpparse.c,v 1.16 2005/01/15 23:53:26 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -47,6 +47,8 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
 
 #define APPEND		"ns_adp_append "
 #define APPEND_LEN	(sizeof(APPEND)-1)
+
+#define LENSZ		(sizeof(int))
 
 /*
  * The following structure maintains proc and adp registered tags.
@@ -65,11 +67,12 @@ typedef struct {
  * Local functions defined in this file
  */
 
-static void AppendBlock(AdpParse *parsePtr, char *s, char *e, int type);
-static void Parse(AdpParse *parsePtr, NsServer *servPtr, char *utf);
+static void AppendBlock(AdpCode *codePtr, char *s, char *e, int type);
+static void Parse(AdpCode *codePtr, NsServer *servPtr, char *utf);
 static int RegisterCmd(ClientData arg, Tcl_Interp *interp, int argc,
 		char **argv, int type);
-static void Blocks2Script(AdpParse *parsePtr);
+static void Blocks2Script(AdpCode *codePtr);
+static void AppendLengths(AdpCode *codePtr, int *len);
 
 
 /*
@@ -160,12 +163,12 @@ RegisterCmd(ClientData arg, Tcl_Interp *interp, int argc,
     tagPtr = ns_malloc(sizeof(Tag) + slen + elen);
     tagPtr->type = type;
     tagPtr->string = (char *) tagPtr + sizeof(Tag);
-    memcpy(tagPtr->string, string, (size_t)slen);
+    memcpy(tagPtr->string, string, (size_t) slen);
     if (argc == 3) {
 	tagPtr->endtag = NULL;
     } else {
 	tagPtr->endtag = tagPtr->string + slen;
-	memcpy(tagPtr->endtag, argv[2], (size_t)elen);
+	memcpy(tagPtr->endtag, argv[2], (size_t) elen);
     }
     Ns_RWLockWrLock(&servPtr->adp.taglock);
     hPtr = Tcl_CreateHashEntry(&servPtr->adp.tags, argv[1], &new);
@@ -196,8 +199,9 @@ RegisterCmd(ClientData arg, Tcl_Interp *interp, int argc,
  */
 
 void
-NsAdpParse(AdpParse *parsePtr, NsServer *servPtr, char *utf, int flags)
+NsAdpParse(AdpCode *codePtr, NsServer *servPtr, char *utf, int flags)
 {
+    Tcl_DString hdr;
     char *s, *e;
 
     /*
@@ -205,9 +209,10 @@ NsAdpParse(AdpParse *parsePtr, NsServer *servPtr, char *utf, int flags)
      */
 
     flags = servPtr->adp.flags | flags;
-    Tcl_DStringInit(&parsePtr->hdr);
-    Tcl_DStringInit(&parsePtr->text);
-    parsePtr->code.nscripts = parsePtr->code.nblocks = 0;
+    Tcl_DStringInit(&codePtr->text);
+    codePtr->nscripts = codePtr->nblocks = 0;
+    Tcl_DStringInit(&hdr);
+    codePtr->len.dPtr = &hdr;
 
     /*
      * Scan for <% ... %> sequences which take precedence over
@@ -220,13 +225,13 @@ NsAdpParse(AdpParse *parsePtr, NsServer *servPtr, char *utf, int flags)
 	 */
 
 	*s = '\0';
-	Parse(parsePtr, servPtr, utf);
+	Parse(codePtr, servPtr, utf);
 	*s = '<';
 	if (!(flags & ADP_SAFE)) {
 	    if (s[2] != '=') {
-	        AppendBlock(parsePtr, s + 2, e, 's');
+	        AppendBlock(codePtr, s + 2, e, 's');
 	    } else {
-	        AppendBlock(parsePtr, s + 3, e, 'S');
+	        AppendBlock(codePtr, s + 3, e, 'S');
 	    }
 	}
 	utf = e + 2;
@@ -236,22 +241,47 @@ NsAdpParse(AdpParse *parsePtr, NsServer *servPtr, char *utf, int flags)
      * Parse the remaining text.
      */
 
-    Parse(parsePtr, servPtr, utf);;
+    Parse(codePtr, servPtr, utf);;
 
     /*
      * Complete the parse code structure.
      */
 
-    parsePtr->code.len = (int *) parsePtr->hdr.string;
-    parsePtr->code.base = parsePtr->text.string;
+    AppendLengths(codePtr, (int *) hdr.string);
+    Tcl_DStringFree(&hdr);
 
     /*
      * If configured, collapse blocks to a single script.
      */
 
     if (flags & ADP_SINGLE) {
-    	Blocks2Script(parsePtr);
+    	Blocks2Script(codePtr);
     }
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsAdpFreeCode --
+ *
+ *	Free internal AdpCode storage.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+NsAdpFreeCode(AdpCode *codePtr)
+{
+    Tcl_DStringFree(&codePtr->text);
+    codePtr->nblocks = codePtr->nscripts = 0;
+    codePtr->len.iPtr = NULL;
 }
 
 
@@ -272,23 +302,23 @@ NsAdpParse(AdpParse *parsePtr, NsServer *servPtr, char *utf, int flags)
  */
 
 static void
-AppendBlock(AdpParse *parsePtr, char *s, char *e, int type)
+AppendBlock(AdpCode *codePtr, char *s, char *e, int type)
 {
     int len;
 
     if (s < e) {
-	++parsePtr->code.nblocks;
+	++codePtr->nblocks;
 	len = e - s;
 	if (type == 'S') {
 	    len += APPEND_LEN;
-	    Tcl_DStringAppend(&parsePtr->text, APPEND, APPEND_LEN);
+	    Tcl_DStringAppend(&codePtr->text, APPEND, APPEND_LEN);
 	}
-	Tcl_DStringAppend(&parsePtr->text, s, e - s);
+	Tcl_DStringAppend(&codePtr->text, s, e - s);
 	if (type != 't') {
-	    ++parsePtr->code.nscripts;
+	    ++codePtr->nscripts;
 	    len = -len;
 	}
-	Tcl_DStringAppend(&parsePtr->hdr, (char *) &len, sizeof(len));
+	Tcl_DStringAppend(codePtr->len.dPtr, (char *) &len, LENSZ);
     }
 }
 
@@ -514,7 +544,7 @@ IsServer(char *tag, char *as, char *ae, int *streamPtr)
  */
 
 static void
-AppendTag(AdpParse *parsePtr, Tag *tagPtr, char *as, char *ae, char *se)
+AppendTag(AdpCode *codePtr, Tag *tagPtr, char *as, char *ae, char *se)
 {
     Tcl_DString script;
     char save;
@@ -541,7 +571,7 @@ AppendTag(AdpParse *parsePtr, Tag *tagPtr, char *as, char *ae, char *se)
     	Tcl_DStringAppend(&script, "]", 1);
     }
     Tcl_DStringAppend(&script, "]", 1);
-    AppendBlock(parsePtr, script.string, script.string+script.length, 's');
+    AppendBlock(codePtr, script.string, script.string+script.length, 's');
     Tcl_DStringFree(&script);
 }
 
@@ -557,13 +587,13 @@ AppendTag(AdpParse *parsePtr, Tag *tagPtr, char *as, char *ae, char *se)
  *	None.
  *
  * Side effects:
- *	Blocks will be appended to the given parsePtr.
+ *	Blocks will be appended to the given codePtr.
  *
  *----------------------------------------------------------------------
  */
 
 static void
-Parse(AdpParse *parsePtr, NsServer *servPtr, char *utf)
+Parse(AdpCode *codePtr, NsServer *servPtr, char *utf)
 {
     Tag            *tagPtr = NULL;
     char           *ss = NULL, *se = NULL, *s = NULL, *e = NULL;
@@ -606,9 +636,9 @@ Parse(AdpParse *parsePtr, NsServer *servPtr, char *utf)
 			 * Output simple no-end registered tag.
 			 */
 
-			AppendBlock(parsePtr, t, s, 't');
+			AppendBlock(codePtr, t, s, 't');
 			t = e + 1;
-			AppendTag(parsePtr, tagPtr, a, e, NULL);
+			AppendTag(codePtr, tagPtr, a, e, NULL);
 		    } else {
 			/*
 			 * Record start of registered tag.
@@ -631,13 +661,13 @@ Parse(AdpParse *parsePtr, NsServer *servPtr, char *utf)
 		 * Output end of script.
 		 */
 
-		AppendBlock(parsePtr, t, ss, 't');
+		AppendBlock(codePtr, t, ss, 't');
 		t = e + 1;
 		if (stream && !streamdone) {
-		    AppendBlock(parsePtr, "ns_adp_stream", NULL, 's');
+		    AppendBlock(codePtr, "ns_adp_stream", NULL, 's');
 		    streamdone = 1;
 		}
-		AppendBlock(parsePtr, se, s, 's');
+		AppendBlock(codePtr, se, s, 's');
 		state = 0;
 	    }
 	    break;
@@ -657,9 +687,9 @@ Parse(AdpParse *parsePtr, NsServer *servPtr, char *utf)
 		     * Dump out registered tag.
 		     */
 
-		    AppendBlock(parsePtr, t, ss, 't');
+		    AppendBlock(codePtr, t, ss, 't');
 		    t = e + 1;
-		    AppendTag(parsePtr, tagPtr, as, ae, s);
+		    AppendTag(codePtr, tagPtr, as, ae, s);
 		    state = 0;
 		}
 	    }
@@ -673,7 +703,7 @@ Parse(AdpParse *parsePtr, NsServer *servPtr, char *utf)
      * Append the remaining text block.
      */
 
-    AppendBlock(parsePtr, t, t + strlen(t), 't');
+    AppendBlock(codePtr, t, t + strlen(t), 't');
     Tcl_DStringFree(&tag);
 }
 
@@ -697,35 +727,63 @@ Parse(AdpParse *parsePtr, NsServer *servPtr, char *utf)
  */
 
 static void
-Blocks2Script(AdpParse *parsePtr)
+Blocks2Script(AdpCode *codePtr)
 {
     char *utf, save;
     int i, len;
-    Tcl_DString tmp, *textPtr;
+    Tcl_DString tmp;
 
-    textPtr = &parsePtr->text;
     Tcl_DStringInit(&tmp);
-    Tcl_DStringAppend(&tmp, textPtr->string, textPtr->length);
-    Tcl_DStringTrunc(textPtr, 0);
-
-    utf = tmp.string;
-    for (i = 0; i < parsePtr->code.nblocks; ++i) {
-	len = parsePtr->code.len[i];
+    utf = codePtr->text.string;
+    for (i = 0; i < codePtr->nblocks; ++i) {
+	len = codePtr->len.iPtr[i];
 	if (len < 0) {
 	    len = -len;	
-	    Tcl_DStringAppend(textPtr, utf, len);
+	    Tcl_DStringAppend(&tmp, utf, len);
 	} else {
-	    Tcl_DStringAppend(textPtr, "ns_adp_append", -1);
+	    Tcl_DStringAppend(&tmp, "ns_adp_append", -1);
 	    save = utf[len];
 	    utf[len] = '\0';
-	    Tcl_DStringAppendElement(textPtr, utf);
+	    Tcl_DStringAppendElement(&tmp, utf);
 	    utf[len] = save;
 	}
-	Tcl_DStringAppend(textPtr, "\n", 1);
+	Tcl_DStringAppend(&tmp, "\n", 1);
 	utf += len;
     }
-    parsePtr->code.nscripts = parsePtr->code.nblocks = 1;
-    parsePtr->code.len[0] = -textPtr->length;
-    parsePtr->code.base = textPtr->string;
+    codePtr->nscripts = codePtr->nblocks = 1;
+    Tcl_DStringTrunc(&codePtr->text, 0);
+    Tcl_DStringAppend(&codePtr->text, tmp.string, tmp.length);
+    AppendLengths(codePtr, &tmp.length);
     Tcl_DStringFree(&tmp);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * AppendLengths --
+ *
+ *	Append the array of length pointers to the end of the text
+ * 	dstring.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	Updates len.iPtr to point to start of lengths.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+AppendLengths(AdpCode *codePtr, int *len)
+{
+    int start, ncopy;
+
+    /* NB: Need to round up start of lengths array to next word. */
+    start = ((codePtr->text.length / LENSZ) + 1) * LENSZ;
+    ncopy = codePtr->nblocks * LENSZ;
+    Tcl_DStringSetLength(&codePtr->text, start + ncopy);
+    codePtr->len.iPtr = (int *) (codePtr->text.string + start);
+    memcpy(codePtr->len.iPtr,  len, (size_t) ncopy);
 }

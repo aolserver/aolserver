@@ -33,7 +33,7 @@
  *	ADP string and file eval.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.32 2004/10/27 15:45:37 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.33 2005/01/15 23:53:22 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -64,8 +64,8 @@ typedef struct Page {
     int		   locked;
     int		   cgen;
     Cache	  *cachePtr;
-    char	  *file;
     AdpCode	   code;
+    char	   file[1];
 } Page;
 
 /*
@@ -127,15 +127,12 @@ static int AdpSource(NsInterp *itPtr, int objc, Tcl_Obj *objv[],
 static int AdpRun(NsInterp *itPtr, char *file, int objc, Tcl_Obj *objv[],
 		Tcl_DString *outputPtr, Ns_Time *ttlPtr);
 static int AdpEval(NsInterp *itPtr, AdpCode *codePtr, Objs *objsPtr);
-static void ParseFree(AdpParse *parsePtr);
 static int AdpDebug(NsInterp *itPtr, char *ptr, int len, int nscript);
+static void DecrCache(Cache *cachePtr);
 static Objs *AllocObjs(int nobjs);
 static void FreeObjs(Objs *objsPtr);
-static int ParseSize(AdpParse *parsePtr);
-static void ParseCopy(AdpCode *codePtr, AdpParse *parsePtr, void *start);
+static void AdpTrace(NsInterp *itPtr, char *ptr, int len);
 static Ns_Callback FreeInterpPage;
-
-#define DecrCache(cp) if ((--(cp)->refcnt) == 0) ns_free((cp))
 
 
 /*
@@ -190,15 +187,16 @@ int
 NsAdpInclude(NsInterp *itPtr, char *file, int objc, Tcl_Obj *objv[],
 		Ns_Time *ttlPtr)
 {
+    Tcl_DString *dsPtr;
+
     /*
      * Direct output to the current ADP output buffer.
      */
 
-    if (itPtr->adp.outputPtr == NULL) {
-	Tcl_SetResult(itPtr->interp, "no connection", TCL_STATIC);
+    if (NsAdpGetBuf(itPtr, &dsPtr) != TCL_OK) {
 	return TCL_ERROR;
     }
-    return AdpRun(itPtr, file, objc, objv, itPtr->adp.outputPtr, ttlPtr);
+    return AdpRun(itPtr, file, objc, objv, dsPtr, ttlPtr);
 }
 
 
@@ -206,7 +204,7 @@ static int
 AdpSource(NsInterp *itPtr, int objc, Tcl_Obj *objv[], char *resvar,
 	  int safe, int file)
 {
-    AdpParse	      parse;
+    AdpCode	      code;
     Frame             frame;
     Tcl_DString       output;
     int               result;
@@ -228,10 +226,10 @@ AdpSource(NsInterp *itPtr, int objc, Tcl_Obj *objv[], char *resvar,
     	result = AdpRun(itPtr, obj0, objc, objv, &output, 0);
     } else {
     	PushFrame(itPtr, &frame, NULL, objc, objv, &output);
-    	NsAdpParse(&parse, itPtr->servPtr, obj0, safe ? ADP_SAFE : 0);
-    	result = AdpEval(itPtr, &parse.code, NULL);
+    	NsAdpParse(&code, itPtr->servPtr, obj0, safe ? ADP_SAFE : 0);
+    	result = AdpEval(itPtr, &code, NULL);
     	PopFrame(itPtr, &frame);
-    	ParseFree(&parse);
+    	NsAdpFreeCode(&code);
     }
     if (itPtr->adp.responsePtr == &output) {
         itPtr->adp.responsePtr = NULL;
@@ -268,7 +266,6 @@ AdpRun(NsInterp *itPtr, char *file, int objc, Tcl_Obj *objv[],
     Page *pagePtr, *oldPagePtr;
     Cache *cachePtr;
     AdpCode *codePtr;
-    AdpParse parse;
     Ns_Time now;
     Ns_Entry *ePtr;
     Objs *objsPtr;
@@ -303,7 +300,7 @@ AdpRun(NsInterp *itPtr, char *file, int objc, Tcl_Obj *objv[],
 
     if (itPtr->adp.debugLevel > 0) {
 	++itPtr->adp.debugLevel;
-    } else if (servPtr->adp.enabledebug != NS_FALSE &&
+    } else if ((servPtr->adp.flags & ADP_DEBUG) &&
 	itPtr->adp.debugFile != NULL &&
 	(p = strrchr(file, '/')) != NULL &&
 	Tcl_StringMatch(p+1, itPtr->adp.debugFile)) {
@@ -391,10 +388,11 @@ AdpRun(NsInterp *itPtr, char *file, int objc, Tcl_Obj *objv[],
 		} else {
 #ifdef _WIN32
             	    if (pagePtr->mtime != st.st_mtime
-				|| pagePtr->size != st.st_size) {
+				|| pagePtr->size != st.st_size)
 #else
-            	    if (ukey.dev != st.st_dev || ukey.ino != st.st_ino) {
+            	    if (ukey.dev != st.st_dev || ukey.ino != st.st_ino)
 #endif
+		    {
 			/* NB: File changed between stat above and ParseFile. */
 		    	Tcl_DeleteHashEntry(hPtr);
 #ifndef _WIN32
@@ -469,21 +467,19 @@ AdpRun(NsInterp *itPtr, char *file, int objc, Tcl_Obj *objv[],
 	     */
 
 	    if (cachePtr == NULL) {
+		Ns_DString buf;
+		Ns_DStringInit(&buf);
 		len = outputPtr->length;
 	    	Ns_MutexUnlock(&servPtr->adp.pagelock);
 		codePtr = &pagePtr->code;
-    		PushFrame(itPtr, &frame, file, objc, objv, outputPtr);
+    		PushFrame(itPtr, &frame, file, objc, objv, &buf);
 		++itPtr->adp.refresh;
 		status = AdpEval(itPtr, codePtr, ipagePtr->objs);
 		--itPtr->adp.refresh;
     		PopFrame(itPtr, &frame);
-		if ((outputPtr->length - len) < 0) {
-		    len = outputPtr->length;
-		}
-		NsAdpParse(&parse, itPtr->servPtr, outputPtr->string + len, 0);
-		cachePtr = ns_malloc(sizeof(Cache) + ParseSize(&parse));
-		ParseCopy(&cachePtr->code, &parse, cachePtr + 1);
-		Ns_DStringTrunc(outputPtr, len);
+		cachePtr = ns_malloc(sizeof(Cache));
+		NsAdpParse(&cachePtr->code, itPtr->servPtr, buf.string, 0);
+		Ns_DStringFree(&buf);
 		Ns_GetTime(&cachePtr->expires);
 		Ns_IncrTime(&cachePtr->expires, ttlPtr->sec, ttlPtr->usec);
 	    	cachePtr->refcnt = 1;
@@ -507,11 +503,11 @@ AdpRun(NsInterp *itPtr, char *file, int objc, Tcl_Obj *objv[],
 	    codePtr = &cachePtr->code;
 	    if (ipagePtr->cobjs != NULL && cgen != ipagePtr->cgen) {
 		FreeObjs(ipagePtr->cobjs);
-		ipagePtr->cgen = cgen;
 		ipagePtr->cobjs = NULL;
 	    }
 	    if (ipagePtr->cobjs == NULL) {
-		ipagePtr->cobjs = AllocObjs(codePtr->nscripts);
+		ipagePtr->cobjs = AllocObjs(AdpCodeScripts(codePtr));
+		ipagePtr->cgen = cgen;
 	    }
 	    objsPtr = ipagePtr->cobjs;
 	}
@@ -629,10 +625,11 @@ NsTclAdpStatsCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 	pagePtr = Tcl_GetHashValue(hPtr);
 	keyPtr = (FileKey *) Tcl_GetHashKey(&servPtr->adp.pages, hPtr);
 	Tcl_AppendElement(interp, pagePtr->file);
-	sprintf(buf, "dev %ld ino %ld mtime %ld refcnt %d evals %d size %ld blocks %d scripts %d",
-		keyPtr->dev, keyPtr->ino, pagePtr->mtime, pagePtr->refcnt,
-		pagePtr->evals, pagePtr->size, pagePtr->code.nblocks,
-		pagePtr->code.nscripts);
+	sprintf(buf, "dev %ld ino %ld mtime %ld refcnt %d evals %d "
+		     "size %ld blocks %d scripts %d",
+		(long) keyPtr->dev, (long) keyPtr->ino, (long) pagePtr->mtime,
+		pagePtr->refcnt, pagePtr->evals, (long) pagePtr->size,
+		pagePtr->code.nblocks, pagePtr->code.nscripts);
 	Tcl_AppendElement(interp, buf);
 	hPtr = Tcl_NextHashEntry(&search);
     }
@@ -755,7 +752,6 @@ ParseFile(NsInterp *itPtr, char *file, struct stat *stPtr)
     int fd, n, trys;
     size_t size;
     Page *pagePtr;
-    AdpParse parse;
     
     fd = open(file, O_RDONLY | O_BINARY);
     if (fd < 0) {
@@ -796,7 +792,7 @@ ParseFile(NsInterp *itPtr, char *file, struct stat *stPtr)
 	     * File is not expected size, rewind and fstat/read again.
 	     */
 	
-	    if (lseek(fd, 0, SEEK_SET) != 0) {
+	    if (lseek(fd, (off_t) 0, SEEK_SET) != 0) {
 	    	Tcl_AppendResult(interp, "could not lseek \"", file,
 	    	    "\": ", Tcl_PosixError(interp), NULL);
 	        goto done;
@@ -817,10 +813,8 @@ ParseFile(NsInterp *itPtr, char *file, struct stat *stPtr)
 	    Tcl_ExternalToUtfDString(encoding, buf, n, &utf);
 	    page = utf.string;
 	}
-	NsAdpParse(&parse, itPtr->servPtr, page, 0);
-	Tcl_DStringFree(&utf);
-	n = ParseSize(&parse) + strlen(file) + 1;
-	pagePtr = ns_malloc(sizeof(Page) + n);
+	pagePtr = ns_malloc(sizeof(Page) + strlen(file));
+	strcpy(pagePtr->file, file);
 	pagePtr->servPtr = itPtr->servPtr;
 	pagePtr->refcnt = 0;
 	pagePtr->evals = 0;
@@ -829,10 +823,8 @@ ParseFile(NsInterp *itPtr, char *file, struct stat *stPtr)
 	pagePtr->cachePtr = NULL;
 	pagePtr->mtime = stPtr->st_mtime;
 	pagePtr->size = stPtr->st_size;
-	ParseCopy(&pagePtr->code, &parse, pagePtr + 1);
-	pagePtr->file = pagePtr->code.base + parse.text.length;
-	strcpy(pagePtr->file, file);
-	ParseFree(&parse);
+	NsAdpParse(&pagePtr->code, itPtr->servPtr, page, 0);
+	Tcl_DStringFree(&utf);
     }
 
 done:
@@ -923,22 +915,22 @@ AdpEval(NsInterp *itPtr, AdpCode *codePtr, Objs *objsPtr)
 {
     Tcl_Interp *interp = itPtr->interp;
     Tcl_Obj *objPtr;
-    int nscript, result, len, i;
+    int nscript, nblocks, result, len, i;
     char *ptr;
 
-    ptr = codePtr->base;
+    ptr = AdpCodeText(codePtr);
+    nblocks = AdpCodeBlocks(codePtr);
     nscript = 0;
     result = TCL_OK;
-    for (i = 0; itPtr->adp.exception == ADP_OK && i < codePtr->nblocks; ++i) {
-	len = codePtr->len[i];
+    for (i = 0; itPtr->adp.exception == ADP_OK && i < nblocks; ++i) {
+	len = AdpCodeLen(codePtr, i);
+	if (itPtr->adp.flags & ADP_TRACE) {
+	    AdpTrace(itPtr, ptr, len);
+	}
 	if (len > 0) {
-            /*
-             * outputPtr can have been cleared on previous iterations through
-             * this loop.  Need to check it before trying to use it.
-             */
-            if (itPtr->adp.outputPtr != NULL) {
-                Ns_DStringNAppend(itPtr->adp.outputPtr, ptr, len);
-            }
+	    if (NsAdpAppend(itPtr, ptr, len) != TCL_OK) {
+		return TCL_ERROR;
+	    }
 	} else {
 	    len = -len;
 	    if (itPtr->adp.debugLevel > 0) {
@@ -963,13 +955,11 @@ AdpEval(NsInterp *itPtr, AdpCode *codePtr, Objs *objsPtr)
 	    ++nscript;
 	}
 	ptr += len;
-	NsAdpFlush(itPtr);
     }
     if (itPtr->adp.exception == ADP_RETURN) {
 	itPtr->adp.exception = ADP_OK;
 	result = TCL_OK;
     }
-    NsAdpFlush(itPtr);
     return result;
 }
 
@@ -1073,12 +1063,29 @@ FreeInterpPage(void *arg)
     	    FreeObjs(ipagePtr->cobjs);
 	    DecrCache(pagePtr->cachePtr);
 	}
+	NsAdpFreeCode(&pagePtr->code);
 	ns_free(pagePtr);
     }
     Ns_MutexUnlock(&servPtr->adp.pagelock);
     ns_free(ipagePtr);
 }
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * AllocObjs --
+ *
+ *  	Allocate new page script objects.
+ *
+ * Results:
+ *	Pointer to new objects.
+ *
+ * Side Effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
 
 static Objs *
 AllocObjs(int nobjs)
@@ -1090,8 +1097,24 @@ AllocObjs(int nobjs)
     return objsPtr;
 }
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * FreeObjs --
+ *
+ *  	Free page objects, decrementing ref counts as needed.
+ *
+ * Results:
+ *	None.
+ *
+ * Side Effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
 
-void
+static void
 FreeObjs(Objs *objsPtr)
 {
     int i;
@@ -1104,46 +1127,63 @@ FreeObjs(Objs *objsPtr)
     ns_free(objsPtr);
 }
 
-
 
 /*
  *----------------------------------------------------------------------
  *
- * ParseFree --
+ * DecrCache --
  *
- *  	Free buffers in an AdpParse structure.
+ *  	Decrement ref count of a cache entry, potentially freeing
+ *	the cache.
  *
  * Results:
  *	None.
  *
  * Side Effects:
- *	None.
+ *	Will free cache on last reference count.
  *
  *----------------------------------------------------------------------
  */
 
 static void
-ParseFree(AdpParse *parsePtr)
+DecrCache(Cache *cachePtr)
 {
-    Tcl_DStringFree(&parsePtr->hdr);
-    Tcl_DStringFree(&parsePtr->text);
+    if (--cachePtr->refcnt == 0) {
+	NsAdpFreeCode(&cachePtr->code);
+	ns_free(cachePtr);
+    }
 }
 
-
-static int
-ParseSize(AdpParse *parsePtr)
-{
-    return (parsePtr->hdr.length + parsePtr->text.length);
-}
-
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * AdpTrace --
+ *
+ *	Trace execution of an ADP page.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	Dumps tracing info, possibly truncated, via Ns_Log.
+ *
+ *----------------------------------------------------------------------
+ */
 
 static void
-ParseCopy(AdpCode *codePtr, AdpParse *parsePtr, void *start)
+AdpTrace(NsInterp *itPtr, char *ptr, int len)
 {
-    codePtr->nblocks = parsePtr->code.nblocks;
-    codePtr->nscripts = parsePtr->code.nscripts;
-    codePtr->len = start;
-    codePtr->base = (char *) (codePtr->len + parsePtr->code.nblocks);
-    memcpy(codePtr->len, parsePtr->hdr.string, (size_t) parsePtr->hdr.length);
-    memcpy(codePtr->base, parsePtr->text.string, (size_t) parsePtr->text.length);
+    char type;
+
+    if (len >= 0) {
+	type = 'T';
+    } else {
+	type = 'S';
+	len = -len;
+    }
+    if (len > 40) {
+	len = 40;
+    }
+    Ns_Log(Notice, "adp[%d%c]: %.*s", itPtr->adp.depth, type, len, ptr);
 }
