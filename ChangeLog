@@ -1,3 +1,6 @@
+2000-08-20  Kriston J. Rehberg  <Kriston@AOL.NET>
+
+	* nsftp, nspostgres, nssolid, nssybpd moved to $TOP level.
 
 2000-08-17  Jim Davidson
 
