@@ -34,7 +34,7 @@
  *	Tcl wrappers around all thread objects 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclthread.c,v 1.7 2001/12/05 22:45:01 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclthread.c,v 1.8 2001/12/08 00:14:44 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #ifdef NS_NOCOMPAT
 #undef NS_NOCOMPAT
@@ -399,7 +399,8 @@ NsTclRWLockCmd(ClientData data, Tcl_Interp *interp, int argc, char **argv)
 	} else {
 	    Tcl_AppendResult(interp, "unknown command \"",
 			     argv[1], "\":should be create, destroy, "
-			     "readlock, readunlock, writelock, writeunlock");
+			     "readlock, readunlock, writelock, "
+			     "writeunlock", NULL);
 	    return TCL_ERROR;
 	}
     }
