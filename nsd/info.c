@@ -33,7 +33,7 @@
  *	Ns_Info* API and ns_info command support.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/info.c,v 1.4 2001/12/11 23:49:02 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/info.c,v 1.5 2002/02/16 00:22:22 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -222,7 +222,7 @@ Ns_InfoPlatform(void)
     return "hp11";
 #elif defined(__unixware)
     return "UnixWare";
-#elif defined(MACOSX)
+#elif defined(__APPLE__)
     return "osx";
 #else
     return "?";
