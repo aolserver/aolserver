@@ -1,3 +1,8 @@
+2003-02-06  Mark Page <mpagenva@aol.com>
+
+        * nsd/return.c: (bug fix) SF bug 674033.
+        (bug fix) Correct the status code for BadRequest returns.
+
 2003-02-06  Jamie Rasmussen <jrasmuss@mle.ie>
 
         * nsthread/winthread.c: (bug fix) SF bug 675033.
