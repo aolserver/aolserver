@@ -34,7 +34,7 @@
  *	Tcl commands that let you do TCP sockets. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclsock.c,v 1.12 2002/07/14 23:01:23 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclsock.c,v 1.13 2002/08/25 20:09:08 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -1745,7 +1745,7 @@ NsTclSockProc(int sock, void *arg, int why)
             w = "x";
         }
         Tcl_DStringAppendElement(&script, w);
-        result = NsTclEval(interp, script.string);
+        result = Tcl_EvalEx(interp, script.string, script.length, 0);
 	if (result != TCL_OK) {
             Ns_TclLogError(interp);
 	} else {
@@ -1807,7 +1807,7 @@ SockListenCallback(int sock, void *arg, int why)
             Tcl_DStringAppend(&script, lcbPtr->script, -1);
 	    Tcl_DStringAppendElement(&script, Tcl_GetString(objv[0]));
 	    Tcl_DStringAppendElement(&script, Tcl_GetString(objv[1]));
-            result = NsTclEval(interp, script.string);
+            result = Tcl_EvalEx(interp, script.string, script.length, 0);
 	    Tcl_DStringFree(&script);
 	}
     }
