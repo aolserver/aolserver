@@ -111,8 +111,6 @@
 #define STATS_GLOBAL 1
 #define STATS_PERURL 2
 
-#define DSTRINGPRINTF_LIMIT 4096
-
 #define Dev         (Debug+1)
 
 /*

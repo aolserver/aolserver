@@ -33,7 +33,7 @@
  *      All the public types and function declarations for the core
  *	AOLserver.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.11 2000/11/06 18:11:43 jgdavidson Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.12 2000/12/18 01:43:23 jgdavidson Exp $
  */
 
 #ifndef NS_H
@@ -103,7 +103,9 @@ typedef long long INT64;
 #define NS_TCL_SET_TEMPORARY      0
 #define NS_TCL_SET_DYNAMIC        1
 #define NS_TCL_SET_PERSISTENT     2
-#define NS_DSTRING_STATIC_SIZE  512
+#define NS_DSTRING_STATIC_SIZE    512
+#define NS_DSTRING_PRINTF_MAX	  2048
+
 #define NS_CACHE_FREE		((Ns_Callback *) (-1))
 
 #ifdef WIN32
@@ -120,6 +122,7 @@ NS_EXTERN int			kill(int pid, int sig);
 #define ns_sockstrerror		NsWin32ErrMsg
 #define strcasecmp		_stricmp
 #define strncasecmp		_strnicmp
+#define vsnprintf		_vsnprintf
 #define mkdir(d,m)		mkdir((d))
 #define ftruncate(f,s)		chsize((f),(s))
 #define EINPROGRESS		WSAEINPROGRESS
