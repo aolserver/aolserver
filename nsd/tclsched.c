@@ -34,7 +34,7 @@
  *	Implement scheduled procs in Tcl. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclsched.c,v 1.5 2001/12/05 22:45:01 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclsched.c,v 1.6 2004/11/20 08:24:12 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -265,17 +265,10 @@ NsTclSchedDailyCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
      *   * cmd -once    -thread  hour      minute    procname  arg   (7 args)/4
      */
 
-    if (argc < 4 || argc > 7) {
-        Tcl_AppendResult(interp, "wrong # args: should be \"", argv[0],
-			 " ?-once? ?-thread? hour minute "
-			 "{ script | procname ?arg? }\"", (char *) NULL);
-        return TCL_ERROR;
-    }
-
     first = 1;
     flags = 0;
 
-    while (argc--) {
+    while (argc-- && argv[first] != NULL) {
         if (strcmp(argv[first], "-thread") == 0) {
             flags |= NS_SCHED_THREAD;
         } else if (strcmp(argv[first], "-once") == 0) {
@@ -285,6 +278,14 @@ NsTclSchedDailyCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
         }
 	first++;
     }
+
+    if (argc < 3 || argc > 4) {
+        Tcl_AppendResult(interp, "wrong # args: should be \"", argv[0],
+			 " ?-once? ?-thread? hour minute "
+			 "{ script | procname ?arg? }\"", (char *) NULL);
+        return TCL_ERROR;
+    }
+
 
     /*
      * First is now the first argument that is not a switch.
@@ -362,17 +363,10 @@ NsTclSchedWeeklyCmd(ClientData arg, Tcl_Interp *interp, int argc,
      *  * cmd -once    -thread  day     hour    minute  proc    arg  (8 args)/5
      */
 
-    if (argc < 5 || argc > 8) {
-        Tcl_AppendResult(interp, "wrong # args: should be \"", argv[0],
-			 " ?-once? ?-thread? day hour minute "
-			 "{ script | procname ?arg? }\"", (char *) NULL);
-        return TCL_ERROR;
-    }
-
     first = 1;
     flags = 0;
 
-    while (argc--) {
+    while (argc-- && argv[first] != NULL) {
         if (strcmp(argv[first], "-thread") == 0) {
             flags |= NS_SCHED_THREAD;
         } else if (strcmp(argv[first], "-once") == 0) {
@@ -382,6 +376,14 @@ NsTclSchedWeeklyCmd(ClientData arg, Tcl_Interp *interp, int argc,
         }
         first++;
     }
+
+    if (argc < 4 || argc > 5) {
+        Tcl_AppendResult(interp, "wrong # args: should be \"", argv[0],
+			 " ?-once? ?-thread? day hour minute "
+			 "{ script | procname ?arg? }\"", (char *) NULL);
+        return TCL_ERROR;
+    }
+
 
     /*
      * First is now the first argument that is not a switch.
@@ -461,18 +463,10 @@ NsTclSchedCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
      *   * cmd -once    -thread   interval  procname arg     (6 args)/3
      */
 
-    if (argc < 3 || argc > 6) {
-        Tcl_AppendResult(interp, "wrong # args: should be \"", argv[0],
-			 " ?-once? ?-thread? interval "
-			 "{ script | procname ?arg? }\"", 
-			 (char *) NULL);
-        return TCL_ERROR;
-    }
-
     first = 1;
     flags = 0;
 
-    while (argc--) {
+    while (argc-- && argv[first] != NULL) {
         if (strcmp(argv[first], "-thread") == 0) {
             flags |= NS_SCHED_THREAD;
         } else if (strcmp(argv[first], "-once") == 0) {
@@ -481,6 +475,13 @@ NsTclSchedCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 	    break;
 	}
         first++;
+    }
+
+    if (argc < 2 || argc > 3) {
+        Tcl_AppendResult(interp, "wrong # args: should be \"", argv[0],
+                " ?-once? ?-thread? interval { script | procname ?arg? }\"", 
+                (char *) NULL);
+        return TCL_ERROR;
     }
 
     /*
