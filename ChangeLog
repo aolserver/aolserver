@@ -1,3 +1,10 @@
+2003-08-25  Mark Page  <mpagenva@aol.com>
+
+	* nsd/adprequest.c (): Suppress production of the result data for
+	requests with SKIPBODY set.
+	* nsd/return.c (ReturnCharData): Allow headers to be returned for
+	requests with SKIPBODY; e.g., HEAD requests.
+
 2003-08-21  Zoran Vasiljevic <zoran@archiware.com>
 
 	* nsd/tclfile.c: properly detach and attach the Tcl channel
@@ -59,6 +66,7 @@
 
         * TAG aolserver_v4_r0_beta_10
 
+>>>>>>> 1.190
 2003-07-18  Mark Page  <mpagenva@aol.com>
 
 	* nsd/adpeval.c (AdpEval): Check adp.outputPtr validity before
