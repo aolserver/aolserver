@@ -1,3 +1,9 @@
+2001-08-23  Kris Rehberg  <kriston@aol.com>
+
+        *** AOLserver 3.2.1 RELEASED ***
+	
+        * serv.c: back-ported patch for buffer overflow in ParseAuth.
+	
 2000-10-20  Kriston J. Rehberg  <Kriston@AOL.NET>
 
 	*** AOLserver 3.2 RELEASED ***
