@@ -33,7 +33,7 @@
  *	ADP parser.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpparse.c,v 1.2 2001/03/16 20:48:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpparse.c,v 1.3 2001/03/19 15:44:55 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -237,7 +237,7 @@ AppendChunk(Ns_DString *dsPtr, char *s, char *e, int type)
     if (s < e) {
 	Ns_DStringNAppend(dsPtr, type == 't' ? "t" : "s", 1);
 	if (type == 'S') {
-	    Ns_DStringAppend(dsPtr, "ns_puts -nonewline ");
+	    Ns_DStringAppend(dsPtr, "ns_adp_append ");
 	}
 	Ns_DStringNAppend(dsPtr, s, e-s);
 	Ns_DStringNAppend(dsPtr, "", 1);
@@ -450,7 +450,7 @@ AppendTag(Ns_DString *dsPtr, Tag *tagPtr, char *as, char *ae, char *se)
     char save;
 
     Tcl_DStringInit(&script);
-    Tcl_DStringAppend(&script, "ns_puts -nonewline [", -1);
+    Tcl_DStringAppend(&script, "ns_adp_append [", -1);
     if (!tagPtr->isproc) {
 	Tcl_DStringAppend(&script, "ns_adp_eval", -1);
     }
