@@ -1,3 +1,40 @@
+2003-02-04  Jamie Rasmussen <jrasmuss@mle.ie>
+
+        * include/nsthread.h:
+        * include/ns.h:
+        * nscgi/nscgi.c:
+        * nscp/nscp.c:
+        * nsd/adpeval.c:
+        * nsd/driver.c:
+        * nsd/encoding.c:
+        * nsd/exec.c:
+        * nsd/fastpath.c:
+        * nsd/fd.c:
+        * nsd/info.c:
+        * nsd/init.c:
+        * nsd/listen.c:
+        * nsd/modload.c:
+        * nsd/nsd.h:
+        * nsd/nsmain.c:
+        * nsd/pathname.c:
+        * nsd/request.c:
+        * nsd/server.c:
+        * nsd/sock.c:
+        * nsd/sockcallback.c:
+        * nsd/tclenv.c:
+        * nsd/tclfile.c:
+        * nsd/tclhttp.c:
+        * nsd/tclimg.c:
+        * nsd/tclsock.c:
+        * nsd/tclxkeylist.c:
+        * nsd/urlencode.c:
+        * nsd/urlopen.c:
+        * nsd/getopt.c:
+        * nsd/getopt.h:
+        * nsd/nswin32.c:
+        * nssock/nssock.c:
+        * win32: Added Win32 support and build files
+
 2003-02-04  Nathan Folkman <shmooved@aol.com>
 
         * nsd/tclmisc.c: (bug fix) Fixed arg checking bug in
