@@ -34,7 +34,7 @@
  *	Tcl commands that do stuff to the filesystem. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclfile.c,v 1.14 2002/06/14 01:51:26 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclfile.c,v 1.15 2002/07/08 02:50:55 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #include <utime.h>
@@ -56,6 +56,13 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
  *
  *----------------------------------------------------------------------
  */
+
+static int
+GetOpenChannel(Tcl_Interp *interp, Tcl_Obj *obj, int write,
+	int check, Tcl_Channel *chanPtr)
+{
+    return Ns_TclGetOpenChannel(interp, Tcl_GetString(obj), write, check, chanPtr);
+}
 
 int
 Ns_TclGetOpenChannel(Tcl_Interp *interp, char *chanId, int write,
@@ -225,8 +232,8 @@ NsTclCpFpObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST obj
         Tcl_WrongNumArgs(interp, 1, objv, "inChan outChan ?ncopy?");
 	return TCL_ERROR;
     }
-    if (Ns_TclGetOpenChannel(interp, Tcl_GetString(objv[1]), 0, 1, &in) != TCL_OK ||
-	Ns_TclGetOpenChannel(interp, Tcl_GetString(objv[2]), 1, 1, &out) != TCL_OK) {
+    if (GetOpenChannel(interp, objv[1], 0, 1, &in) != TCL_OK ||
+	GetOpenChannel(interp, objv[2], 1, 1, &out) != TCL_OK) {
 	return TCL_ERROR;
     }
     if (objc == 3) {
@@ -1525,7 +1532,7 @@ NsTclWriteFpObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST 
         Tcl_WrongNumArgs(interp, 1, objv, "fileid ?nbytes?");
 	    return TCL_ERROR;
     }
-    if (Ns_TclGetOpenChannel(interp, Tcl_GetString(objv[1]), 0, 1, &chan) != TCL_OK) {
+    if (GetOpenChannel(interp, objv[1], 0, 1, &chan) != TCL_OK) {
 	    return TCL_ERROR;
     }
     if (objc == 3 && Tcl_GetIntFromObj(interp, objv[2], &nbytes) != TCL_OK) {
@@ -1956,17 +1963,26 @@ NsTclChanObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST obj
     int new;
     Tcl_HashEntry *hPtr;
     Tcl_HashSearch search;
-    char *cmd;
+    static CONST char *opts[] = {
+	"cleanup", "list", "share", "register", "unregister", NULL
+    };
+    enum {
+	CCleanupIdx, CListIdx, CShareIdx, CRegisterIdx, CUnregisterIdx
+    } opt;
 
     if (objc < 2) {
         Tcl_WrongNumArgs(interp, 1, objv, "command ?args?");
 	return TCL_ERROR;
     }
-    cmd = Tcl_GetString(objv[1]);
+    if (Tcl_GetIndexFromObj(interp, objv[1], opts, "option", 0,
+			    (int *) &opt) != TCL_OK) {
+	return TCL_ERROR;
+    }
 
-    if (STREQ(cmd, "share")) {
+    switch (opt) {
+    case CShareIdx:
 	if (objc != 4) {
-        Tcl_WrongNumArgs(interp, 1, objv, "share name channel");
+            Tcl_WrongNumArgs(interp, 1, objv, "share name channel");
 	    return TCL_ERROR;
 	}
 	chan = Tcl_GetChannel(interp, Tcl_GetString(objv[2]), NULL);
@@ -1989,8 +2005,9 @@ NsTclChanObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST obj
 	}
 	hPtr = Tcl_CreateHashEntry(&itPtr->chans, Tcl_GetString(objv[3]), &new);
 	Tcl_SetHashValue(hPtr, chan);
+	break;
 
-    } else if (STREQ(cmd, "register")) {
+    case CRegisterIdx:
 	if (objc != 3) {
 	    Tcl_WrongNumArgs(interp, 1, objv, "register name");
 	    return TCL_ERROR;
@@ -2010,10 +2027,11 @@ NsTclChanObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST obj
 	}
 	hPtr = Tcl_CreateHashEntry(&itPtr->chans, Tcl_GetString(objv[2]), &new);
 	Tcl_SetHashValue(hPtr, chan);
+	break;
 
-    } else if (STREQ(cmd, "unregister")) {
+    case CUnregisterIdx:
 	if (objc != 3) {
-        Tcl_WrongNumArgs(interp, 1, objv, "unregister name");
+            Tcl_WrongNumArgs(interp, 1, objv, "unregister name");
 	    return TCL_ERROR;
 	}
 	hPtr = Tcl_FindHashEntry(&itPtr->chans, Tcl_GetString(objv[2]));
@@ -2027,14 +2045,17 @@ NsTclChanObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST obj
     	Ns_MutexLock(&servPtr->chans.lock);
 	Tcl_UnregisterChannel(interp, chan);
     	Ns_MutexUnlock(&servPtr->chans.lock);
+	break;
 
-    } else if (STREQ(cmd, "list")) {
+    case CListIdx:
 	hPtr = Tcl_FirstHashEntry(&itPtr->chans, &search);
 	while (hPtr != NULL) {
 	    Tcl_AppendElement(interp, Tcl_GetHashKey(&itPtr->chans, hPtr));
 	    hPtr = Tcl_NextHashEntry(&search);
 	}
-    } else if (STREQ(cmd, "cleanup")) {
+	break;
+
+    case CCleanupIdx:
 	if (itPtr->chans.numEntries > 0) {
 	    Ns_MutexLock(&servPtr->chans.lock);
 	    hPtr = Tcl_FirstHashEntry(&itPtr->chans, &search);
@@ -2045,12 +2066,6 @@ NsTclChanObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST obj
 	    }
 	    Ns_MutexUnlock(&servPtr->chans.lock);
 	}
-
-    } else {
-	Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "no such command: ",
-		cmd, "should be share, register, unregister, list, or cleanup", NULL);
-	return TCL_ERROR;
     }
-
     return TCL_OK;
 }

@@ -33,7 +33,7 @@
  *	Ns_Info* API and ns_info command support.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/info.c,v 1.9 2002/07/06 16:25:53 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/info.c,v 1.10 2002/07/08 02:50:55 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -644,157 +644,153 @@ NsTclInfoObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 	"version", "winnt", NULL
     };
     enum {
-	addressidx, argv0idx, boottimeidx, builddateidx, callbacksidx,
-	configidx, homeidx, hostnameidx, labelidx, locksidx, logidx,
-	majoridx, minoridx, nameidx, nsdidx, pagerootidx, patchlevelidx,
-	pididx, platformidx, poolsidx, scheduledidx, serveridx, serversidx,
-	sockcallbacksidx, tagidx, tcllibidx, threadsidx, uptimeidx,
-	versionidx, winntidx,
-    };
-    int idx;
+	IAddressIdx, IArgv0Idx, IBoottimeIdx, IBuilddateIdx, ICallbacksIdx,
+	IConfigIdx, IHomeIdx, hostINameIdx, ILabelIdx, ILocksIdx, ILogIdx,
+	IMajorIdx, IMinorIdx, INameIdx, INsdIdx, IPageRootIdx, IPatchLevelIdx,
+	IPidIdx, IPlatformIdx, IPoolsIdx, IScheduledIdx, IServerIdx, IServersIdx,
+	sockICallbacksIdx, ITagIdx, ITclLibIdx, IThreadsIdx, IUptimeIdx,
+	IVersionIdx, IWinntIdx,
+    } opt;
 
     if (objc != 2) {
 	Tcl_WrongNumArgs(interp, 1, objv, "option");
         return TCL_ERROR;
     }
-    if (Tcl_GetIndexFromObj(interp, objv[1], opts, "option", 0, &idx) != TCL_OK) {
+    if (Tcl_GetIndexFromObj(interp, objv[1], opts, "option", 0,
+			    (int *) &opt) != TCL_OK) {
 	return TCL_ERROR;
     }
 
     Tcl_DStringInit(&ds);
-    switch (idx) {
-    case argv0idx:
+    switch (opt) {
+    case IArgv0Idx:
 	Tcl_SetResult(interp, nsconf.argv0, TCL_STATIC);
 	break;
 
-    case nsdidx:
+    case INsdIdx:
 	Tcl_SetResult(interp, nsconf.nsd, TCL_STATIC);
 	break;
 
-    case nameidx:
+    case INameIdx:
         Tcl_SetResult(interp, Ns_InfoServerName(), TCL_STATIC);
 	break;
 
-    case configidx:
+    case IConfigIdx:
 	Tcl_SetResult(interp, Ns_InfoConfigFile(), TCL_STATIC);
 	break;
 
-    case callbacksidx:
+    case ICallbacksIdx:
     	NsGetCallbacks(&ds);
 	Tcl_DStringResult(interp, &ds);
 	break;
 
-    case sockcallbacksidx:
+    case sockICallbacksIdx:
     	NsGetSockCallbacks(&ds);
 	Tcl_DStringResult(interp, &ds);
 	break;
 
-    case scheduledidx:
+    case IScheduledIdx:
     	NsGetScheduled(&ds);
 	Tcl_DStringResult(interp, &ds);
 	break;
 
-    case locksidx:
+    case ILocksIdx:
 	Ns_MutexList(&ds);
 	Tcl_DStringResult(interp, &ds);
 	break;
 
-    case threadsidx:
+    case IThreadsIdx:
 	Ns_ThreadList(&ds, ThreadArgProc);
 	Tcl_DStringResult(interp, &ds);
 	break;
 
-    case poolsidx:
+    case IPoolsIdx:
 	Tcl_GetMemoryInfo(&ds);
 	Tcl_DStringResult(interp, &ds);
 	break;
 
-    case logidx:
+    case ILogIdx:
         elog = Ns_InfoErrorLog();
 	Tcl_SetResult(interp, elog == NULL ? "STDOUT" : elog, TCL_STATIC);
 	break;
 
-    case platformidx:
+    case IPlatformIdx:
 	Tcl_SetResult(interp, Ns_InfoPlatform(), TCL_STATIC);
 	break;
 
-    case hostnameidx:
+    case hostINameIdx:
 	Tcl_SetResult(interp, Ns_InfoHostname(), TCL_STATIC);
 	break;
 
-    case addressidx:
+    case IAddressIdx:
 	Tcl_SetResult(interp, Ns_InfoAddress(), TCL_STATIC);
 	break;
 
-    case uptimeidx:
+    case IUptimeIdx:
 	Tcl_SetObjResult(interp, Tcl_NewIntObj(Ns_InfoUptime()));
 	break;
 
-    case boottimeidx:
+    case IBoottimeIdx:
 	Tcl_SetObjResult(interp, Tcl_NewIntObj(Ns_InfoBootTime()));
 	break;
 
-    case pididx:
+    case IPidIdx:
 	Tcl_SetObjResult(interp, Tcl_NewIntObj(Ns_InfoPid()));
 	break;
 
-    case majoridx:
+    case IMajorIdx:
 	Tcl_SetObjResult(interp, Tcl_NewIntObj(NS_MAJOR_VERSION));
 	break;
 
-    case minoridx:
+    case IMinorIdx:
 	Tcl_SetObjResult(interp, Tcl_NewIntObj(NS_MINOR_VERSION));
 	break;
 
-    case versionidx:
+    case IVersionIdx:
 	Tcl_SetResult(interp, NS_VERSION, TCL_STATIC);
 	break;
 
-    case patchlevelidx:
+    case IPatchLevelIdx:
 	Tcl_SetResult(interp, NS_PATCH_LEVEL, TCL_STATIC);
 	break;
 
-    case homeidx:
+    case IHomeIdx:
 	Tcl_SetResult(interp, Ns_InfoHomePath(), TCL_STATIC);
 	break;
 
-    case winntidx:
+    case IWinntIdx:
 	Tcl_SetResult(interp, "0", TCL_STATIC);
 	break;
 
-    case labelidx:
+    case ILabelIdx:
 	Tcl_SetResult(interp, Ns_InfoLabel(), TCL_STATIC);
 	break;
 
-    case builddateidx:
+    case IBuilddateIdx:
 	Tcl_SetResult(interp, Ns_InfoBuildDate(), TCL_STATIC);
 	break;
 
-    case tagidx:
+    case ITagIdx:
 	Tcl_SetResult(interp, Ns_InfoTag(), TCL_STATIC);
 	break;
 
-    case serversidx:
+    case IServersIdx:
 	Tcl_SetResult(interp, nsconf.servers.string, TCL_STATIC);
 	break;
 
-    case tcllibidx:
-    case pagerootidx:
-    case serveridx:
+    case ITclLibIdx:
+    case IPageRootIdx:
+    case IServerIdx:
 	if (itPtr == NULL) {
 	    Tcl_SetResult(interp, "no server", TCL_STATIC);
 	    return TCL_ERROR;
 	}
-	switch (idx) {
-    	case serveridx:
+	if (opt == IServerIdx) {
             Tcl_SetResult(interp, itPtr->servPtr->server, TCL_STATIC);
-	    break;
-    	case tcllibidx:
+	} else if (opt == ITclLibIdx) {
 	    Tcl_SetResult(interp, itPtr->servPtr->tcl.library, TCL_STATIC);
-	    break;
-    	case pagerootidx:
+	} else {
 	    Tcl_SetResult(interp, itPtr->servPtr->fastpath.pageroot, TCL_STATIC);
-	    break;
 	}
     }
     return TCL_OK;

@@ -33,7 +33,7 @@
  *	Support for the ns_http command.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclhttp.c,v 1.9 2002/06/13 04:41:21 jcollins Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclhttp.c,v 1.10 2002/07/08 02:50:55 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -242,20 +242,30 @@ NsTclHttpObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST obj
 {
     NsInterp *itPtr = arg;
     Http *httpPtr;
-    char *cmd, buf[20], *result;
+    char buf[20], *result;
     int new, status, n;
-    Ns_Time timeout;
+    Ns_Time timeout, incr;
     Ns_Set *hdrs;
     Tcl_HashEntry *hPtr;
     Tcl_HashSearch search;
+    static CONST char *opts[] = {
+       "cancel", "cleanup", "queue", "wait", NULL
+    };
+    enum {
+	HCancelIdx, HCleanupIdx, HQueueIdx, HWaitIdx
+    } opt;
 
     if (objc < 2) {
-        Tcl_WrongNumArgs(interp, 1, objv, "command ?args ...?");
+        Tcl_WrongNumArgs(interp, 1, objv, "option ?args ...?");
     	return TCL_ERROR;
     }
+    if (Tcl_GetIndexFromObj(interp, objv[1], opts, "option", 0,
+			    (int *) &opt) != TCL_OK) {
+	return TCL_ERROR;
+    }
 
-    cmd = Tcl_GetString(objv[1]);
-    if (STREQ(cmd, "queue")) {
+    switch (opt) {
+    case HQueueIdx:
 	if (objc != 3 && objc != 4) {
 	    Tcl_WrongNumArgs(interp, 2, objv, "url ?headers ...?");
 	    return TCL_ERROR;
@@ -279,10 +289,11 @@ NsTclHttpObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST obj
 	} while (!new);
 	Tcl_SetHashValue(hPtr, httpPtr);
 	Tcl_SetResult(interp, buf, TCL_VOLATILE);
+	break;
 
-    } else if (STREQ(cmd, "cancel")) {
+    case HCancelIdx:
 	if (objc != 3) {
-        Tcl_WrongNumArgs(interp, 2, objv, "cancel id");
+            Tcl_WrongNumArgs(interp, 2, objv, "id");
 	    return TCL_ERROR;
 	}
 	hPtr = Tcl_FindHashEntry(&itPtr->https, Tcl_GetString(objv[2]));
@@ -293,21 +304,22 @@ NsTclHttpObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST obj
 	}
 	httpPtr = Tcl_GetHashValue(hPtr);
 	Tcl_DeleteHashEntry(hPtr);
-	sprintf(buf, "%d", HttpAbort(httpPtr));
-	Tcl_SetResult(interp, buf, TCL_VOLATILE);
+	Tcl_SetIntObj(Tcl_GetObjResult(interp), HttpAbort(httpPtr));
+	break;
 
-    } else if (STREQ(cmd, "wait")) {
+    case HWaitIdx:
 	if (objc < 4 || objc > 6) {
-	    Tcl_WrongNumArgs(interp, 2, objv, "wait id resultsVar ?timeout? ?headers?");
+	    Tcl_WrongNumArgs(interp, 2, objv, "id resultsVar ?timeout? ?headers?");
 	    return TCL_ERROR;
 	}
 	if (objc < 5) {
-	    n = 2;
-	} else if (Tcl_GetIntFromObj(interp, objv[4], &n) != TCL_OK) {
+	    incr.sec  = 2;
+	    incr.usec = 0;
+	} else if (Ns_TclGetTimeFromObj(interp, objv[4], &incr) != TCL_OK) {
 	    return TCL_ERROR;
 	}
 	Ns_GetTime(&timeout);
-	Ns_IncrTime(&timeout, n, 0);
+	Ns_IncrTime(&timeout, incr.sec, incr.usec);
 	if (objc < 6) {
 	    hdrs = NULL;
 	} else if (Ns_TclGetSet2(interp, Tcl_GetString(objv[5]), &hdrs) != TCL_OK) {
@@ -345,9 +357,10 @@ NsTclHttpObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST obj
 	if (result == NULL) {
 	    return TCL_ERROR;
 	}
-	Tcl_SetResult(interp, status == NS_OK ? "1" : "0", TCL_STATIC);
+	Tcl_SetBooleanObj(Tcl_GetObjResult(interp), status == NS_OK ? 1 : 0);
+	break;
 
-    } else if (STREQ(cmd, "cleanup")) {
+    case HCleanupIdx:
 	hPtr = Tcl_FirstHashEntry(&itPtr->https, &search);
 	while (hPtr != NULL) {
 	    httpPtr = Tcl_GetHashValue(hPtr);
@@ -356,11 +369,8 @@ NsTclHttpObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST obj
 	}
 	Tcl_DeleteHashTable(&itPtr->https);
 	Tcl_InitHashTable(&itPtr->https, TCL_STRING_KEYS);
-
-    } else {
-        Tcl_WrongNumArgs(interp, 2, objv, "should be queue, wait, or cancel");
+	break;
     }
-
     return TCL_OK;
 }
 
