@@ -34,7 +34,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.21 2004/07/13 22:03:36 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.22 2004/07/14 00:32:10 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -1077,24 +1077,15 @@ DriverThread(void *arg)
 
 	while ((sockPtr = preqPtr) != NULL) {
 	    preqPtr = sockPtr->nextPtr;
-	    if (!SetServer(sockPtr->connPtr)) {
-		connPtr = sockPtr->connPtr;
-		/* NB: Sock no longer responsible for Conn. */
-		sockPtr->connPtr = NULL;
-		sockPtr->state = SOCK_RUNNING;
-		connPtr->times.queue = drvPtr->now;
-		(void) Ns_ConnReturnBadRequest(connPtr, NULL);
-		// SockRelease(drvPtr, sockPtr);
+	    SetServer(sockPtr->connPtr);
+	    sockPtr->connPtr->times.ready = drvPtr->now;
+	    if (RunPreQueues(sockPtr->connPtr)) {
+		/* NB: Sock timeout now longest que wait. */
+		sockPtr->timeout = maxtimeout;
+		sockPtr->state = SOCK_QUEWAIT;
+		SockPush(sockPtr, &waitPtr);
 	    } else {
-            	sockPtr->connPtr->times.ready = drvPtr->now;
-		if (RunPreQueues(sockPtr->connPtr)) {
-		    /* NB: Sock timeout now longest que wait. */
-		    sockPtr->timeout = maxtimeout;
-		    sockPtr->state = SOCK_QUEWAIT;
-		    SockPush(sockPtr, &waitPtr);
-		} else {
-		    SockPush(sockPtr, &queuePtr);
-		}
+		SockPush(sockPtr, &queuePtr);
 	    }
 	}
 
@@ -1700,6 +1691,9 @@ SetServer(Conn *connPtr)
     connPtr->server = connPtr->servPtr->server;
     connPtr->encoding = connPtr->servPtr->encoding.outputEncoding;
     connPtr->urlEncoding = connPtr->servPtr->encoding.urlEncoding;
+    if (!status) {
+	connPtr->request->method = "BAD";
+    }
     return status;
 }
 
