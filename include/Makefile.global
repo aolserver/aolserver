@@ -34,6 +34,7 @@ LIBS         +=
 MKDIR        =   mkdir -p
 RM           =   /bin/rm -f
 CP           =   /bin/cp -fp
+ECHO         =   /bin/echo
 FIND         =   find
 MV           =   /bin/mv
 LN           =   ln -s
