@@ -1,4 +1,11 @@
+2000-12-12  Kriston J. Rehberg  <kriston@aol.com>
 
+	* nsvhr/nsvhr.c (UDSProxy): More type changes.
+
+	* nslog/nslog.c (Ns_ModuleInit): pointer-to-function casted.
+
+	* nscp/nscp.c (GetLine): buf changed to char *; casted AcceptProc.
+	
 2000-12-12  Jim Davidson
 
 	* nssock/sock.cpp: Fixed multiple-load problems, added sndbuf,

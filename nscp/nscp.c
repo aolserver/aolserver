@@ -35,7 +35,7 @@
  *  	Tcl commands.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscp/nscp.c,v 1.12 2000/10/17 20:12:03 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscp/nscp.c,v 1.13 2000/12/12 22:54:27 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 
@@ -133,7 +133,7 @@ Ns_ModuleInit(char *s, char *module)
 	return NS_ERROR;
     }
     Ns_Log(Notice, "nscp: listening on %s:%d", addr, port);
-    Ns_RegisterProcInfo(AcceptProc, "nscp", ArgProc);
+    Ns_RegisterProcInfo((void *)AcceptProc, "nscp", ArgProc);
     Ns_SockCallback(lsock, AcceptProc, NULL, NS_SOCK_READ|NS_SOCK_EXIT);
 
     /*
@@ -373,7 +373,7 @@ done:
 static int
 GetLine(SOCKET sock, char *prompt, Tcl_DString *dsPtr, int echo)
 {
-    unsigned char buf[2048];
+    char buf[2048];
     int n;
     int result = 0;
 
