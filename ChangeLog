@@ -1,5 +1,8 @@
 2000-10-17  Kriston J. Rehberg  <Kriston@AOL.NET>
 
+	* nssock/sock.cpp: extra padding on Server Busy message to defeat
+	MSIE friendly error messages.
+
 	* nsd/nsconf.h: All configuration option defaults have been moved
 	to nsconf.h as #defines.
 
