@@ -34,7 +34,9 @@ INSTSRVPAG   =   $(INSTSRV)/pages
 CC           =   gcc
 LD           =   ld
 LDSO	     =   $(CC) -shared -nostartfiles
-GCCOPT       =   -g -O2 -fPIC -Wall -Wno-unused
+#GCCOPTIMIZE  =   -O2
+GCCOPTIMIZE  =   -g
+GCCOPT       =   $(GCCOPTIMIZE) -fPIC -Wall -Wno-unused
 CFLAGS       +=  -I$(NSHOME)/include -D_REENTRANT=1 -DNDEBUG=1
 LIBNSTHREAD  =   $(NSHOME)/thread/libnsthread.a
 LIBS         +=  
@@ -109,7 +111,9 @@ ifneq (,$(findstring SunOS,$(PLAT)))
 
     ifdef nativeme
         CC=$(PURIFY) /opt/SUNWspro/bin/cc
-        CFLAGS+=-g -xO2 -KPIC -erroff=%none
+        #CCOPTIMIZE = -x02
+        CCOPTIMIZE = -g
+        CFLAGS+=$(CCOPTIMIZE) -KPIC -erroff=%none
         ifneq (,$(findstring sparc,$(PLAT)))
             CFLAGS+=-xarch=v8plusa
         else
@@ -158,7 +162,9 @@ ifneq (,$(findstring IRIX,$(PLAT)))
     ifndef gccme
         ABI=o32
         CC=$(PURIFY) cc
-        CFLAGS  += -$(ABI) -KPIC -g3 -O2 -fullwarn -DUSE_DUPHIGH=1
+        ##CCOPTIMIZE = -g3 -O2
+        CCOPTIMIZE = -g
+        CFLAGS  += $(CCOPTIMIZE) -$(ABI) -KPIC -fullwarn -DUSE_DUPHIGH=1
     else
         ABI=n32
         CFLAGS+=$(GCCOPTS) -mcpu=mips
