@@ -1,3 +1,8 @@
+2003-05-28  Mark Page <mpagenva@aol.com>
+
+    * nsd/tclmisc.c: (bug fix): Use binary channel to read image file
+    for ns_jpegsize.  Eliminate double error string.
+
 2003-05-28  Nathan Folkman <shmooved@aol.com>
 
     * nslog/nslog.c: (bug fix): Fixed bug where TLS was not correctly
