@@ -41,10 +41,17 @@
  *   Jobs are shared between tp and the queue, but are owned by the queue
  *   so the queue's lock is used to control access to the jobs.
  *
+ *   To avoid deadlock, the tp queuelock should be locked before the
+ *   queue's lock.
+ *
+ *
  * Notes:
  *
+ *   The threadpool's max number of thread is the sum of all the current
+ *   queue's max threads.
+ *
  *   The number of threads in the thread pool can be greater than
- *   then current max number of threads. This situtation can occur when
+ *   the current max number of threads. This situtation can occur when
  *   a queue is deleted. Later on if a new queue is created it will simply
  *   use one of the previously created threads. Basically the number of
  *   threads is a "high water mark".
@@ -52,14 +59,23 @@
  *   The queues are reference counted. Only when a queue is empty and
  *   its reference count is zero can it be deleted. 
  *
- *   We can not use a Tcl_Obj to represent the queue because queues can
+ *   We can no longer use a Tcl_Obj to represent the queue because queues can
  *   now be deleted. Tcl_Objs are deleted when the object goes out of
  *   scope, whereas queues are deleted when delete is called. By doing
  *   this the queue can be used across tcl interpreters.
  *
+ * ToDo:
+ *   
+ *   Users can leak queues. A queue will stay around until a user
+ *   cleans it up. It order to help the user out we would like to
+ *   add an "-autoclean" option to queue create function. However,
+ *   AOLServer does not currently supply a "good" connection cleanup
+ *   callback. We tryed to use "Ns_RegisterConnCleanup" however it does
+ *   not have a facility to remove registered functions.
+ *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tcljob.c,v 1.17 2003/09/22 22:32:03 pmoosman Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tcljob.c,v 1.18 2003/09/23 14:50:14 pmoosman Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -385,7 +401,8 @@ NsTclJobObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
             queueId = Tcl_GetString(queueIdObj);
 
             max = NS_JOB_DEFAULT_MAXTHREADS;
-            if (objc == 4 && Tcl_GetIntFromObj(interp, objv[argIndex++], &max) != TCL_OK) {
+            if ((objc >= argIndex) &&
+                Tcl_GetIntFromObj(interp, objv[argIndex++], &max) != TCL_OK) {
                 return TCL_ERROR;
             }
 
@@ -449,8 +466,10 @@ NsTclJobObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
                 }
             }
                 
+            Ns_MutexLock(&tp.queuelock);
             if (lookupQueue(interp, Tcl_GetString(objv[argIndex++]),
-                            &queuePtr, 0) != TCL_OK) {
+                            &queuePtr, 1) != TCL_OK) {
+                Ns_MutexUnlock(&tp.queuelock);
                 return TCL_ERROR;
             }
             
@@ -463,7 +482,6 @@ NsTclJobObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
                             objv[argIndex++]);
             Tcl_GetTime(&jobPtr->startTime);
 
-            Ns_MutexLock(&tp.queuelock);
 
             if ((tp.req == THREADPOOL_REQ_STOP) || 
                 (queuePtr->req == QUEUE_REQ_DELETE))
@@ -472,9 +490,7 @@ NsTclJobObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
                                  "The specified queue is being deleted or "
                                  "the system is stopping.", NULL);
                 FreeJob(jobPtr);
-
                 releaseQueue(queuePtr, 1);
-
                 Ns_MutexUnlock(&tp.queuelock);
                 return TCL_ERROR;
             }
@@ -498,7 +514,6 @@ NsTclJobObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
             } else {
                 create = 0;
             }
-            Ns_MutexUnlock(&tp.queuelock);
 
             /*
              * Add the job to queue.
@@ -513,7 +528,8 @@ NsTclJobObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
             Tcl_SetHashValue(hPtr, jobPtr);
             Ns_CondBroadcast(&tp.cond);
 
-            releaseQueue(queuePtr, 0);
+            releaseQueue(queuePtr, 1);
+            Ns_MutexUnlock(&tp.queuelock);
 
             if (create) {
                 Ns_ThreadCreate(JobThread, 0, 0, NULL);
