@@ -34,7 +34,7 @@
  *      Manage the Ns_Conn structure
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.13 2001/04/02 19:36:47 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.14 2001/04/10 23:21:22 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #define IOBUFSZ 2048
@@ -45,7 +45,7 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
 
 static int ConnSend(Ns_Conn *, int nsend, Tcl_Channel chan,
     	    	    FILE *fp, int fd);
-static int ConnCopy(Ns_Conn *conn, size_t tocopy, Ns_DString *dsPtr,
+static int ConnCopy(Ns_Conn *conn, size_t tocopy, char *buffer,
     	    	    Tcl_Channel chan, FILE *fp, int fd);
 
 /*
@@ -890,7 +890,7 @@ Ns_ConnSendFd(Ns_Conn *conn, int fd, int nsend)
 int
 Ns_ConnCopyToDString(Ns_Conn *conn, size_t ncopy, Ns_DString *dsPtr)
 {
-    int len;
+    int len, status;
 
     /*
      * Grow dstring to include space for requested bytes to
@@ -900,8 +900,12 @@ Ns_ConnCopyToDString(Ns_Conn *conn, size_t ncopy, Ns_DString *dsPtr)
     len = dsPtr->length;
     Ns_DStringSetLength(dsPtr, ncopy+len);
     Ns_DStringSetLength(dsPtr, len);
-
-    return ConnCopy(conn, ncopy, dsPtr, NULL, NULL, -1);
+    status = ConnCopy(conn, ncopy, dsPtr->string + len, NULL, NULL, -1);
+    if (status != NS_OK) {
+	ncopy = 0;
+    }
+    Ns_DStringSetLength(dsPtr, len + ncopy);
+    return status;
 }
 
 int
@@ -1566,7 +1570,7 @@ NsTclWriteContentCmd(ClientData arg, Tcl_Interp *interp, int argc,
  *
  * ConnCopy --
  *
- *	Copy connection content to a dstring, channel, FILE, or fd.
+ *	Copy connection content to a buffer, channel, FILE, or fd.
  *
  * Results:
  *  	NS_OK or NS_ERROR if not all content could be read.
@@ -1578,47 +1582,51 @@ NsTclWriteContentCmd(ClientData arg, Tcl_Interp *interp, int argc,
  */
 
 static int
-ConnCopy(Ns_Conn *conn, size_t tocopy, Ns_DString *dsPtr,
+ConnCopy(Ns_Conn *conn, size_t tocopy, char *buffer,
     	 Tcl_Channel chan, FILE *fp, int fd)
 {
-    char        buf[IOBUFSZ];
-    char       *bufPtr;
+    char        tmp[IOBUFSZ];
+    char       *buf;
     int		toread, towrite, nread, nwrote;
 
     while (tocopy > 0) {
-        toread = tocopy;
-        if (toread > sizeof(buf)) {
-            toread = sizeof(buf);
-        }
+	toread = tocopy;
+	if (buffer != NULL) {
+	    buf = buffer;
+	} else {
+	    buf = tmp;
+	    if (toread > sizeof(tmp)) {
+		toread = sizeof(tmp);
+	    }
+	}
         nread = Ns_ConnRead(conn, buf, toread);
 	if (nread < 0) {
 	    return NS_ERROR;
 	}
-	towrite = nread;
-    	bufPtr = buf;
-        while (towrite > 0) {
-	    if (dsPtr != NULL) {
-	    	Ns_DStringNAppend(dsPtr, bufPtr, nread);
-		nwrote = nread;
-    	    } else if (chan != NULL) {
-		nwrote = Tcl_Write(chan, buf, nread);
-    	    } else if (fp != NULL) {
-        	nwrote = fwrite(bufPtr, 1, nread, fp);
-        	if (ferror(fp)) {
-		    nwrote = -1;
+	if (buffer != NULL) {
+	    buffer += nread;
+	} else {
+	    towrite = nread;
+	    while (towrite > 0) {
+		if (chan != NULL) {
+		    nwrote = Tcl_Write(chan, buf, nread);
+    		} else if (fp != NULL) {
+        	    nwrote = fwrite(buf, 1, nread, fp);
+        	    if (ferror(fp)) {
+			nwrote = -1;
+		    }
+		} else {
+	    	    nwrote = write(fd, buf, nread);
 		}
-	    } else {
-	    	nwrote = write(fd, bufPtr, nread);
+		if (nwrote < 0) {
+	    	    return NS_ERROR;
+		}
+		towrite -= nwrote;
+		buf += nwrote;
 	    }
-	    if (nwrote < 0) {
-	    	return NS_ERROR;
-	    }
-            towrite -= nwrote;
-            bufPtr += nwrote;
-        }
+	}
         tocopy -= nread;
     }
-
     return NS_OK;
 }
 
