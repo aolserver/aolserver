@@ -35,7 +35,7 @@
  *  	Tcl commands.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscp/nscp.c,v 1.17 2002/10/10 19:25:30 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscp/nscp.c,v 1.18 2003/01/17 21:29:49 shmooved Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 
@@ -361,7 +361,7 @@ retry:
 	}
 
         if (sessPtr->modPtr->commandLogging) {
-            Ns_Log(Notice, " %d> %s", ncmd, ds.string);
+            Ns_Log(Notice, "nscp:%d %s", ncmd, ds.string);
         }
 
 	if (Tcl_RecordAndEval(interp, ds.string, 0) != TCL_OK) {
@@ -377,7 +377,7 @@ retry:
 	}
 
         if (sessPtr->modPtr->commandLogging) {
-            Ns_Log(Notice, " %d> Command Completed.", ncmd);
+            Ns_Log(Notice, "nscp:%d done", ncmd);
         }
     }
 done:
