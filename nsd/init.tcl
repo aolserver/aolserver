@@ -28,7 +28,7 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/init.tcl,v 1.19 2003/04/10 14:37:03 mpagenva Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/init.tcl,v 1.20 2003/06/18 20:51:18 mpagenva Exp $
 #
 
 #
@@ -80,6 +80,8 @@ proc ns_module {key {val ""}} {
 #   new procs commands and then save the
 #   state of the procs for other interps
 #   to sync with on their next _ns_atalloc.
+#   If this is called from within interp init
+#   processing, it will devolve to an eval.
 #
 #   If this ever gets moved to a namespace,
 #   the eval will need to be modified to
@@ -88,6 +90,42 @@ proc ns_module {key {val ""}} {
 #
 
 proc ns_eval {args} {
+    set len [llength $args]
+
+    if {$len == 0} {
+        return
+    } elseif {$len == 1} {
+        set args [lindex $args 0]
+    }
+
+    # Need to always incorporate given script into current interp
+    # Use this also to verify the script prior to doing the fold into
+    # the ictl environment
+    set code [catch {uplevel 1 $args} result]
+    if {!$code && [ns_ictl epoch]} {
+	# If the local eval result was ok (code == 0),
+	# and if we are not in interp init processing (epoch != 0),
+        # eval the args in a fresh thread to obtain a pristine
+        # environment.
+        set tid [ns_thread begin [list _ns_eval $args]]
+        ns_thread join $tid
+    } elseif {$code == 1} {
+	ns_markfordelete
+    }
+    return -code $code $result
+}
+
+#
+# _ns_eval --
+#
+#   Internal helper func for ns_eval.  This
+#   function will evaluate the given args (from
+#   a pristine thread/interp that ns_eval put
+#   it into) and then load the result into
+#   the interp init script.
+#
+
+proc _ns_eval {args} {
     set len [llength $args]
 
     if {$len == 0} {
