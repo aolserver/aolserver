@@ -33,7 +33,7 @@
  *	ADP string and file eval.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.13 2002/05/15 23:38:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.14 2002/06/05 23:24:16 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -116,7 +116,7 @@ static Ns_Callback FreeInterpPage;
  */
 
 int
-NsAdpEval(NsInterp *itPtr, char *string, int argc, char **argv)
+NsAdpEval(NsInterp *itPtr, char *string, int argc, char **argv, int safe)
 {
     AdpParse	      parse;
     Frame             frame;
@@ -130,7 +130,7 @@ NsAdpEval(NsInterp *itPtr, char *string, int argc, char **argv)
      
     Tcl_DStringInit(&output);
     PushFrame(itPtr, &frame, NULL, argc, argv, &output);
-    NsAdpParse(&parse, itPtr->servPtr, string);
+    NsAdpParse(&parse, itPtr->servPtr, string, safe);
     result = AdpEval(itPtr, &parse.code, NULL);
     PopFrame(itPtr, &frame);
     Tcl_SetResult(itPtr->interp, output.string, TCL_VOLATILE);
@@ -244,7 +244,7 @@ AdpRun(NsInterp *itPtr, char *file, int argc, char **argv, Tcl_DString *outputPt
 	procs = Ns_SetIGet(hdrs, "dprocs");
 	if (NsAdpDebug(itPtr, host, port, procs) != TCL_OK) {
 	    Ns_ConnReturnNotice(itPtr->conn, 200, "Debug Init Failed",
-				Tcl_GetStringResult(interp));
+				(char *) Tcl_GetStringResult(interp));
 	    itPtr->adp.exception = ADP_ABORT;
 	    goto done;
 	}
@@ -644,7 +644,7 @@ ParseFile(NsInterp *itPtr, char *file, struct stat *stPtr)
 	    Tcl_ExternalToUtfDString(encoding, buf, n, &utf);
 	    page = utf.string;
 	}
-	NsAdpParse(&parse, itPtr->servPtr, page);
+	NsAdpParse(&parse, itPtr->servPtr, page, 0);
 	Tcl_DStringFree(&utf);
 	n = parse.hdr.length + parse.text.length + strlen(file) + 1;
 	pagePtr = ns_malloc(sizeof(Page) + n);
@@ -693,7 +693,7 @@ LogError(NsInterp *itPtr, int nscript)
 {
     Tcl_Interp *interp = itPtr->interp;
     Ns_DString ds;
-    char *argv[2];
+    const char *argv[2];
     char *file;
     
     Ns_DStringInit(&ds);

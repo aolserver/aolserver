@@ -33,19 +33,20 @@
  *	ADP commands.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpcmds.c,v 1.8 2001/12/05 22:46:21 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpcmds.c,v 1.9 2002/06/05 23:24:16 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
 static int ReturnCmd(NsInterp *itPtr, int argc, char **argv, int exception);
+static int EvalCmd(NsInterp *itPtr, int argc, char **argv, int safe);
 
 
 /*
  *----------------------------------------------------------------------
  *
- * NsTclAdpEvalCmd --
+ * NsTclAdpEvalCmd, NsTclAdpSafeEvalCmd --
  *
- *	Evaluate an ADP string.
+ *	(Safe) Evaluate an ADP string.
  *
  * Results:
  *	A standard Tcl result.
@@ -61,12 +62,25 @@ int
 NsTclAdpEvalCmd(ClientData arg, Tcl_Interp *interp, int argc,
 		char **argv)
 {
+    return EvalCmd(arg, argc, argv, 0);
+}
+
+int
+NsTclAdpSafeEvalCmd(ClientData arg, Tcl_Interp *interp, int argc,
+		char **argv)
+{
+    return EvalCmd(arg, argc, argv, 1);
+}
+
+static int
+EvalCmd(NsInterp *itPtr, int argc, char **argv, int safe)
+{
     if (argc < 2) {
-	Tcl_AppendResult(interp, "wrong # args: should be: \"",
+	Tcl_AppendResult(itPtr->interp, "wrong # args: should be: \"",
 	    argv[0], " page ?args ...?\"", NULL);
 	return TCL_ERROR;
     }
-    return NsAdpEval(arg, argv[1], argc-2, argv+2);
+    return NsAdpEval(itPtr, argv[1], argc-2, argv+2, safe);
 }
 
 
@@ -119,7 +133,7 @@ NsTclAdpIncludeCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 int
 NsTclAdpParseCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 {
-    int         isfile, i;
+    int         isfile, i, safe;
     char       *string;
     
     if (argc < 2) {
@@ -128,7 +142,7 @@ badargs:
               argv[0], " ?-file|-string? arg ?arg1 arg2 ...?\"", NULL);
         return TCL_ERROR;
     }
-    isfile = 0;
+    isfile = safe = 0;
     for (i = 1; i < argc; ++i) {
 	if (STREQ(argv[i], "-global")) {
 	    Tcl_SetResult(interp, "option -global unsupported", TCL_STATIC);
@@ -136,6 +150,8 @@ badargs:
 	}
 	if (STREQ(argv[i], "-file")) {
 	    isfile = 1;
+	} else if (STREQ(argv[i], "-safe")) {
+	    safe = 1;
 	} else if (!STREQ(argv[i], "-string") && !STREQ(argv[i], "-local")) {
 	    break;
 	}
@@ -149,7 +165,7 @@ badargs:
     if (isfile) {
         return NsAdpSource(arg, string, argc, argv);
     } else {
-        return NsAdpEval(arg, string, argc, argv);
+        return NsAdpEval(arg, string, argc, argv, safe);
     }
 }
 
