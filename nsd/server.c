@@ -33,7 +33,7 @@
  *	Routines for managing NsServer structures.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.13 2001/12/18 22:34:42 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.14 2002/05/15 20:10:34 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -320,17 +320,17 @@ NsInitServer(char *server)
     }
     Tcl_InitHashTable(&servPtr->share.inits, TCL_STRING_KEYS);
     Tcl_InitHashTable(&servPtr->share.vars, TCL_STRING_KEYS);
-    Ns_MutexSetName2(&servPtr->share.lock, "ns:share", server);
+    Ns_MutexSetName2(&servPtr->share.lock, "nstcl:share", server);
     Tcl_InitHashTable(&servPtr->var.table, TCL_STRING_KEYS);
     Tcl_InitHashTable(&servPtr->sets.table, TCL_STRING_KEYS);
-    Ns_MutexSetName2(&servPtr->sets.lock, "ns:sets", server);
+    Ns_MutexSetName2(&servPtr->sets.lock, "nstcl:sets", server);
 
     /*
      * Initialize the Tcl detached channel support.
      */
 
     Tcl_InitHashTable(&servPtr->chans.table, TCL_STRING_KEYS);
-    Ns_MutexSetName2(&servPtr->chans.lock, "ns:chans", server);
+    Ns_MutexSetName2(&servPtr->chans.lock, "nstcl:chans", server);
 
 
     /*
@@ -466,10 +466,10 @@ NsInitServer(char *server)
     Tcl_InitHashTable(&servPtr->adp.pages, FILE_KEYS);
     Ns_MutexInit(&servPtr->adp.pagelock);
     Ns_CondInit(&servPtr->adp.pagecond);
-    Ns_MutexSetName2(&servPtr->adp.pagelock, "nsadppages", server);
+    Ns_MutexSetName2(&servPtr->adp.pagelock, "nsadp:pages", server);
     Tcl_InitHashTable(&servPtr->adp.tags, TCL_STRING_KEYS);
     Ns_MutexInit(&servPtr->adp.taglock);
-    Ns_MutexSetName2(&servPtr->adp.taglock, "nsadptags", server);
+    Ns_MutexSetName2(&servPtr->adp.taglock, "nsadp:tags", server);
 
     /*
      * Register ADP for any requested URLs.
@@ -488,11 +488,9 @@ NsInitServer(char *server)
     }
 
     /*
-     * Initialize the database, call any custom init proc, load
-     * modules, and initialize Tcl.  The order is significant.
+     * Load modules and initialize Tcl.  The order is significant.
      */
 
-    NsDbInitServer(server);
     NsLoadModules(server);
     NsTclInitServer(server);
 }
