@@ -1,3 +1,9 @@
+2004-11-22  tag aolserver_v40_r9
+
+2004-11-22  Dossy Shiobara <dossy@panoptic.com>
+
+	* include/ns.h (1.55.2.15): BUMP: 4.0.9
+
 2004-11-20  Dossy Shiobara <dossy@panoptic.com>
 
 	* nsd/tclsched.c (1.5.2.1): Option parsing needed to be more
