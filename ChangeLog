@@ -1,3 +1,8 @@
+2003-04-22  Nathan Folkman <shmooved@aol.com>
+
+        * nsd/log.c: (bug fix) Fixed bug causing first two string
+        args of "ns_log" to be improperly concatendated.
+
 2003-04-16  Mark Page  <mpagenva@aol.com>
 
 	* nsd/modload.c (NsLoadModules): (bug) Failed parsing the explicit
