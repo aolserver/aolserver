@@ -34,7 +34,7 @@
  *	Implements a lot of Tcl API commands. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclmisc.c,v 1.12 2001/01/16 23:03:05 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclmisc.c,v 1.12.2.1 2001/09/18 20:31:02 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -719,8 +719,9 @@ NsTclShareCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 			     argv[0], " -init script varName\"", NULL);
 	    return TCL_ERROR;
         }
-        if (NsTclShareVar(interp, argv[3]) != TCL_OK ||
-    	    InitShare(interp, argv[3], argv[2]) != TCL_OK) {
+        NsTclShareVar(interp, argv[3]);
+	Tcl_ResetResult(interp);
+	if (InitShare(interp, argv[3], argv[2]) != TCL_OK) {
 	    return TCL_ERROR;
 	}
     } else {

@@ -91,8 +91,8 @@
  */
 
 #define NSD_NAME             "AOLserver"
-#define NSD_VERSION	     "3.4.1"
-#define NSD_LABEL            "nsd_v3_r4_p1"
+#define NSD_VERSION	     "3.4.2"
+#define NSD_LABEL            "nsd_v3_r4_p2"
 #define NSD_TAG              "$Name:  $"
 #define NS_CONFIG_PARAMETERS "ns/parameters"
 #define NS_CONFIG_SERVERS    "ns/servers"

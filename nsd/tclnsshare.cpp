@@ -98,8 +98,9 @@ NsTclShareVar(Tcl_Interp *interp, char *varName)
     if (init == 0) {
 	Ns_MasterLock();
 	if (init == 0) {
-	    Ns_Log(Warning, "***The use of ns_share is strongly discouraged due"
-		   " to excessive lock contention. Please use nsv instead.");
+            Ns_Log(Warning, "The use of ns_share may result in increased"
+		 " lock contention. We recommend the use of nsv for"
+                 " process scope variables.");
 	    Tcl_InitHashTable(&shareTable, TCL_STRING_KEYS);
 	    init = 1;
 	}
@@ -335,10 +336,10 @@ int flags;			/* Indicates what's happening. */
                  */ 
 
                 Tcl_UntraceVar(interp, name1, traceFlags,
-			       ShareTraceProc, shareClientData);
+                            ShareTraceProc, shareClientData);
                 Tcl_UnsetVar2(interp, name1, name2, 0);
-                if (Tcl_TraceVar2(interp, name1, (char *) NULL, traceFlags,
-				  ShareTraceProc, shareClientData) != TCL_OK) {  
+                if (Tcl_TraceVar(interp, name1, traceFlags,
+                            ShareTraceProc, shareClientData) != TCL_OK) {  
                     Ns_Fatal("Cannot set trace on share");                 
                 }
             }
@@ -349,7 +350,7 @@ int flags;			/* Indicates what's happening. */
     }
 
     if (flags & TCL_TRACE_ARRAY) {
-    setall:
+setall:
         hPtr = Tcl_FirstHashEntry(&sPtr->array, &search); 
         if (hPtr != NULL) {                              
                                                          
@@ -368,10 +369,10 @@ int flags;			/* Indicates what's happening. */
                 Tcl_SetVar2Ex(interp, name1, key, newObjPtr, 0);
                 hPtr = Tcl_NextHashEntry(&search);              
             }                                                   
-            if (Tcl_TraceVar2(interp, name1, (char *) NULL, traceFlags,
-			      ShareTraceProc, shareClientData) != TCL_OK) {  
+            if (Tcl_TraceVar(interp, name1, traceFlags,
+                        ShareTraceProc, shareClientData) != TCL_OK) {  
                 Ns_Fatal("Cannot set trace on share");                 
-            }                                                        
+            }
         }                                             
     }
 
@@ -383,8 +384,10 @@ int flags;			/* Indicates what's happening. */
              * until the interp is destroyed. 
              */
 
-            if (Tcl_TraceVar2(interp, name1, (char *) NULL, traceFlags,
-			      ShareTraceProc, shareClientData) != TCL_OK) {  
+            Tcl_UntraceVar(interp, name1, traceFlags,
+                        ShareTraceProc, shareClientData);
+            if (Tcl_TraceVar(interp, name1, traceFlags,
+                        ShareTraceProc, shareClientData) != TCL_OK) {  
                 Ns_Fatal("Cannot set trace on share");                 
             }                                                        
         }

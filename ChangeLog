@@ -1,6 +1,15 @@
+2001-09-18  Kriston Rehberg  <Kriston@AOL.NET>
+
+	*** AOLserver 3.4.2 RELEASED ***
+
+        * nsd/nsd.h: version and label to 3.4.2.
+
+	* nsd/tclnsshare.cpp, nsd/tclmisc.c: Fix for 3.4 ns_share problem
+	was not fully applied to 3.4.1.
+
 2001-09-06  Kriston Rehberg  <Kriston@AOL.NET>
 
-	*** AOLserver 3.4.1 RELEASED ***
+	*** AOLserver 3.4.1 RELEASED (internal testing release) ***
 
 2001-09-05  Kriston Rehberg  <Kriston@AOL.NET>
 

@@ -43,7 +43,7 @@ all: libtcl76 libtcl8x libnsthread
 #
 # Installation rule.
 #
-install:
+install: all
 	$(MKDIR)                    $(INSTBIN)
 	$(MKDIR)                    $(INSTLOG)
 	$(MKDIR)                    $(INSTTCL)
