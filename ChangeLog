@@ -1,3 +1,9 @@
+2003-04-03  Mark Page  <mpagenva@aol.com>
+
+	* nsd/tclinit.c:
+	* nsd/tclcmds.c: Provide tcl api that exposes Ns_TclInitInterps
+	and Ns_TclRegisterTrace.  ns_register_interptrace.
+
 2003-03-30  Scott S. Goodwin  <scott@scottg.net>
 
 	* include/ns.h:
