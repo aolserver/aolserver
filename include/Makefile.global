@@ -117,7 +117,7 @@ ifneq (,$(findstring SunOS,$(PLAT)))
         endif
     else
         ifneq (,$(findstring sparc,$(PLAT)))
-            CFLAGS+=$(GCCOPT) -mcpu=`uname -m`
+            CFLAGS+=$(GCCOPT) -mcpu=ultrasparc
         else
             CFLAGS+=$(GCCOPT) -mcpu=pentium
         endif
