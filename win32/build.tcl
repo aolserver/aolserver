@@ -1,9 +1,12 @@
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/win32/Attic/build.tcl,v 1.1 2004/07/22 19:26:57 dossy Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/win32/Attic/build.tcl,v 1.2 2004/07/22 20:20:25 dossy Exp $
 #
 
 package require Tcl 8.4
 package provide make 1.0
+
+set INSTALL_DIR "./installed"
+set TCL_DIR "../tcl_core-8-4-6/win/installed"
 
 namespace eval ::make {
     proc flag {key args} {
@@ -151,7 +154,7 @@ namespace eval ::make {
 make::flag INCLUDE {-I"./include"}
 make::flag CFLAGS [concat [make::flag INCLUDE] {-MT -W3 -GX -Zi -O2 -D "WIN32" -D "NDEBUG" -D "_WINDOWS" -D "_MBCS" -D "_USRDLL" -D "TCL_THREADS=1" -D "FD_SETSIZE=128" -D "NO_CONST=1" -YX -FD}]
 
-make::flag LIB {-libpath:"../tcl_core-8-4-6/win/installed/lib" -libpath:./nsd -libpath:./nsthread}
+make::flag LIB "-libpath:\"$::TCL_DIR/lib\" -libpath:./nsd -libpath:./nsthread"
 make::flag LDFLAGS [concat [make::flag LIB] {tcl84t.lib kernel32.lib -OPT:REF}]
 
 make::rule *.obj compile_obj
@@ -172,7 +175,12 @@ make::rule clean {
 
 make::rule install {
     variable depends
-    set dir installed
+    set dir $::INSTALL_DIR
+
+    #
+    # This is what we need for AOLserver.
+    #
+
     file mkdir $dir/bin
     file mkdir $dir/lib
     file mkdir $dir/include
@@ -203,9 +211,46 @@ make::rule install {
     }
     lappend files nsd/init.tcl $dir/bin/init.tcl
     lappend files sample-config.tcl $dir/sample-config.tcl
+
+    #
+    # Bring the Tcl installation over, too.
+    #
+
+    foreach file [glob -nocomplain -directory $::TCL_DIR/bin -type f *.exe] {
+        lappend files $file $dir/bin/[file tail $file]
+    }
+    foreach file [glob -nocomplain -directory $::TCL_DIR/bin -type f *.dll] {
+        lappend files $file $dir/bin/[file tail $file]
+    }
+    foreach file [glob -nocomplain -directory $::TCL_DIR/include -type f *.h] {
+        lappend files $file $dir/include/[file tail $file]
+    }
+    foreach file [glob -nocomplain -directory $::TCL_DIR/lib -type f *.lib] {
+        lappend files $file $dir/lib/[file tail $file]
+    }
+    lappend files $::TCL_DIR/lib/dde1.2 $dir/lib
+    lappend files $::TCL_DIR/lib/reg1.1 $dir/lib
+    lappend files $::TCL_DIR/lib/tcl8.4 $dir/lib
+
+    #
+    # Now, actually copy the files over.
+    #
+
     foreach {src dst} $files {
+        if {[file isdirectory $src] && [file exists $dst/[file tail $src]]} {
+            puts "Skipping $src -> $dst.  (Already exists.)"
+            continue
+        }
         puts "Installing $src -> $dst."
-        file copy -force -- $src $dst
+        if {[catch {file copy -force -- $src $dst} err]} {
+            set savedInfo $::errorInfo
+            set savedCode $::errorCode
+            if {[string match *.exe $src] || [string match *.dll $src]} {
+                puts $err
+            } else {
+                error $err $savedInfo $savedCode
+            }
+        }
     }
     # The semicolon is important to throw away the args from the eval.
     return;
