@@ -1,6 +1,7 @@
 2003-05-20  Mark Page <mpagenva@aol.com>
 
 	* nsd/tclimg.c: Addition error checks in gif size read.
+        * nsd/adpcmds.c: Error check calls to ns_adp funcs.
 
 2003-05-19  Mark Page <mpagenva@aol.com>
 
