@@ -33,7 +33,7 @@
  *  Routines to manage resource limits.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/limits.c,v 1.5 2004/08/20 23:31:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/limits.c,v 1.6 2004/08/28 01:07:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -41,18 +41,18 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
  * Static functions defined in this file.
  */
 
-static void InitLimits(Limits *limitsPtr);
 static int LimitsResult(Tcl_Interp *interp, Limits *limitsPtr);
 static int AppendLimit(Tcl_Interp *interp, char *limit, int val);
 static int GetLimits(Tcl_Interp *interp, Tcl_Obj *objPtr,
         Limits **limitsPtrPtr, int create);
+static Limits *FindLimits(char *limits, int create);
 
 /*
  * Static variables defined in this file.
  */
 
 static int            limid;
-static Limits         deflimits;
+static Limits        *defLimitsPtr;
 static Tcl_HashTable  limtable;
 
 
@@ -75,17 +75,9 @@ static Tcl_HashTable  limtable;
 void
 NsInitLimits(void)
 {
-    Tcl_HashEntry *hPtr;
-    int new;
-
     limid = Ns_UrlSpecificAlloc();
     Tcl_InitHashTable(&limtable, TCL_STRING_KEYS);
-    InitLimits(&deflimits);
-    deflimits.name = ns_strdup("default");
-    hPtr = Tcl_CreateHashEntry(&limtable, "default", &new);
-    if (new) {
-        Tcl_SetHashValue(hPtr, &deflimits);
-    }
+    defLimitsPtr = FindLimits("default", 1);
 }
 
 Limits *
@@ -94,20 +86,7 @@ NsGetLimits(char *server, char *method, char *url)
     Limits *limitsPtr;
 
     limitsPtr = Ns_UrlSpecificGet(server, method, url, limid);
-    if (limitsPtr == NULL) {
-        limitsPtr = &deflimits;
-    }
-    return limitsPtr;
-}
-
-static void
-InitLimits(Limits *limitsPtr)
-{
-    Ns_MutexInit(&limitsPtr->lock);
-    limitsPtr->name = NULL;
-    limitsPtr->nrunning = limitsPtr->nwaiting = 0;
-    limitsPtr->maxrun = limitsPtr->maxwait = INT_MAX;
-    limitsPtr->maxupload = limitsPtr->timeout = INT_MAX;
+    return (limitsPtr ? limitsPtr : defLimitsPtr);
 }
 
 
@@ -280,26 +259,41 @@ static int
 GetLimits(Tcl_Interp *interp, Tcl_Obj *objPtr, Limits **limitsPtrPtr,
       int create)
 {
-    Limits *limitsPtr;
     char *limits = Tcl_GetString(objPtr);
-    int new;
-    Tcl_HashEntry *hPtr;
+    Limits *limitsPtr;
 
+    limitsPtr = FindLimits(limits, create);
+    if (limitsPtr == NULL) {
+        Tcl_AppendResult(interp, "no such limits: ", limits, NULL);
+        return TCL_ERROR;
+    }
+    *limitsPtrPtr = limitsPtr;
+    return TCL_OK;
+}
+
+
+static Limits *
+FindLimits(char *limits, int create)
+{
+    Limits *limitsPtr;
+    Tcl_HashEntry *hPtr;
+    int new;
+    
     if (!create) {
         hPtr = Tcl_FindHashEntry(&limtable, limits);
     } else {
         hPtr = Tcl_CreateHashEntry(&limtable, limits, &new);
         if (new) {
             limitsPtr = ns_malloc(sizeof(Limits));
-            InitLimits(limitsPtr);
-            limitsPtr->name = ns_strdup(limits);
+            limitsPtr->name = Tcl_GetHashKey(&limtable, hPtr);
+	    Ns_MutexInit(&limitsPtr->lock);
+	    limitsPtr->name = NULL;
+	    limitsPtr->nrunning = limitsPtr->nwaiting = 0;
+	    limitsPtr->maxrun = limitsPtr->maxwait = 100;
+	    limitsPtr->maxupload = 10 * 1024 * 1000; /* NB: 10meg limit. */
+	    limitsPtr->timeout = 60;
             Tcl_SetHashValue(hPtr, limitsPtr);
         }
     }
-    if (hPtr == NULL) {
-        Tcl_AppendResult(interp, "no such limits: ", limits, NULL);
-        return TCL_ERROR;
-    }
-    *limitsPtrPtr = Tcl_GetHashValue(hPtr);
-    return TCL_OK;
+    return (hPtr ? Tcl_GetHashValue(hPtr) : NULL);
 }
