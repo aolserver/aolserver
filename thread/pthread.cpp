@@ -76,24 +76,11 @@
 #define pthread_sigmask                sigprocmask
 #endif
 
-/*
- * The following pthread thread local storage key and one time initializer
- * are used to store the per-thread nsthread data structure.
- */
-
-#ifndef PTHREAD_ONCE_INIT
-static pthread_once_t keyOnce;
-#else
-static pthread_once_t keyOnce = PTHREAD_ONCE_INIT;
-#endif
-
-static pthread_key_t key;
-
 /* 
  * Static routines defined in this file.
  */
 
-static void KeyInit(void);
+static pthread_key_t GetKey(void);
 
 
 /*
@@ -584,6 +571,7 @@ void
 NsSetThread(Thread *thisPtr)
 {
     pthread_t tid;
+    int err;
 
     tid = pthread_self();
 #ifdef HAVE_PTHREAD_D4
@@ -591,8 +579,10 @@ NsSetThread(Thread *thisPtr)
 #else
     thisPtr->tid = (int) tid;
 #endif
-    pthread_once(&keyOnce, KeyInit);
-    pthread_setspecific(key, thisPtr);
+    err = pthread_setspecific(GetKey(), thisPtr);
+    if (err != 0) {
+        NsThreadFatal("NsSetThread", "pthread_setspecific", err);
+    }
     NsSetThread2(thisPtr);
 }
 
@@ -618,13 +608,12 @@ NsGetThread(void)
 {
     Thread *thisPtr;
 
-    pthread_once(&keyOnce, KeyInit);
 #ifdef HAVE_PTHREAD_D4
-    if (pthread_getspecific(key, (pthread_addr_t *) &thisPtr) != 0) {
+    if (pthread_getspecific(GetKey(), (pthread_addr_t *) &thisPtr) != 0) {
 	thisPtr = NULL;
     }
 #else
-    thisPtr = (Thread *) pthread_getspecific(key);
+    thisPtr = (Thread *) pthread_getspecific(GetKey());
 #endif
     return (thisPtr ? thisPtr : NsGetThread2());
 }
@@ -771,9 +760,9 @@ ns_sigmask(int how, sigset_t * set, sigset_t * oset)
 /*
  *----------------------------------------------------------------------
  *
- * KeyInit --
+ * GetKey --
  *
- *	One-time initializer for the thread local storage key. 
+ *	Return the single pthread TLS key, initalizing if needed.
  *
  * Results:
  *	None.
@@ -784,13 +773,30 @@ ns_sigmask(int how, sigset_t * set, sigset_t * oset)
  *----------------------------------------------------------------------
  */
 
-static void
-KeyInit(void)
+static pthread_key_t
+GetKey(void)
 {
+    static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+    static unsigned char initialized;
+    static pthread_key_t key;
     int err;
 
-    err = pthread_key_create(&key, NULL);
-    if (err != 0) {
-        NsThreadFatal("KeyInit", "pthread_key_create", err);
+    if (!initialized) {
+    	err = pthread_mutex_lock(&lock);
+    	if (err != 0) {
+            NsThreadFatal("GetKey", "pthread_mutex_lock", err);
+    	}
+	if (!initialized) {
+    	    err = pthread_key_create(&key, NULL);
+    	    if (err != 0) {
+		NsThreadFatal("GetKey", "pthread_key_create", err);
+    	    }
+	    initialized = 1;
+	}
+    	err = pthread_mutex_unlock(&lock);
+    	if (err != 0) {
+            NsThreadFatal("GetKey", "pthread_mutex_unlock", err);
+    	}
     }
+    return key;
 }
