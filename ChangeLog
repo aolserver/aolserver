@@ -1,5 +1,12 @@
 2004-11-19  Dossy Shiobara <dossy@panoptic.com>
 
+	* configure (1.15.2.8), configure.in (1.13.2.6): autoconf now
+	  detects if libgcc is built shared, in which case LIBS needs
+	  -lgcc_s.  Without it, the nsd binary will fail to link because of
+	  unresolved symbols __umoddi3 and __udivdi3 in nsd/dsprintf.c.
+
+2004-11-19  Dossy Shiobara <dossy@panoptic.com>
+
 	* nsd/Makefile (1.39.2.2): Adding -lz to LIBS is now redundant.
 
 2004-11-19  Dossy Shiobara <dossy@panoptic.com>
