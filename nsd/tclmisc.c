@@ -34,7 +34,7 @@
  *	Implements a lot of Tcl API commands. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclmisc.c,v 1.5 2000/10/17 19:53:23 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclmisc.c,v 1.6 2000/11/09 01:52:23 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -83,6 +83,7 @@ static unsigned int JpegRead2Bytes(Tcl_Channel chan);
 static int JpegNextMarker(Tcl_Channel chan);
 static int JpegSize(Tcl_Channel chan, int *wPtr, int *hPtr);
 static void AppendThread(Ns_ThreadInfo *iPtr, void *arg);
+static void AppendPool(Ns_ThreadInfo *iPtr, void *arg);
 static void AppendMutex(Ns_MutexInfo *iPtr, void *arg);
 
 /*
@@ -930,6 +931,9 @@ NsTclInfoCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
     } else if (STREQ(argv[1], "threads")) {
 	Ns_ThreadEnum(AppendThread, &ds);
 	Tcl_DStringResult(interp, &ds);
+    } else if (STREQ(argv[1], "pools")) {
+	Ns_ThreadEnum(AppendPool, &ds);
+	Tcl_DStringResult(interp, &ds);
     } else if (STREQ(argv[1], "log")) {
         elog = Ns_InfoErrorLog();
 	Tcl_SetResult(interp, elog == NULL ? "STDOUT" : elog, TCL_STATIC);
@@ -1735,4 +1739,30 @@ AppendThread(Ns_ThreadInfo *iPtr, void *arg)
     Tcl_DStringAppend(dsPtr, buf, -1);
     Ns_GetProcInfo(dsPtr, (void *) iPtr->proc, iPtr->arg);
     Tcl_DStringEndSublist(dsPtr);
+}
+
+
+static void
+AppendPool(Ns_ThreadInfo *iPtr, void *arg)
+{
+    Ns_PoolInfo *infoPtr;
+    Tcl_DString *dsPtr = arg;
+    char buf[200];
+    int n;
+
+    infoPtr = Ns_ThreadPoolStats(iPtr->thread);
+    if (infoPtr != NULL) {
+    	Tcl_DStringStartSublist(dsPtr);
+    	Tcl_DStringAppendElement(dsPtr, infoPtr->name);
+	for (n = 0; n < infoPtr->nbuckets; ++n) {
+    	    sprintf(buf, "%d %d %d %d %d",
+		infoPtr->buckets[n].blocksize,
+		infoPtr->buckets[n].nfree,
+		infoPtr->buckets[n].nget,
+		infoPtr->buckets[n].nput,
+		infoPtr->buckets[n].nrequest);
+	    Tcl_DStringAppendElement(dsPtr, buf);
+	}
+    	Tcl_DStringEndSublist(dsPtr);
+    }
 }
