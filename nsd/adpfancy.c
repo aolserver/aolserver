@@ -36,7 +36,7 @@
  *	the Ns_AdpRegisterParser() API call.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/adpfancy.c,v 1.4 2000/08/17 06:09:49 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/adpfancy.c,v 1.5 2000/08/25 13:49:57 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -83,12 +83,6 @@ static Tcl_HashTable htTags;
 static Ns_RWLock     tlock;
 
 
-/* 
- *==========================================================================
- * Exported functions
- *==========================================================================
- */
-
 /*
  *----------------------------------------------------------------------
  * NsAdpFancyInit --
@@ -286,13 +280,6 @@ NsTclRegisterAdpCmd(ClientData ignored, Tcl_Interp *interp, int argc,
     return TCL_OK;
 }
 
-
-/*
- *==========================================================================
- * Static functions
- *==========================================================================
- */
- 
 
 /*
  *----------------------------------------------------------------------

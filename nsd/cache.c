@@ -34,7 +34,7 @@
  *	Routines for a simple cache used by fastpath and Adp.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/cache.c,v 1.4 2000/08/16 00:09:43 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/cache.c,v 1.5 2000/08/25 13:49:57 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -785,13 +785,6 @@ Ns_CacheBroadcast(Ns_Cache *cache)
     Ns_CondBroadcast(&cachePtr->cond);
 }
 
-
-/* 
- *==========================================================================
- * Exported functions
- *==========================================================================
- */
-
 
 /*
  *----------------------------------------------------------------------
@@ -1022,13 +1015,6 @@ NsTclCacheSizeCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 
     return TCL_OK;
 }
-
-
-/*
- *==========================================================================
- * Static functions
- *==========================================================================
- */
 
 
 /*

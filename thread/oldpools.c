@@ -36,7 +36,7 @@
  *  	memory leaks.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/oldpools.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/oldpools.c,v 1.4 2000/08/25 13:51:06 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "thread.h"
 
@@ -183,12 +183,6 @@ Ns_ThreadPool(void)
 
     return thisPtr->pool;
 }
-
-/*
- *==========================================================================
- * Thread allocation routines
- *==========================================================================
- */
 
 void *
 Ns_ThreadMalloc(size_t size)

@@ -35,7 +35,7 @@
  *	with Tcl_DString's.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/dstring.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/dstring.c,v 1.4 2000/08/25 13:49:57 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -53,12 +53,6 @@ static Ns_Tls tls;  	    	    /* Cache TLS. */
 static Ns_Callback FlushDStrings;   /* Cache TLS cleannup. */
 
 
-/*
- *==========================================================================
- * API functions
- *==========================================================================
- */
-
 /*
  *----------------------------------------------------------------------
  * Ns_DStringInit --

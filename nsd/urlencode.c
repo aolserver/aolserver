@@ -34,7 +34,7 @@
  *	Encode and decode URLs, as described in RFC 1738.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/urlencode.c,v 1.2 2000/05/02 14:39:30 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/urlencode.c,v 1.3 2000/08/25 13:49:57 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -43,12 +43,6 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
  */
 
 static int HexDigit(char c);
-
-/*
- *==========================================================================
- * API functions
- *==========================================================================
- */
 
 
 /*
@@ -136,13 +130,6 @@ Ns_DecodeUrl(Ns_DString *pds, char *string)
     return pds->string;
 }
 
-
-/* 
- *==========================================================================
- * Exported functions
- *==========================================================================
- */
-
 
 /*
  *----------------------------------------------------------------------
@@ -215,13 +202,6 @@ NsTclUrlDecodeCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
     
     return TCL_OK;
 }
-
-
-/*
- *==========================================================================
- * Static functions
- *==========================================================================
- */
 
 
 /*

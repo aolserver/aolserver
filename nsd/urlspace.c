@@ -38,7 +38,7 @@
  *	For full details see the file doc/urlspace.txt.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/urlspace.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/urlspace.c,v 1.4 2000/08/25 13:49:57 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -502,12 +502,6 @@ Ns_ServerSpecificDestroy(char *handle, int id, int flags)
     return Ns_UrlSpecificDestroy(handle, NULL, NULL, id, flags);
 }
 
-/*
- *==========================================================================
- * Static functions for Nodes
- *==========================================================================
- */
-
 
 /*
  *----------------------------------------------------------------------
@@ -656,12 +650,6 @@ IndexNodeDestroy(Ns_Index *indexPtr)
     ns_free(indexPtr);
 }
 
-/*
- *==========================================================================
- * Static functions for Branches
- *==========================================================================
- */
-
 
 /*
  *----------------------------------------------------------------------
@@ -733,12 +721,6 @@ BranchDestroy(Branch *branchPtr)
     TrieDestroy(&branchPtr->node);
     ns_free(branchPtr);
 }
-
-/*
- *==========================================================================
- * Static functions for Tries
- *==========================================================================
- */
 
 
 /*
@@ -1241,12 +1223,6 @@ TrieDelete(Trie *triePtr, char *seq, int id, int flags)
     
     return data;
 }
-
-/*
- *==========================================================================
- * Static functions for Channels
- *==========================================================================
- */
 
 #ifndef __URLSPACE_OPTIMIZE__
 
@@ -1866,13 +1842,6 @@ JunctionDelete(Junction *juncPtr, char *seq, int id, int flags)
     
     return data;
 }
-
-
-/*
- *==========================================================================
- * Static functions: utilities
- *==========================================================================
- */
 
 
 /*
