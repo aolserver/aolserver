@@ -34,7 +34,7 @@
  * 	Connect Tcl command names to the functions that implement them
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.4 2000/08/25 21:46:52 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -510,6 +510,9 @@ static TclCmd tclCmds[ ] = {
     },
     {
 	"ns_adp_registeradp", NsTclRegisterAdpCmd, NULL
+    },
+    {
+	"ns_adp_registertag", NsTclRegisterAdpCmd, NULL
     },
 
     /*
