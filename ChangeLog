@@ -1,5 +1,8 @@
 2000-08-17  Jim Davidson
 
+	* tcl7.6 and tcl8.2.3: Switched to blocking Tcl_WaitPid to avoid
+	zombies as suggested by Rob Mayoff.
+	
 	* thread: NULL out thread arg at exit to avoid Ns_ThreadEnum
 	checking arg info for possibly deallocated context as seen in
 	ns_info threads.  Also, moved read of firstPtr in Ns_ThreadEnum
