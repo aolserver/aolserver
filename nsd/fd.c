@@ -34,7 +34,7 @@
  *      Manipulate file descriptors of open files.
  */
  
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/fd.c,v 1.5 2001/04/23 21:08:58 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/fd.c,v 1.6 2001/04/23 21:27:46 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #ifdef WIN32
@@ -248,6 +248,7 @@ Ns_GetTemp(void)
 	Ns_CloseOnExec(fd);
 	if (unlink(path) != 0) {
 	    Ns_Log(Warning, "tmp: unlink(%s) failed: %s", path, strerror(errno));
+	}
 #endif
     }
     Ns_DStringFree(&ds);
