@@ -1,3 +1,5 @@
+2004-07-16  tag aolserver_v40_r6
+
 2004-07-13  Dossy Shiobara <dossy@panoptic.com>
 
 	* nsd/: driver.c (1.22), op.c (1.12): Needed a more graceful way of
