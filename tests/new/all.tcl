@@ -31,7 +31,7 @@ exec tclsh "$0" "$@"
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/tests/new/all.tcl,v 1.2 2004/08/22 00:28:21 dossy Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/tests/new/all.tcl,v 1.3 2004/09/08 00:07:50 dossy Exp $
 #
 
 package require Tcl 8.4
@@ -42,9 +42,12 @@ if {![info exists ::tcl_platform(threaded)] || !$::tcl_platform(threaded)} {
 
 package require tcltest 2.2
 
-
-set env(LD_LIBRARY_PATH) [join [list \
-        $env(LD_LIBRARY_PATH) ../../nsd ../../nsthread] :]
+set LD_LIBRARY_PATH [list]
+if {[info exists env(LD_LIBRARY_PATH)]} {
+    lappend LD_LIBRARY_PATH $env(LD_LIBRARY_PATH)
+}
+lappend LD_LIBRARY_PATH ../../nsd ../../nsthread
+set env(LD_LIBRARY_PATH) [join $LD_LIBRARY_PATH :]
 
 tcltest::configure -testdir [file dirname [info script]]
 eval tcltest::configure $argv
