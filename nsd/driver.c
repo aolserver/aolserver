@@ -34,7 +34,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.17 2003/04/01 01:47:44 scottg Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.17.2.1 2003/11/20 02:13:16 pkhincha Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -243,6 +243,8 @@ Ns_DriverInit(char *server, char *module, Ns_DriverInitData *init)
     drvPtr->arg = init->arg;
     drvPtr->opts = init->opts;
     drvPtr->servPtr = servPtr;
+#define _MAX(x,y)       ((x) > (y) ? (x) : (y))
+#define _MIN(x,y)       ((x) > (y) ? (y) : (x))
     if (!Ns_ConfigGetInt(path, "bufsize", &n) || n < 1) { 
         n = 16000; 	/* ~16k */
     }
@@ -279,7 +281,10 @@ Ns_DriverInit(char *server, char *module, Ns_DriverInitData *init)
 	n = 5;		/* 5 pending connections. */
     }
     drvPtr->backlog = n;
-
+    if (!Ns_ConfigGetInt(path, "maxinput", &n) || n < 1) {
+        n = 1000 * 1024;        /* 1m. */
+    }
+    drvPtr->maxinput = _MAX(n, 1024);
     /*
      * Determine the port and then set the HTTP location string either
      * as specified in the config file or constructed from the
@@ -1330,6 +1335,14 @@ SockRead(Sock *sockPtr)
      */
 
     len = bufPtr->length;
+    n = len + nread;
+    if (n > sockPtr->drvPtr->maxinput) {
+        n = sockPtr->drvPtr->maxinput;
+        nread = n - len;
+        if (nread == 0) {
+            return SOCK_ERROR;
+        } 
+    }
     Tcl_DStringSetLength(bufPtr, len + nread);
     buf.iov_base = bufPtr->string + reqPtr->woff;
     buf.iov_len = nread;
@@ -1380,6 +1393,10 @@ SockRead(Sock *sockPtr)
 	    s = Ns_SetIGet(reqPtr->headers, "content-length");
 	    if (s != NULL) {
 		reqPtr->length = atoi(s);
+                if (reqPtr->length < 0 
+                    && reqPtr->length > sockPtr->drvPtr->servPtr->limits.maxpost) {
+                    return SOCK_ERROR;
+                }
 	    }
 	} else {
 	    save = *e;

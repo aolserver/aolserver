@@ -338,6 +338,8 @@ typedef struct Driver {
     int          port;		    /* Port in location. */
     int		 backlog;	    /* listen() backlog. */
 
+    int          maxinput;          /* Maximum request bytes to read. */
+
 } Driver;
 
 /*
