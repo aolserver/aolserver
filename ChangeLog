@@ -5,8 +5,12 @@
 
 2003-03-05  Mark Page  <mpagenva@aol.com>
 
-	* nsd/adpcmds.c: 
+	* nsd/adpeval.c: (fix) Fixed handling of Tcl errors from script.
+
+2003-03-05  Mark Page  <mpagenva@aol.com>
+
 	* nsd/adpeval.c:
+        * nsd/adpcmds.c:
 	* nsd/nsd.h: (patch) Added optional switches to ns_adp_parse;
 	-cwd <path>, -savedresult <varname>
 	-savedresult supports usages which require the adp script's result
