@@ -626,7 +626,6 @@ typedef struct NsInterp {
 	char              *cwd;
 	char		  *mimetype;
 	char		  *charset;
-	int                evalLevel;
 	int                errorLevel;
 	int                debugLevel;
 	int                debugInit;

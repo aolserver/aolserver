@@ -33,7 +33,7 @@
  *	ADP string and file eval.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.3 2001/03/23 17:04:33 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.4 2001/03/23 18:54:43 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -167,12 +167,10 @@ NsAdpEval(NsInterp *itPtr, char *string, int argc, char **argv)
      
     Ns_DStringInit(&adp);
     Ns_DStringInit(&output);
-    ++itPtr->adp.evalLevel;
     PushFrame(itPtr, &frame, NULL, argc, argv, &output);
     NsAdpParse(itPtr->servPtr, &adp, string);
     code = EvalChunks(itPtr, adp.string);
     PopFrame(itPtr, &frame);
-    --itPtr->adp.evalLevel;
     Tcl_SetResult(itPtr->interp, output.string, TCL_VOLATILE);
     Ns_DStringFree(&output);
     Ns_DStringFree(&adp);
@@ -403,7 +401,6 @@ AdpRun(NsInterp *itPtr, char *file, int argc, char **argv, Ns_DString *outputPtr
             status = EvalBlocks(itPtr, pagePtr->firstPtr);
         }
     	PopFrame(itPtr, &frame);
-	NsAdpFlush(itPtr);
     }
     if (itPtr->adp.debugLevel > 0) {
 	--itPtr->adp.debugLevel;
