@@ -33,7 +33,7 @@
  *	ADP string and file eval.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.28 2003/10/07 15:08:36 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.29 2004/08/14 21:25:59 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -150,7 +150,7 @@ NsAdpEval(NsInterp *itPtr, int objc, Tcl_Obj *objv[], int safe, char *resvar)
     }
 
     PushFrame(itPtr, &frame, NULL, objc, objv, &output);
-    NsAdpParse(&parse, itPtr->servPtr, Tcl_GetString(objv[0]), safe);
+    NsAdpParse(&parse, itPtr->servPtr, Tcl_GetString(objv[0]), ADP_SAFE);
     result = AdpEval(itPtr, &parse.code, NULL);
     PopFrame(itPtr, &frame);
 
@@ -202,44 +202,31 @@ NsAdpSource(NsInterp *itPtr, int objc, Tcl_Obj *objv[], char *resvar)
 {
     Tcl_DString output;
     int code;
-    Tcl_Obj     *resPtr;
-    bool         lcl_resp = NS_FALSE;
 
     /*
-     * Direct output to a local buffer.
+     * Direct output to a local buffer if necessary.
      */
 
     Tcl_DStringInit(&output);
-
-    /*
-     * If we are not acting within a context which has set up the adp
-     * output buffer, then hook the responsePtr to our lcl buffer
-     * for the processing of this request.  It will be unhooked after.
-     */
     if (itPtr->adp.responsePtr == NULL) {
         itPtr->adp.responsePtr = &output;
-        lcl_resp = NS_TRUE;
     }
-
     code = AdpRun(itPtr, Tcl_GetString(objv[0]), objc, objv, &output);
-
-    if (lcl_resp) {
+    if (itPtr->adp.responsePtr = &output) {
         itPtr->adp.responsePtr = NULL;
     }
 
-    if (code == TCL_OK) {
-        /*
-         * If the caller has supplied a variable for the adp's result value,
-         * then save the interp's result there prior to overwritting it.
-         */
-        if (resvar != NULL) {
-            resPtr = Tcl_GetObjResult(itPtr->interp);
-            if (Tcl_SetVar2Ex(itPtr->interp, resvar, NULL, resPtr,
-                              TCL_LEAVE_ERR_MSG) == NULL) {
-                return TCL_ERROR;
-            }
-        }
+    /*
+     * Move the result to given results variable if requested.
+     */
 
+    if (code == TCL_OK && resvar != NULL &&
+        Tcl_SetVar2Ex(itPtr->interp, resvar, NULL,
+		      Tcl_GetObjResult(itPtr->interp),
+		      TCL_LEAVE_ERR_MSG) == NULL) {
+        code = TCL_ERROR;
+    }
+    if (code == TCL_OK) {
 	Tcl_DStringResult(itPtr->interp, &output);
     }
     Tcl_DStringFree(&output);
@@ -326,10 +313,10 @@ AdpRun(NsInterp *itPtr, char *file, int objc, Tcl_Obj *objv[],
     if (itPtr->adp.cache == NULL) {
 	Ns_DStringPrintf(&tmp, "nsadp:%s:%p", itPtr->servPtr->server, itPtr);
 #ifdef _WIN32
-    itPtr->adp.cache = Ns_CacheCreateSz(tmp.string, TCL_STRING_KEYS,
+	itPtr->adp.cache = Ns_CacheCreateSz(tmp.string, TCL_STRING_KEYS,
 				itPtr->servPtr->adp.cachesize, FreeInterpPage);
 #else
-    itPtr->adp.cache = Ns_CacheCreateSz(tmp.string, FILE_KEYS,
+	itPtr->adp.cache = Ns_CacheCreateSz(tmp.string, FILE_KEYS,
 				itPtr->servPtr->adp.cachesize, FreeInterpPage);
 #endif
 	Ns_DStringTrunc(&tmp, 0);
@@ -350,7 +337,7 @@ AdpRun(NsInterp *itPtr, char *file, int objc, Tcl_Obj *objv[],
 	 */
 	 
 #ifdef _WIN32
-    key = file;
+	key = file;
 #else
 	ukey.dev = st.st_dev;
 	ukey.ino = st.st_ino;
@@ -358,7 +345,8 @@ AdpRun(NsInterp *itPtr, char *file, int objc, Tcl_Obj *objv[],
         ePtr = Ns_CacheFindEntry(itPtr->adp.cache, key);
 	if (ePtr != NULL) {
     	    ipagePtr = Ns_CacheGetValue(ePtr);
-    	    if (ipagePtr->pagePtr->mtime != st.st_mtime || ipagePtr->pagePtr->size != st.st_size) {
+    	    if (ipagePtr->pagePtr->mtime != st.st_mtime
+			|| ipagePtr->pagePtr->size != st.st_size) {
 		Ns_CacheFlushEntry(ePtr);
 		ipagePtr = NULL;
 	    }
@@ -375,7 +363,8 @@ AdpRun(NsInterp *itPtr, char *file, int objc, Tcl_Obj *objv[],
 		Ns_CondWait(&servPtr->adp.pagecond, &servPtr->adp.pagelock);
 		hPtr = Tcl_CreateHashEntry(&servPtr->adp.pages, key, &new);
 	    }
-	    if (!new && (pagePtr->mtime != st.st_mtime || pagePtr->size != st.st_size)) {
+	    if (!new && (pagePtr->mtime != st.st_mtime
+			|| pagePtr->size != st.st_size)) {
 		/* NB: Clear entry to indicate read/parse in progress. */
 		Tcl_SetHashValue(hPtr, NULL);
 		pagePtr->hPtr = NULL;
@@ -389,17 +378,19 @@ AdpRun(NsInterp *itPtr, char *file, int objc, Tcl_Obj *objv[],
 		    Tcl_DeleteHashEntry(hPtr);
 		} else {
 #ifdef _WIN32
-            if (pagePtr->mtime != st.st_mtime || pagePtr->size != st.st_size) {
+            	    if (pagePtr->mtime != st.st_mtime
+				|| pagePtr->size != st.st_size) {
 #else
-            if (ukey.dev != st.st_dev || ukey.ino != st.st_ino) {
+            	    if (ukey.dev != st.st_dev || ukey.ino != st.st_ino) {
 #endif
 			/* NB: File changed between stat above and ParseFile. */
 		    	Tcl_DeleteHashEntry(hPtr);
 #ifndef _WIN32
-                ukey.dev = st.st_dev;
+                	ukey.dev = st.st_dev;
 		    	ukey.ino = st.st_ino;
 #endif
-		    	hPtr = Tcl_CreateHashEntry(&servPtr->adp.pages, key, &new);
+		    	hPtr = Tcl_CreateHashEntry(&servPtr->adp.pages, key,
+						   &new);
 		    	if (!new) {
 			    oldPagePtr = Tcl_GetHashValue(hPtr);
 			    oldPagePtr->hPtr = NULL;
@@ -422,7 +413,8 @@ AdpRun(NsInterp *itPtr, char *file, int objc, Tcl_Obj *objv[],
 		if (!new) {
 		    Ns_CacheUnsetValue(ePtr);
 		}
-        Ns_CacheSetValueSz(ePtr, ipagePtr, (size_t)ipagePtr->pagePtr->size);
+        	Ns_CacheSetValueSz(ePtr, ipagePtr,
+				   (size_t) ipagePtr->pagePtr->size);
 	    }
 	}
     }
