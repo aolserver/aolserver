@@ -34,7 +34,7 @@
  *	Routines for a simple cache used by fastpath and Adp.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/cache.c,v 1.10 2001/12/18 22:31:30 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/cache.c,v 1.11 2002/05/15 20:07:47 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -1186,7 +1186,7 @@ CacheCreate(char *name, int keys, time_t timeout, size_t maxSize,
     cachePtr->keys = keys;
     strcpy(cachePtr->name, name);
     cachePtr->nflush = cachePtr->nhit = cachePtr->nmiss = 0;
-    Ns_MutexSetName2(&cachePtr->lock, "nscache", name);
+    Ns_MutexSetName2(&cachePtr->lock, "ns:cache", name);
     Tcl_InitHashTable(&cachePtr->entriesTable, keys);
     if (timeout > 0) {
     	cachePtr->schedId = Ns_ScheduleProc(NsCachePurge, cachePtr, 0, timeout);

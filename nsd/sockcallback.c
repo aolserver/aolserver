@@ -34,7 +34,7 @@
  *	Support for the socket callback thread.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sockcallback.c,v 1.9 2001/11/13 00:05:54 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sockcallback.c,v 1.10 2002/05/15 20:07:48 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -228,7 +228,7 @@ Queue(int sock, Ns_SockProc *proc, void *arg, int when)
     } else {
 	if (!running) {
     	    Tcl_InitHashTable(&table, TCL_ONE_WORD_KEYS);
-	    Ns_MutexSetName2(&lock, "ns", "socks");
+	    Ns_MutexSetName(&lock, "ns:sockcallbacks");
 	    create = 1;
 	    running = 1;
 	} else if (firstQueuePtr == NULL) {

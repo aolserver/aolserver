@@ -35,7 +35,7 @@
  *	connections. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/listen.c,v 1.4 2001/11/05 20:26:23 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/listen.c,v 1.5 2002/05/15 20:07:47 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -109,7 +109,7 @@ Ns_SockListenCallback(char *addr, int port, Ns_SockProc *proc, void *arg)
     Ns_MutexLock(&lock);
     if (!initialized) {
         Tcl_InitHashTable(&portsTable, TCL_ONE_WORD_KEYS);
-	Ns_MutexSetName2(&lock, "ns", "listencallback");
+	Ns_MutexSetName(&lock, "ns:listencallbacks");
 	initialized = 1;
     }
 

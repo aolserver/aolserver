@@ -27,7 +27,7 @@
  * version of this file under either the License or the GPL.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sched.c,v 1.7 2001/11/05 20:23:43 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sched.c,v 1.8 2002/05/15 20:07:48 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 /*
  * sched.c --
@@ -281,7 +281,7 @@ Ns_ScheduleProcEx(Ns_SchedProc *proc, void *arg, int flags,
     	ns_free(ePtr);
     } else {
 	if (!initialized) {
-	    Ns_MutexSetName2(&lock, "ns", "sched");
+	    Ns_MutexSetName(&lock, "ns:sched");
     	    Tcl_InitHashTable(&eventsTable, TCL_ONE_WORD_KEYS);
 	    initialized = 1;
 	}

@@ -33,7 +33,7 @@
  *	Various core configuration.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsconf.c,v 1.22 2001/11/05 20:23:08 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsconf.c,v 1.23 2002/05/15 20:07:48 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #include "nsconf.h"
@@ -67,8 +67,7 @@ NsConfInit(void)
     Ns_DString ds;
     
     Ns_DStringInit(&ds);
-
-    Ns_MutexSetName(&nsconf.state.lock, "nsconf:state");
+    Ns_MutexSetName(&nsconf.state.lock, "nsd:config");
     Tcl_DStringInit(&nsconf.servers);
 
     /*

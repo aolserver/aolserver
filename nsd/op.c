@@ -35,7 +35,7 @@
  *  	routines (previously known as "op procs").
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/op.c,v 1.9 2001/12/18 22:32:17 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/op.c,v 1.10 2002/05/15 20:07:48 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -99,7 +99,7 @@ Ns_RegisterRequest(char *server, char *method, char *url, Ns_OpProc *proc,
     Ns_MutexLock(&lock);
     if (reqId < 0) {
 	reqId = Ns_UrlSpecificAlloc();
-	Ns_MutexSetName(&lock, "ns:request");
+	Ns_MutexSetName(&lock, "nsd:requests");
     }
     Ns_UrlSpecificSet(server, method, url, reqId, reqPtr, flags, FreeReq);
     Ns_MutexUnlock(&lock);
