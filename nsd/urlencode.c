@@ -34,15 +34,85 @@
  *	Encode and decode URLs, as described in RFC 1738.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/urlencode.c,v 1.4 2001/01/15 18:53:17 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/urlencode.c,v 1.5 2001/03/19 15:45:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
 /*
- * Local functions defined in this file
+ * The following table is used for URL encoding and decoding
+ * all 256 characters.
  */
 
-static int HexDigit(char c);
+struct {
+    int   hex;	    /* Valid hex value or -1. */
+    int   len;	    /* Length required to encode string. */
+    char *str;	    /* String for multibyte encoded character. */
+} enc[] = {
+    {-1, 3, "00"}, {-1, 3, "01"}, {-1, 3, "02"}, {-1, 3, "03"}, 
+    {-1, 3, "04"}, {-1, 3, "05"}, {-1, 3, "06"}, {-1, 3, "07"}, 
+    {-1, 3, "08"}, {-1, 3, "09"}, {-1, 3, "0a"}, {-1, 3, "0b"}, 
+    {-1, 3, "0c"}, {-1, 3, "0d"}, {-1, 3, "0e"}, {-1, 3, "0f"}, 
+    {-1, 3, "10"}, {-1, 3, "11"}, {-1, 3, "12"}, {-1, 3, "13"}, 
+    {-1, 3, "14"}, {-1, 3, "15"}, {-1, 3, "16"}, {-1, 3, "17"}, 
+    {-1, 3, "18"}, {-1, 3, "19"}, {-1, 3, "1a"}, {-1, 3, "1b"}, 
+    {-1, 3, "1c"}, {-1, 3, "1d"}, {-1, 3, "1e"}, {-1, 3, "1f"}, 
+    {-1, 3, "20"}, {-1, 3, "21"}, {-1, 3, "22"}, {-1, 3, "23"}, 
+    {-1, 3, "24"}, {-1, 3, "25"}, {-1, 3, "26"}, {-1, 3, "27"}, 
+    {-1, 3, "28"}, {-1, 3, "29"}, {-1, 3, "2a"}, {-1, 3, "2b"}, 
+    {-1, 3, "2c"}, {-1, 3, "2d"}, {-1, 3, "2e"}, {-1, 3, "2f"}, 
+    { 0, 1, NULL}, { 1, 1, NULL}, { 2, 1, NULL}, { 3, 1, NULL}, 
+    { 4, 1, NULL}, { 5, 1, NULL}, { 6, 1, NULL}, { 7, 1, NULL}, 
+    { 8, 1, NULL}, { 9, 1, NULL}, {-1, 3, "3a"}, {-1, 3, "3b"}, 
+    {-1, 3, "3c"}, {-1, 3, "3d"}, {-1, 3, "3e"}, {-1, 3, "3f"}, 
+    {-1, 3, "40"}, {10, 1, NULL}, {11, 1, NULL}, {12, 1, NULL}, 
+    {13, 1, NULL}, {14, 1, NULL}, {15, 1, NULL}, {-1, 1, NULL}, 
+    {-1, 1, NULL}, {-1, 1, NULL}, {-1, 1, NULL}, {-1, 1, NULL}, 
+    {-1, 1, NULL}, {-1, 1, NULL}, {-1, 1, NULL}, {-1, 1, NULL}, 
+    {-1, 1, NULL}, {-1, 1, NULL}, {-1, 1, NULL}, {-1, 1, NULL}, 
+    {-1, 1, NULL}, {-1, 1, NULL}, {-1, 1, NULL}, {-1, 1, NULL}, 
+    {-1, 1, NULL}, {-1, 1, NULL}, {-1, 1, NULL}, {-1, 3, "5b"}, 
+    {-1, 3, "5c"}, {-1, 3, "5d"}, {-1, 3, "5e"}, {-1, 3, "5f"}, 
+    {-1, 3, "60"}, {10, 1, NULL}, {11, 1, NULL}, {12, 1, NULL}, 
+    {13, 1, NULL}, {14, 1, NULL}, {15, 1, NULL}, {-1, 1, NULL}, 
+    {-1, 1, NULL}, {-1, 1, NULL}, {-1, 1, NULL}, {-1, 1, NULL}, 
+    {-1, 1, NULL}, {-1, 1, NULL}, {-1, 1, NULL}, {-1, 1, NULL}, 
+    {-1, 1, NULL}, {-1, 1, NULL}, {-1, 1, NULL}, {-1, 1, NULL}, 
+    {-1, 1, NULL}, {-1, 1, NULL}, {-1, 1, NULL}, {-1, 1, NULL}, 
+    {-1, 1, NULL}, {-1, 1, NULL}, {-1, 1, NULL}, {-1, 3, "7b"}, 
+    {-1, 3, "7c"}, {-1, 3, "7d"}, {-1, 3, "7e"}, {-1, 3, "7f"}, 
+    {-1, 3, "80"}, {-1, 3, "81"}, {-1, 3, "82"}, {-1, 3, "83"}, 
+    {-1, 3, "84"}, {-1, 3, "85"}, {-1, 3, "86"}, {-1, 3, "87"}, 
+    {-1, 3, "88"}, {-1, 3, "89"}, {-1, 3, "8a"}, {-1, 3, "8b"}, 
+    {-1, 3, "8c"}, {-1, 3, "8d"}, {-1, 3, "8e"}, {-1, 3, "8f"}, 
+    {-1, 3, "90"}, {-1, 3, "91"}, {-1, 3, "92"}, {-1, 3, "93"}, 
+    {-1, 3, "94"}, {-1, 3, "95"}, {-1, 3, "96"}, {-1, 3, "97"}, 
+    {-1, 3, "98"}, {-1, 3, "99"}, {-1, 3, "9a"}, {-1, 3, "9b"}, 
+    {-1, 3, "9c"}, {-1, 3, "9d"}, {-1, 3, "9e"}, {-1, 3, "9f"}, 
+    {-1, 3, "a0"}, {-1, 3, "a1"}, {-1, 3, "a2"}, {-1, 3, "a3"}, 
+    {-1, 3, "a4"}, {-1, 3, "a5"}, {-1, 3, "a6"}, {-1, 3, "a7"}, 
+    {-1, 3, "a8"}, {-1, 3, "a9"}, {-1, 3, "aa"}, {-1, 3, "ab"}, 
+    {-1, 3, "ac"}, {-1, 3, "ad"}, {-1, 3, "ae"}, {-1, 3, "af"}, 
+    {-1, 3, "b0"}, {-1, 3, "b1"}, {-1, 3, "b2"}, {-1, 3, "b3"}, 
+    {-1, 3, "b4"}, {-1, 3, "b5"}, {-1, 3, "b6"}, {-1, 3, "b7"}, 
+    {-1, 3, "b8"}, {-1, 3, "b9"}, {-1, 3, "ba"}, {-1, 3, "bb"}, 
+    {-1, 3, "bc"}, {-1, 3, "bd"}, {-1, 3, "be"}, {-1, 3, "bf"}, 
+    {-1, 3, "c0"}, {-1, 3, "c1"}, {-1, 3, "c2"}, {-1, 3, "c3"}, 
+    {-1, 3, "c4"}, {-1, 3, "c5"}, {-1, 3, "c6"}, {-1, 3, "c7"}, 
+    {-1, 3, "c8"}, {-1, 3, "c9"}, {-1, 3, "ca"}, {-1, 3, "cb"}, 
+    {-1, 3, "cc"}, {-1, 3, "cd"}, {-1, 3, "ce"}, {-1, 3, "cf"}, 
+    {-1, 3, "d0"}, {-1, 3, "d1"}, {-1, 3, "d2"}, {-1, 3, "d3"}, 
+    {-1, 3, "d4"}, {-1, 3, "d5"}, {-1, 3, "d6"}, {-1, 3, "d7"}, 
+    {-1, 3, "d8"}, {-1, 3, "d9"}, {-1, 3, "da"}, {-1, 3, "db"}, 
+    {-1, 3, "dc"}, {-1, 3, "dd"}, {-1, 3, "de"}, {-1, 3, "df"}, 
+    {-1, 3, "e0"}, {-1, 3, "e1"}, {-1, 3, "e2"}, {-1, 3, "e3"}, 
+    {-1, 3, "e4"}, {-1, 3, "e5"}, {-1, 3, "e6"}, {-1, 3, "e7"}, 
+    {-1, 3, "e8"}, {-1, 3, "e9"}, {-1, 3, "ea"}, {-1, 3, "eb"}, 
+    {-1, 3, "ec"}, {-1, 3, "ed"}, {-1, 3, "ee"}, {-1, 3, "ef"}, 
+    {-1, 3, "f0"}, {-1, 3, "f1"}, {-1, 3, "f2"}, {-1, 3, "f3"}, 
+    {-1, 3, "f4"}, {-1, 3, "f5"}, {-1, 3, "f6"}, {-1, 3, "f7"}, 
+    {-1, 3, "f8"}, {-1, 3, "f9"}, {-1, 3, "fa"}, {-1, 3, "fb"}, 
+    {-1, 3, "fc"}, {-1, 3, "fd"}, {-1, 3, "fe"}, {-1, 3, "ff"}
+};
 
 
 /*
@@ -58,31 +128,47 @@ static int HexDigit(char c);
  *	passed-in DString's memory) 
  *
  * Side effects:
- *	Will append to the passed-in dstring 
+ *	Encoded URL will be copied to given dstring.
  *
  *----------------------------------------------------------------------
  */
 
 char *
-Ns_EncodeUrl(Ns_DString *pds, char *string)
+Ns_EncodeUrl(Ns_DString *dsPtr, char *string)
 {
-    static char safechars[] =
-	"abcdefghijklmnopqrstuvwxyz"
-	"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-	"0123456789";
+    register int   i, n;
+    register char *p, *q;
 
-    while (*string != '\0') {
+    /*
+     * Determine and set the requried dstring length.
+     */
 
-        if (strchr(safechars, *string) != NULL) {
-            Ns_DStringNAppend(pds, string, 1);
-        } else {
-            char buf[4];
-            sprintf(buf, "%%%02x", (unsigned char) *string);
-	    Ns_DStringNAppend(pds, buf, 3);
-        }
-        ++string;
+    p = string;
+    n = 0;
+    while ((i = UCHAR(*p)) != 0) {
+	n += enc[i].len;
+	++p;
     }
-    return pds->string;
+    i = dsPtr->length;
+    Ns_DStringSetLength(dsPtr, dsPtr->length + n);
+
+    /*
+     * Copy the result directly to the pre-sized dstring.
+     */
+
+    q = dsPtr->string + i;
+    p = string;
+    while ((i = UCHAR(*p)) != 0) {
+	if (enc[i].str == NULL) {
+	    *q++ = *p;
+	} else {
+	    *q++ = '%';
+	    *q++ = enc[i].str[0];
+	    *q++ = enc[i].str[1];
+	}
+	++p;
+    }
+    return dsPtr->string;
 }
 
 
@@ -91,139 +177,105 @@ Ns_EncodeUrl(Ns_DString *pds, char *string)
  *
  * Ns_DecodeUrl --
  *
- *	Take an encoded URL (with %hexcode, etc.) and decode it into 
- *	the DString.
+ *	Decode an encoded URL (with %hexcode, etc.).
  *
  * Results:
- *	A pointer to the dstring's memory, containing the decoded 
- *	URL, or NULL if incorrectly encoded.
+ *	A pointer to the dstring's value, containing the decoded 
+ *	URL.
  *
  * Side effects:
- *	Will append stuff to pds.
+ *	Decoded URL will be copied to given dstring.
  *
  *----------------------------------------------------------------------
  */
 
 char *
-Ns_DecodeUrl(Ns_DString *pds, char *string)
+Ns_DecodeUrl(Ns_DString *dsPtr, char *string)
 {
-    unsigned char decoded;
-    char          twobytes[3];
+    register int i, j, n;
+    register char *p, *q;
 
-    twobytes[2] = '\0';
-    while (*string != '\0') {
-        if (*string != '%') {
-            Ns_DStringNAppend(pds, string, 1);
-            ++string;
-        } else {
-            if (HexDigit(string[1]) && HexDigit(string[2])) {
-                twobytes[0] = string[1];
-                twobytes[1] = string[2];
-                decoded = (unsigned char) strtol(twobytes, (char **) NULL, 16);
-                Ns_DStringNAppend(pds, (char *) &decoded, 1);
-                string += 3;
-            } else {
-                return NULL;
-            }
-        }
+    /*
+     * Expand the dstring to the length of the input
+     * string which will be the largest size required.
+     */
+
+    i = dsPtr->length;
+    Ns_DStringSetLength(dsPtr, i + strlen(string));
+
+    /*
+     * Copy the decoded characters directly to the dstring.
+     */
+
+    q = dsPtr->string + i;
+    p = string;
+    n = 0;
+    while (UCHAR(*p) != '\0') {
+	if (UCHAR(p[0]) == '%' &&
+	    (i = enc[UCHAR(p[1])].hex) >= 0 &&
+	    (j = enc[UCHAR(p[2])].hex) >= 0) {
+	    *q++ = (unsigned char) ((i << 4) + j);
+	    p += 3;
+	} else {
+	    *q++ = *p++;
+	}
+	++n;
     }
-    return pds->string;
+    
+    /*
+     * Set the dstring length to the actual size required.
+     */
+
+    Ns_DStringSetLength(dsPtr, n);
+    return dsPtr->string;
 }
 
 
 /*
  *----------------------------------------------------------------------
  *
- * NsTclUrlEncodeCmd --
+ * NsTclUrlEncodeCmd, NsTclUrlDecodeCmd --
  *
- *	Implments ns_urlencode. 
+ *	Implments ns_urlencode and ns_urldecode.
  *
  * Results:
  *	Tcl result. 
  *
  * Side effects:
  *	See docs. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclUrlEncodeCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
-{
-    Ns_DString ds;
-
-    if (argc != 2) {
-        Tcl_AppendResult(interp, "wrong # args: should be \"",
-                         argv[0], " data\"", NULL);
-        return TCL_ERROR;
-    }
-
-    Ns_DStringInit(&ds);
-
-    Ns_EncodeUrl(&ds, argv[1]);
-
-    Tcl_SetResult(interp, Ns_DStringExport(&ds), (Tcl_FreeProc *) ns_free);
-    
-    return TCL_OK;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsTclUrlDecodeCmd --
- *
- *	Implements ns_urldecode. 
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	See docs. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclUrlDecodeCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
-{
-    Ns_DString ds;
-
-    if (argc != 2) {
-        Tcl_AppendResult(interp, "wrong # args: should be \"",
-                         argv[0], " data\"", NULL);
-        return TCL_ERROR;
-    }
-    Ns_DStringInit(&ds);
-    if (Ns_DecodeUrl(&ds, argv[1]) == NULL) {
-        Ns_DStringFree(&ds);
-    }
-    Tcl_SetResult(interp, Ns_DStringExport(&ds), (Tcl_FreeProc *) ns_free);
-    
-    return TCL_OK;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * HexDigit --
- *
- *	Determines if a character is a valid hexadecimal digit.
- *
- * Results:
- *	Boolean: true if char is a valid hex digit.
- *
- * Side effects:
- *	None. 
  *
  *----------------------------------------------------------------------
  */
 
 static int
-HexDigit(char c)
+EncodeCmd(Tcl_Interp *interp, int argc, char **argv, int encode)
 {
-    static char     hexdigits[] = "0123456789ABCDEFabcdef";
+    Ns_DString ds;
 
-    return (c != '\0' && (strchr(hexdigits, c) != NULL));
+    if (argc != 2) {
+        Tcl_AppendResult(interp, "wrong # args: should be \"",
+                         argv[0], " url\"", NULL);
+        return TCL_ERROR;
+    }
+    Ns_DStringInit(&ds);
+    if (encode) {
+	Ns_EncodeUrl(&ds, argv[1]);
+    } else {
+	Ns_DecodeUrl(&ds, argv[1]);
+    }
+    Tcl_SetResult(interp, ds.string, TCL_VOLATILE);
+    Ns_DStringFree(&ds);
+    return TCL_OK;
+}
+
+int
+NsTclUrlDecodeCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
+{
+    return EncodeCmd(interp, argc, argv, 0);
+}
+
+int
+NsTclUrlEncodeCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
+{
+    return EncodeCmd(interp, argc, argv, 1);
 }
