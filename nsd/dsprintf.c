@@ -37,7 +37,7 @@
  *	(see copyright below).
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/dsprintf.c,v 1.1 2001/05/02 15:49:28 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/dsprintf.c,v 1.2 2001/05/10 09:57:21 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 /*	$NetBSD: vfprintf.c,v 1.35 2000/12/30 04:13:25 itojun Exp $	*/
 
@@ -101,7 +101,9 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
 #define	ALT		0x001		/* alternate form */
 #define	HEXPREFIX	0x002		/* add 0x or 0X prefix */
 #define	LADJUST		0x004		/* left adjustment */
+#ifndef NO_LONGDBL
 #define	LONGDBL		0x008		/* long double */
+#endif
 #define	LONGINT		0x010		/* long integer */
 #define	QUADINT		0x020		/* quad integer */
 #define	SHORTINT	0x040		/* short integer */
@@ -242,9 +244,11 @@ reswitch:	switch (ch) {
 			} while (is_digit(ch));
 			width = n;
 			goto reswitch;
+#ifdef LONGDBL
 		case 'L':
 			flags |= LONGDBL;
 			goto rflag;
+#endif
 		case 'h':
 			flags |= SHORTINT;
 			goto rflag;
@@ -283,11 +287,15 @@ reswitch:	switch (ch) {
 		case 'g':
 		case 'G':
 			/* use sprintf for complicated float/double print. */
+#ifndef LONGDBL
+			_double = va_arg(ap, double);
+#else
 			if (flags & LONGDBL) {
 				_double = (double) va_arg(ap, long double);
 			} else {
 				_double = va_arg(ap, double);
 			}
+#endif
 			tfmt = Tcl_DStringAppend(&tfmtds, tfmt, fmt - tfmt);
 			n = width;
 			if (n < BUF) {
