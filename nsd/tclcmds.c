@@ -33,7 +33,7 @@
  * 	Connect Tcl command names to the functions that implement them
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.15 2001/04/12 17:53:29 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.16 2001/04/13 22:14:58 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -140,7 +140,6 @@ extern Tcl_CmdProc
     NsTclConnCmd,
     NsTclCrashCmd,
     NsTclCryptCmd,
-    NsTclGetMultipartFormdataCmd,
     NsTclGetUrlCmd,
     NsTclGifSizeCmd,
     NsTclGuessTypeCmd,
@@ -386,7 +385,6 @@ static Cmd servCmds[] = {
 
     {"ns_checkurl", NsTclRequestAuthorizeCmd, NULL},
     {"ns_requestauthorize", NsTclRequestAuthorizeCmd, NULL},
-    {"ns_get_multipart_formdata", NsTclGetMultipartFormdataCmd, NULL},
     {"ns_markfordelete", NsTclMarkForDeleteCmd, NULL},
 
     /*
