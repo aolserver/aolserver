@@ -28,7 +28,7 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/sendmail.tcl,v 1.5 2003/02/03 14:35:53 jrasmuss23 Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/sendmail.tcl,v 1.6 2003/02/07 16:21:56 elizthom Exp $
 #
 
 #
@@ -96,25 +96,14 @@ proc ns_sendmail { to from subject body {extraheaders {}} {bcc {}} } {
 	set smtpport 25
     }
 
-    ## Extract "from" email address
-    if {[regexp {.*<(.*)>} $from ig address]} {
-	set from $address
-    }
-    
     set tolist [list]
     foreach toaddr $tolist_in {
-	if {[regexp {.*<(.*)>} $toaddr ig address]} {
-	    set toaddr $address
-	}
 	lappend tolist "[string trim $toaddr]"
     }
     
     set bcclist [list]
     if {![string match "" $bcclist_in]} {
 	foreach bccaddr $bcclist_in {
-	    if {[regexp {.*<(.*)>} $bccaddr ig address]} {
-		set bccaddr $address
-	    }
 	    lappend bcclist "[string trim $bccaddr]"
 	}
     }
@@ -159,6 +148,9 @@ proc _ns_sendmail {smtp smtpport timeout tolist bcclist \
     set sock [ns_sockopen $smtp $smtpport]
     set rfp [lindex $sock 0]
     set wfp [lindex $sock 1]
+  
+    ## Strip "from:" email address
+    regexp {.*<(.*)>} $from ig from
 
     ## Perform the SMTP conversation
     if { [catch {
@@ -168,17 +160,13 @@ proc _ns_sendmail {smtp smtpport timeout tolist bcclist \
 	_ns_smtp_send $wfp "MAIL FROM:<$from>" $timeout
 	_ns_smtp_recv $rfp 250 $timeout
 	
-	## Loop through To list via multiple RCPT TO lines
-	foreach toto $tolist {
+	## Loop through To and BCC list via multiple RCPT TO lines
+        ## A BCC should never, ever appear in the header
+	foreach toto [concat $tolist $bcclist] {
+             #transform "Fritz <fritz@foo.com>" into "fritz@foo.com"
+            regexp {.*<(.*)>} $toto ig toto
 	    _ns_smtp_send $wfp "RCPT TO:<$toto>" $timeout
 	    _ns_smtp_recv $rfp 250 $timeout	
-	}
-	
-	## Loop through BCC list via multiple RCPT TO lines
-	## A BCC should never, ever appear in the header.  Ever.  Not even.
-	foreach bccto $bcclist {
-	    _ns_smtp_send $wfp "RCPT TO:<$bccto>" $timeout
-	    _ns_smtp_recv $rfp 250 $timeout
 	}
 	
 	_ns_smtp_send $wfp DATA $timeout
