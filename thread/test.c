@@ -41,12 +41,12 @@
  * Special direct include of pthread.h for compatibility tests.
  */
 
-#if !defined(USE_SPROC) && !defined(WIN32)
+#if !defined(USE_SPROC) && !defined(WIN32) && !defined(__hpux)
 #include <pthread.h>
 #define PTHREAD_TEST 1
 #endif
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/test.c,v 1.13 2000/11/17 16:52:16 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/test.c,v 1.14 2001/05/31 20:15:52 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 /*
  * Collection of synchronization objects for tests.

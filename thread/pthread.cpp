@@ -55,6 +55,7 @@
 #define ERRTIMEDOUT(e)		((e) == ETIMEDOUT)
 #define MUTEX_INIT_ATTR         0
 #define COND_INIT_ATTR          0
+#define MASTER_NO_OWNER	        (-1)
 #else
 #define ERRLOCKOK(e)		((e) == 1)
 #define ERRLOCKBUSY(e)		((e) == 0)
@@ -70,6 +71,8 @@
 #define MUTEX_INIT_ATTR         pthread_mutexattr_default
 #define COND_INIT_ATTR          pthread_condattr_default
 #define PTHREAD_ONCE_INIT	pthread_once_init
+static  pthread_t		thread_none;
+#define MASTER_NO_OWNER	        (thread_none)
 #endif
 #if defined(MACOSX) 
 #define pthread_sigmask                sigprocmask
@@ -162,7 +165,7 @@ Ns_MasterLock(void)
     if (err != 0) {
         NsThreadFatal(func, "pthread_mutex_lock", err);
     }
-    while (master.owner != self && master.count > 0) {
+    while (!pthread_equal(master.owner, self) && master.count > 0) {
 	pthread_cond_wait(&master.cond, &master.lock);
 	if (err != 0) {
 	    NsThreadFatal(func, "pthread_cond_wait", err);
@@ -204,8 +207,8 @@ Ns_MasterUnlock(void)
     if (err != 0) {
         NsThreadFatal(func, "pthread_mutex_lock", err);
     }
-    if (master.owner == self && --master.count == 0) {
-	master.owner = 0;
+    if (pthread_equal(master.owner, self) && --master.count == 0) {
+	master.owner = MASTER_NO_OWNER;
 	err = pthread_cond_signal(&master.cond);
 	if (err != 0) {
 	    NsThreadFatal(func, "pthread_cond_signal", err);
@@ -930,13 +933,13 @@ InitMaster(void)
 {
     int err;
 
-    master.owner = 0;
+    master.owner = MASTER_NO_OWNER;
     master.count = 0;
-    err = pthread_mutex_init(&master.lock, NULL);
+    err = pthread_mutex_init(&master.lock, MUTEX_INIT_ATTR);
     if (err != 0) {
         NsThreadFatal("InitMaster", "pthread_mutex_init", err);
     }
-    err = pthread_cond_init(&master.cond, NULL);
+    err = pthread_cond_init(&master.cond, COND_INIT_ATTR);
     if (err != 0) {
         NsThreadFatal("InitMaster", "pthread_cond_init", err);
     }
