@@ -1,5 +1,17 @@
 2002-11-10  Jim Davidson <jgdavidson@aol.com>
 
+	* include/ns.h:  Added missing Ns_GetEnviron definition.
+
+	* nscp/nscp.c:  Fixed for WIN32 (SOCKET, closesocket, etc.).
+
+	* nsd/modload.c:  Restore support for WIN32.
+
+	* nsd/tclinvoke.cpp (removed):
+	* nsd/tclstub8x.c:  Removed unused Tcl_Invoke API.
+
+	* nsd/tclmisc.c:  Stubbed out Tcl_GetMemoryInfo which is not
+	yet exported from Tcl on WIN32.
+
 	* include/nsthread.h:
 	* nsthread/Makefile:
 	* include/nsthead.h:
