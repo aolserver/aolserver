@@ -33,7 +33,7 @@
  *      Routines for dealing with HTML FORM's.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/form.c,v 1.5 2001/05/10 08:58:26 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/form.c,v 1.6 2001/11/05 20:23:49 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -258,7 +258,7 @@ Decode(Tcl_DString *dsPtr, char *s, Tcl_Encoding encoding)
      * URL decode and then convert to UTF.
      */
 
-    Ns_UrlDecode(&eds, s);
+    Ns_DecodeUrl(&eds, s);
     Ext2Utf(dsPtr, eds.string, eds.length, encoding);
     Tcl_DStringFree(&uds);
     Tcl_DStringFree(&eds);
