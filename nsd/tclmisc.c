@@ -34,7 +34,7 @@
  *	Implements a lot of Tcl API commands. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclmisc.c,v 1.23 2002/07/08 02:51:22 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclmisc.c,v 1.24 2002/07/14 23:10:19 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -488,25 +488,25 @@ NsTclSleepCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 int
 NsTclSleepObjCmd(ClientData dummy, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 {
-    int seconds;
+    Ns_Time time;
+    struct timeval tv;
 
     if (objc != 2) {
-        Tcl_WrongNumArgs(interp, 1, objv, "seconds");
+        Tcl_WrongNumArgs(interp, 1, objv, "timespec");
         return TCL_ERROR;
     }
-
-    if (Tcl_GetIntFromObj(interp, objv[1], &seconds) != TCL_OK) {
+    if (Ns_TclGetTimeFromObj(interp, objv[1], &time) != TCL_OK) {
         return TCL_ERROR;
     }
-
-    if (seconds < 0) {
-        Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "invalid seconds \"", 
-            Tcl_GetString(objv[1]),
-	        "\": should be >= 0", NULL);
+    Ns_AdjTime(&time);
+    if (time.sec < 0 || (time.sec == 0 && time.usec < 0)) {
+        Tcl_AppendResult(interp, "invalid timespec: ", 
+            Tcl_GetString(objv[1]), NULL);
         return TCL_ERROR;
     }
-
-    sleep(seconds);
+    tv.tv_sec = time.sec;
+    tv.tv_usec = time.usec;
+    (void) select(0, NULL, NULL, NULL, &tv);
     return TCL_OK;
 }
 
