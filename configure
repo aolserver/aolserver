@@ -1125,8 +1125,8 @@ case "$system" in
 		LDLIB="$LDLIB \$(LDRFLAG)"
 		;;
 	esac
-	CCRPATH="\$(TCL_CC_SEARCH_FLAGS)\$(INSTLIB)"
-	LDRPATH="\$(TCL_LD_SEARCH_FLAGS)\$(INSTLIB)"
+	CCRPATH="\$(CCRFLAG)\$(INSTLIB)"
+	LDRPATH="\$(LDRFLAG)\$(INSTLIB)"
 	if test "$TCL_EXEC_PREFIX" != "$prefix"
 	then
 		CCRPATH="$CCRPATH \$(CCRFLAG)\$(TCL_EXEC_PREFIX)/lib"
