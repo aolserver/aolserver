@@ -33,7 +33,7 @@
  *	Routines for managing NsServer structures.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.34 2005/01/16 03:25:07 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.35 2005/01/17 14:04:48 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -188,25 +188,13 @@ NsInitServer(char *server, Ns_ServerInitProc *initProc)
      */
 
     servPtr->encoding.outputCharset = Ns_ConfigGetValue(path, "outputCharset");
-    if (servPtr->encoding.outputCharset != NULL) {
-
-        servPtr->encoding.outputEncoding =
-            Ns_GetCharsetEncoding(servPtr->encoding.outputCharset);
-        if (servPtr->encoding.outputEncoding == NULL) {
-            Ns_Fatal("could not find encoding for default output charset \"%s\"",
-                     servPtr->encoding.outputCharset);
-        }
-    } else {
+    if (servPtr->encoding.outputCharset == NULL) {
         servPtr->encoding.outputCharset = nsconf.encoding.outputCharset;
-        servPtr->encoding.outputEncoding = nsconf.encoding.outputEncoding;
-        nsconf.encoding.hackContentTypeP = nsconf.encoding.hackContentTypeP;
     }
-    if (servPtr->encoding.outputEncoding != NULL) {
-        servPtr->encoding.hackContentTypeP = NS_TRUE;
-        Ns_ConfigGetBool(path, "HackContentType",
-                         &servPtr->encoding.hackContentTypeP);
-    } else {
-        nsconf.encoding.hackContentTypeP = NS_FALSE;
+    if (servPtr->encoding.outputCharset != NULL &&
+	    !Ns_ConfigGetBool(path, "HackContentType",
+                              &servPtr->encoding.hackContentTypeP)) {
+        nsconf.encoding.hackContentTypeP = NS_TRUE;
     }
     servPtr->encoding.urlCharset = Ns_ConfigGetValue(path, "urlCharset");
     if (servPtr->encoding.urlCharset != NULL) {
