@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Makefile.global,v 1.41 2001/05/31 20:16:36 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Makefile.global,v 1.42 2001/11/05 20:29:04 jgdavidson Exp $
 #
 
 #
@@ -83,14 +83,14 @@ else
 endif
 
 ifeq (1,$(NSGCC))
-    CC       	=  gcc 
+    CC       	=  gcc -pipe
     LDSO     	=  gcc -shared -nostartfiles
     CFLAGS	+= -fPIC
 else
     CC	     =   $(PURIFY) cc
 endif
 
-CFLAGS       +=  -I$(NSHOME)/include -D_REENTRANT=1 -DTCL_THREADS=1
+CFLAGS       +=  -I$(NSHOME)/include -D_REENTRANT=1 -DTCL_THREADS=1 -DNS_NOCOMPAT=1
 MKDIR        =   /bin/mkdir -p
 RM           =   /bin/rm -f
 CP           =   /bin/cp -fp
@@ -103,9 +103,9 @@ FIND         =   find
 
 NSTCL_MAJOR  	= 8
 NSTCL_MINOR  	= 3
-NSTCL_PATCH  	= .3
-NSTCL_VERSION	= $(NSTCL_MAJOR).$(NSTCL_MINOR)
-NSTCL_ROOT	= $(NSHOME)/tcl$(NSTCL_VERSION)$(NSTCL_PATCH)
+NSTCL_PATCH  	= .4
+NSTCL_ROOT	= $(NSHOME)/tcl$(NSTCL_MAJOR).$(NSTCL_MINOR)$(NSTCL_PATCH)
+NSTCL_CFG	= --enable-threads --prefix=$(AOLSERVER)
 ifeq (1,$(NSGCC))
     NSTCL_CFG  	+= --enable-gcc
 endif
@@ -119,7 +119,6 @@ endif
 #
 
 NSTCL_DIR	= $(NSTCL_ROOT)/unix
-NSTHREAD_DIR	= $(NSHOME)/thread
 NSD_DIR		= $(NSHOME)/nsd
 
 #
@@ -131,14 +130,9 @@ SOEXT		= so
 RFLAG		= -rpath
 RPATH		= -Wl,$(RFLAG),$(INSTLIB) 
 
-NSTCL_CFG	+= --prefix=$(AOLSERVER)
-NSTCL		= tcl$(NSTCL_VERSION)$(NSTCL_DBG)
+NSTCL		= tcl$(NSTCL_MAJOR).$(NSTCL_MINOR)$(NSTCL_DBG)
 NSTCL_FILE	= lib$(NSTCL).$(SOEXT)
 NSTCL_LIB	= -L$(NSTCL_DIR) -l$(NSTCL)
-
-NSTHREAD	= nsthread
-NSTHREAD_FILE	= lib$(NSTHREAD).$(SOEXT)
-NSTHREAD_LIB	= -L$(NSTHREAD_DIR) -l$(NSTHREAD)
 
 NSD	 	= nsd
 NSD_FILE	= lib$(NSD).$(SOEXT)
@@ -166,7 +160,7 @@ ifneq (,$(findstring HP-UX,$(PLAT)))
     SOEXT=sl
     LDSO=ld -b
     LIBS+=-ldce -lc_r
-    CFLAGS+=-D__hp10=1 -DHAVE_PTHREAD_D4=1 -DUSE_DLSHL=1 -DNEED_HERRNO=1
+    CFLAGS+=-D__hp10=1 -DHAVE_PTHREAD_D4=1 -DUSE_DLSHL=1 -DNEED_ERRNO=1
 endif
 
 
@@ -184,7 +178,7 @@ ifneq (,$(findstring Linux,$(PLAT)))
         CFLAGS+=-mcpu=i586
     endif
     LIBS+=-ldl -lpthread 
-    CFLAGS+=-DHAVE_CMMSG=1 -DUSE_FIONREAD=1 -DHAVE_COND_EINTR=1
+    CFLAGS+=-DUSE_FIONREAD=1 -DHAVE_COND_EINTR=1
 endif
 
 
@@ -253,11 +247,7 @@ ifneq (,$(findstring IRIX,$(PLAT)))
     endif
     LDSO=ld $(ABI) -shared -rdata_shared
     CFLAGS+=-D_SGI_MP_SOURCE=1 -DNO_LONGDBL=1
-    ifeq ($(USE_SPROC), 0)
-    	LIBS += -lpthread
-    else
-    	CFLAGS+=-DUSE_SPROC=1
-    endif
+    LIBS += -lpthread
 
 endif
 
@@ -266,15 +256,19 @@ endif
 #
 
 ifneq (,$(findstring FreeBSD,$(PLAT)))
+    #NSTCL = tcl$(NSTCL_MAJOR)$(NSTCL_MINOR)$(NSTCL_DBG)
     PLATFORM=freebsd
+    # Standard uthreads:
     CC += -pthread
+    # rfork-based LinuxThreads:
+    #CFLAGS += -I/usr/local/include/pthread/linuxthreads
+    #LIBS+= -L/usr/local/lib -llthread -llgcc_r
     ## FreeBSD doesn't make a distinction among processors in the x86 class.
     ifneq (,$(findstring i386,$(PLAT)))
         CFLAGS+=-mcpu=pentium
     endif
     LDSO=ld -Bshareable -x
-    CFLAGS+=-D_THREAD_SAFE=1 -DHAVE_CMMSG=1 -DNO_TIMEZONE=1 \
-	   -DHAVE_TIMEGM=1 -DNO__ENVIRON=1
+    CFLAGS+=-D_THREAD_SAFE=1 -DNO_TIMEZONE=1 -DHAVE_TIMEGM=1 -DNO__ENVIRON=1
 endif
 
 
@@ -289,7 +283,7 @@ ifneq (,$(findstring OpenBSD,$(PLAT)))
     ifneq (,$(findstring i386,$(PLAT)))
         CFLAGS+=-mcpu=pentium
     endif
-    CFLAGS+=-DHAVE_CMMSG=1 -DUSE_DLSYMPREFIX=1 -DUSE_RTLD_LAZY=1 \
+    CFLAGS+=-DUSE_DLSYMPREFIX=1 -DUSE_RTLD_LAZY=1 \
            -DNO_TIMEZONE=1 -DHAVE_TIMEGM=1 -D_THREAD_SAFE=1 \
 	   -DNO__ENVIRON=1
 endif
@@ -305,7 +299,7 @@ ifneq (,$(findstring UnixWare,$(PLAT)))
     CFLAGS+=-Kpic -Kthread -D__unixware
     LDSO=ld -G
     LIBS+=-Kthread -lsocket
-    CLFAGS+=-DUSE_PTHREAD_SYSSCOPE=1 -DHAVE_SENDV=1 -DHAVE_CMMSG=1
+    CLFAGS+=-DUSE_PTHREAD_SYSSCOPE=1 -DHAVE_SENDV=1
 endif
 
 
@@ -323,7 +317,7 @@ ifeq (osx,$(PLATFORM))
     CC=cc
     CFLAGS+=-dynamic -traditional-cpp
     LDSO=cc -bundle -undefined suppress
-    CFLAGS+=-DHAVE_CMMSG=1 -DUSE_DYLD=1 -DUSE_DLSYMPREFIX=1 \
+    CFLAGS+=-DUSE_DYLD=1 -DUSE_DLSYMPREFIX=1 \
             -DNO_RAND48=1 -DNO_TIMEZONE=1 -DMACOSX=1
 endif
 
