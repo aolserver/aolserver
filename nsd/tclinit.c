@@ -33,7 +33,7 @@
  *	Initialization routines for Tcl.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.39 2003/08/26 18:12:54 elizthom Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.40 2003/09/03 14:55:14 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -992,21 +992,20 @@ NsTclICtlObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
             Tcl_WrongNumArgs(interp, 1, objv, "when script");
 	    return TCL_ERROR;
         }
-        objPtr = objv[2];
-        Tcl_IncrRefCount(objPtr);
+        script = ns_strdup(Tcl_GetString(objv[2]));
         switch (opt) {
         case IOnCreateIdx:
-            status = Ns_TclRegisterAtCreate(TclScriptTraceCB, objPtr);
+            status = Ns_TclRegisterAtCreate(TclScriptTraceCB, script);
             break;
         case IOnCleanupIdx:
-            status = Ns_TclRegisterAtCleanup(TclScriptTraceCB, objPtr);
+            status = Ns_TclRegisterAtCleanup(TclScriptTraceCB, script);
             break;
         case IOnDeleteIdx:
-            status = Ns_TclRegisterAtDelete(TclScriptTraceCB, objPtr);
+            status = Ns_TclRegisterAtDelete(TclScriptTraceCB, script);
             break;
         case IOnInitIdx:
             status = Ns_TclInitInterps(itPtr->servPtr->server, 
-                                       TclInitScriptCB, objPtr);
+                                       TclInitScriptCB, script);
             break;
         default:
             status = NS_ERROR;
@@ -1056,11 +1055,11 @@ NsTclICtlObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 static int
 TclScriptTraceCB(Tcl_Interp *interp, void *arg)
 {
-    Tcl_Obj *objPtr = (Tcl_Obj *)arg;
+    char *script = (char *)arg;
     int status = TCL_OK;
 
-    if( objPtr != NULL ) {
-        status = Tcl_EvalObjEx(interp, objPtr, 0);
+    if( script != NULL ) {
+        status = Tcl_EvalEx(interp, script, -1, TCL_EVAL_GLOBAL);
     }
     return status;
 }
@@ -1084,7 +1083,7 @@ TclScriptTraceCB(Tcl_Interp *interp, void *arg)
 static int
 TclInitScriptCB(Tcl_Interp *interp, void *arg)
 {
-    Tcl_Obj *objPtr = (Tcl_Obj *)arg;
+    char *script = (char *)arg;
     int status = NS_OK;
 
     /*
@@ -1094,9 +1093,9 @@ TclInitScriptCB(Tcl_Interp *interp, void *arg)
      * in another interp; it will discard the previous and recompile.
      * So, better just to interpret the script.
      */
-    if( (objPtr != NULL) &&
-        (Tcl_EvalObjEx(interp, objPtr, 
-                       TCL_EVAL_DIRECT | TCL_EVAL_GLOBAL) != TCL_OK) ) {
+    if( (script != NULL) &&
+        (Tcl_EvalEx(interp, script, -1, 
+                       TCL_EVAL_GLOBAL) != TCL_OK) ) {
         status = NS_ERROR;
     }
     return status;
