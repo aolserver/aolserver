@@ -34,7 +34,7 @@
  *      Get page possibly from a file cache.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/fastpath.c,v 1.18.2.1 2004/07/02 16:25:04 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/fastpath.c,v 1.18.2.2 2004/08/17 19:46:23 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #ifndef _WIN32
@@ -473,9 +473,10 @@ FastReturn(NsServer *servPtr, Ns_Conn *conn, int status,
 {
     int         result = NS_ERROR, fd, new, nread;
     File	   *filePtr;
-    char	   *key, *map;
+    char	   *key;
     Ns_Entry	   *entPtr;
 #ifndef _WIN32
+    char           *map;
     FileKey	    ukey;
 #endif
 
