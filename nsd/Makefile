@@ -18,7 +18,7 @@ OBJS = \
 	sock.o sockcallback.o str.o tclcmds.o tclconf.o tclfile.o \
 	tclinit.o tcljob.o tclmisc.o tclop.o tclresp.o tclset.o tclsock.o \
 	tclthread.o tclxkeylist.o tclvar.o tls.o unix.o url.o \
-	urlencode.o urlopen.o urlspace.o
+	urlencode.o urlopen.o urlspace.o encoding.o
 
 #
 # Name the executables
