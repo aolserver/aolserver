@@ -28,7 +28,7 @@
 '\" version of this file under either the License or the GPL.
 '\" 
 '\"
-'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_job.n,v 1.3 2003/09/05 14:51:28 pmoosman Exp $
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_job.n,v 1.4 2003/09/11 21:34:14 pmoosman Exp $
 '\"
 '\" 
 .so man.macros
@@ -39,19 +39,23 @@
 .SH NAME
 ns_job \- commands
 .SH SYNOPSIS
-\fBns_job \fIoption \fR?\fIarg arg ...\fR?
+\fBns_job\fR option ?\fIarg arg ...\fR?
 
-\fBns_job \fIcreate \fR\fIqueue_name ?maxthreads? \fR
+\fBns_job\fR create \fIqueue_name ?maxthreads? \fR
 
-\fBns_job \fIqueue \fR\fIqueue_name script \fR
+\fBns_job\fR queue \fIqueue_name script \fR
 
-\fBns_job \fIwait \fR\fIqueue_name job_id \fR
+\fBns_job\fR wait \fIqueue_name job_id \fR
 
-\fBns_job \fIcancel \fR\fIqueue_name job_id \fR
+\fBns_job\fR cancel \fIqueue_name job_id \fR
 
-\fBns_job \fIjobs \fR\fIqueue_name \fR
+\fBns_job\fR jobs \fIqueue_name \fR
 
-\fBns_job \fIqueues \fR
+\fBns_job\fR job_list \fIqueue_name \fR
+
+\fBns_job\fR queues
+
+\fBns_job\fR queue_list 
 
 .BE
 
@@ -63,28 +67,34 @@ ns_job manages sets of thread pools called "queues". Queues have a max number of
 .SH OPTIONS
 .PP
 
-.IP \fBcreate \fR
+\fBcreate \fR
+.RS
 
 create \fIqueue_name ?maxthreads? \fR
 
 Create a new thread pool queue called \fIqueue_name\fR. If \fImaxthreads\fR is not specified, then the default of 4 is used.
 
-
-.IP \fBqueue \fR
+.RE
+\fBqueue\fR
+.RS
 
 queue \fIqueue_name script \fR
 
-Add a new job to the queue. If there are less than \fImaxthreads\fR current running then the job will be started. If there are \fImaxthreads \fR currently running then this new job will be queued.
+Add a new job to the queue. If there are less than \fImaxthreads\fR current running then the job will be started. If there are \fImaxthreads\fR currently running then this new job will be queued.
 
 The new job's ID is returned.
 
-.IP \fBwait \fR
+.RE
+\fBwait\fR
+.RS
 
-wait \fR\fIqueue_name job_id \fR
+wait \fIqueue_name job_id \fR
 
 Wait for the specified queued or running job to finish. \fIwait\fR returns the results of the script.
 
-.IP \fBcancel \fR
+.RE
+\fBcancel\fR
+.RS
 
 cancel \fR\fIqueue_name job_id \fR
 
@@ -92,19 +102,80 @@ Remove the specified job from the queue. If the job is currently running, then t
 
 \fI1 (true) \fR is returned if the job is currently running and can not be cancelled.
 
-.IP \fBjobs \fR
+.RE
+\fBjobs \fR
+.RS
 
-\fBns_job \fIjobs \fR\fIqueue_name \fR
+jobs \fIqueue_name \fR
 
-This API should be changed. It should return a list of job ids, and whether the job is currently running or queued.
+This API returns a list of job "results" in an arbitrary order. Use \fBjob_list\fR instead.
 
-Instead it return a list of job results in arbitrary order.
-
-.IP \fBqueues \fR
-
+.RE
 \fBqueues \fR
+.RS
 
 Returns a list of the current queues.
+
+.RE
+\fBjob_list \fR
+.RS
+
+Return a list of all the jobs in the queue. The "job" consists of:
+
+ID
+.RS
+Job's ID
+.RE
+
+STATE
+.RS
+JOB_SCHEDULED
+.RS
+The job is schedule to run.
+.RE
+JOB_RUNNING
+.RS
+The job is currently running.
+.RE
+JOB_DONE
+.RS
+The job is has completed.
+.RE
+.RE
+
+
+RESULTS
+.RS
+If the job has completed, then this field will contain the results. If the job is running or scheduled to run, then this will contain the script.
+.RE
+
+CODE
+.RS
+When the job is done, this will contain the return code.
+.RS
+Codes
+.RS
+ TCL_OK
+ TCL_ERROR
+ TCL_RETURN
+ TCL_BREAK
+ TCL_CONTINUE
+.RE
+
+TYPE
+.RS
+ JOB_NON_DETACHED
+ JOB_DETACHED
+.RE
+
+REQ
+.RS
+ JOB_NONE
+ JOB_WAIT
+ JOB_CANCEL
+.RE
+
+.RE
 
 .SH BUGS
 
