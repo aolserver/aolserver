@@ -34,7 +34,7 @@
  *      DNS lookup routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/dns.c,v 1.4 2001/01/12 22:48:02 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/dns.c,v 1.5 2001/03/14 15:02:37 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -113,6 +113,7 @@ DnsGet(GetProc *getProc, Ns_DString *dsPtr, Ns_Cache **cachePtr, char *key)
     Value   	   *vPtr;
     Ns_Entry       *ePtr;
     Ns_Cache	   *cache;
+    time_t	    now;
 
     /*
      * Get the cache, if enabled.
@@ -130,6 +131,7 @@ DnsGet(GetProc *getProc, Ns_DString *dsPtr, Ns_Cache **cachePtr, char *key)
     if (cache == NULL) {
         status = (*getProc)(dsPtr, key);
     } else {
+	time(&now);
 	Ns_CacheLock(cache);
 	ePtr = Ns_CacheCreateEntry(cache, key, &new);
 	if (!new) {
@@ -140,7 +142,7 @@ DnsGet(GetProc *getProc, Ns_DString *dsPtr, Ns_Cache **cachePtr, char *key)
 	    }
 	    if (ePtr == NULL) {
 	        status = NS_FALSE;
-	    } else if (vPtr->expires < time(NULL)) {
+	    } else if (vPtr->expires < now) {
 		Ns_CacheUnsetValue(ePtr);
 		new = 1;
 	    } else {
@@ -158,9 +160,9 @@ DnsGet(GetProc *getProc, Ns_DString *dsPtr, Ns_Cache **cachePtr, char *key)
 	    } else {
 	    	Ns_CacheUnsetValue(ePtr);
 		vPtr = ns_malloc(sizeof(Value) + dsPtr->length);
-		vPtr->expires = time(NULL) + timeout;
+		vPtr->expires = now + timeout;
 		strcpy(vPtr->value, dsPtr->string);
-		Ns_CacheSetValue(ePtr, vPtr);
+		Ns_CacheSetValueSz(ePtr, vPtr, 1);
 	    }
 	    Ns_CacheBroadcast(cache);
 	}
@@ -186,14 +188,14 @@ DnsGet(GetProc *getProc, Ns_DString *dsPtr, Ns_Cache **cachePtr, char *key)
  */
 
 void
-NsEnableDNSCache(int timeout)
+NsEnableDNSCache(int timeout, int maxentries)
 {
     Ns_MutexLock(&lock);
     cachetimeout = timeout;
-    hostCache = Ns_CacheCreate("ns_dnshost", TCL_STRING_KEYS,
-	cachetimeout, ns_free);
-    addrCache = Ns_CacheCreate("ns_dnsaddr", TCL_STRING_KEYS,
-	cachetimeout, ns_free);
+    hostCache = Ns_CacheCreateSz("ns:dnshost", TCL_STRING_KEYS,
+	maxentries, ns_free);
+    addrCache = Ns_CacheCreateSz("ns:dnsaddr", TCL_STRING_KEYS,
+	maxentries, ns_free);
     Ns_MutexUnlock(&lock);
 }
 
