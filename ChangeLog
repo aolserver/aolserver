@@ -2,6 +2,8 @@
 
         * nsd/tclmisc.c: Fixed Ns_ThreadList to include connection 
         argument and proc information via Ns_GetProcInfo.
+        * tcl/stats.tcl:
+        * stats: Removed. Clumsy initial implementation.
 
 2003-01-24  Nathan Folkman <shmooved@aol.com>
 
