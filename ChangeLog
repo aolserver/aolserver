@@ -1,3 +1,11 @@
+2004-09-17  Dossy Shiobara <dossy@panoptic.com>
+
+	* nsd/driver.c (1.17.2.9): "stopped" already initalized to 1, which
+	  means NsWaitDriversShutdown() will never timeout even when it
+	  should, which means trigPipe always gets closed immediately which
+	  causes DriverThread to Ns_Fatal() on line 848.  Closes SF Bug
+	  #1029918.
+
 2004-09-08  Dossy Shiobara <dossy@panoptic.com>
 
 	* nslog/nslog.html (1.1.10.1): Updated nslog module documentation.
