@@ -1,3 +1,8 @@
+2003-04-16  Mark Page  <mpagenva@aol.com>
+
+	* nsd/modload.c (NsLoadModules): (bug) Failed parsing the explicit
+	initialization specification properly.
+
 2003-04-10  Mark Page  <mpagenva@aol.com>
 
 	* TAG aolserver_v4_r0_beta_5
