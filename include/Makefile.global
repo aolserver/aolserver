@@ -209,7 +209,7 @@ ifneq (,$(findstring OpenBSD,$(PLAT)))
         CFLAGS+=-mcpu=pentium
     endif
 
-    LDFLAGS+=-pthread -Wl,-E
+    LDFLAGS+=-pthread -Wl
     RANLIB=ranlib
     CFLAGS+=-DHAVE_CMMSG=1 -DUSE_DLSYMPREFIX=1 -DUSE_RTLD_LAZY=1 \
            -DNO_TIMEZONE=1 -DHAVE_TIMEGM=1 -D_THREAD_SAFE=1
@@ -262,12 +262,13 @@ endif
 #    Note:  Tcl 7.6 on *BSD has a different name for no apparent reason.
 #
 TCL8X_DIR=tcl8.3.2
-TCL8X_LIB=libtcl8.3g.a
 TCL76_DIR=tcl7.6
 ifeq (bsd, $(findstring bsd, $(PLATFORM)))
   TCL76_LIB=libtcl76.a
+  TCL8X_LIB=libtcl83g.a
 else
   TCL76_LIB=libtcl7.6.a
+  TCL8X_LIB=libtcl8.3g.a
 endif
 
 LIBTCL76=$(NSHOME)/$(TCL76_DIR)/unix/$(TCL76_LIB)

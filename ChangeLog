@@ -1,5 +1,10 @@
 2001-03-14  Kris Rehberg  <kriston@aol.com>
-	
+
+	* include/Makefile.global: Makefile.global wasn't working on
+	OpenBSD 2.8.  Got rid of -E and changed libtcl8.3g.a to
+	libtcl83g.a for all BSD platforms.  Many thanks to John Borwick
+	for the patch!
+
 	* nsd/serv.c: [ #232139 ] Buffer overflow in ParseAuth().
 	ParseAuth() uses a 256-byte buffer for decoding authentication
 	data. Unfortunately, Ns_HtuuDecode() does not do an adequate job
