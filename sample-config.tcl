@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/Attic/sample-config.tcl,v 1.12 2003/12/28 01:18:21 scottg Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/Attic/sample-config.tcl,v 1.13 2004/07/22 20:52:23 dossy Exp $
 #
 
 #
@@ -64,9 +64,11 @@ set bindir                 [file dirname [ns_info nsd]]
 set pageroot               ${homedir}/servers/${servername}/pages
 set directoryfile          index.adp,index.html,index.htm,index.xhtml,index.xht
 
+set shlibext               [info sharedlibextension]
+
 # nsssl: Only loads if keyfile.pem and certfile.pem exist.
-#set sslmodule              nsssl.so  ;# Domestic 128-bit/1024-bit SSL.
-set sslmodule              nsssle.so ;# Exportable 40-bit/512-bit SSL.
+#set sslmodule              nsssl${shlibext}  ;# Domestic 128-bit/1024-bit SSL.
+set sslmodule              nsssle${shlibext} ;# Exportable 40-bit/512-bit SSL.
 set sslkeyfile   ${homedir}/servers/${servername}/modules/nsssl/keyfile.pem
 set sslcertfile  ${homedir}/servers/${servername}/modules/nsssl/certfile.pem
 
@@ -297,7 +299,7 @@ ns_param   certfile        $sslcertfile
 #    The configuration example below adds the user "nsadmin" with a 
 #    password of "x".
 #
-# 4. Make sure the nscp.so module is loaded in the modules section.
+# 4. Make sure the nscp module is loaded in the modules section.
 #
 #ns_section "ns/server/${servername}/module/nscp"
 #    ns_param address 127.0.0.1        
@@ -309,7 +311,7 @@ ns_param   certfile        $sslcertfile
 #    ns_param user "nsadmin:t2GqvvaiIUbF2:"
 #
 #ns_section "ns/server/${servername}/modules"
-#    ns_param nscp ${bindir}/nscp.so
+#    ns_param nscp ${bindir}/nscp${shlibext}
 #
 
 #
@@ -338,10 +340,10 @@ ns_section "ns/server/${servername}/module/nscgi"
 #
 
 ns_section "ns/server/${servername}/modules"
-    ns_param nssock ${bindir}/nssock.so
-    ns_param nslog ${bindir}/nslog.so
-    #ns_param nscgi ${bindir}/nscgi.so
-    #ns_param nsperm ${bindir}/nsperm.so
+    ns_param nssock ${bindir}/nssock${shlibext}
+    ns_param nslog ${bindir}/nslog${shlibext}
+    #ns_param nscgi ${bindir}/nscgi${shlibext}
+    #ns_param nsperm ${bindir}/nsperm${shlibext}
 
 #
 # nsssl: Only loads if sslcertfile and sslkeyfile exist (see above).
@@ -362,7 +364,7 @@ if { [file exists $sslcertfile] && [file exists $sslkeyfile] } {
 # 3. Add a "servers" section to map virtual servers to Host headers.
 #
 #ns_section ns/modules
-#ns_section nssock nssock.so
+#ns_section nssock nssock${shlibext}
 #
 #ns_section ns/module/nssock
 #ns_param   port            $httpport
