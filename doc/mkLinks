@@ -73,11 +73,14 @@ if test -r ns_adp.n; then
     rm -f ns_adp_argv.n ns_adp_argv.n.* 
     rm -f ns_adp_bind_args.n ns_adp_bind_args.n.* 
     rm -f ns_adp_break.n ns_adp_break.n.* 
+    rm -f ns_adp_close.n ns_adp_close.n.* 
+    rm -f ns_adp_ctl.n ns_adp_ctl.n.* 
     rm -f ns_adp_debug.n ns_adp_debug.n.* 
     rm -f ns_adp_dir.n ns_adp_dir.n.* 
     rm -f ns_adp_dump.n ns_adp_dump.n.* 
     rm -f ns_adp_eval.n ns_adp_eval.n.* 
     rm -f ns_adp_exception.n ns_adp_exception.n.* 
+    rm -f ns_adp_flush.n ns_adp_flush.n.* 
     rm -f ns_adp_mime.n ns_adp_mime.n.* 
     rm -f ns_adp_mimetype.n ns_adp_mimetype.n.* 
     rm -f ns_adp_parse.n ns_adp_parse.n.* 
@@ -101,11 +104,14 @@ if test -r ns_adp.n; then
     ln $S ns_adp.n$Z ns_adp_argv.n$Z 
     ln $S ns_adp.n$Z ns_adp_bind_args.n$Z 
     ln $S ns_adp.n$Z ns_adp_break.n$Z 
+    ln $S ns_adp.n$Z ns_adp_close.n$Z 
+    ln $S ns_adp.n$Z ns_adp_ctl.n$Z 
     ln $S ns_adp.n$Z ns_adp_debug.n$Z 
     ln $S ns_adp.n$Z ns_adp_dir.n$Z 
     ln $S ns_adp.n$Z ns_adp_dump.n$Z 
     ln $S ns_adp.n$Z ns_adp_eval.n$Z 
     ln $S ns_adp.n$Z ns_adp_exception.n$Z 
+    ln $S ns_adp.n$Z ns_adp_flush.n$Z 
     ln $S ns_adp.n$Z ns_adp_mime.n$Z 
     ln $S ns_adp.n$Z ns_adp_mimetype.n$Z 
     ln $S ns_adp.n$Z ns_adp_parse.n$Z 
@@ -766,6 +772,7 @@ if test -r Ns_ConnHeaders.3; then
     rm -f Ns_ConnCondSetHeaders.3 Ns_ConnCondSetHeaders.3.* 
     rm -f Ns_ConnConstructHeaders.3 Ns_ConnConstructHeaders.3.* 
     rm -f Ns_ConnFlushHeaders.3 Ns_ConnFlushHeaders.3.* 
+    rm -f Ns_ConnGetType.3 Ns_ConnGetType.3.* 
     rm -f Ns_ConnPrintfHeader.3 Ns_ConnPrintfHeader.3.* 
     rm -f Ns_ConnQueueHeaders.3 Ns_ConnQueueHeaders.3.* 
     rm -f Ns_ConnSetExpiresHeader.3 Ns_ConnSetExpiresHeader.3.* 
@@ -773,10 +780,12 @@ if test -r Ns_ConnHeaders.3; then
     rm -f Ns_ConnSetLastModifiedHeader.3 Ns_ConnSetLastModifiedHeader.3.* 
     rm -f Ns_ConnSetLengthHeader.3 Ns_ConnSetLengthHeader.3.* 
     rm -f Ns_ConnSetRequiredHeaders.3 Ns_ConnSetRequiredHeaders.3.* 
+    rm -f Ns_ConnSetType.3 Ns_ConnSetType.3.* 
     rm -f Ns_ConnSetTypeHeader.3 Ns_ConnSetTypeHeader.3.* 
     ln $S Ns_ConnHeaders.3$Z Ns_ConnCondSetHeaders.3$Z 
     ln $S Ns_ConnHeaders.3$Z Ns_ConnConstructHeaders.3$Z 
     ln $S Ns_ConnHeaders.3$Z Ns_ConnFlushHeaders.3$Z 
+    ln $S Ns_ConnHeaders.3$Z Ns_ConnGetType.3$Z 
     ln $S Ns_ConnHeaders.3$Z Ns_ConnPrintfHeader.3$Z 
     ln $S Ns_ConnHeaders.3$Z Ns_ConnQueueHeaders.3$Z 
     ln $S Ns_ConnHeaders.3$Z Ns_ConnSetExpiresHeader.3$Z 
@@ -784,15 +793,18 @@ if test -r Ns_ConnHeaders.3; then
     ln $S Ns_ConnHeaders.3$Z Ns_ConnSetLastModifiedHeader.3$Z 
     ln $S Ns_ConnHeaders.3$Z Ns_ConnSetLengthHeader.3$Z 
     ln $S Ns_ConnHeaders.3$Z Ns_ConnSetRequiredHeaders.3$Z 
+    ln $S Ns_ConnHeaders.3$Z Ns_ConnSetType.2$Z 
     ln $S Ns_ConnHeaders.3$Z Ns_ConnSetTypeHeader.3$Z 
 fi
 if test -r Ns_ConnRead.3; then
     rm -f Ns_ConnRead.3.*
     $ZIP Ns_ConnRead.3
     rm -f Ns_ConnGets.3 Ns_ConnGets.3.* 
+    rm -f Ns_ConnFlushContent.3 Ns_ConnFlushContent.3.* 
     rm -f Ns_ConnReadHeaders.3 Ns_ConnReadHeaders.3.* 
     rm -f Ns_ConnReadLine.3 Ns_ConnReadLine.3.* 
     ln $S Ns_ConnRead.3$Z Ns_ConnGets.3$Z 
+    ln $S Ns_ConnRead.3$Z Ns_ConnFlushContent.3$Z 
     ln $S Ns_ConnRead.3$Z Ns_ConnReadHeaders.3$Z 
     ln $S Ns_ConnRead.3$Z Ns_ConnReadLine.3$Z 
 fi
@@ -881,13 +893,13 @@ if test -r Ns_ConnWrite.3; then
     $ZIP Ns_ConnWrite.3
     rm -f Ns_ConnClose.3 Ns_ConnClose.3.* 
     rm -f Ns_ConnContentSent.3 Ns_ConnContentSent.3.* 
-    rm -f Ns_ConnFlushContent.3 Ns_ConnFlushContent.3.* 
+    rm -f Ns_ConnFlush.3 Ns_ConnFlush.3.* 
     rm -f Ns_ConnPuts.3 Ns_ConnPuts.3.* 
     rm -f Ns_ConnSend.3 Ns_ConnSend.3.* 
     rm -f Ns_WriteConn.3 Ns_WriteConn.3.* 
     ln $S Ns_ConnWrite.3$Z Ns_ConnClose.3$Z 
     ln $S Ns_ConnWrite.3$Z Ns_ConnContentSent.3$Z 
-    ln $S Ns_ConnWrite.3$Z Ns_ConnFlushContent.3$Z 
+    ln $S Ns_ConnWrite.3$Z Ns_ConnFlush.3$Z 
     ln $S Ns_ConnWrite.3$Z Ns_ConnPuts.3$Z 
     ln $S Ns_ConnWrite.3$Z Ns_ConnSend.3$Z 
     ln $S Ns_ConnWrite.3$Z Ns_WriteConn.3$Z 
