@@ -1,3 +1,12 @@
+2002-12-02  Shahzad Chaudhri <schaudhri@aol.com>
+
+	* nsd/nsd.h:  Bumped label to aolserver_v35_b2.
+
+	* nsd/dns.c:  Added round robin dns cache lookups for multi ip
+        host entries.
+
+	* doc/...:  Added tcl api man pages.
+
 2002-11-10  Jim Davidson <jgdavidson@aol.com>
 
 	* nsd/nsd.h:  Bumped version to 3.5.2.
