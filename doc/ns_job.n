@@ -28,7 +28,7 @@
 '\" version of this file under either the License or the GPL.
 '\" 
 '\"
-'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_job.n,v 1.8 2003/10/08 16:34:47 pmoosman Exp $
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_job.n,v 1.9 2003/10/21 17:36:54 pmoosman Exp $
 '\"
 '\" 
 .so man.macros
@@ -54,8 +54,6 @@ ns_job \- commands
 \fBns_job\fR delete \fIqueueId \fR
 
 \fBns_job\fR jobs \fIqueueId \fR
-
-\fBns_job\fR job \fIqueueId \fR
 
 \fBns_job\fR queues
 
