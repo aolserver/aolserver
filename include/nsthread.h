@@ -32,7 +32,7 @@
  *
  *	Core threading and system headers.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/nsthread.h,v 1.15 2001/04/23 21:02:38 jgdavidson Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/nsthread.h,v 1.16 2001/04/26 18:42:31 jgdavidson Exp $
  */
 
 #ifndef NSTHREAD_H
@@ -111,6 +111,7 @@ NS_EXTERN int closedir(DIR *dp);
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netdb.h>
+#include <sys/uio.h>
 
 #ifndef O_TEXT
 #define O_TEXT 0
