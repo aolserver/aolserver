@@ -34,11 +34,9 @@
  *	Implement specialized Tcl_Obj's types for AOLserver.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclobj.c,v 1.3 2002/06/08 14:49:12 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclobj.c,v 1.4 2002/07/08 02:51:27 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
-
-#define TIME_SEP ':'
 
 /*
  * Prototypes for procedures defined later in this file:
@@ -53,13 +51,15 @@ static void		UpdateStringOfTime(Tcl_Obj *objPtr);
  * timing and waits.
  */
 
-Tcl_ObjType timeType = {
+static Tcl_ObjType timeType = {
     "ns_time",
     (Tcl_FreeInternalRepProc *) NULL,
     (Tcl_DupInternalRepProc *) NULL,
     UpdateStringOfTime,
     SetTimeFromAny
 };
+
+static Tcl_ObjType *intTypePtr;
 
 
 /*
@@ -81,6 +81,18 @@ Tcl_ObjType timeType = {
 void
 NsTclInitObjs()
 {
+    Tcl_Obj obj;
+
+    if (sizeof(obj.internalRep) < sizeof(Ns_Time)) {
+    	Tcl_Panic("NsTclInitObjs: sizeof(obj.internalRep) < sizeof(Ns_Time)");
+    }
+    if (sizeof(int) < sizeof(long)) {
+    	Tcl_Panic("NsTclInitObjs: sizeof(int) < sizeof(long)");
+    }
+    intTypePtr = Tcl_GetObjType("int");
+    if (intTypePtr == NULL) {
+    	Tcl_Panic("NsTclInitObjs: no int type");
+    }
     /* NB: Just Ns_Time type for now. */
     Tcl_RegisterObjType(&timeType);
 }
@@ -129,10 +141,18 @@ Ns_TclSetTimeObj(Tcl_Obj *objPtr, Ns_Time *timePtr)
 int
 Ns_TclGetTimeFromObj(Tcl_Interp *interp, Tcl_Obj *objPtr, Ns_Time *timePtr)
 {
-    if (objPtr->typePtr != &timeType && SetTimeFromAny(interp, objPtr) != TCL_OK) {
-	return TCL_ERROR;
+    if (objPtr->typePtr == intTypePtr) {
+	if (Tcl_GetLongFromObj(interp, objPtr, &timePtr->sec) != TCL_OK) {
+	    return TCL_ERROR;
+	}
+	timePtr->usec = 0;
+    } else {
+    	if (objPtr->typePtr != &timeType
+		&& SetTimeFromAny(interp, objPtr) != TCL_OK) {
+	    return TCL_ERROR;
+        }
+    	*timePtr = *((Ns_Time *) &objPtr->internalRep);
     }
-    *timePtr = *((Ns_Time *) &objPtr->internalRep);
     return TCL_OK;
 }
 
@@ -164,7 +184,11 @@ UpdateStringOfTime(objPtr)
     char buf[100];
 
     Ns_AdjTime(timePtr);
-    objPtr->length = sprintf(buf, "%ld:%ld", timePtr->sec, timePtr->usec);
+    if (timePtr->usec == 0) {
+    	objPtr->length = sprintf(buf, "%ld", timePtr->sec);
+    } else {
+    	objPtr->length = sprintf(buf, "%ld:%ld", timePtr->sec, timePtr->usec);
+    }
     objPtr->bytes = Tcl_Alloc(objPtr->length + 1);
     memcpy(objPtr->bytes, buf, objPtr->length+1);
 }
@@ -192,30 +216,31 @@ UpdateStringOfTime(objPtr)
 static int
 SetTimeFromAny(Tcl_Interp *interp, Tcl_Obj *objPtr)
 {
-    int result;
-    char *sep, *string;
+    char *str, *sep;
     Ns_Time time;
+    int result;
 
-    string = Tcl_GetString(objPtr);
-    sep = strchr(string, TIME_SEP);
-    if (sep != NULL) {
+    str = Tcl_GetString(objPtr);
+    sep = strchr(str, ':');
+    if (objPtr->typePtr == intTypePtr || sep == NULL) {
+	if (Tcl_GetLongFromObj(interp, objPtr, &time.sec) != TCL_OK) {
+	    return TCL_ERROR;
+	}
+	time.usec = 0;
+    } else {
 	*sep = '\0';
-    }
-    result = Tcl_GetInt(interp, string, (int *) &time.sec);
-    if (sep != NULL) {
-	*sep++ = TIME_SEP;
-    }
-    if (result == TCL_OK) {
-	if (sep == NULL) {
-	    time.usec = 0;
-	} else {
-	    result = Tcl_GetInt(interp, sep, (int *) &time.usec);
+	result = Tcl_GetInt(interp, str, (int *) &time.sec);
+	*sep = ':';
+	if (result != TCL_OK) {
+	    return TCL_ERROR;
 	}
-	if (result == TCL_OK) {
-	    SetTimeInternalRep(objPtr, &time);
+	if (Tcl_GetInt(interp, sep+1, (int *) &time.usec) != TCL_OK) {
+	    return TCL_ERROR;
 	}
     }
-    return result;
+    Ns_AdjTime(&time);
+    SetTimeInternalRep(objPtr, &time);
+    return TCL_OK;
 }
 
 
