@@ -34,7 +34,7 @@
  *	Load .so files into the server and initialize them. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/modload.c,v 1.10 2002/06/10 22:35:32 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/modload.c,v 1.11 2002/09/16 22:05:49 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -66,6 +66,7 @@ static char *dylderr = "";
 static Tcl_HashTable modulesTable;
 static void *DlOpen(char *file);
 static void *DlSym(void *handle, char *name);
+static void *DlSym2(void *handle, char *name);
 static char *DlError(void);
 
 
@@ -320,7 +321,7 @@ DlOpen(char *file)
  *	A symbol pointer or null on error. 
  *
  * Side effects:
- *	See shl_findsym. 
+ *	None.
  *
  *----------------------------------------------------------------------
  */
@@ -328,13 +329,29 @@ DlOpen(char *file)
 static void *
 DlSym(void *handle, char *name)
 {
-    void *symbol;
-#ifdef USE_DLSYMPREFIX
     Ns_DString ds;
+    void *symbol;
 
-    Ns_DStringInit(&ds);
-    name = Ns_DStringVarAppend(&ds, "_", name, NULL);
-#endif
+    symbol = DlSym2(handle, name);
+    if (symbol == NULL) {
+
+	/*
+	 * Some BSD platforms (e.g., OS/X) prepend an underscore
+	 * to all symbols.
+	 */
+
+    	Ns_DStringInit(&ds);
+	Ns_DStringVarAppend(&ds, "_", name, NULL);
+	symbol = DlSym2(handle, ds.string);
+	Ns_DStringFree(&ds);
+    }
+    return symbol;
+}
+
+static void *
+DlSym2(void *handle, char *name)
+{
+    void *symbol;
 
 #if defined(USE_DLSHL)
     symbol = NULL;
@@ -348,10 +365,6 @@ DlSym(void *handle, char *name)
     }
 #else
     symbol = dlsym(handle, name);
-#endif
-
-#ifdef USE_DLSYMPREFIX
-    Ns_DStringFree(&ds);
 #endif
     return symbol;
 }
