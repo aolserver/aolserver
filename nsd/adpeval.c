@@ -33,7 +33,7 @@
  *	ADP string and file eval.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.4 2001/03/23 18:54:43 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.5 2001/03/26 15:39:26 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -74,7 +74,7 @@ typedef struct {
     char              *cwd;
     char	      *file;
     Ns_DString         cwdBuf;
-    Ns_DString	      *outputPtr;
+    Tcl_DString	      *outputPtr;
 } Frame;
 
 /*
@@ -98,13 +98,14 @@ typedef struct Key {
 
 static int  ParseFile(NsInterp *itPtr, char *file, size_t size, Ns_DString *);
 static void PushFrame(NsInterp *itPtr, Frame *framePtr, char *file, 
-		      int argc, char **argv, Ns_DString *outputPtr);
+		      int argc, char **argv, Tcl_DString *outputPtr);
 static void PopFrame(NsInterp *itPtr, Frame *framePtr);
 static void LogError(NsInterp *itPtr, int chunk);
 static int AdpRun(NsInterp *itPtr, char *file, int argc, char **argv,
-		  Ns_DString *outputPtr);
+		  Tcl_DString *outputPtr);
 static int EvalBlocks(NsInterp *itPtr, Block *firstPtr);
 static int EvalChunks(NsInterp *itPtr, char *chunks);
+static int DebugChunk(NsInterp *itPtr, char *script, int chunk);
 static Page *NewPage(Ns_DString *dsPtr, struct stat *stPtr, int blocks);
 static Ns_Callback FreePage;
 
@@ -199,15 +200,19 @@ NsAdpEval(NsInterp *itPtr, char *string, int argc, char **argv)
 int
 NsAdpSource(NsInterp *itPtr, char *file, int argc, char **argv)
 {
-    Ns_DString output;
+    Tcl_DString output;
     int code;
 
-    Ns_DStringInit(&output);
+    /*
+     * Direct output to a local buffer.
+     */
+
+    Tcl_DStringInit(&output);
     code = AdpRun(itPtr, file, argc, argv, &output);
     if (code == TCL_OK) {
-	Tcl_SetResult(itPtr->interp, output.string, TCL_VOLATILE);
+	Tcl_DStringResult(itPtr->interp, &output);
     }
-    Ns_DStringFree(&output);
+    Tcl_DStringFree(&output);
     return code;
 }
 
@@ -216,20 +221,29 @@ NsAdpInclude(NsInterp *itPtr, char *file, int argc, char **argv)
 {
     Conn *connPtr = (Conn *) itPtr->conn;
 
+    /*
+     * Ensure a connection is active.
+     */
+
     if (connPtr == NULL) {
 	Tcl_SetResult(itPtr->interp, "no connection", TCL_STATIC);
 	return TCL_ERROR;
     }
-    return AdpRun(itPtr, file, argc, argv, &connPtr->content);
+
+    /*
+     * Direct output to the ADP response buffer.
+     */
+
+    return AdpRun(itPtr, file, argc, argv, &itPtr->adp.response);
 }
 
 static int
-AdpRun(NsInterp *itPtr, char *file, int argc, char **argv, Ns_DString *outputPtr)
+AdpRun(NsInterp *itPtr, char *file, int argc, char **argv, Tcl_DString *outputPtr)
 {
     NsServer  *servPtr = itPtr->servPtr;
     Tcl_Interp *interp = itPtr->interp;
     struct stat st;
-    Ns_DString ds, *dsPtr;
+    Ns_DString chunks, path;
     Frame frame;
     Page *pagePtr;
     Ns_Entry *ePtr;
@@ -239,21 +253,21 @@ AdpRun(NsInterp *itPtr, char *file, int argc, char **argv, Ns_DString *outputPtr
     
     pagePtr = NULL;
     status = TCL_ERROR;
-    dsPtr = Ns_DStringPop();
-    Ns_DStringInit(&ds);
+    Ns_DStringInit(&chunks);
+    Ns_DStringInit(&path);
     
     /*
      * Construct the full, normalized path to the ADP file.
      */
 
     if (Ns_PathIsAbsolute(file)) {
-	Ns_NormalizePath(&ds, file);
+	Ns_NormalizePath(&path, file);
     } else {
-	Ns_MakePath(dsPtr, itPtr->adp.cwd, file, NULL);
-	Ns_NormalizePath(&ds, dsPtr->string);
-	Ns_DStringTrunc(dsPtr, 0);
+	Ns_MakePath(&chunks, itPtr->adp.cwd, file, NULL);
+	Ns_NormalizePath(&path, chunks.string);
+	Ns_DStringTrunc(&chunks, 0);
     }
-    file = ds.string;
+    file = path.string;
 
     /*
      * Check for TclPro debugging.
@@ -313,7 +327,7 @@ AdpRun(NsInterp *itPtr, char *file, int argc, char **argv, Ns_DString *outputPtr
 	 * Parse directly from file.
 	 */
 	 
-    	status = ParseFile(itPtr, file, st.st_size, dsPtr);
+    	status = ParseFile(itPtr, file, st.st_size, &chunks);
     } else {
 #ifdef WIN32
 	key = file;
@@ -341,11 +355,11 @@ AdpRun(NsInterp *itPtr, char *file, int argc, char **argv, Ns_DString *outputPtr
 		}
 	    }
 	    if (new) {
-		status = ParseFile(itPtr, file, st.st_size, dsPtr);
+		status = ParseFile(itPtr, file, st.st_size, &chunks);
 		if (status != TCL_OK) {
                     Ns_CacheDeleteEntry(ePtr);
 		} else {
-		    pagePtr = NewPage(dsPtr, &st, 1);
+		    pagePtr = NewPage(&chunks, &st, 1);
                     Ns_CacheSetValueSz(ePtr, pagePtr, pagePtr->size);
 		}
 	    }
@@ -368,18 +382,18 @@ AdpRun(NsInterp *itPtr, char *file, int argc, char **argv, Ns_DString *outputPtr
 		    Ns_CacheUnsetValue(ePtr);
 		    new = 1;
 		} else {
-		    Ns_DStringNAppend(dsPtr, pagePtr->chunks, pagePtr->length);
+		    Ns_DStringNAppend(&chunks, pagePtr->chunks, pagePtr->length);
 		    status = TCL_OK;
 		}
 	    }
 	    if (new) {
 		Ns_CacheUnlock(cachePtr);
-		status = ParseFile(itPtr, file, st.st_size, dsPtr);
+		status = ParseFile(itPtr, file, st.st_size, &chunks);
 		Ns_CacheLock(cachePtr);
 		if (status != TCL_OK) {
                     Ns_CacheDeleteEntry(ePtr);
 		} else {
-		    pagePtr = NewPage(dsPtr, &st, 0);
+		    pagePtr = NewPage(&chunks, &st, 0);
                     Ns_CacheSetValueSz(ePtr, pagePtr, pagePtr->size);
         	}
 		Ns_CacheBroadcast(cachePtr);
@@ -396,7 +410,7 @@ AdpRun(NsInterp *itPtr, char *file, int argc, char **argv, Ns_DString *outputPtr
     if (status == TCL_OK) {
     	PushFrame(itPtr, &frame, file, argc, argv, outputPtr);
         if (cachePtr == NULL || cachePtr == servPtr->adp.cache) {
-            status = EvalChunks(itPtr, dsPtr->string);
+            status = EvalChunks(itPtr, chunks.string);
         } else {
             status = EvalBlocks(itPtr, pagePtr->firstPtr);
         }
@@ -407,8 +421,8 @@ AdpRun(NsInterp *itPtr, char *file, int argc, char **argv, Ns_DString *outputPtr
     }
 
 done:
-    Ns_DStringFree(&ds);
-    Ns_DStringPush(dsPtr);
+    Ns_DStringFree(&path);
+    Ns_DStringFree(&chunks);
 
     return status;
 }
@@ -452,11 +466,18 @@ NsAdpDebug(NsInterp *itPtr, char *host, char *port, char *procs)
 	    Ns_TclLogError(itPtr->interp);
 	    return TCL_ERROR;
 	}
+
+	/*
+	 * Link the ADP response buffer result to a global variable
+	 * which can be monitored with a variable watch.
+	 */
+
 	if (Tcl_LinkVar(itPtr->interp, "ns_adp_output",
-			(char *) &itPtr->adp.outputPtr->string,
+			(char *) &itPtr->adp.response.string,
 		TCL_LINK_STRING | TCL_LINK_READ_ONLY) != TCL_OK) {
 	    Ns_TclLogError(itPtr->interp);
 	}
+
 	itPtr->adp.debugInit = 1;
 	itPtr->adp.debugLevel = 1;
     }
@@ -485,7 +506,7 @@ NsAdpDebug(NsInterp *itPtr, char *host, char *port, char *procs)
 
 static void
 PushFrame(NsInterp *itPtr, Frame *framePtr, char *file, int argc,
-	  char **argv, Ns_DString *outputPtr)
+	  char **argv, Tcl_DString *outputPtr)
 {
     char    *slash;
 
@@ -677,19 +698,10 @@ LogError(NsInterp *itPtr, int chunk)
 static int
 EvalChunks(NsInterp *itPtr, char *chunks)
 {
-    int chunk, n, code, fd;
+    int chunk, n, code;
     register char *ch = chunks;
-    Ns_DString ds;
-    char buf[10], *script, debugfile[255];
     Tcl_Interp *interp = itPtr->interp;
-    char *file = itPtr->adp.file;
 
-    if (Ns_CheckStack() != NS_OK) {
-        interp->result =  "danger: stack grown too large (recursive adp?)";
-	itPtr->adp.exception = ADP_OVERFLOW;
-        return TCL_ERROR;
-    }
-    Ns_DStringInit(&ds);
     code = TCL_OK;
     chunk = 1;
     while (*ch && itPtr->adp.exception == ADP_OK) {
@@ -697,63 +709,24 @@ EvalChunks(NsInterp *itPtr, char *chunks)
 	if (*ch++ == 't') {
 	    Ns_DStringNAppend(itPtr->adp.outputPtr, ch, n-1);
 	} else {
-	    script = ch;
 	    if (itPtr->adp.debugLevel > 0) {
-		Ns_DStringTrunc(&ds, 0);
-		sprintf(buf, "%d", itPtr->adp.debugLevel);
-		Ns_DStringVarAppend(&ds,
-		    "#\n"
-		    "# level: ", buf, "\n", NULL);
-		sprintf(buf, "%d", chunk);
-		Ns_DStringVarAppend(&ds,
-		    "# chunk: ", buf, "\n"
-		    "# file:  ", file, "\n"
-		    "#\n\n", ch, NULL);
-		sprintf(debugfile, P_tmpdir "/adp%d.%d.XXXXXX",
-			itPtr->adp.debugLevel, chunk);
-		mktemp(debugfile);
-		fd = open(debugfile, O_WRONLY|O_TRUNC|O_CREAT|O_TEXT, 0644);
-		if (fd < 0) {
-		    Ns_Log(Error, "adp: failed to open %s: %s",
-			   debugfile, strerror(errno));
-		} else {
-		    write(fd, ds.string, ds.length);
-		    close(fd);
-		    Ns_DStringTrunc(&ds, 0);
-		    Ns_DStringVarAppend(&ds, "source ", debugfile, NULL);
-		    script = ds.string;
-		}
+    		code = DebugChunk(itPtr, ch, chunk);
+	    } else {
+		code = NsTclEval(interp, ch);
 	    }
-    	    code = NsTclEval(interp, script);
-	    if (code != TCL_OK &&
-		code != TCL_RETURN &&
-		itPtr->adp.exception == ADP_OK) {
+	    if (code != TCL_OK && code != TCL_RETURN && itPtr->adp.exception == ADP_OK) {
     	    	LogError(itPtr, chunk);
-	    }
-
-	    if (itPtr->adp.exception == ADP_RETURN) {
-		itPtr->adp.exception = ADP_OK;
-		code = TCL_OK;
-		if (script != ch) {
-		    unlink(debugfile);
-		}
-		goto done;
-		break;
-	    }
-
-	    if (script != ch) {
-		unlink(debugfile);
 	    }
 	    ++chunk;
 	}
 	ch += n;
 	NsAdpFlush(itPtr);
     }
-    
- done:
+    if (itPtr->adp.exception == ADP_RETURN) {
+	itPtr->adp.exception = ADP_OK;
+	code = TCL_OK;
+    }
     NsAdpFlush(itPtr);
-    Ns_DStringFree(&ds);
-    
     return code;
 }
 
@@ -780,12 +753,6 @@ EvalBlocks(NsInterp *itPtr, Block *blockPtr)
     Tcl_Interp *interp = itPtr->interp;
     int chunk, code;
 
-    if (Ns_CheckStack() != NS_OK) {
-        interp->result =  "danger: stack grown too large (recursive adp?)";
-	itPtr->adp.exception = ADP_OVERFLOW;
-        return TCL_ERROR;
-    }
-
     chunk = 0;
     code = TCL_OK;
     while (blockPtr != NULL && itPtr->adp.exception == ADP_OK) {
@@ -801,18 +768,76 @@ EvalBlocks(NsInterp *itPtr, Block *blockPtr)
 	blockPtr = blockPtr->nextPtr;
 	NsAdpFlush(itPtr);
     }
-
-
-    /*
-     * Tcl8x: ADP_RETURN should not unroll all the callers.
-     */
-
     if (itPtr->adp.exception == ADP_RETURN) {
 	itPtr->adp.exception = ADP_OK;
 	code = TCL_OK;
     }
-
     NsAdpFlush(itPtr);
+    return code;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * DebugChunk --
+ *
+ *	Evaluate an ADP chunk with the TclPro debugger.
+ *
+ * Results:
+ *	Depends on chunk code.
+ *
+ * Side effects:
+ *	A unique temp file with header comments and the script is
+ *	created and sourced, the effect of which is TclPro will
+ *	instrument the code on the fly for single-step debugging.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+DebugChunk(NsInterp *itPtr, char *script, int chunk)
+{
+    int code, fd;
+    Tcl_Interp *interp = itPtr->interp;
+    int level = itPtr->adp.debugLevel;
+    char *file = itPtr->adp.file;
+    char buf[10], debugfile[255];
+    Ns_DString ds;
+
+    code = TCL_ERROR;
+    Ns_DStringInit(&ds);
+    sprintf(buf, "%d", level);
+    Ns_DStringVarAppend(&ds,
+	"#\n"
+	"# level: ", buf, "\n", NULL);
+    sprintf(buf, "%d", chunk);
+    Ns_DStringVarAppend(&ds,
+	"# chunk: ", buf, "\n"
+	"# file:  ", file, "\n"
+	"#\n\n", script, NULL);
+    sprintf(debugfile, P_tmpdir "/adp%d.%d.XXXXXX", level, chunk);
+    if (mktemp(debugfile) == NULL) {
+	Tcl_SetResult(interp, "could not create adp debug file", TCL_STATIC);
+    } else {
+	fd = open(debugfile, O_WRONLY|O_TRUNC|O_CREAT|O_TEXT, 0644);
+	if (fd < 0) {
+	    Tcl_AppendResult(interp, "could not create adp debug file \"",
+		debugfile, "\": ", Tcl_PosixError(interp), NULL);
+	} else {
+	    if (write(fd, ds.string, ds.length) < 0) {
+		Tcl_AppendResult(interp, "write to \"", debugfile,
+		    "\" failed: ", Tcl_PosixError(interp), NULL);
+	    } else {
+		Ns_DStringTrunc(&ds, 0);
+		Ns_DStringVarAppend(&ds, "source ", debugfile, NULL);
+		code = NsTclEval(interp, ds.string);
+	    }
+	    close(fd);
+	}
+	unlink(debugfile);
+    }
+    Ns_DStringFree(&ds);
     return code;
 }
 
