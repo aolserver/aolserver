@@ -1,5 +1,15 @@
 2004-08-13  Dossy Shiobara <dossy@panoptic.com>
 
+	* configure (1.18), configure.in (1.15), aclocal.m4 (1.2),
+	  nsd/dns.c (1.9): gethostbyaddr() and gethostbyname() are not
+	  thread-safe.	Use the new getaddrinfo() and getnameinfo() API
+	  where available, otherwise use gethostbyaddr_r() and
+	  gethostbyname_r() if available.  Otherwise, continue to use the
+	  non-safe versions but emit a warning at configure time.  Fixes SF
+	  Bug #1008721.
+
+2004-08-13  Dossy Shiobara <dossy@panoptic.com>
+
 	* Makefile (1.49): The CVS/ directory was getting included in
 	  install-tests-new target, oops.
 
