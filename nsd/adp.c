@@ -57,7 +57,7 @@
  * ns_param   "ParserName" "utf8"
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/adp.c,v 1.8 2000/08/25 14:16:18 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/adp.c,v 1.9 2000/08/25 21:54:19 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -1577,6 +1577,7 @@ ParsePage(Ns_DString *dsPtr, char *page)
 
 	*s = '\0';
 	TextChunk(dsPtr, t);
+	*s = '<';
 	s += 2;
 	Ns_DStringNAppend(dsPtr, "s", 1);
 	if (*s == '=') {
@@ -1585,6 +1586,7 @@ ParsePage(Ns_DString *dsPtr, char *page)
 	}
 	*e = '\0';
 	Ns_DStringNAppend(dsPtr, s, e-s+1);
+	*e = '%';
 	t = e+2;
     }
     TextChunk(dsPtr, t);
