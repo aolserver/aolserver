@@ -1,3 +1,14 @@
+2003-10-08  Mark Page  <mpagenva@aol.com>
+
+        * TAG aolserver_v4_r0_beta_17
+	
+	* nsd/init.tcl (ns_eval): Minor change to track change to ns_job.
+
+2003-10-08  Paul Moosman <pwmoosman@aol.com>
+
+	* nsd/tcljob.c: Minor change to ns_job joblist return to be
+        consistent with similar aolserver api's.
+
 2003-10-07  Mark Page  <mpagenva@aol.com>
 
         * TAG aolserver_v4_r0_beta_16
