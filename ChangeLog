@@ -1,3 +1,11 @@
+2004-09-29  Dossy Shiobara <dossy@panoptic.com>
+
+	* include/ns.h (1.55.2.11), nsd/tclhttp.c (1.16.2.4),
+	  nsd/sockcallback.c (1.12.2.1): Fix a thread hang issue when
+	  ns_http fails but HttpCancel() never executes because poll()
+	  returns revent == POLLPRI.  Closes SF Bug #1037196.  Backported
+	  from HEAD for 4.0.9.
+
 2004-09-24  Dossy Shiobara <dossy@panoptic.com>
 
 	* include/nsthread.h (1.24.2.2): Win32 supports the
