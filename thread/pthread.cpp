@@ -72,6 +72,9 @@
 #define MUTEX_INIT_ATTR         pthread_mutexattr_default
 #define COND_INIT_ATTR          pthread_condattr_default
 #endif
+#if defined(MACOSX) 
+#define pthread_sigmask                sigprocmask
+#endif
 
 /*
  * The following pthread thread local storage key and one time initializer

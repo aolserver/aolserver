@@ -35,11 +35,11 @@
  *	data buffers.  See the corresponding manual page for details.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/reentrant.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/reentrant.c,v 1.4 2000/10/03 17:55:20 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "thread.h"
 
-#if defined(__APPLE__)
+#ifdef MACOSX
 #define NO_REENTRANT	1
 char *strtok_r(char *s, const char *delim, char **last);
 #endif
@@ -266,7 +266,7 @@ ns_inet_ntoa(struct in_addr addr)
 }
 
 
-#ifdef __APPLE__
+#ifdef MACOSX
 
 /*
  * Copyright (c) 1998 Softweyr LLC.  All rights reserved.

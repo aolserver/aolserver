@@ -34,12 +34,9 @@
  *	OS interface routines for nsthreads.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/osthread.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/osthread.c,v 1.4 2000/10/03 17:55:20 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
-#if defined(USE_CTHREADS)
-#include "cthread.cpp"
-
-#elif defined(USE_SPROC)
+#if defined(USE_SPROC)
 #include "sproc.cpp"
 
 #elif defined(WIN32)

@@ -34,14 +34,14 @@
  *	Routines for signal handling.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/signal.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/signal.c,v 1.4 2000/10/03 17:55:20 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #ifdef __hp10
 #include <pthread.h>
 #endif
 #include "thread.h"
 
-#ifdef __APPLE__
+#ifdef MACOSX
 int sigwait(const sigset_t *set, int *sig);
 #endif
 
@@ -139,7 +139,7 @@ ns_signal(int sig, void (*proc) (int))
  *----------------------------------------------------------------------
  */
  
-#ifdef __APPLE__
+#ifdef MACOSX
 
 static void
 sigwaithandler(int sig)
