@@ -34,7 +34,7 @@
  *	Routines for Tcl proc and ADP registered requests.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclrequest.c,v 1.6 2002/06/13 04:41:21 jcollins Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclrequest.c,v 1.7 2002/08/10 16:03:43 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -62,7 +62,8 @@ static Proc *NewProc(char *name, char *args);
 static Ns_Callback FreeProc;
 static void AppendConnId(Tcl_DString *dsPtr, Ns_Conn *conn);
 static int RegisterFilter(NsInterp *itPtr, int when, char **argv);
-static int RegisterFilterObj(NsInterp *itPtr, int when, Tcl_Obj *CONST objv[]);
+static void RegisterFilterObj(NsInterp *itPtr, int when, int objc,
+			      Tcl_Obj *CONST objv[]);
 static int GetNumArgs(Tcl_Interp *interp, Proc *procPtr);
 
 
@@ -170,7 +171,7 @@ NsTclRegisterProcObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
     int         flags, idx;
     Proc       *procPtr;
     NsInterp   *itPtr = arg;
-    char       *server, *method, *url;
+    char       *server, *method, *url, *name, *args;
 
     if (objc < 4 || objc > 7) {
 badargs:
@@ -193,16 +194,11 @@ badargs:
     server = itPtr->servPtr->server;
     method = Tcl_GetString(objv[idx++]);
     url = Tcl_GetString(objv[idx++]);
-    Ns_Log(Notice, "%d %d", idx, objc);
-    if (idx+1 > objc-1) {
-       procPtr = NewProc(Tcl_GetString(objv[idx]), "");
-    } else {
-       procPtr = NewProc(Tcl_GetString(objv[idx]), Tcl_GetString(objv[idx+1]));
-    }
+    name = Tcl_GetString(objv[idx++]);
+    args = (idx < objc ? Tcl_GetString(objv[idx]) : NULL);
+    procPtr = NewProc(name, args);
     Ns_RegisterRequest(server, method, url, ProcRequest, FreeProc,
 			procPtr, flags);
-
-
     return TCL_OK;
 }
 
@@ -450,45 +446,36 @@ NsTclRegisterFilterObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj 
     int       lobjc;
     Tcl_Obj **lobjv;
     int       when, i;
+    char     *str;
 
     if (objc != 5 && objc != 6) {
         Tcl_WrongNumArgs(interp, 1, objv, "when method urlPattern script ?arg?");
         return TCL_ERROR;
     }
-	if (Tcl_ListObjGetElements(interp, objv[1], &lobjc, &lobjv) != TCL_OK) {
+    if (Tcl_ListObjGetElements(interp, objv[1], &lobjc, &lobjv) != TCL_OK) {
 	return TCL_ERROR;
     }
-
-    when = 0;
-
     if (lobjc == 0) {
 	Tcl_SetResult(interp, "blank filter when specification", TCL_STATIC);
-    } else {
-        for (i = 0; i < lobjc; ++i) {
-            if (STREQ(Tcl_GetString(lobjv[i]), "preauth")) {
-                when |= NS_FILTER_PRE_AUTH;
-            } else if (STREQ(Tcl_GetString(lobjv[i]), "postauth")) {
-                when |= NS_FILTER_POST_AUTH;
-            } else if (STREQ(Tcl_GetString(lobjv[i]), "trace")) {
-                when |= NS_FILTER_TRACE;
-            } else {
-		Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "unknown when \"", 
-			Tcl_GetString(lobjv[i]),
-			"\": should be preauth, postauth, or trace", NULL);
-                when = 0;
-                break;
-            }
-        }
-        if (when) {
-            RegisterFilterObj(itPtr, when, objv + 2);
-        }
-    }
-
-    if (when != 0) {
-	return TCL_OK;
-    } else {
 	return TCL_ERROR;
     }
+    when = 0;
+    for (i = 0; i < lobjc; ++i) {
+	str = Tcl_GetString(lobjv[i]);
+        if (STREQ(str, "preauth")) {
+            when |= NS_FILTER_PRE_AUTH;
+        } else if (STREQ(str, "postauth")) {
+	    when |= NS_FILTER_POST_AUTH;
+        } else if (STREQ(str, "trace")) {
+            when |= NS_FILTER_TRACE;
+        } else {
+	    Tcl_AppendResult(interp, "unknown when \"", str,
+		"\": should be preauth, postauth, or trace", NULL);
+	    return TCL_ERROR;
+        }
+    }
+    RegisterFilterObj(itPtr, when, objc - 2, objv + 2);
+    return TCL_OK;
 }
 
 
@@ -547,7 +534,8 @@ NsTclRegisterTraceObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *
         Tcl_WrongNumArgs(interp, 1, objv, "method urlPattern script ?arg?");
         return TCL_ERROR;
     }
-    return RegisterFilterObj(itPtr, NS_FILTER_VOID_TRACE, objv + 1);
+    RegisterFilterObj(itPtr, NS_FILTER_VOID_TRACE, objc - 1, objv + 1);
+    return TCL_OK;
 }
 
 
@@ -657,7 +645,7 @@ ProcFilter(void *arg, Ns_Conn *conn, int why)
     Tcl_Interp          *interp;
     int                  status;
     int                  cnt;
-    const char		*result;
+    CONST char		*result;
 
     Tcl_DStringInit(&cmd);
 
@@ -822,18 +810,19 @@ RegisterFilter(NsInterp *itPtr, int when, char **argv)
  *----------------------------------------------------------------------
  */
 
-static int
-RegisterFilterObj(NsInterp *itPtr, int when, Tcl_Obj *CONST objv[])
+static void
+RegisterFilterObj(NsInterp *itPtr, int when, int objc, Tcl_Obj *CONST objv[])
 {
     Proc	    *procPtr;
-    char	    *server, *method, *url;
+    char	    *server, *method, *url, *name, *args;
 
     server = itPtr->servPtr->server;
     method = Tcl_GetString(objv[0]);
     url = Tcl_GetString(objv[1]);
-    procPtr = NewProc(Tcl_GetString(objv[2]), Tcl_GetString(objv[3]));
+    name = Tcl_GetString(objv[2]);
+    args = (objc > 3 ? Tcl_GetString(objv[3]) : NULL);
+    procPtr = NewProc(name, args);
     Ns_RegisterFilter(server, method, url, ProcFilter, when, procPtr);
-    return TCL_OK;
 }
 
 
