@@ -33,7 +33,7 @@
  * 	Connect Tcl command names to the functions that implement them
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.27 2002/07/06 16:26:18 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.28 2002/07/08 02:51:15 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -61,14 +61,15 @@ extern Tcl_ObjCmdProc
     NsTclAdpExceptionObjCmd,
     NsTclAdpStreamObjCmd,
     NsTclAdpMimeTypeObjCmd,
-    NsTclAtCloseObjCmd,
     NsTclChanObjCmd,
     NsTclChmodObjCmd,
+    NsTclCondObjCmd,
     NsTclConnObjCmd,
     NsTclConnSendFpObjCmd,
     NsTclCpFpObjCmd,
     NsTclCpObjCmd,
     NsTclCryptObjCmd,
+    NsTclCritSecObjCmd,
     NsTclFTruncateObjCmd,
     NsTclGetAddrObjCmd,
     NsTclGetHostObjCmd,
@@ -126,8 +127,11 @@ extern Tcl_ObjCmdProc
     NsTclReturnUnauthorizedObjCmd,
     NsTclRmdirObjCmd,
     NsTclRollFileObjCmd,
+    NsTclRWLockObjCmd,
     NsTclSelectObjCmd,
+    NsTclSemaObjCmd,
     NsTclServerObjCmd,
+    NsTclSetObjCmd,
     NsTclShutdownObjCmd,
     NsTclSleepObjCmd,
     NsTclSockAcceptObjCmd,
@@ -150,6 +154,7 @@ extern Tcl_ObjCmdProc
     NsTclUrl2FileObjCmd,
     NsTclUrlDecodeObjCmd,
     NsTclUrlEncodeObjCmd,
+    NsTclVarObjCmd,
     NsTclWriteContentObjCmd,
     NsTclWriteFpObjCmd,
     NsTclWriteObjCmd;
@@ -273,7 +278,6 @@ extern Tcl_CmdProc
     NsTclStripHtmlCmd,
     NsTclUrlDecodeCmd,
     NsTclUrlEncodeCmd,
-    NsTclVarCmd,
     NsTclWriteContentCmd,
     NsTclCacheStatsCmd,
     NsTclCacheFlushCmd,
@@ -293,16 +297,6 @@ extern Tcl_CmdProc
     NsTclAdpRegisterAdpCmd,
     NsTclAdpRegisterProcCmd,
     NsTclRegisterTagCmd,
-    NsTclNsvGetCmd,
-    NsTclNsvExistsCmd,
-    NsTclNsvSetCmd,
-    NsTclNsvIncrCmd,
-    NsTclNsvAppendCmd,
-    NsTclNsvLappendCmd,
-    NsTclNsvArrayCmd,
-    NsTclNsvUnsetCmd,
-    NsTclNsvNamesCmd,
-    NsTclVarCmd,
     NsTclHttpCmd,
     NsTclShareCmd;
 
@@ -418,11 +412,11 @@ static Cmd cmds[] = {
 
     {"ns_thread", NsTclThreadCmd, NULL},
     {"ns_mutex", NsTclMutexCmd, NsTclMutexObjCmd},
-    {"ns_cond", NsTclEventCmd, NULL},
-    {"ns_event", NsTclEventCmd, NULL},
-    {"ns_rwlock", NsTclRWLockCmd, NULL},
-    {"ns_sema", NsTclSemaCmd, NULL},
-    {"ns_critsec", NsTclCritSecCmd, NULL},
+    {"ns_cond", NsTclEventCmd, NsTclCondObjCmd},
+    {"ns_event", NsTclEventCmd, NsTclCondObjCmd},
+    {"ns_rwlock", NsTclRWLockCmd, NsTclRWLockObjCmd},
+    {"ns_sema", NsTclSemaCmd, NsTclSemaObjCmd},
+    {"ns_critsec", NsTclCritSecCmd, NsTclCritSecObjCmd},
 
 
     /*
@@ -456,7 +450,7 @@ static Cmd servCmds[] = {
     {"ns_register_proc", NsTclRegisterProcCmd, NsTclRegisterProcObjCmd},
     {"ns_unregister_adp", NsTclUnRegisterCmd, NsTclUnRegisterObjCmd},
     {"ns_unregister_proc", NsTclUnRegisterCmd, NsTclUnRegisterObjCmd},
-    {"ns_atclose", NsTclAtCloseCmd, NsTclAtCloseObjCmd},
+    {"ns_atclose", NsTclAtCloseCmd, NULL},
 
     /*
      * tclresp.c
@@ -567,7 +561,7 @@ static Cmd servCmds[] = {
      * tclset.c
      */
 
-    {"ns_set", NsTclSetCmd, NULL},
+    {"ns_set", NsTclSetCmd, NsTclSetObjCmd},
     {"ns_parseheader", NsTclParseHeaderCmd, NULL},
 
     /*
@@ -604,16 +598,16 @@ static Cmd servCmds[] = {
      */
 
     {"ns_share", NsTclShareCmd, NULL},
-    {"ns_var", NsTclVarCmd, NULL},
-    {"nsv_get", NsTclNsvGetCmd, NsTclNsvGetObjCmd},
-    {"nsv_exists", NsTclNsvExistsCmd, NsTclNsvExistsObjCmd},
-    {"nsv_set", NsTclNsvSetCmd, NsTclNsvSetObjCmd},
-    {"nsv_incr", NsTclNsvIncrCmd, NsTclNsvIncrObjCmd},
-    {"nsv_append", NsTclNsvAppendCmd, NsTclNsvAppendObjCmd},
-    {"nsv_lappend", NsTclNsvLappendCmd, NsTclNsvLappendObjCmd},
-    {"nsv_array", NsTclNsvArrayCmd, NsTclNsvArrayObjCmd},
-    {"nsv_unset", NsTclNsvUnsetCmd, NsTclNsvUnsetObjCmd},
-    {"nsv_names", NsTclNsvNamesCmd, NsTclNsvNamesObjCmd},
+    {"ns_var", NULL, NsTclVarObjCmd},
+    {"nsv_get", NULL, NsTclNsvGetObjCmd},
+    {"nsv_exists", NULL, NsTclNsvExistsObjCmd},
+    {"nsv_set", NULL, NsTclNsvSetObjCmd},
+    {"nsv_incr", NULL, NsTclNsvIncrObjCmd},
+    {"nsv_append", NULL, NsTclNsvAppendObjCmd},
+    {"nsv_lappend", NULL, NsTclNsvLappendObjCmd},
+    {"nsv_array", NULL, NsTclNsvArrayObjCmd},
+    {"nsv_unset", NULL, NsTclNsvUnsetObjCmd},
+    {"nsv_names", NULL, NsTclNsvNamesObjCmd},
 
     /*
      * serv.c
