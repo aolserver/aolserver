@@ -33,7 +33,7 @@
  *	Implements the tcl ns_set commands 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclset.c,v 1.15 2003/01/18 19:24:21 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclset.c,v 1.16 2003/08/06 20:30:12 elizthom Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -322,7 +322,7 @@ NsTclSetObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
             break;
 	
         case SSplitIdx:
-	    if ((i - objc) < 1) {
+	    if ((objc - i) < 1) {
 		Tcl_WrongNumArgs(interp, 2, objv, "?-shared? setId ?splitChar");
 		return TCL_ERROR;
             }
