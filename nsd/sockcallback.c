@@ -34,7 +34,7 @@
  *	Support for the socket callback thread.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sockcallback.c,v 1.14 2004/09/30 19:46:55 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sockcallback.c,v 1.15 2004/11/06 03:30:47 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -286,7 +286,7 @@ SockCallbackThread(void *ignored)
     int           when[3], events[3];
     int           n, i, new, stop;
     int		  max, nfds;
-    Callback     *cbPtr;
+    Callback     *cbPtr, *nextPtr;
     Tcl_HashEntry *hPtr;
     Tcl_HashSearch search;
     struct pollfd *pfds;
@@ -324,25 +324,28 @@ SockCallbackThread(void *ignored)
     	 * Move any queued callbacks to the active table.
 	 */
 
-    	while (cbPtr != NULL) {
-	    hPtr = Tcl_CreateHashEntry(&table, (char *) cbPtr->sock, &new);
-	    if (!new) {
-		ns_free(Tcl_GetHashValue(hPtr));
-	    }
-	    if (cbPtr->when & NS_SOCK_CANCEL) {
+        while (cbPtr != NULL) {
+            nextPtr = cbPtr->nextPtr;
+            if (cbPtr->when & NS_SOCK_CANCEL) {
+                hPtr = Tcl_FindHashEntry(&table, (char *) cbPtr->sock);
+                if (hPtr != NULL) {
+                    ns_free(Tcl_GetHashValue(hPtr));
+                    Tcl_DeleteHashEntry(hPtr);
+                }
                 if (cbPtr->proc != NULL) {
                     (void) (*cbPtr->proc)(cbPtr->sock, cbPtr->arg,
-                        NS_SOCK_CANCEL);
-                }
-                if (!new) {
-                    Tcl_DeleteHashEntry(hPtr);
+                                          NS_SOCK_CANCEL);
                 }
                 ns_free(cbPtr);
             } else {
+                hPtr = Tcl_CreateHashEntry(&table, (char *) cbPtr->sock, &new);
+                if (!new) {
+                    ns_free(Tcl_GetHashValue(hPtr));
+                }
                 Tcl_SetHashValue(hPtr, cbPtr);
             }
-	    cbPtr = cbPtr->nextPtr;
-	}
+            cbPtr = nextPtr;
+        }
 
 	/*
 	 * Verify and set the poll bits for all active callbacks.
