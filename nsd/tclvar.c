@@ -35,7 +35,7 @@
 
 #include "nsd.h"
 
-static char rcsid[] = "$Id: tclvar.c,v 1.4 2000/10/16 22:49:36 kriston Exp $";
+static char rcsid[] = "$Id: tclvar.c,v 1.5 2001/01/12 22:51:46 jgdavidson Exp $";
 
 /*
  * The following structure defines a collection of arrays.  
@@ -77,7 +77,8 @@ static Array *LockArray(Tcl_Interp *, char *array, int flags);
  * Global variables used within this file.
  */
 
-static Bucket *buckets; /* Array of buckets. */
+static Bucket *buckets;  /* Array of buckets. */
+static int     nbuckets; /* Number of buckets. */
 
 
 /*
@@ -475,8 +476,23 @@ NsTclVNamesCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
         return TCL_ERROR;
     }
     pattern = argv[1];
-    for (i=0; i < nsconf.tcl.nsvbuckets; i++) {
-        bucketPtr = &buckets[i];
+
+    /*
+     * Ensure the buckets have been initialized.
+     */
+
+    bucketPtr = buckets;
+    if (bucketPtr == NULL) {
+	Ns_MasterLock();
+	bucketPtr = buckets;
+	Ns_MasterUnlock();
+    }
+
+    /* 
+     * Walk the bucket list for each array.
+     */
+
+    for (i = 0; bucketPtr != NULL && i < nbuckets; i++) {
         Ns_MutexLock(&bucketPtr->lock);
         hPtr = Tcl_FirstHashEntry(&bucketPtr->arrays, &search);
         while (hPtr != NULL) {
@@ -487,6 +503,7 @@ NsTclVNamesCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
             hPtr = Tcl_NextHashEntry(&search);
         }
         Ns_MutexUnlock(&bucketPtr->lock);
+	++bucketPtr;
     }
     return TCL_OK;
 }
@@ -527,8 +544,12 @@ LockArray(Tcl_Interp *interp, char *array, int flags)
     if (buckets == NULL) {
     	Ns_MasterLock();
 	if (buckets == NULL) {
-	    buckets = ns_malloc(sizeof(Bucket) * nsconf.tcl.nsvbuckets);
-	    for (i = 0; i < nsconf.tcl.nsvbuckets; ++i) {
+	    nbuckets = nsconf.tcl.nsvbuckets;
+	    if (nbuckets <= 0) {
+		nbuckets = 8;	/* Default: 8 buckets. */
+	    }
+	    buckets = ns_malloc(sizeof(Bucket) * nbuckets);
+	    for (i = 0; i < nbuckets; ++i) {
 		sprintf(name, "%d", i);
 		bucketPtr = &buckets[i];
 		Ns_MutexInit(&bucketPtr->lock);
@@ -549,7 +570,7 @@ LockArray(Tcl_Interp *interp, char *array, int flags)
         }
         result += (result<<3) + i;
     }
-    i = result % nsconf.tcl.nsvbuckets;
+    i = result % nbuckets;
     bucketPtr = &buckets[i];
 
     Ns_MutexLock(&bucketPtr->lock);

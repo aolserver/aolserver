@@ -34,17 +34,16 @@
  *	callbacks, scheduled procs, etc.).
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/proc.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/proc.c,v 1.4 2001/01/12 22:51:46 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
-static Tcl_HashTable procTable;
+static Tcl_HashTable *GetTable(void);
 
 typedef struct Info {
     Ns_ArgProc *proc;
     char *desc;
 } Info;
-
 
 struct proc {
 	void *procAddr;
@@ -63,27 +62,13 @@ struct proc {
 
 
 void
-NsProcInit(void)
-{
-    struct proc *pPtr;
-
-    Tcl_InitHashTable(&procTable, TCL_ONE_WORD_KEYS);
-    pPtr = procs;
-    while (pPtr->procAddr != NULL) {
-	Ns_RegisterProcInfo(pPtr->procAddr, pPtr->desc, pPtr->argProc);
-	++pPtr;
-    }
-}
-
-
-void
 Ns_RegisterProcInfo(void *procAddr, char *desc, Ns_ArgProc *argProc)
 {
     Tcl_HashEntry *hPtr;
     Info *iPtr;
     int new;
 
-    hPtr = Tcl_CreateHashEntry(&procTable, (char *) procAddr, &new);
+    hPtr = Tcl_CreateHashEntry(GetTable(), (char *) procAddr, &new);
     if (new) {
     	iPtr = ns_malloc(sizeof(Info));
     	Tcl_SetHashValue(hPtr, iPtr);
@@ -114,7 +99,7 @@ Ns_GetProcInfo(Tcl_DString *dsPtr, void *procAddr, void *arg)
     Info *iPtr;
     static Info nullInfo = {NULL, NULL};
 
-    hPtr = Tcl_FindHashEntry(&procTable, (char *) procAddr);
+    hPtr = Tcl_FindHashEntry(GetTable(), (char *) procAddr);
     if (hPtr != NULL) {
 	iPtr = Tcl_GetHashValue(hPtr);
     } else {
@@ -130,4 +115,25 @@ Ns_GetProcInfo(Tcl_DString *dsPtr, void *procAddr, void *arg)
     } else {
 	AppendAddr(dsPtr, "a", arg);
     }
+}
+
+
+static Tcl_HashTable *
+GetTable(void)
+{
+    static Tcl_HashTable table;
+    static int initialized;
+    struct proc *procPtr;
+
+    if (!initialized) {
+    	Tcl_InitHashTable(&table, TCL_ONE_WORD_KEYS);
+	initialized = 1;
+    	procPtr = procs;
+    	while (procPtr->procAddr != NULL) {
+	    Ns_RegisterProcInfo(procPtr->procAddr, procPtr->desc,
+		procPtr->argProc);
+	    ++procPtr;
+	}
+    }
+    return &table;
 }

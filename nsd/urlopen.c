@@ -33,7 +33,7 @@
  *	Make outgoing HTTP requests.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/urlopen.c,v 1.4 2000/08/17 06:09:49 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/urlopen.c,v 1.5 2001/01/12 22:51:46 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -222,29 +222,6 @@ Ns_FetchURL(Ns_DString *dsPtr, char *url, Ns_Set *headers)
     }
     Ns_DStringFree(&ds);
     return status;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsGetURLInit --
- *
- *	Initialize this module.
- *
- * Results:
- *	None. 
- *
- * Side effects:
- *	None.
- *
- *----------------------------------------------------------------------
- */
-
-void
-NsGetURLInit(void)
-{
-    Ns_Log(Debug, "urlopen: initialized.");
 }
 
 

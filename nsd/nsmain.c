@@ -33,7 +33,7 @@
  *	AOLserver Ns_Main() startup routine.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.20 2000/12/12 21:16:45 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.21 2001/01/12 22:51:46 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #include "nsconf.h"
@@ -622,13 +622,9 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
      *    eval shared module files where not in private
      */
 
-    NsProcInit();
     NsConfInit();
     NsCreatePidFile();
-    NsGetURLInit();
     NsTclInit();
-    NsCacheInit();
-    NsDNSInit();
     NsInitMimeTypes();
     NsInitReturn();
     NsInitProxyRequests();
