@@ -28,7 +28,7 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/init.tcl,v 1.30 2003/10/21 13:54:01 elizthom Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/init.tcl,v 1.31 2004/07/02 04:06:32 dossy Exp $
 #
 
 #
@@ -206,9 +206,9 @@ proc _ns_helper_eval {args} {
 	set didsaveproc 1
     }
 
-    set code [catch {uplevel 1 $args} result]
+    set code [catch {uplevel 1 [eval concat $args]} result]
 
-    if $didsaveproc {
+    if {$didsaveproc} {
 	rename ns_eval ""
 	rename _saved_ns_eval ns_eval
     }
