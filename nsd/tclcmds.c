@@ -33,7 +33,7 @@
  * 	Connect Tcl command names to the functions that implement them
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.24 2002/06/19 10:25:57 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.25 2002/06/25 17:51:53 scottg Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -77,6 +77,15 @@ extern Tcl_ObjCmdProc
     NsTclModulePathObjCmd,
     NsTclMutexObjCmd,
     NsTclNormalizePathObjCmd,
+    NsTclNsvAppendObjCmd,
+    NsTclNsvArrayObjCmd,
+    NsTclNsvExistsObjCmd,
+    NsTclNsvGetObjCmd,
+    NsTclNsvIncrObjCmd,
+    NsTclNsvLappendObjCmd,
+    NsTclNsvNamesObjCmd,
+    NsTclNsvSetObjCmd,
+    NsTclNsvUnsetObjCmd,
     NsTclParseHttpTimeObjCmd,
     NsTclParseQueryObjCmd,
     NsTclPurgeFilesObjCmd,
@@ -593,15 +602,15 @@ static Cmd servCmds[] = {
 
     {"ns_share", NsTclShareCmd, NULL},
     {"ns_var", NsTclVarCmd, NULL},
-    {"nsv_get", NsTclNsvGetCmd, NULL},
-    {"nsv_exists", NsTclNsvExistsCmd, NULL},
-    {"nsv_set", NsTclNsvSetCmd, NULL},
-    {"nsv_incr", NsTclNsvIncrCmd, NULL},
-    {"nsv_append", NsTclNsvAppendCmd, NULL},
-    {"nsv_lappend", NsTclNsvLappendCmd, NULL},
-    {"nsv_array", NsTclNsvArrayCmd, NULL},
-    {"nsv_unset", NsTclNsvUnsetCmd, NULL},
-    {"nsv_names", NsTclNsvNamesCmd, NULL},
+    {"nsv_get", NsTclNsvGetCmd, NsTclNsvGetObjCmd},
+    {"nsv_exists", NsTclNsvExistsCmd, NsTclNsvExistsObjCmd},
+    {"nsv_set", NsTclNsvSetCmd, NsTclNsvSetObjCmd},
+    {"nsv_incr", NsTclNsvIncrCmd, NsTclNsvIncrObjCmd},
+    {"nsv_append", NsTclNsvAppendCmd, NsTclNsvAppendObjCmd},
+    {"nsv_lappend", NsTclNsvLappendCmd, NsTclNsvLappendObjCmd},
+    {"nsv_array", NsTclNsvArrayCmd, NsTclNsvArrayObjCmd},
+    {"nsv_unset", NsTclNsvUnsetCmd, NsTclNsvUnsetObjCmd},
+    {"nsv_names", NsTclNsvNamesCmd, NsTclNsvNamesObjCmd},
 
     /*
      * serv.c
