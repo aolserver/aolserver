@@ -33,7 +33,7 @@
  *	Support for the ns_http command.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclhttp.c,v 1.1 2001/04/25 00:25:58 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclhttp.c,v 1.2 2001/04/25 19:56:44 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -51,6 +51,7 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
 #define REQ_ANY		(0xff)
 
 typedef struct {
+    NsServer *servPtr;
     SOCKET sock;
     int state;
     char *next;
@@ -58,94 +59,274 @@ typedef struct {
     Tcl_DString ds;
 } Http;
 
-static Ns_Mutex lock;
-static Ns_Cond cond;
-static int nextid;
-static Tcl_HashTable ids;
-
 /*
  * Local functions defined in this file
  */
 
-static Ns_SockProc Send;
-static Ns_SockProc Recv;
-static Ns_SockProc Cancel;
-static int Done(SOCKET sock, Http *httpPtr, int state);
-static int HttpGet(SOCKET sock, char *host, char *file, Ns_Set *hdrs, Tcl_DString *dsPtr);
-static void HttpResult(Tcl_Interp *interp, char *response, int *statusPtr, Ns_Set *hdrs);
-static int SplitUrl(Tcl_DString *dsPtr, char *url, char **hostPtr, int *portPtr, char **filePtr);
+static Ns_SockProc HttpSend;
+static Ns_SockProc HttpRecv;
+static Ns_SockProc HttpCancel;
+static int HttpDone(SOCKET sock, Http *httpPtr, int state);
+static Http *HttpOpen(NsServer *servPtr, char *url, Ns_Set *hdrs);
+static void HttpClose(Http *httpPtr, int nb);
+static char *HttpResult(char *response, Ns_Set *hdrs);
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsTclHttpCmd --
+ *
+ *	Implements ns_http to handle async HTTP requests.
+ *
+ * Results:
+ *	Standard Tcl result.
+ *
+ * Side effects:
+ *	May queue an HTTP request.
+ *
+ *----------------------------------------------------------------------
+ */
 
-
-
-static int
-SplitUrl(Tcl_DString *dsPtr, char *url, char **hostPtr, int *portPtr, char **filePtr)
+int
+NsTclHttpCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 {
-    int hlen;
-    char *host, *file, *p;
+    NsInterp *itPtr = arg;
+    NsServer *servPtr = itPtr->servPtr;
+    Http *httpPtr;
+    char *cmd, buf[20], *result;
+    int state, new, status, seconds;
+    Ns_Time timeout;
+    Ns_Set *hdrs;
+    Tcl_HashEntry *hPtr;
+
+    if (argc < 2) {
+    	Tcl_AppendResult(interp, "wrong # args: should be \"",
+	    argv[0], " command ?args ...?\"", NULL);
+    	return TCL_ERROR;
+    }
+
+    cmd = argv[1];
+    if (STREQ(cmd, "queue")) {
+	if (argc != 3 && argc != 4) {
+	    Tcl_AppendResult(interp, "wrong # args: should be \"",
+		argv[0], " ", cmd, " url ?headers?\"", NULL);
+	    return TCL_ERROR;
+	}
+	if (argc == 3) {
+	    hdrs = NULL;
+	} else if (Ns_TclGetSet2(interp, argv[3], &hdrs) != TCL_OK) {
+	    return TCL_ERROR;
+	}
+	httpPtr = HttpOpen(servPtr, argv[2], hdrs);
+	if (httpPtr == NULL) {
+	    Tcl_AppendResult(interp, "could not connect to : ", argv[2], NULL);
+	    return TCL_ERROR;
+	}
+    	Ns_SockCallback(httpPtr->sock, HttpSend, httpPtr, NS_SOCK_WRITE);
+	Ns_MutexLock(&servPtr->http.lock);
+	do {
+    	    sprintf(buf, "http%d", servPtr->http.next++);
+	    hPtr = Tcl_CreateHashEntry(&servPtr->http.ids, buf, &new);
+	} while (!new);
+	Tcl_SetHashValue(hPtr, httpPtr);
+	Ns_MutexUnlock(&servPtr->http.lock);
+	Tcl_SetResult(interp, buf, TCL_VOLATILE);
+
+    } else if (STREQ(cmd, "cancel")) {
+	if (argc != 3) {
+	    Tcl_AppendResult(interp, "wrong # args: should be \"",
+		argv[0], " cancel id\"", NULL);
+	    return TCL_ERROR;
+	}
+	Ns_MutexLock(&servPtr->http.lock);
+	hPtr = Tcl_FindHashEntry(&servPtr->http.ids, argv[2]);
+	if (hPtr != NULL) {
+	    httpPtr= Tcl_GetHashValue(hPtr);
+	    Tcl_DeleteHashEntry(hPtr);
+	    state = httpPtr->state;
+	    if (!(state & REQ_DONE)) {
+    		Ns_SockCallback(httpPtr->sock, HttpCancel, httpPtr, NS_SOCK_WRITE|NS_SOCK_READ);
+    		while (!(httpPtr->state & REQ_DONE)) {
+		    Ns_CondWait(&servPtr->http.cond, &servPtr->http.lock);
+    		}
+	    }
+	}
+	Ns_MutexUnlock(&servPtr->http.lock);
+	if (hPtr == NULL) {
+	    Tcl_AppendResult(interp, "no such request: ", argv[2], NULL);
+	    return TCL_ERROR;
+	}
+	HttpClose(httpPtr, 1);
+	sprintf(buf, "%d", state);
+	Tcl_SetResult(interp, buf, TCL_VOLATILE);
+
+    } else if (STREQ(cmd, "wait") || STREQ(cmd, "abswait")) {
+	if (argc < 4 || argc > 6) {
+	    Tcl_AppendResult(interp, "wrong # args: should be \"",
+		argv[0], " wait id resultsVar ?timeout? ?headers?\"", NULL);
+	    return TCL_ERROR;
+	}
+	if (argc < 5) {
+	    seconds = 2;
+	} else if (Tcl_GetInt(interp, argv[4], &seconds) != TCL_OK) {
+	    return TCL_ERROR;
+	}
+	if (argc < 6) {
+	    hdrs = NULL;
+	} else if (Ns_TclGetSet2(interp, argv[5], &hdrs) != TCL_OK) {
+	    return TCL_ERROR;
+	}
+	if (*cmd == 'a') {
+	    timeout.sec = seconds;
+	    timeout.usec = 0;
+	} else {
+	    Ns_GetTime(&timeout);
+	    Ns_IncrTime(&timeout, seconds, 0);
+	}
+	Ns_MutexUnlock(&servPtr->http.lock);
+	hPtr = Tcl_FindHashEntry(&servPtr->http.ids, argv[2]);
+	if (hPtr != NULL) {
+	    httpPtr= Tcl_GetHashValue(hPtr);
+	    status = NS_OK;
+    	    while (status == NS_OK && !(httpPtr->state & REQ_DONE)) {
+		status = Ns_CondTimedWait(&servPtr->http.cond,
+					  &servPtr->http.lock, &timeout);
+    	    }
+	    if (status == NS_OK) {
+		Tcl_DeleteHashEntry(hPtr);
+	    }
+	}
+	Ns_MutexUnlock(&servPtr->http.lock);
+	if (hPtr == NULL) {
+	    Tcl_AppendResult(interp, "no such request: ", argv[2], NULL);
+	    return TCL_ERROR;
+	}
+	if (status != NS_OK) {
+	    httpPtr = NULL;
+	    result = "timeout";
+	} else {
+	    if (httpPtr->state & REQ_EOF) {
+		result = HttpResult(httpPtr->ds.string, hdrs);
+	    } else {
+		status = NS_ERROR;
+		result = "error";
+	    }
+	}
+	result = Tcl_SetVar(interp, argv[3], result, TCL_LEAVE_ERR_MSG);
+	if (httpPtr != NULL) {
+	    HttpClose(httpPtr, 0);
+	}
+	if (result == NULL) {
+	    return TCL_ERROR;
+	}
+	Tcl_SetResult(interp, status == NS_OK ? "1" : "0", TCL_STATIC);
+
+    } else {
+    	Tcl_AppendResult(interp, "unknown command \"", cmd,
+	    "\": should be queue, wait, or cancel", NULL);
+    }
+
+    return TCL_OK;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HttpOpen --
+ *
+ *	Open a connection to the given URL host and construct
+ *	an Http structure to fetch the file.
+ *
+ * Results:
+ *	Pointer to Http struct or NULL on error.
+ *
+ * Side effects:
+ *	Will open a socket connection.
+ *
+ *----------------------------------------------------------------------
+ */
+
+Http *
+HttpOpen(NsServer *servPtr, char *url, Ns_Set *hdrs)
+{
+    Http *httpPtr = NULL;
+    SOCKET sock;
+    char *host, *file, *port;
+    int i;
 
     if (strncmp(url, "http://", 7) != 0 || url[7] == '\0') {
-	return 0;
+	return NULL;
     }
     host = url + 7;
     file = strchr(host, '/');
     if (file != NULL) {
     	*file = '\0';
     }
-    Tcl_DStringAppend(dsPtr, host, strlen(host)+1);
-    hlen = dsPtr->length;
-    if (file != NULL) {
-	*file = '/';
+    port = strchr(host, ':');
+    if (port == NULL) {
+	i = 80;
     } else {
-	file = "/";
+	*port = '\0';
+	i = atoi(port+1);
     }
-    Tcl_DStringAppend(dsPtr, file, -1);
-    host = dsPtr->string;
-    file = host + hlen;
-    p = strchr(host, ':');
-    if (p == NULL) {
-	*portPtr = 80;
-    } else {
-    	*portPtr = atoi(p+1);
-	*p = '\0';
+    sock = Ns_SockAsyncConnect(host, i);
+    if (port != NULL) {
+	*port = ':';
     }
-    *hostPtr = host;
-    *filePtr = file;
-    return 1;
-}
-
-
-static void
-HttpReq(Tcl_DString *dsPtr, char *host, char *file, Ns_Set *hdrset)
-{
-    char *server = Ns_InfoServerName();
-    char *version = Ns_InfoServerVersion();
-    int i;
-
-    Ns_DStringVarAppend(dsPtr, "GET ", file, " HTTP/1.0\r\n", NULL);
-    if (hdrset == NULL) {
-        Ns_DStringVarAppend(dsPtr,
-	    "User-Agent: ", server, "/", version, "\r\n"
+    if (sock != INVALID_SOCKET) {
+    	httpPtr = ns_malloc(sizeof(Http));
+	httpPtr->servPtr = servPtr;
+	httpPtr->state = REQ_SEND;
+	httpPtr->sock = sock;
+    	Tcl_DStringInit(&httpPtr->ds);
+	Ns_DStringVarAppend(&httpPtr->ds, "GET ", file ? file+1 : "/", " HTTP/1.0\r\n", NULL);
+	Ns_DStringVarAppend(&httpPtr->ds,
+	    "User-Agent: ", Ns_InfoServerName(), "/", Ns_InfoServerVersion(), "\r\n"
 	    "Connection: close\r\n"
 	    "Host: ", host, "\r\n", NULL);
-    } else {
-        for (i = 0; i < Ns_SetSize(hdrset); i++) {
-            Ns_DStringVarAppend(dsPtr, Ns_SetKey(hdrset, i), ": ", 
-                                Ns_SetValue(hdrset, i), "\r\n", NULL);
-        }
-        Ns_SetTrunc(hdrset, 0);
+	if (hdrs != NULL) {
+	    for (i = 0; i < Ns_SetSize(hdrs); i++) {
+		Ns_DStringVarAppend(&httpPtr->ds,
+		    Ns_SetKey(hdrs, i), ": ", Ns_SetValue(hdrs, i), "\r\n", NULL);
+	    }
+	}
+	Tcl_DStringAppend(&httpPtr->ds, "\r\n", 2);
+	httpPtr->next = httpPtr->ds.string;
+    	httpPtr->len = httpPtr->ds.length;
     }
-    Tcl_DStringAppend(dsPtr, "\r\n", 2);
+    if (file != NULL) {
+	*file = '/';
+    }
+    return httpPtr;
 }
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HttpResult --
+ *
+ *	Parse an Http response for the result body and headers.
+ *
+ * Results:
+ *	Pointer body within Http buffer.
+ *
+ * Side effects:
+ *	Will append parsed response headers to given hdrs if
+ *	not NULL.
+ *
+ *----------------------------------------------------------------------
+ */
 
-static void
-HttpResult(Tcl_Interp *interp, char *response, int *statusPtr, Ns_Set *hdrs)
+static char *
+HttpResult(char *response, Ns_Set *hdrs)
 {
-    float version;
-    int firsthdr, len, status;
+    int firsthdr, len;
     char *eoh, *body, *p;
 
+    body = response;
     eoh = strstr(response, "\r\n\r\n");
     if (eoh != NULL) {
 	body = eoh + 4;
@@ -155,20 +336,14 @@ HttpResult(Tcl_Interp *interp, char *response, int *statusPtr, Ns_Set *hdrs)
 	    body = eoh + 2;
 	}
     }
-    Tcl_SetResult(interp, body, TCL_VOLATILE);
     if (eoh != NULL) {
 	*eoh = '\0';
+    }
 
     /*
      * Parse the headers saved in the dstring if requested.
      */
 
-    if (statusPtr == NULL) {
-	statusPtr = &status;
-    }
-    if (sscanf(response, "HTTP/%f %d", &version, statusPtr) != 2) {
-        statusPtr = 0;
-    }
     if (hdrs != NULL) {
 	firsthdr = 1;
 	p = response;
@@ -190,12 +365,25 @@ HttpResult(Tcl_Interp *interp, char *response, int *statusPtr, Ns_Set *hdrs)
 	    p = eoh;
 	}
     }
+    return body;
 }
+
+
+static void
+HttpClose(Http *httpPtr, int nb)
+{
+    Tcl_DStringFree(&httpPtr->ds);
+    if (nb) {
+	ns_socknbclose(httpPtr->sock);
+    } else {
+	ns_sockclose(httpPtr->sock);
+    }
+    ns_free(httpPtr);
 }
 
 
 static int
-Send(SOCKET sock, void *arg, int why)
+HttpSend(SOCKET sock, void *arg, int why)
 {
     Http *httpPtr = arg;
     int n;
@@ -203,24 +391,24 @@ Send(SOCKET sock, void *arg, int why)
     n = send(sock, httpPtr->next, httpPtr->len, 0);
     if (n < 0) {
 	Tcl_DStringFree(&httpPtr->ds);
-    	return Done(sock, httpPtr, (REQ_DONE|REQ_ERR));
+    	return HttpDone(sock, httpPtr, (REQ_DONE|REQ_ERR));
     }
     httpPtr->next += n;
     httpPtr->len -= n;
     if (httpPtr->len == 0) {
 	shutdown(sock, 1);
 	Tcl_DStringTrunc(&httpPtr->ds, 0);
-	Ns_MutexLock(&lock);
+	Ns_MutexLock(&httpPtr->servPtr->http.lock);
 	httpPtr->state = REQ_RECV;
-	Ns_MutexUnlock(&lock);
-    	Ns_SockCallback(sock, Recv, arg, NS_SOCK_READ);
+	Ns_MutexUnlock(&httpPtr->servPtr->http.lock);
+    	Ns_SockCallback(sock, HttpRecv, arg, NS_SOCK_READ);
     }
     return NS_TRUE;
 }
 
 
 static int
-Recv(SOCKET sock, void *arg, int why)
+HttpRecv(SOCKET sock, void *arg, int why)
 {
     Http *httpPtr = arg;
     char buf[1024];
@@ -237,157 +425,25 @@ Recv(SOCKET sock, void *arg, int why)
     } else {
 	state |= REQ_EOF;
     }
-    return Done(sock, httpPtr, state);
+    return HttpDone(sock, httpPtr, state);
 }
 
 
 static int
-Cancel(SOCKET sock, void *arg, int why)
+HttpCancel(SOCKET sock, void *arg, int why)
 {
     Http *httpPtr = arg;
 
-    return Done(sock, httpPtr, (REQ_CANCEL|REQ_DONE));
+    return HttpDone(sock, httpPtr, (REQ_CANCEL|REQ_DONE));
 }
 
 
 static int
-Done(SOCKET sock, Http *httpPtr, int state)
+HttpDone(SOCKET sock, Http *httpPtr, int state)
 {
-    Ns_MutexLock(&lock);
+    Ns_MutexLock(&httpPtr->servPtr->http.lock);
     httpPtr->state = state;
-    Ns_CondBroadcast(&cond);
-    Ns_MutexUnlock(&lock);
+    Ns_CondBroadcast(&httpPtr->servPtr->http.cond);
+    Ns_MutexUnlock(&httpPtr->servPtr->http.lock);
     return NS_FALSE;
-}
-
-
-int
-NsTclHttpCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
-{
-    NsInterp *itPtr = arg;
-    Http *httpPtr;
-    Tcl_DString ds, resp;
-    char *cmd, buf[20], *host, *file;
-    int result, state, port, new, status;
-    SOCKET sock;
-    Tcl_HashEntry *hPtr;
-    static int first;
-    if(!first) {
-    	Tcl_InitHashTable(&ids, TCL_STRING_KEYS);
-	first = 1;
-    }
-
-    if (argc != 3) {
-    	Tcl_AppendResult(interp, "wrong # args: should be \"",
-	    argv[0], " command ?args ...?\"", NULL);
-    	return TCL_ERROR;
-    }
-
-    result = TCL_ERROR;    
-    cmd = argv[1];
-    if (STREQ(cmd, "get") || STREQ(cmd, "queue")) {
-	Tcl_DStringInit(&ds);
-    	if (!SplitUrl(&ds, argv[2], &host, &port, &file)) {
-	    Tcl_AppendResult(interp, "invalid url: ", argv[2], NULL);
-	} else if ((sock = Ns_SockAsyncConnect(host, port)) == INVALID_SOCKET) {
-	    Tcl_AppendResult(interp, "could not connect to : ", host, NULL);
-	} else if (*cmd == 'g') {
-	    Tcl_DStringInit(&resp);
-	    if (!HttpGet(sock, host, file, NULL, &resp)) {
-	    	Tcl_AppendResult(interp, "could not send request: ", host, NULL);
-	    } else {
-		HttpResult(interp, resp.string, NULL, NULL);
-		result = TCL_OK;
-	    }
-	    ns_sockclose(sock);
-	    Tcl_DStringFree(&resp);
-	} else {
-    	    httpPtr = ns_malloc(sizeof(Http));
-	    httpPtr->state = REQ_SEND;
-	    httpPtr->sock = sock;
-    	    Tcl_DStringInit(&httpPtr->ds);
-    	    HttpReq(&httpPtr->ds, host, file, NULL);
-    	    httpPtr->next = httpPtr->ds.string;
-    	    httpPtr->len = httpPtr->ds.length;
-    	    Ns_SockCallback(sock, Send, httpPtr, NS_SOCK_WRITE);
-	    Ns_MutexLock(&lock);
-	    do {
-    	    	sprintf(buf, "http%d", ++nextid);
-	 	hPtr = Tcl_CreateHashEntry(&ids, buf, &new);
-	    } while (!new);
-	    Tcl_SetHashValue(hPtr, httpPtr);
-	    Ns_MutexUnlock(&lock);
-	    Tcl_SetResult(interp, buf, TCL_VOLATILE);
-	    result = TCL_OK;
-	}
-	Tcl_DStringFree(&ds);
-    } else if (STREQ(cmd, "wait") || STREQ(cmd, "cancel")) {
-    	Ns_MutexLock(&lock);
-	hPtr = Tcl_FindHashEntry(&ids, argv[2]);
-	if (hPtr != NULL) {
-	    httpPtr= Tcl_GetHashValue(hPtr);
-	    Tcl_DeleteHashEntry(hPtr);
-	    state = httpPtr->state;
-	    if (*cmd == 'c' && !(state & REQ_DONE)) {
-    		Ns_SockCallback(httpPtr->sock, Cancel, httpPtr, NS_SOCK_WRITE|NS_SOCK_READ);
-	    }
-    	    while (!(httpPtr->state & REQ_DONE)) {
-		Ns_CondWait(&cond, &lock);
-    	    }
-	}
-	Ns_MutexUnlock(&lock);
-	if (hPtr == NULL) {
-	    Tcl_AppendResult(itPtr->interp, "no such request: ", argv[2], NULL);
-	} else {
-	    if (*cmd == 'c') {
-		sprintf(buf, "%d", state);
-		Tcl_SetResult(interp, buf, TCL_VOLATILE);
-	    } else if ((httpPtr->state & REQ_EOF)) {
-		HttpResult(interp, httpPtr->ds.string, NULL, NULL);
-	    }
-    	    Tcl_DStringFree(&httpPtr->ds);
-    	    ns_sockclose(httpPtr->sock);
-    	    ns_free(httpPtr);
-	    result = TCL_OK;
-	}
-    } else {
-    	Tcl_AppendResult(interp, "unknown command \"", cmd,
-	    "\": should be get, queue, wait, or cancel", NULL);
-    }
-    return result;
-}
-
-
-static int
-HttpGet(SOCKET sock, char *host, char *file, Ns_Set *hdrs, Tcl_DString *dsPtr)
-{
-    int n, len;
-    char *ptr, buf[1024];
-
-    if (Ns_SockWait(sock, NS_SOCK_WRITE, 1) != NS_OK) {
-    	return 0;
-    }
-    
-    HttpReq(dsPtr, host, file, hdrs);
-    ptr = dsPtr->string;
-    len = dsPtr->length;
-    while (len > 0) {
-	n = Ns_SockSend(sock, ptr, len, 1);
-	if (n < 0) {
-	    return 0;
-	}
-	ptr += n;
-	len -= n;
-    }
-    Tcl_DStringTrunc(dsPtr, 0);
-    do {
-	n = Ns_SockRecv(sock, buf, sizeof(buf), 1);
-	if (n > 0) {
-	    Tcl_DStringAppend(dsPtr, buf, n);
-	}
-    } while (n > 0);
-    if (n < 0) {
-	return 0;
-    }
-    return 1;
 }

@@ -34,7 +34,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.2 2001/04/23 21:16:11 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.3 2001/04/25 19:56:44 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -407,11 +407,9 @@ NsGetRequest(Sock *sockPtr)
     int status;
 
     if (sockPtr->reqPtr == NULL) {
-	while ((status = SockRead(sockPtr)) == SOCK_MORE) {
-	    if (Ns_SockWait(sockPtr->sock, NS_SOCK_READ, sockPtr->drvPtr->recvwait) != NS_OK) {
-		break;
-	    }
-	}
+	do {
+	    status = SockRead(sockPtr);
+	} while (status == SOCK_MORE);
 	if (status != SOCK_READY) {
 	    if (sockPtr->reqPtr != NULL) {
 		NsFreeRequest(sockPtr->reqPtr);
@@ -477,19 +475,17 @@ NsFreeRequest(Request *reqPtr)
  */
 
 int
-NsSockSend(Sock *sockPtr, char *buf, int len)
+NsSockSend(Sock *sockPtr, Ns_Buf *bufs, int nbufs)
 {
-    Ns_Buf   nbuf;
     Ns_Sock *sock = (Ns_Sock *) sockPtr;
     int n;
 
-    nbuf.buf = buf;
-    nbuf.len = len;
-    n = (*sockPtr->drvPtr->proc)(DriverSend, sock, &nbuf, 1);
+    n = (*sockPtr->drvPtr->proc)(DriverSend, sock, bufs, nbufs);
     if (n < 0
+	&& (sockPtr->drvPtr->opts & NS_DRIVER_ASYNC)
 	&& ns_sockerrno == EWOULDBLOCK
 	&& Ns_SockWait(sockPtr->sock, NS_SOCK_WRITE, sockPtr->drvPtr->sendwait) == NS_OK) {
-	n = (*sockPtr->drvPtr->proc)(DriverSend, sock, &nbuf, 1);
+	n = (*sockPtr->drvPtr->proc)(DriverSend, sock, bufs, nbufs);
     }
     return n;
 }

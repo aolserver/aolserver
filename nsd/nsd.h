@@ -629,6 +629,17 @@ typedef struct NsServer {
 	Ns_Cond		    cond;
     } job;
 
+    /*
+     * The following struct maintains the Tcl HTTP requests.
+     */
+
+    struct {
+	unsigned int  next;
+	Ns_Mutex      lock;
+	Ns_Cond	      cond;
+	Tcl_HashTable ids;
+    } http;
+
 } NsServer;
     
 /*
@@ -762,7 +773,7 @@ typedef struct NsTls {
 } NsTls;
 
 extern int NsQueueConn(Sock *sockPtr, time_t now);
-extern int NsSockSend(Sock *sockPtr, char *buf, int nsend);
+extern int NsSockSend(Sock *sockPtr, Ns_Buf *bufs, int nbufs);
 extern void NsSockClose(Sock *sockPtr, int keep);
 
 extern Request *NsGetRequest(Sock *sockPtr);
