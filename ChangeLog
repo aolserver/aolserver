@@ -1,4 +1,8 @@
-2003-05-20  Mark Page <mpagenva@aol.com>
+2003-05-28  Mark Page  <mpagenva@aol.com>
+
+	* TAG aolserver_v4_r0_beta_8
+	
+2003-05-28  Mark Page <mpagenva@aol.com>
 
 	* nsd/tclimg.c: Use binary channel to read img (Thanks to Dossy).
         Eliminate double error string; Corrrect compiler warning on Seek.
