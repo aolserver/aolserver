@@ -33,12 +33,12 @@
  *	Ns_Info* API and ns_info command support.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/info.c,v 1.6 2002/06/10 22:35:32 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/info.c,v 1.7 2002/06/12 11:34:54 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
 extern char *nsBuildDate;
-static Ns_ThreadEnumProc ThreadEnumProc;
+static Ns_ThreadArgProc ThreadArgProc;
 
 
 /*
@@ -521,10 +521,10 @@ NsTclInfoCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
     	NsGetScheduled(&ds);
 	Tcl_DStringResult(interp, &ds);
     } else if (STREQ(cmd, "locks")) {
-	Ns_MutexEnum(&ds);
+	Ns_MutexList(&ds);
 	Tcl_DStringResult(interp, &ds);
     } else if (STREQ(cmd, "threads")) {
-	Ns_ThreadEnum(&ds, ThreadEnumProc);
+	Ns_ThreadList(&ds, ThreadArgProc);
 	Tcl_DStringResult(interp, &ds);
     } else if (STREQ(cmd, "pools")) {
 	Tcl_GetMemoryInfo(&ds);
@@ -659,7 +659,7 @@ NsTclLibraryCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 
 
 static void
-ThreadEnumProc(Tcl_DString *dsPtr, void *proc, void *arg)
+ThreadArgProc(Tcl_DString *dsPtr, void *proc, void *arg)
 {
     Ns_GetProcInfo(dsPtr, proc, arg);
 }
