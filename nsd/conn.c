@@ -34,7 +34,7 @@
  *      Manage the Ns_Conn structure
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.28 2002/09/28 20:55:13 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.29 2002/10/14 23:20:19 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -852,7 +852,7 @@ NsTclConnObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 		Tcl_AppendResult(interp, "invalid length: ", Tcl_GetString(objv[3]), NULL);
 		return TCL_ERROR;
 	    }
-	    if (Tcl_WriteChars(chan, connPtr->reqPtr->content + off, len) != len) {
+	    if (Tcl_Write(chan, connPtr->reqPtr->content + off, len) != len) {
 		Tcl_AppendResult(interp, "could not write ", Tcl_GetString(objv[3]), " bytes to ",
 		    Tcl_GetString(objv[4]), ": ", Tcl_PosixError(interp), NULL);
 		return TCL_ERROR;
@@ -1089,7 +1089,7 @@ NsTclConnCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 	    Tcl_AppendResult(interp, "invalid length: ", argv[3], NULL);
 	    return TCL_ERROR;
 	}
-	if (Tcl_WriteChars(chan, connPtr->reqPtr->content + off, len) != len) {
+	if (Tcl_Write(chan, connPtr->reqPtr->content + off, len) != len) {
 	    Tcl_AppendResult(interp, "could not write ", argv[3], " bytes to ",
 		argv[4], ": ", Tcl_PosixError(interp), NULL);
 	    return TCL_ERROR;
