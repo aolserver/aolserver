@@ -33,7 +33,7 @@
  *	Routines for managing NsServer structures.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.16 2002/06/10 22:35:32 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.17 2002/06/19 10:23:42 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -59,8 +59,13 @@ NsGetServer(char *server)
 {
     Tcl_HashEntry *hPtr;
 
-    hPtr = Tcl_FindHashEntry(&nsconf.servertable, server);
-    return (hPtr ? Tcl_GetHashValue(hPtr) : NULL);
+    if (server != NULL) {
+    	hPtr = Tcl_FindHashEntry(&nsconf.servertable, server);
+	if (hPtr != NULL) {
+	    return Tcl_GetHashValue(hPtr);
+	}
+    }
+    return NULL;
 }
 
 
