@@ -28,7 +28,7 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/fastpath.tcl,v 1.4 2000/08/01 20:36:44 kriston Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/fastpath.tcl,v 1.5 2000/10/17 17:33:35 kriston Exp $
 #
 
 #
@@ -173,7 +173,7 @@ $up
 	    continue
 	}
 	
-	set link "<a href=${prefix}${tail}>${tail}</a>"
+	set link "<a href=\"${prefix}${tail}\">${tail}</a>"
 
 	if $simple {
 	    append list $link\n
