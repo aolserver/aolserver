@@ -34,7 +34,7 @@
  *      Manage the Ns_Conn structure
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.7.2.1 2001/03/14 22:22:53 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.7.2.2 2001/04/04 00:13:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -48,7 +48,7 @@ static int ConnSend(Ns_Conn *, int nsend, Tcl_Channel chan,
     	    	    FILE *fp, int fd);
 static int ConnCopy(Ns_Conn *conn, size_t tocopy, Ns_DString *dsPtr,
     	    	    Tcl_Channel chan, FILE *fp, int fd);
-
+static int QueryToSet(char *query, Ns_Set *set, void *enc);
 
 static Ns_LocationProc *locationPtr = NULL;
 
@@ -1158,6 +1158,7 @@ Ns_ParseHeader(Ns_Set *set, char *line, Ns_HeaderCaseDisposition disp)
 Ns_Set  *
 Ns_ConnGetQuery(Ns_Conn *conn)
 {
+    void 	   *enc;
     Ns_DString     *dsPtr;
     Conn           *connPtr = (Conn *) conn;
     
@@ -1178,7 +1179,7 @@ Ns_ConnGetQuery(Ns_Conn *conn)
         }
         if (dsPtr->length > 0) {
 	    connPtr->query = Ns_SetCreate(NULL);
-	    if (Ns_QueryToSet(dsPtr->string, connPtr->query) != NS_OK) {
+	    if (QueryToSet(dsPtr->string, connPtr->query, connPtr->enc) != NS_OK) {
 		Ns_SetFree(connPtr->query);
 		connPtr->query = NULL;
 	    }
@@ -1211,14 +1212,34 @@ Ns_ConnGetQuery(Ns_Conn *conn)
 int
 Ns_QueryToSet(char *query, Ns_Set *set)
 {
+    return QueryToSet(query, set, NULL);
+}
+
+static char *
+Decode(Ns_DString *nds, Tcl_DString *tds, void *enc, char *s)
+{
+    Ns_DStringTrunc(nds, 0);
+    Tcl_DStringFree(tds);
+    s = Ns_DecodeUrl(nds, s);
+    if (s != NULL && enc != NULL) {
+	s = NsExt2Utf(enc, s, tds);
+    }
+    return s;
+}
+
+static int
+QueryToSet(char *query, Ns_Set *set, void *enc)
+{
     char           *name;
     char           *value;
     int             done, status;
     int             index;
     Ns_DString      ds;
     char           *decode;
+    Tcl_DString	    tds;
 
     status = NS_OK;
+    Tcl_DStringInit(&tds);
     Ns_DStringInit(&ds);
     name = query;
     done = 0;
@@ -1236,8 +1257,7 @@ Ns_QueryToSet(char *query, Ns_Set *set)
                 if (value != NULL) {
                   *value = '\0';
                 }
-                Ns_DStringTrunc(&ds, 0);
-                decode = Ns_DecodeUrl(&ds, name);
+                decode = Decode(&ds, &tds, enc, name);
                 if (decode == NULL) {
                     status = NS_ERROR;
                     goto done;
@@ -1245,9 +1265,7 @@ Ns_QueryToSet(char *query, Ns_Set *set)
                 index = Ns_SetPut(set, decode, NULL);
                 if (value != NULL) {
                     *value++ = '=';
-
-		    Ns_DStringTrunc(&ds, 0);
-		    decode = Ns_DecodeUrl(&ds, value);
+		    decode = Decode(&ds, &tds, enc, value);
 		    if (decode == NULL) {
 			status = NS_ERROR;
 			goto done;
@@ -1273,7 +1291,7 @@ Ns_QueryToSet(char *query, Ns_Set *set)
 
  done:
     Ns_DStringFree(&ds);
-
+    Tcl_DStringFree(&tds);
     return status;
 }
 
@@ -1386,7 +1404,7 @@ NsTclConnCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
     if (argc >= 2 && STREQ(argv[1], "urlv")) {
 	return UrlVHackCmd(dummy, interp, argc, argv);
     }
-
+#if 0
     if (argc == 3) {
 	/*
 	 * They must have specified a conn ID.  Make sure it's a valid
@@ -1402,6 +1420,7 @@ NsTclConnCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
                          argv[0], " cmd ", NULL);
         return TCL_ERROR;
     }
+#endif
     connPtr = (Conn *) Ns_GetConn();
     if (STREQ(argv[1], "isconnected")) {
 	Tcl_SetResult(interp, (connPtr == NULL) ? "0" : "1", TCL_STATIC);
@@ -1487,6 +1506,18 @@ NsTclConnCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
             Tcl_SetResult(interp, "could not close connection", TCL_STATIC);
             return TCL_ERROR;
         }
+    } else if (STREQ(argv[1], "encoding")) {
+	if (argv[2] != NULL) {
+	    void *enc;
+
+	    enc = NsGetEnc(argv[2]);
+	    if (enc == NULL) {
+		Tcl_AppendResult(interp, "no such encoding: ", argv[2], NULL);
+		return TCL_ERROR;
+	    }
+	    connPtr->enc = enc;
+	}
+	Tcl_SetResult(interp, NsGetEncName(connPtr->enc), TCL_VOLATILE);
     } else {
         Tcl_AppendResult(interp, "unknown command \"", argv[1],
 			 "\":  should be "
@@ -1496,6 +1527,7 @@ NsTclConnCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
                          "content, "
                          "contentlength, "
                          "driver, "
+                         "encoding, "
                          "flags, "
                          "form, "
                          "headers, "

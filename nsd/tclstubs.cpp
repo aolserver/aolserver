@@ -59,6 +59,11 @@ typedef struct Block {
     char          text[4];
 } Block;
 
+static Tcl_Encoding GetEncoding(char *file);
+static Tcl_HashTable extensions;
+static Tcl_HashTable encodings;
+static Ns_Mutex lock;
+
 #endif
 
 char *nsTclVersion = TCL_VERSION;
@@ -164,35 +169,6 @@ Ns_TclGetOpenFd(Tcl_Interp *interp, char *chanId, int write, int *fdPtr)
 
     return TCL_OK;
 }
-
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsTclShareVar --
- *
- *      Stub for disabled ns_share vars in Tcl 8.2.  For 7.6., this
- *  	routine is in the modified tclVar.c source.
- *
- * Results:
- *      TCL_ERROR.
- *
- * Side effects:
- *	None.
- *
- *----------------------------------------------------------------------
- */
-
-#if 0 /* TCL_MAJOR_VERSION >= 8 */
-int
-NsTclShareVar(Tcl_Interp *interp, char *varName)
-{
-    Tcl_AppendResult(interp, "could not share \"", varName,
-	"\": shared variables not supported", NULL);
-    return TCL_ERROR;
-}
-#endif
 
 
 /*
@@ -309,6 +285,8 @@ NsTclCreateCommand(Tcl_Interp *interp, TclCmdInfo *info)
 
 
 /*
+ *----------------------------------------------------------------------
+ *
  * NsAdpCopyPrivate --
  *
  *  	Create a private, version-specific page.
@@ -319,6 +297,8 @@ NsTclCreateCommand(Tcl_Interp *interp, TclCmdInfo *info)
  *
  * Side effects:
  *  	None.
+ *
+ *----------------------------------------------------------------------
  */
 
 Page *
@@ -373,6 +353,8 @@ NsAdpCopyPrivate(Ns_DString *dsPtr, struct stat *stPtr)
 
 
 /*
+ *----------------------------------------------------------------------
+ *
  * NsAdpFreePrivate --
  *
  *  	Free previously allocated private page.
@@ -382,6 +364,8 @@ NsAdpCopyPrivate(Ns_DString *dsPtr, struct stat *stPtr)
  *
  * Side Effects:
  *	None.
+ *
+ *----------------------------------------------------------------------
  */
 
 void
@@ -405,6 +389,8 @@ NsAdpFreePrivate(Page *pagePtr)
 
 
 /*
+ *----------------------------------------------------------------------
+ *
  * NsAdpRunPrivate --
  *
  *	This evaluates the private copy from the DString,
@@ -416,6 +402,8 @@ NsAdpFreePrivate(Page *pagePtr)
  *
  * Side Effects:
  *	Whatever NsAdpEval does.
+ *
+ *----------------------------------------------------------------------
  */
 
 int
@@ -467,4 +455,213 @@ NsAdpRunPrivate(Tcl_Interp *interp, char *file, Page *pagePtr)
 
     return code;
 #endif
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsExt2Utf --
+ *
+ *	Encode to UTF.
+ *
+ * Results:
+ *	Pointer to output.
+ *
+ * Side Effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+char *
+NsExt2Utf(void *enc, char *ext, Tcl_DString *dsPtr)
+{
+#if TCL_MAJOR_VERSION < 8
+    return ext;
+#else
+    if (enc == NULL) {
+	return ext;
+    }
+    Tcl_ExternalToUtfDString((Tcl_Encoding) enc, ext, strlen(ext), dsPtr);
+    return dsPtr->string;
+#endif
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsUtf2Ext --
+ *
+ *	Decode from UTF.
+ *
+ * Results:
+ *	Pointer to output.
+ *
+ * Side Effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+char *
+NsUtf2Ext(void *enc, char *utf, Tcl_DString *dsPtr)
+{
+#if TCL_MAJOR_VERSION < 8
+    return utf;
+#else
+    if (enc == NULL) {
+	return utf;
+    }
+    Tcl_UtfToExternalDString((Tcl_Encoding) enc, utf, strlen(utf), dsPtr);
+    return dsPtr->string;
+#endif
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsInitEncodings --
+ *
+ *	Initialize the file encodings table.
+ *
+ * Results:
+ *	None.
+ *
+ * Side Effects:
+ *	Tcl_Encodings will be loaded when first needed.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+NsInitEncodings(void)
+{
+#if TCL_MAJOR_VERSION >= 8
+    Tcl_HashEntry *hPtr;
+    char *path, *ext, *enc;
+    Ns_Set *set;
+    int i, new;
+
+    Ns_MutexSetName(&lock, "ns:encodings");
+    Tcl_InitHashTable(&extensions, TCL_STRING_KEYS);
+    Tcl_InitHashTable(&encodings, TCL_STRING_KEYS);
+    set = Ns_ConfigGetSection("ns/encodings");
+    for (i = 0; set != NULL && i < Ns_SetSize(set); ++i) {
+	ext = Ns_SetKey(set, i);
+	enc = Ns_SetValue(set, i);
+	hPtr = Tcl_CreateHashEntry(&extensions, ext, &new);
+	Tcl_SetHashValue(hPtr, enc);
+    }
+#endif
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsGetEnc --
+ *
+ *	Get the encoding by Tcl name.
+ *
+ * Results:
+ *	Void poitner to Tcl_Encoding or NULL not loadable.
+ *
+ * Side Effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void *
+NsGetEnc(char *name)
+{
+#if TCL_MAJOR_VERSION < 8
+    return NULL;
+#else
+    Tcl_HashEntry *hPtr;
+    Tcl_Encoding encoding;
+    int new;
+
+    Ns_MutexLock(&lock);
+    hPtr = Tcl_CreateHashEntry(&encodings, name, &new);
+    if (!new) {
+    	encoding = Tcl_GetHashValue(hPtr);
+    } else {
+	encoding = Tcl_GetEncoding(NULL, name);
+	if (encoding != NULL) {
+	    Ns_Log(Notice, "loaded encoding: %s", name);
+	} else {
+	    Ns_Log(Error, "could not load encoding: %s", name);
+	}
+	Tcl_SetHashValue(hPtr, encoding);
+    }
+    Ns_MutexUnlock(&lock);
+    return (void *) encoding;
+#endif
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsGetFileEnc --
+ *
+ *	Get the encoding registered for a file.
+ *
+ * Results:
+ *	Void poitner to Tcl_Encoding or NULL if unknown or not loadable.
+ *
+ * Side Effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void *
+NsGetFileEnc(char *file)
+{
+#if TCL_MAJOR_VERSION >= 8
+    Tcl_HashEntry *hPtr;
+    char *ext;
+
+    ext = strrchr(file, '.');
+    if (ext != NULL) {
+	hPtr = Tcl_FindHashEntry(&extensions, ext+1);
+	if (hPtr != NULL) {
+	    return NsGetEnc(Tcl_GetHashValue(hPtr));
+	}
+    }
+#endif
+    return NULL;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsGetEncName --
+ *
+ *	Return the name of the encoding.
+ *
+ * Results:
+ *	Pointer to encoding name or NULL.
+ *
+ * Side Effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+char *
+NsGetEncName(void *enc)
+{
+#if TCL_MAJOR_VERSION >= 8
+    if (enc != NULL) {
+	return Tcl_GetEncodingName((Tcl_Encoding) enc);
+    }
+#endif
+    return NULL;
 }

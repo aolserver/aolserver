@@ -57,7 +57,7 @@
  * ns_param   "ParserName" "utf8"
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/adp.c,v 1.13.2.1 2001/04/03 20:21:54 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/adp.c,v 1.13.2.2 2001/04/04 00:13:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -1430,11 +1430,13 @@ AdpProc(void *parserPtr, Ns_Conn *conn)
 int
 Ns_AdpRequest(Ns_Conn *conn, char *file)
 {
+    Conn	     *connPtr = (Conn *) conn;
+    Tcl_DString	      ds;
     Tcl_Interp       *interp;
     AdpData          *adPtr;
     int               status;
     char             *argv[3];
-    char             *mimeType;
+    char             *mimeType, *ext;
     Frame             frame;
     Ns_Set           *setPtr;
     
@@ -1442,6 +1444,7 @@ Ns_AdpRequest(Ns_Conn *conn, char *file)
      * Push a new call frame and execute the file.
      */
 
+    Tcl_DStringInit(&ds);
     interp = Ns_GetConnInterp(conn);
     adPtr = NsAdpGetData();
     adPtr->conn = conn;
@@ -1456,6 +1459,7 @@ Ns_AdpRequest(Ns_Conn *conn, char *file)
         mimeType = "text/html";
     }
     SetMimeType(adPtr, mimeType);
+    connPtr->enc = NsGetFileEnc(file);
     argv[0] = "_ns_adp_include";
     argv[1] = nsconf.adp.startpage ? nsconf.adp.startpage : file;
     argv[2] = NULL;
@@ -1495,10 +1499,8 @@ Ns_AdpRequest(Ns_Conn *conn, char *file)
 		Ns_ConnCondSetHeaders(conn, "Expires", "now");
 	    }
 	    if (Ns_ConnResponseStatus(conn) == 0) {
-                status = Ns_ConnReturnData(conn, 200,
-					   adPtr->output.string,
-					   adPtr->output.length,
-					   adPtr->mimeType);
+		ext = NsUtf2Ext(connPtr->enc, adPtr->output.string, &ds);
+                status = Ns_ConnReturnData(conn, 200, ext, -1, adPtr->mimeType);
 	    } else {
                 status = NS_OK;
             }
@@ -1520,6 +1522,7 @@ Ns_AdpRequest(Ns_Conn *conn, char *file)
     adPtr->debugInit = 0;
     adPtr->debugFile = NULL;
     SetMimeType(adPtr, NULL);
+    Tcl_DStringFree(&ds);
 
     return status;
 }
@@ -1809,10 +1812,12 @@ Parse(char *filename, Ns_DString *out, char *pagein)
 static int
 ParseFile(Tcl_Interp *interp, char *file, size_t size, Ns_DString *dsPtr)
 {
+    Tcl_DString ds;
     int fd, status;
     size_t n;
-    char *p;
+    char *p, *utf;
     
+    Tcl_DStringInit(&ds);
     status = TCL_ERROR;
     fd = open(file, O_RDONLY|O_BINARY);
     if (fd < 0) {
@@ -1827,11 +1832,13 @@ ParseFile(Tcl_Interp *interp, char *file, size_t size, Ns_DString *dsPtr)
 	    	"\" failed: ", Tcl_PosixError(interp), NULL);
 	} else {
 	    p[n] = '\0';
-	    Parse(file, dsPtr, p);
+	    utf = NsExt2Utf(NsGetFileEnc(file), p, &ds);
+	    Parse(file, dsPtr, utf);
 	    status = TCL_OK;
 	}
 	ns_free(p);
     }
+    Tcl_DStringFree(&ds);
     return status;
 }
 

@@ -326,6 +326,7 @@ typedef struct Conn {
     void        *drvData;
     Ns_Set      *query;
     char	*peer;
+    void	*enc;
     char	 peerBuf[32];
 
     /*
@@ -443,6 +444,7 @@ extern int NsInstallService(char *server);
 extern int NsRemoveService(char *server);
 #endif
 
+extern void NsTclFinalizeThread(void);
 extern void NsTclStatsInit(void);
 extern void NsDbTclInit(char *server);
 extern void NsInitBinder(char *args, char *file);
@@ -494,6 +496,17 @@ extern void NsWaitSockShutdown(Ns_Time *toPtr);
 
 extern void NsStartShutdownProcs(void);
 extern void NsWaitShutdownProcs(Ns_Time *toPtr);
+
+/*
+ * Simple UTF encoding routines.
+ */
+
+extern void NsInitEncodings(void);
+extern void *NsGetEnc(char *name);
+extern char *NsGetEncName(void *enc);
+extern void *NsGetFileEnc(char *file);
+extern char *NsExt2Utf(void *enc, char *ext, Tcl_DString *dsPtr);
+extern char *NsUtf2Ext(void *enc, char *utf, Tcl_DString *dsPtr);
 
 /*
  * ADP routines.
