@@ -34,7 +34,7 @@
  *	Tcl commands for returning data to the user agent. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclresp.c,v 1.7 2001/03/22 21:30:17 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclresp.c,v 1.8 2001/04/26 18:41:49 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -113,8 +113,7 @@ int
 NsTclReturnCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 {
     Ns_Conn *conn;
-    int      status, len, result;
-    char    *str;
+    int      status, result;
 
     if (argc != 4 && argc != 5) {
         Tcl_AppendResult(interp, "wrong # of args: should be \"",
@@ -130,13 +129,7 @@ NsTclReturnCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
     if (Tcl_GetInt(interp, argv[argc-3], &status) != TCL_OK) {
 	return TCL_ERROR;
     }
-    str = argv[argc-1];
-    len = strlen(str);
-    Ns_ConnSetRequiredHeaders(conn, argv[argc-2], len);
-    result = Ns_ConnFlushHeaders(conn, status);
-    if (result == NS_OK) {
-        result = Ns_WriteConn(conn, str, len);
-    }
+    result = Ns_ConnReturnData(conn, status, argv[argc-1], -1, argv[argc-2]);
     return Result(interp, result);
 }
 
@@ -175,7 +168,7 @@ NsTclRespondCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
     string = NULL;
     filename = NULL;
     chan = NULL;
-    length = 0;
+    length = -1;
 
     if (argc < 3) {
         Tcl_AppendResult(interp, "wrong # of args: should be \"",
@@ -283,8 +276,8 @@ NsTclRespondCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 	 * We'll be returning an open channel
 	 */
 	
-        if (length == 0) {
-            Tcl_AppendResult(interp, "Length required when -fileid is used.",
+        if (length < 0) {
+            Tcl_AppendResult(interp, "length required when -fileid is used.",
                 NULL);
             return TCL_ERROR;
         }
@@ -301,15 +294,8 @@ NsTclRespondCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 	/*
 	 * We'll be returning a string now.
 	 */
-	
-        if (length == 0) {
-            length = strlen(string);
-        }
-        Ns_ConnSetRequiredHeaders(conn, type, length);
-	retval = Ns_ConnFlushHeaders(conn, status);
-	if (retval == NS_OK) {
-            retval = Ns_WriteConn(conn, string, length);
-	}
+
+	retval = Ns_ConnReturnData(conn, status, string, length, type);
     }
 
     return Result(interp, retval);

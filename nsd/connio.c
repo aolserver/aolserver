@@ -34,7 +34,7 @@
  *      Handle connection I/O.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/connio.c,v 1.2 2001/04/25 19:56:44 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/connio.c,v 1.3 2001/04/26 18:41:49 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #define IOBUFSZ 2048
@@ -48,46 +48,6 @@ static int ConnSend(Ns_Conn *conn, int nsend, Tcl_Channel chan,
 static int ConnCopy(Ns_Conn *conn, size_t ncopy, Tcl_Channel chan,
 		    FILE *fp, int fd);
  
-
-/*
- *----------------------------------------------------------------------
- *
- * Ns_ConnWrite --
- *
- *	Writes data to a socket/socket driver 
- *
- * Results:
- *	Number of bytes written, -1 for error 
- *
- * Side effects:
- *	Stuff may be written to a socket/socket driver.
- *
- *      NOTE: This may not write all of the data you send it!
- *            Use Ns_WriteConn if that's your desire!
- *
- *----------------------------------------------------------------------
- */
-
-int
-Ns_ConnWrite(Ns_Conn *conn, void *vbuf, int towrite)
-{
-    Ns_Buf buf;
-    Conn *connPtr = (Conn *) conn;
-    int nwrote;
-    
-    if (connPtr->sockPtr == NULL) {
-	nwrote = -1;
-    } else {
-	buf.buf = vbuf;
-	buf.len = towrite;
-	nwrote = NsSockSend(connPtr->sockPtr, &buf, 1);
-    	if (nwrote > 0 && (conn->flags & NS_CONN_SENTHDRS)) {
-            connPtr->nContentSent += nwrote;
-    	}
-    }
-    return nwrote;
-}
-
 
 /*
  *-----------------------------------------------------------------
@@ -126,6 +86,127 @@ Ns_ConnClose(Ns_Conn *conn)
 /*
  *----------------------------------------------------------------------
  *
+ * Ns_ConnSend --
+ *
+ *	Sends buffers to clients, including any queued
+ *	write-behind data if necessary.  Unlike in
+ *	previous versions of AOLserver, this routine
+ *	attempts to send all data if possible.
+ *
+ * Results:
+ *	Number of bytes written, -1 for error on first send.
+ *
+ * Side effects:
+ *	Will truncate queued data after send.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Ns_ConnSend(Ns_Conn *conn, Ns_Buf *bufs, int nbufs)
+{
+    Conn	   *connPtr = (Conn *) conn;
+    int             nwrote, towrite, i, n;
+    Ns_Buf	    sbufs[16];
+
+    if (connPtr->sockPtr == NULL) {
+	return -1;
+    }
+
+    /*
+     * Send up to 16 buffers, including the queued output
+     * buffer if necessary.
+     */
+
+    towrite = 0;
+    n = 0;
+    if (connPtr->queued.length > 0) {
+	sbufs[n].ns_buf = connPtr->queued.string;
+	sbufs[n].ns_len = connPtr->queued.length;
+	towrite += sbufs[n].ns_len;
+	++n;
+    }
+    for (i = 0; i < nbufs && n < 16; ++i) {
+	if (bufs[i].len > 0 && bufs[i].buf != NULL) {
+	    sbufs[n].ns_buf = bufs[i].ns_buf;
+	    sbufs[n].ns_len = bufs[i].ns_len;
+	    towrite += bufs[i].ns_len;
+	    ++n;
+	}
+    }
+    nbufs = n;
+    bufs = sbufs;
+    nwrote = 0;
+    while (towrite > 0) {
+	n = NsSockSend(connPtr->sockPtr, bufs, nbufs);
+	if (n < 0) {
+	    break;
+	}
+	towrite -= n;
+	nwrote  += n;
+	if (towrite > 0) {
+	    for (i = 0; i < nbufs && n > 0; ++i) {
+		if (n > (int) bufs[i].ns_len) {
+		    n -= bufs[i].len;
+		    bufs[i].ns_buf = NULL;
+		    bufs[i].ns_len = 0;
+		} else {
+		    bufs[i].ns_buf += n;
+		    bufs[i].ns_len -= n;
+		    n = 0;
+		}
+	    }
+	}
+    }
+    if (nwrote > 0) {
+        connPtr->nContentSent += nwrote;
+	if (connPtr->queued.length > 0) {
+	    n = connPtr->queued.length - nwrote;
+	    if (n <= 0) {
+		nwrote -= connPtr->queued.length;
+		Tcl_DStringTrunc(&connPtr->queued, 0);
+	    } else {
+		memmove(connPtr->queued.string,
+		    connPtr->queued.string + nwrote, n);
+		Tcl_DStringTrunc(&connPtr->queued, n);
+		nwrote = 0;
+	    }
+	}
+    }
+    return nwrote;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_ConnWrite --
+ *
+ *	Send a single buffer to the client.
+ *
+ * Results:
+ *	# of bytes written from buffer or -1 on error.
+ *
+ * Side effects:
+ *	Stuff may be written 
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Ns_ConnWrite(Ns_Conn *conn, void *vbuf, int towrite)
+{
+    Ns_Buf buf;
+
+    buf.ns_buf = vbuf;
+    buf.ns_len = towrite;
+    return Ns_ConnSend(conn, &buf, 1);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  * Ns_WriteConn --
  *
  *	This will write a buffer to the conn. It promises to write 
@@ -143,15 +224,8 @@ Ns_ConnClose(Ns_Conn *conn)
 int
 Ns_WriteConn(Ns_Conn *conn, char *buf, int len)
 {
-    int             nwrote;
-
-    while (len > 0) {
-        nwrote = Ns_ConnWrite(conn, buf, len);
-        if (nwrote < 0) {
-	    return NS_ERROR;
-	}
-        len -= nwrote;
-        buf += nwrote;
+    if (Ns_ConnWrite(conn, buf, len) != len) {
+	return NS_ERROR;
     }
     return NS_OK;
 }

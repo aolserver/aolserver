@@ -328,6 +328,7 @@ typedef struct Conn {
     int          recursionCount;
     Ns_Set      *query;
     Tcl_DString  files;
+    Tcl_DString	 queued;
     void	*cls[NS_CONN_MAXCLS];
 } Conn;
 

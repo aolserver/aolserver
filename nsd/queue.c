@@ -34,7 +34,7 @@
  *	and service threads.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/queue.c,v 1.8 2001/04/23 21:16:11 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/queue.c,v 1.9 2001/04/26 18:41:49 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -508,6 +508,7 @@ ConnRun(Conn *connPtr)
     connPtr->responseLength = 0;
     connPtr->recursionCount = 0;
     Tcl_DStringInit(&connPtr->files);
+    Tcl_DStringInit(&connPtr->queued);
     sprintf(connPtr->idstr, "cns%d", connPtr->id);
     connPtr->outputheaders = Ns_SetCreate(NULL);
     if (connPtr->request->version < 1.0) {
@@ -587,6 +588,7 @@ ConnRun(Conn *connPtr)
 	connPtr->query = NULL;
     }
     Tcl_DStringFree(&connPtr->files);
+    Tcl_DStringFree(&connPtr->queued);
     Ns_SetFree(connPtr->outputheaders);
     connPtr->outputheaders = NULL;
     NsFreeRequest(connPtr->reqPtr);

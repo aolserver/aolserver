@@ -34,7 +34,7 @@
  *	Functions that return data to a browser. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.18 2001/04/23 21:14:17 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.19 2001/04/26 18:41:49 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -211,24 +211,27 @@ Ns_ConnConstructHeaders(Ns_Conn *conn, Ns_DString *dsPtr)
  *----------------------------------------------------------------------
  */
 
-int
-Ns_ConnFlushHeaders(Ns_Conn *conn, int status)
+void
+Ns_ConnQueueHeaders(Ns_Conn *conn, int status)
 {
     Conn *connPtr = (Conn *) conn;
-    Ns_DString ds;
     int result = NS_OK;
 
     if (!(conn->flags & NS_CONN_SENTHDRS)) {
     	connPtr->responseStatus = status;
     	if (!(conn->flags & NS_CONN_SKIPHDRS)) {
-	    Ns_DStringInit(&ds);
-	    Ns_ConnConstructHeaders(conn, &ds);
-	    result = Ns_WriteConn(conn, ds.string, ds.length);
-	    Ns_DStringFree(&ds);
+	    Ns_ConnConstructHeaders(conn, &connPtr->queued);
+	    connPtr->nContentSent -= connPtr->queued.length;
     	}
     	conn->flags |= NS_CONN_SENTHDRS;
     }
-    return result;
+}
+
+int
+Ns_ConnFlushHeaders(Ns_Conn *conn, int status)
+{
+    Ns_ConnQueueHeaders(conn, status);
+    return Ns_WriteConn(conn, NULL, 0);
 }
 
 
@@ -646,17 +649,16 @@ Ns_ConnReturnData(Ns_Conn *conn, int status, char *data, int len, char *type)
     int result;
 
     if (len == -1) {
-        len = strlen(data);
+	len = data ? strlen(data) : 0;
     }
     Ns_ConnSetRequiredHeaders(conn, type, len);
-    result = Ns_ConnFlushHeaders(conn, status);
+    Ns_ConnQueueHeaders(conn, status);
+    result = NS_OK;
+    if (data != NULL && !(conn->flags & NS_CONN_SKIPBODY)) {
+	result = Ns_WriteConn(conn, data, len);
+    }
     if (result == NS_OK) {
-	if (!(conn->flags & NS_CONN_SKIPBODY)) {
-	    result = Ns_WriteConn(conn, data, len);
-	}
-	if (result == NS_OK) {
-	    result = Ns_ConnClose(conn);
-	}
+	result = Ns_ConnClose(conn);
     }
     return result;
 }
@@ -1158,15 +1160,13 @@ ReturnOpen(Ns_Conn *conn, int status, char *type, Tcl_Channel chan,
     int result;
 
     Ns_ConnSetRequiredHeaders(conn, type, len);
-    result = Ns_ConnFlushHeaders(conn, status);
-    if (result == NS_OK) {
-	if (chan != NULL) {
-	    result = Ns_ConnSendChannel(conn, chan, len);
-	} else if (fp != NULL) {
-	    result = Ns_ConnSendFp(conn, fp, len);
-	} else {
-	    result = Ns_ConnSendFd(conn, fd, len);
-	}
+    Ns_ConnQueueHeaders(conn, status);
+    if (chan != NULL) {
+	result = Ns_ConnSendChannel(conn, chan, len);
+    } else if (fp != NULL) {
+	result = Ns_ConnSendFp(conn, fp, len);
+    } else {
+	result = Ns_ConnSendFd(conn, fd, len);
     }
     if (result == NS_OK) {
         result = Ns_ConnClose(conn);
