@@ -34,7 +34,7 @@
  *	Implements a lot of Tcl API commands. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclmisc.c,v 1.28 2003/02/03 16:07:09 jrasmuss23 Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclmisc.c,v 1.29 2003/02/04 23:27:46 shmooved Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -551,7 +551,7 @@ NsTclStrftimeObjCmd(ClientData dummy, Tcl_Interp *interp, int objc, Tcl_Obj **ob
     if (Tcl_GetLongFromObj(interp, objv[1], &time) != TCL_OK) {
         return TCL_ERROR;
     }
-    if (objv[2] != NULL) {
+    if (objc > 2) {
         fmt = Tcl_GetString(objv[2]);
     } else {
         fmt = "%c";
