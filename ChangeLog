@@ -54,6 +54,8 @@
 	should make it easier to support standard Tcl extensions
 	and will be documented with an example module later.
 
+	* nsd/nsmain.c: Fixed order of driver shutdown wait.
+
 	* nsd/init.c: Fixed order of init calls.
 
 	* nsd/binder.c:
