@@ -1,3 +1,34 @@
+2004-07-01  Dossy Shiobara <dossy@panoptic.com>
+
+	* nsd/: nsd.h (1.77.2.5), nsmain.c (1.52.2.1): Ensure that
+	  supplementary groups from /etc/group are set if -u username is
+	  specified, or dropped if a uid is specified so that the nsd
+	  doesn't run with root's supplementary groups.  Closes bug
+	  #425401.  Backport from HEAD.
+
+2004-07-01  Dossy Shiobara <dossy@panoptic.com>
+
+	* nsd/nsd.h (1.77.2.4): trivial - eliminate compiler warning for
+	  nsd/nsmain.c
+
+2004-07-01  Dossy Shiobara <dossy@panoptic.com>
+
+	* nsthread/tls.c (1.2.2.1): Make the Tcl_Panic() message from
+	  Ns_TlsGet() and Ns_TlsSet() include the full function name to aid
+	  in debugging.  (Backport from HEAD.)
+
+2004-06-30 17:20  Dossy Shiobara <dossy@panoptic.com>
+
+	* nsd/unix.c: Ensure synchronous signals are handled correctly
+	  under LinuxThreads.  Possible fix for Bug #982955.
+
+	  Backported from HEAD for 4.0.6.
+
+2004-06-30 01:24  Dossy Shiobara <dossy@panoptic.com>
+
+	* include/ns.h: Fix build on alpha arch, removing extra INT64
+	  typedef.  Closes bug #896962. (Backport from HEAD.)
+
 2004-06-23  Rob Crittenden <rcrittenden0569@aol.com>
 
 	* nsd/log.c: ns_log now logs to a custom logger as well.
