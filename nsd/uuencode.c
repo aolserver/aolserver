@@ -35,7 +35,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/uuencode.c,v 1.1 2001/03/22 21:28:55 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/uuencode.c,v 1.2 2001/03/22 21:39:27 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -136,7 +136,7 @@ Ns_HtuuEncode(unsigned char *input, unsigned int len, char *output)
 	*q++ = '=';
     }
     *q = '\0';
-    return (q - output);
+    return (q - (unsigned char *) output);
 }
 
 
@@ -181,7 +181,7 @@ Ns_HtuuDecode(char *input, unsigned char *output, int outputlen)
     while (pr2six[(int)(*p)] >= 0) {
 	++p;
     }
-    len = p - input;
+    len = p - (unsigned char *) input;
 
     /*
      * Decode every four input bytes.
