@@ -544,6 +544,7 @@ typedef struct NsServer {
 	Ns_RequestAuthorizeProc *authProc;
 	Tcl_HashTable	    redirect;
 	Tcl_HashTable	    proxy;
+	Ns_Mutex	    plock;
     } request;
 
     /*
@@ -767,6 +768,7 @@ extern void NsInitProcInfo(void);
 extern void NsInitSched(void);
 extern void NsInitTcl(void);
 extern void NsInitUrlSpace(void);
+extern void NsInitRequests(void);
 
 extern int NsQueueConn(Sock *sockPtr, time_t now);
 extern int NsSockSend(Sock *sockPtr, struct iovec *bufs, int nbufs);

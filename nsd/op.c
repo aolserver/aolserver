@@ -27,7 +27,6 @@
  * version of this file under either the License or the GPL.
  */
 
-
 /* 
  * op.c --
  *
@@ -35,7 +34,7 @@
  *  	routines (previously known as "op procs").
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/op.c,v 1.10 2002/05/15 20:07:48 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/op.c,v 1.11 2002/08/10 16:01:19 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -62,8 +61,33 @@ static void FreeReq(void *arg);
  * Static variables defined in this file.
  */
 
-static Ns_Mutex	      lock;
-static int            reqId = -1;
+static Ns_Mutex	      ulock;
+static int            uid;
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsInitRequests --
+ *
+ *	Initialize the request API.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+NsInitRequests(void)
+{
+    uid = Ns_UrlSpecificAlloc();
+    Ns_MutexInit(&ulock);
+    Ns_MutexSetName(&ulock, "nsd:requests");
+}
 
 
 /*
@@ -96,13 +120,9 @@ Ns_RegisterRequest(char *server, char *method, char *url, Ns_OpProc *proc,
     reqPtr->arg = arg;
     reqPtr->flags = flags;
     reqPtr->refcnt = 1;
-    Ns_MutexLock(&lock);
-    if (reqId < 0) {
-	reqId = Ns_UrlSpecificAlloc();
-	Ns_MutexSetName(&lock, "nsd:requests");
-    }
-    Ns_UrlSpecificSet(server, method, url, reqId, reqPtr, flags, FreeReq);
-    Ns_MutexUnlock(&lock);
+    Ns_MutexLock(&ulock);
+    Ns_UrlSpecificSet(server, method, url, uid, reqPtr, flags, FreeReq);
+    Ns_MutexUnlock(&ulock);
 }
 
 
@@ -129,8 +149,8 @@ Ns_GetRequest(char *server, char *method, char *url, Ns_OpProc **procPtr,
 {
     Req *reqPtr;
 
-    Ns_MutexLock(&lock);
-    reqPtr = (Req *) Ns_UrlSpecificGet(server, method, url, reqId);
+    Ns_MutexLock(&ulock);
+    reqPtr = Ns_UrlSpecificGet(server, method, url, uid);
     if (reqPtr != NULL) {
         *procPtr = reqPtr->proc;
         *deletePtr = reqPtr->delete;
@@ -142,7 +162,7 @@ Ns_GetRequest(char *server, char *method, char *url, Ns_OpProc **procPtr,
 	*argPtr = NULL;
 	*flagsPtr = 0;
     }
-    Ns_MutexUnlock(&lock);
+    Ns_MutexUnlock(&ulock);
 }
 
 
@@ -166,10 +186,10 @@ Ns_GetRequest(char *server, char *method, char *url, Ns_OpProc **procPtr,
 void
 Ns_UnRegisterRequest(char *server, char *method, char *url, int inherit)
 {
-    Ns_MutexLock(&lock);
-    Ns_UrlSpecificDestroy(server, method, url, reqId,
-    	inherit ? 0 : NS_OP_NOINHERIT);
-    Ns_MutexUnlock(&lock);
+    Ns_MutexLock(&ulock);
+    Ns_UrlSpecificDestroy(server, method, url, uid,
+    			  inherit ? 0 : NS_OP_NOINHERIT);
+    Ns_MutexUnlock(&ulock);
 }
 
 
@@ -197,19 +217,19 @@ Ns_ConnRunRequest(Ns_Conn *conn)
     int  status;
     char *server = Ns_ConnServer(conn);
 
-    Ns_MutexLock(&lock);
-    reqPtr = (Req *) Ns_UrlSpecificGet(server, conn->request->method,
-    	    	    	    	       conn->request->url, reqId);
+    Ns_MutexLock(&ulock);
+    reqPtr = Ns_UrlSpecificGet(server, conn->request->method,
+    	    	    	       conn->request->url, uid);
     if (reqPtr == NULL) {
-	status = Ns_ConnReturnNotFound(conn);
-    } else {
-	++reqPtr->refcnt;
-	Ns_MutexUnlock(&lock);
-    	status = (*reqPtr->proc) (reqPtr->arg, conn);
-	Ns_MutexLock(&lock);
-	FreeReq(reqPtr);
+    	Ns_MutexUnlock(&ulock);
+	return Ns_ConnReturnNotFound(conn);
     }
-    Ns_MutexUnlock(&lock);
+    ++reqPtr->refcnt;
+    Ns_MutexUnlock(&ulock);
+    status = (*reqPtr->proc) (reqPtr->arg, conn);
+    Ns_MutexLock(&ulock);
+    FreeReq(reqPtr);
+    Ns_MutexUnlock(&ulock);
     return status;
 }
 
@@ -249,9 +269,9 @@ Ns_ConnRedirect(Ns_Conn *conn, char *url)
      * Re-authorize and run the request.
      */
 
-    status = Ns_AuthorizeRequest(Ns_ConnServer(conn),
-	conn->request->method, conn->request->url, conn->authUser,
-	 conn->authPasswd, Ns_ConnPeer(conn));
+    status = Ns_AuthorizeRequest(Ns_ConnServer(conn), conn->request->method,
+				 conn->request->url, conn->authUser,
+	 			 conn->authPasswd, Ns_ConnPeer(conn));
     switch (status) {
     case NS_OK:
         status = Ns_ConnRunRequest(conn);
@@ -293,28 +313,33 @@ void
 Ns_RegisterProxyRequest(char *server, char *method, char *protocol,
     Ns_OpProc *proc, Ns_Callback *delete, void *arg)
 {
-    NsServer   *servPtr = NsGetServer(server);
-    Req *reqPtr;
-    Ns_DString  ds;
+    NsServer	*servPtr;
+    Req		*reqPtr;
+    Ns_DString   ds;
+    int 	 new;
     Tcl_HashEntry *hPtr;
-    int 	new;
 
+    servPtr = NsGetServer(server);
+    if (servPtr == NULL) {
+	Ns_Log(Error, "Ns_RegisterProxyRequest: no such server: %s", server);
+	return;
+    }
     Ns_DStringInit(&ds);
     Ns_DStringVarAppend(&ds, method, protocol, NULL);
-    hPtr = Tcl_CreateHashEntry(&servPtr->request.proxy, ds.string, &new);
-    if (!new) {
-	reqPtr = (Req *) Tcl_GetHashValue(hPtr);
-	FreeReq(reqPtr);
-    }
-    reqPtr = (Req *) ns_malloc(sizeof(Req));
+    reqPtr = ns_malloc(sizeof(Req));
     reqPtr->refcnt = 1;
     reqPtr->proc = proc;
     reqPtr->delete = delete;
     reqPtr->arg = arg;
     reqPtr->flags = 0;
+    Ns_MutexLock(&servPtr->request.plock);
+    hPtr = Tcl_CreateHashEntry(&servPtr->request.proxy, ds.string, &new);
+    if (!new) {
+	FreeReq(Tcl_GetHashValue(hPtr));
+    }
     Tcl_SetHashValue(hPtr, reqPtr);
+    Ns_MutexUnlock(&servPtr->request.plock);
     Ns_DStringFree(&ds);
-    
 }
 
 
@@ -338,20 +363,23 @@ Ns_RegisterProxyRequest(char *server, char *method, char *protocol,
 void
 Ns_UnRegisterProxyRequest(char *server, char *method, char *protocol)
 {
-    NsServer	  *servPtr = NsGetServer(server);
-    Req		  *reqPtr;
+    NsServer	  *servPtr;
     Ns_DString 	   ds;
     Tcl_HashEntry *hPtr;
 
-    Ns_DStringInit(&ds);
-    Ns_DStringVarAppend(&ds, method, protocol, NULL);
-    hPtr = Tcl_FindHashEntry(&servPtr->request.proxy, ds.string);
-    if (hPtr != NULL) {
-	reqPtr = (Req *) Tcl_GetHashValue(hPtr);
-    	FreeReq(reqPtr);
-    	Tcl_DeleteHashEntry(hPtr);
+    servPtr = NsGetServer(server);
+    if (servPtr != NULL) {
+    	Ns_DStringInit(&ds);
+    	Ns_DStringVarAppend(&ds, method, protocol, NULL);
+    	Ns_MutexLock(&servPtr->request.plock);
+    	hPtr = Tcl_FindHashEntry(&servPtr->request.proxy, ds.string);
+    	if (hPtr != NULL) {
+	    FreeReq(Tcl_GetHashValue(hPtr));
+    	    Tcl_DeleteHashEntry(hPtr);
+	}
+    	Ns_MutexUnlock(&servPtr->request.plock);
+	Ns_DStringFree(&ds);
     }
-    Ns_DStringFree(&ds);
 }
 
 
@@ -378,19 +406,27 @@ NsConnRunProxyRequest(Ns_Conn *conn)
     Conn	  *connPtr = (Conn *) conn;
     NsServer	  *servPtr = connPtr->servPtr;
     Ns_Request    *request = conn->request;
-    Req		  *reqPtr;
-    Ns_DString 	   ds;
-    Tcl_HashEntry *hPtr;
+    Req		  *reqPtr = NULL;
     int		   status;
+    Ns_DString	   ds;
+    Tcl_HashEntry *hPtr;
 
     Ns_DStringInit(&ds);
     Ns_DStringVarAppend(&ds, request->method, request->protocol, NULL);
+    Ns_MutexLock(&servPtr->request.plock);
     hPtr = Tcl_FindHashEntry(&servPtr->request.proxy, ds.string);
     if (hPtr != NULL) {
-	reqPtr = (Req *) Tcl_GetHashValue(hPtr);
-	status = (*reqPtr->proc) (reqPtr->arg, conn);
-    } else {
+	reqPtr = Tcl_GetHashValue(hPtr);
+	++reqPtr->refcnt;
+    }
+    Ns_MutexUnlock(&servPtr->request.plock);
+    if (reqPtr == NULL) {
 	status = Ns_ConnReturnNotFound(conn);
+    } else {
+	status = (*reqPtr->proc) (reqPtr->arg, conn);
+    	Ns_MutexLock(&servPtr->request.plock);
+	FreeReq(reqPtr);
+    	Ns_MutexUnlock(&servPtr->request.plock);
     }
     Ns_DStringFree(&ds);
     return status;
@@ -425,3 +461,4 @@ FreeReq(void *arg)
         ns_free(reqPtr);
     }
 }
+
