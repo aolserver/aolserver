@@ -28,7 +28,7 @@
  */
 
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscgi/nscgi.c,v 1.7 2001/03/12 21:59:13 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscgi/nscgi.c,v 1.8 2001/03/23 23:33:31 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 #include <sys/stat.h>
@@ -101,6 +101,11 @@ typedef struct Tmp {
 static Ns_Mutex tmpLock;
 static Tmp *firstTmpPtr;
 
+typedef struct DsBuf {
+    struct DsBuf *nextPtr;
+    Ns_DString *dsPtr;
+} DsBuf;
+
 /*
  * The following structure, allocated on the stack of CgiRequest, is used
  * to accumulate all the resources of a CGI.  CGI is a very messy interface
@@ -121,7 +126,7 @@ typedef struct Cgi {
     char           *exec;
     char           *interp;
     Ns_Set         *interpEnv;
-    Ns_DString	   *firstPtr;
+    DsBuf	   *firstBufPtr;
     Tmp		   *tmpPtr;
     int		    ofd;
     int		    cnt;
@@ -687,12 +692,13 @@ CgiSpool(Cgi *cgiPtr, Ns_Conn *conn)
 static Ns_DString *
 CgiDs(Cgi *cgiPtr)
 {
-    Ns_DString *dsPtr;
-    
-    dsPtr = Ns_DStringPop();
-    dsPtr->addr = cgiPtr->firstPtr;
-    cgiPtr->firstPtr = dsPtr;
-    return dsPtr;
+    DsBuf *bufPtr;
+
+    bufPtr = ns_malloc(sizeof(DsBuf));
+    bufPtr->dsPtr = Ns_DStringPop();
+    bufPtr->nextPtr = cgiPtr->firstBufPtr;
+    cgiPtr->firstBufPtr = bufPtr;
+    return bufPtr->dsPtr;
 }
 
 
@@ -715,6 +721,7 @@ CgiDs(Cgi *cgiPtr)
 static void
 CgiFree(Cgi *cgiPtr)
 {
+    DsBuf *bufPtr;
     Ns_DString *dsPtr;
 
     /*
@@ -745,9 +752,10 @@ CgiFree(Cgi *cgiPtr)
      * Push back all dstrings.
      */
 
-    while ((dsPtr = cgiPtr->firstPtr) != NULL) {
-	cgiPtr->firstPtr = dsPtr->addr;
-	Ns_DStringPush(dsPtr);
+    while ((bufPtr = cgiPtr->firstBufPtr) != NULL) {
+	cgiPtr->firstBufPtr = bufPtr->nextPtr;
+	Ns_DStringPush(bufPtr->dsPtr);
+	ns_free(bufPtr);
     }
     
     /*
