@@ -1,3 +1,57 @@
+2002-05-15  Jim Davidson <jgdavidson@aol.com>
+
+	* Makefile:
+	* include/Makefile.global:
+	* tcl8.3.4 (removed):  As of Tcl version 8.4., no modifications
+	to the Tcl sources are required for AOLserver.  Therefore,
+	the hacked 8.3.4 sources have been removed.  Going forward
+	you'll need to checkout the Tcl source from Sourceforge
+	into the directory specified in include/Makefile.global
+	(currently ../tcl8.4).  The top level Makefile includes the
+	"tcl-checkout" and "tcl-update" targets which should help.
+	
+	* include/ns.h:
+	* nsd/server.c:
+	* nsd/nsd.h:
+	* nsd/tclcmds.c:
+	* nsd/tclinit.c:
+	* nsd/init.tcl:
+	* nsd/dbdrv.c (removed):
+	* nsd/dbinit.c (removed):
+	* nsd/dbtcl.c (removed):
+	* nsd/dbutil.c (removed):
+	* nsdb/dbinit.c (new):
+	* nsdb/dbdrv.c (new):
+	* nsdb/dbtcl.c (new):
+	* nsdb/dbutil.c (new):
+	* include/nsdb.h (new):  Moved the NsDb interface from core to
+	new nsdb module.  Simply loading nsdb.so should work as before.
+	Goal is to enable full replacement of NsDb in the future.
+
+	* nsd/cache.c:
+	* nsd/callbacks.c:
+	* nsd/listen.c:
+	* nsd/nsconf.c:
+	* nsd/op.c:
+	* nsd/sched.c:
+	* nsd/server.c:
+	* nsd/sockcallback.c:
+	* nsd/urlspace.c:
+	* nsext/nsext.c:
+	* nslog/nslog.c:
+	* nslog/nslog.c:  Simple mutex name updates.
+
+	* nscgi/nscgi.c:  Minor bug fixes
+
+	* nsd/adpeval.c:  Fixed read of freed data.
+
+	* nsd/tclinit.c:  Fixed crash bug of null interp delete.
+
+	* nsd/exec.c:
+	* include/Makefile.global:  Support for process manager thread
+	enabled with -DUSE_PROCTHREAD to route all process create/wait
+	through a single thread for Linux threads.
+
 2002-02-24  Jim Davidson <jgdavidson@aol.com>
 
 	* nsd/nsd.h

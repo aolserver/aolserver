@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/Makefile,v 1.30 2002/05/15 20:20:33 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/Makefile,v 1.31 2002/05/15 23:16:04 jgdavidson Exp $
 #
 
 #
@@ -101,6 +101,14 @@ clean-tcl:
 
 tcl: $(tclsrc)/Makefile
 	(cd $(tclsrc); $(MAKE))
+
+tcl-checkout:
+	(cd `dirname $(tcldir)` && \
+		cvs -d :pserver:anonymous@cvs.tcl.sourceforge.net:/cvsroot/tcl \
+			co -d `basename $(tcldir)` tcl)
+
+tcl-update:
+	(cd $(tcldir) && cvs update)
 
 $(tclsrc)/Makefile: $(tclsrc)/Makefile.in $(tclsrc)/configure
 	(cd $(tclsrc); ./configure $(tclcfg))
