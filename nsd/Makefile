@@ -10,7 +10,7 @@ OBJS = \
 	adpcmds.o adpeval.o adpparse.o adprequest.o auth.o binder.o \
 	cache.o callbacks.o cls.o config.o conn.o connio.o crypt.o \
 	dbdrv.o dbinit.o dbtcl.o dbutil.o dns.o driver.o dstring.o \
-	encoding.o exec.o fastpath.o fd.o filter.o form.o \
+	dsprintf.o encoding.o exec.o fastpath.o fd.o filter.o form.o \
 	httptime.o index.o info.o lisp.o listen.o log.o \
 	main.o mimetypes.o modload.o nsconf.o nsmain.o nsthread.o \
 	op.o pathname.o pidfile.o proc.o queue.o quotehtml.o \
