@@ -1,13 +1,17 @@
 2000-08-14  Kriston J. Rehberg  <Kriston@AOL.NET>
 
-	* Makefile: nsvhr resurrected and enjoys our full support.
+	* Makefile: nsvhr has been resurrected and enjoys our full
+	support.
 
 	* nsexample/Makefile: The include at the bottom wasn't using
-	NSHOME.
+	$(NSHOME).
 
 2000-08-14  Jim Davidson
 
 	* Tcl 8.x library upgraded to tcl8.3.2.
+
+	* thread/pool.c: A spiffy range-checker added to the Zippy (-z)
+	memory allocator.  Define NDEBUG=1 to enable.
 
 2000-08-11  Kriston J. Rehberg  <Kriston@AOL.NET>
 
@@ -21,6 +25,9 @@
 	quickly.
 
 2000-08-09  Kriston J. Rehberg  <Kriston@AOL.NET>
+
+	* nsd/serv.c: A whole lot less chatty about conns starting and
+	exiting.  If you want to see them, turn on the Debug flag.
 
 	* doc/*: lots of updates.  Title page extremely simplified.  SSL
 	docs updated.  Release notes updated.  NSV docs corrected (thanks
