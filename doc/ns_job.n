@@ -28,7 +28,7 @@
 '\" version of this file under either the License or the GPL.
 '\" 
 '\"
-'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_job.n,v 1.7 2003/09/22 17:29:55 pmoosman Exp $
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_job.n,v 1.8 2003/10/08 16:34:47 pmoosman Exp $
 '\"
 '\" 
 .so man.macros
@@ -157,24 +157,24 @@ Returns a list of the queues IDs.
 .RS
 Returns a list of the thread pool's fields.
 
-MAX_THREADS
+maxthreads
 .RS
 Max number of threads for all the queues in the thread pool.
 .RE
 
-NUM_THREADS
+numthreads
 .RS
 Number of allocated threads.
 .RE
 
-NUM_IDLE
+numidle
 .RS
 Number of currently idle threads.
 .RE
 
-REQ
+req
 .RS
-THREADPOOL_REQ_STOP
+stop
 .RS
 The thread pools is being stopped. This probably means that the server is shutting down.
 .RE
@@ -186,29 +186,29 @@ The thread pools is being stopped. This probably means that the server is shutti
 .RS
 Returns a list of the queues. A queue has the following fields:
 
-NAME
+name
 .RS
 Name of the queue.
 .RE
 
-DESC
+desc
 .RS
 Description of the queue.
 .RE
 
-MAX_THREADS
+maxthreads
 .RS
 Max number of threads to run for this queue.
 .RE
 
-NUM_RUNNING
+numrunning
 .RS
 Number of currently running jobs in this queue.
 .RE
 
 REQ
 .RS
-QUEUE_REQ_DELETE
+delete
 .RS
 Someone requested this queue be deleted. Queue will not be deleted until all the jobs on the queue are removed.
 .RE
@@ -221,33 +221,33 @@ Someone requested this queue be deleted. Queue will not be deleted until all the
 .RS
 Returns a list the jobs in the specified queue. A job has the following fields:
 
-ID
+id
 .RS
 Job's ID
 .RE
 
-STATE
+state
 .RS
-JOB_SCHEDULED
+scheduled
 .RS
 The job is schedule to run.
 .RE
-JOB_RUNNING
+running
 .RS
 The job is currently running.
 .RE
-JOB_DONE
+done
 .RS
 The job is has completed.
 .RE
 .RE
 
-RESULTS
+results
 .RS
 If the job has completed, then this field will contain the results. If the job is running or scheduled to run, then this will contain the script.
 .RE
 
-CODE
+code
 .RS
 When the job is done, this will contain the return code.
 .RS
@@ -264,15 +264,15 @@ Codes
 
 TYPE
 .RS
- JOB_NON_DETACHED
- JOB_DETACHED
+ nondetached
+ detached
 .RE
 
 REQ
 .RS
- JOB_NONE
- JOB_WAIT
- JOB_CANCEL
+ none
+ wait
+ cancel
 .RE
 .RE
 .RE
