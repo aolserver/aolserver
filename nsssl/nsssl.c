@@ -164,9 +164,9 @@ SSLProc(Ns_DriverCmd cmd, Ns_Sock *sock, Ns_Buf *bufs, int nbufs)
 	total = 0;
 	do {
 	    if (cmd == DriverSend) {
-		n = NsSSLSend(sock->arg, bufs->buf, bufs->len);
+		n = NsSSLSend(sock->arg, bufs->ns_buf, bufs->ns_len);
 	    } else {
-		n = NsSSLRecv(sock->arg, bufs->buf, bufs->len);
+		n = NsSSLRecv(sock->arg, bufs->ns_buf, bufs->ns_len);
 	    }
 	    if (n < 0 && total > 0) {
 		/* NB: Mask error if some bytes were read. */
