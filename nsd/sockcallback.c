@@ -34,20 +34,21 @@
  *	Support for the socket callback thread.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sockcallback.c,v 1.5 2000/11/09 01:50:48 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sockcallback.c,v 1.6 2001/11/05 20:23:41 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
 /*
- * This is the context passed to Ns_SockCallback.
+ * The following defines a socket being monitored.
  */
 
 typedef struct Callback {
     struct Callback     *nextPtr;
-    SOCKET               sock;
+    int                  sock;
+    int			 idx;
+    int                  when;
     Ns_SockProc         *proc;
     void                *arg;
-    int                  when;
 } Callback;
 
 /*
@@ -55,7 +56,7 @@ typedef struct Callback {
  */
 
 static Ns_ThreadProc SockCallbackThread;
-static int Queue(SOCKET sock, Ns_SockProc *proc, void *arg, int when);
+static int Queue(int sock, Ns_SockProc *proc, void *arg, int when);
 static void CallbackTrigger(void);
 
 /*
@@ -65,11 +66,10 @@ static void CallbackTrigger(void);
 static Callback	    *firstQueuePtr, *lastQueuePtr;
 static int	     shutdownPending;
 static int	     running;
-static int	     idle;
 static Ns_Thread     sockThread;
 static Ns_Mutex      lock;
 static Ns_Cond	     cond;
-static SOCKET	     trigPipe[2];
+static int	     trigPipe[2];
 static Tcl_HashTable table;
 
 
@@ -91,7 +91,7 @@ static Tcl_HashTable table;
  */
 
 int
-Ns_SockCallback(SOCKET sock, Ns_SockProc *proc, void *arg, int when)
+Ns_SockCallback(int sock, Ns_SockProc *proc, void *arg, int when)
 {
     return Queue(sock, proc, arg, when);
 }
@@ -114,46 +114,9 @@ Ns_SockCallback(SOCKET sock, Ns_SockProc *proc, void *arg, int when)
  */
 
 void
-Ns_SockCancelCallback(SOCKET sock)
+Ns_SockCancelCallback(int sock)
 {
     (void) Queue(sock, NULL, NULL, 0);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsWaitSockIdle --
- *
- *	Wait for socket callbacks to appear idle at startup.
- *
- * Results:
- *	None.
- *
- * Side effects:
- *	May timeout waiting for idle.
- *
- *----------------------------------------------------------------------
- */
-
-void
-NsWaitSockIdle(Ns_Time *timePtr)
-{
-    int status = NS_OK;
-
-    Ns_MutexLock(&lock);
-    if (running && !idle) {
-    	Ns_Log(Notice, "socks: waiting for idle");
-    	while (!idle && status == NS_OK) {
-	    status = Ns_CondTimedWait(&cond, &lock, timePtr);
-    	}
-    }
-    Ns_MutexUnlock(&lock);
-    if (status != NS_OK) {
-	Ns_Log(Warning, "socks: timeout waiting for idle");
-    } else {
-    	Ns_Log(Notice, "socks: idle");
-    }
 }
 
 
@@ -200,8 +163,8 @@ NsWaitSockShutdown(Ns_Time *toPtr)
     } else if (sockThread != NULL) {
 	Ns_ThreadJoin(&sockThread, NULL);
 	sockThread = NULL;
-    	ns_sockclose(trigPipe[0]);
-    	ns_sockclose(trigPipe[1]);
+    	close(trigPipe[0]);
+    	close(trigPipe[1]);
     }
 }
 
@@ -210,7 +173,7 @@ NsWaitSockShutdown(Ns_Time *toPtr)
  *
  * CallbackTrigger --
  *
- *	Wakeup the callback thread if it's in select().
+ *	Wakeup the callback thread if it's in poll().
  *
  * Results:
  *	None.
@@ -224,8 +187,8 @@ NsWaitSockShutdown(Ns_Time *toPtr)
 static void
 CallbackTrigger(void)
 {
-    if (send(trigPipe[1], "", 1, 0) != 1) {
-	Ns_Fatal("trigger send() failed: %s", ns_sockstrerror(ns_sockerrno));
+    if (write(trigPipe[1], "", 1) != 1) {
+	Ns_Fatal("trigger write() failed: %s", strerror(errno));
     }
 }
 
@@ -247,7 +210,7 @@ CallbackTrigger(void)
  */
 
 static int
-Queue(SOCKET sock, Ns_SockProc *proc, void *arg, int when)
+Queue(int sock, Ns_SockProc *proc, void *arg, int when)
 {
     Callback   *cbPtr;
     int         status, trigger, create;
@@ -285,7 +248,7 @@ Queue(SOCKET sock, Ns_SockProc *proc, void *arg, int when)
 	CallbackTrigger();
     } else if (create) {
     	if (ns_sockpair(trigPipe) != 0) {
-	    Ns_Fatal("ns_sockpair() failed: %s", ns_sockstrerror(ns_sockerrno));
+	    Ns_Fatal("ns_sockpair() failed: %s", strerror(errno));
     	}
     	Ns_ThreadCreate(SockCallbackThread, NULL, 0, &sockThread);
     }
@@ -298,15 +261,13 @@ Queue(SOCKET sock, Ns_SockProc *proc, void *arg, int when)
  *
  * SockCallbackThread --
  *
- *	Run callbacks registered with Ns_SockCallback. This does a 
- *	select and notices when sockets become ready and then runs 
- *	the appropriate callback, if required. 
+ *	Run callbacks registered with Ns_SockCallback.
  *
  * Results:
  *	None. 
  *
  * Side effects:
- *	Will run callbacks. Also expects to be run in its own thread.
+ *	Depends on callbacks.
  *
  *----------------------------------------------------------------------
  */
@@ -315,44 +276,38 @@ static void
 SockCallbackThread(void *ignored)
 {
     char          c;
-    int           when[3];
-    fd_set        set[3];
+    int           when[3], events[3];
     int           n, i, whenany, new, stop;
-    SOCKET	  max;
+    int		  max, nfds;
     Callback     *cbPtr;
     Tcl_HashEntry *hPtr;
     Tcl_HashSearch search;
-    struct timeval tv, *tvPtr;
+    struct pollfd *pfds;
 
     Ns_ThreadSetName("-socks-");
     Ns_WaitForStartup();
     Ns_Log(Notice, "socks: starting");
 
+    events[0] = POLLRDNORM;
+    events[1] = POLLWRNORM;
+    events[2] = POLLRDBAND;
     when[0] = NS_SOCK_READ;
     when[1] = NS_SOCK_WRITE;
     when[2] = NS_SOCK_EXCEPTION;
     whenany = (when[0] | when[1] | when[2] | NS_SOCK_EXIT);
+    max = 100;
+    pfds = ns_malloc(sizeof(struct pollfd) * max);
+    pfds[0].fd = trigPipe[0];
+    pfds[0].events = POLLRDNORM;
     
-    Ns_MutexLock(&lock);
     while (1) {
-	/*
-	 * Until the server appears idle, do one-second
-	 * timed select.
-	 */
-
-	if (idle) {
-	    tvPtr = NULL;
-	} else {
-	    tv.tv_sec = 1;
-	    tv.tv_usec = 0;
-	    tvPtr = &tv;
-	} 
 
 	/*
 	 * Grab the list of any queue updates and the shutdown
 	 * flag.
 	 */
 
+    	Ns_MutexLock(&lock);
 	cbPtr = firstQueuePtr;
 	firstQueuePtr = NULL;
         lastQueuePtr = NULL;
@@ -374,14 +329,14 @@ SockCallbackThread(void *ignored)
 	}
 
 	/*
-	 * Verify and set the select bits for all active callbacks.
+	 * Verify and set the poll bits for all active callbacks.
 	 */
 
-        for (i = 0; i < 3; ++i) {
-            FD_ZERO(&set[i]);
-        }
-    	max = trigPipe[0];
-	FD_SET(trigPipe[0], &set[0]);
+	if (max <= table.numEntries) {
+	    max  = table.numEntries + 100;
+	    pfds = ns_realloc(pfds, max);
+	}
+	nfds = 1;
 	hPtr = Tcl_FirstHashEntry(&table, &search);
 	while (hPtr != NULL) {
 	    cbPtr = Tcl_GetHashValue(hPtr);
@@ -389,14 +344,15 @@ SockCallbackThread(void *ignored)
 	    	Tcl_DeleteHashEntry(hPtr);
 		ns_free(cbPtr);
 	    } else {
-        	if (max < cbPtr->sock) {
-                    max = cbPtr->sock;
-        	}
+		cbPtr->idx = nfds;
+		pfds[nfds].fd = cbPtr->sock;
+		pfds[nfds].events = 0;
         	for (i = 0; i < 3; ++i) {
                     if (cbPtr->when & when[i]) {
-                      FD_SET(cbPtr->sock, &set[i]);
+			pfds[nfds].events |= events[i];
                     }
         	}
+		++n;
 	    }
 	    hPtr = Tcl_NextHashEntry(&search);
         }
@@ -410,15 +366,13 @@ SockCallbackThread(void *ignored)
 	    break;
 	}
 	do {
-	    n = select(max+1, &set[0], &set[1], &set[2], tvPtr);
-	} while (n < 0 && ns_sockerrno == EINTR);
+	    n = poll(pfds, nfds, INFTIM);
+	} while (n < 0 && errno == EINTR);
 	if (n < 0) {
-	    Ns_Fatal("select() failed: %s", ns_sockstrerror(ns_sockerrno));
-	} else if (FD_ISSET(trigPipe[0], &set[0])) {
-	    if (recv(trigPipe[0], &c, 1, 0) != 1) {
-	    	Ns_Fatal("trigger recv() failed: %s",
-			 ns_sockstrerror(ns_sockerrno));
-	    }
+	    Ns_Fatal("poll() failed: %s", strerror(errno));
+	}
+	if ((pfds[0].revents & POLLRDNORM) && read(trigPipe[0], &c, 1) != 1) {
+	    Ns_Fatal("trigger read() failed: %s", strerror(errno));
 	}
 
     	/*
@@ -426,12 +380,11 @@ SockCallbackThread(void *ignored)
 	 */
 	 
     	hPtr = Tcl_FirstHashEntry(&table, &search);
-	while (hPtr != NULL) {
+	while (n > 0 && hPtr != NULL) {
 	    cbPtr = Tcl_GetHashValue(hPtr);
             for (i = 0; i < 3; ++i) {
-
                 if ((cbPtr->when & when[i])
-		    && FD_ISSET(cbPtr->sock, &set[i])) {
+		    && (pfds[cbPtr->idx].revents & events[i])) {
                     if (!((*cbPtr->proc)(cbPtr->sock, cbPtr->arg, when[i]))) {
 			cbPtr->when = 0;
 		    }
@@ -439,16 +392,6 @@ SockCallbackThread(void *ignored)
             }
 	    hPtr = Tcl_NextHashEntry(&search);
         }
-	Ns_MutexLock(&lock);
-
-	/*
-	 * Signal that callbacks now appear idle.
-	 */
-
-	if (!idle && !n) {
-	    idle = 1;
-	    Ns_CondBroadcast(&cond);
-	}
     }
 
     /*
