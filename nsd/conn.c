@@ -34,7 +34,7 @@
  *      Manage the Ns_Conn structure
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.23 2002/07/08 02:50:55 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.24 2002/07/23 12:03:10 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -656,8 +656,8 @@ int
 NsTclConnObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 {
     NsInterp     *itPtr = arg;
-    Ns_Conn      *conn = itPtr->conn;
-    Conn         *connPtr = (Conn *) conn;
+    Ns_Conn      *conn;
+    Conn         *connPtr;
     Ns_Set       *form;
     Ns_Request   *request;
     Tcl_Encoding  encoding;
@@ -698,13 +698,14 @@ NsTclConnObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
      * Only the "isconnected" option operates without a conn.
      */
 
-    if (connPtr == NULL && opt != CIsConnectedIdx) {
+    if (itPtr->conn == NULL && opt != CIsConnectedIdx) {
 	Tcl_SetResult(interp, "no current connection", TCL_STATIC);
         return TCL_ERROR;
     }
 
+    connPtr = (Conn *) conn = itPtr->conn;
     request = connPtr->request;
-    result = Tcl_GetObjResult(interp);
+    result  = Tcl_GetObjResult(interp);
     switch (opt) {
 
 	case CIsConnectedIdx:
