@@ -7,9 +7,9 @@ proc test {script} {
     }
 }
 
-proc assert {true message} {
-    if {!$true} {
-        error $message
+proc assert {bool message} {
+    if {!$bool} {
+        return -code return $message
     }
 }
 
@@ -22,6 +22,6 @@ proc assertEquals {expected actual {message ""}} {
         set message "no description provided"
     }
     set message "(#$::assertionCount) $message"
-    assert [string equal $expected $actual] \
-        "$message\n  Expected: $expected\n    Actual: $actual"
+    return -code [catch {assert [string equal $expected $actual] \
+        "$message\n  Expected: $expected\n    Actual: $actual"} msg] $msg
 }

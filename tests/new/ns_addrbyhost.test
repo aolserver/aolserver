@@ -1,0 +1,17 @@
+source harness.tcl
+load libnsd.so
+
+package require tcltest 2.2
+namespace import -force ::tcltest::*
+
+test ns_addrbyhost {ns_addrbyhost} {
+    assertEquals "127.0.0.1" [ns_addrbyhost "localhost"]
+
+    # ns_log messages confuse tcltest into thinking the test had a failure
+    ns_logctl hold
+    assertEquals 1 [catch {ns_addrbyhost "this_should_not_resolve"} msg]
+    assertEquals "could not lookup this_should_not_resolve" $msg
+    ns_logctl truncate
+} {}
+
+cleanupTests

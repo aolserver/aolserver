@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/Makefile,v 1.51 2004/08/25 20:38:24 dossy Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/Makefile,v 1.52 2004/09/07 23:59:37 dossy Exp $
 #
 
 NSBUILD=1
@@ -64,7 +64,7 @@ install-tests:
 install-tests-new:
 	$(INSTALL_DATA) tests/new/http-test-config.tcl $(AOLSERVER)/
 	$(MKDIR) $(INSTSRVPAG)/tests
-	for i in tests/new/*.tcl tests/new/*.adp; do \
+	for i in tests/new/harness.tcl tests/new/*.adp; do \
 		$(INSTALL_DATA) $$i $(INSTSRVPAG)/tests/; \
 	done
 

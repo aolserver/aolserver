@@ -1,0 +1,17 @@
+source harness.tcl
+load libnsd.so
+
+package require tcltest 2.2
+namespace import -force ::tcltest::*
+
+test ns_hostbyaddr {ns_hostbyaddr} {
+    assertEquals "localhost" [ns_hostbyaddr "127.0.0.1"]
+
+    # ns_log messages confuse tcltest into thinking the test had a failure
+    ns_logctl hold
+    assertEquals 1 [catch {ns_hostbyaddr "0.0.0.0"} msg]
+    assertEquals "could not lookup 0.0.0.0" $msg
+    ns_logctl truncate
+} {}
+
+cleanupTests
