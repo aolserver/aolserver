@@ -34,7 +34,7 @@
  *	Implement Tcl_Obj type for AOLserver Ns_Time.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclobj.c,v 1.5 2002/10/14 23:21:03 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclobj.c,v 1.6 2003/10/21 18:24:59 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -271,4 +271,5 @@ SetTimeInternalRep(Tcl_Obj *objPtr, Ns_Time *timePtr)
     objPtr->typePtr = &timeType;
     *((Ns_Time *) &objPtr->internalRep) = *timePtr;
     Tcl_InvalidateStringRep(objPtr);
+    objPtr->length = 0;  /* ensure there's no stumbling */
 }

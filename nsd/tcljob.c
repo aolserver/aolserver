@@ -80,7 +80,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tcljob.c,v 1.23 2003/10/17 21:04:53 pmoosman Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tcljob.c,v 1.24 2003/10/21 18:24:59 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -559,21 +559,19 @@ NsTclJobObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
             int         timeoutFlag = 0;
             Ns_Time     timeout;
             int         timedOut = 0;
-            long        sec, milliSec;
+            Ns_Time     delta_timeout;
 
             argIndex = 2;
-            if ((objc != 4) && (objc != 7)) {
+            if ((objc != 4) && (objc != 6)) {
                 Tcl_WrongNumArgs(interp, 2, objv,
-                                 "?-timeout seconds milliseconds? queueId jobId");
+                                 "?-timeout seconds:microseconds? queueId jobId");
                 return TCL_ERROR;
             }
             if (objc > 4) {
                 if (strcmp(Tcl_GetString(objv[argIndex++]), "-timeout") == 0) {
                     timeoutFlag = 1;
-                    if ((Tcl_GetLongFromObj(interp, objv[argIndex++],
-                                            &sec) != TCL_OK) ||
-                        (Tcl_GetLongFromObj(interp, objv[argIndex++],
-                                            &milliSec) != TCL_OK)) {
+                    if (Ns_TclGetTimeFromObj(interp, objv[argIndex++], 
+                                             &delta_timeout) != TCL_OK) {
                         return TCL_ERROR;
                     }
                     
@@ -581,7 +579,7 @@ NsTclJobObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
                      * Set the timeout time. This is an absolute time.
                      */
                     Ns_GetTime(&timeout);
-                    Ns_IncrTime(&timeout, (time_t)sec, (milliSec * 1000));
+                    Ns_IncrTime(&timeout, delta_timeout.sec, delta_timeout.usec);
                 }
             }
 
@@ -725,28 +723,26 @@ NsTclJobObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
             int         timeoutFlag = 0;
             Ns_Time     timeout;
             int         timedOut = 0;
-            long        sec, milliSec;
+            Ns_Time     delta_timeout;
 
             argIndex = 2;
-            if ((objc != 3) && (objc != 6)) {
+            if ((objc != 3) && (objc != 5)) {
                 Tcl_WrongNumArgs(interp, 2, objv,
-                                 "?-timeout seconds milliseconds? queueId");
+                                 "?-timeout seconds:microseconds? queueId");
                 return TCL_ERROR;
             }       
             if (objc > 3) {
                 if (strcmp(Tcl_GetString(objv[argIndex++]), "-timeout") == 0) {
                     timeoutFlag = 1;
-                    if ((Tcl_GetLongFromObj(interp, objv[argIndex++],
-                                            &sec) != TCL_OK) ||
-                        (Tcl_GetLongFromObj(interp, objv[argIndex++],
-                                            &milliSec) != TCL_OK)) {
+                    if (Ns_TclGetTimeFromObj(interp, objv[argIndex++],
+                                             &delta_timeout) != TCL_OK) {
                         return TCL_ERROR;
                     }
                     /*
                      * Set the timeout time. This is an absolute time.
                      */
                     Ns_GetTime(&timeout);
-                    Ns_IncrTime(&timeout, (time_t)sec, (milliSec * 1000));
+                    Ns_IncrTime(&timeout, delta_timeout.sec, delta_timeout.usec);
                 }
             }
 
