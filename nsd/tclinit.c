@@ -33,7 +33,7 @@
  *	Initialization routines for Tcl.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.25 2002/08/25 20:11:30 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.26 2002/08/25 22:06:40 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -64,15 +64,12 @@ typedef struct Defer {
 
 static Tcl_InterpDeleteProc FreeData;
 static Ns_TlsCleanup DeleteInterps;
-static Tcl_Interp *CreateInterp(NsServer *servPtr, Tcl_HashEntry *hPtr);
+static Tcl_Interp *CreateInterp(NsInterp *itPtr);
 
 /*
  * Static variables defined in this file.
  */
 
-static char initServer[] = "_ns_initserver";
-static char allocScript[] = "_ns_atalloc";
-static char deallocScript[] = "_ns_atdealloc";
 static Ns_Tls tls;
 
 
@@ -199,7 +196,9 @@ Ns_TclMarkForDelete(Tcl_Interp *interp)
 {
     NsInterp *itPtr = NsGetInterp(interp);
     
-    itPtr->delete = 1;
+    if (itPtr != NULL) {
+	itPtr->delete = 1;
+    }
 }
 
 
@@ -222,7 +221,7 @@ Ns_TclMarkForDelete(Tcl_Interp *interp)
 Tcl_Interp *
 Ns_TclCreateInterp(void)
 {
-    return CreateInterp(NULL, NULL);
+    return CreateInterp(NULL);
 }
 
 
@@ -249,30 +248,43 @@ Ns_TclAllocateInterp(char *server)
     Tcl_HashTable *tablePtr;
     Tcl_HashEntry *hPtr;
     Tcl_Interp *interp;
-    NsServer *servPtr;
+    NsInterp *itPtr;
+    NsServer *servPtr = NsGetServer(server);
+    Init *initPtr;
     int new;
 
-    if (server == NULL) {
-	return Ns_TclCreateInterp();
+    if (servPtr == NULL) {
+	return NULL;
     }
-
     tablePtr = Ns_TlsGet(&tls);
     if (tablePtr == NULL) {
 	tablePtr = ns_malloc(sizeof(Tcl_HashTable));
-	Tcl_InitHashTable(tablePtr, TCL_STRING_KEYS);
+	Tcl_InitHashTable(tablePtr, TCL_ONE_WORD_KEYS);
 	Ns_TlsSet(&tls, tablePtr);
     }
-    hPtr = Tcl_CreateHashEntry(tablePtr, server, &new);
+    hPtr = Tcl_CreateHashEntry(tablePtr, (char *) servPtr, &new);
     interp = Tcl_GetHashValue(hPtr);
     if (interp != NULL) {
+	itPtr = NsGetInterp(interp);
 	Tcl_SetHashValue(hPtr, NULL);
     } else {
-	servPtr = NsGetServer(server);
-	if (servPtr != NULL) {
-	    interp = CreateInterp(servPtr, hPtr);
+	itPtr = ns_calloc(1, sizeof(NsInterp));
+	itPtr->hPtr = hPtr;
+	itPtr->servPtr = servPtr;
+	Tcl_InitHashTable(&itPtr->sets, TCL_STRING_KEYS);
+	Tcl_InitHashTable(&itPtr->chans, TCL_STRING_KEYS);	
+	Tcl_InitHashTable(&itPtr->https, TCL_STRING_KEYS);	
+	itPtr->interp = interp = CreateInterp(itPtr);
+	Tcl_SetAssocData(interp, "ns:data", FreeData, itPtr);
+	initPtr = itPtr->servPtr->tcl.firstInitPtr;
+	while (initPtr != NULL) {
+	    if (((*initPtr->proc)(interp, initPtr->arg)) != TCL_OK) {
+		Ns_TclLogError(interp);
+	    }
+	    initPtr = initPtr->nextPtr;
 	}
     }
-    if (Tcl_EvalEx(interp, allocScript, -1, 0) != TCL_OK) {
+    if (Tcl_EvalEx(interp, "ns_init update", -1, 0) != TCL_OK) {
 	Ns_TclLogError(interp);
     }
     return interp;
@@ -318,7 +330,7 @@ Ns_TclDeAllocateInterp(Tcl_Interp *interp)
      	 * Evaluate the cleanup proc.
      	 */
 
-    	if (Tcl_EvalEx(interp, deallocScript, -1, 0) != TCL_OK) {
+    	if (Tcl_EvalEx(interp, "ns_cleanup", -1, 0) != TCL_OK) {
 	    Ns_TclLogError(interp);
     	}
     	Tcl_ResetResult(interp);    
@@ -579,13 +591,13 @@ Ns_TclInterpServer(Tcl_Interp *interp)
  *
  * NsTclInitServer --
  *
- *	Evaluate the server init script at startup.
+ *	Evaluate server initialization script at startup.
  *
  * Results:
  *	None.
  *
  * Side effects:
- *	See _ns_initserver proc.
+ *	See init script (normally init.tcl).
  *
  *----------------------------------------------------------------------
  */
@@ -593,7 +605,16 @@ Ns_TclInterpServer(Tcl_Interp *interp)
 void
 NsTclInitServer(char *server)
 {
-    (void) Ns_TclEval(NULL, server, initServer);
+    NsServer *servPtr = NsGetServer(server);
+    Tcl_Interp *interp;
+
+    if (servPtr != NULL) {
+	interp = Ns_TclAllocateInterp(server);
+	if (Tcl_EvalFile(interp, servPtr->tcl.initfile) != TCL_OK) {
+	    Ns_TclLogError(interp);
+	}
+    	Ns_TclDeAllocateInterp(interp);
+    }
 }
 
 
@@ -655,7 +676,7 @@ NsTclInitObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 	IEpochIdx, IGetIdx, ISaveIdx, IUpdateIdx
     } opt;
     char *script;
-    int update, result, length;
+    int length, result;
 
     if (objc < 2) {
         Tcl_WrongNumArgs(interp, 1, objv, "option ?arg?");
@@ -666,6 +687,7 @@ NsTclInitObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 	return TCL_ERROR;
     }
 
+    result = TCL_OK;
     switch (opt) {
     case IGetIdx:
 	if (objc != 2) {
@@ -697,7 +719,10 @@ NsTclInitObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 	ns_free(itPtr->servPtr->tcl.script);
 	itPtr->servPtr->tcl.script = script;
 	itPtr->servPtr->tcl.length = length;
-	++itPtr->servPtr->tcl.epoch;
+	if (++itPtr->servPtr->tcl.epoch == 0) {
+	    /* NB: Epoch zero reserved for new interps. */
+	    ++itPtr->servPtr->tcl.epoch;
+	}
 	Ns_RWLockUnlock(&itPtr->servPtr->tcl.lock);
 	break;
 
@@ -706,26 +731,17 @@ NsTclInitObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
             Tcl_WrongNumArgs(interp, 2, objv, NULL);
 	    return TCL_ERROR;
 	}
-	Ns_RWLockRdLock(&itPtr->servPtr->tcl.lock);
-	if (itPtr->epoch == itPtr->servPtr->tcl.epoch) {
-	    update = 0;
-	    result = TCL_OK;
-	} else {
-	    update = 1;
-	    result = Tcl_EvalEx(interp, itPtr->servPtr->tcl.script,
-				itPtr->servPtr->tcl.length,
-				TCL_EVAL_GLOBAL);
+    	Ns_RWLockRdLock(&itPtr->servPtr->tcl.lock);
+    	if (itPtr->epoch != itPtr->servPtr->tcl.epoch) {
+	    result = Tcl_EvalEx(itPtr->interp, itPtr->servPtr->tcl.script,
+			    itPtr->servPtr->tcl.length, TCL_EVAL_GLOBAL);
 	    itPtr->epoch = itPtr->servPtr->tcl.epoch;
-	}
-	Ns_RWLockUnlock(&itPtr->servPtr->tcl.lock);
-	if (result != TCL_OK) {
-	    return TCL_ERROR;
-	}
-	Tcl_SetBooleanObj(Tcl_GetObjResult(interp), update);
+        }
+    	Ns_RWLockUnlock(&itPtr->servPtr->tcl.lock);
 	break;
     }
 
-    return TCL_OK;
+    return result;
 }
 
 
@@ -808,60 +824,19 @@ DeleteInterps(void *arg)
     ns_free(tablePtr);
 }
 
-
-/*
- *----------------------------------------------------------------------
- *
- * CreateInterp --
- *
- *      Create a new interp, optionally bound to given server.
- *
- * Results:
- *      Pointer to new interp.
- *
- * Side effects:
- *	Depends on Tcl_Init and server init scripts. Also, will save
- *	given pointer to server table entry for alloc/dealloc cache. 
- *
- *----------------------------------------------------------------------
- */
-
 static Tcl_Interp *
-CreateInterp(NsServer *servPtr, Tcl_HashEntry *hPtr)
+CreateInterp(NsInterp *itPtr)
 {
     Tcl_Interp *interp;
-    Init *initPtr;
-    NsInterp *itPtr;
 
     interp = Tcl_CreateInterp();
-    if (interp != NULL) {
-	if (Tcl_Init(interp) != TCL_OK) {
-	    Ns_TclLogError(interp);
-	}
-	Tcl_InitMemory(interp);
-	if (servPtr == NULL) {
-	    NsTclAddCmds(NULL, interp);
-	} else {
-	    itPtr = ns_calloc(1, sizeof(NsInterp));
-	    itPtr->interp = interp;
-	    itPtr->hPtr = hPtr;
-	    itPtr->servPtr = servPtr;
-	    Tcl_InitHashTable(&itPtr->sets, TCL_STRING_KEYS);
-	    Tcl_InitHashTable(&itPtr->chans, TCL_STRING_KEYS);	
-	    Tcl_InitHashTable(&itPtr->https, TCL_STRING_KEYS);	
-	    Tcl_SetAssocData(interp, "ns:data", FreeData, itPtr);
-	    NsTclAddCmds(itPtr, interp);
-	    initPtr = itPtr->servPtr->tcl.firstInitPtr;
-	    while (initPtr != NULL) {
-	        if (((*initPtr->proc)(interp, initPtr->arg)) != TCL_OK) {
-		    Ns_TclLogError(interp);
-	        }
-	        initPtr = initPtr->nextPtr;
-	    }
-	    if (Tcl_EvalFile(interp, itPtr->servPtr->tcl.initfile) != TCL_OK) {
-	        Ns_TclLogError(interp);
-	    }
-	}
+    if (interp == NULL) {
+	Ns_Fatal("could not create interp");
     }
+    if (Tcl_Init(interp) != TCL_OK) {
+	Ns_TclLogError(interp);
+    }
+    Tcl_InitMemory(interp);
+    NsTclAddCmds(interp, itPtr);
     return interp;
 }

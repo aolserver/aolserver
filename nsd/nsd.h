@@ -780,7 +780,7 @@ extern void NsLoadModules(char *server);
 extern struct Bucket *NsTclCreateBuckets(char *server, int nbuckets);
 
 extern void NsClsCleanup(Conn *connPtr);
-extern void NsTclAddCmds(NsInterp *itPtr, Tcl_Interp *interp);
+extern void NsTclAddCmds(Tcl_Interp *interp, NsInterp *itPtr);
 
 extern void NsRestoreSignals(void);
 extern void NsSendSignal(int sig);

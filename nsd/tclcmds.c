@@ -33,7 +33,7 @@
  * 	Connect Tcl command names to the functions that implement them
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.30 2002/08/25 20:10:56 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.31 2002/08/25 22:06:40 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -655,10 +655,10 @@ AddCmds(Cmd *cmdPtr, ClientData arg, Tcl_Interp *interp)
 }
 
 void
-NsTclAddCmds(NsInterp *itPtr, Tcl_Interp *interp)
+NsTclAddCmds(Tcl_Interp *interp, NsInterp *itPtr)
 {
     AddCmds(cmds, itPtr, interp);
     if (itPtr != NULL) {
-	AddCmds(servCmds, itPtr, interp);
+        AddCmds(servCmds, itPtr, interp);
     }
 }

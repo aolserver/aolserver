@@ -28,15 +28,13 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/init.tcl,v 1.6 2002/05/15 20:10:14 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/init.tcl,v 1.7 2002/08/25 22:06:40 jgdavidson Exp $
 #
 
 #
 # init.tcl --
 #
-#	Core procedures sourced by each new interp required
-#	to initialize a virtual server, share namespaces, and
-#	perform garbage collection.
+#	Core script to initialize a virtual server at startup.
 #
 
 
@@ -83,7 +81,7 @@ proc ns_module {key {val ""}} {
 #	Evaluate a script which should contain
 #	new procs command and then save the
 #	state of the procs for other interps
-#	to sync with on their next ns_cleanup.
+#	to sync with on their next _ns_atalloc.
 #
 #	If this ever gets moved to a namespace, the eval will need
 #	to be modified to ensure that the procs aren't defined in
@@ -107,7 +105,6 @@ proc ns_eval script {
     }
 }
 
-
 #
 # ns_cleanup --
 #
@@ -117,35 +114,21 @@ proc ns_eval script {
 #
 
 proc ns_cleanup {} {
-    if {[catch {
-	_ns_unsetglobals
-	# NB: Must be before _ns_closechannels.
-	ns_chan cleanup
-	_ns_closechannels
-	ns_set cleanup
-	ns_http cleanup
-	_ns_updatenamespaces
-    }]} {
-	global errorInfo
-
-	#
-	# If cleanup failed, dump this interp to
-	# avoid an unknown state.
-	#
-
-	ns_log error $errorInfo
-	ns_markfordelete
+    #
+    # Close open files.
+    #
+    
+    ns_chan cleanup
+    foreach f [file channels] {
+	if {![string match std* $f]} {
+	    catch {close $f}
+	}
     }
-}
 
-
-#
-# _ns_unsetglobals --
-#
-#	Free all but a few well known global variables.
-#
-
-proc _ns_unsetglobals {} {
+    #
+    # Unset global variables
+    #
+    
     foreach g [info globals] {
 	switch -glob -- $g {
 	    tcl* -
@@ -162,48 +145,14 @@ proc _ns_unsetglobals {} {
            }
 	}
     }
+
+    #
+    # Other misc. cleanups.
+    #
+
+    ns_set cleanup
+    ns_http cleanup
 }
-
-
-#
-# _ns_closechannels --
-#
-#	Close any remaining open channels.
-#
-
-proc _ns_closechannels {} {
-    foreach f [file channels] {
-	if {![string match std* $f]} {
-	    catch {close $f}
-	}
-    }
-}
-
-
-#
-# _ns_updatenamespaces --
-#
-#	Update namespaces to latest state if necessary.
-#
-
-proc _ns_updatenamespaces {} {
-    global _ns
-
-    if {![info exists _ns(epoch)]} {
-	set _ns(epoch) 0
-    }
-    if {$_ns(epoch) == [nsv_get _ns epoch]} {
-	return
-    }
-    set lock [nsv_get _ns lock]
-    ns_mutex lock $lock
-    set current [nsv_get _ns epoch]
-    set script [nsv_get _ns script]
-    ns_mutex unlock $lock
-    eval $script
-    set _ns(epoch) $current
-}
-
 
 #
 # _ns_savenamespaces --
@@ -213,71 +162,14 @@ proc _ns_updatenamespaces {} {
 #
 
 proc _ns_savenamespaces {} {
-    global _ns
-
     _ns_getnamespaces namespaces
     set script ""
     foreach ns $namespaces {
 	append script [list namespace eval $ns [_ns_getscript $ns]]\n
     }
-    set lock [nsv_get _ns lock]
-    ns_mutex lock $lock
-    nsv_set _ns script $script
-    if {[nsv_incr _ns epoch] < 1} {
-	nsv_set _ns epoch 1
-    }
-    set epoch [nsv_get _ns epoch]
-    ns_mutex unlock $lock
-    set _ns(epoch) $epoch
+    ns_init save $script
 }
 
-
-#
-# _ns_initserver --
-#
-#	Init routine for a virtual server.  Should only
-#	be called at startup by the main thread.
-#
-
-proc _ns_initserver {} {
-    #
-    # Source the top level Tcl libraries.
-    #
-
-    set shared	[ns_library shared]
-    set private [ns_library private]
-    _ns_sourcefiles $shared $private
-
-    #
-    # Source the nsdb Tcl libraries if configured.
-    #
-
-    _ns_sourcemodule nsdb 
-
-    #
-    # Source the module-specific Tcl libraries.
-    #
-
-    set server [ns_info server]
-    set mods [ns_configsection ns/server/$server/modules]
-    if {$mods != ""} {
-    	for {set i 0} {$i < [ns_set size $mods]} {incr i} {
-	    _ns_sourcemodule [ns_set key $mods $i]
-	}
-    }
-
-    #
-    # Save the current namespaces.
-    #
-
-    _ns_savenamespaces
-
-    #
-    # Kill this interp to save memory.
-    #
-
-    ns_markfordelete
-}
 
 #
 # _ns_sourcemodule --
@@ -417,14 +309,39 @@ proc _ns_getscript n {
 }
 
 
+#
+# Source the top level Tcl libraries.
+#
 
+set shared [ns_library shared]
+set private [ns_library private]
+_ns_sourcefiles $shared $private
 
+#
+# Source the module-specific Tcl libraries.
+#
 
-if {[nsv_exists _ns lock]} {
-    _ns_updatenamespaces
-} else {
-    nsv_set _ns lock [ns_mutex create]
-    nsv_set _ns epoch 0
-    nsv_set _ns script {}
+set server [ns_info server]
+set mods [ns_configsection ns/server/$server/modules]
+if {$mods != ""} {
+    for {set i 0} {$i < [ns_set size $mods]} {incr i} {
+	_ns_sourcemodule [ns_set key $mods $i]
+    }
 }
 
+#
+# Save the current namespaces.
+#
+
+rename _ns_sourcemodule {}
+rename _ns_sourcefiles  {}
+rename _ns_sourcefile {}
+ns_cleanup
+
+_ns_savenamespaces
+
+#
+# Kill this interp to save memory.
+#
+
+ns_markfordelete

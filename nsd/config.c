@@ -33,7 +33,7 @@
  *	Support for the configuration file
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/config.c,v 1.14 2002/06/19 10:22:17 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/config.c,v 1.15 2002/08/25 22:06:40 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #define ISSLASH(c)      ((c) == '/' || (c) == '\\')
@@ -403,7 +403,6 @@ NsConfigEval(char *config, int argc, char **argv, int optind)
     Tcl_SetVar(interp, "argc", buf, TCL_GLOBAL_ONLY);
     sprintf(buf, "%d", optind);
     Tcl_SetVar(interp, "optind", buf, TCL_GLOBAL_ONLY);
-    NsTclAddCmds(NULL, interp);
     if (Tcl_Eval(interp, config) != TCL_OK) {
 	Ns_TclLogError(interp);
 	Ns_Fatal("config error");
