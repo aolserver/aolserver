@@ -33,7 +33,7 @@
  *	Various core configuration.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsconf.c,v 1.33 2004/07/19 02:36:31 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsconf.c,v 1.34 2004/08/11 22:18:27 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #include "nsconf.h"
@@ -118,9 +118,9 @@ NsInitInfo(void)
     }
     Ns_DStringInit(&addr);
     if (Ns_GetAddrByHost(&addr, nsconf.hostname)) {
-    	strcpy(nsconf.address, addr.string);
+        strcpy(nsconf.address, addr.string);
     } else {
-        Ns_Fatal("could not resolve %s via dns", nsconf.hostname);
+        strcpy(nsconf.address, "0.0.0.0");
     }
     Ns_DStringFree(&addr);
 }
