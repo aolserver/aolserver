@@ -1,3 +1,9 @@
+2003-05-16  Zoran Vasiljevic <zoran@archiware.com>
+
+	* nsdb/dbinit.c: fixed hash table initialization in IncrCount
+	to TCL_ONE_WORD_KEYS instead of TCL_STRING_KEYS. Credits to
+	Jean-Fabrice RABAUTE for the bug report.
+
 2003-05-14  Zoran Vasiljevic <zoran@archiware.com>
 
 	* nsd/tclthread.c: fixed NsTclCondObjCmd to be compatible
