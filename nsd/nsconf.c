@@ -34,17 +34,17 @@
  *	Various core configuration.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsconf.c,v 1.4 2000/08/17 06:09:49 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsconf.c,v 1.5 2000/10/07 20:00:44 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
 struct _nsconf nsconf;
-
+int nsConfQuiet;
 
 static void
 Log(char *path, char *key, char *value)
 {
-    Ns_Log(Notice, "conf: [%s]%s = %s", path, key, value);
+    if (!nsConfQuiet) Ns_Log(Notice, "conf: [%s]%s = %s", path, key, value);
 }
 
 
@@ -56,7 +56,7 @@ GetInt(char *path, char *key, int def)
     if (!Ns_ConfigGetInt(path, key, &i) || i < 0) {
 	i = def;
     }
-    Ns_Log(Notice, "conf: [%s]%s = %d", path, key, i);
+    if (!nsConfQuiet) Ns_Log(Notice, "conf: [%s]%s = %d", path, key, i);
     return i;
 }
 
