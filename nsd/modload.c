@@ -34,7 +34,7 @@
  *	Load .so files into the server and initialize them. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/modload.c,v 1.11 2002/09/16 22:05:49 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/modload.c,v 1.12 2002/09/28 19:24:09 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -60,6 +60,16 @@ static char *dylderr = "";
 #endif
 
 /*
+ * The following structure is used for static module loading.
+ */
+
+typedef struct Module {
+    struct Module *nextPtr;
+    char *name;
+    Ns_ModuleInitProc *proc;
+} Module;
+
+/*
  * Static variables defined in this file.
  */
 
@@ -68,6 +78,7 @@ static void *DlOpen(char *file);
 static void *DlSym(void *handle, char *name);
 static void *DlSym2(void *handle, char *name);
 static char *DlError(void);
+static Module *firstPtr;
 
 
 /*
@@ -90,6 +101,42 @@ void
 NsInitModLoad(void)
 {
     Tcl_InitHashTable(&modulesTable, FILE_KEYS);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_RegisterModule --
+ *
+ *	Register a static module.  This routine can only be called from
+ *	a Ns_ServerInitProc passed to Ns_Main or within the Ns_ModuleInit
+ *	proc of a loadable module.  It registers a module callback for
+ *	for the currently initializing server.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	Proc will be called after dynamic modules are loaded. 
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+Ns_RegisterModule(char *name, Ns_ModuleInitProc *proc)
+{
+    Module *modPtr, **nextPtrPtr;
+
+    modPtr = ns_malloc(sizeof(Module));
+    modPtr->name = ns_strcopy(name);
+    modPtr->proc = proc;
+    modPtr->nextPtr = NULL;
+    nextPtrPtr = &firstPtr;
+    while (*nextPtrPtr != NULL) {
+	nextPtrPtr = &((*nextPtrPtr)->nextPtr); 
+    }
+    *nextPtrPtr = modPtr;
 }
 
 
@@ -197,6 +244,32 @@ done:
 /*
  *----------------------------------------------------------------------
  *
+ * Ns_ModuleGetSymbol --
+ *
+ *	Locate a given symbol in the program's symbol table and 
+ *	return the address of it. This differs from the other Module 
+ *	functions in that it doesn't require the shared library file 
+ *	name - this should sniff the entire symbol space. 
+ *
+ * Results:
+ *	A pointer to the requested symbol's value. 
+ *
+ * Side effects:
+ *	None. 
+ *
+ *----------------------------------------------------------------------
+ */
+
+void *
+Ns_ModuleGetSymbol(char *name)
+{
+    return DlSym(NULL, name);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  * NsLoadModules --
  *
  *	Load all modules for given server.
@@ -216,6 +289,7 @@ NsLoadModules(char *server)
     Ns_Set *modules;
     int     i;
     char   *file, *module, *init, *s, *e;
+    Module *modPtr, *nextPtr;
 
     modules = Ns_ConfigGetSection(Ns_ConfigGetPath(server, NULL, "modules", NULL));
     for (i = 0; modules != NULL && i < Ns_SetSize(modules); ++i) {
@@ -245,12 +319,40 @@ NsLoadModules(char *server)
        if (!STRIEQ(file, "tcl") && Ns_ModuleLoad(server, module, file, init) != NS_OK) {
 	    Ns_Fatal("modload: failed to load module '%s'", file);
         }
+
+	/*
+	 * Add this module to the server Tcl init list.
+	 */
+
+        Ns_TclInitModule(server, module);
+
         if (s != NULL) {
             *s = '(';
             if (e != NULL) {
                 *e = ')';
             }
         }
+    }
+
+    /*
+     * Initialize the static modules (if any).  Note that a static
+     * module could add a new static module and so the loop is
+     * repeated until they're all gone.
+     */
+
+    while (firstPtr != NULL) {
+    	modPtr = firstPtr;
+	firstPtr = NULL;
+    	while (modPtr != NULL) {
+	    nextPtr = modPtr->nextPtr;
+	    Ns_Log(Notice, "modload: initializing module '%s'", modPtr->name);
+	    if ((*modPtr->proc)(server, modPtr->name) != NS_OK) {
+	    	Ns_Fatal("modload: failed to initialize %s", modPtr->name);
+	    }
+	    ns_free(modPtr->name);
+	    ns_free(modPtr);
+	    modPtr = nextPtr;
+	}
     }
 }
 
