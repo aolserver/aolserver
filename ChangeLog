@@ -1,3 +1,75 @@
+2005-01-15  Jim Davidson <jgdavidson@aol.com>
+
+	Among some general code cleanup, several changes to factor
+	out previous ADP-only code for encoding, compressing, and/or
+	chunking output via a more general Ns_ConnFlush routine.
+	ADP output semantics should now be closer to those of stdio
+	including a specific "ns_adp_flush" mechanism to force a
+	valid streamed response (likely in HTTP/1.1 "chunked" format)
+	during execution as well as a buffer high-water mark which
+	will force flushing on overflow (default 1meg).  These
+	changes should both be more flexible to use and allow ADP's
+	which generate very large results to avoid consuming memory
+	waiting to send a single, large response.  Ordinary ADP's
+	which generate a normal, relatively small responses, will
+	behave as before.
+
+	*  include/ns.h: Added Ns_ConnFlush, Ns_ConnSend, Ns_ConnSetType,
+	and Ns_ConnGetType along with some new NS_CONN constaints.
+
+	* nsd/connio.c: Added Ns_ConnFlush which provides a general
+	encoding, compressing, chunking response capbility which
+	was mostly previous ADP-only code.
+
+	* nsd/conn.c: Added Ns_ConnSetType and Ns_ConnGetType routines.
+
+	* nsd/form.c: Added checks to better catch a change in URL
+	encoding.
+
+	* nsd/tclcmds.c:
+	* nsd/adpcmds.c: Added ns_adp_ctl, ns_adp_flush, and
+	ns_adp_close commands and simplified code with new NsAdpGetBuf
+	routine.  Also, use of new Ns_ConnSetType and Ns_ConnGetType
+	to factor out previous ADP-only code.
+
+	* nsd/nsd.h: Combined AdpParse and AdpCode structs, several
+	new ADP_ and SERV_ flag bits, and several new ADP internal
+	routines.
+
+	* nsd/adpeval.c:
+	* nsd/adpparse.c: Simplified code by combining AdpParse and
+	AdpCode structs and added new AdpTrace facility to monitor
+	ADP internals.
+
+	* nsd/adprequest.c: Added NsAdpGetBuf API and factored out
+	flush/close code to use new more general Ns_ConnFlush API.
+
+	* nsd/driver.c: Now truncates instead of freeing I/O dstring
+	bufs to avoid repeated realloc calls between connections
+	(potential source of additional memory growth).
+
+	* nsd/request.c: Added comment for for NsAppendRequest.
+
+	* nsd/return.c:
+	* nsd/server.c: Use of new flag bits instead of specific
+	bool's and several new config options.  Also, added
+
+	* doc/ns_adp.n:
+	* doc/mkLinks:
+	* doc/Ns_ConnHeaders.3:
+	* doc/Ns_ConnRead.3:
+	* doc/Ns_ConnWrite.3: Added placeholders for new ns_adp_close,
+	ns_adp_ctl, and ns_adp_flush commands and Ns_ConnFlush,
+	Ns_ConnGetType and Ns_ConnSetType routines (unfortunately
+	no actual documentation yet).
+
+	* nsd/compress.c:
+	* nsd/fastpath.c:
+	* nsd/fd.c:
+	* nsd/limits.c: nsd/nsmain.c nsd/quotehtml.c: Minor casts
+	to silence compiler.
+
+
 2005-01-03  Zoran Vasiljevic <zv@archiware.com>
 
 	* nsd/tclfile.c: Certain command sequence with [ns_chan] may cause
