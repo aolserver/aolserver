@@ -34,7 +34,7 @@
  *	Implements the tcl ns_set commands 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclset.c,v 1.5 2001/03/12 22:06:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclset.c,v 1.6 2001/03/13 22:45:26 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -329,6 +329,7 @@ NsTclSetCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 		    Tcl_DStringAppendElement(&ds, Ns_SetValue(set, i));
 		}
 		Tcl_DStringResult(interp, &ds);
+		break;
 
             case 's':
 		/*
