@@ -1,3 +1,14 @@
+2002-12-02  Elizabeth Thomas <eathomas93@aol.com>
+
+        * Create tag aolserver_v35_b3
+
+        * nsd/tclmisc.c:  Fix WordEndsInSemi so that
+        correctly parses (and doesn't run off end of string) when
+        an ampersand is not followed by a space or semicolon
+ 
+        * nsd/nsd.h: Bumped label to aolserver_v35_b3
+
+
 2002-12-02  Jim Davidson <jgdavidson@aol.com>
 
 	* nsthread/winthread.c:  Ns_ThreadSelf now returns actual
