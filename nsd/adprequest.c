@@ -33,7 +33,7 @@
  *	ADP connection request support.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adprequest.c,v 1.3 2001/03/23 17:04:33 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adprequest.c,v 1.4 2001/03/23 18:36:50 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -128,6 +128,9 @@ Ns_AdpRequest(Ns_Conn *conn, char *file)
         type = "text/html";
     }
     NsAdpSetMimeType(itPtr, type);
+    if (servPtr->adp.enableexpire) {
+	Ns_ConnCondSetHeaders(conn, "Expires", "now");
+    }
 
     /*
      * Include the ADP with the special start page and null args.
@@ -198,9 +201,6 @@ Ns_AdpRequest(Ns_Conn *conn, char *file)
 		 * Flush out the headers and content.
 		 */
 
-		if (servPtr->adp.enableexpire) {
-		    Ns_ConnCondSetHeaders(conn, "Expires", "now");
-		}
 		status = Ns_ConnReturnData(conn, 200, out, len, type);
             }
 	    break;
@@ -217,7 +217,6 @@ Ns_AdpRequest(Ns_Conn *conn, char *file)
     itPtr->adp.argv = NULL;
     itPtr->adp.cwd = NULL;
     itPtr->adp.file = NULL;
-    itPtr->adp.evalLevel = 0;
     itPtr->adp.debugLevel = 0;
     itPtr->adp.debugInit = 0;
     itPtr->adp.debugFile = NULL;
@@ -251,12 +250,16 @@ Ns_AdpRequest(Ns_Conn *conn, char *file)
 void
 NsAdpFlush(NsInterp *itPtr)
 {
-    Ns_DString *dsPtr = itPtr->adp.outputPtr;
+    Conn *connPtr;
+    Ns_DString *dsPtr;
 
-    if (itPtr->adp.stream &&
-	itPtr->adp.evalLevel == 0 && dsPtr->length > 0) {
-	Ns_WriteConn(itPtr->conn, dsPtr->string, dsPtr->length);
-	Ns_DStringTrunc(dsPtr, 0);
+    if (itPtr->adp.stream && itPtr->conn != NULL) {
+	connPtr = (Conn *) itPtr->conn;
+	dsPtr = &connPtr->content;
+	if (dsPtr->length > 0) {
+	    Ns_WriteConn(itPtr->conn, dsPtr->string, dsPtr->length);
+	    Ns_DStringTrunc(dsPtr, 0);
+	}
     }
 }
 
