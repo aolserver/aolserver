@@ -333,6 +333,20 @@ typedef struct Trace {
 } Trace;
 
 /*
+ * The following structure defines a job queued in a
+ * server Tcl job pool.
+ */
+
+typedef struct Job {
+    struct Job	    *nextPtr;
+    int		     flags;
+    int              code;
+    char	    *errorCode;
+    char	    *errorInfo;
+    Tcl_DString	     ds;
+} Job;
+
+/*
  * The following structure is allocated for each virtual server.
  */
 
@@ -443,6 +457,7 @@ typedef struct NsServer {
 
     /*
      * The following struct maintains the core Tcl config.
+     * and detached channels table.
      */
 
     struct {         
@@ -523,7 +538,36 @@ typedef struct NsServer {
 	char		   *defpool;
 	char		   *allowed;
     } db;
-    
+
+    /*
+     * The following struct maintains detached Tcl
+     * channels.
+     */
+
+    struct {
+	Tcl_HashTable	    channels;
+	Ns_Mutex	    lock;
+    } detach;
+
+    /*
+     * The following struct maintains the Tcl job queue.
+     */
+
+    struct {
+	int		    stop;
+	Job		   *firstPtr;
+	Tcl_HashTable	    table;
+	unsigned int	    nextid;
+	struct {
+	    int		    max;
+	    int		    idle;
+	    int		    current;
+	    unsigned int    next;
+	} threads;
+	Ns_Mutex	    lock;
+	Ns_Cond		    cond;
+    } job;
+
 } NsServer;
     
 /*
@@ -760,6 +804,9 @@ extern void NsWaitSockShutdown(Ns_Time *toPtr);
 extern void NsStartShutdownProcs(void);
 extern void NsWaitShutdownProcs(Ns_Time *toPtr);
 
+extern void NsTclStopJobs(NsServer *servPtr);
+extern void NsTclWaitJobs(NsServer *servPtr, Ns_Time *toPtr);
+
 /*
  * ADP routines.
  */
@@ -841,6 +888,10 @@ extern int NsConnRunProxyRequest(Ns_Conn *conn);
  */
 
 extern void NsTclAddCmds(NsInterp *itPtr, Tcl_Interp *interp);
+
+extern Tcl_CmdProc NsTclJobCmd;
+extern Tcl_CmdProc NsTclDetachCmd;
+extern Tcl_CmdProc NsTclAttachCmd;
 extern Tcl_CmdProc NsTclAfterCmd;
 extern Tcl_CmdProc NsTclAtCloseCmd;
 extern Tcl_CmdProc NsTclAtExitCmd;

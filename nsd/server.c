@@ -33,7 +33,7 @@
  *	Routines for managing NsServer structures.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.1 2001/03/12 22:06:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.2 2001/03/13 22:28:49 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -65,6 +65,23 @@ NsGetServer(char *server)
     return (hPtr ? Tcl_GetHashValue(hPtr) : NULL);
 }
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsStartServers --
+ *
+ *	Start all configured servers.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	See NsStartServer.
+ *
+ *----------------------------------------------------------------------
+ */
+
 void
 NsStartServers(void)
 {
@@ -80,6 +97,23 @@ NsStartServers(void)
     }
 }
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsStopServers --
+ *
+ *	Signal stop and wait for all configured servers.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	See NsStopServer and NsWaitServer.
+ *
+ *----------------------------------------------------------------------
+ */
+
 void
 NsStopServers(Ns_Time *toPtr)
 {
@@ -91,16 +125,34 @@ NsStopServers(Ns_Time *toPtr)
     while (hPtr != NULL) {
 	servPtr = Tcl_GetHashValue(hPtr);
 	NsStopServer(servPtr);
+	NsTclStopJobs(servPtr);
 	hPtr = Tcl_NextHashEntry(&search);
     }
     hPtr = Tcl_FirstHashEntry(&table, &search);
     while (hPtr != NULL) {
 	servPtr = Tcl_GetHashValue(hPtr);
 	NsWaitServer(servPtr, toPtr);
+	NsTclWaitJobs(servPtr, toPtr);
 	hPtr = Tcl_NextHashEntry(&search);
     }
 }
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsInitServer --
+ *
+ *	Initialize a virtual server and all it's crazy state.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	Server will later be started.
+ *
+ *----------------------------------------------------------------------
+ */
 
 void
 NsInitServer(Ns_ServerInitProc *initProc, char *server)
@@ -270,6 +322,24 @@ NsInitServer(Ns_ServerInitProc *initProc, char *server)
     Tcl_InitHashTable(&servPtr->var.table, TCL_STRING_KEYS);
     Tcl_InitHashTable(&servPtr->sets.table, TCL_STRING_KEYS);
     Ns_MutexSetName2(&servPtr->sets.lock, "ns:sets", server);
+
+    /*
+     * Initialize the Tcl detached channel support.
+     */
+
+    Tcl_InitHashTable(&servPtr->detach.channels, TCL_STRING_KEYS);
+    Ns_MutexSetName2(&servPtr->detach.lock, "ns:detach", server);
+
+
+    /*
+     * Initialize Tcl job queue.
+     */
+
+    Tcl_InitHashTable(&servPtr->job.table, TCL_STRING_KEYS);
+    if (!Ns_ConfigGetInt(path, "maxjobs", &i) || i < 0) {
+	i = 4;
+    }
+    servPtr->job.threads.max = i;
 
     /*
      * Initialize the fastpath.
