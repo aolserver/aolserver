@@ -34,7 +34,7 @@
  *	Support for the slave bind/listen process.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/binder.c,v 1.9 2000/10/14 00:21:28 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/binder.c,v 1.10 2000/11/06 18:10:58 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -82,7 +82,7 @@ static Ns_Mutex lock;
 /*
  *----------------------------------------------------------------------
  *
- * Ns_SockListen --
+ * Ns_SockListenEx --
  *
  *	Create a new socket bound to the specified port and listening
  *	for new connections.
@@ -97,11 +97,10 @@ static Ns_Mutex lock;
  */
 
 SOCKET
-Ns_SockListen(char *address, int port)
+Ns_SockListenEx(char *address, int port, int backlog)
 {
     SOCKET          sock;
     struct sockaddr_in sa;
-    int backlog = nsconf.backlog;
     static int first = 1;
     Tcl_HashEntry *hPtr;
     char *addrstr;
@@ -148,7 +147,7 @@ Ns_SockListen(char *address, int port)
      */
 
     if (!bindRunning || port > 1024) {
-	sock = Listen(&sa, nsconf.backlog);
+	sock = Listen(&sa, backlog);
     } else {
 	struct iovec    iov[2];
 	struct msghdr   msg;
@@ -157,7 +156,7 @@ Ns_SockListen(char *address, int port)
 	CMsg		cm;
 #endif
 
-	iov[0].iov_base = (caddr_t) &nsconf.backlog;
+	iov[0].iov_base = (caddr_t) &backlog;
 	iov[0].iov_len = sizeof(int);
 	iov[1].iov_base = (caddr_t) &sa;
 	iov[1].iov_len = sizeof(struct sockaddr_in);
@@ -446,7 +445,7 @@ Binder(void)
 {
     struct sockaddr_in sa;
     struct iovec    iov[3];
-    int             backlog = nsconf.backlog;
+    int             backlog;
     int             n, err, fd;
     struct msghdr   msg;
 #ifdef HAVE_CMMSG
