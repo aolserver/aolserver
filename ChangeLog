@@ -1,3 +1,9 @@
+2003-12-16  Scott S. Goodwin <scott@scottg.net>
+
+        * nscgi/nscgi.c: Fixed issue with HTTPS environment variable not being
+        set, and port not being set to 443 if connection is SSL'd. Manually
+        applied these changes from a patch supplied by Vinod Kurup.
+
 2003-11-16  Jim Davidson <jgdavidson@aol.com>
 
 	* include/ns.h: Update version ids, added NS_SOCK_DROP and

@@ -28,7 +28,7 @@
  */
 
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscgi/nscgi.c,v 1.23 2003/03/11 05:46:04 scottg Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscgi/nscgi.c,v 1.24 2003/12/16 03:07:18 scottg Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 #include <sys/stat.h>
@@ -712,6 +712,7 @@ static int
 CgiExec(Cgi *cgiPtr, Ns_Conn *conn)
 {
     int i, index, opipe[2];
+    int https = 0;
     char *s, *e, *p, **envp;
     Ns_DString *dsPtr;
     Mod *modPtr = cgiPtr->modPtr;
@@ -811,6 +812,12 @@ CgiExec(Cgi *cgiPtr, Ns_Conn *conn)
             Ns_Log(Warning, "nscgi: location does not contain '://'");
             s = NULL;
         } else {
+            if (strncmp(s, "https://", 8) == 0) {
+                SetUpdate(cgiPtr->env, "HTTPS", "1");
+                https = 1;
+            } else {
+                SetUpdate(cgiPtr->env, "HTTPS", "0");
+            }
             s = strchr(s, ':');         /* Get past the http */
             if (s != NULL) {
                 s += 3;                 /* Get past the // */
@@ -848,7 +855,11 @@ CgiExec(Cgi *cgiPtr, Ns_Conn *conn)
         }
     }
     if (s == NULL) {
-        s = "80";
+        if (https) {
+            s = "443";
+        } else {
+            s = "80";
+        }
     }
     SetUpdate(cgiPtr->env, "SERVER_PORT", s);
     SetUpdate(cgiPtr->env, "AUTH_TYPE", "Basic");
