@@ -29,12 +29,12 @@
 
 
 /*
- * tclobj.c --
+ * tcltime.c --
  *
- *	Implement specialized Tcl_Obj's types for AOLserver.
+ *	Implement Tcl_Obj type for AOLserver Ns_Time.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclobj.c,v 1.4 2002/07/08 02:51:27 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclobj.c,v 1.5 2002/10/14 23:21:03 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -47,12 +47,11 @@ static int		SetTimeFromAny (Tcl_Interp *interp, Tcl_Obj *objPtr);
 static void		UpdateStringOfTime(Tcl_Obj *objPtr);
 
 /*
- * The following type defines an Ns_Time used for high resolution
- * timing and waits.
+ * The following type defines the Ns_Time type.
  */
 
 static Tcl_ObjType timeType = {
-    "ns_time",
+    "ns:time",
     (Tcl_FreeInternalRepProc *) NULL,
     (Tcl_DupInternalRepProc *) NULL,
     UpdateStringOfTime,
@@ -65,21 +64,21 @@ static Tcl_ObjType *intTypePtr;
 /*
  *----------------------------------------------------------------------
  *
- * NsTclInitObjs --
+ * NsTclInitTimeType --
  *
- *	Initialize AOLserver Tcl_Obj types.
+ *	Initialize Ns_Time Tcl_Obj type.
  *
  * Results:
  *	None.
  *
  * Side effects:
- *	New Tcl types are registered.
+ *	None.
  *
  *----------------------------------------------------------------------
  */
 
 void
-NsTclInitObjs()
+NsTclInitTimeType()
 {
     Tcl_Obj obj;
 
@@ -93,7 +92,6 @@ NsTclInitObjs()
     if (intTypePtr == NULL) {
     	Tcl_Panic("NsTclInitObjs: no int type");
     }
-    /* NB: Just Ns_Time type for now. */
     Tcl_RegisterObjType(&timeType);
 }
 
@@ -147,8 +145,7 @@ Ns_TclGetTimeFromObj(Tcl_Interp *interp, Tcl_Obj *objPtr, Ns_Time *timePtr)
 	}
 	timePtr->usec = 0;
     } else {
-    	if (objPtr->typePtr != &timeType
-		&& SetTimeFromAny(interp, objPtr) != TCL_OK) {
+	if (Tcl_ConvertToType(interp, objPtr, &timeType) != TCL_OK) {
 	    return TCL_ERROR;
         }
     	*timePtr = *((Ns_Time *) &objPtr->internalRep);
@@ -181,16 +178,18 @@ UpdateStringOfTime(objPtr)
     register Tcl_Obj *objPtr;	/* Int object whose string rep to update. */
 {
     Ns_Time *timePtr = (Ns_Time *) &objPtr->internalRep;
+    size_t len;
     char buf[100];
 
     Ns_AdjTime(timePtr);
     if (timePtr->usec == 0) {
-    	objPtr->length = sprintf(buf, "%ld", timePtr->sec);
+    	len = sprintf(buf, "%ld", timePtr->sec);
     } else {
-    	objPtr->length = sprintf(buf, "%ld:%ld", timePtr->sec, timePtr->usec);
+    	len = sprintf(buf, "%ld:%ld", timePtr->sec, timePtr->usec);
     }
-    objPtr->bytes = Tcl_Alloc(objPtr->length + 1);
-    memcpy(objPtr->bytes, buf, objPtr->length+1);
+    objPtr->length = len;
+    objPtr->bytes = ckalloc(len + 1);
+    memcpy(objPtr->bytes, buf, len + 1);
 }
 
 
@@ -271,4 +270,5 @@ SetTimeInternalRep(Tcl_Obj *objPtr, Ns_Time *timePtr)
     }
     objPtr->typePtr = &timeType;
     *((Ns_Time *) &objPtr->internalRep) = *timePtr;
+    Tcl_InvalidateStringRep(objPtr);
 }
