@@ -34,7 +34,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.11 2002/10/30 00:01:25 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.12 2003/01/17 18:42:32 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -1294,6 +1294,16 @@ SockRead(Sock *sockPtr)
 	reqPtr->content = bufPtr->string + reqPtr->coff;
 	reqPtr->next = reqPtr->content;
 	reqPtr->avail = reqPtr->length;
+
+        /*
+         * Ensure that there are no 'bonus' crlf chars left visible
+         * in the buffer beyond the specified content-length.
+         * This happens from some browsers on POST requests.
+         */
+        if (reqPtr->length > 0) {
+            reqPtr->content[reqPtr->length] = '\0';
+        }
+
 	return (reqPtr->request ? SOCK_READY : SOCK_ERROR);
     }
 
