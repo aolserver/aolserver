@@ -34,7 +34,7 @@
  *	Functions that return data to a browser. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.33.2.5 2004/07/15 21:27:42 suhti Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.33.2.6 2004/07/19 02:47:10 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -1036,15 +1036,15 @@ Ns_ConnReturnUnauthorized(Ns_Conn *conn)
     Ns_DString  ds;
     int	        result;
 
-    if (ReturnRedirect(conn, 401, &result)) {
-	return result;
-    }
     Ns_DStringInit(&ds);
     Ns_DStringVarAppend(&ds, "Basic realm=\"",
 	connPtr->servPtr->opts.realm, "\"", NULL);
     Ns_ConnSetHeaders(conn, "WWW-Authenticate", ds.string);
     Ns_DStringFree(&ds);
 
+    if (ReturnRedirect(conn, 401, &result)) {
+        return result;
+    }
     return Ns_ConnReturnNotice(conn, 401, "Access Denied",
 	"The requested URL cannot be accessed because a "
 	"valid username and password are required.");
