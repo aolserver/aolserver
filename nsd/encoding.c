@@ -33,7 +33,7 @@
  *	Defines standard default charset to encoding mappings.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/encoding.c,v 1.7 2001/04/06 23:52:32 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/encoding.c,v 1.8 2001/04/12 17:50:32 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -52,9 +52,9 @@ static Tcl_Encoding GetCharsetEncoding(char *charset, int len);
 static Tcl_HashTable    encodings;
 static Tcl_HashTable    charsets;
 static Tcl_HashTable    extensions;
-static Ns_Mutex lock;
-static Ns_Cond cond;
-#define ENC_LOCKED ((Tcl_Encoding) (-1))
+static Ns_Mutex		lock;
+static Ns_Cond		cond;
+#define ENC_LOCKED	((Tcl_Encoding) (-1))
 
 /*
  * The default table maps file extension to Tcl encodings.
@@ -433,45 +433,5 @@ GetCharsetEncoding(char *charset, int len)
     }
     encoding = Ns_GetEncoding(charset);
     Ns_DStringFree(&ds);
-    return encoding;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * LoadEncoding --
- *
- *	Return the Tcl_Encoding stored in the given hash entry,
- *	loading it the first time if necessary.
- *
- * Results:
- *	Tcl_Encoding or NULL if couldn't be loaded. 
- *
- * Side effects:
- *	None. 
- *
- *----------------------------------------------------------------------
- */
-
-static Tcl_Encoding
-LoadEncoding(Tcl_HashEntry *hPtr)
-{
-    Tcl_Encoding  encoding;
-    char *name;
-
-    Ns_MutexLock(&lock);
-    encoding = Tcl_GetHashValue(hPtr);
-    if (encoding == (Tcl_Encoding) -1) {
-	name = Tcl_GetHashKey(&encodings, hPtr);
-	encoding = Tcl_GetEncoding(NULL, name);
-	if (encoding == NULL) {
-	    Ns_Log(Warning, "could not load encoding: %s", name);
-	} else {
-	    Ns_Log(Notice, "loaded encoding: %s", name);
-	}
-	Tcl_SetHashValue(hPtr, encoding);
-    }
-    Ns_MutexUnlock(&lock);
     return encoding;
 }
