@@ -28,7 +28,7 @@
  */
 
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/exec.c,v 1.9 2001/03/27 21:08:49 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/exec.c,v 1.10 2001/03/28 00:32:15 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -388,7 +388,7 @@ Ns_ExecArgv(char *exec, char *dir, int fdin, int fdout,
         }
 	args = ads.string;
     }
-    pid = Ns_ExecArgblk(exec, dir, fdin, fdout, argblk, env);
+    pid = Ns_ExecArgblk(exec, dir, fdin, fdout, args, env);
     Ns_DStringFree(&ads);
 #else
     int    errpipe[2];
@@ -532,8 +532,6 @@ Ns_ExecArgv(char *exec, char *dir, int fdin, int fdout,
 static char **
 Args2Vec(Ns_DString *dsPtr, char *arg)
 {
-    int len;
-
     while (*arg != '\0') {
         Ns_DStringNAppend(dsPtr, (char *) &arg, sizeof(arg));
         arg += strlen(arg) + 1;
@@ -565,7 +563,7 @@ Args2Vec(Ns_DString *dsPtr, char *arg)
 static char *
 Set2Args(Ns_DString *dsPtr, Ns_Set *env)
 {
-    int        i, len;
+    int        i;
 
     for (i = 0; i < Ns_SetSize(env); ++i) {
         Ns_DStringVarAppend(dsPtr,
