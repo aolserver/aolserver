@@ -33,7 +33,7 @@
  * Support for connection filters, traces, and cleanups.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/filter.c,v 1.6 2001/03/12 22:06:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/filter.c,v 1.7 2001/04/10 23:22:27 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -69,8 +69,8 @@ Ns_RegisterFilter(char *server, char *method, char *url,
     }
     fPtr = ns_malloc(sizeof(Filter));
     fPtr->proc = proc;
-    fPtr->method = method;
-    fPtr->url = url;
+    fPtr->method = ns_strdup(method);
+    fPtr->url = ns_strdup(url);
     fPtr->when = when;
     fPtr->arg = arg;
     fPtr->nextPtr = NULL;
@@ -103,22 +103,26 @@ NsRunFilters(Ns_Conn *conn, int why)
 {
     Conn *connPtr = (Conn *) conn;
     Filter *fPtr;
+    char *method, *url;
     int status;
 
     status = NS_OK;
-    fPtr = connPtr->servPtr->filter.firstFilterPtr;
-    while (fPtr != NULL && status == NS_OK) {
-	if ((fPtr->when & why)
-	    && conn->request != NULL
-	    && Tcl_StringMatch(conn->request->method, fPtr->method)
-	    && Tcl_StringMatch(conn->request->url, fPtr->url)) {
-	    status = (*fPtr->proc)(fPtr->arg, conn, why);
+    if (conn->request != NULL) {
+	method = conn->request->method;
+	url = conn->request->url;
+	fPtr = connPtr->servPtr->filter.firstFilterPtr;
+	while (fPtr != NULL && status == NS_OK) {
+	    if ((fPtr->when & why)
+		&& Tcl_StringMatch(method, fPtr->method)
+		&& Tcl_StringMatch(url, fPtr->url)) {
+		status = (*fPtr->proc)(fPtr->arg, conn, why);
+	    }
+	    fPtr = fPtr->nextPtr;
 	}
-	fPtr = fPtr->nextPtr;
-    }
-    if (status == NS_FILTER_BREAK ||
-	(why == NS_FILTER_TRACE && status == NS_FILTER_RETURN)) {
-	status = NS_OK;
+	if (status == NS_FILTER_BREAK ||
+	    (why == NS_FILTER_TRACE && status == NS_FILTER_RETURN)) {
+	    status = NS_OK;
+	}
     }
     return status;
 }
