@@ -34,7 +34,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.10 2002/09/28 19:23:24 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.11 2002/10/30 00:01:25 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -100,19 +100,17 @@ Ns_DriverInit(char *server, char *module, char *name,
 	      Ns_DriverProc *proc, void *arg, int opts)
 {
     char *path,*address, *host, *bindaddr, *defproto;
-    int n, sockwait, defport;
+    int i, n, sockwait, defport;
     Ns_DString ds;
+    Ns_Set *set;
     struct in_addr  ia;
     struct hostent *he;
     Driver *drvPtr;
-    NsServer *servPtr;
+    NsServer *servPtr = NULL;
 
-
-    servPtr = NsGetServer(server);
-    if (servPtr == NULL) {
+    if (server != NULL && (servPtr = NsGetServer(server)) == NULL) {
 	return NS_ERROR;
     }
-    
     path = Ns_ConfigGetPath(server, module, NULL);
 
     /*
@@ -266,6 +264,22 @@ Ns_DriverInit(char *server, char *module, char *name,
     drvPtr->nextPtr = firstDrvPtr;
     firstDrvPtr = drvPtr;
     ++maxfds;
+
+    /*
+     * Map Host headers for drivers not bound to servers.
+     */
+
+    if (server == NULL) {
+	path = Ns_ConfigGetPath(NULL, module, "servers", NULL);
+	set = Ns_ConfigGetSection(path);
+	for (i = 0; set != NULL && i < Ns_SetSize(set); ++i) {
+	    servPtr = NsGetServer(Ns_SetKey(set, i));
+	    if (servPtr != NULL) {
+		NsMapServer(servPtr, Ns_SetValue(set, i));
+	    }
+	}
+    }
+
     return NS_OK;
 }
 
@@ -1145,7 +1159,6 @@ static int
 SockRead(Sock *sockPtr)
 {
     Ns_Sock *sock = (Ns_Sock *) sockPtr;
-    NsServer *servPtr = sockPtr->drvPtr->servPtr;
     struct iovec buf;
     Request *reqPtr;
     Tcl_DString *bufPtr;
@@ -1255,8 +1268,7 @@ SockRead(Sock *sockPtr)
 
 		    return SOCK_ERROR;
 		}
-	    } else if (Ns_ParseHeader(reqPtr->headers, s,
-				      servPtr->opts.hdrcase) != NS_OK) {
+	    } else if (Ns_ParseHeader(reqPtr->headers, s, Preserve) != NS_OK) {
 		/*
 		 * Invalid header.
 		 */
