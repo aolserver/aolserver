@@ -1,12 +1,12 @@
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/win32/Attic/build.tcl,v 1.2 2004/07/22 20:20:25 dossy Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/win32/Attic/build.tcl,v 1.3 2004/07/26 19:07:16 dossy Exp $
 #
 
 package require Tcl 8.4
 package provide make 1.0
 
-set INSTALL_DIR "./installed"
-set TCL_DIR "../tcl_core-8-4-6/win/installed"
+set INSTALLDIR "./installed"
+set TCLDIR "../tcl_core-8-4-6/win/installed"
 
 namespace eval ::make {
     proc flag {key args} {
@@ -52,9 +52,6 @@ namespace eval ::make {
     }
 
     proc build {target} {
-        if {![string length $target]} {
-            return [build all]
-        }
         variable depends
         if {[info exists depends($target)]} {
             foreach input $depends($target) {
@@ -65,6 +62,29 @@ namespace eval ::make {
         }
         if {[execute_rules $target]} {
             return 1
+        }
+        return 0
+    }
+
+    proc make {argv} {
+        set cmds [list]
+        foreach arg $argv {
+            if {[regexp {^(.*?)=(.*)$} $arg -> key value]} {
+                puts "CONFIG: $key=$value"
+                set ::$key $value
+            } else {
+                lappend cmds $arg
+            }
+        }
+        if {![llength $cmds]} {
+            set cmds [list all]
+        }
+        foreach cmd $cmds {
+            puts "TARGET: $cmd"
+            set res [build $cmd]
+            if {$res} {
+                return $res
+            }
         }
         return 0
     }
@@ -151,10 +171,10 @@ namespace eval ::make {
 # The interesting stuff starts here.
 #
 
-make::flag INCLUDE {-I"./include"}
+make::flag INCLUDE {-I./include}
 make::flag CFLAGS [concat [make::flag INCLUDE] {-MT -W3 -GX -Zi -O2 -D "WIN32" -D "NDEBUG" -D "_WINDOWS" -D "_MBCS" -D "_USRDLL" -D "TCL_THREADS=1" -D "FD_SETSIZE=128" -D "NO_CONST=1" -YX -FD}]
 
-make::flag LIB "-libpath:\"$::TCL_DIR/lib\" -libpath:./nsd -libpath:./nsthread"
+make::flag LIB "-libpath:\"$::TCLDIR/lib\" -libpath:./nsd -libpath:./nsthread"
 make::flag LDFLAGS [concat [make::flag LIB] {tcl84t.lib kernel32.lib -OPT:REF}]
 
 make::rule *.obj compile_obj
@@ -163,8 +183,23 @@ make::rule *.dll link_dll
 make::rule clean {
     variable depends
     foreach file [concat \
-        nsd/nsd.dll $depends(nsd/nsd.dll) \
-        nsthread/nsthread.dll $depends(nsthread/nsthread.dll) \
+        nsd/nsd.dll nsd/nsd.lib nsd/nsd.exp \
+            $depends(nsd/nsd.dll) \
+        nsthread/nsthread.dll nsthread/nsthread.lib nsthread/nsthread.exp \
+            $depends(nsthread/nsthread.dll) \
+        nssock/nssock.dll nssock/nssock.lib nssock/nssock.exp \
+            $depends(nssock/nssock.dll) \
+        nscgi/nscgi.dll nscgi/nscgi.lib nscgi/nscgi.exp \
+            $depends(nscgi/nscgi.dll) \
+        nscp/nscp.dll nscp/nscp.lib nscp/nscp.exp \
+            $depends(nscp/nscp.dll) \
+        nslog/nslog.dll nslog/nslog.lib nslog/nslog.exp \
+            $depends(nslog/nslog.dll) \
+        nsperm/nsperm.dll nsperm/nsperm.lib nsperm/nsperm.exp \
+            $depends(nsperm/nsperm.dll) \
+        nsdb/nsdb.dll nsdb/nsdb.lib nsdb/nsdb.exp \
+            $depends(nsdb/nsdb.dll) \
+        nsd/main.obj
     ] {
         puts "Deleting $file."
         file delete $file
@@ -175,7 +210,7 @@ make::rule clean {
 
 make::rule install {
     variable depends
-    set dir $::INSTALL_DIR
+    set dir $::INSTALLDIR
 
     #
     # This is what we need for AOLserver.
@@ -211,26 +246,28 @@ make::rule install {
     }
     lappend files nsd/init.tcl $dir/bin/init.tcl
     lappend files sample-config.tcl $dir/sample-config.tcl
+    lappend files license.terms $dir/aolserver.license.terms
 
     #
     # Bring the Tcl installation over, too.
     #
 
-    foreach file [glob -nocomplain -directory $::TCL_DIR/bin -type f *.exe] {
+    foreach file [glob -nocomplain -directory $::TCLDIR/bin -type f *.exe] {
         lappend files $file $dir/bin/[file tail $file]
     }
-    foreach file [glob -nocomplain -directory $::TCL_DIR/bin -type f *.dll] {
+    foreach file [glob -nocomplain -directory $::TCLDIR/bin -type f *.dll] {
         lappend files $file $dir/bin/[file tail $file]
     }
-    foreach file [glob -nocomplain -directory $::TCL_DIR/include -type f *.h] {
+    foreach file [glob -nocomplain -directory $::TCLDIR/include -type f *.h] {
         lappend files $file $dir/include/[file tail $file]
     }
-    foreach file [glob -nocomplain -directory $::TCL_DIR/lib -type f *.lib] {
+    foreach file [glob -nocomplain -directory $::TCLDIR/lib -type f *.lib] {
         lappend files $file $dir/lib/[file tail $file]
     }
-    lappend files $::TCL_DIR/lib/dde1.2 $dir/lib
-    lappend files $::TCL_DIR/lib/reg1.1 $dir/lib
-    lappend files $::TCL_DIR/lib/tcl8.4 $dir/lib
+    lappend files $::TCLDIR/lib/dde1.2 $dir/lib
+    lappend files $::TCLDIR/lib/reg1.1 $dir/lib
+    lappend files $::TCLDIR/lib/tcl8.4 $dir/lib
+    lappend files $::TCLDIR/../../license.terms $dir/tcl.license.terms
 
     #
     # Now, actually copy the files over.
@@ -375,7 +412,7 @@ make::depends nsd/*.obj {
     include/ns.h
     nsd/nsd.h
 }
-make::flag CFLAGS-nsd {-D "NSD_EXPORTS"}
+make::flag CFLAGS-nsd {-D "NS_NOCOMPAT" -D "NSD_EXPORTS"}
 make::flag LDFLAGS-nsd {nsthread.lib advapi32.lib ws2_32.lib}
 
 make::flag LDFLAGS-modules-common {nsd.lib nsthread.lib ws2_32.lib -export:Ns_ModuleVersion,data -export:Ns_ModuleInit}
@@ -411,5 +448,5 @@ foreach {module objects} {
 # This makes the wheel turn.
 #
 
-make::build $argv
+make::make $argv
 
