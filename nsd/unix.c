@@ -34,7 +34,7 @@
  *	Unix specific routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/unix.c,v 1.12 2002/02/24 20:33:35 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/unix.c,v 1.13 2002/05/15 23:38:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #include <pwd.h>
@@ -64,7 +64,6 @@ void
 NsBlockSignals(int debug)
 {
     sigset_t set;
-    int i;
 
     /*
      * Block SIGHUP, SIGPIPE, SIGTERM, and SIGINT. This mask is

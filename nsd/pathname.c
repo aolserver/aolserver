@@ -34,7 +34,7 @@
  *	Functions that manipulate or return paths. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/pathname.c,v 1.7 2002/02/16 00:22:07 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/pathname.c,v 1.8 2002/05/15 23:38:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -346,7 +346,7 @@ Ns_MakePath(&ds, argv[1], argv[2], argv[3], argv[4], argv[5], NULL);
 static char *
 MakePath(Ns_DString *dest, va_list *pap)
 {
-    char *s, *e;
+    char *s;
     int len;
 
     while ((s = va_arg(*pap, char *)) != NULL) {

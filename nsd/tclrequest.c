@@ -34,7 +34,7 @@
  *	Routines for Tcl proc and ADP registered requests.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclrequest.c,v 1.2 2001/12/05 22:46:21 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclrequest.c,v 1.3 2002/05/15 23:38:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -520,7 +520,6 @@ GetNumArgs(Tcl_Interp *interp, Proc *procPtr)
 {
     Tcl_Obj *objPtr;
     Tcl_DString ds;
-    char *result;
 
     if (procPtr->nargs == ARGS_UNKNOWN) {
     	Tcl_DStringInit(&ds);

@@ -35,7 +35,7 @@
 
 #include "nsd.h"
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclvar.c,v 1.8 2001/12/05 22:46:21 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclvar.c,v 1.9 2002/05/15 23:38:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 /*
  * The following structure maintains the context for each variable
@@ -55,7 +55,6 @@ typedef struct Array {
 #define FLAGS_CREATE 1
 #define FLAGS_NOERRMSG 2
 
-static int InitShare(void *arg, Tcl_Interp *interp, char *varName, char *script);
 static void SetVar(Array *, char *key, char *value);
 static void UpdateVar(Tcl_HashEntry *hPtr, char *value);
 static void FlushArray(Array *arrayPtr);
@@ -239,7 +238,6 @@ static int
 Append2Cmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv, int lappend)
 {
     Array *arrayPtr;
-    int cmd = (int) arg;
     int i;
     Tcl_HashEntry *hPtr;
 

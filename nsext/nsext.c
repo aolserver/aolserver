@@ -109,7 +109,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsext/nsext.c,v 1.7 2002/05/15 21:14:30 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsext/nsext.c,v 1.8 2002/05/15 23:38:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsdb.h"
 #include "nsextmsg.h"
@@ -757,7 +757,6 @@ ExtGetRow(Ns_DbHandle *handle, Ns_Set *row)
     Ns_List             *rowList, *currRow;
     DbProxyInputElement *rowEl;
     int                  trimcnt;
-    int                  trimstate;
 
     assert(handle != NULL);
     nsConn = handle->connection;
@@ -1183,7 +1182,6 @@ ExtSpGetParams(Ns_DbHandle *handle)
     Ns_List             *paramList, *rowList, *currParam, *currRow;
     DbProxyInputElement *rowEl, *paramEl;
     int                  trimcnt;
-    int                  trimstate;
 
     assert(handle != NULL);
     nsConn = handle->connection;
@@ -1304,7 +1302,6 @@ static void
 ExtFreeElement(void *ptr)
 {
     DbProxyInputElement *element;
-    char                *data;
 
     if (ptr != NULL) {
         element = (DbProxyInputElement *) ptr;

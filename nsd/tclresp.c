@@ -34,7 +34,7 @@
  *	Tcl commands for returning data to the user agent. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclresp.c,v 1.9 2001/11/25 20:24:12 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclresp.c,v 1.10 2002/05/15 23:38:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -711,7 +711,6 @@ NsTclConnSendFpCmd(ClientData arg, Tcl_Interp *interp, int argc,
     Ns_Conn     *conn;
     Tcl_Channel	 chan;
     int          len;
-    int		 fpArg = 1, lengthArg = 2;
 
     if (argc != 3 && argc != 4) {
         Tcl_AppendResult(interp, "wrong # of args: should be \"",

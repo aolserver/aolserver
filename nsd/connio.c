@@ -34,7 +34,7 @@
  *      Handle connection I/O.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/connio.c,v 1.7 2001/11/05 20:23:34 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/connio.c,v 1.8 2002/05/15 23:38:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #define IOBUFSZ 2048
@@ -578,7 +578,6 @@ ConnCopy(Ns_Conn *conn, size_t tocopy, Tcl_Channel chan, FILE *fp, int fd)
 static int
 ConnSend(Ns_Conn *conn, int nsend, Tcl_Channel chan, FILE *fp, int fd)
 {
-    Conn    	   *connPtr = (Conn *) conn;
     int             toread, nread, status;
     char            buf[IOBUFSZ];
 

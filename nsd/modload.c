@@ -34,7 +34,7 @@
  *	Load .so files into the server and initialize them. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/modload.c,v 1.8 2002/02/16 00:21:19 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/modload.c,v 1.9 2002/05/15 23:38:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -129,7 +129,7 @@ void *
 Ns_ModuleSymbol(char *file, char *name)
 {
     Tcl_HashEntry *hPtr;
-    Ns_DString     ds, ds2;
+    Ns_DString     ds;
     int		   new;
     void	  *module;
     void          *symbol;

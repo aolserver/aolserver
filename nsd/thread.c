@@ -34,7 +34,7 @@
  *	Routines for creating, exiting, and joining threads.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/thread.c,v 1.1 2001/11/05 20:26:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/thread.c,v 1.2 2002/05/15 23:38:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #include <sched.h>		/* sched_yield() */
@@ -137,10 +137,10 @@ Ns_ThreadCreate(Ns_ThreadProc *proc, void *arg, long stack,
     	    	Ns_Thread *resultPtr)
 {
     static char *func = "Ns_ThreadCreate";
-    pthread_attr_t attr, *attrPtr;
+    pthread_attr_t attr;
     pthread_t pid;
     Thread *thrPtr;
-    int     err;
+    int err;
 
     /*
      * Determine the stack size and impose a 16k minimum.
@@ -555,8 +555,6 @@ NewThread(void)
 static void
 SetThread(Thread *thrPtr)
 {
-    int err;
-
     thrPtr->tid = (int) pthread_self();
     Ns_TlsSet(&key, thrPtr);
 }

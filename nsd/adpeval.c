@@ -33,7 +33,7 @@
  *	ADP string and file eval.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.12 2002/05/15 20:13:07 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.13 2002/05/15 23:38:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -202,7 +202,7 @@ AdpRun(NsInterp *itPtr, char *file, int argc, char **argv, Tcl_DString *outputPt
     InterpPage *ipagePtr;
     Page *pagePtr, *oldPagePtr;
     Ns_Entry *ePtr;
-    int new, i, len, n;
+    int new, n;
     char *p, *key;
     FileKey ukey;
 

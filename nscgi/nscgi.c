@@ -28,7 +28,7 @@
  */
 
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscgi/nscgi.c,v 1.16 2002/05/15 20:19:34 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscgi/nscgi.c,v 1.17 2002/05/15 23:38:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 #include <sys/stat.h>
@@ -573,7 +573,6 @@ CgiSpool(Cgi *cgiPtr, Ns_Conn *conn)
 {
     int     len, fd;
     char   *content, *err;
-    Mod    *modPtr = cgiPtr->modPtr;
 
     err = NULL;
     len = conn->contentLength;
