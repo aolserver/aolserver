@@ -25,13 +25,24 @@
 # replace them with the notice and other provisions required by the GPL.
 # If you do not delete the provisions above, a recipient may use your
 # version of this file under either the License or the GPL.
-# 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsdb/Makefile,v 1.3 2002/09/21 17:07:36 jgdavidson Exp $
 
-LIB	= nsdb
-LIBOBJS	= dbinit.o dbdrv.o dbtcl.o dbutil.o
-MOD	= nsdb.so
-OBJS	= nsdb.o
-HDRS	= db.h
-include ../include/Makefile.build
+#
+# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/init.tcl,v 1.4 2000/10/16 23:27:41 kriston Exp $
+#
+
+#
+# init.tcl --
+#
+#	AOLserver looks for init.tcl before sourcing all other files
+#	in directory order.
+#
+
+#
+# Initialize errorCode and errorInfo like tclsh does.
+#
+global errorCode errorInfo 
+set errorCode "" 
+set errorInfo "" 
+ 
+ 
