@@ -159,8 +159,7 @@ endif
 ifeq (SunOS,$(shell uname))
     PLATFORM=solaris
     CC=$(PURIFY) /opt/SUNWspro/bin/cc
-#    CFLAGS+=-g -xO2 -KPIC -xarch=v8plusa 
-    CFLAGS+=-g -KPIC
+    CFLAGS+=-g -xO2 -KPIC -xarch=v8plusa 
     #CFLAGS+=$(GCCOPT) -mcpu=ultrasparc
     LDSO=$(LD) -G
     NSDLIBS=-lm
