@@ -28,7 +28,7 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/http.tcl,v 1.5 2000/10/17 17:44:42 kriston Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/http.tcl,v 1.6 2000/12/14 21:57:28 kriston Exp $
 #
 
 # http.tcl -
@@ -260,7 +260,7 @@ proc ns_httpget {url {timeout 30} {depth 0}} {
 # ==========================================================================
 
 #
-# _ns_ns_http_readable -
+# _ns_http_readable -
 #	Return the number of bytes available to read from a
 # 	socket without blocking, waiting up to $timeout seconds for bytes to
 # 	arrive if none are currently available.
@@ -269,7 +269,7 @@ proc ns_httpget {url {timeout 30} {depth 0}} {
 #	Number of bytes that are waiting to be read
 #
 
-proc _ns_ns_http_readable {timeout sock} {
+proc _ns_http_readable {timeout sock} {
     set nread [ns_socknread $sock]
     if !$nread {
 	set sel [ns_sockselect -timeout $timeout $sock {} {}]
@@ -293,7 +293,7 @@ proc _ns_ns_http_readable {timeout sock} {
 
 proc _ns_http_read {timeout sock length} {
     set buf ""
-    set nread [_ns_ns_http_readable $timeout $sock]
+    set nread [_ns_http_readable $timeout $sock]
     if {$nread > 0} {
 	if {$length > 0 && $length < $nread} {
 	    set nread $length
@@ -317,7 +317,7 @@ proc _ns_http_gets {timeout sock} {
     set line ""
     set done 0
     while {!$done} {
-	set nline [_ns_ns_http_readable $timeout $sock]
+	set nline [_ns_http_readable $timeout $sock]
 	if !$nline {set done 1}
 	while {!$done && $nline > 0} {
 	    set char [read $sock 1]

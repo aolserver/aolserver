@@ -1,3 +1,15 @@
+2000-12-14  Kriston J. Rehberg  <kriston@aol.com>
+
+	* tcl/http.tcl: Corrected typo _ns_ns_http_readable.
+
+	* nsd/dstring.c (Ns_DStringPrintf): Ticket 12765. Ns_DStringPrintf
+	uses vsnprintf instead of vsprintf with specified buffer size.
+	Thanks to "??".
+
+	* nsd/return.c (Ns_ConnConstructHeaders): Ticket
+	12764. If-Modified-Since (304) works with keepalive now. Thanks to
+	Jim "??".
+
 2000-12-13  Kriston J. Rehberg  <kriston@aol.com>
 
 	* include/Makefile.global: Builds with architecture-specific

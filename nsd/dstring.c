@@ -35,7 +35,7 @@
  *	with Tcl_DString's.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/dstring.c,v 1.6 2000/11/13 21:09:24 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/dstring.c,v 1.7 2000/12/14 21:57:28 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -217,11 +217,11 @@ Ns_DStringExport(Ns_DString *dsPtr)
 char *
 Ns_DStringPrintf(Ns_DString *dsPtr, char *fmt,...)
 {
-    char            buf[4096];
+    char            buf[DSTRINGPRINTF_LIMIT];
     va_list         ap;
 
     va_start(ap, fmt);
-    vsprintf(buf, fmt, ap);
+    vsnprintf(buf, DSTRINGPRINTF_LIMIT, fmt, ap);
     va_end(ap);
 
     return Ns_DStringAppend(dsPtr, buf);
