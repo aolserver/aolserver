@@ -33,7 +33,7 @@
  *	Support for the ns_http command.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclhttp.c,v 1.8 2002/06/12 23:08:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclhttp.c,v 1.9 2002/06/13 04:41:21 jcollins Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -267,10 +267,8 @@ NsTclHttpObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST obj
 	}
 	httpPtr = HttpOpen(Tcl_GetString(objv[2]), hdrs);
 	if (httpPtr == NULL) {
-	    Tcl_Obj *tclresult = Tcl_NewObj();
-	    Tcl_AppendStringsToObj(tclresult, "could not connect to : ", 
+	    Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "could not connect to : ", 
 		    Tcl_GetString(objv[2]), NULL);
-	    Tcl_SetObjResult(interp, tclresult);
 	    return TCL_ERROR;
 	}
     	Ns_SockCallback(httpPtr->sock, HttpSend, httpPtr, NS_SOCK_WRITE);
@@ -289,10 +287,8 @@ NsTclHttpObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST obj
 	}
 	hPtr = Tcl_FindHashEntry(&itPtr->https, Tcl_GetString(objv[2]));
 	if (hPtr == NULL) {
-	    Tcl_Obj *tclresult = Tcl_NewObj();
-	    Tcl_AppendStringsToObj(tclresult, "no such request: ", 
+	    Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "no such request: ", 
 		    Tcl_GetString(objv[2]), NULL);
-	    Tcl_SetObjResult(interp, tclresult);
 	    return TCL_ERROR;
 	}
 	httpPtr = Tcl_GetHashValue(hPtr);
@@ -319,10 +315,8 @@ NsTclHttpObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST obj
 	}
 	hPtr = Tcl_FindHashEntry(&itPtr->https, Tcl_GetString(objv[2]));
 	if (hPtr == NULL) {
-	    Tcl_Obj *tclresult = Tcl_NewObj();
-	    Tcl_AppendStringsToObj(tclresult, "no such request: ", 
+	    Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "no such request: ", 
 		    Tcl_GetString(objv[2]), NULL);
-	    Tcl_SetObjResult(interp, tclresult);
 	    return TCL_ERROR;
 	}
 	httpPtr= Tcl_GetHashValue(hPtr);

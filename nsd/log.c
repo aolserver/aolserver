@@ -34,7 +34,7 @@
  *	Manage the server log file.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/log.c,v 1.13 2002/06/12 23:08:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/log.c,v 1.14 2002/06/13 04:41:21 jcollins Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -340,7 +340,7 @@ int
 NsTclLogRollObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     if (Ns_LogRoll() != NS_OK) {
-		Tcl_SetResult(interp, "could not roll server log", TCL_STATIC);
+	Tcl_SetResult(interp, "could not roll server log", TCL_STATIC);
     }
     return TCL_OK;
 }
@@ -450,12 +450,10 @@ NsTclLogObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv
     } else if (Tcl_GetIntFromObj(interp, objv[1], &i) == TCL_OK) {
 	severity = i;
     } else {
-        Tcl_Obj *result = Tcl_NewObj();
-        Tcl_AppendStringsToObj(result, "unknown severity \"",
+        Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "unknown severity \"",
                          Tcl_GetString(objv[1]), "\":  should be one of: ",
 			 "fatal, error, warning, bug, notice, or debug.",
 			 NULL);
-        Tcl_SetObjResult(interp, result);
     	return TCL_ERROR;
     }
     Ns_DStringInit(&ds);

@@ -33,7 +33,7 @@
  *	AOLserver Ns_Main() startup routine.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.39 2002/06/12 23:08:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.40 2002/06/13 04:41:21 jcollins Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -620,12 +620,12 @@ NsTclShutdownObjCmd(ClientData dummy, Tcl_Interp *interp, int objc, Tcl_Obj **ob
 
     if (objc != 1 && objc != 2) {
         Tcl_WrongNumArgs(interp, 1, objv, "?timeout?");
-		return TCL_ERROR;
+	return TCL_ERROR;
     }
     if (objc == 1) {
-		timeout = nsconf.shutdowntimeout;
+	timeout = nsconf.shutdowntimeout;
     } else  if (Tcl_GetIntFromObj(interp, objv[1], &timeout) != TCL_OK) {
-		return TCL_ERROR;
+	return TCL_ERROR;
     }
     Tcl_SetObjResult(interp, Tcl_NewIntObj(timeout));
     Ns_MutexLock(&nsconf.state.lock);

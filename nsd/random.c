@@ -34,7 +34,7 @@
  *	This file implements the "ns_rand" command.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/random.c,v 1.10 2002/06/12 23:08:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/random.c,v 1.11 2002/06/13 04:41:21 jcollins Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -161,10 +161,8 @@ NsTclRandObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST obj
     	if (Tcl_GetIntFromObj(interp, objv[1], &max) != TCL_OK) {
 	    return TCL_ERROR;
 	} else if (max <= 0) {
-	    Tcl_Obj *result = Tcl_NewObj();
-	    Tcl_AppendStringsToObj(result, "invalid max \"", 
+	    Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "invalid max \"", 
 		    Tcl_GetString(objv[1]), "\": must be > 0", NULL);
-	    Tcl_SetObjResult(interp, result);
 	    return TCL_ERROR;
 	}
     }

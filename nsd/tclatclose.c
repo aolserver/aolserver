@@ -33,7 +33,7 @@
  *	Routines for the ns_atclose command.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/tclatclose.c,v 1.2 2002/06/12 23:08:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/tclatclose.c,v 1.3 2002/06/13 04:41:21 jcollins Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -151,13 +151,13 @@ NsTclAtCloseObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST 
 
     if (objc < 2 || objc > 3) {
         Tcl_WrongNumArgs(interp, 1, objv, "{ script | procname ?arg? }");
-		return TCL_ERROR;
+	return TCL_ERROR;
     }
 
     if (objc == 2) {
-		script = Tcl_GetString(objv[1]);
+	script = Tcl_GetString(objv[1]);
     } else {
-		script = Tcl_GetString(Tcl_ConcatObj(2, objv+1));
+	script = Tcl_GetString(Tcl_ConcatObj(2, objv+1));
     }
 
     /*

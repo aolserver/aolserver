@@ -34,7 +34,7 @@
  *	Tcl commands that do stuff to the filesystem. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclfile.c,v 1.12 2002/06/12 23:08:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclfile.c,v 1.13 2002/06/13 04:41:21 jcollins Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #include <utime.h>
@@ -236,11 +236,9 @@ NsTclCpFpObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST obj
             return TCL_ERROR;
         }
         if (tocopy < 0) {
-            Tcl_Obj *result = Tcl_NewObj();
-            Tcl_AppendStringsToObj(result, "invalid length \"", 
+            Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "invalid length \"", 
                 Tcl_GetString(objv[3]),
 		        "\": must be >= 0", NULL);
-            Tcl_SetObjResult(interp, result);
             return TCL_ERROR;
         }
     }
@@ -255,10 +253,8 @@ NsTclCpFpObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST obj
 	if (nread == 0) {
 	    break;
 	} else if (nread < 0) {
-	    Tcl_Obj *result = Tcl_NewObj();
-	    Tcl_AppendStringsToObj(result, "read failed: ",
+	    Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "read failed: ",
 			     Tcl_PosixError(interp), NULL);
-	    Tcl_SetObjResult(interp, result);
 	    return TCL_ERROR;
 	}
 	if (tocopy > 0) {
@@ -268,10 +264,8 @@ NsTclCpFpObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST obj
 	while (nread > 0) {
 	    nwrote = Tcl_Write(out, p, nread);
 	    if (nwrote < 0) {
-		Tcl_Obj *result = Tcl_NewObj();
-		Tcl_AppendStringsToObj(result, "write failed: ",
+		Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "write failed: ",
 				 Tcl_PosixError(interp), NULL);
-		Tcl_SetObjResult(interp, result);
 	        return TCL_ERROR;
 	    }
 	    nread -= nwrote;
@@ -504,8 +498,7 @@ badargs:
 
 done:
     if (result != TCL_OK) {
-        Tcl_Obj *tclresult = Tcl_NewObj();
-        Tcl_AppendStringsToObj(tclresult, "could not ", emsg, " \"",
+        Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "could not ", emsg, " \"",
 	            efile, "\": ", Tcl_PosixError(interp), NULL);
     }
     if (rfd >= 0) {
@@ -575,11 +568,9 @@ NsTclMkdirObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST ob
         return TCL_ERROR;
     }
     if (mkdir(Tcl_GetString(objv[1]), 0755) != 0) {
-        Tcl_Obj *result = Tcl_NewObj();
-        Tcl_AppendStringsToObj(result, "mkdir (\"", 
+        Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "mkdir (\"", 
 		Tcl_GetString(objv[1]),
 		"\") failed:  ", Tcl_PosixError(interp), NULL);
-        Tcl_SetObjResult(interp, result);
         return TCL_ERROR;
     }
     return TCL_OK;
@@ -643,11 +634,9 @@ NsTclRmdirObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST ob
         return TCL_ERROR;
     }
     if (rmdir(Tcl_GetString(objv[1])) != 0) {
-        Tcl_Obj *result = Tcl_NewObj();
-        Tcl_AppendStringsToObj(result, "rmdir (\"", 
+        Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "rmdir (\"", 
 		Tcl_GetString(objv[1]),
 		"\") failed:  ", Tcl_PosixError(interp), NULL);
-        Tcl_SetObjResult(interp, result);
         return TCL_ERROR;
     }
     return TCL_OK;
@@ -731,11 +720,9 @@ FileObjCmd(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[], char *cmd)
 	return TCL_ERROR;
     }
     if (max <= 0 || max > 1000) {
-        Tcl_Obj *result = Tcl_NewObj();
-        Tcl_AppendStringsToObj(result, "invalid max \"", 
+        Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "invalid max \"", 
 		Tcl_GetString(objv[2]),
 	        "\": should be > 0 and <= 1000.", NULL);
-        Tcl_SetObjResult(interp, result);
         return TCL_ERROR;
     }
     if (*cmd == 'p') {
@@ -744,11 +731,9 @@ FileObjCmd(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[], char *cmd)
 	status = Ns_RollFile(Tcl_GetString(objv[1]), max);
     }
     if (status != NS_OK) {
-        Tcl_Obj *result = Tcl_NewObj();
-        Tcl_AppendStringsToObj(result, "could not ", cmd, " \"", 
+        Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "could not ", cmd, " \"", 
 		Tcl_GetString(objv[1]),
 	        "\": ", Tcl_PosixError(interp), NULL);
-        Tcl_SetObjResult(interp, result);
 	return TCL_ERROR;
     }
     return TCL_OK;
@@ -856,11 +841,9 @@ NsTclUnlinkObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST o
 
     if (objc == 3) {
 	if (!STREQ(Tcl_GetString(objv[1]), "-nocomplain")) {
-	    Tcl_Obj *result = Tcl_NewObj();
-	    Tcl_AppendStringsToObj(result, "unknown flag \"",
+	    Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "unknown flag \"",
 		    Tcl_GetString(objv[1]), "\": should be -nocomplain", 
 		    NULL);
-	    Tcl_SetObjResult(interp, result);
 	    return TCL_ERROR;
 	} else {
 	    fComplain = NS_FALSE;
@@ -869,11 +852,9 @@ NsTclUnlinkObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST o
 
     if (unlink(Tcl_GetString(objv[objc-1])) != 0) {
 	if (fComplain || errno != ENOENT) {
-	    Tcl_Obj *result = Tcl_NewObj();
-	    Tcl_AppendStringsToObj(result, "unlink (\"", 
+	    Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "unlink (\"", 
 		    Tcl_GetString(objv[objc-1]),
 		    "\") failed:  ", Tcl_PosixError(interp), NULL);
-	    Tcl_SetObjResult(interp, result);
 	    return TCL_ERROR;
 	}
     }
@@ -1205,12 +1186,10 @@ NsTclKillObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST obj
             return TCL_ERROR;
         }
         if (kill(pid, signal) != 0) {
-            Tcl_Obj *result = Tcl_NewObj();
-            Tcl_AppendStringsToObj(result, "kill (\"", 
+            Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "kill (\"", 
                 Tcl_GetString(objv[1]), ",", 
                 Tcl_GetString(objv[2]),
 			    "\") failed:  ", Tcl_PosixError(interp), NULL);
-            Tcl_SetObjResult(interp, result);
             return TCL_ERROR;
         }
     } else {
@@ -1298,9 +1277,10 @@ NsTclLinkObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST obj
     }
     if (objc == 3) {
         if (link(Tcl_GetString(objv[1]), Tcl_GetString(objv[2])) != 0) {
-	    Tcl_AppendResult(interp, "link (\"", Tcl_GetString(objv[1]), "\", \"", 
-                Tcl_GetString(objv[2]),
-			     "\") failed:  ", Tcl_PosixError(interp), NULL);
+	    Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), 
+		    "link (\"", Tcl_GetString(objv[1]), "\", \"", 
+		    Tcl_GetString(objv[2]),
+		    "\") failed:  ", Tcl_PosixError(interp), NULL);
             return TCL_ERROR;
         }
     } else {
@@ -1385,12 +1365,10 @@ NsTclSymlinkObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST 
 
     if (objc == 3) {
         if (symlink(Tcl_GetString(objv[1]), Tcl_GetString(objv[2])) != 0) {
-            Tcl_Obj *result = Tcl_NewObj();
-            Tcl_AppendStringsToObj(result, "symlink (\"", 
-                Tcl_GetString(objv[1]), "\", \"", 
-                Tcl_GetString(objv[2]),
-			    "\") failed:  ", Tcl_PosixError(interp), NULL);
-            Tcl_SetObjResult(interp, result);
+            Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "symlink (\"", 
+		    Tcl_GetString(objv[1]), "\", \"", 
+		    Tcl_GetString(objv[2]),
+		    "\") failed:  ", Tcl_PosixError(interp), NULL);
             return TCL_ERROR;
         }
     } else {
@@ -1461,12 +1439,10 @@ NsTclRenameObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST o
         return TCL_ERROR;
     }
     if (rename(Tcl_GetString(objv[1]), Tcl_GetString(objv[2])) != 0) {
-        Tcl_Obj *result = Tcl_NewObj();
-        Tcl_AppendStringsToObj(result, "rename (\"", 
-            Tcl_GetString(objv[1]), "\", \"", 
-            Tcl_GetString(objv[2]),
-    	    "\") failed:  ", Tcl_PosixError(interp), NULL);
-        Tcl_SetObjResult(interp, result);
+        Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "rename (\"", 
+		Tcl_GetString(objv[1]), "\", \"", 
+		Tcl_GetString(objv[2]),
+		"\") failed:  ", Tcl_PosixError(interp), NULL);
         return TCL_ERROR;
     }
     return TCL_OK;
@@ -1645,12 +1621,10 @@ NsTclTruncateObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST
     }
 
     if (truncate(Tcl_GetString(objv[1]), length) != 0) {
-        Tcl_Obj *result = Tcl_NewObj();
-        Tcl_AppendStringsToObj(result, "truncate (\"", 
-            Tcl_GetString(objv[1]), "\", ",
-            Tcl_GetString(objv[2]) ? Tcl_GetString(objv[2]) : "0",
-            ") failed:  ", Tcl_PosixError(interp), NULL);
-        Tcl_SetObjResult(interp, result);
+        Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "truncate (\"", 
+		Tcl_GetString(objv[1]), "\", ",
+		Tcl_GetString(objv[2]) ? Tcl_GetString(objv[2]) : "0",
+		") failed:  ", Tcl_PosixError(interp), NULL);
         return TCL_ERROR;
     }
 
@@ -1737,12 +1711,10 @@ NsTclFTruncateObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONS
     	return TCL_ERROR;
     }
     if (ftruncate(fd, length) != 0) {
-        Tcl_Obj *result = Tcl_NewObj();
-        Tcl_AppendStringsToObj(result, "ftruncate (\"", 
+        Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "ftruncate (\"", 
             Tcl_GetString(objv[1]), "\", ",
             Tcl_GetString(objv[2]) ? Tcl_GetString(objv[2]) : "0",
             ") failed:  ", Tcl_PosixError(interp), NULL);
-        Tcl_SetObjResult(interp, result);
         return TCL_ERROR;
     }
 
@@ -1822,12 +1794,10 @@ NsTclChmodObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST ob
     }
 
     if (chmod(Tcl_GetString(objv[1]), mode) != 0) {
-        Tcl_Obj *result = Tcl_NewObj();
-        Tcl_AppendStringsToObj(result, "chmod (\"", 
-            Tcl_GetString(objv[1]), "\", ", 
-            Tcl_GetString(objv[2]),
-            ") failed:  ", Tcl_PosixError(interp), NULL);
-        Tcl_SetObjResult(interp, result);
+        Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "chmod (\"", 
+		Tcl_GetString(objv[1]), "\", ", 
+		Tcl_GetString(objv[2]),
+		") failed:  ", Tcl_PosixError(interp), NULL);
         return TCL_ERROR;
     }
 
@@ -2001,10 +1971,8 @@ NsTclChanObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST obj
 	}
 	chan = Tcl_GetChannel(interp, Tcl_GetString(objv[2]), NULL);
 	if (chan == NULL) {
-	    Tcl_Obj *result = Tcl_NewObj();
-	    Tcl_AppendStringsToObj(result, "no such channel: ", 
+	    Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "no such channel: ", 
 		    Tcl_GetString(objv[2]), NULL);
-	    Tcl_SetObjResult(interp, result);
 	    return TCL_ERROR;
 	}
     	Ns_MutexLock(&servPtr->chans.lock);
@@ -2015,10 +1983,8 @@ NsTclChanObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST obj
     	}
     	Ns_MutexUnlock(&servPtr->chans.lock);
 	if (!new) {
-	    Tcl_Obj *result = Tcl_NewObj();
-	    Tcl_AppendStringsToObj(result, "share already in use: ", 
+	    Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "share already in use: ", 
 		    Tcl_GetString(objv[3]), NULL);
-	    Tcl_SetObjResult(interp, result);
 	    return TCL_ERROR;
 	}
 	hPtr = Tcl_CreateHashEntry(&itPtr->chans, Tcl_GetString(objv[3]), &new);
@@ -2038,10 +2004,8 @@ NsTclChanObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST obj
 	}
     	Ns_MutexUnlock(&servPtr->chans.lock);
 	if (hPtr == NULL) {
-	    Tcl_Obj *result = Tcl_NewObj();
-	    Tcl_AppendStringsToObj(result, "no such shared channel: ",
+	    Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "no such shared channel: ",
 		    Tcl_GetString(objv[3]), NULL);
-	    Tcl_SetObjResult(interp, result);
 	    return TCL_ERROR;
 	}
 	hPtr = Tcl_CreateHashEntry(&itPtr->chans, Tcl_GetString(objv[2]), &new);
@@ -2054,10 +2018,8 @@ NsTclChanObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST obj
 	}
 	hPtr = Tcl_FindHashEntry(&itPtr->chans, Tcl_GetString(objv[2]));
 	if (hPtr == NULL) {
-	    Tcl_Obj *result = Tcl_NewObj();
-	    Tcl_AppendStringsToObj(result, "no such registered channel: ",
+	    Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "no such registered channel: ",
 		    Tcl_GetString(objv[3]), NULL);
-	    Tcl_SetObjResult(interp, result);
 	    return TCL_ERROR;
 	}
 	chan = Tcl_GetHashValue(hPtr);
@@ -2085,10 +2047,8 @@ NsTclChanObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST obj
 	}
 
     } else {
-	Tcl_Obj *result = Tcl_NewObj();
-	Tcl_AppendStringsToObj(result, "no such command: ",
+	Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "no such command: ",
 		cmd, "should be share, register, unregister, list, or cleanup", NULL);
-	Tcl_SetObjResult(interp, result);
 	return TCL_ERROR;
     }
 

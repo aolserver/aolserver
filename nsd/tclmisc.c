@@ -34,7 +34,7 @@
  *	Implements a lot of Tcl API commands. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclmisc.c,v 1.21 2002/06/12 23:08:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclmisc.c,v 1.22 2002/06/13 04:41:21 jcollins Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -559,7 +559,6 @@ int
 NsTclSleepObjCmd(ClientData dummy, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 {
     int seconds;
-    Tcl_Obj *result;
 
     if (objc != 2) {
         Tcl_WrongNumArgs(interp, 1, objv, "seconds");
@@ -571,11 +570,9 @@ NsTclSleepObjCmd(ClientData dummy, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
     }
 
     if (seconds < 0) {
-	result = Tcl_NewObj();
-        Tcl_AppendStringsToObj(result, "invalid sections \"", 
+        Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "invalid sections \"", 
             Tcl_GetString(objv[1]),
 	        "\": should be >= 0", NULL);
-        Tcl_SetObjResult(interp, result);
         return TCL_ERROR;
     }
 
@@ -652,11 +649,9 @@ NsTclHTUUEncodeObjCmd(ClientData dummy, Tcl_Interp *interp, int objc, Tcl_Obj **
     }
     nbytes = Tcl_GetCharLength(objv[1]);
     if (nbytes > 48) {
-        Tcl_Obj *result = Tcl_NewObj();
-        Tcl_AppendStringsToObj(result, "invalid string \"",
+        Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "invalid string \"",
                          Tcl_GetString(objv[1]), 
                          "\": must be less than 48 characters", NULL);
-        Tcl_SetObjResult(interp, result);
         return TCL_ERROR;
     }
     Ns_HtuuEncode((unsigned char *) Tcl_GetString(objv[1]), nbytes, bufcoded);
@@ -772,7 +767,7 @@ NsTclTimeObjCmd(ClientData dummy, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 	    Ns_GetTime(&result);
 	} else if (STREQ(cmd, "incr")) {
 	    if (objc != 4 && objc != 5) {
-		Tcl_AppendResult(interp, "wrong # args: should be \"",
+		Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "wrong # args: should be \"",
 		    cmd, " incr time sec ?usec?\"", NULL);
 		return TCL_ERROR;
 	    }
@@ -785,7 +780,7 @@ NsTclTimeObjCmd(ClientData dummy, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 	    Ns_IncrTime(&result, sec, usec);
 	} else if (STREQ(cmd, "diff")) {
 	    if (objc != 4) {
-		Tcl_AppendResult(interp, "wrong # args: should be \"",
+		Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "wrong # args: should be \"",
 		    cmd, " diff t1 t2\"", NULL);
 		return TCL_ERROR;
 	    }
@@ -797,7 +792,7 @@ NsTclTimeObjCmd(ClientData dummy, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 
 	} else if (STREQ(cmd, "adj")) {
 	    if (objc != 3) {
-		Tcl_AppendResult(interp, "wrong # args: should be \"",
+		Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "wrong # args: should be \"",
 		    cmd, " adj time\"", NULL);
 		return TCL_ERROR;
 	    }
@@ -806,7 +801,7 @@ NsTclTimeObjCmd(ClientData dummy, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 	    }
 	    Ns_AdjTime(&result);
 	} else {
-	    Tcl_AppendResult(interp, "unknown command \"", cmd,
+	    Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "unknown command \"", cmd,
 		"\": should be get, incr, diff, or adj", NULL);
 	    return TCL_ERROR;
 	}
@@ -884,7 +879,6 @@ NsTclStrftimeObjCmd(ClientData dummy, Tcl_Interp *interp, int objc, Tcl_Obj **ob
     char   *fmt, buf[200];
     time_t  time;
     int     i;
-    Tcl_Obj *result;
 
     if (objc != 2 && objc != 3) {
         Tcl_WrongNumArgs(interp, 1, objv, "string");
@@ -900,14 +894,13 @@ NsTclStrftimeObjCmd(ClientData dummy, Tcl_Interp *interp, int objc, Tcl_Obj **ob
     }
     time = i;
     if (strftime(buf, sizeof(buf), fmt, ns_localtime(&time)) == 0) {
-	result = Tcl_NewObj();
-        Tcl_AppendStringsToObj(result, "invalid time: ", 
+        Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "invalid time: ", 
             Tcl_GetString(objv[1]), NULL);
         return TCL_ERROR;
     }
-    result = Tcl_NewObj();
-    Tcl_AppendStringsToObj(result, buf, NULL);
-    Tcl_SetObjResult(interp, result);
+
+    Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), buf, NULL);
+
     return TCL_OK;
 }
 

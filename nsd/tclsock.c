@@ -34,7 +34,7 @@
  *	Tcl commands that let you do TCP sockets. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclsock.c,v 1.10 2002/06/12 23:08:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclsock.c,v 1.11 2002/06/13 04:41:21 jcollins Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -158,11 +158,9 @@ GetObjCmd(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[], int byaddr)
     }
     Ns_DStringFree(&ds);
     if (status != NS_TRUE) {
-	Tcl_Obj *result = Tcl_NewObj();
-	Tcl_AppendStringsToObj(result, "could not lookup ", 
+	Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "could not lookup ", 
 		Tcl_GetString(objv[1]), 
 		NULL);
-	Tcl_SetObjResult(interp, result);
 	return TCL_ERROR;
     }
     return TCL_OK;
@@ -371,10 +369,8 @@ NsTclSockNReadObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONS
 	return TCL_ERROR;
     }
     if (ioctl(sock, FIONREAD, &nread) != 0) {
-	Tcl_Obj *result = Tcl_NewObj();
-	Tcl_AppendStringsToObj(result, "ioctl failed: ", 
+	Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "ioctl failed: ", 
 		 Tcl_PosixError(interp), NULL);
-	Tcl_SetObjResult(interp, result);
         return TCL_ERROR;
     }
     nread += Tcl_InputBuffered(chan);
@@ -466,8 +462,7 @@ NsTclSockListenObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CON
     }
     sock = Ns_SockListen(addr, port);
     if (sock == -1) {
-	Tcl_Obj *result = Tcl_NewObj();
-	Tcl_AppendStringsToObj(result, "could not listen on \"",
+	Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "could not listen on \"",
 		Tcl_GetString(objv[1]), ":", 
 		Tcl_GetString(objv[2]), "\"", NULL);
         return TCL_ERROR;
@@ -546,10 +541,8 @@ NsTclSockAcceptObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CON
     }
     sock = Ns_SockAccept(sock, NULL, 0);
     if (sock == -1) {
-	Tcl_Obj *result = Tcl_NewObj();
-	Tcl_AppendStringsToObj(result, "accept failed: ",
+	Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "accept failed: ",
 		 Tcl_PosixError(interp), NULL);
-	Tcl_SetObjResult(interp, result);
         return TCL_ERROR;
     }
     return EnterDupedSocks(interp, sock);
@@ -626,9 +619,9 @@ NsTclSockCheckObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONS
 	return TCL_ERROR;
     }
     if (send(sock, NULL, 0, 0) != 0) {
-		objPtr = Tcl_NewBooleanObj(0);
+	objPtr = Tcl_NewBooleanObj(0);
     } else {
-		objPtr = Tcl_NewBooleanObj(1);
+	objPtr = Tcl_NewBooleanObj(1);
     }
     Tcl_SetObjResult(interp, objPtr);
     return TCL_OK;
@@ -765,9 +758,9 @@ NsTclSockOpenObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST
 	 */
 	
         if (!STREQ(Tcl_GetString(objv[1]), "-nonblock") && 
-		    !STREQ(Tcl_GetString(objv[1]), "-async")) {
-        	Tcl_WrongNumArgs(interp, 1, objv, "?-nonblock|-timeout seconds? host port");
-	    	return TCL_ERROR;
+	    !STREQ(Tcl_GetString(objv[1]), "-async")) {
+	    Tcl_WrongNumArgs(interp, 1, objv, "?-nonblock|-timeout seconds? host port");
+	   return TCL_ERROR;
         }
 
         first = 2;
@@ -803,8 +796,7 @@ NsTclSockOpenObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST
         sock = Ns_SockTimedConnect(Tcl_GetString(objv[first]), port, timeout);
     }
     if (sock == -1) {
-	Tcl_Obj *result = Tcl_NewObj();
-	Tcl_AppendStringsToObj(result, "could not connect to \"",
+	Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "could not connect to \"",
 		Tcl_GetString(objv[first]), ":", 
 		Tcl_GetString(objv[first + 1]), "\"", NULL);
         return TCL_ERROR;
@@ -1032,15 +1024,15 @@ NsTclSelectObjCmd(ClientData dummy, Tcl_Interp *interp, int objc, Tcl_Obj *CONST
     Tcl_DStringInit(&dsRfd);
     Tcl_DStringInit(&dsNbuf);
     for (i = 0; i < fobjc; ++i) {
-		chan = Tcl_GetChannel(interp, Tcl_GetString(fobjv[i]), NULL);
-		if (chan == NULL) {
-			goto done;
+	chan = Tcl_GetChannel(interp, Tcl_GetString(fobjv[i]), NULL);
+	if (chan == NULL) {
+	    goto done;
 			}
-		if (Tcl_InputBuffered(chan) > 0) {
-			Tcl_DStringAppendElement(&dsNbuf, Tcl_GetString(fobjv[i]));
-		} else {
-			Tcl_DStringAppendElement(&dsRfd, Tcl_GetString(fobjv[i]));
-		}
+	if (Tcl_InputBuffered(chan) > 0) {
+	    Tcl_DStringAppendElement(&dsNbuf, Tcl_GetString(fobjv[i]));
+	} else {
+	    Tcl_DStringAppendElement(&dsRfd, Tcl_GetString(fobjv[i]));
+	}
     }
 
     if (dsNbuf.length > 0) {
@@ -1056,13 +1048,13 @@ NsTclSelectObjCmd(ClientData dummy, Tcl_Interp *interp, int objc, Tcl_Obj *CONST
     }
     maxfd = 0;
     if (GetSet(interp, dsRfd.string, 0, &rPtr, &rset, &maxfd) != TCL_OK) {
-		goto done;
+	goto done;
     }
     if (GetSet(interp, Tcl_GetString(objv[arg++]), 1, &wPtr, &wset, &maxfd) != TCL_OK) {
-		goto done;
+	goto done;
     }
     if (GetSet(interp, Tcl_GetString(objv[arg++]), 0, &ePtr, &eset, &maxfd) != TCL_OK) {
-		goto done;
+	goto done;
     }
 
     /*
@@ -1087,10 +1079,8 @@ NsTclSelectObjCmd(ClientData dummy, Tcl_Interp *interp, int objc, Tcl_Obj *CONST
 	} while (i < 0 && errno == EINTR);
 
     	if (i == -1) {
-	    Tcl_Obj *result = Tcl_NewObj();
-	    Tcl_AppendStringsToObj(result, "select failed: ",
+	    Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "select failed: ",
 		    Tcl_PosixError(interp), NULL);
-	    Tcl_SetObjResult(interp, result);
     	} else {
 	    if (i == 0) {
 		/*
@@ -1179,15 +1169,13 @@ NsTclSocketPairObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CON
     int	socks[2];
 
     if (ns_sockpair(socks) != 0) {
-	Tcl_Obj *result = Tcl_NewObj();
-	Tcl_AppendStringsToObj(result, "ns_sockpair failed:  ", 
+	Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "ns_sockpair failed:  ", 
 		 Tcl_PosixError(interp), NULL);
-	Tcl_SetObjResult(interp, result);
         return TCL_ERROR;
     }
     if (EnterSock(interp, socks[0]) != TCL_OK) {
-		close(socks[1]);
-		return TCL_ERROR;
+	close(socks[1]);
+	return TCL_ERROR;
     }
     return EnterSock(interp, socks[1]);
 }
@@ -1311,23 +1299,19 @@ NsTclSockCallbackObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
         } else if (*s == 'x') {
             when |= NS_SOCK_EXIT;
         } else {
-	    Tcl_Obj *result = Tcl_NewObj();
-	    Tcl_AppendStringsToObj(result, "invalid when specification \"",
+	    Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "invalid when specification \"",
 		    Tcl_GetString(objv[3]), 
 		    "\": should be one or more of r, w, e, or x", 
 		    NULL);
-	    Tcl_SetObjResult(interp, result);
             return TCL_ERROR;
         }
         ++s;
     }
     if (when == 0) {
-	Tcl_Obj *result = Tcl_NewObj();
-	Tcl_AppendStringsToObj(result, "invalid when specification \"",
+	Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "invalid when specification \"",
 		Tcl_GetString(objv[3]), 
 		"\": should be one or more of r, w, e, or x", 
-	NULL);
-	Tcl_SetObjResult(interp, result);
+		NULL);
 	return TCL_ERROR;
     }
     if (Ns_TclGetOpenFd(interp, Tcl_GetString(objv[1]),
@@ -1520,7 +1504,7 @@ SockSetBlockingObj(char *value, Tcl_Interp *interp, int objc, Tcl_Obj *CONST obj
     }
     chan = Tcl_GetChannel(interp, Tcl_GetString(objv[1]), NULL);
     if (chan == NULL) {
-		return TCL_ERROR;
+	return TCL_ERROR;
     }
     return Tcl_SetChannelOption(interp, chan, "-blocking", value);
 }

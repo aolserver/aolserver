@@ -34,7 +34,7 @@
  *	Tcl commands for returning data to the user agent. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclresp.c,v 1.11 2002/06/12 23:08:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclresp.c,v 1.12 2002/06/13 04:41:21 jcollins Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -122,7 +122,7 @@ NsTclHeadersObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST 
         return TCL_ERROR;
     }
     if (GetConn(arg, interp, &conn) != TCL_OK) {
-		return TCL_ERROR;
+	return TCL_ERROR;
     }
     if (Tcl_GetIntFromObj(interp, objv[2], &status) != TCL_OK) {
         return TCL_ERROR;
@@ -135,7 +135,7 @@ NsTclHeadersObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST 
     if (objc < 5) {
         len = 0;
     } else if (Tcl_GetIntFromObj(interp, objv[4], &len) != TCL_OK) {
-		return TCL_ERROR;
+	return TCL_ERROR;
     }
     Ns_ConnSetRequiredHeaders(conn, type, len);
     return Result(interp, Ns_ConnFlushHeaders(conn, status));
@@ -210,16 +210,16 @@ NsTclReturnObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST o
         return TCL_ERROR;
     }
     if (objc == 5 && !CheckId(interp, Tcl_GetString(objv[1]))) {
-		return TCL_ERROR;
+	return TCL_ERROR;
     }
     if (GetConn(arg, interp, &conn) != TCL_OK) {
-		return TCL_ERROR;
+	return TCL_ERROR;
     }
     if (Tcl_GetIntFromObj(interp, objv[objc-3], &status) != TCL_OK) {
-		return TCL_ERROR;
+	return TCL_ERROR;
     }
     result = Ns_ConnReturnData(conn, status, Tcl_GetString(objv[objc-1]), -1, 
-			Tcl_GetString(objv[objc-2]));
+	    Tcl_GetString(objv[objc-2]));
     return Result(interp, result);
 }
 
@@ -494,10 +494,8 @@ NsTclRespondObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST 
 
                     set = Ns_TclGetSet(interp, Tcl_GetString(objv[i]));
                     if (set == NULL) {
-						Tcl_Obj *result =  Tcl_NewObj();
-						Tcl_AppendStringsToObj(result, "Illegal ns_set id: \"",
-                            Tcl_GetString(objv[i]), "\"", NULL);
-						Tcl_SetObjResult(interp, result);
+			Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "Illegal ns_set id: \"",
+				Tcl_GetString(objv[i]), "\"", NULL);
                         return TCL_ERROR;
                     }
                     Ns_ConnReplaceHeaders(conn, set);
@@ -535,9 +533,9 @@ NsTclRespondObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST 
 	 */
 	
         if (length < 0) {
-			Tcl_SetResult(interp, "length required when -fileid is used.", 
-					TCL_STATIC);
-            return TCL_ERROR;
+	    Tcl_SetResult(interp, "length required when -fileid is used.", 
+		    TCL_STATIC);
+	    return TCL_ERROR;
         }
 	retval = Ns_ConnReturnOpenChannel(conn, status, type, chan, length);
 
@@ -872,10 +870,10 @@ ReturnObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
         return TCL_ERROR;
     }
     if (objc == 2 && !CheckId(interp, Tcl_GetString(objv[1]))) {
-		return TCL_ERROR;
+	return TCL_ERROR;
     }
     if (GetConn(arg, interp, &conn) != TCL_OK) {
-		return TCL_ERROR;
+	return TCL_ERROR;
     }
     return Result(interp, (*proc)(conn));
 }
@@ -986,17 +984,17 @@ NsTclReturnErrorObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CO
         return TCL_ERROR;
     }
     if (objc == 4 && !CheckId(interp, Tcl_GetString(objv[1]))) {
-		return TCL_ERROR;
+	return TCL_ERROR;
     }
     if (GetConn(arg, interp, &conn) != TCL_OK) {
-		return TCL_ERROR;
+	return TCL_ERROR;
     }
     if (Tcl_GetIntFromObj(interp, objv[objc-2], &status) != TCL_OK) {
         return TCL_ERROR;
     }
     return Result(interp,
-		Ns_ConnReturnAdminNotice(conn, status, "Request Error", 
-		Tcl_GetString(objv[objc-1])));
+    Ns_ConnReturnAdminNotice(conn, status, "Request Error", 
+	    Tcl_GetString(objv[objc-1])));
 }
 
 
@@ -1154,10 +1152,10 @@ NsTclReturnRedirectObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj 
         return TCL_ERROR;
     }
     if (objc == 3 && !CheckId(interp, Tcl_GetString(objv[1]))) {
-		return TCL_ERROR;
+	return TCL_ERROR;
     }
     if (GetConn(arg, interp, &conn) != TCL_OK) {
-		return TCL_ERROR;
+	return TCL_ERROR;
     }
     return Result(interp, Ns_ConnReturnRedirect(conn, 
 				Tcl_GetString(objv[objc-1])));
@@ -1228,14 +1226,14 @@ NsTclWriteObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST ob
         return TCL_ERROR;
     }
     if (objc == 3 && !CheckId(interp, Tcl_GetString(objv[1]))) {
-		return TCL_ERROR;
+	return TCL_ERROR;
     }
     if (GetConn(arg, interp, &conn) != TCL_OK) {
-		return TCL_ERROR;
+	return TCL_ERROR;
     }
 
-	bytes = (char *) Tcl_GetByteArrayFromObj(objv[objc-1], &length);
-	return Result(interp,Ns_WriteConn(conn, bytes, length));
+    bytes = (char *) Tcl_GetByteArrayFromObj(objv[objc-1], &length);
+    return Result(interp,Ns_WriteConn(conn, bytes, length));
 }
 
 
@@ -1318,10 +1316,10 @@ NsTclConnSendFpObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CON
         return TCL_ERROR;
     }
     if (objc == 4 && !CheckId(interp, Tcl_GetString(objv[1]))) {
-		return TCL_ERROR;
+	return TCL_ERROR;
     }
     if (GetConn(arg, interp, &conn) != TCL_OK) {
-		return TCL_ERROR;
+	return TCL_ERROR;
     }
     if (Ns_TclGetOpenChannel(interp, Tcl_GetString(objv[objc-2]), 0, 1, &chan) 
 			!= TCL_OK) {
@@ -1331,12 +1329,10 @@ NsTclConnSendFpObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CON
         return TCL_ERROR;
     }
     if (Ns_ConnSendChannel(conn, chan, len) != NS_OK) {
-	Tcl_Obj *result = Tcl_NewObj();
-	Tcl_AppendStringsToObj(result, "could not send ", 
+	Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "could not send ", 
 		Tcl_GetString(objv[objc-1]),
     		" bytes from channel ", 
 		Tcl_GetString(objv[objc-2]), NULL);
-	Tcl_SetObjResult(interp, result);
 	return TCL_ERROR;
     }
     return TCL_OK;

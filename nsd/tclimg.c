@@ -33,7 +33,7 @@
  *	Commands for image files.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclimg.c,v 1.4 2002/06/12 23:08:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclimg.c,v 1.5 2002/06/13 04:41:21 jcollins Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -180,7 +180,6 @@ NsTclGifSizeObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST 
     int fd;
     unsigned char  buf[0x300];
     int depth, colormap, dx, dy, status;
-    Tcl_Obj *result;
 
     if (objc != 2) {
         Tcl_WrongNumArgs(interp, 1, objv, "gif");
@@ -188,11 +187,9 @@ NsTclGifSizeObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST 
     }
     fd = open(Tcl_GetString(objv[1]), O_RDONLY);
     if (fd == -1) {
-	result = Tcl_NewObj();
-        Tcl_AppendStringsToObj(result, "could not open \"", 
+        Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "could not open \"", 
             Tcl_GetString(objv[1]),
 	        "\": ", Tcl_PosixError(interp), NULL);
-        Tcl_SetObjResult(interp, result);
         return TCL_ERROR;
     }
     status = TCL_ERROR;
@@ -203,21 +200,17 @@ NsTclGifSizeObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST 
     
     if (read(fd, buf, 6) == -1) {
 readfail:
-	result = Tcl_NewObj();
-        Tcl_AppendStringsToObj(result, "could not read \"", 
+        Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "could not read \"", 
             Tcl_GetString(objv[1]),
             "\": ", Tcl_PosixError(interp), NULL);
-        Tcl_SetObjResult(interp, result);
 	goto done;
     }
 
     if (strncmp((char *) buf, "GIF87a", 6) && 
 	strncmp((char *) buf, "GIF89a", 6)) {
 badfile:
-	result = Tcl_NewObj();
-        Tcl_AppendStringsToObj(result, "invalid gif file: ", 
+        Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "invalid gif file: ", 
                 Tcl_GetString(objv[1]), NULL);
-        Tcl_SetObjResult(interp, result);
         goto done;
     }
 
@@ -351,20 +344,16 @@ NsTclJpegSizeObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST
 
     chan = Tcl_OpenFileChannel(interp, Tcl_GetString(objv[1]), "r", 0);
 	if (chan == NULL) {
-	    Tcl_Obj *result = Tcl_NewObj();
-	    Tcl_AppendStringsToObj(result, "could not open \"",
+	    Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "could not open \"",
 		    Tcl_GetString(objv[1]), "\": ", 
 		    Tcl_PosixError(interp), NULL);
-	    Tcl_SetObjResult(interp, result);
 	    return TCL_ERROR;
     }
     code = JpegSize(chan, &w, &h);
     Tcl_Close(interp, chan);
     if (code != TCL_OK) {
-	Tcl_Obj *result = Tcl_NewObj();
-	Tcl_AppendStringsToObj(result, "invalid jpeg file: ", 
+	Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "invalid jpeg file: ", 
 		Tcl_GetString(objv[1]), NULL);
-	Tcl_SetObjResult(interp, result);
 	return TCL_ERROR;
     }
     if(AppendObjDims(interp, w, h) != TCL_OK) {

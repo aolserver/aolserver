@@ -33,7 +33,7 @@
  *      Routines for dealing with HTML FORM's.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/form.c,v 1.7 2002/06/12 23:08:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/form.c,v 1.8 2002/06/13 04:41:21 jcollins Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -197,11 +197,9 @@ NsTclParseQueryObjCmd(ClientData dummy, Tcl_Interp *interp, int objc, Tcl_Obj **
     }
     set = Ns_SetCreate(NULL);
     if (Ns_QueryToSet(Tcl_GetString(objv[1]), set) != NS_OK) {
-	Tcl_Obj *result = Tcl_NewObj();
-	Tcl_AppendStringsToObj(result, Tcl_GetString(objv[0]), 
+	Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), Tcl_GetString(objv[0]), 
 			": could not parse: \"",
 	    	Tcl_GetString(objv[1]), "\"", (char *) NULL);
-	Tcl_SetObjResult(interp, result);
 	Ns_SetFree(set);
 	return TCL_ERROR;
     }
