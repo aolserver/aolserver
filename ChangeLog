@@ -1,3 +1,51 @@
+2001-11-05  Jim Davidson <jgdavidson@aol.com>
+
+	* Removed support for Win32, removing both the build/test
+	environment and updating the code to be standard Unix style. Among
+	other style changes such as changing SOCKET's to simple Unix style
+	int's, the short lived Ns_Buf structure was also eliminated in
+	favor of the Unix standard struct iovec.
+
+	* Removed support for older non-pthread Unix platforms such as
+	HP/10 and SGI native.
+
+	* Updated Tcl to version to Tcl 8.3.4, replacing tclAlloc.c
+	with a modified version of what was libnsthread's fast pool
+	allocator including support for fast direct Tcl_Obj allocation.
+	Also added a few functions to tclUnixThrd.c for thread safety
+	(e.g., readdir_r and localtime_r support) and fixed up tcl.m4
+	for better FreeBSD 4.4 and Solaris thread builds.
+
+	* ns_malloc, Ns_ThreadMalloc, and Ns_PoolAlloc all now simply
+	call Tcl_Alloc which is always enabled. The previous -z (enable)
+	and -p (disable) command line flags are ignored.
+
+	* Integrated remainder of libnsthread, now standard pthreads
+	and compatible with Tcl pthread code, into libnsd.so.
+
+	* Updated libnsd.so to use poll() instead of select() where
+	possible.
+
+	* Removed the code which would attempt to determine when the
+	sock callbacks and scheduler were idle before completing startup.
+	The code was overly complex and not strictly correct.
+
+	* Removed the -k and -K shutdown/restart options which was not
+	entirely safe.
+
+	* Removed the child-process privleged port Ns_SockListen code
+	in nsd/binder.c.  Binding privleged ports (e.g., port 80) now
+	requires the -b or -B command line methods introduced in 3.4,
+	e.g., "nsd -ft nsd.tcl -b myhost:80".  The binder code, while
+	clever, was a potential security risk.
+
+	* Cleaned up some lingering sloppy uses of Ns_ConfigGet and
+	other older macros.  Old macro and function definitions can be
+	disabled by defining NS_NOCOMPAT as is done when compiling the
+	core server and modules.
+
+	* Incremented version to 4.0b2.
+
 2001-08-29  Scott S. Goodwin  <scott@scottg.net>
 
 	* https.tcl: made fixes to ns_httppost per Rick Lansky at
