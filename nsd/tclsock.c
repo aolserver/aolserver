@@ -34,19 +34,29 @@
  *	Tcl commands that let you do TCP sockets. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclsock.c,v 1.5 2001/03/12 22:06:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclsock.c,v 1.6 2001/03/14 01:09:56 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
 /*
- * The following structure is used to maintain the state for a socket callback.
+ * The following structure is used for a socket callback.
  */
 
 typedef struct Callback {
-    int    when;
-    char  *server;
-    char   script[1];
+    char       *server;
+    Tcl_Channel chan;
+    int    	when;
+    char        script[1];
 } Callback;
+
+/*
+ * The following structure is used for a socket listen callback.
+ */
+
+typedef struct ListenCallback {
+    char *server;
+    char script[1];
+} ListenCallback;
 
 /*
  * Local functions defined in this file
@@ -200,6 +210,7 @@ NsTclSockNReadCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
     int         nread;
     Tcl_Channel	chan;
     SOCKET      sock;
+    char	buf[20];
 
     if (argc != 2) {
         Tcl_AppendResult(interp, "wrong # args: should be \"",
@@ -217,7 +228,8 @@ NsTclSockNReadCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
         return TCL_ERROR;
     }
     nread += Tcl_InputBuffered(chan);
-    sprintf(interp->result, "%d", nread);
+    sprintf(buf, "%d", nread);
+    Tcl_SetResult(interp, buf, TCL_VOLATILE);
     return TCL_OK;
 }
     
@@ -698,18 +710,23 @@ NsTclSockCallbackCmd(ClientData arg, Tcl_Interp *interp, int argc,
 			 "\": should be one or more of r, w, e, or x", NULL);
 	return TCL_ERROR;
     }
-    if (Ns_TclGetOpenFd(interp, argv[1], (when & NS_SOCK_WRITE),
-			(int *) &sock) != TCL_OK) {
+    if (Ns_TclGetOpenFd(interp, argv[1],
+	    (when & NS_SOCK_WRITE), (int *) &sock) != TCL_OK) {
         return TCL_ERROR;
     }
+
+    /*
+     * Pass a dup of the socket to the callback thread, allowing
+     * this thread's cleanup to close the current socket.  It's
+     * not possible to simply register the channel again with
+     * a NULL interp because the Tcl channel code is not entirely
+     * thread safe.
+     */
+
     sock = ns_sockdup(sock);
-    if (sock == INVALID_SOCKET) {
-    	Tcl_AppendResult(interp, "dup failed: ",
-			 SockError(interp), NULL);
-	return TCL_ERROR;
-    }
     cbPtr = ns_malloc(sizeof(Callback) + strlen(argv[2]));
     cbPtr->server = itPtr->servPtr->server;
+    cbPtr->chan = NULL;
     cbPtr->when = when;
     strcpy(cbPtr->script, argv[2]);
     if (Ns_SockCallback(sock, NsTclSockProc, cbPtr,
@@ -741,9 +758,11 @@ NsTclSockCallbackCmd(ClientData arg, Tcl_Interp *interp, int argc,
  */
 
 int
-NsTclSockListenCallbackCmd(ClientData dummy, Tcl_Interp *interp, int argc,
+NsTclSockListenCallbackCmd(ClientData arg, Tcl_Interp *interp, int argc,
 			    char **argv)
 {
+    NsInterp *itPtr = arg;
+    ListenCallback *lcbPtr;
     int       port;
     char     *addr, *script;
 
@@ -759,10 +778,12 @@ NsTclSockListenCallbackCmd(ClientData dummy, Tcl_Interp *interp, int argc,
     if (STREQ(addr, "*")) {
         addr = NULL;
     }
-    script = ns_strdup(argv[3]);
-    if (Ns_SockListenCallback(addr, port, SockListenCallback, script) != NS_OK) {
+    lcbPtr = ns_malloc(sizeof(ListenCallback) + strlen(argv[3]));
+    lcbPtr->server = itPtr->servPtr->server;
+    strcpy(lcbPtr->script, argv[3]);
+    if (Ns_SockListenCallback(addr, port, SockListenCallback, lcbPtr) != NS_OK) {
         interp->result = "could not register callback";
-        ns_free(script);
+        ns_free(lcbPtr);
         return TCL_ERROR;
     }
     return TCL_OK;
@@ -950,7 +971,7 @@ EnterSock(Tcl_Interp *interp, SOCKET sock)
     }
     Tcl_SetChannelOption(interp, chan, "-translation", "binary");
     Tcl_RegisterChannel(interp, chan);
-    sprintf(interp->result, "%s", Tcl_GetChannelName(chan));
+    Tcl_SetResult(interp, Tcl_GetChannelName(chan), TCL_VOLATILE);
     return TCL_OK;
 }
 
@@ -1012,34 +1033,54 @@ NsTclSockProc(SOCKET sock, void *arg, int why)
     Callback    *cbPtr = arg;
 
     if (why != NS_SOCK_EXIT || (cbPtr->when & NS_SOCK_EXIT)) {
+	Tcl_DStringInit(&script);
 	interp = Ns_TclAllocateInterp(cbPtr->server);
-	result = EnterDup(interp, sock);
-	if (result == TCL_OK) {
-	    Tcl_DStringInit(&script);
-            Tcl_DStringAppend(&script, cbPtr->script, -1);
-            Tcl_DStringAppendElement(&script, interp->result);
-            if (why == NS_SOCK_READ) {
-        	w = "r";
-            } else if (why == NS_SOCK_WRITE) {
-        	w = "w";
-            } else if (why == NS_SOCK_EXCEPTION) {
-        	w = "e";
-            } else {
-        	w = "x";
-            }
-            Tcl_DStringAppendElement(&script, w);
-            result = NsTclEval(interp, script.string);
-	    Tcl_DStringFree(&script);
+	if (cbPtr->chan == NULL) {
+	    /*
+	     * Create and register the channel on first use.  Because
+	     * the Tcl channel code is not entirely thread safe, it's
+	     * not possible for the scheduling thread to create and
+	     * register the channel.
+	     */
+		
+    	    cbPtr->chan = Tcl_MakeTcpClientChannel((ClientData) sock);
+    	    if (cbPtr->chan == NULL) {
+		Ns_Log(Error, "could not make channel for sock: %d", sock);
+		why = NS_SOCK_EXIT;
+		goto fail;
+	    }
+	    Tcl_RegisterChannel(NULL, cbPtr->chan);
+    	    Tcl_SetChannelOption(NULL, cbPtr->chan, "-translation", "binary");
 	}
+	Tcl_RegisterChannel(interp, cbPtr->chan);
+        Tcl_DStringAppend(&script, cbPtr->script, -1);
+        Tcl_DStringAppendElement(&script, Tcl_GetChannelName(cbPtr->chan));
+        if (why == NS_SOCK_READ) {
+            w = "r";
+        } else if (why == NS_SOCK_WRITE) {
+            w = "w";
+        } else if (why == NS_SOCK_EXCEPTION) {
+            w = "e";
+        } else {
+            w = "x";
+        }
+        Tcl_DStringAppendElement(&script, w);
+        result = NsTclEval(interp, script.string);
 	if (result != TCL_OK) {
             Ns_TclLogError(interp);
 	} else if (!STREQ(interp->result, "1")) {
 	    why = NS_SOCK_EXIT;
 	}
 	Ns_TclDeAllocateInterp(interp);
+	Tcl_DStringFree(&script);
     }
     if (why == NS_SOCK_EXIT) {
-    	ns_sockclose(sock);
+fail:
+	if (cbPtr->chan != NULL) {
+	    Tcl_UnregisterChannel(NULL, cbPtr->chan);
+	} else {
+	    ns_sockclose(sock);
+	}
         ns_free(cbPtr);
 	return NS_FALSE;
     }
@@ -1067,18 +1108,18 @@ NsTclSockProc(SOCKET sock, void *arg, int why)
 static int
 SockListenCallback(SOCKET sock, void *arg, int why)
 {
+    ListenCallback *lcbPtr = arg;
     Tcl_Interp  *interp;
     Tcl_DString  script;
-    Callback	*cbPtr = arg;
     char       **sockv;
     int          sockc, result;
 
-    interp = Ns_TclAllocateInterp(cbPtr->server);
+    interp = Ns_TclAllocateInterp(lcbPtr->server);
     result = EnterDupedSocks(interp, sock);
     if (result == TCL_OK) {
 	Tcl_SplitList(interp, interp->result, &sockc, &sockv);
 	Tcl_DStringInit(&script);
-        Tcl_DStringAppend(&script, (char *) arg, -1);
+        Tcl_DStringAppend(&script, lcbPtr->script, -1);
 	Tcl_DStringAppendElement(&script, sockv[0]);
 	Tcl_DStringAppendElement(&script, sockv[1]);
 	ckfree((char *) sockv);
@@ -1089,6 +1130,5 @@ SockListenCallback(SOCKET sock, void *arg, int why)
         Ns_TclLogError(interp);
     }
     Ns_TclDeAllocateInterp(interp);
-
     return NS_TRUE;
 }
