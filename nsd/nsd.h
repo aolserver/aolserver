@@ -496,12 +496,13 @@ typedef struct NsServer {
 
     struct {         
 	char	           *library;
-	struct Init        *firstInitPtr;
+	struct Trace       *traces[4];
 	char	    	   *initfile;
 	Ns_RWLock	    lock;
 	char		   *script;
 	int		    length;
 	int		    epoch;
+	Tcl_Obj		   *modules;
     } tcl;
     
     /*
@@ -703,6 +704,7 @@ extern void NsInitLog(void);
 extern void NsInitMimeTypes(void);
 extern void NsInitModLoad(void);
 extern void NsInitProcInfo(void);
+extern void NsInitQueue(void);
 extern void NsInitSched(void);
 extern void NsInitTcl(void);
 extern void NsInitUrlSpace(void);
@@ -716,6 +718,7 @@ extern Request *NsGetRequest(Sock *sockPtr);
 extern void NsFreeRequest(Request *reqPtr);
 
 extern NsServer *NsGetServer(char *server);
+extern NsServer *NsGetInitServer(void);
 extern NsInterp *NsGetInterp(Tcl_Interp *interp);
 
 extern Ns_OpProc NsFastGet;
@@ -765,7 +768,7 @@ extern void NsHandleSignals(void);
 extern void NsStopDrivers(void);
 extern void NsPreBind(char *bindargs, char *bindfile);
 extern void NsClosePreBound(void);
-extern void NsInitServer(char *server);
+extern void NsInitServer(char *server, Ns_ServerInitProc *initProc);
 extern char *NsConfigRead(char *file);
 extern void NsConfigEval(char *config, int argc, char **argv, int optind);
 extern void NsConfUpdate(void);
