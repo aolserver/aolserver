@@ -1,3 +1,9 @@
+2004-07-19  tag aolserver_v40_r7
+
+2004-07-19  Dossy Shiobara <dossy@panoptic.com>
+
+	* include/ns.h (1.55.2.7, aolserver_v40_r7): BUMP: 4.0.7
+
 2004-07-18  Dossy Shiobara <dossy@panoptic.com>
 
 	* nsd/return.c (1.33.2.6): Fix bug where internal redirect for 401
