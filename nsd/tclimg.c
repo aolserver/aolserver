@@ -33,7 +33,7 @@
  *	Commands for image files.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclimg.c,v 1.10 2003/05/20 20:12:07 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclimg.c,v 1.11 2003/05/28 17:07:46 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -188,11 +188,13 @@ NsTclJpegSizeObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST
     }
 
     chan = Tcl_OpenFileChannel(interp, Tcl_GetString(objv[1]), "r", 0);
-	if (chan == NULL) {
-	    Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "could not open \"",
-		    Tcl_GetString(objv[1]), "\": ", 
-		    Tcl_PosixError(interp), NULL);
-	    return TCL_ERROR;
+    if (chan == NULL) {
+        /* Tcl function will leave error message in interp's result */
+        return TCL_ERROR;
+    }
+    if (Tcl_SetChannelOption(interp, chan, "-translation", "binary") != TCL_OK) {
+        /* Tcl function will leave error message in interp's result */
+        return TCL_ERROR;
     }
     code = JpegSize(chan, &w, &h);
     Tcl_Close(interp, chan);
@@ -215,6 +217,7 @@ static int
 JpegSize(Tcl_Channel chan, int *wPtr, int *hPtr)
 {
     unsigned int i, w, h;
+    Tcl_WideInt  numbytes;
 
     if (ChanGetc(chan) == 0xFF && ChanGetc(chan) == M_SOI) {
 	while (1) {
@@ -232,8 +235,8 @@ JpegSize(Tcl_Channel chan, int *wPtr, int *hPtr)
 		}
 		break;
 	    }
-	    i = JpegRead2Bytes(chan);
-	    if (i < 2 || Tcl_Seek(chan, i - 2, SEEK_CUR) == -1) {
+	    numbytes = JpegRead2Bytes(chan);
+	    if (numbytes < 2 || Tcl_Seek(chan, numbytes - 2, SEEK_CUR) == -1) {
 	    	break;
 	    }
 	}
