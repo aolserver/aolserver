@@ -109,7 +109,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsext/nsext.c,v 1.5 2001/11/05 20:30:38 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsext/nsext.c,v 1.6 2002/02/24 01:31:10 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 #include "nsextmsg.h"
@@ -2490,10 +2490,10 @@ LocalProxy(NsExtConn * nsConn)
     Ns_CloseOnExec(out[0]);
     Ns_CloseOnExec(out[1]);
 
-    if (ns_sockpipe(in) < 0) {
+    if (ns_pipe(in) < 0) {
         Ns_Log(Error, "nsext: failed to create input socket pipes");
     } else {
-        if (ns_sockpipe(out) < 0) {
+        if (ns_pipe(out) < 0) {
 	    close(in[0]);
 	    close(in[1]);
             Ns_Log(Error, "nsext: failed to create output socket pipes");
