@@ -28,7 +28,7 @@
  */
 
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscgi/nscgi.c,v 1.22 2003/03/07 18:08:11 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscgi/nscgi.c,v 1.23 2003/03/11 05:46:04 scottg Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 #include <sys/stat.h>
@@ -163,7 +163,7 @@ Ns_ModuleInit(char *server, char *module)
     int             i;
     Ns_Set         *set;
     Ns_DString      ds;
-    Mod	   *modPtr;
+    Mod		   *modPtr;
     static int	    initialized;
 
     /*
@@ -712,7 +712,7 @@ static int
 CgiExec(Cgi *cgiPtr, Ns_Conn *conn)
 {
     int i, index, opipe[2];
-    char *s, *e, **envp;
+    char *s, *e, *p, **envp;
     Ns_DString *dsPtr;
     Mod *modPtr = cgiPtr->modPtr;
 
@@ -793,13 +793,44 @@ CgiExec(Cgi *cgiPtr, Ns_Conn *conn)
         SetUpdate(cgiPtr->env, "PATH_INFO", "");
     }
     SetUpdate(cgiPtr->env, "GATEWAY_INTERFACE", "CGI/1.1");
-    SetUpdate(cgiPtr->env, "SERVER_NAME", Ns_ConnHost(conn));
     Ns_DStringVarAppend(dsPtr, Ns_InfoServer(), "/", Ns_InfoVersion(), NULL);
     SetUpdate(cgiPtr->env, "SERVER_SOFTWARE", dsPtr->string);
     Ns_DStringTrunc(dsPtr, 0);
     Ns_DStringPrintf(dsPtr, "HTTP/%2.1f", conn->request->version);
     SetUpdate(cgiPtr->env, "SERVER_PROTOCOL", dsPtr->string);
     Ns_DStringTrunc(dsPtr, 0);
+
+    /*
+     * Determine SERVER_NAME from the conn location.
+     */
+
+    s = Ns_ConnLocation(conn);
+    p = NULL;
+    if (s != NULL) {
+        if (strstr(s, "://") == NULL) {
+            Ns_Log(Warning, "nscgi: location does not contain '://'");
+            s = NULL;
+        } else {
+            s = strchr(s, ':');         /* Get past the http */
+            if (s != NULL) {
+                s += 3;                 /* Get past the // */
+                p = strchr(s, ':');     /* Get to the port number */ 
+            }
+        }
+    }
+    if (s == NULL) {
+        s = Ns_ConnHost(conn);
+        SetUpdate(cgiPtr->env, "SERVER_NAME", s);
+    } else {
+        if (p == NULL) {
+            Ns_DStringAppend(dsPtr, s);           /* No port number */
+        } else {
+            Ns_DStringNAppend(dsPtr, s, (p - s)); /* Port number exists */
+        }
+        s = Ns_DStringExport(dsPtr);
+        SetUpdate(cgiPtr->env, "SERVER_NAME", s);
+        ns_free(s);
+    }
 
     /*
      * Determine SERVER_PORT from the conn location.

@@ -1,3 +1,7 @@
+2003-03-10  Scott S. Goodwin  <scott@scottg.net>
+
+	* nscgi/nscgi.c: (bug) SERVER_NAME is now set correctly.
+
 2003-03-10  Mark Page  <mpagenva@aol.com>
 
 	* nsd/sched.c: (bug) Fix problem with shutting down event threads
