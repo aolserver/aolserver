@@ -28,7 +28,7 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/init.tcl,v 1.18 2003/03/07 18:08:27 vasiljevic Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/init.tcl,v 1.19 2003/04/10 14:37:03 mpagenva Exp $
 #
 
 #
@@ -452,6 +452,7 @@ proc _ns_getscript n {
             }
         }
 
+
         #
         # Cover commands exported from this namespace
         #
@@ -467,8 +468,50 @@ proc _ns_getscript n {
 
 
 #
+# _ns_tclrename -
+#
+#   Wrapper function to augment the standard Tcl rename
+#   command for use by Tcl libraries run from this init module.
+#   Because the _ns_savenamespaces function captures only
+#   definitions of Tcl defined entities such as 'procs', vars,
+#   and namespaces into the ns_ictl Interp Init
+#   script, any renaming of non-procs, e.g., core Tcl
+#   commands or C-based commands, that are specified from
+#   the sourcing of the Tcl libraries do not get captured into
+#   the Init script.
+#   This rename Wrapper function remedies that, by recording
+#   rename actions against non-procs as 'ns_ictl oninit' actions
+#   which are executed as part of interp initialization.
+#   This Wrapper function is designed to be put into place
+#   prior to sourcing the Tcl libraries, and is to be removed
+#   once the library sourcing is completed.  It assumes that
+#   the native Tcl rename is accessed as '_rename', as established
+#   by the sequence:
+#     rename rename _rename
+#     _rename _ns_tclrename rename
+#   
+#
+
+proc _ns_tclrename { oldName newName } {
+    set is_proc [info procs $oldName]
+    if {[catch {_rename $oldName $newName} err]} {
+	return -code error -errorinfo $err
+    } else {
+	if {$is_proc == ""} {
+	    ns_ictl oninit "rename $oldName $newName"
+	}
+    }
+}
+
+#
 # Source the top level Tcl libraries.
 #
+
+#
+# Temporarily intercept renames.
+#
+rename rename _rename
+_rename _ns_tclrename rename
 
 _ns_sourcefiles [ns_library shared] [ns_library private]
 
@@ -479,6 +522,12 @@ _ns_sourcefiles [ns_library shared] [ns_library private]
 foreach module [ns_ictl getmodules] {
     _ns_sourcemodule $module
 }
+
+#
+# Revert to the standard rename defn
+#
+_rename rename _ns_tclrename
+_rename _rename rename
 
 #
 # Save the current namespaces.
