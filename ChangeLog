@@ -1,3 +1,8 @@
+2003-10-14  Paul Moosman <pwmoosman@aol.com>
+
+	* nsd/tcljob.c: Fix to ns_job, where it was attempting to access
+        a deleted queue.
+
 2003-10-09  Mark Page  <mpagenva@aol.com>
 
         * TAG aolserver_v4_r0_beta_18
