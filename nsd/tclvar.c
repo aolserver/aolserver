@@ -35,7 +35,7 @@
 
 #include "nsd.h"
 
-static char rcsid[] = "$Id: tclvar.c,v 1.6 2001/03/12 22:06:14 jgdavidson Exp $";
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclvar.c,v 1.7 2001/04/25 00:26:09 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 /*
  * The following structure maintains the context for each variable

@@ -8,7 +8,7 @@
  *
  */
 
-static char rcsid[] = "$Id: tclxkeylist.c,v 1.2 2000/10/12 17:25:11 jgdavidson Exp $";
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclxkeylist.c,v 1.3 2001/04/25 00:26:09 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -26,7 +26,7 @@ static char rcsid[] = "$Id: tclxkeylist.c,v 1.2 2000/10/12 17:25:11 jgdavidson E
  * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  * ---------------------------------------------------------------------------
- * -- $Id: tclxkeylist.c,v 1.2 2000/10/12 17:25:11 jgdavidson Exp $
+ * -- $Id: tclxkeylist.c,v 1.3 2001/04/25 00:26:09 jgdavidson Exp $
  * ---------------------------------------------------------------------------
  * --
  * 
