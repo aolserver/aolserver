@@ -57,7 +57,7 @@
  * ns_param   "ParserName" "utf8"
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/adp.c,v 1.5 2000/08/17 06:09:49 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/adp.c,v 1.6 2000/08/18 00:09:24 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -557,7 +557,7 @@ NsTclAdpEvalCmd(ClientData dummy, Tcl_Interp *interp, int argc,
     
     /*
      * Increment the inline eval level to ensure flushing is disabled,
-     * push a frame, execute the code, and then more any result to the
+     * push a frame, execute the code, and then move any result to the
      * interp from the output buffer.
      */
      
@@ -801,11 +801,11 @@ NsTclIncludeCmd(ClientData parse, Tcl_Interp *interp, int argc,
         } else {
             status = NsAdpRunPrivate(interp, file.string, pagePtr);
         }
-    	if (parse && status == TCL_OK &&
-	    adPtr->output.length > frame.length) {
-	    
-	    Tcl_SetResult(interp, adPtr->output.string + frame.length,
-		TCL_VOLATILE);
+    	if (parse && adPtr->output.length > frame.length) {
+	    if (status == TCL_OK) {
+	    	Tcl_SetResult(interp, adPtr->output.string + frame.length,
+		    TCL_VOLATILE);
+	    }
 	    Ns_DStringTrunc(&adPtr->output, frame.length);
 	}
     	PopFrame(&frame);
