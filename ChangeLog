@@ -2,6 +2,8 @@
 
 	* nsd/tclxkeylist.c: fixed improper handling of objects
 	returned by reference in Tcl_GetKeyedListField wrapper.
+	Also, fixed typo in the ckstrdup macro.
+        Also, using correct size_t types in various places.
 
 2004-06-23  Rob Crittenden <rcrittenden0569@aol.com>
 

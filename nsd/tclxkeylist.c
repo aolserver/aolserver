@@ -8,7 +8,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclxkeylist.c,v 1.8 2004/06/23 21:22:15 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclxkeylist.c,v 1.9 2004/06/24 08:23:52 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -26,7 +26,7 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
  * software for any purpose.  It is provided "as is" without express or
  * implied warranty.
  *-----------------------------------------------------------------------------
- * $Id: tclxkeylist.c,v 1.8 2004/06/23 21:22:15 vasiljevic Exp $
+ * $Id: tclxkeylist.c,v 1.9 2004/06/24 08:23:52 vasiljevic Exp $
  *-----------------------------------------------------------------------------
  */
 
@@ -58,11 +58,12 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
  * Macro that behaves like strdup, only uses ckalloc.  Also macro that does the
  * same with a string that might contain zero bytes,
  */
+
 #define ckstrdup(a) \
-    (char*)strcpy(ckalloc(strlen((a)+1)), (a))
+  (strcpy(ckalloc((size_t)(strlen((a))+1)),(a)))
 
 #define ckbinstrdup(a,b) \
-    (char*)memcpy(ckalloc((unsigned int)((b)+1)),(a),(unsigned int)((b)+1))
+  ((char*)memcpy(ckalloc((size_t)((b)+1)),(a),(size_t)((b)+1)))
 
 /*
  * Used to return argument messages by most commands.
@@ -248,7 +249,7 @@ Tcl_GetKeyedListKeys(interp, subFieldName, keyedList, keyesArgcPtr,keyesArgvPtr)
         }
     } else if (status == TCL_OK) {
         if (keyesArgcPtr && keyesArgvPtr) {
-            unsigned int keySize = 0, totalKeySize = 0;
+            size_t keySize = 0, totalKeySize = 0;
             int ii, keyCount;
             char **keyArgv, *keyPtr, *nextByte;
             Tcl_Obj **objValues;
@@ -325,13 +326,12 @@ Tcl_GetKeyedListField(interp, fieldName, keyedList, fieldValuePtr)
         }
     } else if (status == TCL_OK) {
         if (fieldValuePtr) {
-            unsigned int valueLen;
+            size_t valueLen;
             char *keyValue = Tcl_GetStringFromObj(objValPtr, &valueLen);
             char *newValue = strncpy(ckalloc(valueLen + 1), keyValue, valueLen);
             newValue[valueLen] = 0;
             *fieldValuePtr = newValue;
         }
-        /* Tcl_DecrRefCount(objValPtr); -> TclX_KeyedListGet has obj issues? */
     }
 
     Tcl_DecrRefCount(keylistPtr);
@@ -368,7 +368,7 @@ Tcl_SetKeyedListField(interp, fieldName, fieldValue, keyedList)
 
     char *listStr, *newList;
     int status;
-    unsigned int listLen;
+    size_t listLen;
 
     Tcl_IncrRefCount(keylistPtr);
     Tcl_IncrRefCount(valuePtr);
@@ -417,7 +417,7 @@ Tcl_DeleteKeyedListField(interp, fieldName, keyedList)
 
     char *listStr, *newList;
     int status;
-    unsigned int listLen;
+    size_t listLen;
 
     Tcl_IncrRefCount(keylistPtr);
     status = TclX_KeyedListDelete(interp, keylistPtr, keylistKey);
@@ -810,7 +810,7 @@ FindKeyedListEntry (keylIntPtr, key, keyLenPtr, nextSubKeyPtr)
 
     for (findIdx = 0; findIdx < keylIntPtr->numEntries; findIdx++) {
         if ((strncmp (keylIntPtr->entries [findIdx].key, key, 
-                      (unsigned int)keyLen) == 0) &&
+                      (size_t)keyLen) == 0) &&
             (keylIntPtr->entries [findIdx].key [keyLen] == '\0'))
             break;
     }
@@ -1169,8 +1169,8 @@ TclX_KeyedListSet (interp, keylPtr, key, valuePtr)
             Tcl_DecrRefCount (keylIntPtr->entries [findIdx].valuePtr);
         }
         keylIntPtr->entries [findIdx].key =
-            (char *) ckalloc ((unsigned int)(keyLen + 1));
-        strncpy (keylIntPtr->entries [findIdx].key, key, (unsigned int)keyLen);
+            (char *) ckalloc ((size_t)(keyLen + 1));
+        strncpy (keylIntPtr->entries [findIdx].key, key, (size_t)keyLen);
         keylIntPtr->entries [findIdx].key [keyLen] = '\0';
         keylIntPtr->entries [findIdx].valuePtr = valuePtr;
         Tcl_IncrRefCount (valuePtr);
@@ -1208,8 +1208,8 @@ TclX_KeyedListSet (interp, keylPtr, key, valuePtr)
         EnsureKeyedListSpace (keylIntPtr, 1);
         findIdx = keylIntPtr->numEntries++;
         keylIntPtr->entries [findIdx].key =
-            (char *) ckalloc ((unsigned int)(keyLen + 1));
-        strncpy (keylIntPtr->entries [findIdx].key, key, (unsigned int)keyLen);
+            (char *) ckalloc ((size_t)(keyLen + 1));
+        strncpy (keylIntPtr->entries [findIdx].key, key, (size_t)keyLen);
         keylIntPtr->entries [findIdx].key [keyLen] = '\0';
         keylIntPtr->entries [findIdx].valuePtr = newKeylPtr;
         Tcl_IncrRefCount (newKeylPtr);
@@ -1665,5 +1665,4 @@ TclX_KeyedListInit (interp)
                           (ClientData) NULL,
 			  (Tcl_CmdDeleteProc*) NULL);
 }
-
 
