@@ -33,7 +33,7 @@
  *      All the public types and function declarations for the core
  *	AOLserver.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.45 2003/01/31 22:47:31 mpagenva Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.46 2003/02/04 22:59:50 jrasmuss23 Exp $
  */
 
 #ifndef NS_H
@@ -45,6 +45,15 @@
 #define NS_PATCH_LEVEL     "4.0"
 
 #include "nsthread.h"
+
+#ifdef NSD_EXPORTS
+#undef NS_EXTERN
+#ifdef __cplusplus
+#define NS_EXTERN		extern "C" NS_EXPORT
+#else
+#define NS_EXTERN		extern NS_EXPORT
+#endif
+#endif
 
 /*
  * Various constants.
@@ -95,6 +104,10 @@ typedef long                    ns_int64;
 typedef unsigned long           ns_uint64;
 typedef long INT64;
 #define NS_INT_64_FORMAT_STRING "%ld"
+#elif defined(_WIN32)
+typedef __int64                 ns_int64;
+typedef unsigned __int64        ns_uint64;
+#define NS_INT_64_FORMAT_STRING "%I64d"
 #else
 typedef long long 		ns_int64;
 typedef unsigned long long      ns_uint64;
@@ -134,6 +147,44 @@ typedef ns_int64 INT64;
 #define NS_DSTRING_PRINTF_MAX	  2048
 
 #define NS_CACHE_FREE		((Ns_Callback *) (-1))
+
+#ifdef _WIN32
+NS_EXTERN char *		NsWin32ErrMsg(int err);
+NS_EXTERN SOCKET		ns_sockdup(SOCKET sock);
+NS_EXTERN int			ns_socknbclose(SOCKET sock);
+NS_EXTERN int			truncate(char *file, off_t size);
+NS_EXTERN int			link(char *from, char *to);
+NS_EXTERN int			symlink(char *from, char *to);
+NS_EXTERN int			kill(int pid, int sig);
+#define ns_sockclose		closesocket
+#define ns_sockioctl		ioctlsocket
+#define ns_sockerrno		GetLastError()
+#define ns_sockstrerror		NsWin32ErrMsg
+#define strcasecmp		_stricmp
+#define strncasecmp		_strnicmp
+#define vsnprintf		_vsnprintf
+#define mkdir(d,m)		_mkdir((d))
+#define ftruncate(f,s)		chsize((f),(s))
+#define EINPROGRESS		WSAEINPROGRESS
+#define EWOULDBLOCK		WSAEWOULDBLOCK
+#define F_OK			0
+#define W_OK			2
+#define R_OK			4
+#define X_OK			R_OK
+#else
+#define O_TEXT			0
+#define O_BINARY		0
+#define SOCKET                  int
+#define INVALID_SOCKET	        (-1)
+#define SOCKET_ERROR	        (-1)
+#define NS_EXPORT
+#define ns_sockclose		close
+#define ns_socknbclose		close
+#define ns_sockioctl		ioctl
+#define ns_sockerrno		errno
+#define ns_sockstrerror		strerror
+#define ns_sockdup		dup
+#endif
 
 /*
  * C API macros.
@@ -204,7 +255,7 @@ typedef void  (Ns_Callback) (void *arg);
 typedef int   (Ns_TclInterpInitProc) (Tcl_Interp *interp, void *arg);
 typedef int   (Ns_TclTraceProc) (Tcl_Interp *interp, void *arg);
 typedef void  (Ns_TclDeferProc) (Tcl_Interp *interp, void *arg);
-typedef int   (Ns_SockProc) (int sock, void *arg, int why);
+typedef int   (Ns_SockProc) (SOCKET sock, void *arg, int why);
 typedef void  (Ns_SchedProc) (void *arg, int id);
 typedef int   (Ns_ServerInitProc) (char *server);
 typedef int   (Ns_ModuleInitProc) (char *server, char *module);
@@ -288,6 +339,18 @@ typedef struct Ns_List {
 } Ns_List;
 
 /*
+ * The following structure defines an I/O
+ * scatter/gather buffer for WIN32.
+ */
+
+#ifdef _WIN32
+struct iovec {
+    u_long      iov_len;     /* the length of the buffer */
+    char FAR *  iov_base;    /* the pointer to the buffer */
+};
+#endif
+
+/*
  * The following structure defines a driver.
  */
 
@@ -312,7 +375,7 @@ typedef struct Ns_Driver {
 
 typedef struct Ns_Sock {
     Ns_Driver *driver;
-    int sock;
+    SOCKET sock;
     void  *arg;
 } Ns_Sock;
 
@@ -922,27 +985,27 @@ NS_EXTERN void Ns_SetPrint(Ns_Set *set);
  * sock.c:
  */
 
-NS_EXTERN int Ns_SockRecv(int sock, void *vbuf, int nrecv, int timeout);
-NS_EXTERN int Ns_SockSend(int sock, void *vbuf, int nsend, int timeout);
-NS_EXTERN int Ns_SockWait(int sock, int what, int timeout);
+NS_EXTERN int Ns_SockRecv(SOCKET sock, void *vbuf, int nrecv, int timeout);
+NS_EXTERN int Ns_SockSend(SOCKET sock, void *vbuf, int nsend, int timeout);
+NS_EXTERN int Ns_SockWait(SOCKET sock, int what, int timeout);
 
-NS_EXTERN int Ns_BindSock(struct sockaddr_in *psa);
-NS_EXTERN int Ns_SockBind(struct sockaddr_in *psa);
-NS_EXTERN int Ns_SockListen(char *address, int port);
-NS_EXTERN int Ns_SockListenEx(char *address, int port, int backlog);
-NS_EXTERN int Ns_SockAccept(int sock, struct sockaddr *psa, int *lenPtr);
+NS_EXTERN SOCKET Ns_BindSock(struct sockaddr_in *psa);
+NS_EXTERN SOCKET Ns_SockBind(struct sockaddr_in *psa);
+NS_EXTERN SOCKET Ns_SockListen(char *address, int port);
+NS_EXTERN SOCKET Ns_SockListenEx(char *address, int port, int backlog);
+NS_EXTERN SOCKET Ns_SockAccept(SOCKET sock, struct sockaddr *psa, int *lenPtr);
 
-NS_EXTERN int Ns_SockConnect(char *host, int port);
-NS_EXTERN int Ns_SockConnect2(char *host, int port, char *lhost, int lport);
-NS_EXTERN int Ns_SockAsyncConnect(char *host, int port);
-NS_EXTERN int Ns_SockAsyncConnect2(char *host, int port, char *lhost, int lport);
-NS_EXTERN int Ns_SockTimedConnect(char *host, int port, int timeout);
-NS_EXTERN int Ns_SockTimedConnect2(char *host, int port, char *lhost, int lport, int timeout);
+NS_EXTERN SOCKET Ns_SockConnect(char *host, int port);
+NS_EXTERN SOCKET Ns_SockConnect2(char *host, int port, char *lhost, int lport);
+NS_EXTERN SOCKET Ns_SockAsyncConnect(char *host, int port);
+NS_EXTERN SOCKET Ns_SockAsyncConnect2(char *host, int port, char *lhost, int lport);
+NS_EXTERN SOCKET Ns_SockTimedConnect(char *host, int port, int timeout);
+NS_EXTERN SOCKET Ns_SockTimedConnect2(char *host, int port, char *lhost, int lport, int timeout);
 
-NS_EXTERN int Ns_SockSetNonBlocking(int sock);
-NS_EXTERN int Ns_SockSetBlocking(int sock);
+NS_EXTERN int Ns_SockSetNonBlocking(SOCKET sock);
+NS_EXTERN int Ns_SockSetBlocking(SOCKET sock);
 NS_EXTERN int Ns_GetSockAddr(struct sockaddr_in *psa, char *host, int port);
-NS_EXTERN int Ns_SockCloseLater(int sock);
+NS_EXTERN int Ns_SockCloseLater(SOCKET sock);
 
 NS_EXTERN char *Ns_SockError(void);
 NS_EXTERN int   Ns_SockErrno(void);
@@ -955,8 +1018,8 @@ NS_EXTERN char *Ns_SockStrError(int err);
  * sockcallback.c:
  */
 
-NS_EXTERN int Ns_SockCallback(int sock, Ns_SockProc *proc, void *arg, int when);
-NS_EXTERN void Ns_SockCancelCallback(int sock);
+NS_EXTERN int Ns_SockCallback(SOCKET sock, Ns_SockProc *proc, void *arg, int when);
+NS_EXTERN void Ns_SockCancelCallback(SOCKET sock);
 
 /*
  * str.c:
@@ -1100,7 +1163,7 @@ NS_EXTERN void Ns_ReleaseTemp(int fd);
  * unix.c, win32.c:
  */
 
-NS_EXTERN int ns_sockpair(int *socks);
+NS_EXTERN int ns_sockpair(SOCKET *socks);
 NS_EXTERN int ns_pipe(int *fds);
 NS_EXTERN int Ns_GetUserHome(Ns_DString *pds, char *user);
 NS_EXTERN int Ns_GetGid(char *group);
@@ -1113,17 +1176,7 @@ NS_EXTERN int Ns_GetUid(char *user);
  */
 
 #ifndef NS_NOCOMPAT
-#define O_TEXT			0
-#define O_BINARY		0
-#define SOCKET			int
-#define INVALID_SOCKET		(-1)
-#define SOCKET_ERROR		(-1)
-#define NS_EXPORT		
-#define DllExport		
-#define ns_sockerrno		errno
-#define ns_sockstrerror		strerror
-#define ns_sockclose		close
-#define ns_socknbclose		close
+#define DllExport           NS_EXPORT
 #define Ns_Select	        select
 #define Ns_InfoHome()		Ns_InfoHomePath()
 #define Ns_InfoServer()		Ns_InfoServerName()
