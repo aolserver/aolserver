@@ -1,6 +1,12 @@
+2003-08-19  Nathan Folkman <shmooved@aol.com>
+
+        * nsd/return.c: Updated to include status code from: 
+        RFC 2616 (Hypertext Transfer Protocol -- HTTP/1.1) and
+        RFC 2518 (HTTP Extensions for Distributed Authoring -- WEBDAV).
+
 2003-08-12  Elizabeth Thomas <eathomas93@aol.com>
 
-	* nsd/adprequest.c: Don't log ns_adp_abort or ns_adp_break as errors
+	* nsd/adprequest.c: Don't log ns_adp_abort or ns_adp_break as errors.
 
 2003-08-08  Elizabeth Thomas <eathomas93@aol.com>
 
