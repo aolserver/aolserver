@@ -295,7 +295,7 @@ LIBTCL8X=$(NSHOME)/$(TCL8X_DIR)/unix/$(TCL8X_LIB)
 #
 all:
 
-libnspd: $(NSHOME)/nspd/libnspd.a
+libnspd:
 	(cd $(NSHOME)/nspd && $(MAKE) all)
 
 libtcl76:
@@ -310,7 +310,7 @@ libtcl8x:
 libtcl8x-clean:
 	(cd $(NSHOME)/$(TCL8X_DIR) && $(MAKE) clean)
 
-libnsthread: $(NSHOME)/thread/libnsthread.a
+libnsthread:
 	(cd $(NSHOME)/thread && $(MAKE) all)
 
 libnsthread-clean:
