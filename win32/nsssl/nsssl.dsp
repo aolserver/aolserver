@@ -115,18 +115,6 @@ SOURCE=..\..\nsssl\x509.c
 # Begin Group "Header Files"
 
 # PROP Default_Filter "h;hpp;hxx;hm;inl"
-# Begin Source File
-
-SOURCE=..\..\nssock\ssl.h
-# End Source File
-# Begin Source File
-
-SOURCE=..\..\nssock\ssltcl.h
-# End Source File
-# Begin Source File
-
-SOURCE=..\..\nssock\x509.h
-# End Source File
 # End Group
 # Begin Group "Resource Files"
 
