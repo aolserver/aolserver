@@ -34,7 +34,7 @@
  *	Routines for Tcl proc and ADP registered requests.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclrequest.c,v 1.8 2003/01/18 19:24:20 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclrequest.c,v 1.9 2004/08/28 01:08:00 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -61,7 +61,6 @@ static Ns_FilterProc ProcFilter;
 static Proc *NewProc(char *name, char *args);
 static Ns_Callback FreeProc;
 static void AppendConnId(Tcl_DString *dsPtr, Ns_Conn *conn);
-static int RegisterFilter(NsInterp *itPtr, int when, char **argv);
 static void RegisterFilterObj(NsInterp *itPtr, int when, int objc,
 			      Tcl_Obj *CONST objv[]);
 static int GetNumArgs(Tcl_Interp *interp, Proc *procPtr);
@@ -251,33 +250,48 @@ NsTclRegisterFilterObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj 
     int       lobjc;
     Tcl_Obj **lobjv;
     int       when, i;
-    char     *str;
+    static CONST char *wopt[] = {
+        "prequeue", "preauth", "postauth", "trace", NULL
+    };
+    enum {
+        PQIdx, PRIdx, POIdx, TRIdx,
+    } widx;
 
+    if (objc < 2) {
+        Tcl_WrongNumArgs(interp, 1, objv, "option ?args?");
+        return TCL_ERROR;
+    }
     if (objc != 5 && objc != 6) {
-        Tcl_WrongNumArgs(interp, 1, objv, "when method urlPattern script ?arg?");
+        Tcl_WrongNumArgs(interp, 1, objv, "when method url script ?arg?");
         return TCL_ERROR;
     }
     if (Tcl_ListObjGetElements(interp, objv[1], &lobjc, &lobjv) != TCL_OK) {
 	return TCL_ERROR;
     }
-    if (lobjc == 0) {
-	Tcl_SetResult(interp, "blank filter when specification", TCL_STATIC);
-	return TCL_ERROR;
-    }
     when = 0;
     for (i = 0; i < lobjc; ++i) {
-	str = Tcl_GetString(lobjv[i]);
-        if (STREQ(str, "preauth")) {
+    	if (Tcl_GetIndexFromObj(interp, lobjv[i], wopt, "when", 1,
+                (int *) &widx) != TCL_OK) {
+            return TCL_ERROR;
+    	}
+	switch (widx) {
+	case PQIdx:
+            when |= NS_FILTER_PRE_QUEUE;
+	    break;
+	case PRIdx:
             when |= NS_FILTER_PRE_AUTH;
-        } else if (STREQ(str, "postauth")) {
-	    when |= NS_FILTER_POST_AUTH;
-        } else if (STREQ(str, "trace")) {
+	    break;
+	case POIdx:
+            when |= NS_FILTER_POST_AUTH;
+	    break;
+	case TRIdx:
             when |= NS_FILTER_TRACE;
-        } else {
-	    Tcl_AppendResult(interp, "unknown when \"", str,
-		"\": should be preauth, postauth, or trace", NULL);
-	    return TCL_ERROR;
-        }
+	    break;
+	}
+    }
+    if (when == 0) {
+	Tcl_SetResult(interp, "blank filter when specification", TCL_STATIC);
+	return TCL_ERROR;
     }
     RegisterFilterObj(itPtr, when, objc - 2, objv + 2);
     return TCL_OK;
@@ -533,38 +547,6 @@ GetNumArgs(Tcl_Interp *interp, Proc *procPtr)
 	Tcl_DStringFree(&ds);
     }
     return procPtr->nargs;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * RegisterFilter --
- *
- *	Register a Tcl filter. 
- *
- * Results:
- *	TCL_OK. 
- *
- * Side effects:
- *	Will allocate memory for TclContext as well as strdup all the 
- *	arguments. 
- *
- *----------------------------------------------------------------------
- */
-
-static int
-RegisterFilter(NsInterp *itPtr, int when, char **argv)
-{
-    Proc	    *procPtr;
-    char	    *server, *method, *url;
-
-    server = itPtr->servPtr->server;
-    method = argv[0];
-    url = argv[1];
-    procPtr = NewProc(argv[2], argv[3]);
-    Ns_RegisterFilter(server, method, url, ProcFilter, when, procPtr);
-    return TCL_OK;
 }
 
 
