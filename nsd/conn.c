@@ -34,7 +34,7 @@
  *      Manage the Ns_Conn structure
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.8 2001/03/12 22:06:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.9 2001/03/13 22:41:34 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #define IOBUFSZ 2048
@@ -1441,7 +1441,7 @@ badconn:
             Tcl_SetResult(interp, itPtr->nsconn.hdrs, TCL_STATIC);
 	} else {
             Ns_TclEnterSet(interp, connPtr->headers, NS_TCL_SET_STATIC);
-	    strcpy(interp->result, itPtr->nsconn.hdrs);
+	    strcpy(itPtr->nsconn.hdrs, interp->result);
 	    itPtr->nsconn.flags |= CONN_TCLHDRS;
 	}
 
@@ -1450,7 +1450,7 @@ badconn:
             Tcl_SetResult(interp, itPtr->nsconn.outhdrs, TCL_STATIC);
 	} else {
             Ns_TclEnterSet(interp, connPtr->outputheaders, NS_TCL_SET_STATIC);
-	    strcpy(interp->result, itPtr->nsconn.outhdrs);
+	    strcpy(itPtr->nsconn.outhdrs, interp->result);
 	    itPtr->nsconn.flags |= CONN_TCLOUTHDRS;
 	}
 
