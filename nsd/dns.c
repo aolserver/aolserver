@@ -34,7 +34,7 @@
  *      DNS lookup routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/dns.c,v 1.10 2004/08/14 16:43:05 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/dns.c,v 1.11 2004/09/24 13:57:47 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -327,6 +327,7 @@ GetAddr(Ns_DString *dsPtr, char *host)
     } else {
         Ns_DStringAppend(dsPtr, ns_inet_ntoa(
                     ((struct sockaddr_in *) res->ai_addr)->sin_addr));
+        freeaddrinfo(res);
         status = NS_TRUE;
     }
     return status;
