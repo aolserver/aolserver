@@ -1,5 +1,8 @@
 2001-03-14  Kris Rehberg  <kriston@aol.com>
 
+	* nsd/nsmain.c, nsconf.h: non-quiet startup is now the default.
+	The -q option turns the annoying, noisy startup back on.
+
 	* include/Makefile.global: Makefile.global wasn't working on
 	OpenBSD 2.8.  Got rid of -E and changed libtcl8.3g.a to
 	libtcl83g.a for all BSD platforms.  Many thanks to John Borwick

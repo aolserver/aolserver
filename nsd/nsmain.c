@@ -33,7 +33,7 @@
  *	AOLserver Ns_Main() startup routine.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.22.2.1 2001/03/14 19:48:35 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.22.2.2 2001/03/14 22:38:15 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #include "nsconf.h"
@@ -194,7 +194,7 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 	    UsageError(NULL);
 	    break;
 	case 'q':
-	    nsconf.quiet = NS_TRUE;
+	    nsconf.quiet = NS_FALSE;
 	    break;
 	case 'f':
 	case 'i':
@@ -1369,7 +1369,7 @@ UsageError(char *msg)
 	    "  -i  inittab mode\n"
 	    "  -f  foreground mode\n"
 	    "  -z  zippy memory allocator\n"
-	    "  -q  quieter startup\n"
+	    "  -q  non-quiet startup\n"
 #ifdef WIN32
 	    "  -I  Install win32 service\n"
 	    "  -R  Remove win32 service\n"
