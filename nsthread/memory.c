@@ -33,7 +33,7 @@
  *	Memory allocation routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/memory.c,v 1.1 2002/06/10 22:30:23 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/memory.c,v 1.2 2002/10/03 22:27:40 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "thread.h"
 
@@ -43,11 +43,10 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nst
  *
  * ns_realloc, ns_malloc, ns_calloc, ns_free, ns_strdup, ns_strcopy --
  *
- *	Memory allocation wrappers which either call the platform
- *	versions or the fast pool allocator for a per-thread pool.
+ *	Memory allocation wrappers which call Tcl routines.
  *
  * Results:
- *	As with system functions.
+ *	See Tcl ckalloc, ckfree, and ckrealloc.
  *
  * Side effects:
  *	None.
@@ -58,20 +57,20 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nst
 void *
 ns_realloc(void *ptr, size_t size)
 {
-    return (ptr ? Tcl_Realloc(ptr, size) : Tcl_Alloc(size));
+    return (ptr ? ckrealloc(ptr, size) : ckalloc(size));
 }
 
 void *
 ns_malloc(size_t size)
 {
-    return Tcl_Alloc(size);
+    return ckalloc(size);
 }
 
 void
 ns_free(void *ptr)
 {
     if (ptr != NULL) {
-	Tcl_Free(ptr);
+	ckfree(ptr);
     }
 }
 
