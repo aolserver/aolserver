@@ -35,7 +35,7 @@
  *  	routines (previously known as "op procs").
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/op.c,v 1.8 2001/04/23 21:10:26 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/op.c,v 1.9 2001/12/18 22:32:17 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -45,8 +45,9 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
  */
 
 typedef struct {
-    Ns_OpProc      *procPtr;
-    Ns_Callback    *deleteProcPtr;
+    int		    refcnt;
+    Ns_OpProc      *proc;
+    Ns_Callback    *delete;
     void           *arg;
     unsigned int    flags;
 } Req;
@@ -61,6 +62,7 @@ static void FreeReq(void *arg);
  * Static variables defined in this file.
  */
 
+static Ns_Mutex	      lock;
 static int            reqId = -1;
 
 
@@ -83,21 +85,24 @@ static int            reqId = -1;
  */
 
 void
-Ns_RegisterRequest(char *server, char *method, char *url, Ns_OpProc *procPtr,
-    Ns_Callback *deleteProcPtr, void *arg, int flags)
+Ns_RegisterRequest(char *server, char *method, char *url, Ns_OpProc *proc,
+    Ns_Callback *delete, void *arg, int flags)
 {
     Req *reqPtr;
 
     reqPtr = ns_malloc(sizeof(Req));
-    reqPtr->procPtr = procPtr;
-    reqPtr->deleteProcPtr = deleteProcPtr;
+    reqPtr->proc = proc;
+    reqPtr->delete = delete;
     reqPtr->arg = arg;
     reqPtr->flags = flags;
+    reqPtr->refcnt = 1;
+    Ns_MutexLock(&lock);
     if (reqId < 0) {
-	/* NB: Save via single thread init. */
 	reqId = Ns_UrlSpecificAlloc();
+	Ns_MutexSetName(&lock, "ns:request");
     }
     Ns_UrlSpecificSet(server, method, url, reqId, reqPtr, flags, FreeReq);
+    Ns_MutexUnlock(&lock);
 }
 
 
@@ -119,23 +124,25 @@ Ns_RegisterRequest(char *server, char *method, char *url, Ns_OpProc *procPtr,
  */
 
 void
-Ns_GetRequest(char *server, char *method, char *url, Ns_OpProc **procPtrPtr,
-    Ns_Callback **deleteProcPtrPtr, void **argPtr, int *flagsPtr)
+Ns_GetRequest(char *server, char *method, char *url, Ns_OpProc **procPtr,
+    Ns_Callback **deletePtr, void **argPtr, int *flagsPtr)
 {
     Req *reqPtr;
 
+    Ns_MutexLock(&lock);
     reqPtr = (Req *) Ns_UrlSpecificGet(server, method, url, reqId);
     if (reqPtr != NULL) {
-        *procPtrPtr = reqPtr->procPtr;
-        *deleteProcPtrPtr = reqPtr->deleteProcPtr;
+        *procPtr = reqPtr->proc;
+        *deletePtr = reqPtr->delete;
         *argPtr = reqPtr->arg;
         *flagsPtr = reqPtr->flags;
     } else {
-	*procPtrPtr = NULL;
-	*deleteProcPtrPtr = NULL;
+	*procPtr = NULL;
+	*deletePtr = NULL;
 	*argPtr = NULL;
 	*flagsPtr = 0;
     }
+    Ns_MutexUnlock(&lock);
 }
 
 
@@ -159,8 +166,10 @@ Ns_GetRequest(char *server, char *method, char *url, Ns_OpProc **procPtrPtr,
 void
 Ns_UnRegisterRequest(char *server, char *method, char *url, int inherit)
 {
+    Ns_MutexLock(&lock);
     Ns_UrlSpecificDestroy(server, method, url, reqId,
     	inherit ? 0 : NS_OP_NOINHERIT);
+    Ns_MutexUnlock(&lock);
 }
 
 
@@ -188,13 +197,19 @@ Ns_ConnRunRequest(Ns_Conn *conn)
     int  status;
     char *server = Ns_ConnServer(conn);
 
+    Ns_MutexLock(&lock);
     reqPtr = (Req *) Ns_UrlSpecificGet(server, conn->request->method,
     	    	    	    	       conn->request->url, reqId);
     if (reqPtr == NULL) {
 	status = Ns_ConnReturnNotFound(conn);
     } else {
-    	status = (*reqPtr->procPtr) (reqPtr->arg, conn);
+	++reqPtr->refcnt;
+	Ns_MutexUnlock(&lock);
+    	status = (*reqPtr->proc) (reqPtr->arg, conn);
+	Ns_MutexLock(&lock);
+	FreeReq(reqPtr);
     }
+    Ns_MutexUnlock(&lock);
     return status;
 }
 
@@ -276,7 +291,7 @@ Ns_ConnRedirect(Ns_Conn *conn, char *url)
 
 void
 Ns_RegisterProxyRequest(char *server, char *method, char *protocol,
-    Ns_OpProc *procPtr, Ns_Callback *deleteProcPtr, void *arg)
+    Ns_OpProc *proc, Ns_Callback *delete, void *arg)
 {
     NsServer   *servPtr = NsGetServer(server);
     Req *reqPtr;
@@ -292,8 +307,9 @@ Ns_RegisterProxyRequest(char *server, char *method, char *protocol,
 	FreeReq(reqPtr);
     }
     reqPtr = (Req *) ns_malloc(sizeof(Req));
-    reqPtr->procPtr = procPtr;
-    reqPtr->deleteProcPtr = deleteProcPtr;
+    reqPtr->refcnt = 1;
+    reqPtr->proc = proc;
+    reqPtr->delete = delete;
     reqPtr->arg = arg;
     reqPtr->flags = 0;
     Tcl_SetHashValue(hPtr, reqPtr);
@@ -372,7 +388,7 @@ NsConnRunProxyRequest(Ns_Conn *conn)
     hPtr = Tcl_FindHashEntry(&servPtr->request.proxy, ds.string);
     if (hPtr != NULL) {
 	reqPtr = (Req *) Tcl_GetHashValue(hPtr);
-	status = (*reqPtr->procPtr) (reqPtr->arg, conn);
+	status = (*reqPtr->proc) (reqPtr->arg, conn);
     } else {
 	status = Ns_ConnReturnNotFound(conn);
     }
@@ -402,8 +418,10 @@ FreeReq(void *arg)
 {
     Req *reqPtr = (Req *) arg;
 
-    if (reqPtr->deleteProcPtr != NULL) {
-	(*reqPtr->deleteProcPtr) (reqPtr->arg);
+    if (--reqPtr->refcnt == 0) {
+    	if (reqPtr->delete != NULL) {
+	    (*reqPtr->delete) (reqPtr->arg);
+        }
+        ns_free(reqPtr);
     }
-    ns_free(reqPtr);
 }
