@@ -33,7 +33,7 @@
  *	Condition variable routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/Attic/cond.c,v 1.1 2002/06/10 22:30:22 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/Attic/cond.c,v 1.2 2002/06/17 17:56:16 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "thread.h"
 
@@ -192,22 +192,6 @@ Ns_CondWait(Ns_Cond *condPtr, Ns_Mutex *mutexPtr)
     int              err;
 
     err = pthread_cond_wait(cond, lock);
-#ifdef HAVE_ETIME_BUG
-    /*
-     * On Solaris, we have noticed that when the condition and/or
-     * mutex are process-shared instead of process-private that
-     * pthread_cond_wait may incorrectly return ETIME.  Because
-     * we're not sure why ETIME is being returned (perhaps it's
-     * from an underlying _lwp_cond_timedwait???), we allow
-     * the condition to return.  This should be o.k. because
-     * properly written condition code must be in a while
-     * loop capable of handling spurious wakeups.
-     */
-
-    if (err == ETIME) {
-	err = 0;
-    }
-#endif
     if (err != 0) {
 	NsThreadFatal("Ns_CondWait", "pthread_cond_wait", err);
     }
@@ -255,9 +239,7 @@ Ns_CondTimedWait(Ns_Cond *condPtr, Ns_Mutex *mutexPtr, Ns_Time *timePtr)
      * As documented on Linux, pthread_cond_timedwait may return
      * EINTR if a signal arrives.  We have noticed that 
      * EINTR can be returned on Solaris as well although this
-     * is not documented (perhaps, as above, it's possible it
-     * bubbles up from _lwp_cond_timedwait???).  Anyway, unlike
-     * the ETIME case above, we'll assume the wakeup is truely
+     * is not documented.  We assume the wakeup is truely
      * spurious and simply restart the wait knowing that the
      * ts structure has not been modified.
      */
@@ -265,22 +247,6 @@ Ns_CondTimedWait(Ns_Cond *condPtr, Ns_Mutex *mutexPtr, Ns_Time *timePtr)
     do {
     	err = pthread_cond_timedwait(cond, lock, &ts);
     } while (err == EINTR);
-
-#ifdef HAVE_ETIME_BUG
-
-    /*
-     * See comments above and note that here ETIME is still considered
-     * a spurious wakeup, not an indication of timeout because we're
-     * not making any assumptions about the nature or this bug.
-     * While we're less certain, this should still be ok as properly
-     * written condition code should tolerate the wakeup.
-     */
-
-    if (err == ETIME) {
-	err = 0;
-    }
-#endif
-
     if (err == ETIMEDOUT) {
 	status = NS_TIMEOUT;
     } else if (err != 0) {
