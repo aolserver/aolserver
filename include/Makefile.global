@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Makefile.global,v 1.47 2002/02/16 00:41:05 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Makefile.global,v 1.48 2002/02/24 01:54:54 jgdavidson Exp $
 #
 
 #
@@ -54,6 +54,9 @@ tclpatch  	= .4
 MKDIR        =   /bin/mkdir -p
 RM           =   /bin/rm -f
 CP           =   /bin/cp -fp
+AR	     =   /usr/bin/ar
+RANLIB	     =   /usr/bin/true
+
 ifeq (1,$(NSDEBUG))
     CCOPT     	= -g
     tcldbg	= g
@@ -70,18 +73,23 @@ else
 endif
 tcllib		= tcl$(tclmajor).$(tclminor)$(tcldbg)
 tcldir		= tcl$(tclmajor).$(tclminor)$(tclpatch)
+
+CFLAGS          += -D_REENTRANT=1 -DTCL_THREADS=1 
 ifdef NSHOME
     CFLAGS      += -I$(NSHOME)/include -I$(NSHOME)/$(tcldir)/generic
-    LIBS	=  -L$(NSHOME)/$(tcldir)/unix 
+    LIBS	=  -L$(NSHOME)/$(tcldir)/unix -L../nsd
 else
     CFLAGS      += -I$(AOLSERVER)/include
     LIBS	=  -L$(AOLSERVER)/lib
 endif
-CFLAGS          += -D_REENTRANT=1 -DTCL_THREADS=1 
+ifndef buildnsd
+    LIBS	+= -lnsd
+endif
 LIBS		+= -l$(tcllib) -lm
-SOEXT		= so
 RFLAG		= -rpath
 RPATH		= -Wl,$(RFLAG),$(AOLSERVER)/lib
+LDLIB		= $(LDSO)
+LIBEXT		= so
 
 # Install directories
 INSTBIN		= $(AOLSERVER)/bin
@@ -152,6 +160,7 @@ ifneq (,$(findstring FreeBSD,$(uname)))
     LDSO=ld -Bshareable -x
     RPATH = $(RFLAG) $(AOLSERVER)/lib 
     CFLAGS+=-D_THREAD_SAFE=1 -DNO_TIMEZONE=1 -DHAVE_TIMEGM=1 -DNO__ENVIRON=1
+    RANLIB=/usr/bin/ranlib
 endif
 
 
@@ -167,10 +176,10 @@ ifneq (,$(findstring HP-UX,$(uname)))
         CFLAGS+=-Ae +DAportable +z
     endif
     RFLAG=+b
-    SOEXT=sl
+    LIBEXT=sl
     LDSO=ld -b
     LIBS+=-ldce -lc_r
-    CFLAGS+=-DUSE_DLSHL=1 -DNEED_ERRNO=1
+    CFLAGS+=-DUSE_DLSHL=1 -DNEED_HERRNO=1
 endif
 
 # SGI Irix
@@ -216,23 +225,21 @@ ifneq (,$(findstring UnixWare,$(uname)))
     CFLAGS+=-Kpic -Kthread -D__unixware
     LDSO=ld -G
     LIBS+=-Kthread -lsocket
-    CLFAGS+=-DUSE_PTHREAD_SYSSCOPE=1 -DHAVE_SENDV=1
+    CLFAGS+=-DUSE_PTHREAD_SYSSCOPE=1
 endif
 
 # Mac OS X
-ifneq (,$(findstring Rhapsody,$(uname)))
-    uname=osx
-endif
 ifneq (,$(findstring Darwin,$(uname)))
-    uname=osx
-endif
-ifeq (osx,$(uname))
     CC=cc
-    SOEXT=dylib
-    CFLAGS+=-dynamic -traditional-cpp
-    LDSO=cc -bundle -undefined suppress
-    CFLAGS+=-DUSE_DYLD=1 -DUSE_DLSYMPREFIX=1 \
-            -DNO_RAND48=1 -DNO_TIMEZONE=1 -DMACOSX=1
+    LIBEXT=dylib
+    CFLAGS+=-dynamic -traditional-cpp -fno-common
+    LDSO=cc -bundle
+    LDLIB=cc -dynamiclib
+    CFLAGS+=-DUSE_DLSYMPREFIX=1 -DUSE_DYLD=1 \
+            -DNO_RAND48=1 -DNO_TIMEZONE=1
+    RFLAG=
+    RPATH=-install_name $(AOLSERVER)/lib/$(LIBFILE)
+    RANLIB=/usr/bin/ranlib
 endif
 
 # Add the platform-specific debug/optimize flags.
