@@ -27,30 +27,34 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/tests/new/ns_addrbyhost.test,v 1.3.2.1 2004/12/06 16:24:30 dossy Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/tests/new/harness.tcl,v 1.2.2.2 2004/12/06 16:24:30 dossy Exp $
 #
 
-source harness.tcl
-load libnsd.so
 
-package require tcltest 2.2
-namespace import -force ::tcltest::*
+proc test {script} {
+    set ::assertionCount 0
+    if {[set res [catch [list eval $script] msg]]} {
+        ns_adp_puts -nonewline "FAIL\n$::assertionCount assertions\n$msg"
+    } else {
+        ns_adp_puts -nonewline "PASS\n$::assertionCount assertions"
+    }
+}
 
-test ns_addrbyhost {ns_addrbyhost} {
-    assertEquals "127.0.0.1" [ns_addrbyhost "localhost"]
+proc assert {bool message} {
+    if {!$bool} {
+        return -code return $message
+    }
+}
 
-    # ns_log messages confuse tcltest into thinking the test had a failure
-    ns_logctl hold
-    assertEquals 1 [catch {ns_addrbyhost "this_should_not_resolve"} msg]
-    assertEquals "could not lookup this_should_not_resolve" $msg
-    ns_logctl truncate
-
-    # RFE #999452: Add -all switch to ns_addrbyhost
-    #
-    # This test will fail if we don't have connectivity/DNS service
-    # or if the DNS entries change in a significant way.
-    assertEquals 1 [expr {[llength [ns_addrbyhost -all "www.google.com"]] > 1}]
-    assertEquals 1 [llength [ns_addrbyhost "www.google.com"]]
-} {}
-
-cleanupTests
+proc assertEquals {expected actual {message ""}} {
+    if {![info exists ::assertionCount]} {
+        set ::assertionCount 0
+    }
+    incr ::assertionCount
+    if {![string length $message]} {
+        set message "no description provided"
+    }
+    set message "(#$::assertionCount) $message"
+    return -code [catch {assert [string equal $expected $actual] \
+        "$message\n  Expected: $expected\n    Actual: $actual"} msg] $msg
+}
