@@ -33,9 +33,30 @@
  *	Initialization routines for Tcl.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.24 2002/08/10 16:22:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.25 2002/08/25 20:11:30 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
+
+/*
+ * The following structure maintains new interp init callbacks.
+ */
+
+typedef struct Init {
+    struct Init *nextPtr;
+    Ns_TclInterpInitProc *proc;
+    void *arg;  
+} Init;
+
+/*
+ * The following structure maintains procs to call at interp
+ * deallocation time.
+ */
+
+typedef struct Defer {
+    struct Defer *nextPtr;
+    Ns_TclDeferProc *proc;
+    void *arg;
+} Defer;
 
 /*
  * Static functions defined in this file.
@@ -50,7 +71,8 @@ static Tcl_Interp *CreateInterp(NsServer *servPtr, Tcl_HashEntry *hPtr);
  */
 
 static char initServer[] = "_ns_initserver";
-static char cleanupInterp[] = "ns_cleanup";
+static char allocScript[] = "_ns_atalloc";
+static char deallocScript[] = "_ns_atdealloc";
 static Ns_Tls tls;
 
 
@@ -103,7 +125,7 @@ Ns_TclEval(Ns_DString *dsPtr, char *server, char *script)
     retcode = NS_ERROR;
     interp = Ns_TclAllocateInterp(server);
     if (interp != NULL) {
-        if (NsTclEval(interp, script) != TCL_OK) {
+        if (Tcl_EvalEx(interp, script, -1, 0) != TCL_OK) {
 	    result = Ns_TclLogError(interp);
         } else {
 	    result = Tcl_GetStringResult(interp);
@@ -250,6 +272,9 @@ Ns_TclAllocateInterp(char *server)
 	    interp = CreateInterp(servPtr, hPtr);
 	}
     }
+    if (Tcl_EvalEx(interp, allocScript, -1, 0) != TCL_OK) {
+	Ns_TclLogError(interp);
+    }
     return interp;
 }
 
@@ -274,26 +299,26 @@ void
 Ns_TclDeAllocateInterp(Tcl_Interp *interp)
 {
     NsInterp	*itPtr = NsGetInterp(interp);
-    AtCleanup	*cleanupPtr;
+    Defer    	*deferPtr;
 
     if (itPtr == NULL) {
 	Tcl_DeleteInterp(interp);
     } else {
     	/*
-     	 * Invoke the cleanup callbacks if any.
+     	 * Invoke the deferred callbacks if any.
      	 */
 
-    	while ((cleanupPtr = itPtr->firstAtCleanupPtr) != NULL) {
-	    itPtr->firstAtCleanupPtr = cleanupPtr->nextPtr;
-	    (*cleanupPtr->procPtr)(interp, cleanupPtr->arg);
-	    ns_free(cleanupPtr);
+    	while ((deferPtr = itPtr->firstDeferPtr) != NULL) {
+	    itPtr->firstDeferPtr = deferPtr->nextPtr;
+	    (*deferPtr->proc)(interp, deferPtr->arg);
+	    ns_free(deferPtr);
 	}
 
     	/*
      	 * Evaluate the cleanup proc.
      	 */
 
-    	if (Tcl_Eval(interp, cleanupInterp) != TCL_OK) {
+    	if (Tcl_EvalEx(interp, deallocScript, -1, 0) != TCL_OK) {
 	    Ns_TclLogError(interp);
     	}
     	Tcl_ResetResult(interp);    
@@ -315,6 +340,41 @@ Ns_TclDeAllocateInterp(Tcl_Interp *interp)
 	    Tcl_SetHashValue(itPtr->hPtr, interp);
 	}
     }
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_TclRegisterDeferred --
+ *
+ *	Register a procedure to be called when the interp is deallocated.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	Procedure will be called later.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+Ns_TclRegisterDeferred(Tcl_Interp *interp, Ns_TclDeferProc *proc,
+	void *arg)
+{
+    NsInterp   *itPtr = NsGetInterp(interp);
+    Defer      *deferPtr, **nextPtrPtr;
+
+    deferPtr = ns_malloc(sizeof(Defer));
+    deferPtr->proc = proc;
+    deferPtr->arg = arg;
+    deferPtr->nextPtr = NULL;
+    nextPtrPtr = &itPtr->firstDeferPtr;
+    while (*nextPtrPtr != NULL) {
+	nextPtrPtr = &((*nextPtrPtr)->nextPtr);
+    }
+    *nextPtrPtr = deferPtr;
 }
 
 
@@ -540,39 +600,6 @@ NsTclInitServer(char *server)
 /*
  *----------------------------------------------------------------------
  *
- * NsTclEval --
- *
- *      Wraps Tcl_EvalEx() to avoid byte code compiling.
- *
- * Results:
- *      See Tcl_Eval
- *
- * Side effects:
- *	See Tcl_Eval
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclEval(Tcl_Interp *interp, char *script)
-{
-    int status;
-
-    /* 
-     * Eval without the byte code compiler, and ensure that we
-     * have a string result so old code can reference interp->result.
-     */
-
-    status = Tcl_EvalEx(interp, script, strlen(script), TCL_EVAL_DIRECT);
-    Tcl_SetResult(interp, Tcl_GetString(Tcl_GetObjResult(interp)),
-		  TCL_VOLATILE);
-    return status;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
  * Ns_TclLogError --
  *
  *	Log the global errorInfo variable to the server log. 
@@ -597,6 +624,108 @@ Ns_TclLogError(Tcl_Interp *interp)
     }
     Ns_Log(Error, "%s\n%s", Tcl_GetStringResult(interp), errorInfo);
     return (char *) errorInfo;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsTclInitObjCmd --
+ *
+ *      Implements ns_init command.
+ *
+ * Results:
+ *      Standar Tcl result.
+ *
+ * Side effects:
+ *	May update current saved server Tcl state.
+ *
+ *----------------------------------------------------------------------
+ */
+
+
+int
+NsTclInitObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
+{
+    NsInterp *itPtr = arg;
+    static CONST char *opts[] = {
+	"epoch", "get", "save", "update", NULL
+    };
+    enum {
+	IEpochIdx, IGetIdx, ISaveIdx, IUpdateIdx
+    } opt;
+    char *script;
+    int update, result, length;
+
+    if (objc < 2) {
+        Tcl_WrongNumArgs(interp, 1, objv, "option ?arg?");
+	return TCL_ERROR;
+    }
+    if (Tcl_GetIndexFromObj(interp, objv[1], opts, "option", 0,
+			    (int *) &opt) != TCL_OK) {
+	return TCL_ERROR;
+    }
+
+    switch (opt) {
+    case IGetIdx:
+	if (objc != 2) {
+            Tcl_WrongNumArgs(interp, 2, objv, NULL);
+	    return TCL_ERROR;
+	}
+	Ns_RWLockRdLock(&itPtr->servPtr->tcl.lock);
+	Tcl_SetResult(interp, itPtr->servPtr->tcl.script, TCL_VOLATILE);
+	Ns_RWLockUnlock(&itPtr->servPtr->tcl.lock);
+	break;
+
+    case IEpochIdx:
+	if (objc != 2) {
+            Tcl_WrongNumArgs(interp, 2, objv, NULL);
+	    return TCL_ERROR;
+	}
+	Ns_RWLockRdLock(&itPtr->servPtr->tcl.lock);
+	Tcl_SetIntObj(Tcl_GetObjResult(interp), itPtr->servPtr->tcl.epoch);
+	Ns_RWLockUnlock(&itPtr->servPtr->tcl.lock);
+	break;
+   
+    case ISaveIdx:
+	if (objc != 3) {
+            Tcl_WrongNumArgs(interp, 2, objv, "script");
+	    return TCL_ERROR;
+    	}
+	script = ns_strdup(Tcl_GetStringFromObj(objv[2], &length));
+	Ns_RWLockWrLock(&itPtr->servPtr->tcl.lock);
+	ns_free(itPtr->servPtr->tcl.script);
+	itPtr->servPtr->tcl.script = script;
+	itPtr->servPtr->tcl.length = length;
+	++itPtr->servPtr->tcl.epoch;
+	Ns_RWLockUnlock(&itPtr->servPtr->tcl.lock);
+	break;
+
+    case IUpdateIdx:
+	if (objc != 2) {
+            Tcl_WrongNumArgs(interp, 2, objv, NULL);
+	    return TCL_ERROR;
+	}
+	Ns_RWLockRdLock(&itPtr->servPtr->tcl.lock);
+	if (itPtr->epoch == itPtr->servPtr->tcl.epoch) {
+	    update = 0;
+	    result = TCL_OK;
+	} else {
+	    update = 1;
+	    result = Tcl_EvalEx(interp, itPtr->servPtr->tcl.script,
+				itPtr->servPtr->tcl.length,
+				TCL_EVAL_GLOBAL);
+	    itPtr->epoch = itPtr->servPtr->tcl.epoch;
+	}
+	Ns_RWLockUnlock(&itPtr->servPtr->tcl.lock);
+	if (result != TCL_OK) {
+	    return TCL_ERROR;
+	}
+	Tcl_SetBooleanObj(Tcl_GetObjResult(interp), update);
+	break;
+    }
+
+    return TCL_OK;
 }
 
 
