@@ -35,7 +35,7 @@
  *	with Tcl_DString's.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/dstring.c,v 1.15 2001/05/02 15:49:28 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/dstring.c,v 1.16 2002/09/28 19:23:29 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -210,6 +210,54 @@ Ns_DStringAppendArgv(Ns_DString *dsPtr)
     }
     argv[i] = NULL;
     return argv;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ * Ns_DStringPop --
+ *
+ *      Allocate a new dstring.
+ *
+ * Results:
+ *	Pointer to Ns_DString.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+Ns_DString *
+Ns_DStringPop(void)
+{
+    Ns_DString *dsPtr;
+
+    dsPtr = ns_malloc(sizeof(Ns_DString));
+    Ns_DStringInit(dsPtr);
+    return dsPtr;
+}
+
+/*
+ *----------------------------------------------------------------------
+ * Ns_DStringPush --
+ *
+ *      Free a dstring.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+Ns_DStringPush(Ns_DString *dsPtr)
+{
+    Ns_DStringFree(dsPtr);
+    ns_free(dsPtr);
 }
 
 
