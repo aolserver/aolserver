@@ -45,7 +45,7 @@
  *	the Req structures in op.c) normally work better.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/rwlock.c,v 1.1 2002/06/10 22:30:23 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/rwlock.c,v 1.2 2002/06/12 11:30:44 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "thread.h"
 
@@ -59,7 +59,6 @@ typedef struct RwLock {
     Ns_Mutex  mutex;    /* Mutex guarding lock structure. */
     Ns_Cond   rcond;    /* Condition variable for waiting readers. */
     Ns_Cond   wcond;    /* condition variable for waiting writers. */
-    unsigned  int id;   /* Lock id for debugging. */
     int       nreaders; /* Number of readers waiting for lock. */
     int       nwriters; /* Number of writers waiting for lock. */
     int       lockcnt;  /* Lock count, > 0 indicates # of shared
@@ -89,16 +88,10 @@ void
 Ns_RWLockInit(Ns_RWLock *rwPtr)
 {
     RwLock *lockPtr;
-    static unsigned int next = 0;
-    char name[NS_THREAD_NAMESIZE];
+    static unsigned int nextid = 0;
     
     lockPtr = ns_calloc(1, sizeof(RwLock));
-    Ns_MasterLock();
-    lockPtr->id = next++;
-    Ns_MasterUnlock();
-    sprintf(name, "ns:rw%d", lockPtr->id);
-    Ns_MutexInit(&lockPtr->mutex);
-    Ns_MutexSetName(&lockPtr->mutex, name);
+    NsMutexInitNext(&lockPtr->mutex, "rw", &nextid);
     Ns_CondInit(&lockPtr->rcond);
     Ns_CondInit(&lockPtr->wcond);
     lockPtr->nreaders = 0;

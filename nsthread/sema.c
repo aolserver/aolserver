@@ -34,14 +34,23 @@
  *	locks in that they maintain a count instead of a simple locked/unlocked
  *	state.  Threads block if the semaphore count is less than one.
  *
- *	Note:  In general, cleaner and more flexible code can be implemented
- *	with condition variables.
+ *	Note:  In general, cleaner code can be implemented with condition variables.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/sema.c,v 1.1 2002/06/10 22:30:23 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/sema.c,v 1.2 2002/06/12 11:30:44 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "thread.h"
-#include <semaphore.h>
+
+/*
+ * The following structure defines a counting semaphore using a lock
+ * and condition.
+ */
+
+typedef struct {
+    Ns_Mutex lock;
+    Ns_Cond  cond;
+    int      count;
+} Sema;
 
 
 /*
@@ -57,37 +66,39 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nst
  *	None.
  *
  * Side effects:
- *	Memory is allocated and initialized from the heap.
+ *	None.
  *
  *----------------------------------------------------------------------
  */
 
 void
-Ns_SemaInit(Ns_Sema *semaPtr, int initCount)
+Ns_SemaInit(Ns_Sema *semaPtr, int count)
 {
-    sem_t *sPtr;
+    static unsigned int nextid = 0;
+    Sema *sPtr;
 
-    sPtr = ns_malloc(sizeof(sem_t));
-    if (sem_init(sPtr, 0, 0) != 0) {
-	NsThreadFatal("Ns_SemaInit", "sem_init", errno);
-    }
+    sPtr = ns_malloc(sizeof(Sema));
+    sPtr->count = count;
+    NsMutexInitNext(&sPtr->lock, "sm", &nextid);
+    Ns_CondInit(&sPtr->cond);
     *semaPtr = (Ns_Sema) sPtr;
 }
+
 
 /*
  *----------------------------------------------------------------------
  *
  * Ns_SemaDestroy --
  *
- *	Destroy a semaphore.  This routine should almost never be used
- *	as synchronization objects are normally created at process startup
- *	and exist entirely in process memory until the process exits.
+ *	Destroy a semaphore.  This routine is almost never used as
+ *	synchronization objects are normally created at process startup
+ *	and exist until the process exits.
  *
  * Results:
  *	None.
  *
  * Side effects:
- *	Memory is returned to the heap.
+ *	None.
  *
  *----------------------------------------------------------------------
  */
@@ -96,15 +107,15 @@ void
 Ns_SemaDestroy(Ns_Sema *semaPtr)
 {
     if (*semaPtr != NULL) {
-    	sem_t *sPtr = (sem_t *) *semaPtr;
+    	Sema *sPtr = (Sema *) *semaPtr;
 
-	if (sem_destroy(sPtr) != 0) {
-	    NsThreadFatal("Ns_SemaDestroy", "sem_destroy", errno);
-	}
-	ns_free(sPtr);
+    	Ns_MutexDestroy(&sPtr->lock);
+    	Ns_CondDestroy(&sPtr->cond);
+    	ns_free(sPtr);
     	*semaPtr = NULL;
     }
 }
+
 
 /*
  *----------------------------------------------------------------------
@@ -125,12 +136,16 @@ Ns_SemaDestroy(Ns_Sema *semaPtr)
 void
 Ns_SemaWait(Ns_Sema *semaPtr)
 {
-    sem_t *sPtr = (sem_t *) *semaPtr;
+    Sema *sPtr = (Sema *) *semaPtr;
 
-    if (sem_wait(sPtr) != 0) {
-	NsThreadFatal("Ns_SemaWait", "sem_wait", errno);
+    Ns_MutexLock(&sPtr->lock);
+    while (sPtr->count == 0) {
+	Ns_CondWait(&sPtr->cond, &sPtr->lock);
     }
+    sPtr->count--;
+    Ns_MutexUnlock(&sPtr->lock);
 }
+
 
 /*
  *----------------------------------------------------------------------
@@ -151,11 +166,14 @@ Ns_SemaWait(Ns_Sema *semaPtr)
 void
 Ns_SemaPost(Ns_Sema *semaPtr, int count)
 {
-    sem_t *sPtr = (sem_t *) *semaPtr;
+    Sema *sPtr = (Sema *) *semaPtr;
 
-    while (--count >= 0) {
-        if (sem_post(sPtr) != 0) {
-	    NsThreadFatal("Ns_SemaPost", "sem_post", errno);
-        }
-   }
+    Ns_MutexLock(&sPtr->lock);
+    sPtr->count += count;
+    if (count == 1) {
+	Ns_CondSignal(&sPtr->cond);
+    } else {
+	Ns_CondBroadcast(&sPtr->cond);
+    }
+    Ns_MutexUnlock(&sPtr->lock);
 }
