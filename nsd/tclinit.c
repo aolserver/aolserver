@@ -30,15 +30,66 @@
 /* 
  * tclinit.c --
  *
- *	Initialization routines for Tcl.
+ *	Initialization and resource management routines for Tcl.  This
+ *	code provides for three types of AOLserver extended Tcl
+ *	interps:
+ *
+ *	1. First, basic interps created with Ns_TclCreateInterp or
+ *	initialized with Ns_TclInit.  These interps include "core" Tcl
+ *	and AOLserver commands and are normally used simply to
+ *	evaluate the config file.
+ *
+ *	2. Next, virtual server interps allocated from per-thread
+ *	caches using Ns_TclAllocateInterp and returned via
+ *	Ns_TclDeAllocateInterp.  These interps include all the
+ *	commands of the basic interp, commands useful for virtual
+ *	server environments, and any commands added as a result of
+ *	loadable module initialization callbacks.  These interps are
+ *	normally used during connection processing but can also be
+ *	used outside a connection, e.g., in a scheduled procedure or
+ *	detached background thread.
+ *
+ *	3. Finally, connection interps accessed  with
+ *	Ns_TclGetConnInterp.  These interps are virtual server interps
+ *	but managed along with a connection, having access to
+ *	connection specific data structures (e.g., via ns_conn) and
+ *	released automatically during connection cleanup.  This type
+ *	of interp is used for ns_register_filter and ns_register_proc
+ *	callback scripts as well as for ADP pages.  The same interp is
+ *	used throughout the connection, for all filters, procs, and/or
+ *	ADP pages.
+ *
+ *	Note the need to initialize Tcl state (i.e., procs, vars,
+ *	packages, etc.) specific to a virtual server, later to copy
+ *	this state to new interps when created, and garbage collection
+ *	and end-of-connection cleanup facilities add quite a bit of
+ *	complexity and confusion to the code.  See the comments in
+ *	Ns_TclRegisterTrace, Ns_TclAllocateInterp, and NsTclICtlObjCmd
+ *	and review the code in init.tcl for more details.
+ *
+ *	Note also the role of the NsInterp structure.  This single
+ *	structure provides storage necessary for all AOLserver
+ *	commands, core or virtual-server.  The structure is allocated
+ *	for each new interp and passed as the ClientData argument to
+ *	all AOLserver commands (see NewInterpData and NsTclAddCmds in
+ *	tclcmds.c for details).  Both for cases where the ClientData
+ *	isn't available and to ensure proper cleanup of the structure
+ *	when the interp is deleted, the NsInterp is managed by the
+ *	interp via the Tcl assoc data interface under the name
+ *	"ns:data" and accessible by NsGetInterpData.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.42 2004/06/20 10:28:51 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.43 2005/03/25 00:38:59 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
 /*
- * The following structure maintains interp callback traces.
+ * The following structure maintains interp callback traces. The traces
+ * must be registered during server startup and invoked later for
+ * virutal server interps at specific points in the lifetime of the
+ * interp.  The callbacks are invoked in in LIFO order.  A common trace
+ * would be an "on create" trace to add commands in a loadable C module,
+ * e.g., the "ns_accesslog" command in nslog.
  */
 
 typedef struct Trace {
@@ -49,8 +100,22 @@ typedef struct Trace {
 } Trace;
 
 /*
- * The following structure maintains procs to call at interp
- * deallocation time.
+ * The following structure maintains Tcl-script based traces.
+ */
+
+typedef struct STrace {
+    int  length;
+    char script[1];
+} STrace;
+
+/*
+ * The following structure maintains procs to call during interp garbage
+ * collection.  Unlike traces, these callbacks are one-shot events
+ * registered during normal Tcl script evaluation. The callbacks are
+ * invoked in FIFO order (LIFO would probably have been better). In
+ * practice this API is rarely used. Instead, more specific garbage
+ * collection schemes are used; see the "ns_cleanup" script in init.tcl
+ * for examples.
  */
 
 typedef struct Defer {
@@ -60,27 +125,36 @@ typedef struct Defer {
 } Defer;
 
 /*
+ * The following structure maintains scripts to execute when the
+ * connection is closed.  The scripts are invoked in LIFO order.
+ */
+
+typedef struct AtClose {
+    struct AtClose *nextPtr;
+    Tcl_Obj *objPtr;
+} AtClose;
+
+/*
  * Static functions defined in this file.
  */
 
-static Tcl_InterpDeleteProc FreeData;
+static Tcl_Interp *CreateInterp(NsInterp **itPtrPtr);
+static NsInterp *NewInterpData(Tcl_Interp *interp);
 static Ns_TlsCleanup DeleteInterps;
-static int InitInterp(Tcl_Interp *interp, NsServer *servPtr,
-		      NsInterp **itPtrPtr);
-static int UpdateServerInterp(NsInterp *itPtr);
-static Tcl_HashEntry *GetHashEntry(NsServer *servPtr);
-static int RegisterAt(Ns_TclTraceProc *proc, void *arg, int when);
-static int RegisterTrace(NsServer *servPtr, Ns_TclTraceProc *proc,
-			 void *arg, int when);
+static Tcl_InterpDeleteProc FreeInterpData;
+static NsInterp *PopInterp(char *server);
+static void PushInterp(NsInterp *itPtr);
+static Tcl_HashEntry *GetCacheEntry(NsServer *servPtr);
+static int UpdateInterp(NsInterp *itPtr);
 static void RunTraces(NsInterp *itPtr, int why);
-static int EvalScript(Tcl_Interp *interp, void *arg);
+static int EvalTrace(Tcl_Interp *interp, void *arg);
+static int RegisterAt(Ns_TclTraceProc *proc, void *arg, int when);
 
 /*
  * Static variables defined in this file.
  */
 
-static Ns_Tls tls;
-static Ns_Cs initcs;
+static Ns_Tls tls;	/* Slot for per-thread Tcl interp cache. */
 
 
 /*
@@ -102,9 +176,83 @@ static Ns_Cs initcs;
 void
 NsInitTcl(void)
 {
-    Ns_TlsAlloc(&tls, DeleteInterps);
-    Ns_CsInit(&initcs);
+    /*
+     * Allocate the thread storage slot for the table of interps
+     * per-thread. At thread exit, DeleteInterps will be called
+     * to free any interps remaining on the thread cache.
+     */
 
+    Ns_TlsAlloc(&tls, DeleteInterps);
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_TclCreateInterp --
+ *
+ *      Create a new interp with basic AOLserver commands. 
+ *
+ * Results:
+ *      Pointer to new interp.
+ *
+ * Side effects:
+ *	See CreateInterp.
+ *
+ *----------------------------------------------------------------------
+ */
+
+Tcl_Interp *
+Ns_TclCreateInterp(void)
+{
+    return CreateInterp(NULL);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_TclInit --
+ *
+ *      Initialize an interp with basic AOLserver commands.
+ *
+ * Results:
+ *      TCL_OK or TCL_ERROR on init error.
+ *
+ * Side effects:
+ *	See InitInterp.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Ns_TclInit(Tcl_Interp *interp)
+{
+    (void) NewInterpData(interp);
+    return TCL_OK;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Nsd_Init --
+ *
+ *      Init routine called when libnsd is loaded via the Tcl
+ *	load command. This simply calls Ns_TclInit.
+ *
+ * Results:
+ *      See Ns_TclInit.
+ *
+ * Side effects:
+ *	See Ns_TclInit.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Nsd_Init(Tcl_Interp *interp)
+{
+    return Ns_TclInit(interp);
 }
 
 
@@ -113,7 +261,7 @@ NsInitTcl(void)
  *
  * Ns_TclEval --
  *
- *	Execute a tcl script for the given server.
+ *	Execute a Tcl script in the context of the the given server.
  *
  * Results:
  *	Tcl return code. 
@@ -152,208 +300,18 @@ Ns_TclEval(Ns_DString *dsPtr, char *server, char *script)
 /*
  *----------------------------------------------------------------------
  *
- * Ns_TclInitInterps --
- *
- *	Register a user-supplied Tcl initialization procedure to be
- *	called when interps are created.
- *
- * Results:
- *	NS_OK
- *
- * Side effects:
- *	None.
- *
- *----------------------------------------------------------------------
- */
-
-int
-Ns_TclInitInterps(char *server, Ns_TclInterpInitProc *proc, void *arg)
-{
-    return Ns_TclRegisterTrace(server, proc, arg, NS_TCL_TRACE_CREATE);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Ns_TclRegisterAtCreate, Ns_TclRegisterAtCleanup,
- * Ns_TclRegisterAtDelete --
- *
- *  	Register callbacks for interp create, cleanup, and delete
- *	at startup.
- *
- * Results:
- *	NS_ERROR if no initializing server, NS_OK otherwise.
- *
- * Side effects:
- *	Callback will be invoke at requested time.
- *
- *----------------------------------------------------------------------
- */
- 
-int
-Ns_TclRegisterAtCreate(Ns_TclTraceProc *proc, void *arg)
-{
-    return RegisterAt(proc, arg, NS_TCL_TRACE_CREATE);
-}
-
-int
-Ns_TclRegisterAtCleanup(Ns_TclTraceProc *proc, void *arg)
-{
-    return RegisterAt(proc, arg, NS_TCL_TRACE_DEALLOCATE);
-}
-
-int
-Ns_TclRegisterAtDelete(Ns_TclTraceProc *proc, void *arg)
-{
-    return RegisterAt(proc, arg, NS_TCL_TRACE_DELETE);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Ns_TclMarkForDelete --
- *
- *	Mark the interp to be deleted after next cleanup.  This routine
- *	is useful to destory interps after they've been modified in
- *	weird ways, e.g., by the TclPro debugger.
- *
- * Results:
- *	None.
- *
- * Side effects:
- *	Interp will be deleted on next de-allocate.
- *
- *----------------------------------------------------------------------
- */
-
-void
-Ns_TclMarkForDelete(Tcl_Interp *interp)
-{
-    NsInterp *itPtr = NsGetInterp(interp);
-    
-    if (itPtr != NULL) {
-	itPtr->delete = 1;
-    }
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Ns_TclInit --
- *
- *      Initialize an interp with AOLserver commands.
- *
- * Results:
- *      TCL_OK or TCL_ERROR on init error.
- *
- * Side effects:
- *	None.
- *
- *----------------------------------------------------------------------
- */
-
-int
-Ns_TclInit(Tcl_Interp *interp)
-{
-    return InitInterp(interp, NULL, NULL);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Nsd_Init --
- *
- *      Init routine for loading libnsd as a tclsh module.
- *
- * Results:
- *      TCL_OK.
- *
- * Side effects:
- *	See Ns_TclInit.
- *
- *----------------------------------------------------------------------
- */
-
-int
-Nsd_Init(Tcl_Interp *interp)
-{
-    return Ns_TclInit(interp);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Ns_TclCreateInterp --
- *
- *      Create a new interp with AOLserver commands.
- *
- * Results:
- *      Pointer to new interp.
- *
- * Side effects:
- *	See CreateInterp.
- *
- *----------------------------------------------------------------------
- */
-
-Tcl_Interp *
-Ns_TclCreateInterp(void)
-{
-    Tcl_Interp *interp;
-
-    interp = Tcl_CreateInterp();
-    if (Ns_TclInit(interp) != TCL_OK) {
-	Ns_TclLogError(interp);
-    }
-    return interp;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Ns_TclDestroyInterp --
- *
- *      Delete an interp.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *	None.
- *
- *----------------------------------------------------------------------
- */
-
-void
-Ns_TclDestroyInterp(Tcl_Interp *interp)
-{
-    NsInterp *itPtr = NsGetInterp(interp);
-
-    if (itPtr != NULL) {
-	RunTraces(itPtr, NS_TCL_TRACE_DELETE);
-    }
-    Tcl_DeleteInterp(interp);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
  * Ns_TclAllocateInterp --
  *
- *	Allocate an interpreter from the per-thread list.
+ *	Allocate an interpreter from the per-thread list.  Note that a
+ *	single thread can have multiple interps for multiple virtual
+ *	servers.
  *
  * Results:
  *	Pointer to Tcl_Interp.
  *
  * Side effects:
- *	On create, depends on registered init procs.
+ *	See PopInterp for details on various traces which may be
+ *	called.
  *
  *----------------------------------------------------------------------
  */
@@ -361,65 +319,29 @@ Ns_TclDestroyInterp(Tcl_Interp *interp)
 Tcl_Interp *
 Ns_TclAllocateInterp(char *server)
 {
-    Tcl_HashEntry *hPtr;
-    Tcl_Interp *interp;
     NsInterp *itPtr;
-    NsServer *servPtr;
 
-    /*
-     * Verify the server.  NULL (i.e., no server) is valid but
-     * a non-null, unknown server is an error.
-     */
-
-    if (server == NULL) {
-	servPtr = NULL;
-    } else {
-	servPtr = NsGetServer(server);
-	if (servPtr == NULL) {
-	    return NULL;
-	}
-    }
-
-    /*
-     * Pop the first interp off the list or create a new one.
-     */
-
-    hPtr = GetHashEntry(servPtr);
-    itPtr = Tcl_GetHashValue(hPtr);
-    if (itPtr != NULL) {
-	Tcl_SetHashValue(hPtr, itPtr->nextPtr);
-    } else {
-	(void) InitInterp(Tcl_CreateInterp(), servPtr, &itPtr);
-    }
-    interp = itPtr->interp;
-    itPtr->nextPtr = NULL;
-
-
-    /*
-     * Evaluate the ns_init proc which by default updates the
-     * interp state with ns_ictl.
-     */
-
-    RunTraces(itPtr, NS_TCL_TRACE_ALLOCATE);
-    if (Tcl_EvalEx(interp, "ns_init", -1, 0) != TCL_OK) {
-	Ns_TclLogError(interp);
-    }
-    return interp;
+    itPtr = PopInterp(server);
+    return (itPtr ? itPtr->interp : NULL);
 }
-
 
 /*
  *----------------------------------------------------------------------
  *
  * Ns_TclDeAllocateInterp --
  *
- *	Evalute the ns_cleanup proc and, if marked, delete the interp.
+ *	Get the NsInterp for the given interp and return the interp to
+ *	the per-thread cache.  If the interp is associated with a
+ *	connection, silently do nothing as cleanup will occur later
+ *	with connection cleanup.  Also, if the interp is not actually
+ *	an AOLserver interp, i.e., missing the NsInterp structure,
+ *	simply delete the interp directly (this is suspect).
  *
  * Results:
- *	None. 
+ *	None.
  *
  * Side effects:
- *	See ns_cleanup proc.
+ *	See notes on garbage collection in PushInterp.
  *
  *----------------------------------------------------------------------
  */
@@ -427,140 +349,14 @@ Ns_TclAllocateInterp(char *server)
 void
 Ns_TclDeAllocateInterp(Tcl_Interp *interp)
 {
-    NsInterp	*itPtr = NsGetInterp(interp);
-    Tcl_HashEntry *hPtr;
+    NsInterp *itPtr;
 
+    itPtr = NsGetInterpData(interp);
     if (itPtr == NULL) {
-	/*
-	 * Not an AOLserver interp.
-	 */
-
 	Tcl_DeleteInterp(interp);
-	return;
+    } else if (itPtr->conn == NULL) {
+    	PushInterp(itPtr);
     }
-
-    if (itPtr->conn != NULL) {
-	/*
-	 * The current connection still has a reference to this
-	 * interp so do nothing.  Ns_FreeConnInterp() must be
-	 * used instead.
-	 */
-
-	return;
-    }
-
-    /*
-     * Evaluate the cleanup script to perform various garbage collection
-     * and then either delete the interp or push it back on the
-     * per-thread list.
-     */
-
-    RunTraces(itPtr, NS_TCL_TRACE_DEALLOCATE);
-    if (Tcl_EvalEx(interp, "ns_cleanup", -1, 0) != TCL_OK) {
-	Ns_TclLogError(interp);
-    }
-    if (itPtr->delete) {
-	Ns_TclDestroyInterp(interp);
-    } else {
-	Tcl_ResetResult(interp);
-	hPtr = GetHashEntry(itPtr->servPtr);
-	itPtr->nextPtr = Tcl_GetHashValue(hPtr);
-	Tcl_SetHashValue(hPtr, itPtr);
-    }
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Ns_TclRegisterDeferred --
- *
- *	Register a procedure to be called when the interp is deallocated.
- *
- * Results:
- *	None.
- *
- * Side effects:
- *	Procedure will be called later.
- *
- *----------------------------------------------------------------------
- */
-
-void
-Ns_TclRegisterDeferred(Tcl_Interp *interp, Ns_TclDeferProc *proc,
-	void *arg)
-{
-    NsInterp   *itPtr = NsGetInterp(interp);
-    Defer      *deferPtr, **nextPtrPtr;
-
-    if (itPtr == NULL) {
-        return;
-    }
-
-    deferPtr = ns_malloc(sizeof(Defer));
-    deferPtr->proc = proc;
-    deferPtr->arg = arg;
-    deferPtr->nextPtr = NULL;
-    nextPtrPtr = &itPtr->firstDeferPtr;
-    while (*nextPtrPtr != NULL) {
-	nextPtrPtr = &((*nextPtrPtr)->nextPtr);
-    }
-    *nextPtrPtr = deferPtr;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsGetInterp --
- *
- *	Return the interp's NsInterp structure from assoc data.
- *	This routine is used when the NsInterp is needed and
- *	not available as command ClientData.
- *
- * Results:
- *	Pointer to NsInterp or NULL if none.
- *
- * Side effects:
- *	None.
- *
- *----------------------------------------------------------------------
- */
-
-NsInterp *
-NsGetInterp(Tcl_Interp *interp)
-{
-    return (interp ? Tcl_GetAssocData(interp, "ns:data", NULL) : NULL);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsTclMarkForDeleteObjCmd --
- *
- *	Implements ns_markfordelete as obj command. 
- *
- * Results:
- *	Tcl result. 
- *
- * Side effects:
- *	See docs. 
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclMarkForDeleteObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
-{
-    NsInterp *itPtr = arg;
-
-    if (objc != 1) {
-        Tcl_WrongNumArgs(interp, 1, objv, "");
-	return TCL_ERROR;
-    }
-    itPtr->delete = 1;
-    return TCL_OK;
 }
 
 
@@ -569,15 +365,18 @@ NsTclMarkForDeleteObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *
  *
  * Ns_GetConnInterp --
  *
- *	Get an interp for use in a connection thread.  Using this
- *	interface will ensure an automatic call to
- *	Ns_TclDeAllocateInterp() at the end of the connection.
+ *	Get the interp for the given connection.  When first called
+ *	for a connection, the interp data is allocated and associated
+ *	with the given connection.  The interp will be automatically
+ *	cleaned up at the end of the connection via a call to via
+ *	NsFreeConnInterp().
  *
  * Results:
- *	See Ns_TclAllocateInterp().
+ *	Pointer to Tcl interp data initialized for given connection.
  *
  * Side effects:
- *	Interp will be deallocated when connection is complete.
+ *	See Ns_ConnInit for details on connection encoding setup
+ *	required to ensure proper UTF-8 input and output.
  *
  *----------------------------------------------------------------------
  */
@@ -588,30 +387,41 @@ Ns_GetConnInterp(Ns_Conn *conn)
     Conn *connPtr = (Conn *) conn;
     NsInterp *itPtr;
 
-    if (connPtr->interp == NULL) {
-	connPtr->interp = Ns_TclAllocateInterp(connPtr->server);
-	itPtr = NsGetInterp(connPtr->interp);
+    if (connPtr->itPtr == NULL) {
+	itPtr = PopInterp(connPtr->server);
 	itPtr->conn = conn;
 	itPtr->nsconn.flags = 0;
+	connPtr->itPtr = itPtr;
+    	Tcl_SetVar2(itPtr->interp, "conn", NULL, connPtr->idstr,
+		    TCL_GLOBAL_ONLY);
 	RunTraces(itPtr, NS_TCL_TRACE_GETCONN);
     }
-    return connPtr->interp;
+    return connPtr->itPtr->interp;
 }
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_FreeConnInterp --
+ *
+ *	Release and cleanup the interp associated with given
+ *	connection.  This routine no longer does actual cleanup.  The
+ *	connection cleanup code will call NsFreeConnInterp if needed.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
 
 void
 Ns_FreeConnInterp(Ns_Conn *conn)
 {
-    NsInterp *itPtr;
-    Conn *connPtr = (Conn *) conn;
-
-    if (connPtr->interp != NULL) {
-	itPtr = NsGetInterp(connPtr->interp);
-	RunTraces(itPtr, NS_TCL_TRACE_FREECONN);
-	itPtr->conn = NULL;
-	itPtr->nsconn.flags = 0;
-	Ns_TclDeAllocateInterp(connPtr->interp);
-	connPtr->interp = NULL;
-    }
+    return;
 }
 
 
@@ -634,9 +444,234 @@ Ns_FreeConnInterp(Ns_Conn *conn)
 Ns_Conn *
 Ns_TclGetConn(Tcl_Interp *interp)
 {
-    NsInterp *itPtr = NsGetInterp(interp);
+    NsInterp *itPtr = NsGetInterpData(interp);
 
     return (itPtr ? itPtr->conn : NULL);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_TclDestroyInterp --
+ *
+ *      Delete an interp.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+Ns_TclDestroyInterp(Tcl_Interp *interp)
+{
+    NsInterp *itPtr = NsGetInterpData(interp);
+
+    /*
+     * If this is an AOLserver interp, invoke the delete traces.
+     */
+
+    if (itPtr != NULL) {
+	RunTraces(itPtr, NS_TCL_TRACE_DELETE);
+    }
+
+    /*
+     * All other cleanup, including the NsInterp data, if any, will
+     * be handled by Tcl's normal delete mechanisms.
+     */
+
+    Tcl_DeleteInterp(interp);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_TclMarkForDelete --
+ *
+ *	Mark the interp to be deleted at the  next deallocation.  This
+ *	routine is useful to destory interps after they've been
+ *	modified in weird ways, e.g., by the TclPro debugger.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	Interp will be deleted on next de-allocate.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+Ns_TclMarkForDelete(Tcl_Interp *interp)
+{
+    NsInterp *itPtr = NsGetInterpData(interp);
+    
+    if (itPtr != NULL) {
+	itPtr->delete = 1;
+    }
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_TclRegisterTrace --
+ *
+ *  	Add a Tcl trace.  Traces are called in FIFO order.
+ *
+ * Results:
+ *	NS_OK if called with a non-NULL server, NS_ERROR otherwise.
+ *
+ * Side effects:
+ *	Will modify server trace list.
+ *
+ *----------------------------------------------------------------------
+ */
+ 
+int
+Ns_TclRegisterTrace(char *server, Ns_TclTraceProc *proc, void *arg, int when)
+{
+    Trace *tracePtr, **firstPtrPtr;
+    NsServer *servPtr;
+
+    servPtr = NsGetServer(server);
+    if (servPtr == NULL || Ns_InfoStarted()) {
+	return NS_ERROR;
+    }
+    tracePtr = ns_malloc(sizeof(Trace));
+    tracePtr->proc = proc;
+    tracePtr->arg = arg;
+    tracePtr->when = when;
+    tracePtr->nextPtr = NULL;
+    firstPtrPtr = &servPtr->tcl.firstTracePtr;
+    while (*firstPtrPtr != NULL) {
+	firstPtrPtr = &((*firstPtrPtr)->nextPtr);
+    }
+    *firstPtrPtr = tracePtr;
+    return NS_OK;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_TclRegisterAtCreate, Ns_TclRegisterAtCleanup,
+ * Ns_TclRegisterAtDelete --
+ *
+ *	Register callbacks for interp create, cleanup, and delete at
+ *	startup.  These routines are deprecated in favor of the more
+ *	general Ns_TclRegisterTrace. In particular, they do not take a
+ *	virtual server argument so must assume the currently
+ *	initializing server is the intended server.
+ *
+ * Results:
+ *	See Ns_TclRegisterTrace.
+ *
+ * Side effects:
+ *	See Ns_TclRegisterTrace.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Ns_TclRegisterAtCreate(Ns_TclTraceProc *proc, void *arg)
+{
+    return RegisterAt(proc, arg, NS_TCL_TRACE_CREATE);
+}
+
+int
+Ns_TclRegisterAtCleanup(Ns_TclTraceProc *proc, void *arg)
+{
+    return RegisterAt(proc, arg, NS_TCL_TRACE_DEALLOCATE);
+}
+
+int
+Ns_TclRegisterAtDelete(Ns_TclTraceProc *proc, void *arg)
+{
+    return RegisterAt(proc, arg, NS_TCL_TRACE_DELETE);
+}
+
+static int
+RegisterAt(Ns_TclTraceProc *proc, void *arg, int when)
+{
+    NsServer *servPtr;
+
+    servPtr = NsGetInitServer();
+    if (servPtr == NULL) {
+	return NS_ERROR;
+    }
+    return Ns_TclRegisterTrace(servPtr->server, proc, arg, when);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_TclInitInterps --
+ *
+ *	Arrange for the given proc to be called on newly created
+ *	interps.  This routine now simply uses the more general Tcl
+ *	interp tracing facility.  Earlier versions of AOLserver would
+ *	invoke the given proc immediately on each interp in a shared
+ *	pool which explains this otherwise misnamed API.
+ *
+ * Results:
+ *	See Ns_TclRegisterTrace.
+ *
+ * Side effects:
+ *	See Ns_TclRegisterTrace.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Ns_TclInitInterps(char *server, Ns_TclInterpInitProc *proc, void *arg)
+{
+    return Ns_TclRegisterTrace(server, proc, arg, NS_TCL_TRACE_CREATE);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_TclRegisterDeferred --
+ *
+ *	Register a procedure to be called when the interp is deallocated.
+ *	This is on-shot FIFO order callback mechanism which is seldom
+ *	used.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	Procedure will be called later.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+Ns_TclRegisterDeferred(Tcl_Interp *interp, Ns_TclDeferProc *proc, void *arg)
+{
+    NsInterp   *itPtr = NsGetInterpData(interp);
+    Defer      *deferPtr, **nextPtrPtr;
+
+    if (itPtr == NULL) {
+        return;
+    }
+    deferPtr = ns_malloc(sizeof(Defer));
+    deferPtr->proc = proc;
+    deferPtr->arg = arg;
+    deferPtr->nextPtr = NULL;
+    nextPtrPtr = &itPtr->firstDeferPtr;
+    while (*nextPtrPtr != NULL) {
+	nextPtrPtr = &((*nextPtrPtr)->nextPtr);
+    }
+    *nextPtrPtr = deferPtr;
 }
 
 
@@ -684,46 +719,13 @@ Ns_TclLibrary(char *server)
 char *
 Ns_TclInterpServer(Tcl_Interp *interp)
 {
-    NsInterp *itPtr = NsGetInterp(interp);
+    NsInterp *itPtr = NsGetInterpData(interp);
     
     if (itPtr != NULL && itPtr->servPtr != NULL) {
     	return itPtr->servPtr->server;
     }
     return NULL;
 }
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsTclInitServer --
- *
- *	Evaluate server initialization script at startup.
- *
- * Results:
- *	None.
- *
- * Side effects:
- *	See init script (normally init.tcl).
- *
- *----------------------------------------------------------------------
- */
-
-void
-NsTclInitServer(char *server)
-{
-    NsServer *servPtr = NsGetServer(server);
-    Tcl_Interp *interp;
-
-    if (servPtr != NULL) {
-	interp = Ns_TclAllocateInterp(server);
-	if (Tcl_EvalFile(interp, servPtr->tcl.initfile) != TCL_OK) {
-	    Ns_TclLogError(interp);
-	}
-    	Ns_TclDeAllocateInterp(interp);
-    }
-}
-
 
 /*
  *----------------------------------------------------------------------
@@ -828,36 +830,21 @@ Ns_TclInitModule(char *server, char *module)
 /*
  *----------------------------------------------------------------------
  *
- * NsTclDummyObjCmd --
- *
- *      Dummy command for ns_init and ns_cleanup normally replaced
- *	with procs by server init scripts.
- *
- * Results:
- *      TCL_OK.
- *
- * Side effects:
- *	None.
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsTclDummyObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
-{
-    return TCL_OK;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
  * NsTclICtlObjCmd --
  *
- *      Implements ns_ictl command to control interp internals.
+ *      Implements ns_ictl command to control interp state for
+ *	virtual server interps.  This command provide internal control
+ *	functions required by the init.tcl script and is not intended
+ *	to be called by a user directly.  It supports four activities:
+ *	1. Managing the list of "modules" to initialize.
+ *	2. Saving the init script for evaluation with new interps.
+ *	3. Checking for change of the init script.
+ *	4. Register script-level traces.
+ *
+ *	See init.tcl for details.
  *
  * Results:
- *      Standar Tcl result.
+ *      Standard Tcl result.
  *
  * Side effects:
  *	May update current saved server Tcl state.
@@ -869,10 +856,11 @@ int
 NsTclICtlObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 {
     NsInterp *itPtr = arg;
+    NsServer *servPtr = itPtr->servPtr;
     Defer    *deferPtr;
-    NsServer *servPtr;
-    int when, length, result;
-    char *script;
+    STrace   *stPtr;
+    int	      when, length, result;
+    char     *script;
     static CONST char *opts[] = {
 	"addmodule", "cleanup", "epoch", "get", "getmodules", "save",
 	"update", "oncreate", "oncleanup", "oninit", "ondelete", "trace",
@@ -909,71 +897,100 @@ NsTclICtlObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
     result = TCL_OK;
     switch (opt) {
     case IAddModuleIdx:
+	/*
+	 * Add a Tcl module to the list of for later initialization.
+	 */
+
 	if (objc != 3) {
             Tcl_WrongNumArgs(interp, 2, objv, "module");
 	    return TCL_ERROR;
 	}
-	if (Tcl_ListObjAppendElement(interp, itPtr->servPtr->tcl.modules,
+	if (Tcl_ListObjAppendElement(interp, servPtr->tcl.modules,
 				     objv[2]) != TCL_OK) {
 	    return TCL_ERROR;
 	}
-	Tcl_SetObjResult(interp, itPtr->servPtr->tcl.modules);
+	Tcl_SetObjResult(interp, servPtr->tcl.modules);
 	break;
 
     case IGetModulesIdx:
+	/*
+	 * Get the list of modules for initialization.  See init.tcl
+	 * for expected use.
+	 */
+
 	if (objc != 2) {
             Tcl_WrongNumArgs(interp, 2, objv, NULL);
 	    return TCL_ERROR;
 	}
-	Tcl_SetObjResult(interp, itPtr->servPtr->tcl.modules);
+	Tcl_SetObjResult(interp, servPtr->tcl.modules);
 	break;
 
     case IGetIdx:
+	/*
+	 * Get the current init script to evaluate in new interps.
+	 */
+
 	if (objc != 2) {
             Tcl_WrongNumArgs(interp, 2, objv, NULL);
 	    return TCL_ERROR;
 	}
-	Ns_RWLockRdLock(&itPtr->servPtr->tcl.lock);
-	Tcl_SetResult(interp, itPtr->servPtr->tcl.script, TCL_VOLATILE);
-	Ns_RWLockUnlock(&itPtr->servPtr->tcl.lock);
+	Ns_RWLockRdLock(&servPtr->tcl.lock);
+	Tcl_SetResult(interp, servPtr->tcl.script, TCL_VOLATILE);
+	Ns_RWLockUnlock(&servPtr->tcl.lock);
 	break;
 
     case IEpochIdx:
+	/*
+	 * Check the version of this interp against current init script.
+	 */
+
 	if (objc != 2) {
             Tcl_WrongNumArgs(interp, 2, objv, NULL);
 	    return TCL_ERROR;
 	}
-	Ns_RWLockRdLock(&itPtr->servPtr->tcl.lock);
-	Tcl_SetIntObj(Tcl_GetObjResult(interp), itPtr->servPtr->tcl.epoch);
-	Ns_RWLockUnlock(&itPtr->servPtr->tcl.lock);
+	Ns_RWLockRdLock(&servPtr->tcl.lock);
+	Tcl_SetIntObj(Tcl_GetObjResult(interp), servPtr->tcl.epoch);
+	Ns_RWLockUnlock(&servPtr->tcl.lock);
 	break;
    
     case ISaveIdx:
+	/*
+	 * Save the init script.
+	 */
+
 	if (objc != 3) {
             Tcl_WrongNumArgs(interp, 2, objv, "script");
 	    return TCL_ERROR;
     	}
 	script = ns_strdup(Tcl_GetStringFromObj(objv[2], &length));
-	Ns_RWLockWrLock(&itPtr->servPtr->tcl.lock);
-	ns_free(itPtr->servPtr->tcl.script);
-	itPtr->servPtr->tcl.script = script;
-	itPtr->servPtr->tcl.length = length;
-	if (++itPtr->servPtr->tcl.epoch == 0) {
+	Ns_RWLockWrLock(&servPtr->tcl.lock);
+	ns_free(servPtr->tcl.script);
+	servPtr->tcl.script = script;
+	servPtr->tcl.length = length;
+	if (++servPtr->tcl.epoch == 0) {
 	    /* NB: Epoch zero reserved for new interps. */
-	    ++itPtr->servPtr->tcl.epoch;
+	    ++servPtr->tcl.epoch;
 	}
-	Ns_RWLockUnlock(&itPtr->servPtr->tcl.lock);
+	Ns_RWLockUnlock(&servPtr->tcl.lock);
 	break;
 
     case IUpdateIdx:
+	/*
+	 * Check for and process possible change in the init script.
+	 */
+
 	if (objc != 2) {
             Tcl_WrongNumArgs(interp, 2, objv, NULL);
 	    return TCL_ERROR;
 	}
-	result = UpdateServerInterp(itPtr);
+	result = UpdateInterp(itPtr);
 	break;
 
     case ICleanupIdx:
+	/*
+	 * Invoke the legacy defer callbacks.
+	 */
+
 	if (objc != 2) {
             Tcl_WrongNumArgs(interp, 2, objv, NULL);
 	    return TCL_ERROR;
@@ -983,13 +1000,16 @@ NsTclICtlObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 	    (*deferPtr->proc)(interp, deferPtr->arg);
 	    ns_free(deferPtr);
 	}
-    	NsFreeAtClose(itPtr);
 	break;
 
     case IOnInitIdx:
     case IOnCreateIdx:
     case IOnCleanupIdx:
     case IOnDeleteIdx:
+	/*
+	 * Register script-level interp traces.
+	 */
+
         if (objc != 3) {
             Tcl_WrongNumArgs(interp, 1, objv, "when script");
 	    return TCL_ERROR;
@@ -1023,13 +1043,17 @@ NsTclICtlObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
     	}
 	when = twhen[topt];
     trace:
-	if ((servPtr = NsGetInitServer()) == NULL) {
+	if (servPtr != NsGetInitServer()) {
 	    Tcl_AppendResult(interp, "attempt to call ", opts[opt],
 		" after startup", NULL);
 	    return TCL_ERROR;
 	}
-        script = ns_strdup(Tcl_GetString(objv[objc-1]));
-	(void) RegisterTrace(servPtr, EvalScript, script, when);
+	script = Tcl_GetString(objv[objc-1]);
+	length = strlen(script);
+	stPtr = ns_malloc(sizeof(STrace) + length);
+	stPtr->length = length;
+	strcpy(stPtr->script,  script);
+	(void) Ns_TclRegisterTrace(servPtr->server, EvalTrace, stPtr, when);
 	break;
     }
     return result;
@@ -1039,7 +1063,384 @@ NsTclICtlObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 /*
  *----------------------------------------------------------------------
  *
- * EvalScript --
+ * NsTclAtCloseObjCmd --
+ *
+ *	Implements ns_atclose. 
+ *
+ * Results:
+ *	Tcl result. 
+ *
+ * Side effects:
+ *	Script will be invoked when the connection is closed.  Note
+ *	the connection may continue execution, e.g., with continued
+ *	ADP code, traces, etc.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+NsTclAtCloseObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
+		   CONST Tcl_Obj **objv)
+{
+    NsInterp *itPtr = arg;
+    AtClose *atPtr;
+
+    if (objc < 2) {
+        Tcl_WrongNumArgs(interp, 1, objv, "script ?args?");
+	return TCL_ERROR;
+    }
+    if (itPtr->conn == NULL) {
+	Tcl_SetResult(interp, "no connection", TCL_STATIC);
+	return TCL_ERROR;
+    }
+    atPtr = ns_malloc(sizeof(AtClose));
+    atPtr->nextPtr = itPtr->firstAtClosePtr;
+    itPtr->firstAtClosePtr = atPtr;
+    atPtr->objPtr = Tcl_ConcatObj(objc-1, objv+1);
+    Tcl_IncrRefCount(atPtr->objPtr);
+    return TCL_OK;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsTclMarkForDeleteObjCmd --
+ *
+ *	Implements ns_markfordelete. 
+ *
+ * Results:
+ *	Tcl result. 
+ *
+ * Side effects:
+ *	See Ns_TclMarkForDelete. 
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+NsTclMarkForDeleteObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
+{
+    NsInterp *itPtr = arg;
+
+    if (objc != 1) {
+        Tcl_WrongNumArgs(interp, 1, objv, "");
+	return TCL_ERROR;
+    }
+    itPtr->delete = 1;
+    return TCL_OK;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsTclDummyObjCmd --
+ *
+ *      Dummy command for ns_init and ns_cleanup.  The default
+ *	init.tcl script will re-define these commands with proper
+ *	startup initialization and deallocation scripts.
+ *
+ * Results:
+ *      TCL_OK.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+NsTclDummyObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
+{
+    return TCL_OK;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsTclInitServer --
+ *
+ *	Evaluate server initialization script at startup.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	See init script (normally init.tcl).
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+NsTclInitServer(char *server)
+{
+    NsServer *servPtr = NsGetServer(server);
+    Tcl_Interp *interp;
+
+    if (servPtr != NULL) {
+	interp = Ns_TclAllocateInterp(server);
+	if (Tcl_EvalFile(interp, servPtr->tcl.initfile) != TCL_OK) {
+	    Ns_TclLogError(interp);
+	}
+    	Ns_TclDeAllocateInterp(interp);
+    }
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsGetInterpData --
+ *
+ *	Return the interp's NsInterp structure from assoc data.
+ *	This routine is used when the NsInterp is needed and
+ *	not available as command ClientData.
+ *
+ * Results:
+ *	Pointer to NsInterp or NULL if none.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+NsInterp *
+NsGetInterpData(Tcl_Interp *interp)
+{
+    return (interp ? Tcl_GetAssocData(interp, "ns:data", NULL) : NULL);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsFreeConnInterp --
+ *
+ *	Free the interp data, if any, for given connection.  This
+ *	routine is called at the end of connection processing.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	See PushInterp.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+NsFreeConnInterp(Conn *connPtr)
+{
+    NsInterp *itPtr = connPtr->itPtr;
+
+    if (itPtr != NULL) {
+    	RunTraces(itPtr, NS_TCL_TRACE_FREECONN);
+    	itPtr->conn = NULL;
+    	itPtr->nsconn.flags = 0;
+    	PushInterp(itPtr);
+    	connPtr->itPtr = NULL;
+    }
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsTclRunAtClose --
+ *
+ *	Run any registered connection at-close scripts. 
+ *
+ * Results:
+ *	None. 
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+NsTclRunAtClose(NsInterp *itPtr)
+{
+    Tcl_Interp    *interp = itPtr->interp;
+    AtClose       *atPtr;
+
+    while ((atPtr = itPtr->firstAtClosePtr) != NULL) {
+	itPtr->firstAtClosePtr = atPtr->nextPtr;
+	if (Tcl_EvalObjEx(interp, atPtr->objPtr, TCL_EVAL_DIRECT) != TCL_OK) {
+	    Ns_TclLogError(interp);
+	}
+	Tcl_DecrRefCount(atPtr->objPtr);
+	ns_free(atPtr);
+    }
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * PopInterp --
+ *
+ *	Pop next avaialble virtual-server interp from the per-thread
+ *	cache, allocating a new interp if necessary.
+ *
+ * Results:
+ *	Pointer to next available NsInterp.
+ *
+ * Side effects:
+ *	Will invoke alloc traces and, if the interp is new, create
+ *	traces.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static NsInterp *
+PopInterp(char *server)
+{
+    static Ns_Cs lock;
+    NsServer *servPtr;
+    NsInterp *itPtr;
+    Tcl_HashEntry *hPtr;
+
+    /*
+     * Verify the server.  NULL (i.e., no server) is valid but
+     * a non-null, unknown server is an error.
+     */
+
+    if (server == NULL) {
+	servPtr = NULL;
+    } else {
+	servPtr = NsGetServer(server);
+	if (servPtr == NULL) {
+	    return NULL;
+	}
+    }
+
+    /*
+     * Pop the first interp off the list of availabe interps for
+     * the given virtual server on this thread.  If none exists,
+     * create and initialize a new interp.
+     */
+
+    hPtr = GetCacheEntry(servPtr);
+    itPtr = Tcl_GetHashValue(hPtr);
+    if (itPtr != NULL) {
+	Tcl_SetHashValue(hPtr, itPtr->nextPtr);
+    } else {
+    	if (nsconf.tcl.lockoninit) {
+	    Ns_CsEnter(&lock);
+    	}
+	(void) CreateInterp(&itPtr);
+	if (servPtr != NULL) {
+    	    itPtr->servPtr = servPtr;
+    	    NsTclAddServerCmds(itPtr->interp, itPtr);
+    	    RunTraces(itPtr, NS_TCL_TRACE_CREATE);
+    	    if (UpdateInterp(itPtr) != TCL_OK) {
+		Ns_TclLogError(itPtr->interp);
+    	    }
+	}
+    	if (nsconf.tcl.lockoninit) {
+	    Ns_CsLeave(&lock);
+    	}
+    }
+    itPtr->nextPtr = NULL;
+
+    /*
+     * Run allocation traces and evaluate the ns_init proc which by
+     * default updates the interp state with ns_ictl if necessary.
+     */
+
+    RunTraces(itPtr, NS_TCL_TRACE_ALLOCATE);
+    if (Tcl_EvalEx(itPtr->interp, "ns_init", -1, 0) != TCL_OK) {
+	Ns_TclLogError(itPtr->interp);
+    }
+    return itPtr;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * PushInterp --
+ *
+ *	Return a virtual-server interp to the per-thread interp
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	Will invoke de-alloc traces.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+PushInterp(NsInterp *itPtr)
+{
+    Tcl_Interp *interp = itPtr->interp;
+    Tcl_HashEntry *hPtr;
+
+    /*
+     * Evaluate the cleanup script to perform various garbage collection
+     * and then either delete the interp or push it back on the
+     * per-thread list.
+     */
+
+    RunTraces(itPtr, NS_TCL_TRACE_DEALLOCATE);
+    if (Tcl_EvalEx(interp, "ns_cleanup", -1, 0) != TCL_OK) {
+	Ns_TclLogError(interp);
+    }
+    if (itPtr->delete) {
+	Ns_TclDestroyInterp(interp);
+    } else {
+	Tcl_ResetResult(interp);
+	hPtr = GetCacheEntry(itPtr->servPtr);
+	itPtr->nextPtr = Tcl_GetHashValue(hPtr);
+	Tcl_SetHashValue(hPtr, itPtr);
+    }
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * GetCacheEntry --
+ *
+ *      Get hash entry in per-thread interp cache for given virtual
+ *	 server
+ *
+ * Results:
+ *      Pointer to hash entry.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static Tcl_HashEntry *
+GetCacheEntry(NsServer *servPtr)
+{
+    Tcl_HashTable *tablePtr;
+    int ignored;
+
+    tablePtr = Ns_TlsGet(&tls);
+    if (tablePtr == NULL) {
+	tablePtr = ns_malloc(sizeof(Tcl_HashTable));
+	Tcl_InitHashTable(tablePtr, TCL_ONE_WORD_KEYS);
+	Ns_TlsSet(&tls, tablePtr);
+    }
+    return Tcl_CreateHashEntry(tablePtr, (char *) servPtr, &ignored);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * EvalTrace --
  *
  *      Eval the given script from being called as a Tcl Init callback.
  *
@@ -1053,54 +1454,86 @@ NsTclICtlObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
  */
 
 static int
-EvalScript(Tcl_Interp *interp, void *arg)
+EvalTrace(Tcl_Interp *interp, void *arg)
 {
-    return Tcl_Eval(interp, (char *) arg);
+    STrace *stPtr = arg;
+
+    return Tcl_EvalEx(interp, stPtr->script, stPtr->length, 0);
 }
 
 
 /*
  *----------------------------------------------------------------------
  *
- * InitInterp --
+ * CreateInterp --
  *
- *      Initialize an interp with standard Tcl and AOLserver commands.
- *	If servPtr is not NULL, virtual server commands will be added
- *	as well.
+ *      Create a new AOLserver interp.
  *
  * Results:
- *      Pointer to new NsInterp structure.
+ *      Pointer to new NsInterp.
  *
  * Side effects:
- *	Depends on Tcl init script sources by Tcl_Init.
+ *	NsInterp structure for new interp will be stored in itPtrPt
+ *	if not null.
  *
  *----------------------------------------------------------------------
  */
 
-static int
-InitInterp(Tcl_Interp *interp, NsServer *servPtr, NsInterp **itPtrPtr)
+static Tcl_Interp *
+CreateInterp(NsInterp **itPtrPtr)
 {
-    static volatile int initialized = 0;
     NsInterp *itPtr;
-    int result = TCL_OK;
+    Tcl_Interp *interp;
 
     /*
-     * Optionally single-thread Tcl interp initialization.
+     * Create and initialize a basic Tcl interp.
      */
 
-    if (nsconf.tcl.lockoninit) {
-	Ns_CsEnter(&initcs);
+    interp = Tcl_CreateInterp();
+    Tcl_InitMemory(interp);
+    if (Tcl_Init(interp) != TCL_OK) {
+	Ns_TclLogError(interp);
     }
 
     /*
-     * Basic Tcl initialization.
+     * Allocate and associate a new NsInterp struct for the interp.
      */
 
-    result = Tcl_Init(interp);
-    Tcl_InitMemory(interp);
+    itPtr = NewInterpData(interp);
+    if (itPtrPtr != NULL) {
+	*itPtrPtr = itPtr;
+    }
+    return interp;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NewInterpData --
+ *
+ *      Create a new NsInterp struct for the given interp, adding
+ *	core AOLserver commands and associating it with the interp.
+ *
+ * Results:
+ *      Pointer to new NsInterp struct.
+ *
+ * Side effects:
+ *	Will add core AOLserver commands to given interp.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static NsInterp *
+NewInterpData(Tcl_Interp *interp)
+{
+    static volatile int initialized = 0;
+    NsInterp *itPtr;
 
     /*
-     * Core one-time AOLserver initialization.
+     * Core one-time AOLserver initialization to add a few Tcl_Obj
+     * types.  These calls cannot be in NsTclInit above because
+     * Tcl is not fully initialized at libnsd load time.
      */
 
     if (!initialized) {
@@ -1109,55 +1542,64 @@ InitInterp(Tcl_Interp *interp, NsServer *servPtr, NsInterp **itPtrPtr)
 	    NsTclInitQueueType();
 	    NsTclInitAddrType();
 	    NsTclInitTimeType();
-        NsTclInitKeylistType();
+	    NsTclInitKeylistType();
 	    initialized = 1;
 	}
 	Ns_MasterUnlock();
     }
+
+    /*
+     * Allocate and initialize a new NsInterp struct.
+     */
+
     itPtr = ns_calloc(1, sizeof(NsInterp));
     itPtr->interp = interp;
-    itPtr->servPtr = servPtr;
+    itPtr->servPtr = NULL;
     Tcl_InitHashTable(&itPtr->sets, TCL_STRING_KEYS);
     Tcl_InitHashTable(&itPtr->chans, TCL_STRING_KEYS);	
     Tcl_InitHashTable(&itPtr->https, TCL_STRING_KEYS);	
-    Tcl_SetAssocData(interp, "ns:data", FreeData, itPtr);
-    NsTclAddCmds(interp, itPtr);
-    RunTraces(itPtr, NS_TCL_TRACE_CREATE);
 
     /*
-     * Virtual-server initialization including invoking any create traces
-     * typically registered by module calls to Ns_TclInitInterps and
-     * a call to UpdateServerInterp to copy procs and namespaces.
+     * Associate the new NsInterp with this interp.  At interp delete
+     * time, Tcl will call FreeInterpData to cleanup the struct.
      */
 
-    if (servPtr != NULL) {
-	NsTclAddServerCmds(interp, itPtr);
-        result = UpdateServerInterp(itPtr);
-    }
-    if (nsconf.tcl.lockoninit) {
-        Ns_CsLeave(&initcs); 
-    }
-    if (result != TCL_OK) {
-	Ns_TclLogError(interp);
-    }
-    if (itPtrPtr != NULL) {
-	*itPtrPtr = itPtr;
-    }
-    return result;
+    Tcl_SetAssocData(interp, "ns:data", FreeInterpData, itPtr);
+
+    /*
+     * Add core AOLserver commands.
+     */
+
+    NsTclAddCmds(interp, itPtr);
+    return itPtr;
 }
 
 
 /*
  *----------------------------------------------------------------------
  *
- * UpdateServerInterp --
+ * UpdateServerInterpData --
  *
- *      Update the state (procs, namespaces) of an interp.  Called
- *	directly to bootstrap new interps and then through
- *	"ns_ictl update" during regular cleanup.
+ *      Update the state (procs, namespaces) of an interp.  The current
+ *      state of interps for a virtual server is defined by a script
+ *      used to add any needed procs, vars, package calls, etc.  By
+ *	default, the state script for a virtual server is created at
+ *	startup by an interp which sources all cooresponding
+ *	configuration, saves the resulting definitions as a script via
+ *	"ns_ictl save" (see nsd/init.tcl for details), and marks
+ *	itself for deletion as it's only purpose was to create the
+ *	initial state.  To detect possible change of the script at
+ *	runtime through other interps (e.g., through a call to
+ *	ns_eval), an epoch counter is maintained and updated each time
+ *	a new script is saved.  New interps are initialized with epoch
+ *	0 and always detect the need to evaluate the state script
+ *	below.  Existing interps can call UpdateInterp to detect
+ *	runtime config changes via "ns_ictl update" which, by default,
+ *	is called in the "ns_cleanup" garbage collection script called
+ *	at interp deallocation time.
  *
  * Results:
- *      Tcl result from update script.
+ *      Tcl result from update script if invoked, TCL_OK otherwise.
  *
  * Side effects:
  *	Will update procs when epoch changes.
@@ -1166,9 +1608,15 @@ InitInterp(Tcl_Interp *interp, NsServer *servPtr, NsInterp **itPtrPtr)
  */
 
 static int
-UpdateServerInterp(NsInterp *itPtr)
+UpdateInterp(NsInterp *itPtr)
 {
     int result = TCL_OK;
+
+    /*
+     * A reader-writer lock is used on the assumption updates are
+     * rare and likley expensive to evaluate if the virtual server
+     * contains significant state.
+     */
 
     Ns_RWLockRdLock(&itPtr->servPtr->tcl.lock);
     if (itPtr->epoch != itPtr->servPtr->tcl.epoch) {
@@ -1184,10 +1632,10 @@ UpdateServerInterp(NsInterp *itPtr)
 /*
  *----------------------------------------------------------------------
  *
- * FreeData --
+ * FreeInterpData --
  *
- *      Destroy the per-interp NsInterp structure at
- *	interp delete time.
+ *      Tcl assoc data callback to destroy the per-interp NsInterp
+ *      structure at interp delete time.
  *
  * Results:
  *      None.
@@ -1199,7 +1647,7 @@ UpdateServerInterp(NsInterp *itPtr)
  */
 
 static void
-FreeData(ClientData arg, Tcl_Interp *interp)
+FreeInterpData(ClientData arg, Tcl_Interp *interp)
 {
     NsInterp *itPtr = arg;
 
@@ -1245,91 +1693,6 @@ DeleteInterps(void *arg)
     }
     Tcl_DeleteHashTable(tablePtr);
     ns_free(tablePtr);
-
-    Tcl_FinalizeThread(); /* To call registered thread-exit handlers */
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * GetHashEntry --
- *
- *      Get/Create hash entry for per-thread list of interps for given
- *	server.
- *
- * Results:
- *      Pointer to hash entry.
- *
- * Side effects:
- *	None.
- *
- *----------------------------------------------------------------------
- */
-
-static Tcl_HashEntry *
-GetHashEntry(NsServer *servPtr)
-{
-    Tcl_HashTable *tablePtr;
-    int ignored;
-
-    tablePtr = Ns_TlsGet(&tls);
-    if (tablePtr == NULL) {
-	tablePtr = ns_malloc(sizeof(Tcl_HashTable));
-	Tcl_InitHashTable(tablePtr, TCL_ONE_WORD_KEYS);
-	Ns_TlsSet(&tls, tablePtr);
-    }
-    return Tcl_CreateHashEntry(tablePtr, (char *) servPtr, &ignored);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Ns_TclRegisterTrace --
- *
- *  	Add a Tcl trace.  Traces are called in FIFO order.
- *
- * Results:
- *	NS_OK if called with a non-NULL server, NS_ERROR otherwise.
- *
- * Side effects:
- *	Will modify server trace list.
- *
- *----------------------------------------------------------------------
- */
- 
-int
-Ns_TclRegisterTrace(char *server, Ns_TclTraceProc *proc, void *arg, int when)
-{
-    return RegisterTrace(NsGetServer(server), proc, arg, when);
-}
-
-static int
-RegisterAt(Ns_TclTraceProc *proc, void *arg, int when)
-{
-    return RegisterTrace(NsGetInitServer(), proc, arg, when);
-}
-
-static int
-RegisterTrace(NsServer *servPtr, Ns_TclTraceProc *proc, void *arg, int when)
-{
-    Trace *tracePtr, **firstPtrPtr;
-
-    if (servPtr == NULL || Ns_InfoStarted()) {
-	return NS_ERROR;
-    }
-    tracePtr = ns_malloc(sizeof(Trace));
-    tracePtr->proc = proc;
-    tracePtr->arg = arg;
-    tracePtr->when = when;
-    tracePtr->nextPtr = NULL;
-    firstPtrPtr = &servPtr->tcl.firstTracePtr;
-    while (*firstPtrPtr != NULL) {
-	firstPtrPtr = &((*firstPtrPtr)->nextPtr);
-    }
-    *firstPtrPtr = tracePtr;
-    return NS_OK;
 }
 
 
@@ -1357,9 +1720,10 @@ RunTraces(NsInterp *itPtr, int why)
     if (itPtr->servPtr != NULL) {
     	tracePtr = itPtr->servPtr->tcl.firstTracePtr;
     	while (tracePtr != NULL) {
-	    if ((tracePtr->when & why) &&
-		    (*tracePtr->proc)(itPtr->interp, tracePtr->arg) != TCL_OK) {
-	        Ns_TclLogError(itPtr->interp);
+	    if ((tracePtr->when & why)) {
+		if ((*tracePtr->proc)(itPtr->interp, tracePtr->arg) != TCL_OK) {
+	            Ns_TclLogError(itPtr->interp);
+		}
 	    }
 	    tracePtr = tracePtr->nextPtr;
 	}
