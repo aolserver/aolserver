@@ -34,7 +34,7 @@
  *	Unix specific routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/unix.c,v 1.4 2000/08/17 06:09:49 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/unix.c,v 1.5 2000/10/13 00:11:37 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -203,39 +203,6 @@ NsSendSignal(int sig)
     if (kill(Ns_InfoPid(),  sig) != 0) {
     	Ns_Fatal("unix: kill() failed: '%s'", strerror(errno));
     }
-}
-
-
-/*
- *----------------------------------------------------------------------
- * Ns_Fork --
- *
- *      Fork a child process.
- *
- * Results:
- *      Returns ther process id of the child if parent, 0 if child, or
- *	-1 if error.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-int
-ns_fork(void)
-{
-    return Ns_Fork();
-}
-
-int
-Ns_Fork(void)
-{
-#ifdef HAVE_FORK1
-    return fork1();
-#else
-    return fork();
-#endif
 }
 
 
