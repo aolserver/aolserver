@@ -1,3 +1,15 @@
+2003-03-30  Scott S. Goodwin  <scott@scottg.net>
+
+	* include/ns.h:
+          nsd/driver.c:
+          nssock/nssock.c:
+          nsssl/nsssl.c: Modified Ns_DriverInit. Instead of passing all args
+          as parameters to Ns_DriverInit, a comm module must now create an
+          Ns_DriverInitData structure and populate it with appropriate values
+          (see include/ns.h) and pass that in the call to Ns_DriverInit. The
+          Ns_DriverInitData structure is versioned so that we can extend it
+          later without affecting other modules.
+
 2003-03-28  Mark Page  <mpagenva@aol.com>
 
 	* nsd/tclhttp.c: (bug) Fix uninitialized hdrs var, was causing segfault.

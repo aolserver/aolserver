@@ -33,7 +33,7 @@
  *      All the public types and function declarations for the core
  *	AOLserver.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.51 2003/03/19 09:00:47 vasiljevic Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.52 2003/03/31 19:46:01 scottg Exp $
  */
 
 #ifndef NS_H
@@ -110,6 +110,7 @@
 #define NS_ENCRYPT_BUFSIZE 	 16
 #define NS_DRIVER_ASYNC		  1	/* Use async read-ahead. */
 #define NS_DRIVER_SSL		  2	/* Use SSL port, protocol defaults. */
+#define NS_DRIVER_VERSION_1       1
 
 #if defined(__alpha)
 typedef long			ns_int64;
@@ -413,6 +414,20 @@ typedef int (Ns_DriverProc)(Ns_DriverCmd cmd, Ns_Sock *sock,
 			    struct iovec *bufs, int nbufs);
 
 /*
+ * The following structure defines the values to initialize the driver. This is
+ * passed to Ns_DriverInit.
+ */
+
+typedef struct Ns_DriverInitData {
+    int            version;      /* Currently only version 1 exists */
+    char          *name;         /* This will show up in log file entries */
+    Ns_DriverProc *proc;
+    int            opts;
+    void          *arg;          /* Module's driver callback data */
+    char          *path;         /* Path to find port, address, etc. */
+} Ns_DriverInitData;
+
+/*
  * More typedefs of functions 
  */
 
@@ -601,8 +616,7 @@ NS_EXTERN int Ns_GetAddrByHost(Ns_DString *dsPtr, char *host);
  * driver.c:
  */
 
-NS_EXTERN int Ns_DriverInit(char *server, char *module, char *name,
-			    Ns_DriverProc *proc, void *arg, int opts);
+NS_EXTERN int Ns_DriverInit(char *server, char *module, Ns_DriverInitData *init);
 
 /*
  * dstring.c:

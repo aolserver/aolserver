@@ -34,7 +34,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.15 2003/03/07 18:08:22 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.16 2003/03/31 19:46:03 scottg Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -131,8 +131,7 @@ NsInitDrivers(void)
  */
 
 int
-Ns_DriverInit(char *server, char *module, char *name,
-	      Ns_DriverProc *proc, void *arg, int opts)
+Ns_DriverInit(char *server, char *module, Ns_DriverInitData *init)
 {
     char *path,*address, *host, *bindaddr, *defproto;
     int i, n, sockwait, defport;
@@ -146,7 +145,19 @@ Ns_DriverInit(char *server, char *module, char *name,
     if (server != NULL && (servPtr = NsGetServer(server)) == NULL) {
 	return NS_ERROR;
     }
-    path = Ns_ConfigGetPath(server, module, NULL);
+
+    if (init == NULL) {
+        Ns_Log(Error, "%s: init argument is NULL", module);
+        return NS_ERROR;
+    }
+
+    if (init->version != NS_DRIVER_VERSION_1) {
+        Ns_Log(Error, "%s: version field of init argument is invalid: %d", 
+                module, init->version);
+        return NS_ERROR;
+    }
+
+    path = (init->path ? init->path : Ns_ConfigGetPath(server, module, NULL));
 
     /*
      * Determine the hostname used for the local address to bind
@@ -218,7 +229,7 @@ Ns_DriverInit(char *server, char *module, char *name,
      * Set the protocol and port defaults.
      */
 
-    if (opts & NS_DRIVER_SSL) {
+    if (init->opts & NS_DRIVER_SSL) {
 	defproto = "https";
 	defport = 443;
     } else {
@@ -232,10 +243,10 @@ Ns_DriverInit(char *server, char *module, char *name,
 
     drvPtr = ns_calloc(1, sizeof(Driver));
     drvPtr->server = server;
-    drvPtr->name = name;
-    drvPtr->proc = proc;
-    drvPtr->arg = arg;
-    drvPtr->opts = opts;
+    drvPtr->name = init->name;
+    drvPtr->proc = init->proc;
+    drvPtr->arg = init->arg;
+    drvPtr->opts = init->opts;
     drvPtr->servPtr = servPtr;
     if (!Ns_ConfigGetInt(path, "bufsize", &n) || n < 1) { 
         n = 16000; 	/* ~16k */

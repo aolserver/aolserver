@@ -67,9 +67,17 @@ NS_EXPORT int Ns_ModuleVersion = 1;
 NS_EXPORT int
 Ns_ModuleInit(char *server, char *module)
 {
+    Ns_DriverInitData *init;
     char *cert, *key, *path;
     void *dssl;
     int n;
+
+    init = ns_calloc(1, sizeof(Ns_DriverInitData));
+    if (init == NULL) {
+        Ns_Log(Error, "%s: Memory allocation failure in Ns_ModuleInit",
+                module);
+        return NS_ERROR;
+    }
 
     /*
      * Initialize the global and per-driver SSL.
@@ -81,6 +89,7 @@ Ns_ModuleInit(char *server, char *module)
         return NS_ERROR; 
     } 
     cert = Ns_ConfigGet(path, "certfile"); 
+
     if (cert == NULL) { 
         Ns_Log(Warning, "%s: certfile not specified", module); 
         return NS_OK; 
@@ -109,8 +118,14 @@ Ns_ModuleInit(char *server, char *module)
      * the SSL option to use the SSL port and protocol defaults.
      */
 
-    return Ns_DriverInit(server, module, DRIVER_NAME,
-	SSLProc, dssl, NS_DRIVER_SSL);
+    init->version = NS_DRIVER_VERSION_1;
+    init->name = DRIVER_NAME;
+    init->proc = SSLProc;
+    init->arg = dssl;
+    init->opts = NS_DRIVER_SSL;
+    init->path = NULL;
+
+    return Ns_DriverInit(server, module, init);
 }
 
 
