@@ -1,5 +1,9 @@
 2003-04-10  Nathan Folkman <shmooved@aol.com>
 
+    * TAG: aolserver_v35_b8
+
+    * nsd/nsd.h: Bumped lable/version to aolserver_v35_b8.
+
     * nslog/nslog.c: (new feature): Added a new option allowing
     the request time to be captured and appended to the access
     log. 
