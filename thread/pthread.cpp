@@ -71,6 +71,7 @@
 #define sched_yield		pthread_yield
 #define MUTEX_INIT_ATTR         pthread_mutexattr_default
 #define COND_INIT_ATTR          pthread_condattr_default
+#define PTHREAD_ONCE_INIT	pthread_once_init
 #endif
 #if defined(MACOSX) 
 #define pthread_sigmask                sigprocmask
@@ -763,6 +764,15 @@ ns_sigmask(int how, sigset_t * set, sigset_t * oset)
  * GetKey --
  *
  *	Return the single pthread TLS key, initalizing if needed.
+ *	This code avoids pthread_once as that appears to require
+ *	locking every time on Solaris.  Instead, pthread_once is
+ *	only used to initialize a lock which itself is only used
+ *	to serialize the creation of the key.  All this is somewhat
+ *	overkill as it's very unlikely more than one thread would
+ *	call this code simultaneously.  Also, the use of pthread_once
+ *	instead of simple static initialization of the lock is for the
+ *	benefit of old draft4 code which does not support static
+ *	initialization.
  *
  * Results:
  *	None.
@@ -773,16 +783,33 @@ ns_sigmask(int how, sigset_t * set, sigset_t * oset)
  *----------------------------------------------------------------------
  */
 
+static pthread_mutex_t initlock;
+
+static void
+InitLockOnce(void)
+{
+    int err;
+
+    err = pthread_mutex_init(&initlock, MUTEX_INIT_ATTR);
+    if (err != 0) {
+    	NsThreadFatal("InitLockOnce", "ptread_mutex_init", err);
+    }
+}
+
 static pthread_key_t
 GetKey(void)
 {
-    static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+    static pthread_once_t once = PTHREAD_ONCE_INIT;
     static unsigned char initialized;
     static pthread_key_t key;
     int err;
 
     if (!initialized) {
-    	err = pthread_mutex_lock(&lock);
+	err = pthread_once(&once, InitLockOnce);
+	if (err != 0) {
+            NsThreadFatal("GetKey", "pthread_once", err);
+    	}
+    	err = pthread_mutex_lock(&initlock);
     	if (err != 0) {
             NsThreadFatal("GetKey", "pthread_mutex_lock", err);
     	}
@@ -793,7 +820,7 @@ GetKey(void)
     	    }
 	    initialized = 1;
 	}
-    	err = pthread_mutex_unlock(&lock);
+    	err = pthread_mutex_unlock(&initlock);
     	if (err != 0) {
             NsThreadFatal("GetKey", "pthread_mutex_unlock", err);
     	}
