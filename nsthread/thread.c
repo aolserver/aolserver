@@ -34,7 +34,7 @@
  *	Routines for creating, exiting, and joining threads.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/thread.c,v 1.5 2003/01/18 19:56:30 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/thread.c,v 1.6 2003/06/18 21:37:12 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "thread.h"
 
@@ -158,7 +158,7 @@ Ns_ThreadCreate(Ns_ThreadProc *proc, void *arg, long stack,
     }
     strcpy(thrPtr->parent, Ns_ThreadGetName());
     Ns_MasterUnlock();
-    NsCreateThread(thrPtr, stacksize, resultPtr);
+    NsCreateThread(thrPtr, stack, resultPtr);
 }
 
 
