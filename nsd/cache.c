@@ -34,7 +34,7 @@
  *	Routines for a simple cache used by fastpath and Adp.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/cache.c,v 1.6 2001/01/12 22:43:18 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/cache.c,v 1.7 2001/06/26 22:10:53 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -51,7 +51,7 @@ typedef struct Entry {
     struct Entry *prevPtr;
     struct Cache *cachePtr;
     Tcl_HashEntry *hPtr;
-    time_t expires;
+    Ns_Time mtime;
     size_t size;
     void *value;
 } Entry;
@@ -61,7 +61,6 @@ typedef struct Entry {
  */
 
 typedef struct Cache {
-    char    name[32];
     Entry *firstEntryPtr;
     Entry *lastEntryPtr;
     Tcl_HashEntry *hPtr;
@@ -79,6 +78,7 @@ typedef struct Cache {
     unsigned int nmiss;
     unsigned int nflush;
     Tcl_HashTable entriesTable;
+    char    name[1];
 } Cache;
 
 
@@ -98,7 +98,7 @@ static void Push(Entry *ePtr);
 
 static Tcl_HashTable cachesTable;	/* a hash table of hash tables */
 static Ns_Mutex lock;
-static int initialized;
+static volatile int initialized;
 
 
 /*
@@ -368,12 +368,8 @@ Ns_CacheCreateEntry(Ns_Cache *cache, char *key, int *newPtr)
     	Delink(ePtr);
 	++cachePtr->nhit;
     } else {
-	ePtr = ns_malloc(sizeof(Entry));
-	ePtr->prevPtr = ePtr->nextPtr = NULL;
-	ePtr->value = NULL;
-	ePtr->size = 0;
+	ePtr = ns_calloc(1, sizeof(Entry));
 	ePtr->hPtr = hPtr;
-	ePtr->expires = 0;
 	ePtr->cachePtr = cachePtr;
 	Tcl_SetHashValue(hPtr, ePtr);
 	++cachePtr->nmiss;
@@ -1188,7 +1184,7 @@ CacheCreate(char *name, int keys, time_t timeout, size_t maxSize,
     Cache *cachePtr;
     int new;
 
-    cachePtr = ns_calloc(1, sizeof(Cache));
+    cachePtr = ns_calloc(1, sizeof(Cache) + strlen(name));
     cachePtr->freeProc = freeProc;
     cachePtr->timeout = timeout;
     cachePtr->maxSize = maxSize;
@@ -1264,7 +1260,8 @@ Delink(Entry *ePtr)
  *	None.
  *
  * Side effects:
- *	The linked list will be changed and the expires time will be updated.
+ *	The linked list will be changed and the mtime time will be
+ *	updated for time-based caches.
  *
  *----------------------------------------------------------------------
  */
@@ -1272,7 +1269,9 @@ Delink(Entry *ePtr)
 static void
 Push(Entry *ePtr)
 {
-    ePtr->expires = time(NULL) + ePtr->cachePtr->timeout;
+    if (ePtr->cachePtr->timeout > 0) {
+	Ns_GetTime(&ePtr->mtime);
+    }
     if (ePtr->cachePtr->firstEntryPtr != NULL) {
 	ePtr->cachePtr->firstEntryPtr->prevPtr = ePtr;
     }
@@ -1337,16 +1336,23 @@ NsCachePurge(void *arg)
 {
     Entry *ePtr;
     Cache *cachePtr = (Cache *) arg;
-    time_t now;
+    Ns_Time expired;
 
-    time(&now);
     Ns_MutexLock(&cachePtr->lock);
     if (cachePtr->schedStop) {
 	cachePtr->schedId = -1;
 	Ns_CondBroadcast(&cachePtr->cond);
     } else {
-    	while ((ePtr = cachePtr->lastEntryPtr) != NULL &&
-	    ePtr->expires < now) {
+	Ns_GetTime(&expired);
+	Ns_IncrTime(&expired, -cachePtr->timeout, 0);
+	while ((ePtr = cachePtr->lastEntryPtr) != NULL) {
+	    if (ePtr->mtime.sec > expired.sec) {
+		break;
+	    }
+	    if (ePtr->mtime.sec == expired.sec
+		    && ePtr->mtime.usec > expired.usec) {
+		break;
+	    }
 	    Ns_CacheFlushEntry((Ns_Entry *) ePtr);
     	}
     }
