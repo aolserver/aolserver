@@ -28,16 +28,16 @@
 '\" version of this file under either the License or the GPL.
 '\" 
 '\"
-'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_file.n,v 1.2 2002/09/28 19:58:27 jgdavidson Exp $
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_file.n,v 1.3 2003/04/10 16:16:01 shmooved Exp $
 '\"
 '\" 
 .so man.macros
 
-.TH ns_file n 4.0 AOLserver "AOLserver Built-In Commands"
+.TH ns_file n 3.5 AOLserver "AOLserver Built-In Commands"
 .BS
 '\" Note:  do not modify the .SH NAME line immediately below!
 .SH NAME
-ns_chmod, ns_cp, ns_cpfp, ns_ftruncate, ns_link, ns_mkdir, ns_rename, ns_rmdir, ns_symlink, ns_truncate, ns_unlink \- commands
+ns_chmod, ns_cp, ns_cpfp, ns_ftruncate, ns_link, ns_mkdir, ns_rename, ns_rmdir, ns_symlink, ns_truncate, ns_unlink \- File manipulation commands
 .SH SYNOPSIS
 \fBns_chmod \fIoption \fR?\fIarg arg ...\fR?
 .sp
@@ -64,10 +64,67 @@ ns_chmod, ns_cp, ns_cpfp, ns_ftruncate, ns_link, ns_mkdir, ns_rename, ns_rmdir, 
 
 .SH DESCRIPTION
 .PP
-These commands...
+
+
+.TP
+\fBns_chmod\fR \fIfilename\fR \fImode\fR
+Change a file's access permissions. 
+ns_chmod changes the specified file's permissions to mode, in the same manner as the Unix chmod(1) command-line utility. 
+
+.TP
+\fBns_cp\fR \fI-preserve\fR \fIfile1\fR \fIfile2\fR
+Copy one file to another. 
+ns_cp copies the contents of file1 to file2, just like the Unix "cp" command. The default directory is the home directory for the server. 
+If -preserve is specified, the copied file will retain the creation time, modification time, owner, and mode of the original file, just like the Unix "cp -p" command. 
+
+.TP
+\fBns_cpfp\fR \fIfileid1\fR \fIfileid2\fR \fI?nbytes?\fR 
+Copy a specified number of bytes from one file to another. 
+ns_cpfp copies information from one file (fileid1) to another (fileid2). If you specify a number of bytes in the nbytes argument, only the specified number of bytes will be copied. By default, the entire file is copied. 
+
+.TP
+\fBns_ftruncate\fR \fIfileid\fR \fI?length?\fR 
+Truncate an open file to a specified length. 
+ns_ftruncate causes the open file specified by fileid to have a size of length bytes. If length is not specified, it causes the file to have a size of zero bytes. The file must be open and be a regular file. 
+
+.TP
+\fBns_link\fR \fI?-nocomplain?\fR \fIfilename1\fR \fIfilename2\fR 
+Create a link. 
+ns_link creates a link named filename2 that points to the file specified by filename1. If the link fails, a Tcl error is generated, unless -nocomplain is specified. 
+
+.TP
+\fBns_mkdir\fR \fIpath\fR 
+Create a directory. 
+ns_mkdir creates the directory named PATH, just like the Unix mkdir command. By default, under Unix the directory is created with the file permissions set to 0755 (rwxr-xr-x.). These permissions can be modified by setting the umask parameter for the server. 
+
+.TP
+\fBns_rename\fR \fIfile1\fR \fIfile2\fR 
+Rename a file. 
+ns_rename renames the first file (file1) to the file name specified by file2. Make sure that the files and the directories in which the files exist are read/write accessible to the username that's running the AOLserver. 
+
+.TP
+\fBns_rmdir\fR \fIpath\fR 
+Remove a directory. 
+ns_rmdir removes the directory named path, just like the Unix rmdir command. The directory must already be empty. 
+
+.TP
+\fBns_unlink\fR \fI[-nocomplain]\fR \fIfilename\fR 
+Remove a file. 
+ns_unlink attempts to remove the file filename. If -nocomplain is not passed in and the removal fails, a Tcl error is generated. 
+
+.TP
+\fBns_truncate\fR \fIfilename\fR \fI?length?\fR 
+Truncate a file to a specified length. 
+ns_truncate causes the file specified by filename to have a size of length bytes. If length is not specified, it causes filename to have a size of zero bytes. The file must exist and be a regular file. 
+
+.TP
+\fBns_unlink\fR \fI[-nocomplain]\fR \fIfilename\fR 
+Remove a file. 
+ns_unlink attempts to remove the file filename. If -nocomplain is not passed in and the removal fails, a Tcl error is generated. 
 
 .SH "SEE ALSO"
-nsd(1), info(n)
+
+ns_chmod, ns_cp, ns_cpfp, ns_ftruncate, ns_link, ns_mkdir, ns_rename, ns_rmdir, ns_symlink, ns_truncate, ns_unlink
 
 .SH KEYWORDS
 

@@ -28,26 +28,29 @@
 '\" version of this file under either the License or the GPL.
 '\" 
 '\"
-'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_kill.n,v 1.2 2002/09/28 19:58:27 jgdavidson Exp $
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_kill.n,v 1.3 2003/04/10 16:16:03 shmooved Exp $
 '\"
 '\" 
 .so man.macros
 
-.TH ns_kill n 4.0 AOLserver "AOLserver Built-In Commands"
+.TH ns_kill n 3.5 AOLserver "AOLserver Built-In Commands"
 .BS
 '\" Note:  do not modify the .SH NAME line immediately below!
 .SH NAME
 ns_kill \- commands
 .SH SYNOPSIS
-\fBns_kill \fIoption \fR?\fIarg arg ...\fR?
+\fBns_kill ?\fI-nocomplain\fR? \fIpid signal\fR
 .BE
 
 .SH DESCRIPTION
 .PP
-These commands...
+This function sends the specified signal to the specified process ID 
+(\fIpid\fR).  If \fI-nocomplain\fR is specified, no error will be
+returned on failure.  \fIsignal\fR should be an integer, i.e., 1
+for SIGHUP, 9 for SIGKILL, 15 for SIGTERM, etc.
 
 .SH "SEE ALSO"
-nsd(1), info(n)
+nsd(1)
 
 .SH KEYWORDS
 

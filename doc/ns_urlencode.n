@@ -28,7 +28,7 @@
 '\" version of this file under either the License or the GPL.
 '\" 
 '\"
-'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_urlencode.n,v 1.2 2002/09/28 19:58:27 jgdavidson Exp $
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_urlencode.n,v 1.3 2003/04/10 16:16:09 shmooved Exp $
 '\"
 '\" 
 .so man.macros
@@ -37,19 +37,31 @@
 .BS
 '\" Note:  do not modify the .SH NAME line immediately below!
 .SH NAME
-ns_urldecode, ns_urlencode \- commands
+ns_urlencode \- commands
 .SH SYNOPSIS
-\fBns_urldecode \fIoption \fR?\fIarg arg ...\fR?
 .sp
-\fBns_urlencode \fIoption \fR?\fIarg arg ...\fR?
+\fBns_urlencode \fIdata \fI
 .BE
 
 .SH DESCRIPTION
 .PP
-These commands...
+Encodes data according to the encoding defined in RFC #1738, Uniform Resource
+Locators. 
+
+ns_urlencode encodes all non-alphanumeric characters in data. The encoding for a character is a "%" followed by the two-character hexadecimal representation for the character. 
+
+urlencoding the string: 
+   http://www.aolserver.com/redirect.adp?url=http://www.aol.com&t=1,2,3 
+yields the string: 
+   http%3a%2f%2fwww%2eaolserver%2ecom%2fredirect%2eadp%3furl%3dhttp%3a%2f%2fwww%2eaol%2ecom%26t%3d1%2c2%2c3
+
+.SH EXAMPLES
+.PP
+ns_urlencode: 
+    set link [ns_urlencode http://www.aolserver.com/redirect.adp?url=http://www.aol.com&t=1,2,3]
+    ns_adp_puts "<a href=[ns_urlencode $link]>click</a>"
 
 .SH "SEE ALSO"
-nsd(1), info(n)
+ns_urldecode(n)
 
 .SH KEYWORDS
-

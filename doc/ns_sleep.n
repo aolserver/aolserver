@@ -28,26 +28,33 @@
 '\" version of this file under either the License or the GPL.
 '\" 
 '\"
-'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_sleep.n,v 1.2 2002/09/28 19:58:27 jgdavidson Exp $
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_sleep.n,v 1.3 2003/04/10 16:16:08 shmooved Exp $
 '\"
 '\" 
 .so man.macros
 
-.TH ns_sleep n 4.0 AOLserver "AOLserver Built-In Commands"
+.TH ns_sleep n 3.5 AOLserver "AOLserver Built-In Commands"
 .BS
 '\" Note:  do not modify the .SH NAME line immediately below!
 .SH NAME
 ns_sleep \- commands
 .SH SYNOPSIS
-\fBns_sleep \fIoption \fR?\fIarg arg ...\fR?
+\fBns_sleep \fIseconds\fR
 .BE
 
 .SH DESCRIPTION
 .PP
-These commands...
+This function causes the thread to sleep for the number of seconds
+specified in \fIseconds\fR.  
+
+.PP
+The value of \fIseconds\fR should be a positive integer (or zero, in 
+which case the function returns immediately).  An error will result
+if \fIseconds\fR is not specified, if a negative integer is specified,
+or if a non-integer is specified.
 
 .SH "SEE ALSO"
-nsd(1), info(n)
+nsd(1)
 
 .SH KEYWORDS
 

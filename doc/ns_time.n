@@ -28,7 +28,7 @@
 '\" version of this file under either the License or the GPL.
 '\" 
 '\"
-'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_time.n,v 1.2 2002/09/28 19:58:27 jgdavidson Exp $
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_time.n,v 1.3 2003/04/10 16:16:09 shmooved Exp $
 '\"
 '\" 
 .so man.macros
@@ -37,23 +37,53 @@
 .BS
 '\" Note:  do not modify the .SH NAME line immediately below!
 .SH NAME
-ns_fmttime, ns_gmtime, ns_localtime, ns_time \- commands
+ns_time, ns_fmttime, ns_gmtime, ns_localtime, \- commands
 .SH SYNOPSIS
-\fBns_fmttime \fIoption \fR?\fIarg arg ...\fR?
+\fBns_fmttime \fItime \fR?\fIformat string\fR?
 .sp
-\fBns_gmtime \fIoption \fR?\fIarg arg ...\fR?
+\fBns_gmtime 
 .sp
-\fBns_localtime \fIoption \fR?\fIarg arg ...\fR?
+\fBns_localtime 
 .sp
-\fBns_time \fIoption \fR?\fIarg arg ...\fR?
+\fBns_time
 .BE
 
 .SH DESCRIPTION
 .PP
-These commands...
+\fBns_time\fR: Returns the value of time in seconds since 00:00:00 UTC, January 1, 1970. This return value is suitable as input to the ns_httptime function to get the current time.
+
+\fBns_fmttime\fR: Formats the time string,time,according to the format provided in format string. If no format is provided, defaults to "%a %b %e %H:%M:%S %Z %Y".
+
+\fBns_gmttime\fR: Returns a Tcl list of the pieces of the current Greenwich Mean Time. The pieces are
+    seconds (0-59)
+    minutes (0-59)
+    hours (0-23)
+    dayofmonth (1-31)
+    monthofyear (0-11)
+    year (year-1900)*
+    dayofweek (Sunday=0)
+    dayofyear (0-365)
+    1 if Daylight Savings Time is in effect
+
+
+\fBns_localtime\fR: Returns a Tcl list of the pieces of the current local time. The pieces are
+    seconds (0-59)
+    minutes (0-59)
+    hours (0-23)
+    dayofmonth (1-31)
+    monthofyear (0-11)
+    year (year-1900)*
+    dayofweek (Sunday=0)
+    dayofyear (0-365)
+    1 if Daylight Savings Time is in effect
+
+.SH EXAMPLES
+.PP
+ns_fmttime [ns_time] returns: Tue Nov 12 15:14:47 2002
+ns_fmttime [ns_time] "%Y%m%d" returns: 20021112
 
 .SH "SEE ALSO"
-nsd(1), info(n)
+ns_httptime
 
 .SH KEYWORDS
 
