@@ -11,35 +11,26 @@
  * SCCS: @(#) tclFHandle.c 1.9 96/07/01 15:41:26
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/tcl7.6/generic/Attic/tclFHandle.c,v 1.2 2000/05/02 14:39:31 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/tcl7.6/generic/Attic/tclFHandle.c,v 1.3 2000/08/08 20:51:21 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "tcl.h"
 #include "tclInt.h"
 #include "tclPort.h"
 
 /*
- * The FileHashKey structure is used to associate the OS file handle and type
- * with the corresponding notifier data in a FileHandle.
+ * Modified for AOLserver by simply removing the fileTable hash
+ * table which served no purpose aside from a potential crash
+ * when ../unix/tclUnixFile.c:TclCloseFile() would close()
+ * before calling Tcl_FreeFile, resulting in potential re-use
+ * or double free of the FileHandle.
  */
 
-typedef struct FileHashKey {
+typedef struct FileHandle {
     int type;			/* File handle type. */
     ClientData osHandle;	/* Platform specific OS file handle. */
-} FileHashKey;
-
-typedef struct FileHandle {
-    FileHashKey key;		/* Hash key for a given file. */
     ClientData data;		/* Platform specific notifier data. */
     Tcl_FileFreeProc *proc;	/* Callback to invoke when file is freed. */
 } FileHandle;
-
-/*
- * Static variables used in this file:
- */
-
-static Tcl_HashTable fileTable;	/* Hash table containing file handles. */
-static Ns_Mutex lock;
-static int initialized = 0;
 
 
 /*
@@ -65,31 +56,15 @@ Tcl_GetFile(osHandle, type)
     ClientData osHandle;	/* Platform specific file handle. */
     int type;			/* Type of file handle. */
 {
-    FileHashKey key;
-    Tcl_HashEntry *entryPtr;
+    FileHandle *handlePtr;
     Tcl_File file;
-    int new;
 
-    key.osHandle = osHandle;
-    key.type = type;
-    Ns_MutexLock(&lock);
-    if (!initialized) {
-    	Tcl_InitHashTable(&fileTable, sizeof(FileHashKey)/sizeof(int));
-	initialized = 1;
-    }
-    entryPtr = Tcl_CreateHashEntry(&fileTable, (char *) &key, &new);
-    if (new) {
-	FileHandle *newHandlePtr;
-	newHandlePtr = (FileHandle *) ckalloc(sizeof(FileHandle));
-	newHandlePtr->key = key;
-	newHandlePtr->data = NULL;
-	newHandlePtr->proc = NULL;
-	Tcl_SetHashValue(entryPtr, newHandlePtr);
-    }
-    file = (Tcl_File) Tcl_GetHashValue(entryPtr);
-    Ns_MutexUnlock(&lock);
-    
-    return file;
+    handlePtr = (FileHandle *) ckalloc(sizeof(FileHandle));
+    handlePtr->osHandle = osHandle;
+    handlePtr->type = type;
+    handlePtr->data = NULL;
+    handlePtr->proc = NULL;
+    return (Tcl_File) handlePtr;
 }
 
 /*
@@ -112,28 +87,11 @@ void
 Tcl_FreeFile(handle)
     Tcl_File handle;
 {
-    Tcl_HashEntry *entryPtr;
     FileHandle *handlePtr = (FileHandle *) handle;
     
-    /*
-     * Delete the handle, then invoke free procedure.
-     */
-
-    Ns_MutexLock(&lock);
-    if (!initialized) {
-    	Tcl_InitHashTable(&fileTable, sizeof(FileHashKey)/sizeof(int));
-	initialized = 1;
-    }
-    entryPtr = Tcl_FindHashEntry(&fileTable, (char *) &handlePtr->key);
-    if (entryPtr) {
-        Tcl_DeleteHashEntry(entryPtr);
-    }
-    Ns_MutexUnlock(&lock);
-
     if (handlePtr->proc) {
 	(*handlePtr->proc)(handlePtr->data);
     }
-
     ckfree((char *) handlePtr);
 }
 
@@ -163,9 +121,9 @@ Tcl_GetFileInfo(handle, typePtr)
     FileHandle *handlePtr = (FileHandle *) handle;
 
     if (typePtr) {
-	*typePtr = handlePtr->key.type;
+	*typePtr = handlePtr->type;
     }
-    return handlePtr->key.osHandle;
+    return handlePtr->osHandle;
 }
 
 /*
