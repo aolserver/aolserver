@@ -34,7 +34,7 @@
  *	Tcl commands that let you do TCP sockets. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclsock.c,v 1.3 2000/08/01 20:35:56 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclsock.c,v 1.4 2000/08/25 13:49:09 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -198,13 +198,12 @@ NsTclSockNReadCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 	return TCL_ERROR;
     }
     if (ns_sockioctl(sock, FIONREAD, &nread) != 0) {
-        Tcl_AppendResult(interp, "ns_sockioctl(%d) failed:  %s", sock,
-	    ns_sockstrerror(ns_sockerrno), NULL);
+        Tcl_AppendResult(interp, "ns_sockioctl failed: ", 
+			 SockError(interp), NULL);
         return TCL_ERROR;
     }
     nread += Tcl_InputBuffered(chan);
     sprintf(interp->result, "%d", nread);
-    
     return TCL_OK;
 }
     
@@ -287,8 +286,8 @@ NsTclSockAcceptCmd(ClientData dummy, Tcl_Interp *interp, int argc,
     }
     sock = Ns_SockAccept(sock, NULL, 0);
     if (sock == INVALID_SOCKET) {
-        Tcl_AppendResult(interp, "accept on socket \"",
-            argv[1], "\" failed: ", SockError(interp), NULL);
+        Tcl_AppendResult(interp, "accept failed: ",
+			 SockError(interp), NULL);
         return TCL_ERROR;
     }
     return EnterDupedSocks(interp, sock);
@@ -605,7 +604,7 @@ NsTclSocketPairCmd(ClientData dummy,Tcl_Interp *interp, int argc, char **argv)
     int      result;
 
     if (ns_sockpair(socks) != 0) {
-        Tcl_AppendResult(interp, "ns_sockpair() failed:  ", 
+        Tcl_AppendResult(interp, "ns_sockpair failed:  ", 
 			 SockError(interp), NULL);
         return TCL_ERROR;
     }
@@ -690,8 +689,8 @@ NsTclSockCallbackCmd(ClientData dummy, Tcl_Interp *interp, int argc,
     }
     sock = ns_sockdup(sock);
     if (sock == INVALID_SOCKET) {
-    	Tcl_AppendResult(interp, "could not dup \"", argv[1],
-	    "\": ", SockError(interp), NULL);
+    	Tcl_AppendResult(interp, "dup failed: ",
+			 SockError(interp), NULL);
 	return TCL_ERROR;
     }
     cbPtr = ns_malloc(sizeof(Callback) + strlen(argv[2]));
