@@ -1,3 +1,23 @@
+2003-01-31  Mark Page  <mpagenva@aol.com>
+
+	* nsd/conn.c: 
+	* nsd/connio.c:
+	* nsd/encoding.c:
+	* nsd/form.c:
+	* nsd/nsconf.c:
+	* nsd/nsd.h:
+	* nsd/queue.c:
+	* nsd/return.c:
+	* nsd/tclcmds.c:
+	* nsd/tclresp.c:
+	* nsd/urlencode.c:
+	* include/ns.h: added in I18N capabilities derived from the OACS
+	I18N design.  This set of changes is just those which are
+	supported within the nsd C-code.
+	* sample-config.tcl: Add text for I18N specific config.
+
+
+
 2003-01-28  Nathan Folkman <shmooved@aol.com>
 
         * nsd/server.c:

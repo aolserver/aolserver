@@ -34,7 +34,7 @@
  *	Functions that return data to a browser. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.25 2003/01/29 04:38:48 petej Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.26 2003/01/31 22:47:30 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -47,6 +47,8 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
 static int ReturnRedirect(Ns_Conn *conn, int status, int *resultPtr);
 static int ReturnOpen(Ns_Conn *conn, int status, char *type, Tcl_Channel chan,
 		      FILE *fp, int fd, int len);
+static int ReturnCharData(Ns_Conn *conn, int status, char *data, int len,
+                          char *type, int sendRaw);
 
 /*
  * This structure connections HTTP response codes to their descriptions.
@@ -697,20 +699,111 @@ Ns_ConnReturnNotice(Ns_Conn *conn, int status, char *title, char *notice)
 int
 Ns_ConnReturnData(Ns_Conn *conn, int status, char *data, int len, char *type)
 {
-    int result;
+   return ReturnCharData(conn, status, data, len, type, NS_TRUE);
+}
 
-    if (len == -1) {
-	len = data ? strlen(data) : 0;
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_ConnReturnCharData --
+ *
+ *	Sets required headers, dumps them, and then writes your data. 
+ *
+ * Results:
+ *	NS_OK/NS_ERROR
+ *
+ * Side effects:
+ *	May set numerous headers, will close connection. 
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Ns_ConnReturnCharData(Ns_Conn *conn, int status, char *data, int len, char *type)
+{
+   return ReturnCharData(conn, status, data, len, type, NS_FALSE);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * ReturnCharData --
+ *
+ *	Sets required headers, dumps them, and then writes your data. 
+ *      If sendRaw is false, then translate the data from utf-8 to the
+ *      correct character encoding if appropriate.
+ *
+ * Results:
+ *	NS_OK/NS_ERROR
+ *
+ * Side effects:
+ *	May set numerous headers, will close connection. 
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+ReturnCharData(Ns_Conn *conn, int status, char *data, int len, char *type,
+               int sendRaw)
+{
+    int          result;
+    Conn        *connPtr;
+    Tcl_DString  ds;
+    Tcl_Encoding enc;
+    Tcl_DString  type_ds;
+    int          new_type = NS_FALSE;
+
+    connPtr = (Conn *)conn;
+
+    /* Make sure we know what output encoding (if any) to use. */
+    if (!sendRaw ) {
+
+        NsComputeEncodingFromType(type, &enc, &new_type, &type_ds);
+        if (new_type) {
+            type = Tcl_DStringValue(&type_ds);
+        }
+        if (enc != NULL) {
+            connPtr->encoding = enc;
+        } else if (connPtr->encoding == NULL) {
+            sendRaw = NS_TRUE;
+        }
     }
+
+    if (!sendRaw) {
+
+        Tcl_UtfToExternalDString(connPtr->encoding, data, len, &ds);
+
+	data = Tcl_DStringValue(&ds);
+	len = Tcl_DStringLength(&ds);
+
+    } else {
+
+	/* Send data unmodified. */
+	if (len == -1) {
+	    len = data ? strlen(data) : 0;
+	}
+
+    }
+
     Ns_ConnSetRequiredHeaders(conn, type, len);
     Ns_ConnQueueHeaders(conn, status);
     result = NS_OK;
     if (data != NULL && !(conn->flags & NS_CONN_SKIPBODY)) {
-	result = Ns_WriteConn(conn, data, len);
+        result = Ns_WriteConn(conn, data, len);
     }
     if (result == NS_OK) {
-	result = Ns_ConnClose(conn);
+        result = Ns_ConnClose(conn);
     }
+
+    if (!sendRaw && (connPtr->encoding != NULL)) {
+        Tcl_DStringFree(&ds);
+    }
+    if (new_type) {
+        Tcl_DStringFree(&type_ds);
+    }
+
     return result;
 }
 

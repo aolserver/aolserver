@@ -33,7 +33,7 @@
  *      All the public types and function declarations for the core
  *	AOLserver.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.44 2002/10/14 23:20:13 jgdavidson Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.45 2003/01/31 22:47:31 mpagenva Exp $
  */
 
 #ifndef NS_H
@@ -56,6 +56,7 @@
 #define NS_CONN_READHDRS	  8
 #define NS_CONN_SENTHDRS	 16
 #define NS_CONN_KEEPALIVE	 32
+#define NS_CONN_WRITE_ENCODED    64
 
 #define NS_CONN_MAXCLS		  16
 
@@ -461,6 +462,7 @@ NS_EXTERN int Ns_ConnWrite(Ns_Conn *conn, void *buf, int towrite);
 NS_EXTERN int Ns_ConnContentFd(Ns_Conn *conn);
 NS_EXTERN int Ns_ConnReadLine(Ns_Conn *conn, Ns_DString *dsPtr, int *nreadPtr);
 NS_EXTERN int Ns_WriteConn(Ns_Conn *conn, char *buf, int len);
+NS_EXTERN int Ns_WriteCharConn(Ns_Conn *conn, char *buf, int len);
 NS_EXTERN int Ns_ConnPuts(Ns_Conn *conn, char *string);
 NS_EXTERN int Ns_ConnSendDString(Ns_Conn *conn, Ns_DString *dsPtr);
 NS_EXTERN int Ns_ConnSendChannel(Ns_Conn *conn, Tcl_Channel chan, int nsend);
@@ -498,6 +500,8 @@ NS_EXTERN int Ns_ConnPort(Ns_Conn *conn);
 NS_EXTERN int Ns_ConnSock(Ns_Conn *conn);
 NS_EXTERN char *Ns_ConnDriverName(Ns_Conn *conn);
 NS_EXTERN void *Ns_ConnDriverContext(Ns_Conn *conn);
+NS_EXTERN int Ns_ConnGetWriteEncodedFlag(Ns_Conn *conn);
+NS_EXTERN void Ns_ConnSetWriteEncodedFlag(Ns_Conn *conn, int flag);
 
 /*
  * crypt.c:
@@ -829,6 +833,8 @@ NS_EXTERN int Ns_ConnReturnNotice(Ns_Conn *conn, int status, char *title,
 			       char *notice);
 NS_EXTERN int Ns_ConnReturnData(Ns_Conn *conn, int status, char *data, int len,
 			     char *type);
+NS_EXTERN int Ns_ConnReturnCharData(Ns_Conn *conn, int status, char *data, int len,
+			     char *type);
 NS_EXTERN int Ns_ConnReturnHtml(Ns_Conn *conn, int status, char *html, int len);
 NS_EXTERN int Ns_ConnReturnOk(Ns_Conn *conn);
 NS_EXTERN int Ns_ConnReturnNoResponse(Ns_Conn *conn);
@@ -1043,8 +1049,14 @@ NS_EXTERN int Ns_AbsoluteUrl(Ns_DString *pds, char *url, char *baseurl);
  * urlencode.c:
  */
 
-NS_EXTERN char *Ns_EncodeUrl(Ns_DString *pds, char *string);
-NS_EXTERN char *Ns_DecodeUrl(Ns_DString *pds, char *string);
+NS_EXTERN char *Ns_EncodeUrlWithEncoding(Ns_DString *pds, char *string,
+                                         Tcl_Encoding encoding);
+NS_EXTERN char *Ns_DecodeUrlWithEncoding(Ns_DString *pds, char *string,
+                                         Tcl_Encoding encoding);
+NS_EXTERN char *Ns_EncodeUrlCharset(Ns_DString *pds, char *string,
+                                    char *charset);
+NS_EXTERN char *Ns_DecodeUrlCharset(Ns_DString *pds, char *string,
+                                    char *charset);
 
 /*
  * urlopen.c:
@@ -1151,8 +1163,10 @@ NS_EXTERN int Ns_GetUid(char *user);
 #define Ns_ConfigSections()     Ns_ConfigGetSections()
 #define Ns_ConfigGet(s,k)       Ns_ConfigGetValue(s,k)
 #define Ns_ConfigGetExact(s,k)  Ns_ConfigGetValueExact(s,k)
-#define Ns_UrlEncode(p,u)       Ns_EncodeUrl(p,u)
-#define Ns_UrlDecode(p,u)       Ns_DecodeUrl(p,u)
+#define Ns_UrlEncode(p,u)       Ns_EncodeUrlCharset(p,u,NULL)
+#define Ns_UrlDecode(p,u)       Ns_DecodeUrlCharset(p,u,NULL)
+#define Ns_EncodeUrl(p,u)       Ns_EncodeUrlCharset(p,u,NULL)
+#define Ns_DecodeUrl(p,u)       Ns_DecodeUrlCharset(p,u,NULL)
 #endif
 
 #endif /* NS_H */

@@ -385,6 +385,7 @@ typedef struct Conn {
     Ns_Time	 startTime;
     Tcl_Interp  *interp;
     Tcl_Encoding encoding;
+    Tcl_Encoding urlEncoding;
     int          nContentSent;
     int          responseStatus;
     int          responseLength;
@@ -777,6 +778,7 @@ extern void NsLogOpen(void);
 extern void NsTclInitObjs(void);
 extern void NsUpdateMimeTypes(void);
 extern void NsUpdateEncodings(void);
+extern void NsUpdateUrlEncode(void);
 extern void NsRunPreStartupProcs(void);
 extern void NsStartServers(void);
 extern void NsBlockSignals(int debug);
@@ -867,6 +869,9 @@ extern int  Ns_TclGetOpenFd(Tcl_Interp *, char *, int write, int *fp);
 extern void NsStopSockCallbacks(void);
 extern void NsStopScheduledProcs(void);
 extern void NsGetBuf(char **bufPtr, int *sizePtr);
+extern Tcl_Encoding NsGetTypeEncodingWithDef(char *type, int *used_default);
+extern void NsComputeEncodingFromType(char *type, Tcl_Encoding *enc,
+                                      int *new_type, Tcl_DString *type_ds);
 
 /*
  * Proxy support

@@ -33,7 +33,7 @@
  * 	Connect Tcl command names to the functions that implement them
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.35 2003/01/18 19:24:20 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.36 2003/01/31 22:47:30 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -146,6 +146,7 @@ extern Tcl_ObjCmdProc
     NsTclSockSetBlockingObjCmd,
     NsTclSockSetNonBlockingObjCmd,
     NsTclSocketPairObjCmd,
+    NsTclStartContentObjCmd,
     NsTclStrftimeObjCmd,
     NsTclSymlinkObjCmd,
     NsTclTimeObjCmd,
@@ -178,9 +179,11 @@ extern Tcl_CmdProc
     NsTclCacheSizeCmd,
     NsTclCacheStatsCmd,
     NsTclCancelCmd,
+    NsTclCharsetsCmd,
     NsTclConfigCmd,
     NsTclConfigSectionCmd,
     NsTclConfigSectionsCmd,
+    NsTclEncodingForCharsetCmd,
     NsTclEnvCmd,
     NsTclEnvCmd,
     NsTclHrefsCmd,
@@ -388,6 +391,13 @@ static Cmd cmds[] = {
     {"ns_markfordelete", NULL, NsTclMarkForDeleteObjCmd},
 
     /*
+     * encoding.c
+     */
+
+    {"ns_charsets", NsTclCharsetsCmd, NULL},
+    {"ns_encodingforcharset", NsTclEncodingForCharsetCmd, NULL},
+
+    /*
      * Add more basic Tcl commands here.
      */
 
@@ -460,6 +470,7 @@ static Cmd servCmds[] = {
     {"ns_conncptofp", NULL, NsTclWriteContentObjCmd},
     {"ns_writecontent", NULL, NsTclWriteContentObjCmd},
     {"ns_conn", NULL, NsTclConnObjCmd},
+    {"ns_startcontent", NULL, NsTclStartContentObjCmd},
 
     /*
      * adpparse.c

@@ -34,7 +34,7 @@
  *      Handle connection I/O.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/connio.c,v 1.10 2003/01/18 18:24:42 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/connio.c,v 1.11 2003/01/31 22:47:29 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #define IOBUFSZ 2048
@@ -251,6 +251,98 @@ Ns_WriteConn(Ns_Conn *conn, char *buf, int len)
 	return NS_ERROR;
     }
     return NS_OK;
+}
+
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_WriteCharConn --
+ *
+ *	This will write a string buffer to the conn.  The distinction
+ *      being that the given data is explicitly a UTF8 character string,
+ *      and will be put out in an 'encoding-aware' manner.
+ *      It promises to write all of it.
+ *
+ *      If we think we are writing the headers (which is the default),
+ *      then we send the data exactly as it is given to us.  If we are
+ *      truly in the headers, then they are supposed to be US-ASCII,
+ *      which is a subset of UTF-8, so no translation should be needed
+ *      if the user has been good and not put any 8-bit characters
+ *      into it.
+ *
+ *      If we have been told that we are sending the content, and we
+ *      have been given an encoding to translate the content to, then
+ *      we assume that the caller is handing us UTF-8 bytes and we
+ *      translate them to the preset encoding.
+ *
+ * Results:
+ *	NS_OK/NS_ERROR
+ *
+ * Side effects:
+ *	Stuff may be written 
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Ns_WriteCharConn(Ns_Conn *conn, char *buf, int len)
+{
+    int             status;
+    char           *utfBytes;
+    int             utfCount; /* # of bytes in utfBytes */
+    int             utfConvertedCount;  /* # of bytes of utfBytes converted */
+    char            encodedBytes[IOBUFSZ];
+    int             encodedCount; /* # of bytes converted in encodedBytes */
+    Tcl_Interp     *interp;
+    Conn           *connPtr = (Conn *)conn;
+
+    status = NS_OK;
+
+    if (connPtr->encoding == NULL) {
+
+	status = Ns_WriteConn(conn, buf, len);
+
+    } else {
+
+	utfBytes = buf;
+	utfCount = len;
+	interp = Ns_GetConnInterp(conn);
+
+	while (utfCount > 0 && status == NS_OK) {
+
+	    /* Convert a chunk to the desired encoding. */
+
+	    status = Tcl_UtfToExternal(interp,
+		connPtr->encoding,
+		utfBytes, utfCount,
+		0, NULL,              /* flags, encoding state */
+		encodedBytes, sizeof(encodedBytes),
+		&utfConvertedCount,
+		&encodedCount,
+		NULL                  /* # of chars encoded */
+	    );
+
+	    if (status != TCL_OK && status != TCL_CONVERT_NOSPACE) {
+		status = NS_ERROR;
+		break;
+	    }
+
+	    /* Send the converted chunk. */
+
+	    status = NS_OK;
+	    buf = encodedBytes;
+	    len = encodedCount;
+
+	    status = Ns_WriteConn(conn, buf, len);
+
+	    utfCount -= utfConvertedCount;
+	    utfBytes += utfConvertedCount;
+	}
+    }
+
+    return status;
 }
 
 

@@ -34,9 +34,17 @@
  *	Encode and decode URLs, as described in RFC 1738.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/urlencode.c,v 1.10 2003/01/18 19:24:21 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/urlencode.c,v 1.11 2003/01/31 22:47:30 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
+
+
+
+static char         *defaultUrlCharset;
+static Tcl_Encoding  defaultUrlEncoding;
+
+
+static Tcl_Encoding  GetUrlEncoding(char *charset);
 
 /*
  * The following table is used for URL encoding and decoding
@@ -118,7 +126,7 @@ struct {
 /*
  *----------------------------------------------------------------------
  *
- * Ns_EncodeUrl --
+ * Ns_EncodeUrlWithEncoding --
  *
  *	Take a URL and encode any non-alphanumeric characters into 
  *	%hexcode 
@@ -134,10 +142,17 @@ struct {
  */
 
 char *
-Ns_EncodeUrl(Ns_DString *dsPtr, char *string)
+Ns_EncodeUrlWithEncoding(Ns_DString *dsPtr, char *string, Tcl_Encoding encoding)
 {
     register int   i, n;
     register char *p, *q;
+    Tcl_DString  ds;
+
+    if (encoding != NULL) {
+
+        string = Tcl_UtfToExternalDString(encoding, string, -1, &ds);
+
+    }
 
     /*
      * Determine and set the requried dstring length.
@@ -170,14 +185,47 @@ Ns_EncodeUrl(Ns_DString *dsPtr, char *string)
 	}
 	++p;
     }
+
+    if (encoding != NULL) {
+        Tcl_DStringFree(&ds);
+    }
+
     return dsPtr->string;
 }
+
 
 
 /*
  *----------------------------------------------------------------------
  *
- * Ns_DecodeUrl --
+ * Ns_EncodeUrlCharset --
+ *
+ *	Take a URL and encode any non-alphanumeric characters into 
+ *	%hexcode 
+ *
+ * Results:
+ *	A pointer to the encoded string (which is part of the 
+ *	passed-in DString's memory) 
+ *
+ * Side effects:
+ *	Encoded URL will be copied to given dstring.
+ *
+ *----------------------------------------------------------------------
+ */
+
+char *
+Ns_EncodeUrlCharset(Ns_DString *dsPtr, char *string, char *charset)
+{
+    Tcl_Encoding encoding = GetUrlEncoding(charset);
+
+    return Ns_EncodeUrlWithEncoding(dsPtr, string, encoding);
+
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_DecodeUrlCharset --
  *
  *	Decode an encoded URL (with %hexcode, etc.).
  *
@@ -192,24 +240,64 @@ Ns_EncodeUrl(Ns_DString *dsPtr, char *string)
  */
 
 char *
-Ns_DecodeUrl(Ns_DString *dsPtr, char *string)
+Ns_DecodeUrlCharset(Ns_DString *dsPtr, char *string, char *charset)
+{
+    Tcl_Encoding  encoding = GetUrlEncoding(charset);
+
+    return Ns_DecodeUrlWithEncoding( dsPtr, string, encoding );
+}
+
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_DecodeUrlWithEncoding --
+ *
+ *	Decode an encoded URL (with %hexcode, etc.).
+ *
+ * Results:
+ *	A pointer to the dstring's value, containing the decoded 
+ *	URL.
+ *
+ * Side effects:
+ *	Decoded URL will be copied to given dstring.
+ *
+ *----------------------------------------------------------------------
+ */
+
+char *
+Ns_DecodeUrlWithEncoding(Ns_DString *dsPtr, char *string, Tcl_Encoding encoding)
 {
     register int i, j, n;
     register char *p, *q;
+    char         *copy;
+    int           length;
+    Tcl_DString   ds;
 
     /*
-     * Expand the dstring to the length of the input
-     * string which will be the largest size required.
+     * Copy the decoded characters directly to the dstring,
+     * unless we need to do encoding.
      */
+    length = strlen(string);
+    if (encoding != NULL) {
 
-    i = dsPtr->length;
-    Ns_DStringSetLength(dsPtr, i + strlen(string));
+        copy = Ns_Malloc((size_t)(length+1));
+        q = copy;
 
-    /*
-     * Copy the decoded characters directly to the dstring.
-     */
+    } else {
 
-    q = dsPtr->string + i;
+        /*
+         * Expand the dstring to the length of the input
+         * string which will be the largest size required.
+         */
+
+        i = dsPtr->length;
+        Ns_DStringSetLength(dsPtr, i + length);
+        q = dsPtr->string + i;
+
+    }
+
     p = string;
     n = 0;
     while (UCHAR(*p) != '\0') {
@@ -226,13 +314,60 @@ Ns_DecodeUrl(Ns_DString *dsPtr, char *string)
 	}
 	++n;
     }
-    
-    /*
-     * Set the dstring length to the actual size required.
-     */
+    /* Ensure our new string is terminated */
+    *q = '\0';
 
-    Ns_DStringSetLength(dsPtr, n);
+    if (encoding != NULL) {
+
+        Tcl_ExternalToUtfDString(encoding, copy, n, &ds);
+        Ns_DStringAppend(dsPtr, Tcl_DStringValue(&ds));
+        Tcl_DStringFree(&ds);
+        Ns_Free(copy);
+
+    } else {
+
+        /*
+         * Set the dstring length to the actual size required.
+         */
+
+        Ns_DStringSetLength(dsPtr, n);
+
+    }
+
     return dsPtr->string;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsUpdateUrlEncode
+ *
+ *	Initialize UrlEncode structures from config.
+ *
+ * Results:
+ *	Tcl result. 
+ *
+ * Side effects:
+ *	See docs. 
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+NsUpdateUrlEncode(void)
+{
+
+    defaultUrlCharset = Ns_ConfigGetValue(NS_CONFIG_PARAMETERS, "URLCharset");
+    if (defaultUrlCharset != NULL) {
+        defaultUrlEncoding = Ns_GetCharsetEncoding(defaultUrlCharset);
+        if( defaultUrlEncoding == NULL ) {
+            Ns_Log(Warning,
+                   "no encoding found for charset \"%s\" from config",
+                   defaultUrlCharset);
+        }
+    } else {
+        defaultUrlEncoding = NULL;
+    }
 }
 
 
@@ -256,16 +391,27 @@ static int
 EncodeObjCmd(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[], int encode)
 {
     Tcl_DString ds;
+    char        *charset;
+    char        *data;
 
-    if (objc != 2) {
-        Tcl_WrongNumArgs(interp, 1, objv, "url");
+    if (objc == 2) {
+        charset = NULL;
+        data = Tcl_GetString(objv[1]);
+    } else if (objc == 4 && STREQ(Tcl_GetString(objv[1]), "-charset")) {
+        charset = Tcl_GetString(objv[2]);
+        data = Tcl_GetString(objv[3]);
+    } else {
+        Tcl_AppendResult(interp, "bad usage: should be \"",
+                         Tcl_GetString(objv[0]), " ?-charset charset? data\"",
+                         NULL);
         return TCL_ERROR;
     }
+
     Tcl_DStringInit(&ds);
     if (encode) {
-	Ns_EncodeUrl(&ds, Tcl_GetString(objv[1]));
+	Ns_EncodeUrlCharset(&ds, data, charset);
     } else {
-	Ns_DecodeUrl(&ds, Tcl_GetString(objv[1]));
+	Ns_DecodeUrlCharset(&ds, data, charset);
     }
     Tcl_DStringResult(interp, &ds);
     Tcl_DStringFree(&ds);
@@ -282,4 +428,53 @@ int
 NsTclUrlEncodeObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     return EncodeObjCmd(interp, objc, objv, 1);
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * GetUrlEncoding --
+ *
+ *	Get the encoding to use in Ns_EncodeUrl/Ns_DecodeUrl.
+ *      This function implements a sequence of fallbacks, as follows:
+ *        actual parameter
+ *        connection->urlEncoding
+ *        config parameter urlEncoding
+ *        static default
+ *
+ * Results:
+ *	A Tcl_Encoding.
+ *
+ * Side effects:
+ *	None. 
+ *
+ *----------------------------------------------------------------------
+ */
+
+static Tcl_Encoding
+GetUrlEncoding(char *charset)
+{
+    Tcl_Encoding  encoding = NULL;
+
+    if (charset != NULL) {
+	encoding = Ns_GetCharsetEncoding(charset);
+	if (encoding == NULL) {
+	    Ns_Log(Warning, "no encoding found for charset \"%s\"",
+		charset);
+	}
+    }
+
+    if (encoding == NULL) {
+	Conn *connPtr = (Conn *) Ns_GetConn();
+	if (connPtr != NULL) {
+	    encoding = connPtr->urlEncoding;
+	}
+
+    }
+
+    if ((encoding == NULL) && (defaultUrlEncoding != NULL)) {
+        encoding = defaultUrlEncoding;
+    }
+
+    return encoding;
 }

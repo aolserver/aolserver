@@ -34,7 +34,7 @@
  *	Tcl commands for returning data to the user agent. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclresp.c,v 1.15 2003/01/18 19:24:21 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclresp.c,v 1.16 2003/01/31 22:47:30 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -127,7 +127,7 @@ NsTclReturnObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST o
     if (Tcl_GetIntFromObj(interp, objv[objc-3], &status) != TCL_OK) {
 	return TCL_ERROR;
     }
-    result = Ns_ConnReturnData(conn, status, Tcl_GetString(objv[objc-1]), -1, 
+    result = Ns_ConnReturnCharData(conn, status, Tcl_GetString(objv[objc-1]), -1, 
 	    Tcl_GetString(objv[objc-2]));
     return Result(interp, result);
 }
@@ -292,7 +292,7 @@ NsTclRespondObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST 
 	 * We'll be returning a string now.
 	 */
 
-	retval = Ns_ConnReturnData(conn, status, string, length, type);
+	retval = Ns_ConnReturnCharData(conn, status, string, length, type);
     }
 
     return Result(interp, retval);
@@ -683,8 +683,9 @@ int
 NsTclWriteObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     Ns_Conn *conn;
-	char    *bytes;
-	int      length;
+    char    *bytes;
+    int      length;
+    int      result;
 
     if (objc != 2 && objc != 3) {
         Tcl_WrongNumArgs(interp, 1, objv, "?connid? string");
@@ -697,8 +698,26 @@ NsTclWriteObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST ob
 	return TCL_ERROR;
     }
 
-    bytes = (char *) Tcl_GetByteArrayFromObj(objv[objc-1], &length);
-    return Result(interp,Ns_WriteConn(conn, bytes, length));
+    /*
+     * ns_write will treat data it is given as binary, until
+     * it is specifically given permission to do otherwise through
+     * the WriteEncodedFlag on the current conn.  This flag is
+     * manipulated via ns_startcontent or ns_conn write_encoded
+     */
+    if (Ns_ConnGetWriteEncodedFlag(conn) &&
+        (Ns_ConnGetEncoding(conn) != NULL)) {
+
+        bytes = Tcl_GetStringFromObj(objv[objc-1], &length);
+        result = Ns_WriteCharConn(conn, bytes, length);
+
+    } else {
+
+        bytes = (char *) Tcl_GetByteArrayFromObj(objv[objc-1], &length);
+        result = Ns_WriteConn(conn, bytes, length);
+
+    }
+
+    return Result(interp, result);
 }
 
 

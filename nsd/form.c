@@ -33,13 +33,12 @@
  *      Routines for dealing with HTML FORM's.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/form.c,v 1.12 2003/01/18 19:24:20 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/form.c,v 1.13 2003/01/31 22:47:30 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
 static void ParseQuery(char *form, Ns_Set *set, Tcl_Encoding encoding);
 static void ParseMultiInput(Conn *connPtr, char *start, char *end);
-static char *Decode(Tcl_DString *dsPtr, char *s, Tcl_Encoding encoding);
 static char *Ext2Utf(Tcl_DString *dsPtr, char *s, int len, Tcl_Encoding encoding);
 static int GetBoundary(Tcl_DString *dsPtr, Ns_Conn *conn);
 static char *NextBoundry(Tcl_DString *dsPtr, char *s, char *e);
@@ -203,9 +202,11 @@ ParseQuery(char *form, Ns_Set *set, Tcl_Encoding encoding)
 	if (v != NULL) {
 	    *v = '\0';
 	}
-	k = Decode(&kds, k, encoding);
+        Ns_DStringTrunc(&kds, 0);
+	k = Ns_DecodeUrlWithEncoding(&kds, k, encoding);
 	if (v != NULL) {
-	    Decode(&vds, v+1, encoding);
+            Ns_DStringTrunc(&vds, 0);
+	    Ns_DecodeUrlWithEncoding(&vds, v+1, encoding);
 	    *v = '=';
 	    v = vds.string;
 	}
@@ -314,58 +315,6 @@ ParseMultiInput(Conn *connPtr, char *start, char *end)
     if (set != NULL) {
 	Ns_SetFree(set);
     }
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Decode --
- *
- *	Decode a form key or value, converting + to spaces,
- *	UrlDecode, and convert to UTF if given and encoding.
- *
- * Results:
- *	Pointer to dsPtr->string.
- *
- * Side effects:
- *	None. 
- *
- *----------------------------------------------------------------------
- */
-
-static char *
-Decode(Tcl_DString *dsPtr, char *s, Tcl_Encoding encoding)
-{
-    Tcl_DString uds, eds;
-
-    Tcl_DStringInit(&uds);
-    Tcl_DStringInit(&eds);
-
-    /*
-     * Convert +'s, if any, to spaces.
-     */
-
-    if (strchr(s, '+') != NULL) {
-	s = Tcl_DStringAppend(&uds, s, -1);
-	while (*s != '\0') {
-	    if (*s == '+') {
-		*s = ' ';
-	    }
-	    ++s;
-	}
-	s = uds.string;
-    }
-
-    /*
-     * URL decode and then convert to UTF.
-     */
-
-    Ns_DecodeUrl(&eds, s);
-    Ext2Utf(dsPtr, eds.string, eds.length, encoding);
-    Tcl_DStringFree(&uds);
-    Tcl_DStringFree(&eds);
-    return dsPtr->string;
 }
 
 

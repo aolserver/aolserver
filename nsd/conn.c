@@ -34,7 +34,7 @@
  *      Manage the Ns_Conn structure
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.33 2003/01/18 19:24:20 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.34 2003/01/31 22:47:29 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -665,6 +665,58 @@ NsIsIdConn(char *connId)
 }
 
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_ConnGetWriteEncodedFlag --
+ *
+ *	Is the given connection set for encoded writes.
+ *
+ * Results:
+ *	Boolean. 
+ *
+ * Side effects:
+ *	None. 
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Ns_ConnGetWriteEncodedFlag(Ns_Conn *conn)
+{
+    return (conn->flags & NS_CONN_WRITE_ENCODED );
+}
+
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_ConnSetWriteEncodedFlag --
+ *
+ *	Set the given connection encoded writes flag per parameter.
+ *
+ * Results:
+ *	void. 
+ *
+ * Side effects:
+ *	None. 
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+Ns_ConnSetWriteEncodedFlag(Ns_Conn *conn, int flag)
+{
+    if( flag ) {
+        conn->flags |= NS_CONN_WRITE_ENCODED;
+    } else {
+        conn->flags &= ~NS_CONN_WRITE_ENCODED;
+    }
+}
+
+
 /*
  *----------------------------------------------------------------------
  *
@@ -696,6 +748,7 @@ NsTclConnObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
     Tcl_HashSearch search;
     FormFile	 *filePtr;
     int		  idx, off, len;
+    int           write_encoded_flag;
 
     static CONST char *opts[] = {
 	 "authpassword", "authuser", "close", "content", "contentlength",
@@ -704,7 +757,7 @@ NsTclConnObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 	 "host", "id", "isconnected", "location", "method",
 	 "outputheaders", "peeraddr", "peerport", "port", "protocol",
 	 "query", "request", "server", "sock", "start", "status",
-	 "url", "urlc", "urlv", "version", NULL
+	 "url", "urlc", "urlencoding", "urlv", "version", "write_encoded", NULL
     };
     enum ISubCmdIdx {
 	 CAuthPasswordIdx, CAuthUserIdx, CCloseIdx, CContentIdx,
@@ -714,7 +767,7 @@ NsTclConnObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 	 CLocationIdx, CMethodIdx, COutputHeadersIdx, CPeerAddrIdx,
 	 CPeerPortIdx, CPortIdx, CProtocolIdx, CQueryIdx, CRequestIdx,
 	 CServerIdx, CSockIdx, CStartIdx, CStatusIdx, CUrlIdx,
-	 CUrlcIdx, CUrlvIdx, CVersionIdx
+	 CUrlcIdx, CUrlEncodingIdx, CUrlvIdx, CVersionIdx, CWriteEncodedIdx
     } opt;
 
     if (objc < 2) {
@@ -801,6 +854,22 @@ NsTclConnObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 	    }
 	    if (connPtr->encoding != NULL) {
 		Tcl_SetResult(interp, (char *) Tcl_GetEncodingName(connPtr->encoding),
+			      TCL_STATIC);
+	    }
+	    break;
+	
+	case CUrlEncodingIdx:
+	    if (objc > 2) {
+		encoding = Ns_GetEncoding(Tcl_GetString(objv[2]));
+		if (encoding == NULL) {
+		    Tcl_AppendResult(interp, "no such encoding: ",
+			Tcl_GetString(objv[2]), NULL);
+		    return TCL_ERROR;
+		}
+		connPtr->urlEncoding = encoding;
+	    }
+	    if (connPtr->urlEncoding != NULL) {
+		Tcl_SetResult(interp, (char *) Tcl_GetEncodingName(connPtr->urlEncoding),
 			      TCL_STATIC);
 	    }
 	    break;
@@ -897,6 +966,22 @@ NsTclConnObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 		return TCL_ERROR;
 	    }
 	    break;
+
+        case CWriteEncodedIdx:
+	    if (objc > 2) {
+		if (Tcl_GetIntFromObj(interp, objv[2], &write_encoded_flag) 
+                    != TCL_OK) {
+                    Tcl_AppendResult(interp, "Invalid write-encoded flag", NULL );
+                    return TCL_ERROR;
+                }
+                Ns_ConnSetWriteEncodedFlag(conn, write_encoded_flag);
+           }
+           if (Ns_ConnGetWriteEncodedFlag(conn)) {
+               Tcl_AppendResult(interp, "1", NULL );
+           } else {
+               Tcl_AppendResult(interp, "0", NULL );
+           }
+           break;
 
 	case CRequestIdx:
 	    Tcl_SetResult(interp, request->line, TCL_STATIC);
@@ -1026,6 +1111,97 @@ NsTclWriteContentObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **
     
     return TCL_OK;
 }
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsTclStartContentObjCmd --
+ *
+ *      Set connPtr->sendState to "Content" and set the charset/encoding
+ *      to use for further data.
+ *
+ * Results:
+ *	NS_OK/NS_ERROR
+ *
+ * Side effects:
+ *	connPtr->sendState and connPtr->encoding may be set.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+NsTclStartContentObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
+                        Tcl_Obj **objv)
+{
+    NsInterp     *itPtr = arg;
+    Tcl_Encoding  encoding;
+    char         *opt;
+    int           status;
+    int           i;
+
+    status = TCL_OK;
+    encoding = NULL;
+
+    for (i = 1; i < objc && status == TCL_OK; i++) {
+	opt = Tcl_GetString(objv[i]);
+	if (STREQ(opt, "-charset")) {
+
+	    if (encoding != NULL) {
+		Tcl_AppendResult(interp, Tcl_GetString(objv[0]),
+		    ": charset may only be specified by one flag", NULL);
+		status = TCL_ERROR;
+	    }
+
+	    if (++i >= objc) {
+		Tcl_AppendResult(interp, Tcl_GetString(objv[0]),
+		    ": missing argument for -charset flag", NULL);
+		status = TCL_ERROR;
+	    }
+
+	    encoding = Ns_GetCharsetEncoding(Tcl_GetString(objv[i]));
+	    if (encoding == NULL) {
+		Tcl_AppendResult(interp, Tcl_GetString(objv[0]),
+		    ": could not find an encoding for charset ",
+		    Tcl_GetString(objv[i]), NULL);
+		status = TCL_ERROR;
+	    }
+	}
+
+	else if (STREQ(opt, "-type")) {
+
+	    if (encoding != NULL) {
+		Tcl_AppendResult(interp, Tcl_GetString(objv[0]),
+		    ": charset may only be specified by one flag", NULL);
+		status = TCL_ERROR;
+	    }
+
+	    if (++i >= objc) {
+		Tcl_AppendResult(interp, Tcl_GetString(objv[0]),
+		    ": missing argument for -type flag", NULL);
+		status = TCL_ERROR;
+	    }
+
+	    encoding = Ns_GetTypeEncoding(Tcl_GetString(objv[i]));
+	}
+
+	else {
+	    Tcl_AppendResult(interp, "usage: ", Tcl_GetString(objv[0]),
+		" ?-charset charsetname? ?-type content-type?", NULL);
+	    status = TCL_ERROR;
+	}
+    }
+
+    if (status != TCL_OK) {
+	return status;
+    }
+
+    Ns_ConnSetWriteEncodedFlag( itPtr->conn, NS_TRUE );
+    Ns_ConnSetEncoding( itPtr->conn, encoding );
+
+    return status;
+}
+
 
 
 /*

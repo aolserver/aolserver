@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/Attic/sample-config.tcl,v 1.5 2003/01/19 17:01:22 shmooved Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/Attic/sample-config.tcl,v 1.6 2003/01/31 22:47:31 mpagenva Exp $
 #
 
 #
@@ -78,10 +78,16 @@ ns_param   home            $homedir
 ns_param   debug           false
 
 #
-# Thread library (nsthread) parameters
+#         I18N Parameters
 #
-ns_section "ns/threads"
-#ns_param   stacksize [expr 128*1024] ;# Per-thread stack size.
+#ns_param HackContentType false       ;# automatic adjustment of response
+                                       # content-type header to include charset
+                                       # This defaults to True.
+ns_param  OutputCharset  iso8859-1    ;# Default output charset.  When none specified,
+                                       # no character encoding of output is performed.
+#ns_param  URLCharset     utf-8       ;# Default Charset for Url Encode/Decode.
+                                       # When none specified, no character set encoding
+                                       # is performed.
 
 #
 # MIME types.
@@ -93,6 +99,35 @@ ns_section "ns/mimetypes"
 ns_param   default         "*/*"     ;# MIME type for unknown extension.
 ns_param   noextension     "*/*"     ;# MIME type for missing extension.
 #ns_param   ".xls"          "application/vnd.ms-excel"
+
+#
+#   I18N Mime-types; define content-type header values
+#                    to be mapped from these file-types.
+#
+ns_param   .adp            "text/html; charset=iso-8859-1"
+ns_param   .u_adp          "text/html; charset=UTF-8"
+ns_param   .gb_adp         "text/html; charset=GB2312"
+ns_param   .sjis_html      "text/html; charset=shift_jis"
+ns_param   .sjis_adp       "text/html; charset=shift_jis"
+ns_param   .gb_html        "text/html; charset=GB2312"
+
+
+#
+#   I18N File-type to Encoding mappings
+#
+ns_section "ns/encodings"
+ns_param   .utf_html       "utf-8"
+ns_param   .sjis_html      "shiftjis"
+ns_param   .gb_html        "gb2312"
+ns_param   .big5_html      "big5"
+ns_param   .euc-cn_html    "euc-cn"
+
+
+#
+# Thread library (nsthread) parameters
+#
+ns_section "ns/threads"
+#ns_param   stacksize [expr 128*1024] ;# Per-thread stack size.
 
 
 ############################################################
@@ -143,6 +178,10 @@ ns_param   enabletclpages  false     ;# Parse *.tcl files in pageroot.
 #
 ns_section "ns/server/${servername}/adp"
 ns_param   map             "/*.adp"  ;# Extensions to parse as ADP's.
+#   I18N Note: will need to define I18N specifying mappings of ADP's here as well.
+ns_param   map             "/*.u_adp"
+ns_param   map             "/*.gb_adp"
+ns_param   map             "/*.sjis_adp"
 #ns_param   map             "/*.html" ;# Any extension can be mapped.
 ns_param   enableexpire    false     ;# Set "Expires: now" on all ADP's.
 ns_param   enabledebug     false     ;# Allow Tclpro debugging with "?debug".
