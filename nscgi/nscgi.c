@@ -28,7 +28,7 @@
  */
 
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscgi/nscgi.c,v 1.20 2003/02/04 23:01:39 jrasmuss23 Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscgi/nscgi.c,v 1.21 2003/03/03 14:42:08 shmooved Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 #include <sys/stat.h>
@@ -467,7 +467,7 @@ CgiInit(Cgi *cgiPtr, Map *mapPtr, Ns_Conn *conn)
 	    if (e != NULL) {
 		*e = '\0';
 	    }
-	    cgiPtr->name = url;
+	    cgiPtr->name = Ns_DStringAppend(CgiDs(cgiPtr), url);
             cgiPtr->path = Ns_DStringVarAppend(CgiDs(cgiPtr),
 	    	    	    	    	      mapPtr->path, "/", s, NULL);
     	    if (e == NULL) {
