@@ -35,7 +35,7 @@
  *  	Tcl commands.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscp/nscp.c,v 1.6 2000/08/21 17:58:52 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscp/nscp.c,v 1.7 2000/08/28 14:14:10 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 
@@ -59,7 +59,27 @@ static char *server;
 static Tcl_HashTable users;
 static char *addr;
 static int port;
+static int fEchoPw;
 static Ns_ArgProc ArgProc;
+
+/*
+ * The following values are sent to the telnet client to enable
+ * and disable password prompt echo.
+ */
+
+#define TN_IAC  255
+#define TN_WILL 251
+#define TN_WONT 252
+#define TN_DO   253
+#define TN_DONT 254
+#define TN_EOF  236
+#define TN_IP   244
+#define TN_ECHO   1
+
+static char do_echo[]    = {TN_IAC, TN_DO,   TN_ECHO};
+static char dont_echo[]  = {TN_IAC, TN_DONT, TN_ECHO};
+static char will_echo[]  = {TN_IAC, TN_WILL, TN_ECHO};
+static char wont_echo[]  = {TN_IAC, TN_WONT, TN_ECHO};
 
 NS_EXPORT int Ns_ModuleVersion = 1;
 
@@ -103,6 +123,14 @@ Ns_ModuleInit(char *s, char *module)
     }
     if (!Ns_ConfigGetInt(path, "port", &port)) {
 	port = 9999;
+    }
+    if (!Ns_ConfigGetBool(path, "echopassword", &fEchoPw)) {
+#if defined(WIN32) || defined(__linux)
+    	/* NB: Doesn't appear to work on WIN32 and Linux yet. */
+    	fEchoPw = 1;
+#else
+	fEchoPw = 0;
+#endif
     }
     lsock = Ns_SockListen(addr, port);
     if (lsock == INVALID_SOCKET) {
@@ -350,41 +378,19 @@ done:
 static int
 GetLine(SOCKET sock, char *prompt, Tcl_DString *dsPtr, int echo)
 {
-
-#ifndef WIN32
-
-#define TN_IAC  255
-#define TN_WILL 251
-#define TN_WONT 252
-#define TN_DO   253
-#define TN_DONT 254
-
-#define TN_ECHO   1
-
-#define TN_EOF  236
-#define TN_IP   244
-
-    char do_echo[]    = {TN_IAC, TN_DO,   TN_ECHO};
-    char dont_echo[]  = {TN_IAC, TN_DONT, TN_ECHO};
-    char will_echo[]  = {TN_IAC, TN_WILL, TN_ECHO};
-    char wont_echo[]  = {TN_IAC, TN_WONT, TN_ECHO};
-#endif
-
     unsigned char buf[2048];
     int n;
     int result = 0;
 
-#ifndef WIN32
     /*
      * Suppress output on things like password prompts.
      */
+
     if (!echo) {
 	send(sock, will_echo, 3, 0);
 	send(sock, dont_echo, 3, 0);
 	recv(sock, buf, sizeof(buf), 0); /* flush client ack thingies */
     }
-#endif
-
     n = strlen(prompt);
     if (send(sock, prompt, n, 0) != n) {
 	result = 0;
@@ -409,15 +415,15 @@ GetLine(SOCKET sock, char *prompt, Tcl_DString *dsPtr, int echo)
 	    goto bail;
 	}
 	
-#ifndef WIN32
 	/*
 	 * Deal with telnet IAC commands in some sane way.
 	 */
+
 	if (n > 1 && buf[0] == TN_IAC) {
 	    if ( buf[1] == TN_EOF) {
 		result = 0;
 		goto bail;
-	    } else if ( buf[1] == TN_IP) {
+	    } else if (buf[1] == TN_IP) {
 		result = 0;
 		goto bail;
 	    } else {
@@ -427,24 +433,18 @@ GetLine(SOCKET sock, char *prompt, Tcl_DString *dsPtr, int echo)
 		goto bail;
 	    }
 	}
-#endif
 
-	
 	Tcl_DStringAppend(dsPtr, buf, n);
 	result = 1;
 
     } while (buf[n-1] != '\n');
 
  bail:
-
-#ifndef WIN32
     if (!echo) {
 	send(sock, wont_echo, 3, 0);
 	send(sock, do_echo, 3, 0);
 	recv(sock, buf, sizeof(buf), 0); /* flush client ack thingies */
     }
-#endif
-
     return result;
 }
 
@@ -478,7 +478,7 @@ Login(SOCKET sock)
     Tcl_DStringInit(&uds);
     Tcl_DStringInit(&pds);
     if (GetLine(sock, "login: ", &uds, 1) &&
-	GetLine(sock, "password: ", &pds, 0)) {
+	GetLine(sock, "password: ", &pds, fEchoPw)) {
 	user = Ns_StrTrim(uds.string);
 	pass = Ns_StrTrim(pds.string);
     	hPtr = Tcl_FindHashEntry(&users, user);
