@@ -1,5 +1,10 @@
 2004-07-22  Dossy Shiobara <dossy@panoptic.com>
 
+	* sample-config.tcl (1.13): Use [info sharedlibextension] so that
+	  we don't have to name DLLs under Win32 with a .so extension.
+
+2004-07-22  Dossy Shiobara <dossy@panoptic.com>
+
 	* win32/build.tcl (1.2): Ensure we're using the version of Tcl we
 	  built against by having the "install" target place it into the
 	  AOLserver install dirs.
