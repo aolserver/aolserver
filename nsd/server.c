@@ -33,7 +33,7 @@
  *	Routines for managing NsServer structures.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.14 2002/05/15 20:10:34 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.15 2002/06/05 23:26:24 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -468,8 +468,7 @@ NsInitServer(char *server)
     Ns_CondInit(&servPtr->adp.pagecond);
     Ns_MutexSetName2(&servPtr->adp.pagelock, "nsadp:pages", server);
     Tcl_InitHashTable(&servPtr->adp.tags, TCL_STRING_KEYS);
-    Ns_MutexInit(&servPtr->adp.taglock);
-    Ns_MutexSetName2(&servPtr->adp.taglock, "nsadp:tags", server);
+    Ns_RWLockInit(&servPtr->adp.taglock);
 
     /*
      * Register ADP for any requested URLs.
