@@ -33,7 +33,7 @@
  *  Routines for the managing the connection thread pools.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/pools.c,v 1.4 2004/08/10 17:48:27 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/pools.c,v 1.5 2004/08/20 02:03:49 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -84,6 +84,7 @@ NsInitPools(void)
     Tcl_InitHashTable(&pools, TCL_STRING_KEYS);
     InitPool(&defpool);
     defpool.name = ns_strdup("default");
+    timeoutPoolPtr = &defpool;
     hPtr = Tcl_CreateHashEntry(&pools, "default", &new);
     if (new) {
         Tcl_SetHashValue(hPtr, &defpool);
