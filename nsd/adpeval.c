@@ -33,7 +33,7 @@
  *	ADP string and file eval.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.21 2003/03/05 14:40:38 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.22 2003/03/05 19:56:57 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -150,19 +150,22 @@ NsAdpEval(NsInterp *itPtr, int objc, Tcl_Obj *objv[], int safe, char *resvar)
         itPtr->adp.responsePtr = NULL;
     }
 
-    /*
-     * If the caller has supplied a variable for the adp's result value,
-     * then save the interp's result there prior to overwritting it.
-     */
-    if (resvar != NULL) {
-        resPtr = Tcl_GetObjResult(itPtr->interp);
-        if (Tcl_SetVar2Ex(itPtr->interp, resvar, NULL, resPtr,
-                           TCL_LEAVE_ERR_MSG) == NULL) {
-            return TCL_ERROR;
+    if (result == TCL_OK) {
+        /*
+         * If the caller has supplied a variable for the adp's result value,
+         * then save the interp's result there prior to overwritting it.
+         */
+        if (resvar != NULL) {
+            resPtr = Tcl_GetObjResult(itPtr->interp);
+            if (Tcl_SetVar2Ex(itPtr->interp, resvar, NULL, resPtr,
+                              TCL_LEAVE_ERR_MSG) == NULL) {
+                return TCL_ERROR;
+            }
         }
+
+        Tcl_SetResult(itPtr->interp, output.string, TCL_VOLATILE);
     }
 
-    Tcl_SetResult(itPtr->interp, output.string, TCL_VOLATILE);
     Tcl_DStringFree(&output);
     ParseFree(&parse);
     return result;
@@ -216,19 +219,19 @@ NsAdpSource(NsInterp *itPtr, int objc, Tcl_Obj *objv[], char *resvar)
         itPtr->adp.responsePtr = NULL;
     }
 
-    /*
-     * If the caller has supplied a variable for the adp's result value,
-     * then save the interp's result there prior to overwritting it.
-     */
-    if (resvar != NULL) {
-        resPtr = Tcl_GetObjResult(itPtr->interp);
-        if (Tcl_SetVar2Ex(itPtr->interp, resvar, NULL, resPtr,
-                           TCL_LEAVE_ERR_MSG) == NULL) {
-            return TCL_ERROR;
-        }
-    }
-
     if (code == TCL_OK) {
+        /*
+         * If the caller has supplied a variable for the adp's result value,
+         * then save the interp's result there prior to overwritting it.
+         */
+        if (resvar != NULL) {
+            resPtr = Tcl_GetObjResult(itPtr->interp);
+            if (Tcl_SetVar2Ex(itPtr->interp, resvar, NULL, resPtr,
+                              TCL_LEAVE_ERR_MSG) == NULL) {
+                return TCL_ERROR;
+            }
+        }
+
 	Tcl_DStringResult(itPtr->interp, &output);
     }
     Tcl_DStringFree(&output);
