@@ -33,7 +33,7 @@
  *	AOLserver Ns_Main() startup routine.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.18 2000/10/22 20:47:18 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.19 2000/11/09 01:50:48 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -188,7 +188,7 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 	    UsageError(NULL);
 	    break;
 	case 'q':
-	    nsConfQuiet = 1;
+	    nsconf.quiet = 1;
 	    break;
 	case 'f':
 	case 'i':
@@ -657,20 +657,47 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
      */
 
     NsRunPreStartupProcs();
+    NsTclRunInits();
     NsStartServer();
     NsStartKeepAlive();
-    NsStartDrivers();
-#ifndef WIN32
-    NsStopBinder();
-#endif
-    NsTclRunInits();
+
+    /*
+     * Signal startup is complete.
+     */
+
     StatusMsg(1);
     Ns_MutexLock(&status.lock);
     status.shutdowntimeout = nsconf.shutdowntimeout;
     status.started = 1;
     Ns_CondBroadcast(&status.cond);
     Ns_MutexUnlock(&status.lock);
+
+    /*
+     * Run any post-startup procs.
+     */
+
     NsRunStartupProcs();
+
+    /*
+     * Wait for the conn threads to warmup and
+     * the sock and sched callbacks to appear idle.
+     */
+
+    Ns_GetTime(&timeout);
+    Ns_IncrTime(&timeout, nsconf.startuptimeout, 0);
+    NsWaitServerWarmup(&timeout);
+    NsWaitSockIdle(&timeout);
+    NsWaitSchedIdle(&timeout);
+
+    /*
+     * Start the drivers now that the server appears
+     * ready.
+     */
+
+    NsStartDrivers();
+#ifndef WIN32
+    NsStopBinder();
+#endif
 
     /*
      * Once the listening thread is started, this thread will just

@@ -33,7 +33,7 @@
  *	Routines for the core server connection threads.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/serv.c,v 1.11 2000/11/03 00:18:02 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/serv.c,v 1.12 2000/11/09 01:50:49 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -77,6 +77,7 @@ static int waitingConns;
 
 static int currentThreads;
 static int idleThreads;
+static int warmThreads;
 static int shutdownPending;
 static Ns_Thread lastThread;
 static Ns_Tls conntls;
@@ -434,6 +435,43 @@ NsStartServer(void)
 /*
  *----------------------------------------------------------------------
  *
+ * NsWaitServerWarmup --
+ *
+ *	Wait for the min server threads to warmup.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	May timeout waiting for warmup.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+NsWaitServerWarmup(Ns_Time *timePtr)
+{
+    int status = NS_OK;
+    
+    Ns_Log(Notice, "serv: waiting for warmup");
+    Ns_MutexLock(&lock);
+    if (nsconf.serv.minthreads > 0) {
+    	while (status == NS_OK && warmThreads < idleThreads) {
+	    status = Ns_CondTimedWait(&cond, &lock, timePtr);
+    	}
+    }
+    Ns_MutexUnlock(&lock);
+    if (status != NS_OK) {
+    	Ns_Log(Warning, "serv: timeout waiting for warmup!");
+    } else {
+    	Ns_Log(Notice, "serv: warmed up");
+    }
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  * NsStopServer --
  *
  *	Signal and wait for connection threads to exit.
@@ -541,15 +579,22 @@ NsConnThread(void *arg)
     Stats	    *statsPtr;
     Ns_Entry	    *entry;
     
+    /*
+     * Pre-allocate some structures and warm up Tcl. 
+     */
+
     connPtrPtr = (Conn **) arg;
     headers = Ns_SetCreate(NULL);
     outputheaders = Ns_SetCreate(NULL);
-
-    Ns_MutexLock(&lock);
+    (void) Ns_TclAllocateInterp(NULL);
+    Ns_TclDeAllocateInterp(NULL);
     sprintf(thrname, "-conn%d-", next++);
     Ns_ThreadSetName(thrname);
-    Ns_Log(Debug, "serv: starting: waiting for connections");
 
+    Ns_MutexLock(&lock);
+    if (++warmThreads == idleThreads) {
+	Ns_CondBroadcast(&cond);
+    }
     while (1) {
 
 	/*
@@ -694,6 +739,7 @@ NsConnThread(void *arg)
 	}
     }
 
+    warmThreads--;
     idleThreads--;
     currentThreads--;
     if (currentThreads == 0) {
@@ -712,7 +758,6 @@ NsConnThread(void *arg)
     if (joinThread != NULL) {
 	JoinConnThread(&joinThread);
     }
-    Ns_Log(Debug, "serv: exiting: %s", p);
     Ns_ThreadExit(connPtrPtr);
 }
 

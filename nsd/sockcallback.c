@@ -34,7 +34,7 @@
  *	Support for the socket callback thread.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sockcallback.c,v 1.4 2000/08/17 06:09:49 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sockcallback.c,v 1.5 2000/11/09 01:50:48 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -65,6 +65,7 @@ static void CallbackTrigger(void);
 static Callback	    *firstQueuePtr, *lastQueuePtr;
 static int	     shutdownPending;
 static int	     running;
+static int	     idle;
 static Ns_Thread     sockThread;
 static Ns_Mutex      lock;
 static Ns_Cond	     cond;
@@ -122,15 +123,52 @@ Ns_SockCancelCallback(SOCKET sock)
 /*
  *----------------------------------------------------------------------
  *
- * NsStopSockCallbacks --
+ * NsWaitSockIdle --
  *
- *	Stop the sock callback thread.
+ *	Wait for socket callbacks to appear idle at startup.
  *
  * Results:
  *	None.
  *
  * Side effects:
- *	Socket callback thread will exit.
+ *	May timeout waiting for idle.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+NsWaitSockIdle(Ns_Time *timePtr)
+{
+    int status = NS_OK;
+
+    Ns_MutexLock(&lock);
+    if (running && !idle) {
+    	Ns_Log(Notice, "socks: waiting for idle");
+    	while (!idle && status == NS_OK) {
+	    status = Ns_CondTimedWait(&cond, &lock, timePtr);
+    	}
+    }
+    Ns_MutexUnlock(&lock);
+    if (status != NS_OK) {
+	Ns_Log(Warning, "socks: timeout waiting for idle");
+    } else {
+    	Ns_Log(Notice, "socks: idle");
+    }
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsStartSockShutdown, NsWaitSockShutdown --
+ *
+ *	Initiate and then wait for socket callbacks shutdown.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	May timeout waiting for shutdown.
  *
  *----------------------------------------------------------------------
  */
@@ -158,7 +196,7 @@ NsWaitSockShutdown(Ns_Time *toPtr)
     }
     Ns_MutexUnlock(&lock);
     if (status != NS_OK) {
-	Ns_Log(Warning, "sockcallback: timeout waiting for callback shutdown");
+	Ns_Log(Warning, "socks: timeout waiting for callback shutdown");
     } else if (sockThread != NULL) {
 	Ns_ThreadJoin(&sockThread, NULL);
 	sockThread = NULL;
@@ -227,7 +265,7 @@ Queue(SOCKET sock, Ns_SockProc *proc, void *arg, int when)
     } else {
 	if (!running) {
     	    Tcl_InitHashTable(&table, TCL_ONE_WORD_KEYS);
-	    Ns_MutexSetName2(&lock, "ns", "sockcallback");
+	    Ns_MutexSetName2(&lock, "ns", "socks");
 	    create = 1;
 	    running = 1;
 	} else if (firstQueuePtr == NULL) {
@@ -284,10 +322,11 @@ SockCallbackThread(void *ignored)
     Callback     *cbPtr;
     Tcl_HashEntry *hPtr;
     Tcl_HashSearch search;
+    struct timeval tv, *tvPtr;
 
     Ns_ThreadSetName("-socks-");
     Ns_WaitForStartup();
-    Ns_Log(Notice, "sockcallback: thread starting");
+    Ns_Log(Notice, "socks: starting");
 
     when[0] = NS_SOCK_READ;
     when[1] = NS_SOCK_WRITE;
@@ -296,6 +335,24 @@ SockCallbackThread(void *ignored)
     
     Ns_MutexLock(&lock);
     while (1) {
+	/*
+	 * Until the server appears idle, do one-second
+	 * timed select.
+	 */
+
+	if (idle) {
+	    tvPtr = NULL;
+	} else {
+	    tv.tv_sec = 1;
+	    tv.tv_usec = 0;
+	    tvPtr = &tv;
+	} 
+
+	/*
+	 * Grab the list of any queue updates and the shutdown
+	 * flag.
+	 */
+
 	cbPtr = firstQueuePtr;
 	firstQueuePtr = NULL;
         lastQueuePtr = NULL;
@@ -353,7 +410,7 @@ SockCallbackThread(void *ignored)
 	    break;
 	}
 	do {
-	    n = select(max+1, &set[0], &set[1], &set[2], NULL);
+	    n = select(max+1, &set[0], &set[1], &set[2], tvPtr);
 	} while (n < 0 && ns_sockerrno == EINTR);
 	if (n < 0) {
 	    Ns_Fatal("select() failed: %s", ns_sockstrerror(ns_sockerrno));
@@ -383,6 +440,15 @@ SockCallbackThread(void *ignored)
 	    hPtr = Tcl_NextHashEntry(&search);
         }
 	Ns_MutexLock(&lock);
+
+	/*
+	 * Signal that callbacks now appear idle.
+	 */
+
+	if (!idle && !n) {
+	    idle = 1;
+	    Ns_CondBroadcast(&cond);
+	}
     }
 
     /*
@@ -390,7 +456,7 @@ SockCallbackThread(void *ignored)
      * system, and signal shutdown complete.
      */
 
-    Ns_Log(Notice, "sockcallback: shutdown pending");
+    Ns_Log(Notice, "socks: shutdown pending");
     hPtr = Tcl_FirstHashEntry(&table, &search);
     while (hPtr != NULL) {
 	cbPtr = Tcl_GetHashValue(hPtr);
@@ -406,7 +472,7 @@ SockCallbackThread(void *ignored)
     }
     Tcl_DeleteHashTable(&table);
 
-    Ns_Log(Notice, "sockcallback: shutdown complete");
+    Ns_Log(Notice, "socks: shutdown complete");
     Ns_MutexLock(&lock);
     running = 0;
     Ns_CondBroadcast(&cond);
