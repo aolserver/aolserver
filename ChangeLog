@@ -1,3 +1,8 @@
+2001-06-30  Dossy Shiobara  <scott@scottg.net>
+
+	* nsd/conn.c, tests/api/ns_conn.adp: fixed ns_conn outputheaders
+    as per bug #433676 submitted by Yon Derek (yond).
+
 2001-05-22  Scott S. Goodwin  <scott@scottg.net>
 
 	* nsd/conn.c: changed Ns_ConnDriverContext in 4.x to return the
