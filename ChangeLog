@@ -72,7 +72,7 @@
 	* Tcl 8.x library upgraded to tcl8.3.2.
 
 	* thread/pool.c: A spiffy range-checker added to the Zippy (-z)
-	memory allocator.  Define NDEBUG=1 to enable.
+	memory allocator.
 
 2000-08-11  Kriston J. Rehberg  <Kriston@AOL.NET>
 
