@@ -34,7 +34,7 @@
  *	Functions that return data to a browser. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.27 2003/02/07 03:05:15 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.28 2003/08/19 21:23:08 shmooved Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -58,19 +58,26 @@ static struct {
     int	  status;
     char *reason;
 } reasons[] = {
+    {100, "Continue"},
+    {101, "Switching Protocols"},
     {200, "OK"},
     {201, "Created"},
     {202, "Accepted"},
+    {203, "Non-Authoritative Information"},
     {204, "No Content"},
     {205, "Reset Content"},
     {206, "Partial Content"},
+    {207, "Multi-Status"},
+    {300, "Multiple Choices"},
     {301, "Moved"},
     {302, "Found"},
     {303, "See Other"},
     {304, "Not Modified"},
     {305, "Use Proxy"},
+    {307, "Temporary Redirect"},
     {400, "Bad Request"},
     {401, "Unauthorized"},
+    {402, "Payment Required"},
     {403, "Forbidden"},
     {404, "Not Found"},
     {405, "Method Not Allowed"},
@@ -84,12 +91,16 @@ static struct {
     {413, "Request Entity Too Large"},
     {414, "Request-URI Too Long"},
     {415, "Unsupported Media Type"},
+    {416, "Requested range not satisfiable"},
+    {417, "Expectation Failed"},
+    {423, "Locked"},
     {500, "Internal Server Error"},
     {501, "Not Implemented"},
     {502, "Bad Gateway"},
     {503, "Service Unavailable"},
     {504, "Gateway Timeout"},
-    {505, "HTTP Version Not Supported"}
+    {505, "HTTP Version Not Supported"},
+    {507, "Insufficient Storage"}
 };
 
 /*
