@@ -1,7 +1,3 @@
-#!/bin/sh
-# the next line restarts using tclsh \
-exec tclsh "$0" "$@"
-
 #
 # The contents of this file are subject to the AOLserver Public License
 # Version 1.1 (the "License"); you may not use this file except in
@@ -31,22 +27,52 @@ exec tclsh "$0" "$@"
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/tests/new/all.tcl,v 1.1.2.1 2004/08/20 21:48:55 dossy Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/Makefile,v 1.44.2.2 2004/08/20 21:48:55 dossy Exp $
 #
 
-package require Tcl 8.4
+NSBUILD=1
+include include/Makefile.global
 
-if {!$tcl_platform(threaded)} {
-    error "tests must run from a threaded tclsh"
-}
+dirs   = nsthread nsd nssock nsssl nscgi nscp nslog nsperm nsdb nsext nspd
 
-package require tcltest 2.2
+all: 
+	@for i in $(dirs); do \
+		( cd $$i && $(MAKE) all ) || exit 1; \
+	done
 
+install: install-binaries install-doc
 
-set env(LD_LIBRARY_PATH) [join [list \
-        $env(LD_LIBRARY_PATH) ../../nsd ../../nsthread] :]
+install-binaries: all
+	for i in bin lib log include modules/tcl servers/server1/pages; do \
+		$(MKDIR) $(AOLSERVER)/$$i; \
+	done
+	for i in include/*.h include/Makefile.global include/Makefile.module; do \
+		$(INSTALL_DATA) $$i $(AOLSERVER)/include/; \
+	done
+	for i in tcl/*.tcl; do \
+		$(INSTALL_DATA) $$i $(AOLSERVER)/modules/tcl/; \
+	done
+	$(INSTALL_DATA) sample-config.tcl $(AOLSERVER)/
+	$(INSTALL_SH) install-sh $(INSTBIN)/
+	for i in $(dirs); do \
+		(cd $$i && $(MAKE) install) || exit 1; \
+	done
 
-tcltest::configure -testdir [file dirname [info script]]
-eval tcltest::configure $argv
+install-tests:
+	$(CP) -r tests $(INSTSRVPAG)
 
-tcltest::runAllTests
+install-doc:
+	cd doc && /bin/sh ./install-doc $(AOLSERVER)
+
+test: all
+	cd tests/new && ./all.tcl
+
+clean:
+	@for i in $(dirs); do \
+		(cd $$i && $(MAKE) clean) || exit 1; \
+	done
+
+distclean: clean
+	$(RM) config.status config.log config.cache include/Makefile.global include/Makefile.module
+
+.PHONY: all install install-binaries install-doc install-tests clean distclean
