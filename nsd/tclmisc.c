@@ -34,7 +34,7 @@
  *	Implements a lot of Tcl API commands. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclmisc.c,v 1.17 2001/04/28 20:48:18 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclmisc.c,v 1.18 2001/05/18 12:29:53 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -473,19 +473,27 @@ NsTclHTUUDecodeCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
  *----------------------------------------------------------------------
  */
 
+#define TIME_SEP ':'
+
+int
+NsTclGetObjTime(Tcl_Interp *interp, Tcl_Obj *obj, Ns_Time *timePtr)
+{
+    return NsTclGetTime(interp, Tcl_GetString(obj), timePtr);
+}
+
 int
 NsTclGetTime(Tcl_Interp *interp, char *time, Ns_Time *timePtr)
 {
     int result, sec, usec;
     char *sep;
 
-    sep = strchr(time, ':');
+    sep = strchr(time, TIME_SEP);
     if (sep != NULL) {
 	*sep = '\0';
     }
     result = Tcl_GetInt(interp, time, &sec);
     if (sep != NULL) {
-	*sep++ = '.';
+	*sep++ = TIME_SEP;
     }
     if (result == TCL_OK) {
 	if (sep == NULL) {
@@ -502,59 +510,60 @@ NsTclGetTime(Tcl_Interp *interp, char *time, Ns_Time *timePtr)
 }
 
 int
-NsTclTimeCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
+NsTclTimeObjCmd(ClientData dummy, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 {
-    char buf[100];
+    char buf[100], *cmd;
     Ns_Time result, t1, t2;
-    int sec, usec;
+    int sec, usec, n;
 
-    if (argc < 2) {
-	sprintf(buf, "%d", (int) time(NULL));
+    if (objc < 2) {
+	Tcl_SetLongObj(Tcl_GetObjResult(interp), time(NULL));
     } else {
-	if (STREQ(argv[1], "get")) {
+	cmd = Tcl_GetString(objv[1]);
+	if (STREQ(cmd, "get")) {
 	    Ns_GetTime(&result);
-	} else if (STREQ(argv[1], "incr")) {
-	    if (argc != 4 && argc != 5) {
+	} else if (STREQ(cmd, "incr")) {
+	    if (objc != 4 && objc != 5) {
 		Tcl_AppendResult(interp, "wrong # args: should be \"",
-		    argv[1], " incr time sec ?usec?\"", NULL);
+		    cmd, " incr time sec ?usec?\"", NULL);
 		return TCL_ERROR;
 	    }
 	    usec = 0;
-	    if (NsTclGetTime(interp, argv[2], &result) != TCL_OK ||
-		Tcl_GetInt(interp, argv[3], &sec) != TCL_OK ||
-		(argc == 5 && Tcl_GetInt(interp, argv[4], &usec) != TCL_OK)) {
+	    if (NsTclGetObjTime(interp, objv[2], &result) != TCL_OK ||
+		Tcl_GetIntFromObj(interp, objv[3], &sec) != TCL_OK ||
+		(objc == 5 && Tcl_GetIntFromObj(interp, objv[4], &usec) != TCL_OK)) {
 		return TCL_ERROR;
 	    }
 	    Ns_IncrTime(&result, sec, usec);
-	} else if (STREQ(argv[1], "diff")) {
-	    if (argc != 4) {
+	} else if (STREQ(cmd, "diff")) {
+	    if (objc != 4) {
 		Tcl_AppendResult(interp, "wrong # args: should be \"",
-		    argv[1], " diff t1 t2\"", NULL);
+		    cmd, " diff t1 t2\"", NULL);
 		return TCL_ERROR;
 	    }
-	    if (NsTclGetTime(interp, argv[2], &t1) != TCL_OK ||
-		NsTclGetTime(interp, argv[3], &t2) != TCL_OK) {
+	    if (NsTclGetObjTime(interp, objv[2], &t1) != TCL_OK ||
+		NsTclGetObjTime(interp, objv[3], &t2) != TCL_OK) {
 		return TCL_ERROR;
 	    }
 	    Ns_DiffTime(&t1, &t2, &result);
-	} else if (STREQ(argv[1], "adj")) {
-	    if (argc != 3) {
+	} else if (STREQ(cmd, "adj")) {
+	    if (objc != 3) {
 		Tcl_AppendResult(interp, "wrong # args: should be \"",
-		    argv[1], " adj time\"", NULL);
+		    cmd, " adj time\"", NULL);
 		return TCL_ERROR;
 	    }
-	    if (NsTclGetTime(interp, argv[2], &result) != TCL_OK) {
+	    if (NsTclGetObjTime(interp, objv[2], &result) != TCL_OK) {
 		return TCL_ERROR;
 	    }
 	    Ns_AdjTime(&result);
 	} else {
-	    Tcl_AppendResult(interp, "unknown command \"", argv[1],
+	    Tcl_AppendResult(interp, "unknown command \"", cmd,
 		"\": should be get, incr, diff, or adj", NULL);
 	    return TCL_ERROR;
 	}
-	sprintf(buf, "%ld:%ld", (long) result.sec, result.usec);
+	sprintf(buf, "%ld%c%ld", (long) result.sec, TIME_SEP, result.usec);
+        Tcl_SetResult(interp, buf, TCL_VOLATILE);
     }
-    Tcl_SetResult(interp, buf, TCL_VOLATILE);
     return TCL_OK;
 }
 

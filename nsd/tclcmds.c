@@ -33,7 +33,7 @@
  * 	Connect Tcl command names to the functions that implement them
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.17 2001/04/25 00:25:58 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.18 2001/05/18 12:29:53 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -42,6 +42,7 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
  */
 
 extern Tcl_ObjCmdProc
+    NsTclTimeObjCmd,
     NsTclAdpAppendObjCmd,
     NsTclAdpPutsObjCmd;
 
@@ -162,7 +163,6 @@ extern Tcl_CmdProc
     NsTclSleepCmd,
     NsTclStrftimeCmd,
     NsTclStripHtmlCmd,
-    NsTclTimeCmd,
     NsTclUrlDecodeCmd,
     NsTclUrlEncodeCmd,
     NsTclVarCmd,
@@ -233,7 +233,7 @@ static Cmd cmds[] = {
     {"ns_sleep", NsTclSleepCmd, NULL},
     {"ns_localtime", NsTclLocalTimeCmd, NULL},
     {"ns_gmtime", NsTclGmTimeCmd, NULL},
-    {"ns_time", NsTclTimeCmd, NULL},
+    {"ns_time", NULL, NsTclTimeObjCmd},
     {"ns_fmttime", NsTclStrftimeCmd, NULL},
     {"ns_httptime", NsTclHttpTimeCmd, NULL},
     {"ns_parsehttptime", NsTclParseHttpTimeCmd, NULL},
