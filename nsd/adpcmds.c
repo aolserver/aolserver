@@ -33,7 +33,7 @@
  *	ADP commands.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpcmds.c,v 1.6 2001/04/02 19:37:01 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpcmds.c,v 1.7 2001/11/25 20:59:23 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -119,38 +119,37 @@ NsTclAdpIncludeCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 int
 NsTclAdpParseCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 {
-    int         isfile, idx, i;
+    int         isfile, i;
     char       *string;
     
     if (argc < 2) {
+badargs:
         Tcl_AppendResult(interp, "wrong # args: should be \"",
               argv[0], " ?-file|-string? arg ?arg1 arg2 ...?\"", NULL);
         return TCL_ERROR;
     }
-    idx = 1;
-    if (argc > 2) {
-	for (i = 1; i < argc; ++i) {
-	    if (STREQ(argv[1], "-file")) {
-		isfile = 1;
-		++idx;
-	    } else if (STREQ(argv[1], "-string")
-		    || STREQ(argv[1], "-local")) {
-		++idx;
-	    } else if (STREQ(argv[1], "-gobal")) {
-		Tcl_AppendResult(interp, "option -global unsupported", TCL_STATIC);
-		return TCL_ERROR;
-	    } else {
-		break;
-	    }
+    isfile = 0;
+    for (i = 1; i < argc; ++i) {
+	if (STREQ(argv[i], "-global")) {
+	    Tcl_SetResult(interp, "option -global unsupported", TCL_STATIC);
+	    return TCL_ERROR;
+	}
+	if (STREQ(argv[i], "-file")) {
+	    isfile = 1;
+	} else if (!STREQ(argv[i], "-string") && !STREQ(argv[i], "-local")) {
+	    break;
 	}
     }
-    string = argv[idx++];
-    argc -= idx;
-    argv += idx;
+    if (argc == i) {
+	goto badargs;
+    }
+    string = argv[i++];
+    argc -= i;
+    argv += i;
     if (isfile) {
-        return NsAdpEval(arg, string, argc, argv);
-    } else {
         return NsAdpSource(arg, string, argc, argv);
+    } else {
+        return NsAdpEval(arg, string, argc, argv);
     }
 }
 
