@@ -33,7 +33,7 @@
  *	AOLserver Ns_Main() startup routine.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.42 2002/07/14 23:15:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.43 2002/07/14 23:22:43 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -453,7 +453,7 @@ Ns_Main(int argc, char **argv)
      */
 
     NsStartDrivers();
-    NsClosePreBindBinder();
+    NsClosePreBound();
 
     /*
      * Once the drivers listen thread is started, this thread will just
