@@ -34,7 +34,7 @@
  *      DNS lookup routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/dns.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/dns.c,v 1.4 2001/01/12 22:48:02 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -65,6 +65,8 @@ typedef int (GetProc)(Ns_DString *dsPtr, char *key);
 
 static Ns_Cache *hostCache;
 static Ns_Cache *addrCache;
+static Ns_Mutex lock;
+static int cachetimeout;
 
 /*
  * Static functions defined in this file
@@ -72,7 +74,8 @@ static Ns_Cache *addrCache;
 
 static GetProc GetAddr;
 static GetProc GetHost;
-static int DnsGet(GetProc *getProc, Ns_DString *dsPtr, Ns_Cache *cachePtr, char *key);
+static int DnsGet(GetProc *getProc, Ns_DString *dsPtr,
+	Ns_Cache **cachePtr, char *key);
 static void LogError(char *func);
 
 
@@ -94,34 +97,46 @@ static void LogError(char *func);
 int
 Ns_GetHostByAddr(Ns_DString *dsPtr, char *addr)
 {
-    return DnsGet(GetHost, dsPtr, hostCache, addr);
+    return DnsGet(GetHost, dsPtr, &hostCache, addr);
 }
-
 
 int
 Ns_GetAddrByHost(Ns_DString *dsPtr, char *host)
 {
-    return DnsGet(GetAddr, dsPtr, addrCache, host);
+    return DnsGet(GetAddr, dsPtr, &addrCache, host);
 }
 
-
 static int
-DnsGet(GetProc *getProc, Ns_DString *dsPtr, Ns_Cache *cachePtr, char *key)
+DnsGet(GetProc *getProc, Ns_DString *dsPtr, Ns_Cache **cachePtr, char *key)
 {
-    int             status, new;
+    int             status, new, timeout;
     Value   	   *vPtr;
     Ns_Entry       *ePtr;
+    Ns_Cache	   *cache;
 
-    if (cachePtr == NULL) {
+    /*
+     * Get the cache, if enabled.
+     */
+
+    Ns_MutexLock(&lock);
+    cache = *cachePtr;
+    timeout = cachetimeout;
+    Ns_MutexUnlock(&lock);
+
+    /*
+     * Call getProc directly or through cache.
+     */
+
+    if (cache == NULL) {
         status = (*getProc)(dsPtr, key);
     } else {
-	Ns_CacheLock(cachePtr);
-	ePtr = Ns_CacheCreateEntry(cachePtr, key, &new);
+	Ns_CacheLock(cache);
+	ePtr = Ns_CacheCreateEntry(cache, key, &new);
 	if (!new) {
 	    while (ePtr != NULL &&
 		    (vPtr = Ns_CacheGetValue(ePtr)) == NULL) {
-		Ns_CacheWait(cachePtr);
-		ePtr = Ns_CacheFindEntry(cachePtr, key);
+		Ns_CacheWait(cache);
+		ePtr = Ns_CacheFindEntry(cache, key);
 	    }
 	    if (ePtr == NULL) {
 	        status = NS_FALSE;
@@ -134,20 +149,22 @@ DnsGet(GetProc *getProc, Ns_DString *dsPtr, Ns_Cache *cachePtr, char *key)
 	    }
 	}
 	if (new) {
-	    Ns_CacheUnlock(cachePtr);
+	    Ns_CacheUnlock(cache);
 	    status = (*getProc)(dsPtr, key);
-	    Ns_CacheLock(cachePtr);
+	    Ns_CacheLock(cache);
+	    ePtr = Ns_CacheCreateEntry(cache, key, &new);
 	    if (status != NS_TRUE) {
-		Ns_CacheDeleteEntry(ePtr);
+		Ns_CacheFlushEntry(ePtr);
 	    } else {
+	    	Ns_CacheUnsetValue(ePtr);
 		vPtr = ns_malloc(sizeof(Value) + dsPtr->length);
-		vPtr->expires = time(NULL) + nsconf.dns.timeout;
+		vPtr->expires = time(NULL) + timeout;
 		strcpy(vPtr->value, dsPtr->string);
 		Ns_CacheSetValue(ePtr, vPtr);
 	    }
-	    Ns_CacheBroadcast(cachePtr);
+	    Ns_CacheBroadcast(cache);
 	}
-	Ns_CacheUnlock(cachePtr);
+	Ns_CacheUnlock(cache);
     }
     return status;
 }
@@ -155,26 +172,29 @@ DnsGet(GetProc *getProc, Ns_DString *dsPtr, Ns_Cache *cachePtr, char *key)
 
 /*
  *----------------------------------------------------------------------
- * NsDNSInit --
+ * NsEnableDNSCache --
  *
- *      Initialize the static hash table
+ *      Enable DNS results caching.
  *
  * Results:
  *      None.
  *
  * Side effects:
- *	None.
+ *	Futher DNS lookups will be cached up to given timeout.
  *
  *----------------------------------------------------------------------
  */
 
 void
-NsDNSInit(void)
+NsEnableDNSCache(int timeout)
 {
-    if (nsconf.dns.cache == NS_TRUE) {
-	hostCache = Ns_CacheCreate("ns_dnshost", TCL_STRING_KEYS, nsconf.dns.timeout, ns_free);
-	addrCache = Ns_CacheCreate("ns_dnsaddr", TCL_STRING_KEYS, nsconf.dns.timeout, ns_free);
-    }
+    Ns_MutexLock(&lock);
+    cachetimeout = timeout;
+    hostCache = Ns_CacheCreate("ns_dnshost", TCL_STRING_KEYS,
+	cachetimeout, ns_free);
+    addrCache = Ns_CacheCreate("ns_dnsaddr", TCL_STRING_KEYS,
+	cachetimeout, ns_free);
+    Ns_MutexUnlock(&lock);
 }
 
 
@@ -183,6 +203,9 @@ NsDNSInit(void)
  * GetHost, GetAddr --
  *
  *      Perform the actual lookup by host or address.
+ *
+ *	NOTE: A critical section is used instead of a mutex
+ *	to ensure waiting on a condition and not mutex spin waiting.
  *
  * Results:
  *      If a name can be found, the function returns NS_TRUE; otherwise, 
