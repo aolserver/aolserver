@@ -33,7 +33,7 @@
  *      All the public types and function declarations for the core
  *	AOLserver.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.34 2001/12/11 23:48:26 jgdavidson Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.35 2002/05/15 20:22:36 jgdavidson Exp $
  */
 
 #ifndef NS_H
@@ -86,10 +86,6 @@
 #define NS_SOCK_WRITE		  2
 #define NS_SOCK_EXCEPTION	  4
 #define NS_SOCK_EXIT		  8
-#define NS_NO_DATA 		  8
-#define NS_END_DATA 		  4
-#define NS_ROWS 		  2
-#define NS_DML  		  1
 #define NS_ENCRYPT_BUFSIZE 	 16
 #define NS_DRIVER_ASYNC		  1	/* Use async read-ahead. */
 #define NS_DRIVER_SSL		  2	/* Use SSL port, protocol defaults. */
@@ -143,6 +139,7 @@ typedef ns_int64 INT64;
  * C API macros.
  */
 
+#define UCHAR(c) 		((unsigned char)(c))
 #define STREQ(a,b) 		(((*a) == (*b)) && (strcmp((a),(b)) == 0))
 #define STRIEQ(a,b)     	(strcasecmp((a),(b)) == 0)
 #define Ns_IndexCount(X) 	((X)->n)
@@ -192,35 +189,6 @@ typedef enum {
 typedef enum {
     Preserve, ToLower, ToUpper
 } Ns_HeaderCaseDisposition;
-
-/*
- * This is used with the Ns_DbProc structure.
- */
-
-typedef enum {
-    DbFn_Name,
-    DbFn_DbType,
-    DbFn_ServerInit,
-    DbFn_OpenDb,
-    DbFn_CloseDb,
-    DbFn_DML,
-    DbFn_Select,
-    DbFn_GetRow,
-    DbFn_Flush,
-    DbFn_Cancel,
-    DbFn_GetTableInfo,
-    DbFn_TableList,
-    DbFn_BestRowId,
-    DbFn_Exec,
-    DbFn_BindRow,
-    DbFn_ResetHandle,
-    DbFn_SpStart,
-    DbFn_SpSetParam,
-    DbFn_SpExec,
-    DbFn_SpReturnCode,
-    DbFn_SpGetParams,
-    DbFn_End
-} Ns_DbProcId;
 
 /*
  * Typedefs of functions
@@ -315,49 +283,6 @@ typedef struct Ns_List {
     float           weight;   /* Between 0 and 1 */
     struct Ns_List *rest;
 } Ns_List;
-
-/*
- * Database handle structure.
- */
-
-typedef struct Ns_DbHandle {
-    char       *driver;
-    char       *datasource;
-    char       *user;
-    char       *password;
-    void       *connection;
-    char       *poolname;
-    int         connected;
-    int         verbose;
-    Ns_Set     *row;
-    char        cExceptionCode[6];
-    Ns_DString  dsExceptionMsg;
-    void       *context;
-    void       *statement;
-    int         fetchingRows;
-} Ns_DbHandle;
-
-/*
- * Database procedure structure.
- */
-
-typedef struct Ns_DbProc {
-    Ns_DbProcId id;
-    void       *func;
-} Ns_DbProc;
-
-/*
- * The following structure is no longer supported and only provided to
- * allow existing database modules to compile.  All of the TableInfo
- * routines now log an unsupported use error and return an error result.
- */
-
-typedef struct {
-    Ns_Set  *table;
-    int      size;
-    int      ncolumns;
-    Ns_Set **columns;
-} Ns_DbTableInfo;
 
 /*
  * The following structure defines a driver.
@@ -572,63 +497,6 @@ NS_EXTERN void *Ns_ConnDriverContext(Ns_Conn *conn);
  */
 
 NS_EXTERN char *Ns_Encrypt(char *pw, char *salt, char iobuf[ ]);
-
-/*
- * dbdrv.c:
- */
-
-NS_EXTERN int Ns_DbRegisterDriver(char *driver, Ns_DbProc *procs);
-NS_EXTERN char *Ns_DbDriverName(Ns_DbHandle *handle);
-NS_EXTERN char *Ns_DbDriverDbType(Ns_DbHandle *handle);
-NS_EXTERN int Ns_DbDML(Ns_DbHandle *handle, char *sql);
-NS_EXTERN Ns_Set *Ns_DbSelect(Ns_DbHandle *handle, char *sql);
-NS_EXTERN int Ns_DbExec(Ns_DbHandle *handle, char *sql);
-NS_EXTERN Ns_Set *Ns_DbBindRow(Ns_DbHandle *handle);
-NS_EXTERN int Ns_DbGetRow(Ns_DbHandle *handle, Ns_Set *row);
-NS_EXTERN int Ns_DbFlush(Ns_DbHandle *handle);
-NS_EXTERN int Ns_DbCancel(Ns_DbHandle *handle);
-NS_EXTERN int Ns_DbResetHandle(Ns_DbHandle *handle);
-NS_EXTERN int Ns_DbSpStart(Ns_DbHandle *handle, char *procname);
-NS_EXTERN int Ns_DbSpSetParam(Ns_DbHandle *handle, char *paramname,
-			   char *paramtype, char *inout, char *value);
-NS_EXTERN int Ns_DbSpExec(Ns_DbHandle *handle);
-NS_EXTERN int Ns_DbSpReturnCode(Ns_DbHandle *handle, char *returnCode,
-			     int bufsize);
-NS_EXTERN Ns_Set *Ns_DbSpGetParams(Ns_DbHandle *handle);
-
-/*
- * dbinit.c:
- */
-
-NS_EXTERN char *Ns_DbPoolDescription(char *pool);
-NS_EXTERN char *Ns_DbPoolDefault(char *server);
-NS_EXTERN char *Ns_DbPoolList(char *server);
-NS_EXTERN int Ns_DbPoolAllowable(char *server, char *pool);
-NS_EXTERN void Ns_DbPoolPutHandle(Ns_DbHandle *handle);
-NS_EXTERN Ns_DbHandle *Ns_DbPoolTimedGetHandle(char *pool, int wait);
-NS_EXTERN Ns_DbHandle *Ns_DbPoolGetHandle(char *pool);
-NS_EXTERN int Ns_DbPoolGetMultipleHandles(Ns_DbHandle **handles, char *pool,
-				       int nwant);
-NS_EXTERN int Ns_DbPoolTimedGetMultipleHandles(Ns_DbHandle **handles, char *pool,
-					    int nwant, int wait);
-NS_EXTERN int Ns_DbBouncePool(char *pool);
-
-/*
- * dbtcl.c:
- */
-
-NS_EXTERN int Ns_TclDbGetHandle(Tcl_Interp *interp, char *handleId,
-			     Ns_DbHandle **handle);
-
-/*
- * dbutil.c:
- */
-    
-NS_EXTERN void Ns_DbQuoteValue(Ns_DString *pds, char *string);
-NS_EXTERN Ns_Set *Ns_Db0or1Row(Ns_DbHandle *handle, char *sql, int *nrows);
-NS_EXTERN Ns_Set *Ns_Db1Row(Ns_DbHandle *handle, char *sql);
-NS_EXTERN int Ns_DbInterpretSqlFile(Ns_DbHandle *handle, char *filename);
-NS_EXTERN void Ns_DbSetException(Ns_DbHandle *handle, char *code, char *msg);
 
 /*
  * dns.c:
