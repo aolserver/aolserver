@@ -1,0 +1,51 @@
+<html>
+<head>
+  <title>nsext</title>
+</head>
+<body bgcolor="#ffffff">
+<h2>nsext -- External Database Driver</h2>
+<pre>$Header: /Users/dossy/Desktop/cvs/aolserver/nsext/nsext.html,v 1.1 2000/10/10 18:03:51 kriston Exp $
+</pre>
+<br>
+<a href="#Theory_of_Operation">Theory of Operation</a><br>
+<a href="#Known_Issues">Known Issues</a><br>
+<a href="#Sample_Configuration">Sample Configuration</a><br>
+<br>
+<br>
+<h3><a name="Theory_of_Operation"></a>Theory of Operation</h3>
+This driver is used to interact with external database drivers.&nbsp; These are
+ usually called "database proxy daemons".<br>
+<br>
+<h3><a name="Known_Issues"></a>Known Issues</h3>
+The driver API talks over sockets to remote daemons in an inefficient manner.&nbsp;
+ It is highly recommended that the proxy daemon and AOLserver both run on
+ the same machine.&nbsp; Of course, the database can still run on a remote machine
+ -- it's only the connection between AOLserver and the proxy daemon that
+ is inefficient and that inefficiency is greatly alleviated by running on
+ the same host.<br>
+<br>
+<h3><a name="Sample_Configuration"></a>Sample Configuration</h3>
+Please see the <a href="../doc/config.txt">Configuration File Reference</a>.<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+</body>
+</html>
