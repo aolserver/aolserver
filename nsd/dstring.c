@@ -31,41 +31,13 @@
 /* 
  * dstring.c --
  *
- *	Ns_DString routines.  Ns_DString's are not compatible 
+ *	Ns_DString routines.  Ns_DString's are now compatible 
  *	with Tcl_DString's.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/dstring.c,v 1.10 2001/03/12 22:06:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/dstring.c,v 1.11 2001/03/23 23:17:57 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
-
-static void GrowDString(Ns_DString *dsPtr, int length);
-
-
-/*
- *----------------------------------------------------------------------
- * Ns_DStringInit --
- *
- *      Initialize a Ns_DString object.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-void
-Ns_DStringInit(Ns_DString *dsPtr)
-{
-    dsPtr->string = dsPtr->staticSpace;
-    dsPtr->length = 0;
-    dsPtr->spaceAvl = NS_DSTRING_STATIC_SIZE;
-    dsPtr->staticSpace[0] = 0;
-    dsPtr->addr = NULL;
-}
 
 
 /*
@@ -95,57 +67,6 @@ Ns_DStringVarAppend(Ns_DString *dsPtr, ...)
 	Ns_DStringAppend(dsPtr, s);
     }
     va_end(ap);
-    return dsPtr->string;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Ns_DStringAppendElement --
- *
- *	Append a list element to the current value of a dynamic string.
- *
- * Results:
- *	The return value is a pointer to the dynamic string's new value.
- *
- * Side effects:
- *	String is reformatted as a list element and added to the current
- *	value of the string.  Memory gets reallocated if needed to
- *	accomodate the string's new size.
- *
- *----------------------------------------------------------------------
- */
-
-char *
-Ns_DStringAppendElement(Ns_DString *dsPtr, char *string)
-{
-    int newSize, flags;
-    char *dst;
-    extern int TclNeedSpace(char *, char *);
-
-    newSize = Tcl_ScanElement(string, &flags) + dsPtr->length + 1;
-
-    /*
-     * Grow the string if necessary.
-     */
-
-    if (newSize >= dsPtr->spaceAvl) {
-	GrowDString(dsPtr, newSize * 2);
-    }
-
-    /*
-     * Convert the new string to a list element and copy it into the
-     * buffer at the end, with a space, if needed.
-     */
-
-    dst = dsPtr->string + dsPtr->length;
-    if (TclNeedSpace(dsPtr->string, dst)) {
-	*dst = ' ';
-	dst++;
-	dsPtr->length++;
-    }
-    dsPtr->length += Tcl_ConvertElement(string, dst, flags);
     return dsPtr->string;
 }
 
@@ -187,6 +108,28 @@ Ns_DStringExport(Ns_DString *dsPtr)
 
 /*
  *----------------------------------------------------------------------
+ * Ns_DStringAppendArg --
+ *
+ *      Append a string including its terminating null byte.
+ *
+ * Results:
+ *	Pointer to the current string value.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+char *
+Ns_DStringAppendArg(Ns_DString *dsPtr, char *string)
+{
+    return Ns_DStringNAppend(dsPtr, string, strlen(string) + 1);
+}
+
+
+/*
+ *----------------------------------------------------------------------
  * Ns_DStringPrintf --
  *
  *      Append a sequence of values using a format string
@@ -215,229 +158,6 @@ Ns_DStringPrintf(Ns_DString *dsPtr, char *fmt,...)
 #endif
     va_end(ap);
     return Ns_DStringAppend(dsPtr, buf);
-}
-
-
-/*
- *----------------------------------------------------------------------
- * Ns_DStringFree --
- *
- *	Reset to its initialized state and deallocate any allocated
- *	memory.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-void
-Ns_DStringFree(Ns_DString *dsPtr)
-{
-    if (dsPtr->string != dsPtr->staticSpace) {
-	ns_free(dsPtr->string);
-    }
-    dsPtr->string = dsPtr->staticSpace;
-    dsPtr->length = 0;
-    dsPtr->spaceAvl = NS_DSTRING_STATIC_SIZE;
-    dsPtr->staticSpace[0] = 0;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Ns_DStringSetLength --
- *
- *	Change the length of a dynamic string.  This can cause the
- *	string to either grow or shrink, depending on the value of
- *	length.
- *
- * Results:
- *	None.
- *
- * Side effects:
- *	The length of dsPtr is changed to length and a null byte is
- *	stored at that position in the string.  If length is larger
- *	than the space allocated for dsPtr, then a panic occurs.
- *
- *----------------------------------------------------------------------
- */
-
-void
-Ns_DStringSetLength(Ns_DString *dsPtr, int length)
-{
-    if (length < 0) {
-	length = 0;
-    }
-    if (length >= dsPtr->spaceAvl) {
-	GrowDString(dsPtr, length+1);
-    }
-    dsPtr->length = length;
-    dsPtr->string[length] = 0;
-}
-
-
-/*
- *----------------------------------------------------------------------
- * Ns_DStringTrunc --
- *
- *      Truncate the value to a null string.
- *
- * Results:
- *      None.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-void
-Ns_DStringTrunc(Ns_DString *dsPtr, int length)
-{
-    Ns_DStringSetLength(dsPtr, length);
-}
-
-
-/*
- *----------------------------------------------------------------------
- * Ns_DStringNAppend --
- *
- *      Append a byte copy of the first length bytes of string.
- *
- * Results:
- *	Pointer to the current string value.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-char *
-Ns_DStringNAppend(Ns_DString *dsPtr, char *string, int length)
-{
-    int newSize;
-
-    if (length < 0) {
-	length = strlen(string);
-    }
-    newSize = length + dsPtr->length;
-
-    /*
-     * Grow the string if necessary.
-     */
-
-    if (newSize >= dsPtr->spaceAvl) {
-	GrowDString(dsPtr, newSize * 2);
-    }
-
-    /*
-     * Copy the new string into the buffer at the end of the old one.
-     */
-
-    memcpy(dsPtr->string + dsPtr->length, string, length);
-    dsPtr->length += length;
-    dsPtr->string[dsPtr->length] = '\0';
-    return dsPtr->string;
-}
-
-
-/*
- *----------------------------------------------------------------------
- * Ns_DStringAppendArg --
- *
- *      Append a string including its terminating null byte.
- *
- * Results:
- *	Pointer to the current string value.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-char *
-Ns_DStringAppendArg(Ns_DString *dsPtr, char *string)
-{
-    return Ns_DStringNAppend(dsPtr, string, strlen(string) + 1);
-}
-
-
-/*
- *----------------------------------------------------------------------
- * Ns_DStringAppend --
- *
- *      Append a string.
- *
- * Results:
- *	Pointer to the current string value.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-#undef Ns_DStringAppend
-
-char *
-Ns_DStringAppend(Ns_DString *dsPtr, char *string)
-{
-    return Ns_DStringNAppend(dsPtr, string, -1);
-}
-
-
-/*
- *----------------------------------------------------------------------
- * Ns_DStringLength --
- *
- *      Return the length of a string.
- *
- * Results:
- *      The length of a string.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-#undef Ns_DStringLength
-
-int
-Ns_DStringLength(Ns_DString *dsPtr)
-{
-    return dsPtr->length;
-}
-
-
-/*
- *----------------------------------------------------------------------
- * Ns_DStringValue --
- *
- *	Return a pointer to the current string value.
- *
- * Results:
- *	Pointer to the current string value.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-
-#undef Ns_DStringValue
-
-char *
-Ns_DStringValue(Ns_DString *dsPtr)
-{
-    return dsPtr->string;
 }
 
 
@@ -515,32 +235,88 @@ Ns_DStringPush(Ns_DString *dsPtr)
 
 /*
  *----------------------------------------------------------------------
- * GrowDString --
+ * Compatibility routines --
  *
- *	Increase the space available in a dstring.  Note that
- *	memcpy() is used instead of strcpy() because the string
- *	may have embedded nulls.
+ *	Wrappers for old Ns_DString functions.
+ *	memory.
  *
  * Results:
- *	None.
+ *      See Tcl_DString routine.
  *
  * Side effects:
- *  	New memory will be allocated.
+ *      See Tcl_DString routine.
  *
  *----------------------------------------------------------------------
  */
 
-static void
-GrowDString(Ns_DString *dsPtr, int length)
-{
-    char *newString;
+#undef Ns_DStringInit
 
-    if (dsPtr->string != dsPtr->staticSpace) {
-	newString = ns_realloc(dsPtr->string, (size_t) length);
-    } else {
-	newString = ns_malloc(length);
-	memcpy(newString, dsPtr->string, (size_t) dsPtr->length);
-    }
-    dsPtr->string = newString;
-    dsPtr->spaceAvl = length;
+void
+Ns_DStringInit(Ns_DString *dsPtr)
+{
+    Tcl_DStringInit(dsPtr);
+}
+
+#undef Ns_DStringFree
+
+void
+Ns_DStringFree(Ns_DString *dsPtr)
+{
+    Tcl_DStringFree(dsPtr);
+}
+
+#undef Ns_DStringSetLength
+
+void
+Ns_DStringSetLength(Ns_DString *dsPtr, int length)
+{
+    Tcl_DStringSetLength(dsPtr, length);
+}
+
+#undef Ns_DStringTrunc
+
+void
+Ns_DStringTrunc(Ns_DString *dsPtr, int length)
+{
+    Tcl_DStringTrunc(dsPtr, length);
+}
+
+#undef Ns_DStringNAppend
+
+char *
+Ns_DStringNAppend(Ns_DString *dsPtr, char *string, int length)
+{
+    return Tcl_DStringAppend(dsPtr, string, length);
+}
+
+#undef Ns_DStringAppend
+
+char *
+Ns_DStringAppend(Ns_DString *dsPtr, char *string)
+{
+    return Tcl_DStringAppend(dsPtr, string, -1);
+}
+
+#undef Ns_DStringAppendElement
+
+char *
+Ns_DStringAppendElement(Ns_DString *dsPtr, char *string)
+{
+    return Tcl_DStringAppendElement(dsPtr, string);
+}
+
+#undef Ns_DStringLength
+
+int
+Ns_DStringLength(Ns_DString *dsPtr)
+{
+    return dsPtr->length;
+}
+
+#undef Ns_DStringValue
+
+char *
+Ns_DStringValue(Ns_DString *dsPtr)
+{
+    return dsPtr->string;
 }

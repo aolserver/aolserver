@@ -33,7 +33,7 @@
  *      All the public types and function declarations for the core
  *	AOLserver.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.17 2001/03/23 17:01:49 jgdavidson Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.18 2001/03/23 23:17:57 jgdavidson Exp $
  */
 
 #ifndef NS_H
@@ -139,7 +139,7 @@ typedef __int64 INT64;
 #define NS_TCL_SET_PERSISTENT     NS_TCL_SET_SHARED
 #define NS_TCL_SET_TEMPORARY      NS_TCL_SET_STATIC
 
-#define NS_DSTRING_STATIC_SIZE    512
+#define NS_DSTRING_STATIC_SIZE    TCL_DSTRING_STATIC_SIZE
 #define NS_DSTRING_PRINTF_MAX	  2048
 
 #define NS_CACHE_FREE		((Ns_Callback *) (-1))
@@ -195,9 +195,21 @@ NS_EXTERN int			kill(int pid, int sig);
 #define Ns_SetKey(s,i)          ((s)->fields[(i)].name)
 #define Ns_SetValue(s,i)        ((s)->fields[(i)].value)
 #define Ns_SetLast(s)           (((s)->size)-1)
-#define Ns_DStringLength(dsPtr)        ((dsPtr)->length)
-#define Ns_DStringValue(dsPtr)         ((dsPtr)->string)
-#define Ns_DStringAppend(dsPtr,string) Ns_DStringNAppend(dsPtr, string, -1)
+
+/*
+ * Ns_DString's are now equivalent to Tcl_DString's starting in 4.0.
+ */
+
+#define Ns_DString		Tcl_DString
+#define Ns_DStringLength	Tcl_DStringLength
+#define Ns_DStringValue		Tcl_DStringValue
+#define Ns_DStringNAppend	Tcl_DStringAppend
+#define Ns_DStringAppend(d,s)	Tcl_DStringAppend((d), (s), -1)
+#define Ns_DStringAppendElement	Tcl_DStringAppendElement
+#define Ns_DStringInit		Tcl_DStringInit
+#define Ns_DStringFree		Tcl_DStringFree
+#define Ns_DStringTrunc		Tcl_DStringTrunc
+#define Ns_DStringSetLength	Tcl_DStringSetLength
 
 /*
  * This is used for logging messages.
@@ -296,18 +308,6 @@ typedef int   (Ns_ModuleInitProc) (char *server, char *module);
 typedef int   (Ns_ServerInitProc) (char *server);
 typedef int   (Ns_RequestAuthorizeProc) (char *server, char *method,
 			char *url, char *user, char *pass, char *peer);
-
-/*
- * The string data type.
- */
-
-typedef struct Ns_DString {
-    char              *string;
-    int                length;
-    int                spaceAvl;
-    char               staticSpace[NS_DSTRING_STATIC_SIZE];
-    struct Ns_DString *addr;
-} Ns_DString;
 
 /*
  * The field of a key-value data structure.
@@ -694,26 +694,12 @@ NS_EXTERN char *Ns_GetDriverServer(Ns_Driver driver);
  * dstring.c:
  */
 
-NS_EXTERN void Ns_DStringInit(Ns_DString *dsPtr);
 NS_EXTERN char *Ns_DStringVarAppend(Ns_DString *dsPtr, ...);
 NS_EXTERN char *Ns_DStringExport(Ns_DString *dsPtr);
 NS_EXTERN char *Ns_DStringPrintf(Ns_DString *dsPtr, char *fmt,...);
-NS_EXTERN void Ns_DStringFree(Ns_DString *dsPtr);
-NS_EXTERN void Ns_DStringTrunc(Ns_DString *dsPtr, int length);
-NS_EXTERN void Ns_DStringSetLength(Ns_DString *dsPtr, int length);
-NS_EXTERN char *Ns_DStringNAppend(Ns_DString *dsPtr, char *string, int length);
 NS_EXTERN char *Ns_DStringAppendArg(Ns_DString *dsPtr, char *string);
-NS_EXTERN char *Ns_DStringAppendElement(Ns_DString *dsPtr, char *string);
 NS_EXTERN Ns_DString *Ns_DStringPop(void);
 NS_EXTERN void Ns_DStringPush(Ns_DString *dsPtr);
-
-/*
- * see macros above for:
- *
- * extern char *Ns_DStringAppend(Ns_DString *dsPtr, char *string);
- * extern int Ns_DStringLength(Ns_DString *dsPtr);
- * extern char *Ns_DStringValue(Ns_DString *dsPtr);
- */
 
 /*
  * exec.c:
