@@ -36,11 +36,10 @@
  *  	fixed size blocks from per-thread block caches.  
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/pool.c,v 1.8 2000/10/23 14:43:29 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/pool.c,v 1.9 2000/10/23 15:38:34 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "thread.h"
 #include <assert.h>
-#include <mutex.h>
 
 /*
  * The following structure specifies various per-bucket runtime
