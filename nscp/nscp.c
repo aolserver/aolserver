@@ -35,7 +35,7 @@
  *  	Tcl commands.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscp/nscp.c,v 1.13.4.3 2002/11/10 15:01:58 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscp/nscp.c,v 1.13.4.4 2002/11/10 15:30:15 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 
@@ -133,7 +133,7 @@ Ns_ModuleInit(char *server, char *module)
 	return NS_ERROR;
     }
     lsock = Ns_SockListen(addr, port);
-    if (lsock == -1) {
+    if (lsock == INVALID_SOCKET) {
 	Ns_Log(Error, "nscp: could not listen on %s:%d", addr, port);
 	return NS_ERROR;
     }
@@ -265,7 +265,7 @@ AcceptProc(SOCKET lsock, void *arg, int why)
     sessPtr->modPtr = modPtr;
     len = sizeof(struct sockaddr_in);
     sessPtr->sock = Ns_SockAccept(lsock, (struct sockaddr *) &sessPtr->sa, &len);
-    if (sessPtr->sock == -1) {
+    if (sessPtr->sock == INVALID_SOCKET) {
 	Ns_Log(Error, "nscp: accept() failed: %s",
 	       strerror(errno));
 	ns_free(sessPtr);
