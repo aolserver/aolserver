@@ -33,7 +33,7 @@
  *	Routines for monitoring keep-alive sockets.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/keepalive.c,v 1.7 2001/03/12 22:06:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/keepalive.c,v 1.8 2001/04/23 21:09:33 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -104,7 +104,7 @@ NsKeepAlive(Ns_Conn *conn)
     if (connPtr->keepAlive != NS_TRUE ||
 	connPtr->drvPtr->detachProc == NULL ||
 	connPtr->drvPtr->sockProc == NULL ||
-	(sock = ((*connPtr->drvPtr->sockProc)(connPtr->drvData))) < 0) {
+	(int) ((sock = ((*connPtr->drvPtr->sockProc)(connPtr->drvData)))) < 0) {
     	return 0;
     }
     drvData = (*connPtr->drvPtr->detachProc)(connPtr->drvData);
