@@ -11,7 +11,7 @@
  * SCCS: @(#) tclUnixPipe.c 1.30 96/09/12 14:57:15
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/tcl7.6/unix/Attic/tclUnixPipe.c,v 1.3 2000/08/17 22:46:15 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/tcl7.6/unix/Attic/tclUnixPipe.c,v 1.4 2000/10/13 00:24:35 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "tclInt.h"
 #include "tclPort.h"
@@ -109,7 +109,7 @@ TclpCreateProcess(interp, argc, argv, inputFile, outputFile, errorFile,
 
     joinThisError = (errorFile == outputFile);
     /* pid = vfork();	NB: Never use vfork(). */
-    pid = fork();
+    pid = ns_fork();
     if (pid == 0) {
 
 	/*
