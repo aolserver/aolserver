@@ -34,7 +34,7 @@
  *	Functions that return data to a browser. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.33.2.4 2004/07/02 16:25:04 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.33.2.5 2004/07/15 21:27:42 suhti Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -257,10 +257,10 @@ Ns_ConnConstructHeaders(Ns_Conn *conn, Ns_DString *dsPtr)
 	if (nsconf.keepalive.enabled &&
 	    connPtr->headers != NULL &&
 	    connPtr->request != NULL &&
-	    ((connPtr->responseStatus == 200 &&
+	    (( (connPtr->responseStatus >= 200 && connPtr->responseStatus < 300) &&
 	    (lengthHdr != NULL &&
 	    connPtr->responseLength == length) || doChunkEncoding) ||
-	    connPtr->responseStatus == 304) &&
+	    (connPtr->responseStatus == 304 || connPtr->responseStatus == 201 || connPtr->responseStatus == 207) ) &&
 	    (nsconf.keepalive.allmethods == NS_TRUE ||
 	    STREQ(connPtr->request->method, "GET")) &&
 	    (key = Ns_SetIGet(conn->headers, "connection")) != NULL &&
