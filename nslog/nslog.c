@@ -34,7 +34,7 @@
  *	This file implements the access log using NCSA Common Log format.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nslog/nslog.c,v 1.11 2003/03/07 18:08:48 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nslog/nslog.c,v 1.12 2003/07/12 08:49:13 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 #include <sys/stat.h>	/* mkdir */
@@ -256,13 +256,18 @@ LogTrace(void *arg, Ns_Conn *conn)
 
     /*
      * Append the peer address and auth user (if any).
+     * Watch for users comming from proxy servers. 
      */
 
-    Ns_DStringAppend(&ds, Ns_ConnPeer(conn));
-    if (conn->authUser == NULL) {
-    	Ns_DStringAppend(&ds, " - - ");
+    if ((p = Ns_SetIGet(conn->headers, "X-Forwarded-For"))) {
+	Ns_DStringAppend(&ds, p);
     } else {
-    	p = conn->authUser;
+ 	Ns_DStringAppend(&ds, Ns_ConnPeer(conn));
+    }
+    if (conn->authUser == NULL) {
+	Ns_DStringAppend(&ds, " - - ");
+    } else {
+	p = conn->authUser;
 	quote = 0;
 	while (*p != '\0') {
 	    if (isspace((unsigned char) *p)) {

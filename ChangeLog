@@ -1,3 +1,11 @@
+2003-07-12  Zoran Vasiljevic <zoran@archiware.com>
+
+	* nslog/nslog.c: the "X-Forwarded-For" header existence is examined
+	when logging the remote user. This allows for logging the real
+	remote user wnen it commes from some proxy and/or load balancer.
+	Thanks for Gustaf Neumann of XOTcl for the patch. This implements  
+	the RFE #770054.
+
 2003-07-10  Mark Page  <mpagenva@aol.com>
 
 	* TAG aolserver_v4_r0_beta_9
