@@ -37,12 +37,11 @@
  */
 
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/tclstub8x.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/tclstub8x.c,v 1.3.10.1 2002/11/10 15:02:37 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #ifndef USE_TCL8X
 #define USE_TCL8X
 #endif
 
 #include "tclstubs.cpp"
-#include "tclinvoke.cpp"
 #include "tclnsshare.cpp"
