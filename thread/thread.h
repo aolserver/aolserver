@@ -32,7 +32,7 @@
  *
  *	Internal nsthread definitions.
  *
- * RCS: $Id: thread.h,v 1.9 2000/11/06 17:59:25 jgdavidson Exp $
+ * RCS: $Id: thread.h,v 1.10 2001/03/26 22:08:59 jgdavidson Exp $
  *
  */
 
@@ -40,6 +40,21 @@
 #define THREAD_H
 
 #include "nsthread.h"
+
+/*
+ * The following constants define the default and minimum stack
+ * sizes for new threads.
+ */
+
+#define STACK_DEFAULT	65536	/* 64k */
+#define STACK_MIN	16384	/* 16k */
+
+/*
+ * The following defines the estimated stack space required to
+ * return an NS_OK in Ns_CheckStack().
+ */
+
+#define STACK_CHECK	2048	/* 2k */
 
 /*
  * The following structure maintains all state for a thread

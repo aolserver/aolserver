@@ -40,7 +40,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/tcl8x.c,v 1.12 2001/03/14 15:21:27 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/tcl8x.c,v 1.13 2001/03/26 22:08:59 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "thread.h"
 #define BUILD_tcl
@@ -90,7 +90,7 @@ typedef struct ThreadArg {
     ClientData clientData;
 } ThreadArg;
 
-static Ns_ThreadProc TclNsThread;
+static Ns_ThreadProc NsTclThread;
 
 /*
  * The following TLS cleanup is for Tcl thread data blocks.
@@ -138,7 +138,7 @@ Tcl_CreateThread(idPtr, proc, clientData, stackSize, flags)
     argPtr = NsAlloc(sizeof(ThreadArg));
     argPtr->proc = proc;
     argPtr->clientData = clientData;
-    Ns_ThreadCreate2(TclNsThread, argPtr, (long) stackSize, flags, &tid);
+    Ns_ThreadCreate2(NsTclThread, argPtr, (long) stackSize, flags, &tid);
     *idPtr = (Tcl_ThreadId) tid;
     return TCL_OK;
 }
@@ -147,7 +147,7 @@ Tcl_CreateThread(idPtr, proc, clientData, stackSize, flags)
 /*
  *----------------------------------------------------------------------
  *
- * TclNsThread --
+ * NsTclThread --
  *
  *	Tcl specific thread startup routine.  This is only required
  *	to handle the different proc types between Tcl and Ns threads.
@@ -162,7 +162,7 @@ Tcl_CreateThread(idPtr, proc, clientData, stackSize, flags)
  */
 
 static void
-TclNsThread(void *arg)
+NsTclThread(void *arg)
 {
     ThreadArg *argPtr = arg;
     Tcl_ThreadCreateProc *proc;
@@ -225,6 +225,32 @@ TclpThreadExit(status)
     int status;
 {
     Ns_ThreadExit((void *) status);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsTclCheckStackSpace --
+ *
+ *	Nsthread version of TclpCheckStackSpace called on Unix.
+ *
+ * Results:
+ *	1 if stack space looks ok, 0 otherwise.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+NS_EXPORT int
+NsTclCheckStackSpace(void)
+{
+    if (Ns_CheckStack() != NS_OK) {
+	return 0;
+    }
+    return 1;
 }
 
 

@@ -34,7 +34,7 @@
  *	Routines for creating, exiting, and joining threads.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/thread.c,v 1.16 2000/11/14 23:39:05 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/thread.c,v 1.17 2001/03/26 22:08:59 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "thread.h"
 
@@ -43,7 +43,7 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thr
  * set directly by AOLserver at startup.
  */
 
-long nsThreadStackSize = 65536;
+long nsThreadStackSize = STACK_DEFAULT;
 
 /*
  * The following pointer, lock, and condition maintain a linked list
@@ -95,8 +95,8 @@ Ns_ThreadCreate2(Ns_ThreadProc *proc, void *arg, long stack,
     if (stack == 0) {
 	stack = nsThreadStackSize;
     }
-    if (stack < 16384) {
-	stack = 16384;
+    if (stack < STACK_MIN) {
+	stack = STACK_MIN;
     }
 
     /*
@@ -303,11 +303,11 @@ Ns_CheckStack(void)
     /* 
      * Check to see if the thread may be about to grow beyond it's allocated
      * stack.  Currently, this function is only called in Tcl_Eval where
-     * it traps the common case of infinite Tcl recursion.  The 1024
+     * it traps the common case of infinite Tcl recursion.  The STACK_CHECK
      * slop is just a conservative guess.
      */
 
-    size = thisPtr->stackSize - 1024;
+    size = thisPtr->stackSize - STACK_CHECK;
     base = (long) thisPtr->stackBase;
     here = (long) &thisPtr;
     if (size > 0 && abs(base - here) > size) {
