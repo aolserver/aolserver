@@ -1,3 +1,16 @@
+2003-07-18  Elizabeth Thomas <eathomas93@aol.com>
+
+	* nsd/tclinit.c: Add optional mutex to serialize interp initialization.
+        With large init scripts and many threads, there is severe malloc 
+        lock contention while tcl evaluates the init script (and populates
+        its memory pool). Serializing the initialization reduces the thrashing and 
+        results in faster startup.
+
+        * nsd/nsconf.c, nsconf.h, nsd.h: Add config variable 'tclinitlock'
+        which activates the above. Defaults to false if not specified.
+
+        * TAG aolserver_v4_r0_beta_10
+
 2003-07-18  Mark Page  <mpagenva@aol.com>
 
 	* nsd/adpeval.c (AdpEval): Check adp.outputPtr validity before
