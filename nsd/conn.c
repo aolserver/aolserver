@@ -34,7 +34,7 @@
  *      Manage the Ns_Conn structure
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.15 2001/04/23 21:13:01 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.16 2001/05/22 14:19:57 scottg Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -509,7 +509,9 @@ Ns_ConnDriverName(Ns_Conn *conn)
 void *
 Ns_ConnDriverContext(Ns_Conn *conn)
 {
-    return NULL;
+    Conn *connPtr = (Conn *) conn;
+
+    return (void *)(connPtr->sockPtr ? connPtr->sockPtr->arg : NULL);
 }
 
 

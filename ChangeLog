@@ -1,3 +1,11 @@
+2001-05-22  Scott S. Goodwin  <scott@scottg.net>
+
+	* nsd/conn.c: changed Ns_ConnDriverContext in 4.x to return the
+	actual conn-specific, module-specific context back, which is how
+	it works in 3.x. For some reason this API call was changed to
+	always return NULL, but nsopenssl and potentially other comm
+	drivers need to get their conn-specific info back.
+
 2001-04-25  Dossy Shiobara  <dossy@panoptic.com>
 
 	* Implemented [ns_localtime ?tz?] as per "[ #418890 ]
