@@ -15,7 +15,7 @@ all: $(LIB)
 
 $(LIB): $(OBJS)
 	$(RM) $(LIB)
-	$(LDSO) -o $(LIB) $(OBJS) $(LIBS) $(RFLAG) $(AOLSERVER)/lib
+	$(LDSO) -o $(LIB) $(OBJS) $(LIBS) $(RPATH)
 
 install: all $(LIBINST)
 	$(RM) $(INSTLIB)/$(LIB)

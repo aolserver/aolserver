@@ -1,3 +1,17 @@
+2001-12-20  Scott S. Goodwin  <scott@scottg.net>
+
+	* include/Makefile.library: Changed RFLAG to RPATH, and took out
+	$(AOLSERVER)/lib:
+	
+	  $(LDSO) -o $(LIB) $(OBJS) $(LIBS) $(RFLAG) $(AOLSERVER)/lib
+
+	now reads:
+	
+	  $(LDSO) -o $(LIB) $(OBJS) $(LIBS) $(RPATH)
+
+	which is what I think was intended. Still have the problem that
+	$(AOLSERVER)/lib must already exist.
+
 2001-11-05  Jim Davidson <jgdavidson@aol.com>
 
 	* Removed support for Win32, removing both the build/test
@@ -52,7 +66,7 @@
 	bom.com. He also suggested I allow the Content-type to be passed
 	in as a parameter, so I've added that too.
 
-2001-08-27  Soctt S. Goodwin  <scott@scottg.net>
+2001-08-27  Scott S. Goodwin  <scott@scottg.net>
 
 	* https.tcl: added ns_httppost, that is called with url, rqset,
 	qsset and timeout. The qsset is an ns_set with key/values that
