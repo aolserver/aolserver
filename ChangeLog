@@ -1,3 +1,15 @@
+2004-02-25 19:56  Dossy Shiobara <dossy@panoptic.com>
+
+	* nscgi/nscgi.c: Ns_ConnSetRequiredHeaders now requires length < 0
+	  if you don't want a Content-Length header
+
+2004-02-25 19:55  Dossy Shiobara <dossy@panoptic.com>
+
+	* nsd/return.c: fix so that it's still possible to formulate a
+	  response with no Content-Length header (such as for nscgi, or
+	  HTTP streaming) where you don't know the Content-Length header in
+	  advance
+
 2004-02-24 07:15  Dossy Shiobara <dossy@panoptic.com>
 
 	* nsd/: nsmain.c, nsd.h, driver.c: fix race condition where
