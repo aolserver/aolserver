@@ -33,7 +33,7 @@
  * 	Connect Tcl command names to the functions that implement them
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.44 2004/10/06 18:49:22 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.45 2004/10/06 21:18:33 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -141,7 +141,6 @@ extern Tcl_ObjCmdProc
     NsTclSleepObjCmd,
     NsTclSockAcceptObjCmd,
     NsTclSockCallbackObjCmd,
-    NsTclSockQueWaitObjCmd,
     NsTclSockCheckObjCmd,
     NsTclSockListenCallbackObjCmd,
     NsTclSockListenObjCmd,
@@ -400,7 +399,6 @@ static Cmd servCmds[] = {
     {"ns_server", NULL, NsTclServerObjCmd},
     {"ns_share", NsTclShareCmd, NULL},
     {"ns_shutdown", NULL, NsTclShutdownObjCmd},
-    {"ns_sockquewait", NULL, NsTclSockQueWaitObjCmd},
     {"ns_startcontent", NULL, NsTclStartContentObjCmd},
     {"ns_unregister_adp", NULL, NsTclUnRegisterObjCmd},
     {"ns_unregister_proc", NULL, NsTclUnRegisterObjCmd},
