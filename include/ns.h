@@ -33,7 +33,7 @@
  *      All the public types and function declarations for the core
  *	AOLserver.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.72 2004/12/01 05:39:13 dossy Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.73 2004/12/06 16:12:10 dossy Exp $
  */
 
 #ifndef NS_H
@@ -654,6 +654,7 @@ NS_EXTERN char *Ns_Encrypt(char *pw, char *salt, char iobuf[ ]);
 
 NS_EXTERN int Ns_GetHostByAddr(Ns_DString *dsPtr, char *addr);
 NS_EXTERN int Ns_GetAddrByHost(Ns_DString *dsPtr, char *host);
+NS_EXTERN int Ns_GetAllAddrByHost(Ns_DString *dsPtr, char *host);
 
 /*
  * driver.c:

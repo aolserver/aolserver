@@ -12,6 +12,13 @@ test ns_addrbyhost {ns_addrbyhost} {
     assertEquals 1 [catch {ns_addrbyhost "this_should_not_resolve"} msg]
     assertEquals "could not lookup this_should_not_resolve" $msg
     ns_logctl truncate
+
+    # RFE #999452: Add -all switch to ns_addrbyhost
+    #
+    # This test will fail if we don't have connectivity/DNS service
+    # or if the DNS entries change in a significant way.
+    assertEquals 1 [expr {[llength [ns_addrbyhost -all "www.google.com"]] > 1}]
+    assertEquals 1 [llength [ns_addrbyhost "www.google.com"]]
 } {}
 
 cleanupTests

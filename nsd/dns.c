@@ -34,7 +34,7 @@
  *      DNS lookup routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/dns.c,v 1.11 2004/09/24 13:57:47 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/dns.c,v 1.12 2004/12/06 16:12:12 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -79,7 +79,7 @@ static int cachetimeout;
 static GetProc GetAddr;
 static GetProc GetHost;
 static int DnsGet(GetProc *getProc, Ns_DString *dsPtr,
-	Ns_Cache **cachePtr, char *key);
+	Ns_Cache **cachePtr, char *key, int all);
 
 #if !defined(HAVE_GETADDRINFO) && !defined(HAVE_GETNAMEINFO)
 static void LogError(char *func, int h_errnop);
@@ -104,17 +104,23 @@ static void LogError(char *func, int h_errnop);
 int
 Ns_GetHostByAddr(Ns_DString *dsPtr, char *addr)
 {
-    return DnsGet(GetHost, dsPtr, &hostCache, addr);
+    return DnsGet(GetHost, dsPtr, &hostCache, addr, 0);
 }
 
 int
 Ns_GetAddrByHost(Ns_DString *dsPtr, char *host)
 {
-    return DnsGet(GetAddr, dsPtr, &addrCache, host);
+    return DnsGet(GetAddr, dsPtr, &addrCache, host, 0);
+}
+
+int
+Ns_GetAllAddrByHost(Ns_DString *dsPtr, char *host)
+{
+    return DnsGet(GetAddr, dsPtr, &addrCache, host, 1);
 }
 
 static int
-DnsGet(GetProc *getProc, Ns_DString *dsPtr, Ns_Cache **cachePtr, char *key)
+DnsGet(GetProc *getProc, Ns_DString *dsPtr, Ns_Cache **cachePtr, char *key, int all)
 {
     int             status = NS_FALSE, new, timeout;
     Value   	   *vPtr  = NULL;
@@ -175,6 +181,15 @@ DnsGet(GetProc *getProc, Ns_DString *dsPtr, Ns_Cache **cachePtr, char *key)
 	}
 	Ns_CacheUnlock(cache);
     }
+
+    if (status == NS_TRUE && getProc == GetAddr && !all) {
+        char *p = dsPtr->string;
+        while (*p && !isspace(UCHAR(*p))) {
+            ++p;
+        }
+        Tcl_DStringSetLength(dsPtr, p - dsPtr->string);
+    }
+
     return status;
 }
 
@@ -316,17 +331,23 @@ static int
 GetAddr(Ns_DString *dsPtr, char *host)
 {
     struct addrinfo hints;
-    struct addrinfo *res;
+    struct addrinfo *res, *ptr;
     int result;
     int status = NS_FALSE;
     
     memset(&hints, 0, sizeof(hints));
-    hints.ai_family = AF_INET;
+    hints.ai_family = PF_INET;
+    hints.ai_socktype = SOCK_STREAM;
     if ((result = getaddrinfo(host, NULL, &hints, &res)) != 0) {
-        Ns_Log(Error, "dns: getaddrinfo failed: %s", gai_strerror(result));
+        Ns_Log(Error, "dns: getaddrinfo failed for %s: %s", host,
+                gai_strerror(result));
     } else {
-        Ns_DStringAppend(dsPtr, ns_inet_ntoa(
-                    ((struct sockaddr_in *) res->ai_addr)->sin_addr));
+        ptr = res;
+        while (ptr != NULL) {
+            Tcl_DStringAppendElement(dsPtr, ns_inet_ntoa(
+                        ((struct sockaddr_in *) ptr->ai_addr)->sin_addr));
+            ptr = ptr->ai_next;
+        }
         freeaddrinfo(res);
         status = NS_TRUE;
     }
@@ -339,12 +360,13 @@ static int
 GetAddr(Ns_DString *dsPtr, char *host)
 {
     struct hostent he, *res;
-    struct in_addr ia;
+    struct in_addr ia, *ptr;
 #ifdef HAVE_GETHOSTBYNAME_R_3
     struct hostent_data data;
 #endif
     char buf[2048];
     int result;
+    int i = 0;
     int h_errnop;
     int status = NS_FALSE;
     
@@ -364,9 +386,10 @@ GetAddr(Ns_DString *dsPtr, char *host)
     if (result != 0) { 
 	LogError("gethostbyname_r", h_errnop);
     } else {
-        if (he.h_addr != NULL) {
-            ia.s_addr = ((struct in_addr *) he.h_addr)->s_addr;
-            Ns_DStringAppend(dsPtr, ns_inet_ntoa(ia));
+        ptr = (struct in_addr *) he.h_addr_list[i];
+        while (ptr != NULL) {
+            ia.s_addr = ptr->s_addr;
+            Tcl_DStringAppendElement(dsPtr, ns_inet_ntoa(ia));
             status = NS_TRUE;
         }
     }
@@ -387,18 +410,22 @@ static int
 GetAddr(Ns_DString *dsPtr, char *host)
 {
     struct hostent *he;
-    struct in_addr ia;
+    struct in_addr ia, *ptr;
     static Ns_Cs cs;
+    int i = 0;
     int status = NS_FALSE;
 
     Ns_CsEnter(&cs);
     he = gethostbyname(host);
     if (he == NULL) {
 	LogError("gethostbyname", h_errno);
-    } else if (he->h_addr != NULL) {
-        ia.s_addr = ((struct in_addr *) he->h_addr)->s_addr;
-	Ns_DStringAppend(dsPtr, ns_inet_ntoa(ia));
-	status = NS_TRUE;
+    } else {
+        ptr = (struct in_addr *) he.h_addr_list[i];
+        while (ptr != NULL) {
+            ia.s_addr = ptr->s_addr;
+            Tcl_DStringAppendElement(dsPtr, ns_inet_ntoa(ia));
+            status = NS_TRUE;
+        }
     }
     Ns_CsLeave(&cs);
     return status;

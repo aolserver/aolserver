@@ -34,7 +34,7 @@
  *	Tcl commands that let you do TCP sockets. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclsock.c,v 1.20 2004/06/19 21:33:28 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclsock.c,v 1.21 2004/12/06 16:12:12 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -102,26 +102,45 @@ static int
 GetObjCmd(Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[], int byaddr)
 {
     Ns_DString  ds;
+    char       *opt, *addr;
+    int         all = 0;
     int         status;
 
-    if (objc != 2) {
-        Tcl_WrongNumArgs(interp, 1, objv, "address");
-        return TCL_ERROR;
+    if (byaddr) {
+        if (objc < 2 || objc > 3) {
+            Tcl_WrongNumArgs(interp, 1, objv, "?-all? address");
+            return TCL_ERROR;
+        }
+    } else {
+        if (objc != 2) {
+            Tcl_WrongNumArgs(interp, 1, objv, "address");
+            return TCL_ERROR;
+        }
     }
+    opt = Tcl_GetString(objv[1]);
+    if (objc >= 3 && STREQ(opt, "-all")) {
+        all = 1;
+        addr = Tcl_GetString(objv[2]);
+    } else {
+        addr = opt;
+    }
+
     Ns_DStringInit(&ds);
     if (byaddr) {
-	status = Ns_GetAddrByHost(&ds, Tcl_GetString(objv[1]));
+        if (all) {
+            status = Ns_GetAllAddrByHost(&ds, addr);
+        } else {
+            status = Ns_GetAddrByHost(&ds, addr);
+        }
     } else {
-	status = Ns_GetHostByAddr(&ds, Tcl_GetString(objv[1]));
+        status = Ns_GetHostByAddr(&ds, addr);
     }
     if (status == NS_TRUE) {
     	Tcl_SetResult(interp, ds.string, TCL_VOLATILE);
     }
     Ns_DStringFree(&ds);
     if (status != NS_TRUE) {
-	Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "could not lookup ", 
-		Tcl_GetString(objv[1]), 
-		NULL);
+        Tcl_AppendResult(interp, "could not lookup ", addr, NULL);
 	return TCL_ERROR;
     }
     return TCL_OK;
