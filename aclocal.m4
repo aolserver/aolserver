@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/aclocal.m4,v 1.3 2004/08/14 16:43:04 dossy Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/aclocal.m4,v 1.4 2004/09/21 23:26:09 dossy Exp $
 #
 
 #
@@ -51,7 +51,6 @@ AC_DEFUN(AC_HAVE_GETHOSTBYNAME_R,
 [saved_CFLAGS=$CFLAGS
 CFLAGS="$CFLAGS -lnsl"
 AC_CHECK_FUNC(gethostbyname_r, [
-  AC_DEFINE(HAVE_GETHOSTBYNAME_R)
   AC_MSG_CHECKING([for gethostbyname_r with 6 args])
   AC_TRY_COMPILE([
     #include <netdb.h>
@@ -64,6 +63,7 @@ AC_CHECK_FUNC(gethostbyname_r, [
 
     (void) gethostbyname_r(name, he, buffer, buflen, &res, &h_errnop);
   ], [
+    AC_DEFINE(HAVE_GETHOSTBYNAME_R)
     AC_DEFINE(HAVE_GETHOSTBYNAME_R_6)
     AC_MSG_RESULT(yes)
   ], [
@@ -80,6 +80,7 @@ AC_CHECK_FUNC(gethostbyname_r, [
 
       (void) gethostbyname_r(name, he, buffer, buflen, &h_errnop);
     ], [
+      AC_DEFINE(HAVE_GETHOSTBYNAME_R)
       AC_DEFINE(HAVE_GETHOSTBYNAME_R_5)
       AC_MSG_RESULT(yes)
     ], [
@@ -94,6 +95,7 @@ AC_CHECK_FUNC(gethostbyname_r, [
 
         (void) gethostbyname_r(name, he, &data);
       ], [
+        AC_DEFINE(HAVE_GETHOSTBYNAME_R)
         AC_DEFINE(HAVE_GETHOSTBYNAME_R_3)
         AC_MSG_RESULT(yes)
       ], [
@@ -108,7 +110,6 @@ AC_DEFUN(AC_HAVE_GETHOSTBYADDR_R,
 [saved_CFLAGS=$CFLAGS
 CFLAGS="$CFLAGS -lnsl"
 AC_CHECK_FUNC(gethostbyaddr_r, [
-  AC_DEFINE(HAVE_GETHOSTBYADDR_R)
   AC_MSG_CHECKING([for gethostbyaddr_r with 7 args])
   AC_TRY_COMPILE([
     #include <netdb.h>
@@ -123,6 +124,7 @@ AC_CHECK_FUNC(gethostbyaddr_r, [
 
     (void) gethostbyaddr_r(addr, length, type, result, buffer, buflen, &h_errnop);
   ], [
+    AC_DEFINE(HAVE_GETHOSTBYADDR_R)
     AC_DEFINE(HAVE_GETHOSTBYADDR_R_7)
     AC_MSG_RESULT(yes)
   ], [
