@@ -8,7 +8,7 @@
  * See the file "license.terms" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * RCS: @(#) $Id: tclDecls.h,v 1.2 2000/05/02 14:39:30 kriston Exp $
+ * RCS: @(#) $Id: tclDecls.h,v 1.3 2000/08/08 20:49:04 jgdavidson Exp $
  */
 
 #ifndef _TCLDECLS
@@ -541,7 +541,7 @@ EXTERN Tcl_Obj *	Tcl_GetObjResult _ANSI_ARGS_((Tcl_Interp * interp));
 #if !defined(__WIN32__) && !defined(MAC_TCL) /* UNIX */
 /* 167 */
 EXTERN int		Tcl_GetOpenFile _ANSI_ARGS_((Tcl_Interp * interp, 
-				char * str, int write, int checkUsage, 
+				char * str, int forWriting, int checkUsage, 
 				ClientData * filePtr));
 #endif /* UNIX */
 /* 168 */
@@ -1199,8 +1199,7 @@ EXTERN Tcl_UniChar *	Tcl_GetUnicode _ANSI_ARGS_((Tcl_Obj * objPtr));
 EXTERN Tcl_Obj *	Tcl_GetRange _ANSI_ARGS_((Tcl_Obj * objPtr, 
 				int first, int last));
 /* 384 */
-EXTERN void		Tcl_AppendUnicodeToObj _ANSI_ARGS_((
-				register Tcl_Obj * objPtr, 
+EXTERN void		Tcl_AppendUnicodeToObj _ANSI_ARGS_((Tcl_Obj * objPtr, 
 				Tcl_UniChar * unicode, int length));
 /* 385 */
 EXTERN int		Tcl_RegExpMatchObj _ANSI_ARGS_((Tcl_Interp * interp, 
@@ -1212,6 +1211,23 @@ EXTERN void		Tcl_SetNotifier _ANSI_ARGS_((
 EXTERN Tcl_Mutex *	Tcl_GetAllocMutex _ANSI_ARGS_((void));
 /* 388 */
 EXTERN int		Tcl_GetChannelNames _ANSI_ARGS_((Tcl_Interp * interp));
+/* 389 */
+EXTERN int		Tcl_GetChannelNamesEx _ANSI_ARGS_((
+				Tcl_Interp * interp, char * pattern));
+/* 390 */
+EXTERN int		Tcl_ProcObjCmd _ANSI_ARGS_((ClientData clientData, 
+				Tcl_Interp * interp, int objc, 
+				Tcl_Obj *CONST objv[]));
+/* 391 */
+EXTERN void		Tcl_ConditionFinalize _ANSI_ARGS_((
+				Tcl_Condition * condPtr));
+/* 392 */
+EXTERN void		Tcl_MutexFinalize _ANSI_ARGS_((Tcl_Mutex * mutex));
+/* 393 */
+EXTERN int		Tcl_CreateThread _ANSI_ARGS_((Tcl_ThreadId * idPtr, 
+				Tcl_ThreadCreateProc proc, 
+				ClientData clientData, int stackSize, 
+				int flags));
 
 typedef struct TclStubHooks {
     struct TclPlatStubs *tclPlatStubs;
@@ -1415,7 +1431,7 @@ typedef struct TclStubs {
     CONST char * (*tcl_GetNameOfExecutable) _ANSI_ARGS_((void)); /* 165 */
     Tcl_Obj * (*tcl_GetObjResult) _ANSI_ARGS_((Tcl_Interp * interp)); /* 166 */
 #if !defined(__WIN32__) && !defined(MAC_TCL) /* UNIX */
-    int (*tcl_GetOpenFile) _ANSI_ARGS_((Tcl_Interp * interp, char * str, int write, int checkUsage, ClientData * filePtr)); /* 167 */
+    int (*tcl_GetOpenFile) _ANSI_ARGS_((Tcl_Interp * interp, char * str, int forWriting, int checkUsage, ClientData * filePtr)); /* 167 */
 #endif /* UNIX */
 #ifdef __WIN32__
     void *reserved167;
@@ -1663,11 +1679,16 @@ typedef struct TclStubs {
     Tcl_UniChar (*tcl_GetUniChar) _ANSI_ARGS_((Tcl_Obj * objPtr, int index)); /* 381 */
     Tcl_UniChar * (*tcl_GetUnicode) _ANSI_ARGS_((Tcl_Obj * objPtr)); /* 382 */
     Tcl_Obj * (*tcl_GetRange) _ANSI_ARGS_((Tcl_Obj * objPtr, int first, int last)); /* 383 */
-    void (*tcl_AppendUnicodeToObj) _ANSI_ARGS_((register Tcl_Obj * objPtr, Tcl_UniChar * unicode, int length)); /* 384 */
+    void (*tcl_AppendUnicodeToObj) _ANSI_ARGS_((Tcl_Obj * objPtr, Tcl_UniChar * unicode, int length)); /* 384 */
     int (*tcl_RegExpMatchObj) _ANSI_ARGS_((Tcl_Interp * interp, Tcl_Obj * stringObj, Tcl_Obj * patternObj)); /* 385 */
     void (*tcl_SetNotifier) _ANSI_ARGS_((Tcl_NotifierProcs * notifierProcPtr)); /* 386 */
     Tcl_Mutex * (*tcl_GetAllocMutex) _ANSI_ARGS_((void)); /* 387 */
     int (*tcl_GetChannelNames) _ANSI_ARGS_((Tcl_Interp * interp)); /* 388 */
+    int (*tcl_GetChannelNamesEx) _ANSI_ARGS_((Tcl_Interp * interp, char * pattern)); /* 389 */
+    int (*tcl_ProcObjCmd) _ANSI_ARGS_((ClientData clientData, Tcl_Interp * interp, int objc, Tcl_Obj *CONST objv[])); /* 390 */
+    void (*tcl_ConditionFinalize) _ANSI_ARGS_((Tcl_Condition * condPtr)); /* 391 */
+    void (*tcl_MutexFinalize) _ANSI_ARGS_((Tcl_Mutex * mutex)); /* 392 */
+    int (*tcl_CreateThread) _ANSI_ARGS_((Tcl_ThreadId * idPtr, Tcl_ThreadCreateProc proc, ClientData clientData, int stackSize, int flags)); /* 393 */
 } TclStubs;
 
 #ifdef __cplusplus
@@ -3268,6 +3289,26 @@ extern TclStubs *tclStubsPtr;
 #ifndef Tcl_GetChannelNames
 #define Tcl_GetChannelNames \
 	(tclStubsPtr->tcl_GetChannelNames) /* 388 */
+#endif
+#ifndef Tcl_GetChannelNamesEx
+#define Tcl_GetChannelNamesEx \
+	(tclStubsPtr->tcl_GetChannelNamesEx) /* 389 */
+#endif
+#ifndef Tcl_ProcObjCmd
+#define Tcl_ProcObjCmd \
+	(tclStubsPtr->tcl_ProcObjCmd) /* 390 */
+#endif
+#ifndef Tcl_ConditionFinalize
+#define Tcl_ConditionFinalize \
+	(tclStubsPtr->tcl_ConditionFinalize) /* 391 */
+#endif
+#ifndef Tcl_MutexFinalize
+#define Tcl_MutexFinalize \
+	(tclStubsPtr->tcl_MutexFinalize) /* 392 */
+#endif
+#ifndef Tcl_CreateThread
+#define Tcl_CreateThread \
+	(tclStubsPtr->tcl_CreateThread) /* 393 */
 #endif
 
 #endif /* defined(USE_TCL_STUBS) && !defined(USE_TCL_STUB_PROCS) */

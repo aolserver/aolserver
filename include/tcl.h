@@ -31,8 +31,8 @@
 /*
  * tcl.h --
  *
- *      Stub to include one of tcl76.h or tcl82.h.  The default
- *	is tcl76.h on Unix, tcl82.h on Win32.
+ *      Stub to include one of tcl76.h or tcl83.h.  The default
+ *	is tcl76.h on Unix, tcl83.h on Win32.
  */
 
 #ifndef _TCL
@@ -59,6 +59,10 @@ typedef void *ClientData;
 #else
 #include "tcl76.h"
 #endif
+
+/*
+ * The following definition is missing from the Tcl header files.
+ */
 
 #ifndef NSTHREAD_EXPORTS
 EXTERN int Tcl_GetChannelNames(Tcl_Interp *interp);
