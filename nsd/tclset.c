@@ -27,14 +27,13 @@
  * version of this file under either the License or the GPL.
  */
 
-
 /*
  * tclset.c --
  *
  *	Implements the tcl ns_set commands 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclset.c,v 1.8 2001/03/16 20:48:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclset.c,v 1.9 2001/04/02 19:34:29 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -48,10 +47,10 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
 #define SET_SHARED_DYNAMIC	's'
 #define SET_SHARED_STATIC  	'p'
 
-#define IS_DYNAMIC(type)    \
-	((type) == SET_DYNAMIC || (type) == SET_SHARED_DYNAMIC)
-#define IS_SHARED(type)     \
-	((type) == SET_SHARED_DYNAMIC || (type) == SET_SHARED_STATIC)
+#define IS_DYNAMIC(id)    \
+	(*(id) == SET_DYNAMIC || *(id) == SET_SHARED_DYNAMIC)
+#define IS_SHARED(id)     \
+	(*(id) == SET_SHARED_DYNAMIC || *(id) == SET_SHARED_STATIC)
 
 /*
  * Local functions defined in this file
@@ -86,6 +85,10 @@ Ns_TclEnterSet(Tcl_Interp *interp, Ns_Set *set, int flags)
 {
     NsInterp *itPtr = NsGetInterp(interp);
 
+    if (itPtr == NULL) {
+	Tcl_SetResult(interp, "ns_set not supported", TCL_STATIC);
+	return TCL_ERROR;
+    }
     return EnterSet(itPtr, interp, set, flags);
 }
 
@@ -166,7 +169,7 @@ Ns_TclFreeSet(Tcl_Interp *interp, char *id)
     if (LookupSet(NULL, interp, id, 1, &set) != TCL_OK) {
 	return TCL_ERROR;
     }
-    if (IS_DYNAMIC(*id)) {
+    if (IS_DYNAMIC(id)) {
     	Ns_SetFree(set);
     }
     return TCL_OK;
@@ -598,6 +601,7 @@ NsTclSetCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
         } else {
             Tcl_AppendResult(interp, "unknown command \"", argv[1],
                 "\":  should be one of "
+		"array, "
                 "copy, "
                 "create, "
                 "delete, "
@@ -606,6 +610,7 @@ NsTclSetCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
                 "get, "
                 "iget, "
                 "idelkey, "
+		"isnull, "
                 "iunique, "
                 "key, "
                 "list, "
@@ -678,6 +683,23 @@ NsTclParseHeaderCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
     }
     return TCL_OK;
 }
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * EnterSet --
+ *
+ *	Add an Ns_Set to an interp, creating a new unique id.
+ *
+ * Results:
+ *	TCL_OK or TCL_ERROR.
+ *
+ * Side effects:
+ *      Set will be entered in the shared or private table.
+ *
+ *----------------------------------------------------------------------
+ */
 
 static int
 EnterSet(NsInterp *itPtr, Tcl_Interp *interp, Ns_Set *set, int flags)
@@ -761,6 +783,10 @@ LookupSet(NsInterp *itPtr, Tcl_Interp *interp, char *id, int delete, Ns_Set **se
 
     if (itPtr == NULL) {
 	itPtr = NsGetInterp(interp);
+	if (itPtr == NULL) {
+	    Tcl_SetResult(interp, "ns_set not supported", TCL_STATIC);
+	    return TCL_ERROR;
+	}
     }
     
     /*
@@ -769,22 +795,20 @@ LookupSet(NsInterp *itPtr, Tcl_Interp *interp, char *id, int delete, Ns_Set **se
      */
     
     set = NULL;
-    if (IS_SHARED(*id)) {
+    if (IS_SHARED(id)) {
     	tablePtr = &itPtr->servPtr->sets.table;
         Ns_MutexLock(&itPtr->servPtr->sets.lock);
     } else {
 	tablePtr = &itPtr->sets;
     }
-    if (tablePtr != NULL) {
-    	hPtr = Tcl_FindHashEntry(tablePtr, id);
-    	if (hPtr != NULL) {
-            set = (Ns_Set *) Tcl_GetHashValue(hPtr);
-            if (delete) {
-        	Tcl_DeleteHashEntry(hPtr);
-            }
-	}
+    hPtr = Tcl_FindHashEntry(tablePtr, id);
+    if (hPtr != NULL) {
+        set = (Ns_Set *) Tcl_GetHashValue(hPtr);
+        if (delete) {
+            Tcl_DeleteHashEntry(hPtr);
+        }
     }
-    if (IS_SHARED(*id)) {
+    if (IS_SHARED(id)) {
         Ns_MutexUnlock(&itPtr->servPtr->sets.lock);
     }
     if (set == NULL) {
@@ -853,7 +877,7 @@ NsFreeSets(NsInterp *itPtr)
     	hPtr = Tcl_FirstHashEntry(tablePtr, &search);
     	while (hPtr != NULL) {
     	    id = Tcl_GetHashKey(tablePtr, hPtr);
-	    if (IS_DYNAMIC(*id)) {
+	    if (IS_DYNAMIC(id)) {
     	        set = Tcl_GetHashValue(hPtr);
 	        Ns_SetFree(set);
 	    }
