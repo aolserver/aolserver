@@ -28,7 +28,7 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/init.tcl,v 1.7 2002/08/25 22:06:40 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/init.tcl,v 1.8 2002/09/21 17:52:01 jgdavidson Exp $
 #
 
 #
@@ -36,7 +36,6 @@
 #
 #	Core script to initialize a virtual server at startup.
 #
-
 
 #
 # ns_module --
@@ -106,36 +105,72 @@ proc ns_eval script {
 }
 
 #
+# ns_adp_include --
+#
+#	Wrapper for _ns_adp_include to ensure a
+#	new call frame with private variables.
+#
+
+proc ns_adp_include {args} {
+    eval _ns_adp_include $args
+}
+
+#
+# ns_init --
+#
+#	Initialize the interp.  This proc is called
+#	by the Ns_TclAllocateInterp C function.
+#
+
+proc ns_init {} {
+    ns_ictl update; # check for proc/namespace update
+}
+
+#
 # ns_cleanup --
 #
 #	Cleanup the interp, performing various garbage
-#	collection tasks and updating the procs if
-#	necessary.
+#	collection tasks.  This proc is called by the
+#	Ns_TclDeAllocateInterp C function.
 #
 
 proc ns_cleanup {} {
-    #
-    # Close open files.
-    #
+    ns_cleanupchans; # close files
+    ns_cleanupvars;  # dump globals
+    ns_set cleanup;  # free sets
+    ns_http cleanup; # abort any http request
+    ns_ictl cleanup; # internal cleanup (e.g,. Ns_TclRegisterDefer's)
+}
+
+#
+# ns_cleanupchans --
+#
+#	Close all open channels.
+#
     
-    ns_chan cleanup
+proc ns_cleanupchans {} {
+    ns_chan cleanup; # close shared channels first
     foreach f [file channels] {
+	# NB: Leave core Tcl stderr, stdin, stdout open.
 	if {![string match std* $f]} {
 	    catch {close $f}
 	}
     }
+}
 
-    #
-    # Unset global variables
-    #
-    
+#
+# ns_cleanupvars --
+#
+#	Unset global variables.
+#
+
+proc ns_cleanupvars {} {
     foreach g [info globals] {
 	switch -glob -- $g {
 	    tcl* -
 	    error -
-	    _ns -
 	    env {
-		# NB: Save these vars.
+		# NB: Save these core Tcl vars.
 	    }
 	    default {
 	    	upvar #0 $g gv
@@ -145,13 +180,28 @@ proc ns_cleanup {} {
            }
 	}
     }
+}
 
-    #
-    # Other misc. cleanups.
-    #
+#
+# ns_reinit --
+#
+#	Cleanup and initialize an interp.  This proc
+#	could be used for long running detached
+#	threads to avoid resource leaks and/or missed
+#	state changes, e.g.:
+#
+#	ns_thread begin {
+#		while 1 {
+#			ns_reinit
+#			... endless work ...
+#		}
+#	}
+#
+#
 
-    ns_set cleanup
-    ns_http cleanup
+proc ns_reinit {} {
+	ns_cleanup
+	ns_init
 }
 
 #
@@ -167,7 +217,7 @@ proc _ns_savenamespaces {} {
     foreach ns $namespaces {
 	append script [list namespace eval $ns [_ns_getscript $ns]]\n
     }
-    ns_init save $script
+    ns_ictl save $script
 }
 
 
@@ -345,3 +395,4 @@ _ns_savenamespaces
 #
 
 ns_markfordelete
+

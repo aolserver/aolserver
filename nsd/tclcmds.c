@@ -33,7 +33,7 @@
  * 	Connect Tcl command names to the functions that implement them
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.31 2002/08/25 22:06:40 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.32 2002/09/21 17:52:01 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -70,6 +70,8 @@ extern Tcl_ObjCmdProc
     NsTclCpObjCmd,
     NsTclCryptObjCmd,
     NsTclCritSecObjCmd,
+    NsTclDummyObjCmd,
+    NsTclICtlObjCmd,
     NsTclFTruncateObjCmd,
     NsTclGetAddrObjCmd,
     NsTclGetHostObjCmd,
@@ -83,7 +85,6 @@ extern Tcl_ObjCmdProc
     NsTclHttpObjCmd,
     NsTclHttpTimeObjCmd,
     NsTclInfoObjCmd,
-    NsTclInitObjCmd,
     NsTclJpegSizeObjCmd,
     NsTclKillObjCmd,
     //NsTclLibraryObjCmd,
@@ -615,7 +616,14 @@ static Cmd servCmds[] = {
      */
 
     {"ns_server", NsTclServerCmd, NsTclServerObjCmd},
-    {"ns_init", NULL, NsTclInitObjCmd},
+
+    /*
+     * tclinit.c
+     */
+
+    {"ns_ictl", NULL, NsTclICtlObjCmd},
+    {"ns_init", NULL, NsTclDummyObjCmd},
+    {"ns_cleanup", NULL, NsTclDummyObjCmd},
 
     /*
      * Add more server Tcl commands here.

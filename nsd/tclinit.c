@@ -33,7 +33,7 @@
  *	Initialization routines for Tcl.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.26 2002/08/25 22:06:40 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.27 2002/09/21 17:52:00 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -65,6 +65,8 @@ typedef struct Defer {
 static Tcl_InterpDeleteProc FreeData;
 static Ns_TlsCleanup DeleteInterps;
 static Tcl_Interp *CreateInterp(NsInterp *itPtr);
+static int UpdateInterp(NsInterp *itPtr);
+static Tcl_HashEntry *GetHashEntry(NsServer *servPtr);
 
 /*
  * Static variables defined in this file.
@@ -245,37 +247,45 @@ Ns_TclCreateInterp(void)
 Tcl_Interp *
 Ns_TclAllocateInterp(char *server)
 {
-    Tcl_HashTable *tablePtr;
     Tcl_HashEntry *hPtr;
     Tcl_Interp *interp;
     NsInterp *itPtr;
-    NsServer *servPtr = NsGetServer(server);
+    NsServer *servPtr;
     Init *initPtr;
-    int new;
 
+    /*
+     * Validate the server and get the per-thread hash entry.
+     */
+
+    servPtr = NsGetServer(server);
     if (servPtr == NULL) {
 	return NULL;
     }
-    tablePtr = Ns_TlsGet(&tls);
-    if (tablePtr == NULL) {
-	tablePtr = ns_malloc(sizeof(Tcl_HashTable));
-	Tcl_InitHashTable(tablePtr, TCL_ONE_WORD_KEYS);
-	Ns_TlsSet(&tls, tablePtr);
-    }
-    hPtr = Tcl_CreateHashEntry(tablePtr, (char *) servPtr, &new);
-    interp = Tcl_GetHashValue(hPtr);
-    if (interp != NULL) {
-	itPtr = NsGetInterp(interp);
-	Tcl_SetHashValue(hPtr, NULL);
+    hPtr = GetHashEntry(servPtr);
+
+    /*
+     * Pop the first interp off the list or create a new one.
+     */
+
+    itPtr = Tcl_GetHashValue(hPtr);
+    if (itPtr != NULL) {
+	Tcl_SetHashValue(hPtr, itPtr->nextPtr);
+	itPtr->nextPtr = NULL;
+	interp = itPtr->interp;
     } else {
 	itPtr = ns_calloc(1, sizeof(NsInterp));
-	itPtr->hPtr = hPtr;
 	itPtr->servPtr = servPtr;
+	itPtr->interp = interp = CreateInterp(itPtr);
 	Tcl_InitHashTable(&itPtr->sets, TCL_STRING_KEYS);
 	Tcl_InitHashTable(&itPtr->chans, TCL_STRING_KEYS);	
 	Tcl_InitHashTable(&itPtr->https, TCL_STRING_KEYS);	
-	itPtr->interp = interp = CreateInterp(itPtr);
 	Tcl_SetAssocData(interp, "ns:data", FreeData, itPtr);
+
+	/*
+	 * Call inits registered by Ns_TclInitInterps which
+	 * generally create commands for loadable module.
+	 */
+
 	initPtr = itPtr->servPtr->tcl.firstInitPtr;
 	while (initPtr != NULL) {
 	    if (((*initPtr->proc)(interp, initPtr->arg)) != TCL_OK) {
@@ -283,10 +293,26 @@ Ns_TclAllocateInterp(char *server)
 	    }
 	    initPtr = initPtr->nextPtr;
 	}
+
+	/*
+	 * Update the interp state which should define ns_init used
+	 * below.
+	 */
+
+	if (UpdateInterp(itPtr) != TCL_OK) {
+	    Ns_TclLogError(interp);
+    	}
     }
-    if (Tcl_EvalEx(interp, "ns_init update", -1, 0) != TCL_OK) {
+
+    /*
+     * Evaluate the ns_init proc which by default updates the
+     * interp state with ns_ictl.
+     */
+
+    if (Tcl_EvalEx(interp, "ns_init", -1, 0) != TCL_OK) {
 	Ns_TclLogError(interp);
     }
+
     return interp;
 }
 
@@ -311,46 +337,34 @@ void
 Ns_TclDeAllocateInterp(Tcl_Interp *interp)
 {
     NsInterp	*itPtr = NsGetInterp(interp);
-    Defer    	*deferPtr;
+    Tcl_HashEntry *hPtr;
 
-    if (itPtr == NULL) {
+    if (itPtr->conn != NULL) {
+	/*
+	 * The current connection still has a reference to this
+	 * interp so do nothing.  Ns_FreeConnInterp() must be
+	 * used instead.
+	 */
+
+	return;
+    }
+
+    /*
+     * Evaluate the cleanup script to perform various garbage collection
+     * and then either delete the interp or push it back on the
+     * per-thread list.
+     */
+
+    if (Tcl_EvalEx(interp, "ns_cleanup", -1, 0) != TCL_OK) {
+	Ns_TclLogError(interp);
+    }
+    if (itPtr->delete) {
 	Tcl_DeleteInterp(interp);
     } else {
-    	/*
-     	 * Invoke the deferred callbacks if any.
-     	 */
-
-    	while ((deferPtr = itPtr->firstDeferPtr) != NULL) {
-	    itPtr->firstDeferPtr = deferPtr->nextPtr;
-	    (*deferPtr->proc)(interp, deferPtr->arg);
-	    ns_free(deferPtr);
-	}
-
-    	/*
-     	 * Evaluate the cleanup proc.
-     	 */
-
-    	if (Tcl_EvalEx(interp, "ns_cleanup", -1, 0) != TCL_OK) {
-	    Ns_TclLogError(interp);
-    	}
-    	Tcl_ResetResult(interp);    
-
-    	/*
-     	 * Free up any remaining resources and put
-     	 * this interp back in the table if another
-     	 * is not already there.
-     	 */
-	 
-    	NsFreeAtClose(itPtr);
-        itPtr->conn = NULL;
-	if (Tcl_GetHashValue(itPtr->hPtr) != NULL) {
-	    itPtr->delete = 1;
-	}
-	if (itPtr->delete) {
-	    Tcl_DeleteInterp(interp);
-	} else {
-	    Tcl_SetHashValue(itPtr->hPtr, interp);
-	}
+	Tcl_ResetResult(interp);
+	hPtr = GetHashEntry(itPtr->servPtr);
+	itPtr->nextPtr = Tcl_GetHashValue(hPtr);
+	Tcl_SetHashValue(hPtr, itPtr);
     }
 }
 
@@ -510,6 +524,21 @@ Ns_GetConnInterp(Ns_Conn *conn)
     return connPtr->interp;
 }
 
+void
+Ns_FreeConnInterp(Ns_Conn *conn)
+{
+    NsInterp *itPtr;
+    Conn *connPtr = (Conn *) conn;
+
+    if (connPtr->interp != NULL) {
+	itPtr = NsGetInterp(connPtr->interp);
+	itPtr->conn = NULL;
+	itPtr->nsconn.flags = 0;
+	Ns_TclDeAllocateInterp(connPtr->interp);
+	connPtr->interp = NULL;
+    }
+}
+
 
 /*
  *----------------------------------------------------------------------
@@ -651,9 +680,33 @@ Ns_TclLogError(Tcl_Interp *interp)
 /*
  *----------------------------------------------------------------------
  *
- * NsTclInitObjCmd --
+ * NsTclDummyObjCmd --
  *
- *      Implements ns_init command.
+ *      Dummy command for ns_init and ns_cleanup normally replaced
+ *	with procs by server init scripts.
+ *
+ * Results:
+ *      TCL_OK.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+NsTclDummyObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
+{
+    return TCL_OK;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsTclICtlObjCmd --
+ *
+ *      Implements ns_ictl command to control interp internals.
  *
  * Results:
  *      Standar Tcl result.
@@ -664,16 +717,16 @@ Ns_TclLogError(Tcl_Interp *interp)
  *----------------------------------------------------------------------
  */
 
-
 int
-NsTclInitObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
+NsTclICtlObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 {
+    Defer    	*deferPtr;
     NsInterp *itPtr = arg;
     static CONST char *opts[] = {
-	"epoch", "get", "save", "update", NULL
+	"cleanup", "epoch", "get", "save", "update", NULL
     };
     enum {
-	IEpochIdx, IGetIdx, ISaveIdx, IUpdateIdx
+	ICleanupIdx, IEpochIdx, IGetIdx, ISaveIdx, IUpdateIdx
     } opt;
     char *script;
     int length, result;
@@ -731,16 +784,94 @@ NsTclInitObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
             Tcl_WrongNumArgs(interp, 2, objv, NULL);
 	    return TCL_ERROR;
 	}
-    	Ns_RWLockRdLock(&itPtr->servPtr->tcl.lock);
-    	if (itPtr->epoch != itPtr->servPtr->tcl.epoch) {
-	    result = Tcl_EvalEx(itPtr->interp, itPtr->servPtr->tcl.script,
-			    itPtr->servPtr->tcl.length, TCL_EVAL_GLOBAL);
-	    itPtr->epoch = itPtr->servPtr->tcl.epoch;
-        }
-    	Ns_RWLockUnlock(&itPtr->servPtr->tcl.lock);
+	result = UpdateInterp(itPtr);
 	break;
+
+    case ICleanupIdx:
+	if (objc != 2) {
+            Tcl_WrongNumArgs(interp, 2, objv, NULL);
+	    return TCL_ERROR;
+	}
+    	while ((deferPtr = itPtr->firstDeferPtr) != NULL) {
+	    itPtr->firstDeferPtr = deferPtr->nextPtr;
+	    (*deferPtr->proc)(interp, deferPtr->arg);
+	    ns_free(deferPtr);
+	}
+    	NsFreeAtClose(itPtr);
+	break;
+
     }
 
+    return result;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * CreateInterp --
+ *
+ *      Create a new interp with standard Tcl and AOLserver commands.
+ *	If itPtr is not NULL, virtual server commands will be added
+ *	as well (see NsTclAddCmds).
+ *
+ * Results:
+ *      Pointer to new interp.
+ *
+ * Side effects:
+ *	Depends on Tcl init script sources by Tcl_Init.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static Tcl_Interp *
+CreateInterp(NsInterp *itPtr)
+{
+    Tcl_Interp *interp;
+
+    interp = Tcl_CreateInterp();
+    if (interp == NULL) {
+	Ns_Fatal("could not create interp");
+    }
+    if (Tcl_Init(interp) != TCL_OK) {
+	Ns_TclLogError(interp);
+    }
+    Tcl_InitMemory(interp);
+    NsTclAddCmds(interp, itPtr);
+    return interp;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * UpdateInterp --
+ *
+ *      Update the state (procs, namespaces) of an interp.  Called
+ *	directly to bootstrap new interps and then through
+ *	"ns_ictl update" during regular cleanup.
+ *
+ * Results:
+ *      Tcl result from update script.
+ *
+ * Side effects:
+ *	Will update procs when epoch changes.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+UpdateInterp(NsInterp *itPtr)
+{
+    int result = TCL_OK;
+
+    Ns_RWLockRdLock(&itPtr->servPtr->tcl.lock);
+    if (itPtr->epoch != itPtr->servPtr->tcl.epoch) {
+	result = Tcl_EvalEx(itPtr->interp, itPtr->servPtr->tcl.script,
+		    	    itPtr->servPtr->tcl.length, TCL_EVAL_GLOBAL);
+	itPtr->epoch = itPtr->servPtr->tcl.epoch;
+    }
+    Ns_RWLockUnlock(&itPtr->servPtr->tcl.lock);
     return result;
 }
 
@@ -767,19 +898,6 @@ FreeData(ClientData arg, Tcl_Interp *interp)
 {
     NsInterp *itPtr = arg;
 
-    /*
-     * Clear the hash value for this server if still
-     * pointing to this interp.
-     */
-
-    if (Tcl_GetHashValue(itPtr->hPtr) == interp) {
-	Tcl_SetHashValue(itPtr->hPtr, NULL);
-    }
-
-    /*
-     * Free the NsInterp resources.
-     */
-
     NsFreeAdp(itPtr);
     Tcl_DeleteHashTable(&itPtr->sets);
     Tcl_DeleteHashTable(&itPtr->chans);
@@ -793,7 +911,7 @@ FreeData(ClientData arg, Tcl_Interp *interp)
  *
  * DeleteInterps --
  *
- *      Delete all per-thread interps.
+ *      Delete all per-thread interps at thread exit time.
  *
  * Results:
  *      None.
@@ -810,13 +928,13 @@ DeleteInterps(void *arg)
     Tcl_HashTable *tablePtr = arg;
     Tcl_HashEntry *hPtr;
     Tcl_HashSearch search;
-    Tcl_Interp *interp;
+    NsInterp *itPtr;
 
     hPtr = Tcl_FirstHashEntry(tablePtr, &search);
     while (hPtr != NULL) {
-	interp = Tcl_GetHashValue(hPtr);
-	if (interp != NULL) {
-	    Tcl_DeleteInterp(interp);
+	while ((itPtr = Tcl_GetHashValue(hPtr)) != NULL) {
+	    Tcl_SetHashValue(hPtr, itPtr->nextPtr);
+	    Tcl_DeleteInterp(itPtr->interp);
 	}
 	hPtr = Tcl_NextHashEntry(&search);
     }
@@ -824,19 +942,35 @@ DeleteInterps(void *arg)
     ns_free(tablePtr);
 }
 
-static Tcl_Interp *
-CreateInterp(NsInterp *itPtr)
-{
-    Tcl_Interp *interp;
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * GetHashEntry --
+ *
+ *      Get/Create hash entry for per-thread list of interps for given
+ *	server.
+ *
+ * Results:
+ *      Pointer to hash entry.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
 
-    interp = Tcl_CreateInterp();
-    if (interp == NULL) {
-	Ns_Fatal("could not create interp");
+static Tcl_HashEntry *
+GetHashEntry(NsServer *servPtr)
+{
+    Tcl_HashTable *tablePtr;
+    int ignored;
+
+    tablePtr = Ns_TlsGet(&tls);
+    if (tablePtr == NULL) {
+	tablePtr = ns_malloc(sizeof(Tcl_HashTable));
+	Tcl_InitHashTable(tablePtr, TCL_ONE_WORD_KEYS);
+	Ns_TlsSet(&tls, tablePtr);
     }
-    if (Tcl_Init(interp) != TCL_OK) {
-	Ns_TclLogError(interp);
-    }
-    Tcl_InitMemory(interp);
-    NsTclAddCmds(interp, itPtr);
-    return interp;
+    return Tcl_CreateHashEntry(tablePtr, (char *) servPtr, &ignored);
 }
