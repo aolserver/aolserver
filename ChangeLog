@@ -1,3 +1,11 @@
+2004-02-24 07:15  Dossy Shiobara <dossy@panoptic.com>
+
+	* nsd/: nsmain.c, nsd.h, driver.c: fix race condition where
+	  DriverThreads are spawned but before they can Ns_SockListenEx,
+	  the main thread does its NsClosePreBound and closes the prebound
+	  sockets, making them unavailable to the DriverThreads if they
+	  require root priv to listen on
+
 2004-02-18 01:30  Dossy Shiobara <dossy@panoptic.com>
 
 	* nsperm/nsperm.c: fixed bug #899364, restoring old nsperm
