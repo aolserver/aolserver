@@ -98,12 +98,6 @@
 #define NSD_TEXTHTML    "text/html; charset=iso-8859-1"
 
 /*
- * Foward declaraction of NsServer structure.
- */
-
-struct NsServer;
-
-/*
  * Typedef definitions.
  */
 
@@ -172,6 +166,47 @@ struct _nsconf {
 extern struct _nsconf nsconf;
 
 /*
+ * The following structure defines a key for hashing
+ * a file by device/inode.
+ */
+
+typedef struct FileKey {
+    dev_t dev;
+    ino_t ino;
+} FileKey;
+
+#define FILE_KEYS (sizeof(FileKey)/sizeof(int))
+
+/*
+ * The following structure defines blocks of ADP.  The
+ * len pointer is an array of ints with positive values
+ * indicating text to copy and negative values indicating
+ * scripts to evaluate.  The text and script chars are
+ * packed together without null char separators starting
+ * at base.  The len and base data are either stored
+ * in an AdpParse structure or copied at the end of
+ * a cached Page structure.
+ */
+
+typedef struct AdpCode {
+    int		nblocks;
+    int		nscripts;
+    char       *base;
+    int	       *len;
+} AdpCode;
+
+/*
+ * The following structure is used to accumulate the 
+ * results of parsing an ADP string.
+ */
+
+typedef struct AdpParse {
+    AdpCode	code;
+    Tcl_DString hdr;
+    Tcl_DString text;
+} AdpParse;
+
+/*
  * The following structure defines the entire request
  * including HTTP request line, headers, and content.
  */
@@ -210,6 +245,8 @@ typedef struct Request {
  * The following structure maitains data for each instance of
  * a driver initialized with Ns_DriverInit.
  */
+
+struct NsServer;
 
 typedef struct Driver {
 
@@ -518,8 +555,8 @@ typedef struct NsServer {
     } tcl;
     
     /*
-     * The following struct maintains ADP config and
-     * possibly a shared cache.
+     * The following struct maintains ADP config,
+     * registered tags, and read-only page text.
      */
 
     struct {
@@ -529,11 +566,12 @@ typedef struct NsServer {
 	bool	    	    enabledebug;
 	char	    	   *debuginit;
 	char	    	   *defaultparser;
-	bool	    	    threadcache;
 	int 	    	    cachesize;
-	Ns_Cache    	   *cache;
+	Ns_Cond	    	    pagecond;
+	Ns_Mutex	    pagelock;
+	Tcl_HashTable	    pages;
+	Ns_Mutex	    taglock;
 	Tcl_HashTable	    tags;
-	Ns_Mutex	    lock;
     } adp;
     
     /*
@@ -669,7 +707,7 @@ typedef struct NsInterp {
 
     /*
      * The following struct maintains per-interp ADP
-     * context including.
+     * context including the private pages cache.
      */
 
     struct {
@@ -815,7 +853,7 @@ extern void NsSendSignal(int sig);
  */
 
 extern Ns_Cache *NsAdpCache(char *server, int size);
-extern void NsAdpParse(NsServer *servPtr, Ns_DString *outPtr, char *in);
+extern void NsAdpParse(AdpParse *parsePtr, NsServer *servPtr, char *utf);
 extern void NsAdpSetMimeType(NsInterp *itPtr, char *type);
 extern void NsAdpSetCharSet(NsInterp *itPtr, char *charset);
 extern void NsAdpFlush(NsInterp *itPtr);

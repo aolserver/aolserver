@@ -33,33 +33,37 @@
  *	ADP string and file eval.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.10 2001/12/05 22:46:21 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.11 2001/12/18 22:34:42 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
 /*
- * The following structure defines a block in an ADP as either
- * text or compiled byte code object.
- */
-
-typedef struct Block {
-    struct Block *nextPtr;
-    Tcl_Obj      *scriptObjPtr;
-    int           length;
-    char          text[4];
-} Block;
-
-/*
- * The following structure defines a parsed file in the ADP cache.
+ * The following structure defines a shared page in the ADP cache.  The
+ * bytes for the filename as well as the block lengths array and page text 
+ * referenced in the code structure are allocated with the Page struct
+ * as one contiguous block of memory.
  */
 
 typedef struct Page {
-    time_t    mtime;
-    off_t     size;
-    off_t     length;
-    Block    *firstPtr;
-    char      chunks[4];
+    NsServer	  *servPtr;
+    Tcl_HashEntry *hPtr;
+    time_t    	   mtime;
+    off_t     	   size;
+    int	      	   refcnt;
+    int		   evals;
+    char	  *file;
+    AdpCode	   code;
 } Page;
+
+/*
+ * The following structure defines a per-interp page entry with
+ * a pointer to the shared Page and private script Tcl_Obj's.
+ */
+
+typedef struct InterpPage {
+    Page     *pagePtr;
+    Tcl_Obj  *objs[0];
+} InterpPage;
 
 /*
  * The following structure maintains an ADP call frame.  PushFrame
@@ -68,7 +72,7 @@ typedef struct Page {
  * the previous state from the Frame.
  */
 
-typedef struct {
+typedef struct Frame {
     int                argc;
     char             **argv;
     char              *cwd;
@@ -78,57 +82,20 @@ typedef struct {
 } Frame;
 
 /*
- * The following structure is used as a unique key for compiled pages
- * in the cache.
- */
-
-typedef struct Key {
-    dev_t dev;
-    ino_t ino;
-} Key;
-
-/*
  * Local functions defined in this file.
  */
 
-static int  ParseFile(NsInterp *itPtr, char *file, size_t size, Ns_DString *);
+static Page *ParseFile(NsInterp *itPtr, char *file, struct stat *stPtr);
 static void PushFrame(NsInterp *itPtr, Frame *framePtr, char *file, 
 		      int argc, char **argv, Tcl_DString *outputPtr);
 static void PopFrame(NsInterp *itPtr, Frame *framePtr);
-static void LogError(NsInterp *itPtr, int chunk);
+static void LogError(NsInterp *itPtr, int nscript);
 static int AdpRun(NsInterp *itPtr, char *file, int argc, char **argv,
-		  Tcl_DString *outputPtr);
-static int EvalBlocks(NsInterp *itPtr, Block *firstPtr);
-static int EvalChunks(NsInterp *itPtr, char *chunks);
-static int DebugChunk(NsInterp *itPtr, char *script, int chunk);
-static Page *NewPage(Ns_DString *dsPtr, struct stat *stPtr, int blocks);
-static Ns_Callback FreePage;
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsAdpCache --
- *
- *	Create a new shared ADP cache.
- *
- * Results:
- *	Pointer to Ns_Cache.
- *
- * Side effects:
- *	None.
- *
- *----------------------------------------------------------------------
- */
-    
-Ns_Cache *
-NsAdpCache(char *name, int size)
-{
-    char buf[200];
-
-    sprintf(buf, "nsadp:%s", name);
-    return Ns_CacheCreateSz(buf, sizeof(Key)/sizeof(int), size, FreePage);
-}
+		Tcl_DString *outputPtr);
+static int AdpEval(NsInterp *itPtr, AdpCode *codePtr, Tcl_Obj **objs);
+static void ParseFree(AdpParse *parsePtr);
+static int AdpDebug(NsInterp *itPtr, char *ptr, int len, int nscript);
+static Ns_Callback FreeInterpPage;
 
 
 /*
@@ -151,26 +118,25 @@ NsAdpCache(char *name, int size)
 int
 NsAdpEval(NsInterp *itPtr, char *string, int argc, char **argv)
 {
+    AdpParse	      parse;
     Frame             frame;
-    Ns_DString        adp, output;
-    int               code;
+    Tcl_DString       output;
+    int               result;
     
     /*
-     * Increment the inline eval level to ensure flushing is disabled,
-     * push a frame, execute the code, and then move any result to the
-     * interp from the output buffer.
+     * Push a frame, execute the code, and then move any result to the
+     * interp from the local output buffer.
      */
      
-    Ns_DStringInit(&adp);
-    Ns_DStringInit(&output);
+    Tcl_DStringInit(&output);
     PushFrame(itPtr, &frame, NULL, argc, argv, &output);
-    NsAdpParse(itPtr->servPtr, &adp, string);
-    code = EvalChunks(itPtr, adp.string);
+    NsAdpParse(&parse, itPtr->servPtr, string);
+    result = AdpEval(itPtr, &parse.code, NULL);
     PopFrame(itPtr, &frame);
     Tcl_SetResult(itPtr->interp, output.string, TCL_VOLATILE);
-    Ns_DStringFree(&output);
-    Ns_DStringFree(&adp);
-    return code;
+    Tcl_DStringFree(&output);
+    ParseFree(&parse);
+    return result;
 }
 
 
@@ -179,8 +145,7 @@ NsAdpEval(NsInterp *itPtr, char *string, int argc, char **argv)
  *
  * NsAdpSource, NsAdpInclude --
  *
- *	Evaluate an ADP file, utilizing the per-thread byte-code
- *	compiled cache or the shared chunk cache if possible.
+ *	Evaluate an ADP file, utilizing per-thread byte-code pages.
  *
  * Results:
  *	A standard Tcl result.
@@ -230,19 +195,22 @@ AdpRun(NsInterp *itPtr, char *file, int argc, char **argv, Tcl_DString *outputPt
 {
     NsServer  *servPtr = itPtr->servPtr;
     Tcl_Interp *interp = itPtr->interp;
+    Tcl_HashEntry *hPtr;
     struct stat st;
-    Ns_DString chunks, path;
+    Ns_DString tmp, path;
     Frame frame;
-    Page *pagePtr;
+    InterpPage *ipagePtr;
+    Page *pagePtr, *oldPagePtr;
     Ns_Entry *ePtr;
-    int new, status;
+    int new, i, len, n;
     char *p, *key;
-    Ns_Cache *cachePtr;
-    
-    pagePtr = NULL;
-    status = TCL_ERROR;
-    Ns_DStringInit(&chunks);
+    FileKey ukey;
+
+    ipagePtr = NULL;
+    pagePtr = NULL;    
+    Ns_DStringInit(&tmp);
     Ns_DStringInit(&path);
+    key = (char *) &ukey;
     
     /*
      * Construct the full, normalized path to the ADP file.
@@ -251,9 +219,9 @@ AdpRun(NsInterp *itPtr, char *file, int argc, char **argv, Tcl_DString *outputPt
     if (Ns_PathIsAbsolute(file)) {
 	Ns_NormalizePath(&path, file);
     } else {
-	Ns_MakePath(&chunks, itPtr->adp.cwd, file, NULL);
-	Ns_NormalizePath(&path, chunks.string);
-	Ns_DStringTrunc(&chunks, 0);
+	Ns_MakePath(&tmp, itPtr->adp.cwd, file, NULL);
+	Ns_NormalizePath(&path, tmp.string);
+	Ns_DStringTrunc(&tmp, 0);
     }
     file = path.string;
 
@@ -282,124 +250,106 @@ AdpRun(NsInterp *itPtr, char *file, int argc, char **argv, Tcl_DString *outputPt
 	}
     }
 
-    /*
-     * Determine the cache to use (if any).
-     */
-     
-    if (itPtr->adp.debugLevel > 0) {
-	cachePtr = NULL;
-    } else if (!servPtr->adp.threadcache) {
-    	cachePtr = servPtr->adp.cache;
-    } else {
-	if (itPtr->adp.cache == NULL) {
-    	    itPtr->adp.cache = NsAdpCache(Ns_ThreadGetName(),
-		servPtr->adp.cachesize);
-	}
-    	cachePtr = itPtr->adp.cache;
+    if (itPtr->adp.cache == NULL) {
+	Ns_DStringPrintf(&tmp, "nsadp:%s:%d", itPtr->servPtr->server, Ns_ThreadId());
+	itPtr->adp.cache = Ns_CacheCreateSz(tmp.string, FILE_KEYS,
+				itPtr->servPtr->adp.cachesize, FreeInterpPage);
+	Ns_DStringTrunc(&tmp, 0);
     }
 
     /*
-     * Verify the file is an existing, ordinary file and then either
-     * parse directly or fetch through the cache.
+     * Verify the file is an existing, ordinary file and get page code.
      */
 
     if (stat(file, &st) != 0) {
 	Tcl_AppendResult(interp, "could not stat \"",
 	    file, "\": ", Tcl_PosixError(interp), NULL);
     } else if (S_ISREG(st.st_mode) == 0) {
-    	Tcl_AppendResult(interp, "not an ordinary file: ", file,
-			 NULL);
-    } else if (cachePtr == NULL) {
-    
-    	/*
-	 * Parse directly from file.
+    	Tcl_AppendResult(interp, "not an ordinary file: ", file, NULL);
+    } else {
+	/*
+	 * Check for valid code in interp page cache.
 	 */
 	 
-    	status = ParseFile(itPtr, file, st.st_size, &chunks);
-    } else {
-    	Key ukey;
-
 	ukey.dev = st.st_dev;
 	ukey.ino = st.st_ino;
-	key = (char *) &ukey;
-	if (cachePtr != servPtr->adp.cache) {
-
-    	    /*
-	     * Fetch from private, free-threaded cache.
+        ePtr = Ns_CacheFindEntry(itPtr->adp.cache, key);
+	if (ePtr != NULL) {
+    	    ipagePtr = Ns_CacheGetValue(ePtr);
+    	    if (ipagePtr->pagePtr->mtime != st.st_mtime || ipagePtr->pagePtr->size != st.st_size) {
+		Ns_CacheFlushEntry(ePtr);
+		ipagePtr = NULL;
+	    }
+	}
+	if (ipagePtr == NULL) {
+	    /*
+	     * Find or create valid page in server table.
 	     */
-
-            ePtr = Ns_CacheCreateEntry(cachePtr, key, &new);
-            if (!new) {
-    		pagePtr = Ns_CacheGetValue(ePtr);
-    		if (pagePtr->mtime != st.st_mtime || pagePtr->size != st.st_size) {
-		    Ns_CacheUnsetValue(ePtr);
-		    new = 1;
-		} else {
-		    status = TCL_OK;
-		}
+	     
+    	    Ns_MutexLock(&servPtr->adp.pagelock);
+	    hPtr = Tcl_CreateHashEntry(&servPtr->adp.pages, key, &new);
+	    while (!new && (pagePtr = Tcl_GetHashValue(hPtr)) == NULL) {
+		/* NB: Wait for other thread to read/parse page. */
+		Ns_CondWait(&servPtr->adp.pagecond, &servPtr->adp.pagelock);
+		hPtr = Tcl_CreateHashEntry(&servPtr->adp.pages, key, &new);
+	    }
+	    if (!new && (pagePtr->mtime != st.st_mtime || pagePtr->size != st.st_size)) {
+		/* NB: Clear entry to indicate read/parse in progress. */
+		Tcl_SetHashValue(hPtr, NULL);
+		pagePtr->hPtr = NULL;
+		new = 1;
 	    }
 	    if (new) {
-		status = ParseFile(itPtr, file, st.st_size, &chunks);
-		if (status != TCL_OK) {
-                    Ns_CacheDeleteEntry(ePtr);
-		} else {
-		    pagePtr = NewPage(&chunks, &st, 1);
-                    Ns_CacheSetValueSz(ePtr, pagePtr, pagePtr->size);
-		}
-	    }
-	} else {
-
-    	    /*
-	     * Fetch from shared, interlocked cache.
-	     */
-
-            Ns_CacheLock(cachePtr);
-            ePtr = Ns_CacheCreateEntry(cachePtr, key, &new);
-            if (!new) {
-		while (ePtr != NULL && (pagePtr = Ns_CacheGetValue(ePtr)) == NULL) {
-		    Ns_CacheWait(cachePtr);
-		    ePtr = Ns_CacheFindEntry(cachePtr, key);
-		}
+		Ns_MutexUnlock(&servPtr->adp.pagelock);
+		pagePtr = ParseFile(itPtr, file, &st);
+		Ns_MutexLock(&servPtr->adp.pagelock);
 		if (pagePtr == NULL) {
-		    Tcl_AppendResult(interp, "wait failed for file: ", file, NULL);
-		} else if (pagePtr->mtime != st.st_mtime || pagePtr->size != st.st_size) {
-		    Ns_CacheUnsetValue(ePtr);
-		    new = 1;
+		    Tcl_DeleteHashEntry(hPtr);
 		} else {
-		    Ns_DStringNAppend(&chunks, pagePtr->chunks, pagePtr->length);
-		    status = TCL_OK;
+		    if (ukey.dev != st.st_dev || ukey.ino != st.st_ino) {
+			/* NB: File changed between stat above and ParseFile. */
+		    	Tcl_DeleteHashEntry(hPtr);
+		    	ukey.dev = st.st_dev;
+		    	ukey.ino = st.st_ino;
+		    	hPtr = Tcl_CreateHashEntry(&servPtr->adp.pages, key, &new);
+		    	if (!new) {
+			    oldPagePtr = Tcl_GetHashValue(hPtr);
+			    oldPagePtr->hPtr = NULL;
+		    	}
+		    }
+		    pagePtr->hPtr = hPtr;
+		    Tcl_SetHashValue(hPtr, pagePtr);
 		}
+		Ns_CondBroadcast(&servPtr->adp.pagecond);
 	    }
-	    if (new) {
-		Ns_CacheUnlock(cachePtr);
-		status = ParseFile(itPtr, file, st.st_size, &chunks);
-		Ns_CacheLock(cachePtr);
-		ePtr = Ns_CacheCreateEntry(cachePtr, key, &new);
-		if (status != TCL_OK) {
-                    Ns_CacheFlushEntry(ePtr);
-		} else {
-		    pagePtr = NewPage(&chunks, &st, 0);
-                    Ns_CacheSetValueSz(ePtr, pagePtr, pagePtr->size);
-        	}
-		Ns_CacheBroadcast(cachePtr);
+	    if (pagePtr != NULL) {
+	    	++pagePtr->refcnt;
 	    }
-	    Ns_CacheUnlock(cachePtr);
+	    Ns_MutexUnlock(&servPtr->adp.pagelock);
+	    if (pagePtr != NULL) {
+		n = sizeof(Tcl_Obj *) * pagePtr->code.nscripts;
+	    	ipagePtr = ns_calloc(1, sizeof(InterpPage) + n);
+		ipagePtr->pagePtr = pagePtr;
+        	ePtr = Ns_CacheCreateEntry(itPtr->adp.cache, key, &new);
+		if (!new) {
+		    Ns_CacheUnsetValue(ePtr);
+		}
+                Ns_CacheSetValueSz(ePtr, ipagePtr, ipagePtr->pagePtr->size);
+	    }
 	}
     }
     
     /*
-     * If valid chunks where parsed or copied, push a new call frame, run
-     * the chunks, and pop the frame.
+     * If valid page was found, evaluate it in a new call frame.
      */
          
-    if (status == TCL_OK) {
+    if (ipagePtr != NULL) {
     	PushFrame(itPtr, &frame, file, argc, argv, outputPtr);
-        if (cachePtr == NULL || cachePtr == servPtr->adp.cache) {
-            status = EvalChunks(itPtr, chunks.string);
-        } else {
-            status = EvalBlocks(itPtr, pagePtr->firstPtr);
-        }
+	AdpEval(itPtr, &ipagePtr->pagePtr->code, ipagePtr->objs);
     	PopFrame(itPtr, &frame);
+	Ns_MutexLock(&servPtr->adp.pagelock);
+	++ipagePtr->pagePtr->evals;
+	Ns_MutexUnlock(&servPtr->adp.pagelock);
     }
     if (itPtr->adp.debugLevel > 0) {
 	--itPtr->adp.debugLevel;
@@ -407,9 +357,8 @@ AdpRun(NsInterp *itPtr, char *file, int argc, char **argv, Tcl_DString *outputPt
 
 done:
     Ns_DStringFree(&path);
-    Ns_DStringFree(&chunks);
-
-    return status;
+    Ns_DStringFree(&tmp);
+    return TCL_OK;
 }
 
 
@@ -469,6 +418,52 @@ NsAdpDebug(NsInterp *itPtr, char *host, char *port, char *procs)
 	itPtr->adp.debugLevel = 1;
     }
     return code;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsTclAdpStatsCmd --
+ *
+ *	Implement the ns_adp_stats command to return stats on cached
+ *	ADP pages.
+ *
+ * Results:
+ *	Standard Tcl result.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+NsTclAdpStatsCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
+{
+    NsInterp *itPtr = arg;
+    NsServer *servPtr = itPtr->servPtr;
+    FileKey *keyPtr;
+    char buf[200];
+    Tcl_HashSearch search;
+    Tcl_HashEntry *hPtr;
+    Page *pagePtr;
+
+    Ns_MutexLock(&servPtr->adp.pagelock);
+    hPtr = Tcl_FirstHashEntry(&servPtr->adp.pages, &search);
+    while (hPtr != NULL) {
+	pagePtr = Tcl_GetHashValue(hPtr);
+	keyPtr = (FileKey *) Tcl_GetHashKey(&servPtr->adp.pages, hPtr);
+	Tcl_AppendElement(interp, pagePtr->file);
+	sprintf(buf, "dev %d ino %d mtime %d refcnt %d evals %d size %d blocks %d scripts %d",
+		keyPtr->dev, keyPtr->ino, (int) pagePtr->mtime, pagePtr->refcnt,
+		pagePtr->evals, (int) pagePtr->size, pagePtr->code.nblocks,
+		pagePtr->code.nscripts);
+	Tcl_AppendElement(interp, buf);
+	hPtr = Tcl_NextHashEntry(&search);
+    }
+    Ns_MutexUnlock(&servPtr->adp.pagelock);
+    return TCL_OK;
 }
 
 
@@ -567,57 +562,112 @@ PopFrame(NsInterp *itPtr, Frame *framePtr)
  *
  * ParseFile --
  *
- *	Read and parse text from a file.
+ *	Read and parse text from a file.  The code is complicated
+ *	somewhat to account for changing files.
  *
  * Results:
- *	TCL_OK or TCL_ERROR.
+ *	Pointer to new Page structure or NULL on error.
  *
  * Side effects:
- *	None.
+ *	Error message will be left in interp on failure.
  *
  *----------------------------------------------------------------------
  */
 
-static int
-ParseFile(NsInterp *itPtr, char *file, size_t size, Ns_DString *dsPtr)
+static Page *
+ParseFile(NsInterp *itPtr, char *file, struct stat *stPtr)
 {
     Tcl_Interp *interp = itPtr->interp;
     Tcl_Encoding encoding;
-    Tcl_DString ds;
+    Tcl_DString utf;
     char *page, *buf;
-    int fd, n;
+    int fd, n, size, trys;
+    Page *pagePtr;
+    AdpParse parse;
     
-    /*
-     * Read the file in on big binary chunk.
-     */
-
     fd = open(file, O_RDONLY);
     if (fd < 0) {
 	Tcl_AppendResult(interp, "could not open \"",
 	    file, "\": ", Tcl_PosixError(interp), NULL);
-	return TCL_ERROR;
+	return NULL;
     }
-    buf = ns_malloc(size+1);
-    n = read(fd, buf, size);
-    if (n < 0) {
-	Tcl_AppendResult(interp, "read() of \"", file,
-	    	"\" failed: ", Tcl_PosixError(interp), NULL);
+
+    pagePtr = NULL;
+    buf = NULL;
+    do {
+	/*
+	 * fstat the open file to ensure it has not changed or been
+	 * replaced since the original stat.
+	 */
+
+	if (fstat(fd, stPtr) != 0) {
+	    Tcl_AppendResult(interp, "could not fstat \"", file,
+	   	"\": ", Tcl_PosixError(interp), NULL);
+	    goto done;
+	}
+    	size = stPtr->st_size;
+    	buf = ns_realloc(buf, size + 1);
+
+	/*
+	 * Attempt to read +1 byte to catch the file growing.
+	 */
+
+    	n = read(fd, buf, size + 1);
+    	if (n < 0) {
+	    Tcl_AppendResult(interp, "could not read \"", file,
+	    	"\": ", Tcl_PosixError(interp), NULL);
+	    goto done;
+	}
+	if (n != size) {
+	    /*
+	     * File is not expected size, rewind and fstat/read again.
+	     */
+	
+	    if (lseek(fd, 0, SEEK_SET) != 0) {
+	    	Tcl_AppendResult(interp, "could not lseek \"", file,
+	    	    "\": ", Tcl_PosixError(interp), NULL);
+	        goto done;
+	    }
+	    Ns_ThreadYield();
+	}
+    } while (n != size && ++trys < 10);
+
+    if (n != size) {
+	Tcl_AppendResult(interp, "inconsistant file: ", file, NULL);
     } else {
 	buf[n] = '\0';
-	Tcl_DStringInit(&ds);
+	Tcl_DStringInit(&utf);
 	encoding = Ns_GetFileEncoding(file);
 	if (encoding == NULL) {
 	    page = buf;
 	} else {
-	    Tcl_ExternalToUtfDString(encoding, buf, n, &ds);
-	    page = ds.string;
+	    Tcl_ExternalToUtfDString(encoding, buf, n, &utf);
+	    page = utf.string;
 	}
-	NsAdpParse(itPtr->servPtr, dsPtr, page);
-	Tcl_DStringFree(&ds);
+	NsAdpParse(&parse, itPtr->servPtr, page);
+	Tcl_DStringFree(&utf);
+	n = parse.hdr.length + parse.text.length + strlen(file) + 1;
+	pagePtr = ns_malloc(sizeof(Page) + n);
+	pagePtr->servPtr = itPtr->servPtr;
+	pagePtr->refcnt = 0;
+	pagePtr->evals = 0;
+	pagePtr->mtime = stPtr->st_mtime;
+	pagePtr->size = stPtr->st_size;
+	pagePtr->code.nblocks = parse.code.nblocks;
+	pagePtr->code.nscripts = parse.code.nscripts;
+	pagePtr->code.len = (int *) (pagePtr + 1);
+	pagePtr->code.base = (char *) (pagePtr->code.len + parse.code.nblocks);
+	pagePtr->file = pagePtr->code.base + parse.text.length;
+	memcpy(pagePtr->code.len, parse.hdr.string, parse.hdr.length);
+	memcpy(pagePtr->code.base, parse.text.string, parse.text.length);
+	strcpy(pagePtr->file, file);
+	ParseFree(&parse);
     }
+
+done:
     ns_free(buf);
     close(fd);
-    return TCL_OK;
+    return pagePtr;
 }
 
 
@@ -639,7 +689,7 @@ ParseFile(NsInterp *itPtr, char *file, size_t size, Ns_DString *dsPtr)
  */
 
 static void
-LogError(NsInterp *itPtr, int chunk)
+LogError(NsInterp *itPtr, int nscript)
 {
     Tcl_Interp *interp = itPtr->interp;
     Ns_DString ds;
@@ -648,7 +698,7 @@ LogError(NsInterp *itPtr, int chunk)
     
     Ns_DStringInit(&ds);
     Ns_DStringAppend(&ds, "\n    invoked from within chunk: ");
-    Ns_DStringPrintf(&ds, "%d", chunk);
+    Ns_DStringPrintf(&ds, "%d", nscript);
     Ns_DStringAppend(&ds, " of adp: ");
     Ns_DStringAppend(&ds, itPtr->adp.file ? itPtr->adp.file : "<inline>");
     Tcl_AddErrorInfo(interp, ds.string);
@@ -671,61 +721,9 @@ LogError(NsInterp *itPtr, int chunk)
 /*
  *----------------------------------------------------------------------
  *
- * EvalChunks --
+ * AdpEval --
  *
- *	Evaluate a list of chunks from an ADP.
- *
- * Results:
- *	TCL_OK or TCL_ERROR.
- *
- * Side effects:
- *	Depends on script chunks.
- *
- *----------------------------------------------------------------------
- */
-
-static int
-EvalChunks(NsInterp *itPtr, char *chunks)
-{
-    int chunk, n, code;
-    register char *ch = chunks;
-    Tcl_Interp *interp = itPtr->interp;
-
-    code = TCL_OK;
-    chunk = 1;
-    while (*ch && itPtr->adp.exception == ADP_OK) {
-	n = strlen(ch);
-	if (*ch++ == 't') {
-	    Ns_DStringNAppend(itPtr->adp.outputPtr, ch, n-1);
-	} else {
-	    if (itPtr->adp.debugLevel > 0) {
-    		code = DebugChunk(itPtr, ch, chunk);
-	    } else {
-		code = NsTclEval(interp, ch);
-	    }
-	    if (code != TCL_OK && code != TCL_RETURN && itPtr->adp.exception == ADP_OK) {
-    	    	LogError(itPtr, chunk);
-	    }
-	    ++chunk;
-	}
-	ch += n;
-	NsAdpFlush(itPtr);
-    }
-    if (itPtr->adp.exception == ADP_RETURN) {
-	itPtr->adp.exception = ADP_OK;
-	code = TCL_OK;
-    }
-    NsAdpFlush(itPtr);
-    return code;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * EvalBlocks --
- *
- *	Evaluate a list of blocks.
+ *	Evaluate page code.
  *
  * Results:
  *	A Tcl status code.
@@ -737,44 +735,69 @@ EvalChunks(NsInterp *itPtr, char *chunks)
  */
 
 static int
-EvalBlocks(NsInterp *itPtr, Block *blockPtr)
+AdpEval(NsInterp *itPtr, AdpCode *codePtr, Tcl_Obj **objs)
 {
     Tcl_Interp *interp = itPtr->interp;
-    int chunk, code;
+    Tcl_Obj *objPtr;
+    int nscript, result, len, i;
+    char *ptr, save;
 
-    chunk = 0;
-    code = TCL_OK;
-    while (blockPtr != NULL && itPtr->adp.exception == ADP_OK) {
-	if (blockPtr->scriptObjPtr == NULL) {
-	    Ns_DStringNAppend(itPtr->adp.outputPtr, blockPtr->text, blockPtr->length);
+    ptr = codePtr->base;
+    nscript = 0;
+    result = TCL_OK;
+    for (i = 0; itPtr->adp.exception == ADP_OK && i < codePtr->nblocks; ++i) {
+	len = codePtr->len[i];
+	if (len > 0) {
+	    Ns_DStringNAppend(itPtr->adp.outputPtr, ptr, len);
 	} else {
-    	    code = Tcl_EvalObjEx(interp, blockPtr->scriptObjPtr, 0);
-	    if (code != TCL_OK && code != TCL_RETURN && itPtr->adp.exception == ADP_OK) {
-    	    	LogError(itPtr, chunk);
+	    len = -len;
+	    if (itPtr->adp.debugLevel > 0) {
+    	        result = AdpDebug(itPtr, ptr, len, nscript);
+	    } else if (objs == NULL) {
+		save = ptr[len];
+		ptr[len] = '\0';
+		result = NsTclEval(interp, ptr);
+		ptr[len] = save;
+	    } else {
+		objPtr = objs[nscript];
+		if (objPtr != NULL) {
+    	            result = Tcl_EvalObjEx(interp, objPtr, 0);
+		} else {
+		    objPtr = Tcl_NewStringObj(ptr, len);
+		    Tcl_IncrRefCount(objPtr);
+    	            result = Tcl_EvalObjEx(interp, objPtr, 0);
+		    /* NB: Object now bytecodes, free unneeded string. */
+		    Tcl_InvalidateStringRep(objPtr);
+		    objs[nscript] = objPtr;
+		}
 	    }
-	    ++chunk;
+	    if (result != TCL_OK && result != TCL_RETURN
+		    && itPtr->adp.exception == ADP_OK) {
+    	    	LogError(itPtr, nscript);
+	    }
+	    ++nscript;
 	}
-	blockPtr = blockPtr->nextPtr;
+	ptr += len;
 	NsAdpFlush(itPtr);
     }
     if (itPtr->adp.exception == ADP_RETURN) {
 	itPtr->adp.exception = ADP_OK;
-	code = TCL_OK;
+	result = TCL_OK;
     }
     NsAdpFlush(itPtr);
-    return code;
+    return result;
 }
 
 
 /*
  *----------------------------------------------------------------------
  *
- * DebugChunk --
+ * AdpDebug --
  *
- *	Evaluate an ADP chunk with the TclPro debugger.
+ *	Evaluate an ADP script block with the TclPro debugger.
  *
  * Results:
- *	Depends on chunk code.
+ *	Depends on script.
  *
  * Side effects:
  *	A unique temp file with header comments and the script is
@@ -785,7 +808,7 @@ EvalBlocks(NsInterp *itPtr, Block *blockPtr)
  */
 
 static int
-DebugChunk(NsInterp *itPtr, char *script, int chunk)
+AdpDebug(NsInterp *itPtr, char *ptr, int len, int nscript)
 {
     int code, fd;
     Tcl_Interp *interp = itPtr->interp;
@@ -800,12 +823,13 @@ DebugChunk(NsInterp *itPtr, char *script, int chunk)
     Ns_DStringVarAppend(&ds,
 	"#\n"
 	"# level: ", buf, "\n", NULL);
-    sprintf(buf, "%d", chunk);
+    sprintf(buf, "%d", nscript);
     Ns_DStringVarAppend(&ds,
 	"# chunk: ", buf, "\n"
 	"# file:  ", file, "\n"
-	"#\n\n", script, NULL);
-    sprintf(debugfile, P_tmpdir "/adp%d.%d.XXXXXX", level, chunk);
+	"#\n\n", NULL);
+    Ns_DStringNAppend(&ds, ptr, len);
+    sprintf(debugfile, P_tmpdir "/adp%d.%d.XXXXXX", level, nscript);
     if (mktemp(debugfile) == NULL) {
 	Tcl_SetResult(interp, "could not create adp debug file", TCL_STATIC);
     } else {
@@ -834,72 +858,9 @@ DebugChunk(NsInterp *itPtr, char *script, int chunk)
 /*
  *----------------------------------------------------------------------
  *
- * NewPage -- 
+ * FreeInterpPage --
  *
- *  	Create a new Page, possibly with blocks.
- *
- * Results:
- *	A pointer to new pagePtr.
- *
- * Side effects:
- *  	None.
- *
- *----------------------------------------------------------------------
- */
-
-Page *
-NewPage(Ns_DString *dsPtr, struct stat *stPtr, int blocks)
-{
-    Page *pagePtr;
-    Block *blockPtr, *prevPtr;
-    register char *t, cmd;
-    int n;
-
-    if (!blocks) {
-	pagePtr = ns_malloc(sizeof(Page) + dsPtr->length);
-	memcpy(pagePtr->chunks, dsPtr->string, pagePtr->length);
-	pagePtr->firstPtr = NULL;
-    } else {
-	pagePtr = ns_malloc(sizeof(Page));
-	pagePtr->firstPtr = NULL;
-	t = dsPtr->string;
-	while (*t) {
-	    cmd = *t++;
-	    n = strlen(t);
-	    if (cmd == 't') {
-		blockPtr = ns_malloc(sizeof(Block) + n);
-		blockPtr->scriptObjPtr = NULL;
-		blockPtr->length = n;
-		memcpy(blockPtr->text, t, n);
-	    } else {
-		blockPtr = ns_malloc(sizeof(Block));
-		blockPtr->length = 0;
-		blockPtr->scriptObjPtr = Tcl_NewStringObj(t, n);
-		Tcl_IncrRefCount(blockPtr->scriptObjPtr);
-	    }
-	    blockPtr->nextPtr = NULL;
-	    if (pagePtr->firstPtr == NULL) {
-		pagePtr->firstPtr = blockPtr;
-	    } else {
-		prevPtr->nextPtr = blockPtr;
-	    }
-	    prevPtr = blockPtr;
-	    t += n+1;
-	}
-    }
-    pagePtr->mtime = stPtr->st_mtime;
-    pagePtr->size = stPtr->st_size;
-    pagePtr->length = dsPtr->length + 1;
-    return pagePtr;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * FreePage --
- *
- *  	Free previously allocated Page.
+ *  	Free a per-interp page cache entry.
  *
  * Results:
  *	None.
@@ -911,17 +872,48 @@ NewPage(Ns_DString *dsPtr, struct stat *stPtr, int blocks)
  */
 
 static void
-FreePage(void *arg)
+FreeInterpPage(void *arg)
 {
-    Page *pagePtr = arg;
-    Block *blockPtr;
+    InterpPage *ipagePtr = arg;
+    Page *pagePtr = ipagePtr->pagePtr;
+    int i;
 
-    while ((blockPtr = pagePtr->firstPtr) != NULL) {
-	pagePtr->firstPtr = blockPtr->nextPtr;
-	if (blockPtr->scriptObjPtr != NULL) {
-	    Tcl_DecrRefCount(blockPtr->scriptObjPtr);
+    for (i = 0; i < pagePtr->code.nscripts; ++i) {
+	if (ipagePtr->objs[i] != NULL) {
+	    Tcl_DecrRefCount(ipagePtr->objs[i]);
 	}
-	ns_free(blockPtr);
     }
-    ns_free(pagePtr);
+    Ns_MutexLock(&pagePtr->servPtr->adp.pagelock);
+    if (--pagePtr->refcnt == 0) {
+	if (pagePtr->hPtr != NULL) {
+	    Tcl_DeleteHashEntry(pagePtr->hPtr);
+	}
+	ns_free(pagePtr);
+    }
+    Ns_MutexUnlock(&pagePtr->servPtr->adp.pagelock);
+    ns_free(ipagePtr);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * ParseFree --
+ *
+ *  	Free buffers in an AdpParse structure.
+ *
+ * Results:
+ *	None.
+ *
+ * Side Effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+ParseFree(AdpParse *parsePtr)
+{
+    Tcl_DStringFree(&parsePtr->hdr);
+    Tcl_DStringFree(&parsePtr->text);
 }

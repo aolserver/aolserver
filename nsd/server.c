@@ -33,7 +33,7 @@
  *	Routines for managing NsServer structures.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.12 2001/11/05 20:23:31 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.13 2001/12/18 22:34:42 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -458,20 +458,18 @@ NsInitServer(char *server)
     if (!Ns_ConfigGetInt(path, "cachesize", &servPtr->adp.cachesize)) {
     	servPtr->adp.cachesize = 5 * 1024 * 1000;
     }
-    if (!Ns_ConfigGetBool(path, "threadcache", &servPtr->adp.threadcache)) {
-    	servPtr->adp.threadcache = 1;
-    }
-    if(!servPtr->adp.threadcache && (!Ns_ConfigGetBool(path, "cache", &n) || n)) {
-        servPtr->adp.cache = NsAdpCache(server, servPtr->adp.cachesize);
-    }
 
     /*
-     * Initialize the fancy parser tags table.
+     * Initialize the page and tag tables and locks.
      */
 
+    Tcl_InitHashTable(&servPtr->adp.pages, FILE_KEYS);
+    Ns_MutexInit(&servPtr->adp.pagelock);
+    Ns_CondInit(&servPtr->adp.pagecond);
+    Ns_MutexSetName2(&servPtr->adp.pagelock, "nsadppages", server);
     Tcl_InitHashTable(&servPtr->adp.tags, TCL_STRING_KEYS);
-    Ns_MutexInit(&servPtr->adp.lock);
-    Ns_MutexSetName2(&servPtr->adp.lock, "nsadp", server);
+    Ns_MutexInit(&servPtr->adp.taglock);
+    Ns_MutexSetName2(&servPtr->adp.taglock, "nsadptags", server);
 
     /*
      * Register ADP for any requested URLs.
