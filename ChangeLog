@@ -3,6 +3,7 @@
         * TAG: aolserver_v35_b6 
         * nsd/conn.c: Re-enabled argument checking in NsTclConnCmd.
 
+
 2003-02-27  Mark Page  <mpagenva@aol.com>
 
 	* nsd/conn.c: Add 'content' option to ns_conn function to
@@ -12,6 +13,11 @@
 	processing Posts.  This set element is only used by the
 	ns_conn content function.
 
+
+2003-02-20  Elizabeth Thomas <eathomas93@aol.com>
+
+        * include/Makefile.module.in: Allow the location of the
+        install directory to be overridden by $AOLSERVER.      
 
 2003-02-05  Elizabeth Thomas <eathomas93@aol.com>
 
