@@ -34,18 +34,19 @@
  *	Various core configuration.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsconf.c,v 1.9 2000/10/20 21:53:07 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsconf.c,v 1.10 2000/11/09 01:51:55 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #include "nsconf.h"
 
 struct _nsconf nsconf;
-int nsConfQuiet;
 
 static void
 Log(char *path, char *key, char *value)
 {
-    if (!nsConfQuiet) Ns_Log(Notice, "conf: [%s]%s = %s", path, key, value);
+    if (!nsconf.quiet) {
+	Ns_Log(Notice, "conf: [%s]%s = %s", path, key, value);
+    }
 }
 
 
@@ -57,7 +58,9 @@ GetInt(char *path, char *key, int def)
     if (!Ns_ConfigGetInt(path, key, &i) || i < 0) {
 	i = def;
     }
-    if (!nsConfQuiet) Ns_Log(Notice, "conf: [%s]%s = %d", path, key, i);
+    if (!nsconf.quiet) {
+	Ns_Log(Notice, "conf: [%s]%s = %d", path, key, i);
+    }
     return i;
 }
 
@@ -158,6 +161,7 @@ NsConfInit(void)
      */
          
     nsconf.shutdowntimeout = GetInt(PARAMS, "shutdowntimeout", SHUTDOWNTIMEOUT);
+    nsconf.startuptimeout  = GetInt(PARAMS, "startuptimeout", STARTUPTIMEOUT);
     nsconf.bufsize         = GetInt(PARAMS, "iobufsize", IOBUFSIZE);
 
     /*

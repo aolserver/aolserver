@@ -34,7 +34,7 @@
  *	Initialization routines for Tcl.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.7 2000/10/20 21:53:07 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.8 2000/11/09 01:51:55 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -1105,7 +1105,9 @@ SourceDirFile(Ns_DString *dsPtr, char *file)
 	       file, strerror(errno));
     } else {
     	interp = Ns_TclAllocateInterp(NULL);
-	if (!nsConfQuiet) Ns_Log(Notice, "tclinit: sourcing '%s'", file);
+	if (!nsconf.quiet) {
+	    Ns_Log(Notice, "tclinit: sourcing '%s'", file);
+	}
 	if (Tcl_EvalFile(interp, file) != TCL_OK) {
 	    Ns_TclLogError(interp);
 	}

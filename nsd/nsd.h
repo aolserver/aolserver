@@ -128,10 +128,12 @@ struct _nsconf {
     char           *config;
     int		    configfmt;
     int             pid;
+    int		    quiet;
     time_t          boot_t;
     char            hostname[255];
     char	    address[16];
     int             shutdowntimeout;
+    int		    startuptimeout;
     int             backlog;
     char           *server;
     int             bufsize;
@@ -461,6 +463,7 @@ extern void NsDbInit(void);
 extern void NsDbTclInit(void);
 extern void NsInitBinder(char *args, char *file);
 extern void NsForkBinder(void);
+extern void NsStopBinder(void);
 extern void NsGetURLInit(void);
 extern void NsInitFastpath(void);
 extern void NsInitMimeTypes(void);
@@ -470,7 +473,6 @@ extern void NsLogOpen(void);
 extern void NsPidFileInit(int fkill);
 extern void NsPortInit(void);
 extern void NsSchedInit(void);
-extern void NsStopBinder(void);
 extern char *NsTclFindExecutable(char *argv0);
 extern void NsTclInit(void);
 extern void NsTclInitGlobal(void);
@@ -487,6 +489,11 @@ extern void NsSendSignal(int sig);
 extern void NsShutdown(int timeout);
 
 extern void NsStartServer(void);
+extern void NsStartDrivers(void);
+extern void NsWaitServerWarmup(Ns_Time *);
+extern void NsWaitSockIdle(Ns_Time *);
+extern void NsWaitSchedIdle(Ns_Time *);
+
 extern void NsStopDrivers(void);
 extern void NsStartKeepAlive(void);
 extern void NsStopKeepAlive(void);
@@ -587,7 +594,6 @@ extern void NsGetBuf(char **bufPtr, int *sizePtr);
  */
 
 extern int 	  NsKeepAlive(Ns_Conn *connPtr);
-extern void 	  NsStartDrivers(void);
 
 /*
  * Proxy support
@@ -763,6 +769,5 @@ extern Tcl_CmdProc NsTclStatsCmd;
 
 extern char     *nsServer;
 extern char     *nsBuildDate;
-extern int       nsConfQuiet;
 
 #endif

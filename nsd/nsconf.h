@@ -42,6 +42,7 @@
 #define SCHED_MAXELAPSED_INT   2
 
 #define SHUTDOWNTIMEOUT        20
+#define STARTUPTIMEOUT         20
 #define IOBUFSIZE              16000
 #define BACKLOG                32
 
