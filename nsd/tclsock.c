@@ -34,7 +34,7 @@
  *	Tcl commands that let you do TCP sockets. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclsock.c,v 1.11 2002/06/13 04:41:21 jcollins Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclsock.c,v 1.12 2002/07/14 23:01:23 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -987,8 +987,9 @@ NsTclSelectObjCmd(ClientData dummy, Tcl_Interp *interp, int objc, Tcl_Obj *CONST
     Tcl_Channel	    chan;
     struct timeval  tv, *tvPtr;
     Tcl_DString     dsRfd, dsNbuf;
-	Tcl_Obj   **fobjv;
-	int         fobjc;
+    Tcl_Obj   **fobjv;
+    int         fobjc;
+    Ns_Time     timeout;
 
     status = TCL_ERROR;
     if (objc != 6 && objc != 4) {
@@ -1004,11 +1005,11 @@ NsTclSelectObjCmd(ClientData dummy, Tcl_Interp *interp, int objc, Tcl_Obj *CONST
         	Tcl_WrongNumArgs(interp, 1, objv, "?-timeout sec? rfds wfds efds");
 	    	return TCL_ERROR;
         }
-        tv.tv_usec = 0;
-        if (Tcl_GetIntFromObj(interp, objv[2], &i) != TCL_OK) {
+        if (Ns_TclGetTimeFromObj(interp, objv[2], &timeout) != TCL_OK) {
             return TCL_ERROR;
         }
-        tv.tv_sec = i;
+        tv.tv_sec = timeout.sec;
+        tv.tv_usec = timeout.usec;
         arg = 3;
     }
 
