@@ -1,3 +1,8 @@
+2004-02-26 14:37  Dossy Shiobara <dossy@panoptic.com>
+
+	* nsd/unix.c: uid_t is supposed to be unsigned, but apparently
+	  isn't on OSX, apparently.
+
 2004-02-19 13:22  Dossy Shiobara <dossy@panoptic.com>
 
 	* nsdb/: dbinit.c, dbtcl.c: fix "ns_db gethandle -timeout" so that
