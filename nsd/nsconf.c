@@ -33,7 +33,7 @@
  *	Various core configuration.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsconf.c,v 1.34 2004/08/11 22:18:27 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsconf.c,v 1.35 2005/03/25 00:35:26 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #include "nsconf.h"
@@ -151,7 +151,6 @@ NsConfUpdate(void)
     
     NsUpdateEncodings();
     NsUpdateMimeTypes();
-    NsUpdateUrlEncode();
 
     Ns_DStringInit(&ds);
 
