@@ -32,7 +32,7 @@
  *
  *	Core threading and system headers.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/nsthread.h,v 1.13 2000/11/14 23:39:05 jgdavidson Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/nsthread.h,v 1.14 2000/11/17 16:52:15 jgdavidson Exp $
  */
 
 #ifndef NSTHREAD_H
@@ -218,6 +218,7 @@ typedef struct Ns_MutexInfo {
 
 typedef void (Ns_ThreadInfoProc) (Ns_ThreadInfo *infoPtr, void *arg);
 typedef void (Ns_MutexInfoProc) (Ns_MutexInfo *infoPtr, void *arg);
+typedef void (Ns_PoolInfoProc) (Ns_PoolInfo *infoPtr, void *arg);
 
 /*
  * compat.c:
@@ -327,8 +328,7 @@ NS_EXTERN void *Ns_PoolRealloc(Ns_Pool *pool, void *ptr, size_t size);
 NS_EXTERN void *Ns_PoolCalloc(Ns_Pool *pool, size_t elsize, size_t nelem);
 NS_EXTERN char *Ns_PoolStrDup(Ns_Pool *pool, char *old);
 NS_EXTERN char *Ns_PoolStrCopy(Ns_Pool *pool, char *old);
-NS_EXTERN Ns_PoolInfo *Ns_PoolStats(Ns_Pool *pool);
-NS_EXTERN Ns_Pool *Ns_ThreadPool(void);
+NS_EXTERN void Ns_PoolEnum(Ns_PoolInfoProc *proc, void *arg);
 NS_EXTERN void *Ns_ThreadMalloc(size_t size);
 NS_EXTERN void *Ns_ThreadAlloc(size_t size);
 NS_EXTERN void *Ns_ThreadRealloc(void *ptr, size_t size);
@@ -336,7 +336,6 @@ NS_EXTERN void Ns_ThreadFree(void *ptr);
 NS_EXTERN void *Ns_ThreadCalloc(size_t nelem, size_t elsize);
 NS_EXTERN char *Ns_ThreadStrDup(char *old);
 NS_EXTERN char *Ns_ThreadStrCopy(char *old);
-NS_EXTERN Ns_PoolInfo *Ns_ThreadPoolStats(Ns_Thread *thread);
 
 /*
  * pthread.c, sproc.c, win32.c:

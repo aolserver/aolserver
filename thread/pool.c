@@ -35,7 +35,7 @@
  *  	fixed size blocks from block caches.  
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/pool.c,v 1.12 2000/11/10 12:37:11 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/pool.c,v 1.13 2000/11/17 16:52:15 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "thread.h"
 
@@ -101,6 +101,7 @@ typedef struct Bucket {
 
 typedef struct Pool {
     char    name[NS_THREAD_NAMESIZE];
+    struct  Pool *nextPtr;
     int	    nsysalloc;
     Bucket  buckets[1];
 } Pool;
@@ -116,8 +117,6 @@ struct binfo {
     int maxblocks;	/* Max blocks before move to share. */
     int nmove;		/* Num blocks to move to share. */
     void *lock;		/* Share bucket lock. */
-    int nlock;		/* Share bucket total lock count. */
-    int nwait;		/* Share bucket lock waits. */
 } *binfo;
 
 /*
@@ -136,9 +135,11 @@ static void  *Block2Ptr(Block *blockPtr, int bucket, int reqsize);
  * startup.
  */
 
+static int	initialized;
 static int	nbuckets;  /* Number of buckets. */
-static Pool    *sharedPtr; /* Pool to which blocks are flushed. */
 static size_t	maxalloc;  /* Max block allocation size. */
+static Pool    *sharedPtr; /* Pool to which blocks are flushed. */
+static Pool    *firstPtr;  /* First in list of all pools. */
 
 /*
  * The following global variable can be set to a different value
@@ -172,9 +173,13 @@ Ns_PoolCreate(char *name)
     Pool *poolPtr;
     int i;
 
-    if (sharedPtr == NULL) {
+    if (!initialized) {
 	Ns_MasterLock();
-	if (sharedPtr == NULL) {
+	if (!initialized) {
+	    /*
+	     * Initialize the run-time limits and locks.
+	     */
+
 	    nbuckets = nsMemNumBuckets;
 	    if (nbuckets < 1) {
 		nbuckets = 1;	/* Min: 16 bytes */
@@ -190,16 +195,81 @@ Ns_PoolCreate(char *name)
 		binfo[i].nmove = (binfo[i].maxblocks + 1) / 2;
 	    }
 	    poolsize = sizeof(Pool) + (sizeof(Bucket) * (nbuckets - 1));
-	    sharedPtr = NsAlloc(poolsize);
-	    strcpy(sharedPtr->name, "-shared-");
+
+	    /*
+	     * Set the initialized flag and create the shared pool.
+	     */
+
+	    initialized = 1;
+	    sharedPtr = (Pool *) Ns_PoolCreate("-shared-");
 	}
 	Ns_MasterUnlock();
     }
+
+    /*
+     * Allocate and link in the new pool.
+     */
+
     poolPtr = NsAlloc(poolsize);
     if (name != NULL) {
 	strncpy(poolPtr->name, name, sizeof(poolPtr->name)-1);
     }
+    Ns_MasterLock();
+    poolPtr->nextPtr = firstPtr;
+    firstPtr = poolPtr;
+    Ns_MasterUnlock();
     return (Ns_Pool *) poolPtr;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ *  Ns_PoolEnum --
+ *
+ *	Pass info on all known pools to given proc.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+Ns_PoolEnum(Ns_PoolInfoProc *proc, void *arg)
+{
+    static Ns_PoolInfo *infoPtr;
+    Pool *poolPtr;
+    int i;
+
+    Ns_MasterLock();
+    if (initialized) {
+    	if (infoPtr == NULL) {
+	    infoPtr = NsAlloc(sizeof(Ns_PoolInfo) +
+		sizeof(Ns_PoolBucketInfo) * nbuckets);
+	}
+	poolPtr = firstPtr;
+	while (poolPtr != NULL) {
+    	    infoPtr->name = poolPtr->name;
+    	    infoPtr->nbuckets = nbuckets;
+    	    infoPtr->nsysalloc = poolPtr->nsysalloc;
+    	    for (i = 0; i < nbuckets; ++i) {
+		infoPtr->buckets[i].blocksize  = binfo[i].blocksize;
+		infoPtr->buckets[i].nfree = poolPtr->buckets[i].nfree;
+		infoPtr->buckets[i].nrequest = poolPtr->buckets[i].nrequest;
+		infoPtr->buckets[i].nget = poolPtr->buckets[i].nget;
+		infoPtr->buckets[i].nput = poolPtr->buckets[i].nput;
+		infoPtr->buckets[i].nlock = poolPtr->buckets[i].nlock;
+		infoPtr->buckets[i].nwait = poolPtr->buckets[i].nwait;
+            }
+	    (*proc)(infoPtr, arg);
+	    poolPtr = poolPtr->nextPtr;
+	}
+    }
+    Ns_MasterUnlock();
 }
 
 
@@ -238,7 +308,7 @@ Ns_PoolFlush(Ns_Pool *pool)
  *
  *  Ns_PoolDestroy --
  *
- *	Flush and delete a pool.
+ *	Flush and delete a pool, removing from all-pools list.
  *
  * Results:
  *	None.
@@ -252,8 +322,19 @@ Ns_PoolFlush(Ns_Pool *pool)
 void
 Ns_PoolDestroy(Ns_Pool *pool)
 {
+    Pool *poolPtr = (Pool *) pool;
+    Pool **nextPtrPtr;
+
     Ns_PoolFlush(pool);
-    NsFree(pool);
+    Ns_MasterLock();
+    nextPtrPtr = &firstPtr;
+    while (*nextPtrPtr != poolPtr) {
+	nextPtrPtr = &(*nextPtrPtr)->nextPtr;
+    }
+    *nextPtrPtr = poolPtr->nextPtr;
+    poolPtr->nextPtr = NULL;
+    Ns_MasterUnlock();
+    NsFree(poolPtr);
 }
 
 
@@ -513,101 +594,6 @@ Ns_PoolStrCopy(Ns_Pool *pool, char *old)
 /*
  *----------------------------------------------------------------------
  *
- *  Ns_PoolStats --
- *
- *	Return allocation statistics for a memory pool.  If pool is
- *	NULL, stats on the shared pool are returned instead.
- *
- * Results:
- *	Pointer to per-thread Ns_PoolInfo structure with stats or
- *	NULL if the shared pool isn't initialized.
- *
- * Side effects:
- *	Returned Ns_PoolInfo structure will be overwritten on next
- *	call by this thread.
- *
- *----------------------------------------------------------------------
- */
-
-Ns_PoolInfo *
-Ns_PoolStats(Ns_Pool *pool)
-{
-    Ns_PoolInfo *infoPtr;
-    Pool *poolPtr = (Pool *) pool;
-    int i, size;
-    static Ns_Tls tls;
-
-    if (poolPtr == NULL) {
-	poolPtr = sharedPtr;
-    }
-    if (poolPtr == NULL) {
-	return NULL;
-    }
-    size = sizeof(Ns_PoolInfo) + (sizeof(Ns_PoolBucketInfo) * (nbuckets - 1));
-    if (tls == NULL) {
-	Ns_MasterLock();
-	if (tls == NULL) {
-	    Ns_TlsAlloc(&tls, ns_free);
-	}
-	Ns_MasterUnlock();
-    }
-    infoPtr = Ns_TlsGet(&tls);
-    if (infoPtr == NULL) {
-	infoPtr = ns_malloc(size);
-	Ns_TlsSet(&tls, infoPtr);
-    }
-    infoPtr->name = poolPtr->name;
-    infoPtr->nbuckets = nbuckets;
-    infoPtr->nsysalloc = poolPtr->nsysalloc;
-    for (i = 0; i < nbuckets; ++i) {
-	infoPtr->buckets[i].blocksize  = binfo[i].blocksize;
-	infoPtr->buckets[i].nfree = poolPtr->buckets[i].nfree;
-	infoPtr->buckets[i].nrequest = poolPtr->buckets[i].nrequest;
-	infoPtr->buckets[i].nget = poolPtr->buckets[i].nget;
-	infoPtr->buckets[i].nput = poolPtr->buckets[i].nput;
-	infoPtr->buckets[i].nlock = poolPtr->buckets[i].nlock;
-	infoPtr->buckets[i].nwait = poolPtr->buckets[i].nwait;
-    }
-    return infoPtr;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- *  Ns_ThreadPoolStats --
- *
- *	Return Ns_PoolStats for a thread's pool.  Stats for the 
- *	current thread are returned if thread is NULL.
- *
- * Results:
- *	Results of Ns_PoolStats or NULL on no pool for the given
- *	thread.
- *
- * Side effects:
- *	See Ns_PoolStats.
- *
- *----------------------------------------------------------------------
- */
-
-Ns_PoolInfo *
-Ns_ThreadPoolStats(Ns_Thread *thread)
-{
-    Thread *thrPtr = (Thread *) *thread;
-
-    if (thrPtr == NULL) {
-	thrPtr = NsGetThread();
-    }
-    if (thrPtr->pool == NULL) {
-	return NULL;
-    }
-    return Ns_PoolStats(thrPtr->pool);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
  *  Block2Ptr, Ptr2Block --
  *
  *	Convert between internal blocks and user pointers.
@@ -676,10 +662,10 @@ LockBucket(Pool *poolPtr, int bucket)
     if (!NsLockTry(binfo[bucket].lock)) {
 	NsLockSet(binfo[bucket].lock);
 	++poolPtr->buckets[bucket].nwait;
-	++binfo[bucket].nwait;
+	++sharedPtr->buckets[bucket].nwait;
     }
     ++poolPtr->buckets[bucket].nlock;
-    ++binfo[bucket].nlock;
+    ++sharedPtr->buckets[bucket].nlock;
 }
 
 

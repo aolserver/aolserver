@@ -34,7 +34,7 @@
  *	Implements a lot of Tcl API commands. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclmisc.c,v 1.8 2000/11/14 23:39:05 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclmisc.c,v 1.9 2000/11/17 16:52:15 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -83,7 +83,7 @@ static unsigned int JpegRead2Bytes(Tcl_Channel chan);
 static int JpegNextMarker(Tcl_Channel chan);
 static int JpegSize(Tcl_Channel chan, int *wPtr, int *hPtr);
 static void AppendThread(Ns_ThreadInfo *iPtr, void *arg);
-static void AppendPool(Ns_ThreadInfo *iPtr, void *arg);
+static void AppendPool(Ns_PoolInfo *iPtr, void *arg);
 static void AppendMutex(Ns_MutexInfo *iPtr, void *arg);
 
 /*
@@ -932,7 +932,7 @@ NsTclInfoCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 	Ns_ThreadEnum(AppendThread, &ds);
 	Tcl_DStringResult(interp, &ds);
     } else if (STREQ(argv[1], "pools")) {
-	Ns_ThreadEnum(AppendPool, &ds);
+	Ns_PoolEnum(AppendPool, &ds);
 	Tcl_DStringResult(interp, &ds);
     } else if (STREQ(argv[1], "log")) {
         elog = Ns_InfoErrorLog();
@@ -1743,28 +1743,24 @@ AppendThread(Ns_ThreadInfo *iPtr, void *arg)
 
 
 static void
-AppendPool(Ns_ThreadInfo *tiPtr, void *arg)
+AppendPool(Ns_PoolInfo *iPtr, void *arg)
 {
-    Ns_PoolInfo *piPtr;
     Tcl_DString *dsPtr = arg;
     char buf[200];
     int n;
 
-    piPtr = Ns_ThreadPoolStats(&tiPtr->thread);
-    if (piPtr != NULL) {
-    	Tcl_DStringStartSublist(dsPtr);
-    	Tcl_DStringAppendElement(dsPtr, tiPtr->name);
-	for (n = 0; n < piPtr->nbuckets; ++n) {
+    Tcl_DStringStartSublist(dsPtr);
+    Tcl_DStringAppendElement(dsPtr, iPtr->name);
+    for (n = 0; n < iPtr->nbuckets; ++n) {
     	    sprintf(buf, "%d %d %d %d %d %d %d",
-		piPtr->buckets[n].blocksize,
-		piPtr->buckets[n].nfree,
-		piPtr->buckets[n].nget,
-		piPtr->buckets[n].nput,
-		piPtr->buckets[n].nrequest,
-		piPtr->buckets[n].nlock,
-		piPtr->buckets[n].nwait);
+		iPtr->buckets[n].blocksize,
+		iPtr->buckets[n].nfree,
+		iPtr->buckets[n].nget,
+		iPtr->buckets[n].nput,
+		iPtr->buckets[n].nrequest,
+		iPtr->buckets[n].nlock,
+		iPtr->buckets[n].nwait);
 	    Tcl_DStringAppendElement(dsPtr, buf);
-	}
-    	Tcl_DStringEndSublist(dsPtr);
     }
+    Tcl_DStringEndSublist(dsPtr);
 }

@@ -46,7 +46,7 @@
 #define PTHREAD_TEST 1
 #endif
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/test.c,v 1.12 2000/11/16 02:47:44 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/test.c,v 1.13 2000/11/17 16:52:16 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 /*
  * Collection of synchronization objects for tests.
@@ -63,7 +63,6 @@ static Ns_Cs    cs;
 static Ns_Mutex dlock;
 static Ns_Cond  dcond;
 static int      dstop;
-void DumpMem(Ns_Thread *thread);
 
 /*
  * Msg -
@@ -309,15 +308,10 @@ DumpLocks(Ns_MutexInfo * infoPtr, void *arg)
 }
 
 void
-DumpMem(Ns_Thread *thread)
+DumpMem(Ns_PoolInfo *infoPtr, void *arg)
 {
-    Ns_PoolInfo *infoPtr;
     int i;
 
-    infoPtr = Ns_ThreadPoolStats(thread);
-    if (infoPtr == NULL) {
-	printf("null infoptr for %p\n", thread);
-    } else {
 	printf("memstats: name: %s sysalloc: %d\n", infoPtr->name,
 		infoPtr->nsysalloc);
 	for (i = 0; i < infoPtr->nbuckets; ++i) {
@@ -331,7 +325,6 @@ DumpMem(Ns_Thread *thread)
 		infoPtr->buckets[i].nput,
 		infoPtr->buckets[i].nrequest);
 	}
-    }
 }
 
 
@@ -341,7 +334,6 @@ DumpThreads(Ns_ThreadInfo * iPtr, void *ignored)
 
     printf("\t%d(%d): %s %s %p %p %s", iPtr->tid, iPtr->flags, iPtr->name, iPtr->parent,
 	   iPtr->proc, iPtr->arg, ns_ctime(&iPtr->ctime));
-    DumpMem(&iPtr->thread);
 }
      
 
@@ -363,6 +355,7 @@ DumperThread(void *arg)
 	Ns_ThreadEnum(DumpThreads, NULL);
 	printf("current locks:\n");
 	Ns_MutexEnum(DumpLocks, NULL);
+	Ns_PoolEnum(DumpMem, NULL);
 	Ns_MutexUnlock(&mlock);
     }
     Ns_MutexUnlock(&dlock);
