@@ -28,7 +28,7 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/fastpath.tcl,v 1.8 2003/02/25 17:12:35 shmooved Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/fastpath.tcl,v 1.9 2003/11/23 16:52:12 mpagenva Exp $
 #
 
 #
@@ -47,6 +47,8 @@ nsv_set _ns_fastpath type [ns_config $path directorylisting none]
 nsv_set _ns_fastpath hidedot [ns_config -bool $path hidedotfiles 1]
 nsv_set _ns_fastpath toppage [ns_config -bool $path returnmwtoppage 0]
 nsv_set _ns_fastpath aolpress [ns_config -bool $path enableaolpress 0]
+nsv_set _ns_fastpath builddirs [ns_config -bool $path builddirs 0]
+nsv_set _ns_fastpath serverlog [ns_config -bool $path serverlog 1]
 
 #
 # Register the publishing procs if enabled.  Note that you must
@@ -214,7 +216,9 @@ $up
 #
 
 proc _ns_publish proc {
-    ns_log notice "fastpath:[ns_conn authuser]:$proc [ns_conn url]"
+    if {[nsv_get _ns_fastpath serverlog]} {
+	ns_log notice "fastpath:[ns_conn authuser]:$proc [ns_conn url]"
+    }
     $proc
 }
 
@@ -223,7 +227,9 @@ proc ns_returnok {} {
 }
 
 proc _ns_remove file {
-    ns_log notice "fastpath:[ns_conn authuser]:unlink: $file"
+    if {[nsv_get _ns_fastpath serverlog]} {
+	ns_log notice "fastpath:[ns_conn authuser]:unlink: $file"
+    }
     ns_unlink $file
 }
 
@@ -457,7 +463,25 @@ proc _ns_put {} {
 	    #
 
 	    set tmp [ns_mktemp $file.putXXXXXX]
-	    set fp [open $tmp w]
+ 	    if {[catch {open $tmp w} res]} {
+ 		if {![nsv_get _ns_fastpath builddirs]} {
+ 		    error $res
+ 		}
+ 		###
+ 		# We can accomodate the case where an implied directory tree
+ 		#  needs to be constructed.
+ 		###
+		set fpath [file dirname $tmp]
+		if {![file isdirectory $fpath]} {
+		    file mkdir $fpath
+		    # Now, retry the open; allow error propogation
+		    set fp [open $tmp w]
+		} else {
+		    error $res
+		}
+ 	    } else {
+ 		set fp $res
+ 	    }
 	    ns_conncptofp $fp
 	    close $fp
 	    ns_rename $tmp $file
