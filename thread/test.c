@@ -36,18 +36,17 @@
  */
 
 #include "nsthread.h"
-#define PTHREAD_TEST 0
-#ifndef USE_SPROC
-#ifndef WIN32
+
+/*
+ * Special direct include of pthread.h for compatibility tests.
+ */
+
+#if !defined(USE_SPROC) && !defined(WIN32)
+#include <pthread.h>
 #define PTHREAD_TEST 1
 #endif
-#endif
 
-#if PTHREAD_TEST
-#include <pthread.h>
-#endif
-
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/test.c,v 1.11 2000/11/14 23:39:05 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/test.c,v 1.12 2000/11/16 02:47:44 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 /*
  * Collection of synchronization objects for tests.
@@ -64,8 +63,8 @@ static Ns_Cs    cs;
 static Ns_Mutex dlock;
 static Ns_Cond  dcond;
 static int      dstop;
-
 void DumpMem(Ns_Thread *thread);
+
 /*
  * Msg -
  *
@@ -256,10 +255,6 @@ MemThread(void *arg)
 	    ptr = malloc(10);
 	}
     }
-#if 0
-    Ns_ThreadSelf(&thread);
-    DumpMem(&thread);
-#endif
 }
 
 void
@@ -327,7 +322,7 @@ DumpMem(Ns_Thread *thread)
 		infoPtr->nsysalloc);
 	for (i = 0; i < infoPtr->nbuckets; ++i) {
 	    printf("size: %d lock: %d wait: %d free: %d get: %d "
-		   "put: %d nrequest %ld\n",
+		   "put: %d nrequest %d\n",
 		infoPtr->buckets[i].blocksize,
 		infoPtr->buckets[i].nlock,
 		infoPtr->buckets[i].nwait,
@@ -390,7 +385,7 @@ void
 PthreadTlsCleanup(void *arg)
 {
     int i = (int) arg;
-    printf("pthread[%d]: log: %d\n", pthread_self(), i);
+    printf("pthread[%d]: log: %d\n", (int) pthread_self(), i);
 }
 
 void *
@@ -500,7 +495,7 @@ int main(int argc, char *argv[])
 #if PTHREAD_TEST
     for (i = 0; i < 10; ++i) {
 	pthread_create(&tids[i], NULL, Pthread, (void *) i);
-	printf("pthread: create %d = %d\n", i, tids[i]);
+	printf("pthread: create %d = %d\n", i, (int) tids[i]);
 	Ns_ThreadYield();
     }
     Ns_MutexLock(&plock);
