@@ -34,7 +34,7 @@
  *	Wrappers and convenience functions for TCP/IP stuff. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sock.c,v 1.9 2001/11/06 01:12:36 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sock.c,v 1.10 2002/09/21 17:55:16 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -47,6 +47,7 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
  */
 
 static int SockConnect(char *host, int port, char *lhost, int lport, int async);
+static int SockSetup(int sock);
 
 
 /*
@@ -210,10 +211,7 @@ Ns_SockAccept(int lsock, struct sockaddr *saPtr, int *lenPtr)
 
     sock = accept(lsock, saPtr, lenPtr);
     if (sock != -1) {
-	if (Ns_CloseOnExec(sock) != NS_OK) {
-	    close(sock);
-	    sock = -1;
-	}
+	sock = SockSetup(sock);
     }
     return sock;
 }
@@ -248,9 +246,8 @@ Ns_SockBind(struct sockaddr_in *saPtr)
     int n;
 
     sock = socket(AF_INET, SOCK_STREAM, 0);
-    if (sock != -1 && Ns_CloseOnExec(sock) != NS_OK) {
-        close(sock);
-	sock = -1;
+    if (sock != -1) {
+	sock = SockSetup(sock);
     }
     if (sock != -1) {
         n = 1;
@@ -498,7 +495,7 @@ Ns_GetSockAddr(struct sockaddr_in *saPtr, char *host, int port)
 int
 Ns_SockPipe(int socks[2])
 {
-    if (pipe(socks) != 0) {
+    if (ns_sockpair(socks) != 0) {
         return NS_ERROR;
     }
     return NS_OK;
@@ -622,4 +619,37 @@ char           *
 Ns_SockStrError(int err)
 {
     return strerror(err);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * SockSetup --
+ *
+ *	Setup new sockets for close-on-exec and possibly duped high.
+ *
+ * Results:
+ *	Current or duped socket.
+ *
+ * Side effects:
+ *	Original socket is closed if duped.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+SockSetup(int sock)
+{
+#ifdef USE_DUPHIGH
+    int nsock;
+
+    nsock = fcntl(sock, F_DUPFD, 256);
+    if (nsock != -1) {
+	close(sock);
+	sock = nsock;
+    }
+#endif
+    (void) fcntl(sock, F_SETFD, 1);
+    return sock;
 }
