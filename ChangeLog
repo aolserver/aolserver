@@ -1,3 +1,8 @@
+2004-07-19  Dossy Shiobara <dossy@panoptic.com>
+
+	* nsd/init.c (1.8): While harmless, don't call NsInitInfo() twice.
+	  Oops.
+
 2004-07-18  Dossy Shiobara <dossy@panoptic.com>
 
 	* nsd/: nsd.h (1.83), nsconf.c (1.33), init.c (1.7):
