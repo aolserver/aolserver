@@ -34,7 +34,7 @@
  * 	Connect Tcl command names to the functions that implement them
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.4 2000/08/25 21:46:52 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.5 2000/10/09 20:08:46 kriston Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -613,6 +613,23 @@ static TclCmd tclCmds[ ] = {
     },
     {
     	"nsv_incr", NsTclVIncrCmd, NULL
+    },
+
+    /*
+     * tclxkeylist.c
+     */
+
+    {
+        "keyldel", Tcl_KeyldelCmd, NULL
+    },
+    {
+        "keylget", Tcl_KeylgetCmd, NULL
+    },
+    {
+        "keylkeys", Tcl_KeylkeysCmd, NULL
+    },
+    {
+        "keylset", Tcl_KeylsetCmd, NULL
     },
 
     /*

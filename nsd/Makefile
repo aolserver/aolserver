@@ -17,7 +17,7 @@ OBJS = \
         serv.o set.o sock.o sockcallback.o str.o \
         tclcmds.o tclconf.o tclenv.o tclfile.o tclinit.o tclmisc.o \
         tclop.o tclresp.o tclsched.o tclset.o tclsock.o tclstats.o \
-        tclthread.o tclvar.o unix.o url.o \
+        tclxkeylist.o tclthread.o tclvar.o unix.o url.o \
         urlencode.o urlopen.o urlspace.o
 
 TCL76STUB = tclstub76.o
