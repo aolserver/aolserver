@@ -33,7 +33,7 @@
  *      All the public types and function declarations for the core
  *	AOLserver.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.73 2004/12/06 16:12:10 dossy Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.74 2005/01/15 23:52:33 jgdavidson Exp $
  */
 
 #ifndef NS_H
@@ -74,17 +74,19 @@
  * Various constants.
  */
 
-#define NS_CONN_CLOSED		  1
-#define NS_CONN_SKIPHDRS	  2
-#define NS_CONN_SKIPBODY	  4
-#define NS_CONN_READHDRS	  8
-#define NS_CONN_SENTHDRS	 16
-#define NS_CONN_KEEPALIVE	 32
-#define NS_CONN_WRITE_ENCODED    64
-#define NS_CONN_FILECONTENT     128
-#define NS_CONN_RUNNING         256
-#define NS_CONN_OVERFLOW	512
-#define NS_CONN_TIMEOUT	       1024
+#define NS_CONN_CLOSED		  0x1
+#define NS_CONN_SKIPHDRS	  0x2
+#define NS_CONN_SKIPBODY	  0x4
+#define NS_CONN_READHDRS	  0x8
+#define NS_CONN_SENTHDRS	  0x10
+#define NS_CONN_KEEPALIVE	  0x20
+#define NS_CONN_WRITE_ENCODED     0x40
+#define NS_CONN_FILECONTENT       0x80
+#define NS_CONN_RUNNING           0x100
+#define NS_CONN_OVERFLOW	  0x200
+#define NS_CONN_TIMEOUT	       	  0x400
+#define NS_CONN_GZIP		  0x800
+#define NS_CONN_CHUNK		  0x1000
 
 #define NS_CONN_MAXCLS		 16
 
@@ -368,7 +370,8 @@ typedef struct Ns_Conn {
     char       *authUser;
     char       *authPasswd;
     int         contentLength;
-    int         flags;		/* Currently, only NS_CONN_CLOSED. */
+    int         flags;		/* Read-only: One or more NS_CONN_ bits which
+				 * specify the state of the connection. */
 } Ns_Conn;
 
 /*
@@ -591,11 +594,13 @@ NS_EXTERN int Ns_ConnClose(Ns_Conn *conn);
 NS_EXTERN int Ns_ConnInit(Ns_Conn *connPtr);
 NS_EXTERN int Ns_ConnRead(Ns_Conn *conn, void *vbuf, int toread);
 NS_EXTERN int Ns_ConnWrite(Ns_Conn *conn, void *buf, int towrite);
+NS_EXTERN int Ns_ConnFlush(Ns_Conn *conn, char *buf, int len, int stream);
 NS_EXTERN int Ns_ConnContentFd(Ns_Conn *conn);
 NS_EXTERN int Ns_ConnReadLine(Ns_Conn *conn, Ns_DString *dsPtr, int *nreadPtr);
 NS_EXTERN int Ns_WriteConn(Ns_Conn *conn, char *buf, int len);
 NS_EXTERN int Ns_WriteCharConn(Ns_Conn *conn, char *buf, int len);
 NS_EXTERN int Ns_ConnPuts(Ns_Conn *conn, char *string);
+NS_EXTERN int Ns_ConnSend(Ns_Conn *conn, struct iovec *bufs, int nbufs);
 NS_EXTERN int Ns_ConnSendDString(Ns_Conn *conn, Ns_DString *dsPtr);
 NS_EXTERN int Ns_ConnSendChannel(Ns_Conn *conn, Tcl_Channel chan, int nsend);
 NS_EXTERN int Ns_ConnSendFp(Ns_Conn *conn, FILE *fp, int nsend);
@@ -606,6 +611,8 @@ NS_EXTERN int Ns_ConnCopyToChannel(Ns_Conn *conn, size_t ncopy, Tcl_Channel chan
 NS_EXTERN int Ns_ConnCopyToFile(Ns_Conn *conn, size_t ncopy, FILE *fp);
 NS_EXTERN int Ns_ConnCopyToFd(Ns_Conn *conn, size_t ncopy, int fd);
 NS_EXTERN int Ns_ConnFlushContent(Ns_Conn *conn);
+NS_EXTERN void Ns_ConnSetType(Ns_Conn *conn, char *type);
+NS_EXTERN char *Ns_ConnGetType(Ns_Conn *conn);
 NS_EXTERN void Ns_ConnSetEncoding(Ns_Conn *conn, Tcl_Encoding encoding);
 NS_EXTERN Tcl_Encoding Ns_ConnGetEncoding(Ns_Conn *conn);
 NS_EXTERN void Ns_ConnSetUrlEncoding(Ns_Conn *conn, Tcl_Encoding encoding);
