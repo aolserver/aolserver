@@ -33,7 +33,7 @@
  * 	Connect Tcl command names to the functions that implement them
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.45 2004/10/06 21:18:33 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.46 2005/01/15 23:56:52 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -43,8 +43,11 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
 
 extern Tcl_ObjCmdProc
     NsTclAdpAppendObjCmd,
+    NsTclAdpCloseObjCmd,
+    NsTclAdpCtlObjCmd,
     NsTclAdpPutsObjCmd,
     NsTclAdpEvalObjCmd,
+    NsTclAdpFlushObjCmd,
     NsTclAdpSafeEvalObjCmd,
     NsTclAdpIncludeObjCmd,
     NsTclAdpParseObjCmd,
@@ -349,10 +352,13 @@ static Cmd servCmds[] = {
     {"ns_adp_argv", NULL, NsTclAdpArgvObjCmd},
     {"ns_adp_bind_args", NULL, NsTclAdpBindArgsObjCmd},
     {"ns_adp_break", NULL, NsTclAdpBreakObjCmd},
+    {"ns_adp_close", NULL, NsTclAdpCloseObjCmd},
+    {"ns_adp_ctl", NULL, NsTclAdpCtlObjCmd},
     {"ns_adp_debug", NsTclAdpDebugCmd, NULL},
     {"ns_adp_dir", NULL, NsTclAdpDirObjCmd},
     {"ns_adp_dump", NULL, NsTclAdpDumpObjCmd},
     {"ns_adp_eval", NULL, NsTclAdpEvalObjCmd},
+    {"ns_adp_flush", NULL, NsTclAdpFlushObjCmd},
     {"ns_adp_exception", NULL, NsTclAdpExceptionObjCmd},
     {"ns_adp_mime", NULL, NsTclAdpMimeTypeObjCmd},
     {"ns_adp_mimetype", NULL, NsTclAdpMimeTypeObjCmd},
