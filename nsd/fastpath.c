@@ -34,7 +34,7 @@
  *      Get page possibly from a file cache.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/fastpath.c,v 1.5 2001/01/12 22:49:59 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/fastpath.c,v 1.6 2001/01/15 18:53:16 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #ifndef WIN32
@@ -119,7 +119,7 @@ Ns_ConnReturnFile(Ns_Conn *conn, int status, char *type, char *file)
     struct stat st;
     
     if (!FastStat(file, &st)) {
-    	return Ns_ReturnNotFound(conn);
+    	return Ns_ConnReturnNotFound(conn);
     }
     return FastReturn(conn, status, type, file, &st);
 }
@@ -360,7 +360,7 @@ FastGet(void *ignored, Ns_Conn *conn)
                 if (url[strlen(url) - 1] != '/') {
                     Ns_DStringTrunc(&ds, 0);
                     Ns_DStringVarAppend(&ds, url, "/", NULL);
-                    result = Ns_ReturnRedirect(conn, ds.string);
+                    result = Ns_ConnReturnRedirect(conn, ds.string);
                 } else {
                     result = FastGetRestart(conn, nsconf.fastpath.dirv[i]);
                 }
@@ -382,7 +382,7 @@ FastGet(void *ignored, Ns_Conn *conn)
 	}
     } else {
  notfound:
-	result = Ns_ReturnNotFound(conn);
+	result = Ns_ConnReturnNotFound(conn);
     }
 
  done:
@@ -512,7 +512,7 @@ FastReturn(Ns_Conn *conn, int status, char *type, char *file, struct stat *stPtr
      
     Ns_ConnSetLastModifiedHeader(conn, &stPtr->st_mtime);
     if (Ns_ConnModifiedSince(conn, stPtr->st_mtime) == NS_FALSE) {
-	return Ns_ReturnNotModified(conn);
+	return Ns_ConnReturnNotModified(conn);
     }
     
     /*
@@ -521,7 +521,7 @@ FastReturn(Ns_Conn *conn, int status, char *type, char *file, struct stat *stPtr
      */
      
     if (conn->flags & NS_CONN_SKIPBODY) {
-	Ns_HeadersRequired(conn, type, stPtr->st_size);
+	Ns_ConnSetRequiredHeaders(conn, type, stPtr->st_size);
 	return Ns_ConnFlushHeaders(conn, status);
     }
 
@@ -626,5 +626,5 @@ FastReturn(Ns_Conn *conn, int status, char *type, char *file, struct stat *stPtr
     return result;
 
 notfound:
-    return Ns_ReturnNotFound(conn);
+    return Ns_ConnReturnNotFound(conn);
 }

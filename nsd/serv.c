@@ -33,7 +33,7 @@
  *	Routines for the core server connection threads.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/serv.c,v 1.13 2000/11/17 16:51:15 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/serv.c,v 1.14 2001/01/15 18:53:17 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -697,7 +697,7 @@ NsConnThread(void *arg)
             Ns_TclDeAllocateInterp(NULL);
 	}
 	if (connPtr->request != NULL) {
-            Ns_RequestFree(connPtr->request);
+            Ns_FreeRequest(connPtr->request);
 	}
         if (connPtr->authUser != NULL) {
 	    ns_free(connPtr->authUser);
@@ -816,7 +816,7 @@ ConnRun(Conn *connPtr)
 
     if (Ns_ConnReadLine(conn, &ds, &n) != NS_OK ||
     	(connPtr->request = Ns_ParseRequest(ds.string)) == NULL) {
-        (void) Ns_ReturnBadRequest(conn, "Invalid HTTP request");
+        (void) Ns_ConnReturnBadRequest(conn, "Invalid HTTP request");
         goto done;
     }
 
@@ -832,7 +832,7 @@ ConnRun(Conn *connPtr)
     	char *p;
 
         if (Ns_ConnReadHeaders(conn, connPtr->headers, &n) != NS_OK) {
-            Ns_ReturnBadRequest(conn, "Invalid HTTP headers");
+            Ns_ConnReturnBadRequest(conn, "Invalid HTTP headers");
             goto done;
         }
         p = Ns_SetIGet(connPtr->headers, "Content-Length");
@@ -867,7 +867,7 @@ ConnRun(Conn *connPtr)
 	goto done;
     }
 
-    status = Ns_RequestAuthorize(nsServer,
+    status = Ns_AuthorizeRequest(nsServer,
 		connPtr->request->method, connPtr->request->url, 
 		connPtr->authUser, connPtr->authPasswd, 
 		Ns_ConnPeer(conn));
@@ -882,19 +882,19 @@ ConnRun(Conn *connPtr)
 
     case NS_FORBIDDEN:
 	if (Ns_ConnFlushContent(conn) == NS_OK) {
-	    Ns_ReturnForbidden(conn);
+	    Ns_ConnReturnForbidden(conn);
 	}
 	break;
 
     case NS_UNAUTHORIZED:
 	if (Ns_ConnFlushContent(conn) == NS_OK) {
-	    Ns_ReturnUnauthorized(conn);
+	    Ns_ConnReturnUnauthorized(conn);
 	}
 	break;
 
     case NS_ERROR:
     default:
-	Ns_ReturnInternalError(conn);
+	Ns_ConnReturnInternalError(conn);
 	break;
     }
 

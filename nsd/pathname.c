@@ -34,7 +34,7 @@
  *	Functions that manipulate or return paths. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/pathname.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/pathname.c,v 1.4 2001/01/15 18:53:17 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -227,7 +227,7 @@ Ns_LibPath(Ns_DString *dest, ...)
     va_list  ap;
     char    *path;
 
-    Ns_MakePath(dest, Ns_InfoHome(), "/lib", NULL);
+    Ns_MakePath(dest, Ns_InfoHomePath(), "/lib", NULL);
     if (dest->string[dest->length - 1] != '/') {
         Ns_DStringAppend(dest, "/");
     }
@@ -261,7 +261,7 @@ Ns_HomePath(Ns_DString *dest, ...)
     va_list  ap;
     char    *path;
 
-    Ns_MakePath(dest, Ns_InfoHome(), NULL);
+    Ns_MakePath(dest, Ns_InfoHomePath(), NULL);
     if (dest->string[dest->length - 1] != '/') {
         Ns_DStringAppend(dest, "/");
     }
@@ -297,7 +297,7 @@ Ns_ModulePath(Ns_DString *dest, char *hServer, char *hModule, ...)
     va_list         ap;
     char           *path;
 
-    Ns_DStringAppend(dest, Ns_InfoHome());
+    Ns_DStringAppend(dest, Ns_InfoHomePath());
     if (dest->string[dest->length - 1] != '/') {
         Ns_DStringAppend(dest, "/");
     }

@@ -35,7 +35,7 @@
  *  	routines (previously known as "op procs").
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/op.c,v 1.4 2000/08/17 06:09:49 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/op.c,v 1.5 2001/01/15 18:53:16 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -234,7 +234,7 @@ Ns_ConnRedirect(Ns_Conn *conn, char *url)
      * Re-authorize and run the request.
      */
 
-    status = Ns_RequestAuthorize(NULL, conn->request->method,
+    status = Ns_AuthorizeRequest(NULL, conn->request->method,
     	    	    	         conn->request->url, conn->authUser,
 				 conn->authPasswd, Ns_ConnPeer(conn));
     switch (status) {
@@ -244,18 +244,18 @@ Ns_ConnRedirect(Ns_Conn *conn, char *url)
     case NS_FORBIDDEN:
         status = Ns_ConnFlushContent(conn);
         if (status == NS_OK) {
-            status = Ns_ReturnForbidden(conn);
+            status = Ns_ConnReturnForbidden(conn);
         }
         break;
     case NS_UNAUTHORIZED:
         status = Ns_ConnFlushContent(conn);
         if (status == NS_OK) {
-            status = Ns_ReturnUnauthorized(conn);
+            status = Ns_ConnReturnUnauthorized(conn);
         }
         break;
     case NS_ERROR:
     default:
-        status = Ns_ReturnInternalError(conn);
+        status = Ns_ConnReturnInternalError(conn);
         break;
     }
 

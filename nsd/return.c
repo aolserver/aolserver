@@ -34,7 +34,7 @@
  *	Functions that return data to a browser. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.9 2001/01/12 22:49:59 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.10 2001/01/15 18:53:17 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -371,8 +371,8 @@ Ns_ConnSetRequiredHeaders(Ns_Conn *conn, char *type, int length)
      */
 
     Ns_DStringInit(&ds);
-    Ns_HeadersCondPut(conn, "MIME-Version", "1.0");
-    Ns_HeadersCondPut(conn, "Date", Ns_HttpTime(&ds, NULL));
+    Ns_ConnCondSetHeaders(conn, "MIME-Version", "1.0");
+    Ns_ConnCondSetHeaders(conn, "Date", Ns_HttpTime(&ds, NULL));
     Ns_DStringTrunc(&ds, 0);
 
     /*
@@ -383,8 +383,8 @@ Ns_ConnSetRequiredHeaders(Ns_Conn *conn, char *type, int length)
     if (nsconf.serv.aolpress) {
     	Ns_DStringAppend(&ds, "NaviServer/2.0 ");
     }
-    Ns_DStringVarAppend(&ds, Ns_InfoServer(), "/", Ns_InfoVersion(), NULL);
-    Ns_HeadersCondPut(conn, "Server", ds.string);
+    Ns_DStringVarAppend(&ds, Ns_InfoServerName(), "/", Ns_InfoServerVersion(), NULL);
+    Ns_ConnCondSetHeaders(conn, "Server", ds.string);
 
     /*
      * Set the type and/or length headers if provided.  Note
@@ -421,7 +421,7 @@ Ns_ConnSetRequiredHeaders(Ns_Conn *conn, char *type, int length)
 void
 Ns_ConnSetTypeHeader(Ns_Conn *conn, char *type)
 {
-    Ns_HeadersPut(conn, "Content-Type", type);
+    Ns_ConnSetHeaders(conn, "Content-Type", type);
 }
 
 
@@ -450,7 +450,7 @@ Ns_ConnSetLengthHeader(Ns_Conn *conn, int length)
     connPtr = (Conn *) conn;
     connPtr->responseLength = length;
     sprintf(buf, "%d", length);
-    Ns_HeadersPut(conn, "Content-Length", buf);
+    Ns_ConnSetHeaders(conn, "Content-Length", buf);
 }
 
 
@@ -476,7 +476,7 @@ Ns_ConnSetLastModifiedHeader(Ns_Conn *conn, time_t *mtime)
     Ns_DString ds;
 
     Ns_DStringInit(&ds);
-    Ns_HeadersPut(conn, "Last-Modified", Ns_HttpTime(&ds, mtime));
+    Ns_ConnSetHeaders(conn, "Last-Modified", Ns_HttpTime(&ds, mtime));
     Ns_DStringFree(&ds);
 }
 
@@ -500,7 +500,7 @@ Ns_ConnSetLastModifiedHeader(Ns_Conn *conn, time_t *mtime)
 void
 Ns_ConnSetExpiresHeader(Ns_Conn *conn, char *expires)
 {
-    Ns_HeadersPut(conn, "Expires", expires);
+    Ns_ConnSetHeaders(conn, "Expires", expires);
 }
 
 
@@ -537,7 +537,7 @@ Ns_ConnPrintfHeader(Ns_Conn *conn, char *fmt,...)
         vsnprintf(buf, sizeof(buf)-1, fmt, ap);
 #endif
         va_end(ap);
-        result = Ns_PutsConn(conn, buf);
+        result = Ns_ConnPuts(conn, buf);
     } else {
         result = NS_OK;
     }
@@ -652,7 +652,7 @@ Ns_ConnReturnNotice(Ns_Conn *conn, int status, char *title, char *notice)
     
     Ns_DStringVarAppend(&ds, "\n</BODY></HTML>\n", NULL);
     
-    result = Ns_ReturnHtml(conn, status, ds.string, ds.length);
+    result = Ns_ConnReturnHtml(conn, status, ds.string, ds.length);
     Ns_DStringFree(&ds);
     return result;
 }
@@ -739,7 +739,7 @@ Ns_ConnReturnHtml(Ns_Conn *conn, int status, char *html, int len)
 int
 Ns_ConnReturnOk(Ns_Conn *conn)
 {
-    return Ns_ReturnStatus(conn, 200);
+    return Ns_ConnReturnStatus(conn, 200);
 }
 
 
@@ -763,7 +763,7 @@ Ns_ConnReturnOk(Ns_Conn *conn)
 int
 Ns_ConnReturnNoResponse(Ns_Conn *conn)
 {
-    return Ns_ReturnStatus(conn, 204);
+    return Ns_ConnReturnStatus(conn, 204);
 }
 
 
@@ -798,12 +798,12 @@ Ns_ConnReturnRedirect(Ns_Conn *conn, char *url)
             Ns_DStringAppend(&ds, Ns_ConnLocation(conn));
         }
         Ns_DStringAppend(&ds, url);
-        Ns_HeadersPut(conn, "Location", ds.string);
+        Ns_ConnSetHeaders(conn, "Location", ds.string);
 	Ns_DStringVarAppend(&msg, "<A HREF=\"", ds.string,
 		"\">The requested URL has moved here.</A>", NULL);
-	result = Ns_ReturnNotice(conn, 302, "Redirection", msg.string);
+	result = Ns_ConnReturnNotice(conn, 302, "Redirection", msg.string);
     } else {
-	result = Ns_ReturnNotice(conn, 204, "No Content", msg.string);
+	result = Ns_ConnReturnNotice(conn, 204, "No Content", msg.string);
     }
     Ns_DStringFree(&msg);
     Ns_DStringFree(&ds);
@@ -843,7 +843,7 @@ Ns_ConnReturnBadRequest(Ns_Conn *conn, char *reason)
     if (reason != NULL) {
         Ns_DStringVarAppend(&ds, "<P>\n", reason, NULL);
     }
-    result = Ns_ReturnNotice(conn, 400, "Invalid Request", ds.string);
+    result = Ns_ConnReturnNotice(conn, 400, "Invalid Request", ds.string);
     Ns_DStringFree(&ds);
     return result;
 }
@@ -877,10 +877,10 @@ Ns_ConnReturnUnauthorized(Ns_Conn *conn)
     }
     Ns_DStringInit(&ds);
     Ns_DStringVarAppend(&ds, "Basic realm=\"", nsconf.serv.realm, "\"", NULL);
-    Ns_HeadersPut(conn, "WWW-Authenticate", ds.string);
+    Ns_ConnSetHeaders(conn, "WWW-Authenticate", ds.string);
     Ns_DStringFree(&ds);
 
-    return Ns_ReturnNotice(conn, 401, "Access Denied",
+    return Ns_ConnReturnNotice(conn, 401, "Access Denied",
 	"The requested URL cannot be accessed because a "
 	"valid username and password are required.");
 }
@@ -910,7 +910,7 @@ Ns_ConnReturnForbidden(Ns_Conn *conn)
     if (ReturnRedirect(conn, 403, &result)) {
 	return result;
     }
-    return Ns_ReturnNotice(conn, 403, "Forbidden",
+    return Ns_ConnReturnNotice(conn, 403, "Forbidden",
 	"The requested URL cannot be accessed by this server.");
 }
 
@@ -939,7 +939,7 @@ Ns_ConnReturnNotFound(Ns_Conn *conn)
     if (ReturnRedirect(conn, 404, &result)) {
 	return result;
     }
-    return Ns_ReturnNotice(conn, 404, "Not Found",
+    return Ns_ConnReturnNotice(conn, 404, "Not Found",
 	"The requested URL was not found on this server.");
 }
 
@@ -963,7 +963,7 @@ Ns_ConnReturnNotFound(Ns_Conn *conn)
 int
 Ns_ConnReturnNotModified(Ns_Conn *conn)
 {
-    return Ns_ReturnStatus(conn, 304);
+    return Ns_ConnReturnStatus(conn, 304);
 }
 
 
@@ -991,7 +991,7 @@ Ns_ConnReturnNotImplemented(Ns_Conn *conn)
     if (ReturnRedirect(conn, 501, &result)) {
 	return result;
     }
-    return Ns_ReturnNotice(conn, 501, "Not Implemented",
+    return Ns_ConnReturnNotice(conn, 501, "Not Implemented",
 	"The requested URL or method is not implemented "
 	"by this server.");
 }
@@ -1022,7 +1022,7 @@ Ns_ConnReturnInternalError(Ns_Conn *conn)
     if (ReturnRedirect(conn, 500, &result)) {
 	return result;
     }
-    return Ns_ReturnNotice(conn, 500, "Server Error",
+    return Ns_ConnReturnNotice(conn, 500, "Server Error",
 	"The requested URL cannot be accessed "
 	"due to a system error on this server.");
 }
@@ -1052,7 +1052,7 @@ Ns_ConnReturnStatus(Ns_Conn *conn, int status)
     if (ReturnRedirect(conn, status, &result)) {
     	return result;
     }
-    Ns_HeadersRequired(conn, NULL, 0);
+    Ns_ConnSetRequiredHeaders(conn, NULL, 0);
     Ns_ConnFlushHeaders(conn, status);
     return Ns_ConnClose(conn);
 }
@@ -1232,7 +1232,7 @@ ReturnOpen(Ns_Conn *conn, int status, char *type, Tcl_Channel chan,
 {
     int result;
 
-    Ns_HeadersRequired(conn, type, len);
+    Ns_ConnSetRequiredHeaders(conn, type, len);
     result = Ns_ConnFlushHeaders(conn, status);
     if (result == NS_OK) {
 	if (chan != NULL) {

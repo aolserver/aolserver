@@ -35,7 +35,7 @@
  *	with registered procs and whatnot.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/tclop.c,v 1.4 2000/08/17 06:09:49 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/tclop.c,v 1.5 2001/01/15 18:53:17 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -589,8 +589,8 @@ TclDoOp(void *arg, Ns_Conn *conn)
     }
     if (Tcl_GlobalEval(interp, cmd.string) != TCL_OK) {
         Ns_TclLogError(interp);
-        if (Ns_ResetReturn(conn) == NS_OK) {
-            retval = Ns_ReturnInternalError(conn);
+        if (Ns_ConnResetReturn(conn) == NS_OK) {
+            retval = Ns_ConnReturnInternalError(conn);
         }
     }
     RunAtClose(interp);

@@ -34,7 +34,7 @@
  *	URL level HTTP authorization support.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/auth.c,v 1.4 2000/08/25 13:49:57 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/auth.c,v 1.5 2001/01/15 18:53:16 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -179,10 +179,10 @@ NsTclRequestAuthorizeCmd(ClientData dummy, Tcl_Interp *interp, int argc,
         return TCL_ERROR;
     }
     if (argc == 5) {
-        status = Ns_RequestAuthorize(Ns_TclInterpServer(interp),
+        status = Ns_AuthorizeRequest(Ns_TclInterpServer(interp),
                                      argv[1], argv[2], argv[3], argv[4], NULL);
     } else {
-        status = Ns_RequestAuthorize(Ns_TclInterpServer(interp),
+        status = Ns_AuthorizeRequest(Ns_TclInterpServer(interp),
                                      argv[1], argv[2], argv[3], argv[4],
 				     argv[5]);
     }

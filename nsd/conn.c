@@ -34,7 +34,7 @@
  *      Manage the Ns_Conn structure
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.5 2000/08/28 13:10:33 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.6 2001/01/15 18:53:16 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -1235,7 +1235,7 @@ Ns_QueryToSet(char *query, Ns_Set *set)
                   *value = '\0';
                 }
                 Ns_DStringTrunc(&ds, 0);
-                decode = Ns_UrlDecode(&ds, name);
+                decode = Ns_DecodeUrl(&ds, name);
                 if (decode == NULL) {
                     status = NS_ERROR;
                     goto done;
@@ -1245,7 +1245,7 @@ Ns_QueryToSet(char *query, Ns_Set *set)
                     *value++ = '=';
 
 		    Ns_DStringTrunc(&ds, 0);
-		    decode = Ns_UrlDecode(&ds, value);
+		    decode = Ns_DecodeUrl(&ds, value);
 		    if (decode == NULL) {
 			status = NS_ERROR;
 			goto done;

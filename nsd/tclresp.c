@@ -34,7 +34,7 @@
  *	Tcl commands for returning data to the user agent. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclresp.c,v 1.4 2000/08/25 13:49:57 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclresp.c,v 1.5 2001/01/15 18:53:17 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -92,8 +92,8 @@ NsTclHeadersCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
      * Set the required headers and then flush them out.
      */
     
-    Ns_HeadersRequired(conn, type, len);
-    if (Ns_HeadersFlush(conn, status) == NS_OK) {
+    Ns_ConnSetRequiredHeaders(conn, type, len);
+    if (Ns_ConnFlushHeaders(conn, status) == NS_OK) {
         Tcl_AppendResult(interp, "1", NULL);
     } else {
         Tcl_AppendResult(interp, "0", NULL);
@@ -154,9 +154,9 @@ NsTclReturnCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 
     len = strlen(argv[stringArg]);
 
-    Ns_HeadersRequired(conn, argv[typeArg], len);
+    Ns_ConnSetRequiredHeaders(conn, argv[typeArg], len);
 
-    if ((Ns_HeadersFlush(conn, status) == NS_OK) &&
+    if ((Ns_ConnFlushHeaders(conn, status) == NS_OK) &&
         (Ns_WriteConn(conn, argv[stringArg], len) == NS_OK)) {
 	
 	Tcl_AppendResult(interp, "1", NULL);
@@ -276,7 +276,7 @@ NsTclRespondCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
                             argv[i], "\"", NULL);
                         return TCL_ERROR;
                     }
-                    Ns_HeadersReplace(conn, set);
+                    Ns_ConnReplaceHeaders(conn, set);
                 }
             }
         }
@@ -326,7 +326,7 @@ NsTclRespondCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 	 * We'll be returining a file by name
 	 */
 	
-        if (Ns_ReturnFile(conn, status, type, filename) != NS_OK) {
+        if (Ns_ConnReturnFile(conn, status, type, filename) != NS_OK) {
             retval = TCL_ERROR;
         }
     } else {
@@ -337,8 +337,8 @@ NsTclRespondCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
         if (length == 0) {
             length = strlen(string);
         }
-        Ns_HeadersRequired(conn, type, length);
-        if ((Ns_HeadersFlush(conn, status) == NS_OK) &&
+        Ns_ConnSetRequiredHeaders(conn, type, length);
+        if ((Ns_ConnFlushHeaders(conn, status) == NS_OK) &&
             (Ns_WriteConn(conn, string, length) == NS_OK)) {
             retval = TCL_OK;
         } else {
@@ -407,7 +407,7 @@ NsTclReturnFileCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
     if (Tcl_GetInt(interp, argv[statusArg], &status) != TCL_OK) {
         return TCL_ERROR;
     }
-    if (Ns_ReturnFile(conn, status, argv[typeArg], 
+    if (Ns_ConnReturnFile(conn, status, argv[typeArg], 
 		      argv[filenameArg]) == NS_OK) {
 	Tcl_AppendResult(interp, "1", NULL);
     } else {
@@ -532,7 +532,7 @@ NsTclReturnBadRequestCmd(ClientData dummy, Tcl_Interp *interp, int argc,
         return TCL_ERROR;
     }
 
-    if (Ns_ReturnBadRequest(conn, argv[reasonArg]) != NS_OK) {
+    if (Ns_ConnReturnBadRequest(conn, argv[reasonArg]) != NS_OK) {
 	Tcl_AppendResult(interp, "0", NULL);
     } else {
 	Tcl_AppendResult(interp, "1", NULL);
@@ -649,7 +649,7 @@ NsTclReturnErrorCmd(ClientData dummy, Tcl_Interp *interp, int argc,
         return TCL_ERROR;
     }
 
-    if (Ns_ReturnAdminNotice(conn, status, "Request Error",
+    if (Ns_ConnReturnAdminNotice(conn, status, "Request Error",
 			     argv[messageArg]) == NS_OK) {
 	
 	Tcl_AppendResult(interp, "1", NULL);
@@ -745,7 +745,7 @@ NsTclReturnNoticeCmd(ClientData dummy, Tcl_Interp *interp,
     }
 
 
-    if (Ns_ReturnNotice(conn, status, argv[messageArg],
+    if (Ns_ConnReturnNotice(conn, status, argv[messageArg],
 			longMessage) == NS_OK) {
 
 	Tcl_AppendResult(interp, "1", NULL);
@@ -841,7 +841,7 @@ NsTclReturnAdminNoticeCmd(ClientData dummy, Tcl_Interp *interp, int argc,
 	longMessage = argv[longMessageArg];
     }
 
-    if (Ns_ReturnAdminNotice(conn, status, argv[messageArg], 
+    if (Ns_ConnReturnAdminNotice(conn, status, argv[messageArg], 
 			     longMessage) == NS_OK) {
 	Tcl_AppendResult(interp, "1", NULL);
     } else {
@@ -898,7 +898,7 @@ NsTclReturnRedirectCmd(ClientData dummy, Tcl_Interp *interp, int argc,
         return TCL_ERROR;
     }
 
-    if (Ns_ReturnRedirect(conn, argv[locationArg]) == NS_OK) {
+    if (Ns_ConnReturnRedirect(conn, argv[locationArg]) == NS_OK) {
 	Tcl_AppendResult(interp, "1", NULL);
     } else {
 	Tcl_AppendResult(interp, "0", NULL);
@@ -952,7 +952,7 @@ NsTclWriteCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
         Tcl_AppendResult(interp, "no connection", NULL);
         return TCL_ERROR;
     }
-    if (Ns_PutsConn(conn, argv[stringArg]) == NS_OK) {
+    if (Ns_ConnPuts(conn, argv[stringArg]) == NS_OK) {
 	Tcl_AppendResult(interp, "1", NULL);
     } else {
 	Tcl_AppendResult(interp, "0", NULL);
