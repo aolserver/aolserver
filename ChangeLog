@@ -1,3 +1,12 @@
+2004-06-14 16:40  Dossy Shiobara <dossy@panoptic.com>
+
+	* nsd/return.c: one-liner fix for sending Content-Length header
+	  for content of zero bytes (Bug #971016)
+
+2004-06-03  Rob Crittenden <rcrittenden0569@aol.com>
+
+    * TAG aolserver_v40_r5
+
 2004-06-03  Rob Crittenden <rcrittenden0569@aol.com>
 
 	* Makefile: remove Makefile.module during distclean
