@@ -33,7 +33,7 @@
  * 	Connect Tcl command names to the functions that implement them
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.32 2002/09/21 17:52:01 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.33 2002/10/14 23:20:52 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -85,6 +85,7 @@ extern Tcl_ObjCmdProc
     NsTclHttpObjCmd,
     NsTclHttpTimeObjCmd,
     NsTclInfoObjCmd,
+    NsTclJobObjCmd,
     NsTclJpegSizeObjCmd,
     NsTclKillObjCmd,
     //NsTclLibraryObjCmd,
@@ -162,7 +163,6 @@ extern Tcl_ObjCmdProc
     NsTclWriteObjCmd;
 
 extern Tcl_CmdProc
-    NsTclJobCmd,
     NsTclChanCmd,
     NsTclAfterCmd,
     NsTclAtCloseCmd,
@@ -326,15 +326,20 @@ static Cmd cmds[] = {
     {"ns_fmttime", NsTclStrftimeCmd, NsTclStrftimeObjCmd},
     {"ns_httptime", NsTclHttpTimeCmd, NsTclHttpTimeObjCmd},
     {"ns_parsehttptime", NsTclParseHttpTimeCmd, NsTclParseHttpTimeObjCmd},
-
+    {"ns_parsequery", NsTclParseQueryCmd, NsTclParseQueryObjCmd},
 
     {"ns_rand", NsTclRandCmd, NsTclRandObjCmd},
 
     {"ns_info", NsTclInfoCmd, NsTclInfoObjCmd},
     {"ns_modulepath", NsTclModulePathCmd, NsTclModulePathObjCmd},
 
+    /*
+     * log.c
+     */
+
     {"ns_log", NULL, NsTclLogObjCmd},
     {"ns_logctl", NULL, NsTclLogCtlObjCmd},
+    {"ns_logroll", NsTclLogRollCmd, NsTclLogRollObjCmd},
 
     {"ns_urlencode", NsTclUrlEncodeCmd, NsTclUrlEncodeObjCmd},
     {"ns_urldecode", NsTclUrlDecodeCmd, NsTclUrlDecodeObjCmd},
@@ -342,6 +347,19 @@ static Cmd cmds[] = {
     {"ns_uudecode", NsTclHTUUDecodeCmd, NsTclHTUUDecodeObjCmd},
     {"ns_gifsize", NsTclGifSizeCmd, NsTclGifSizeObjCmd},
     {"ns_jpegsize", NsTclJpegSizeCmd, NsTclJpegSizeObjCmd},
+    {"ns_guesstype", NsTclGuessTypeCmd, NsTclGuessTypeObjCmd},
+
+    {"ns_striphtml", NsTclStripHtmlCmd, NULL},
+    {"ns_quotehtml", NsTclQuoteHtmlCmd, NULL},
+    {"ns_hrefs", NsTclHrefsCmd, NULL},
+
+    /*
+     * tclconf.c
+     */
+
+    {"ns_config", NsTclConfigCmd, NULL},
+    {"ns_configsection", NsTclConfigSectionCmd, NULL},
+    {"ns_configsections", NsTclConfigSectionsCmd, NULL},
 
     /*
      * tclfile.c
@@ -374,9 +392,46 @@ static Cmd cmds[] = {
     {"env", NsTclEnvCmd, NULL}, /* NB: Backwards compatible. */
 
     /*
+     * tcljob.c
+     */
+
+    {"ns_job", NULL, NsTclJobObjCmd},
+
+    /*
+     * tclhttp.c
+     */
+
+    {"ns_http", NsTclHttpCmd, NsTclHttpObjCmd},
+
+    /*
+     * tclsched.c
+     */
+
+    {"ns_schedule_proc", NsTclSchedCmd, NULL},
+    {"ns_schedule_daily", NsTclSchedDailyCmd, NULL},
+    {"ns_schedule_weekly", NsTclSchedWeeklyCmd, NULL},
+    {"ns_atsignal", NsTclAtSignalCmd, NULL},
+    {"ns_atshutdown", NsTclAtShutdownCmd, NULL},
+    {"ns_atexit", NsTclAtExitCmd, NULL},
+    {"ns_after", NsTclAfterCmd, NULL},
+    {"ns_cancel", NsTclCancelCmd, NULL},
+    {"ns_pause", NsTclPauseCmd, NULL},
+    {"ns_resume", NsTclResumeCmd, NULL},
+    {"ns_unschedule_proc", NsTclUnscheduleCmd, NULL},
+
+    /*
+     * tclset.c
+     */
+
+    {"ns_set", NsTclSetCmd, NsTclSetObjCmd},
+    {"ns_parseheader", NsTclParseHeaderCmd, NULL},
+
+    /*
      * tclsock.c
      */
 
+    {"ns_sockcallback", NsTclSockCallbackCmd, NsTclSockCallbackObjCmd},
+    {"ns_socklistencallback", NsTclSockListenCallbackCmd, NsTclSockListenCallbackObjCmd},
     {"ns_sockblocking", NsTclSockSetBlockingCmd, NsTclSockSetBlockingObjCmd},
     {"ns_socknonblocking", NsTclSockSetNonBlockingCmd, NsTclSockSetNonBlockingObjCmd},
     {"ns_socknread", NsTclSockNReadCmd, NsTclSockNReadObjCmd},
@@ -420,6 +475,13 @@ static Cmd cmds[] = {
     {"ns_sema", NsTclSemaCmd, NsTclSemaObjCmd},
     {"ns_critsec", NsTclCritSecCmd, NsTclCritSecObjCmd},
 
+    /*
+     * tclinit.c
+     */
+
+    {"ns_init", NULL, NsTclDummyObjCmd},
+    {"ns_cleanup", NULL, NsTclDummyObjCmd},
+    {"ns_markfordelete", NsTclMarkForDeleteCmd, NsTclMarkForDeleteObjCmd},
 
     /*
      * Add more basic Tcl commands here.
@@ -434,13 +496,6 @@ static Cmd cmds[] = {
  */
 
 static Cmd servCmds[] = {
-
-    /*
-     * tclsock.c
-     */
-
-    {"ns_sockcallback", NsTclSockCallbackCmd, NsTclSockCallbackObjCmd},
-    {"ns_socklistencallback", NsTclSockListenCallbackCmd, NsTclSockListenCallbackObjCmd},
 
     /*
      * tclrequest.c
@@ -475,37 +530,18 @@ static Cmd servCmds[] = {
     {"ns_returnnotfound", NsTclReturnNotFoundCmd, NsTclReturnNotFoundObjCmd},
 
     /*
-     * tcljob.c
-     */
-
-    {"ns_job", NsTclJobCmd, NULL},
-
-    /*
-     * tclhttp.c
-     */
-
-    {"ns_http", NsTclHttpCmd, NsTclHttpObjCmd},
-
-    /*
      * tclfile.c
      */
 
     {"ns_chan", NsTclChanCmd, NsTclChanObjCmd},
     {"ns_url2file", NsTclUrl2FileCmd, NsTclUrl2FileObjCmd},
 
-    /*
-     * log.c
-     */
-
-    {"ns_logroll", NsTclLogRollCmd, NsTclLogRollObjCmd},
 
     {"ns_library", NsTclLibraryCmd, NULL},
-    {"ns_guesstype", NsTclGuessTypeCmd, NsTclGuessTypeObjCmd},
     {"ns_geturl", NsTclGetUrlCmd, NsTclGetUrlObjCmd},
 
     {"ns_checkurl", NsTclRequestAuthorizeCmd, NsTclRequestAuthorizeObjCmd},
     {"ns_requestauthorize", NsTclRequestAuthorizeCmd, NsTclRequestAuthorizeObjCmd},
-    {"ns_markfordelete", NsTclMarkForDeleteCmd, NsTclMarkForDeleteObjCmd},
 
     /*
      * tcladmin.c
@@ -517,7 +553,6 @@ static Cmd servCmds[] = {
      * conn.c
      */
 
-    {"ns_parsequery", NsTclParseQueryCmd, NsTclParseQueryObjCmd},
     {"ns_conncptofp", NsTclWriteContentCmd, NsTclWriteContentObjCmd},
     {"ns_writecontent", NsTclWriteContentCmd, NsTclWriteContentObjCmd},
     {"ns_conn", NsTclConnCmd, NsTclConnObjCmd},
@@ -530,41 +565,6 @@ static Cmd servCmds[] = {
     {"ns_adp_registeradp", NsTclAdpRegisterAdpCmd, NULL},
     {"ns_adp_registertag", NsTclAdpRegisterAdpCmd, NULL},
     {"ns_adp_registerproc", NsTclAdpRegisterProcCmd, NULL},
-
-    /*
-     * tclsched.c
-     */
-
-    {"ns_schedule_proc", NsTclSchedCmd, NULL},
-    {"ns_schedule_daily", NsTclSchedDailyCmd, NULL},
-    {"ns_schedule_weekly", NsTclSchedWeeklyCmd, NULL},
-    {"ns_atsignal", NsTclAtSignalCmd, NULL},
-    {"ns_atshutdown", NsTclAtShutdownCmd, NULL},
-    {"ns_atexit", NsTclAtExitCmd, NULL},
-    {"ns_after", NsTclAfterCmd, NULL},
-    {"ns_cancel", NsTclCancelCmd, NULL},
-    {"ns_pause", NsTclPauseCmd, NULL},
-    {"ns_resume", NsTclResumeCmd, NULL},
-    {"ns_unschedule_proc", NsTclUnscheduleCmd, NULL},
-
-    /*
-     * tclconf.c
-     */
-
-    {"ns_config", NsTclConfigCmd, NULL},
-    {"ns_configsection", NsTclConfigSectionCmd, NULL},
-    {"ns_configsections", NsTclConfigSectionsCmd, NULL},
-
-    {"ns_striphtml", NsTclStripHtmlCmd, NULL},
-    {"ns_quotehtml", NsTclQuoteHtmlCmd, NULL},
-    {"ns_hrefs", NsTclHrefsCmd, NULL},
-
-    /*
-     * tclset.c
-     */
-
-    {"ns_set", NsTclSetCmd, NsTclSetObjCmd},
-    {"ns_parseheader", NsTclParseHeaderCmd, NULL},
 
     /*
      * adpcmds.c
@@ -622,8 +622,6 @@ static Cmd servCmds[] = {
      */
 
     {"ns_ictl", NULL, NsTclICtlObjCmd},
-    {"ns_init", NULL, NsTclDummyObjCmd},
-    {"ns_cleanup", NULL, NsTclDummyObjCmd},
 
     /*
      * Add more server Tcl commands here.
@@ -666,7 +664,10 @@ void
 NsTclAddCmds(Tcl_Interp *interp, NsInterp *itPtr)
 {
     AddCmds(cmds, itPtr, interp);
-    if (itPtr != NULL) {
-        AddCmds(servCmds, itPtr, interp);
-    }
+}
+
+void
+NsTclAddServerCmds(Tcl_Interp *interp, NsInterp *itPtr)
+{
+    AddCmds(servCmds, itPtr, interp);
 }
