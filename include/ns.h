@@ -33,7 +33,7 @@
  *      All the public types and function declarations for the core
  *	AOLserver.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.41 2002/09/21 17:55:45 jgdavidson Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.42 2002/09/28 19:21:55 jgdavidson Exp $
  */
 
 #ifndef NS_H
@@ -42,7 +42,7 @@
 #define NS_MAJOR_VERSION   4
 #define NS_MINOR_VERSION   0
 #define NS_VERSION         "4.0"
-#define NS_PATCH_LEVEL     "4.0b4"
+#define NS_PATCH_LEVEL     "4.0"
 
 #include "nsthread.h"
 
@@ -205,9 +205,12 @@ typedef int   (Ns_TclTraceProc) (Tcl_Interp *interp, void *arg);
 typedef void  (Ns_TclDeferProc) (Tcl_Interp *interp, void *arg);
 typedef int   (Ns_SockProc) (int sock, void *arg, int why);
 typedef void  (Ns_SchedProc) (void *arg, int id);
+typedef int   (Ns_ServerInitProc) (char *server);
 typedef int   (Ns_ModuleInitProc) (char *server, char *module);
 typedef int   (Ns_RequestAuthorizeProc) (char *server, char *method,
 			char *url, char *user, char *pass, char *peer);
+typedef void  (Ns_AdpParserProc)(Ns_DString *outPtr, char *page);
+typedef int   (Ns_UserAuthorizeProc) (char *user, char *passwd);
 
 /*
  * The field of a key-value data structure.
@@ -342,7 +345,6 @@ typedef void  (Ns_TraceProc) (void *arg, Ns_Conn *conn);
 typedef int   (Ns_FilterProc) (void *arg, Ns_Conn *conn, int why);
 typedef int   (Ns_UrlToFileProc) (Ns_DString *dsPtr, char *server, char *url);
 typedef char *(Ns_LocationProc) (Ns_Conn *conn);
-typedef void  (Ns_AdpParserProc)(Ns_DString *, char *);
 
 /*
  * Typedefs of variables
@@ -356,23 +358,29 @@ typedef struct _Ns_Cls 		*Ns_Cls;
 typedef void 	      		*Ns_OpContext;
 
 /*
- * adp.c:
+ * adpparse.c:
  */
 
-NS_EXTERN int Ns_AdpRegisterParser(char *map, Ns_AdpParserProc *proc);
+NS_EXTERN int Ns_AdpRegisterParser(char *extension, Ns_AdpParserProc *proc);
+
+/*
+ * adprequest.c:
+ */
+
 NS_EXTERN int Ns_AdpRequest(Ns_Conn *conn, char *file);
 
 /*
  * auth.c:
  */
 
-NS_EXTERN void Ns_GenSeeds(unsigned long *seedsPtr, int nseeds);
-NS_EXTERN double Ns_DRand(void);
 NS_EXTERN int Ns_AuthorizeRequest(char *server, char *method, char *url,
 			       char *user, char *passwd, char *peer);
 NS_EXTERN void Ns_SetRequestAuthorizeProc(char *server,
     				       Ns_RequestAuthorizeProc *procPtr);
 NS_EXTERN void Ns_SetLocationProc(char *server, Ns_LocationProc *procPtr);
+NS_EXTERN void Ns_SetConnLocationProc(Ns_LocationProc *procPtr);
+NS_EXTERN void Ns_SetUserAuthorizeProc(Ns_UserAuthorizeProc *procPtr);
+NS_EXTERN int  Ns_AuthorizeUser(char *user, char *passwd);
 
 /*
  * cache.c:
@@ -521,6 +529,8 @@ NS_EXTERN char *Ns_DStringExport(Ns_DString *dsPtr);
 NS_EXTERN char *Ns_DStringPrintf(Ns_DString *dsPtr, char *fmt,...);
 NS_EXTERN char *Ns_DStringVPrintf(Ns_DString *dsPtr, char *fmt, va_list ap);
 NS_EXTERN char *Ns_DStringAppendArg(Ns_DString *dsPtr, char *string);
+NS_EXTERN Ns_DString *Ns_DStringPop(void);
+NS_EXTERN void  Ns_DStringPush(Ns_DString *dsPtr);
 
 /*
  * exec.c:
@@ -554,6 +564,7 @@ NS_EXTERN void *Ns_RegisterFilter(char *server, char *method, char *URL,
 			       Ns_FilterProc *proc, int when, void *args);
 NS_EXTERN void *Ns_RegisterServerTrace(char *server, Ns_TraceProc *proc, void *arg);
 NS_EXTERN void *Ns_RegisterConnCleanup(char *server, Ns_TraceProc *proc, void *arg);
+NS_EXTERN void *Ns_RegisterCleanup(Ns_TraceProc *proc, void *arg);
 
 /*
  * htuu.c
@@ -624,11 +635,24 @@ NS_EXTERN Ns_List *Ns_ListMapcar(Ns_List *lPtr, Ns_ElemValProc *valProc);
  */
 
 /*
+ * rand.c:
+ */
+
+NS_EXTERN void Ns_GenSeeds(unsigned long *seedsPtr, int nseeds);
+NS_EXTERN double Ns_DRand(void);
+/*
  * tclobj.c:
  */
 
 NS_EXTERN void Ns_TclSetTimeObj(Tcl_Obj *objPtr, Ns_Time *timePtr);
 NS_EXTERN int Ns_TclGetTimeFromObj(Tcl_Interp *interp, Tcl_Obj *objPtr, Ns_Time *timePtr);
+
+/*
+ * tclthread.c:
+ */
+
+NS_EXTERN int Ns_TclThread(Tcl_Interp *interp, char *script, Ns_Thread *thrPtr);
+NS_EXTERN int Ns_TclDetachedThread(Tcl_Interp *interp, char *script);
 
 /*
  * tclxkeylist.c:
@@ -660,6 +684,7 @@ NS_EXTERN int   Ns_LogRoll(void);
 NS_EXTERN void  Ns_Log(Ns_LogSeverity severity, char *fmt, ...);
 NS_EXTERN void  Ns_Fatal(char *fmt, ...);
 NS_EXTERN char *Ns_LogTime(char *timeBuf);
+NS_EXTERN char *Ns_LogTime2(char *timeBuf, int gmt);
 NS_EXTERN int   Ns_RollFile(char *file, int max);
 NS_EXTERN int   Ns_PurgeFiles(char *file, int max);
 NS_EXTERN int   Ns_RollFileByDate(char *file, int max);
@@ -668,7 +693,7 @@ NS_EXTERN int   Ns_RollFileByDate(char *file, int max);
  * nsmain.c:
  */
 
-NS_EXTERN int Ns_Main(int argc, char **argv);
+NS_EXTERN int Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc);
 NS_EXTERN int Ns_WaitForStartup(void);
 
 /*
@@ -715,6 +740,7 @@ NS_EXTERN Tcl_Encoding Ns_GetCharsetEncoding(char *charset);
 NS_EXTERN int Ns_ModuleLoad(char *server, char *module, char *file, char *init);
 NS_EXTERN void *Ns_ModuleSymbol(char *file, char *name);
 NS_EXTERN void *Ns_ModuleGetSymbol(char *name);
+NS_EXTERN void  Ns_RegisterModule(char *name, Ns_ModuleInitProc *prco);
 
 /*
  * nsthread.c:
@@ -757,6 +783,12 @@ NS_EXTERN char *Ns_ModulePath(Ns_DString *dsPtr, char *server, char *module, ...
 NS_EXTERN void Ns_RegisterProcDesc(void *procAddr, char *desc);
 NS_EXTERN void Ns_RegisterProcInfo(void *procAddr, char *desc, Ns_ArgProc *argProc);
 NS_EXTERN void Ns_GetProcInfo(Tcl_DString *dsPtr, void *procAddr, void *arg);
+
+/*
+ * queue.c:
+ */
+
+NS_EXTERN Ns_Conn *Ns_GetConn(void);
 
 /*
  * quotehtml.c:
@@ -938,7 +970,8 @@ NS_EXTERN char *Ns_StrNStr(char *pattern, char *expression);
  * tclenv.c:
  */
 
-NS_EXTERN char **Ns_GetEnvironment(Ns_DString *dsPtr);
+NS_EXTERN char **Ns_CopyEnviron(Ns_DString *dsPtr);
+NS_EXTERN char **Ns_GetEnviron(void);
 
 /*
  * tclfile.c:
@@ -957,11 +990,15 @@ NS_EXTERN int Ns_TclInitInterps(char *server, Ns_TclInterpInitProc *proc, void *
 NS_EXTERN void Ns_TclRegisterDeferred(Tcl_Interp *interp, Ns_TclDeferProc *proc, void *arg);
 NS_EXTERN void Ns_TclMarkForDelete(Tcl_Interp *interp);
 NS_EXTERN Tcl_Interp *Ns_TclCreateInterp(void);
+NS_EXTERN void Ns_TclDestroyInterp(Tcl_Interp *interp);
 NS_EXTERN Tcl_Interp *Ns_TclAllocateInterp(char *server);
 NS_EXTERN void Ns_TclDeAllocateInterp(Tcl_Interp *interp);
 NS_EXTERN char *Ns_TclLibrary(char *server);
 NS_EXTERN char *Ns_TclInterpServer(Tcl_Interp *interp);
 NS_EXTERN Ns_Conn *Ns_TclGetConn(Tcl_Interp *interp);
+NS_EXTERN int Ns_TclRegisterAtCreate(Ns_TclTraceProc *proc, void *arg);
+NS_EXTERN int Ns_TclRegisterAtCleanup(Ns_TclTraceProc *proc, void *arg);
+NS_EXTERN int Ns_TclRegisterAtDelete(Ns_TclTraceProc *proc, void *arg);
 
 /*
  * tclop.c:
