@@ -33,9 +33,29 @@
  * Support for connection filters, traces, and cleanups.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/filter.c,v 1.8 2001/04/13 19:51:01 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/filter.c,v 1.9 2002/08/25 19:56:34 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
+
+/*
+ * The following stuctures maintain connection filters
+ * and traces.       
+ */
+
+typedef struct Filter {
+    struct Filter *nextPtr;
+    Ns_FilterProc *proc;
+    char          *method;
+    char          *url;
+    int            when;
+    void          *arg;
+} Filter;
+
+typedef struct Trace {
+    struct Trace    *nextPtr;
+    Ns_TraceProc    *proc;
+    void            *arg;
+} Trace;
 
 static Trace *NewTrace(Ns_TraceProc *proc, void *arg);
 static void RunTraces(Ns_Conn *conn, Trace *firstPtr);
