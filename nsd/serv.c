@@ -33,7 +33,7 @@
  *	Routines for the core server connection threads.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/serv.c,v 1.9 2000/09/29 00:46:40 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Attic/serv.c,v 1.10 2000/10/16 15:06:05 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -204,6 +204,14 @@ Ns_QueueConn(void *drvPtr, void *drvData)
     if (create) {
     	CreateConnThread();
     }
+
+    /*
+     * Yield so a thread can grab the new connection, perhaps
+     * avoiding a startup storm.
+     */
+
+    Ns_ThreadYield();
+
     return status;
 }
 
