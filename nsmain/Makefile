@@ -27,9 +27,24 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nspd/Makefile,v 1.5 2001/05/28 21:30:04 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsmain/Attic/Makefile,v 1.1 2001/05/28 21:30:04 jgdavidson Exp $
 #
 
-LIB      =  libnspd.so
-OBJS     =  listen.o log.o main.o ../nsext/nsextmsg.o
-include  ../include/Makefile.library
+
+include ../include/Makefile.global
+
+MAIN	= nsd
+OBJS	= main.o
+
+all: $(MAIN)
+
+$(MAIN): $(OBJS)
+	$(CC) -o $(MAIN) $(OBJS) $(MAINLIBS)
+
+install: all
+	$(MKDIR) $(INSTBIN)
+	$(RM) $(INSTBIN)/$(MAIN)
+	$(CP) $(MAIN) $(INSTBIN)/
+
+clean:
+	$(RM) $(MAIN) $(OBJS)

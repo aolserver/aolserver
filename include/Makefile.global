@@ -8,7 +8,6 @@
 #
 # To build, type "gmake"
 # To override the default compiler on SOME platforms, type:
-# "gmake nativeme=1" or "gmake gccme=1".
 # To use Purify, type "gmake nativeme=1 PURIFY=/path/to/purify/executable".
 #
 
@@ -16,8 +15,12 @@
 # Installation directories.
 #
 
-PREFIX       =   /usr/local/aolserver
-INST         =   $(PREFIX)
+ifeq (,$(NSHOME))
+    NSHOME   =   $(shell pwd)/..
+endif
+ifeq (,$(INST))
+    INST     =   $(NSHOME)/root
+endif
 INSTBIN      =   $(INST)/bin
 INSTLIB      =   $(INST)/lib
 INSTINC      =   $(INST)/include
@@ -28,32 +31,37 @@ INSTSRV      =   $(INST)/servers/server1
 INSTSRVMOD   =   $(INSTSRV)/modules
 INSTSRVPAG   =   $(INSTSRV)/pages
 
+
 #
-# Tcl configuration.
+# Set DEBUG for debug build variables.
 #
 
-TCL_MAJOR  =   8
-TCL_MINOR  =   3
-TCL_PATCH  =   .3
-TCL_DEBUG  =   g
-TCL_DIR    =   tcl$(TCL_MAJOR).$(TCL_MINOR)$(TCL_PATCH)
-TCL_LIB    =   libtcl$(TCL_MAJOR).$(TCL_MINOR)$(TCL_DEBUG).a
-# NB: For older BSD versions:
-#TCL_LIB   =   libtcl$(TCL_MAJOR)$(TCL_MINOR)$(TCL_DEBUG).a
-LIBTCL     =   $(NSHOME)/$(TCL_DIR)/unix/$(TCL_LIB)
+DEBUG	     =   1
+GCC	     =   1
 
 #
 # Common build variables.
 #
-CC           =   gcc -pipe
-LD           =   ld
-LDSO	     =   $(CC) -shared -nostartfiles
-#CCOPT	     =	 -O2
-CCOPT	     =	 -g
-CFLAGS       +=  -I$(NSHOME)/include -D_REENTRANT=1 -DNDEBUG=1 -DTCL_THREADS=1
-LIBNSTHREAD  =   $(NSHOME)/thread/libnsthread.a
-LIBS         +=  
-MKDIR        =   mkdir -p
+
+ifeq (1,$(DEBUG))
+    CCOPT     	= -g
+    NSTCL_DBG  	=  g
+    NSTCL_CFG  	+= --enable-symbols
+else
+    CCOPT    	= -O2
+    CFLAGS   	+= -DNDEBUG=1
+endif
+
+ifeq (1,$(GCC))
+    CC       	=  gcc -pipe
+    LDSO     	=  gcc -shared -nostartfiles
+    NSTCL_CFG  	+= --enable-gcc
+else
+    CC	     =   $(PURIFY) cc
+endif
+
+CFLAGS       +=  -I$(NSHOME)/include -D_REENTRANT=1 -DTCL_THREADS=1
+MKDIR        =   /bin/mkdir -p
 RM           =   /bin/rm -f
 CP           =   /bin/cp -fp
 ECHO         =   /bin/echo
@@ -63,8 +71,47 @@ LN           =   ln -s
 AR           =   ar
 ARFLAGS      =   rv
 RANLIB       =   true
-RPATH = $(PREFIX)/lib:/usr/local/aolserver/lib:/opt/aolserver/lib:/usr/local/lib
 
+#
+# Directory configuration.
+#
+
+NSTCL_MAJOR  	= 8
+NSTCL_MINOR  	= 3
+NSTCL_PATCH  	= .3
+NSTCL_VERSION	= $(NSTCL_MAJOR).$(NSTCL_MINOR)
+NSTCL_ROOT	= $(NSHOME)/tcl$(NSTCL_VERSION)$(NSTCL_PATCH)
+NSTCL_DIR	= $(NSTCL_ROOT)/unix
+
+NSTHREAD_DIR	= $(NSHOME)/thread
+NSD_DIR		= $(NSHOME)/nsd
+
+
+#
+# Library configuration
+#
+
+NSTCL_CFG	+= --prefix=$(INST)
+NSTCL		= tcl$(NSTCL_VERSION)$(NSTCL_DBG)
+NSTCL_FILE	= lib$(NSTCL).so
+NSTCL_PATH	= $(NSTCL_DIR)/$(NSTCL_FILE)
+NSTCL_LIB	= -L$(NSTCL_DIR) -l$(NSTCL)
+
+NSTHREAD	= nsthread
+NSTHREAD_FILE	= lib$(NSTHREAD).so
+NSTHREAD_PATH	= $(NSTHREAD_DIR)/$(NSTHREAD_FILE)
+NSTHREAD_LIB	= -L$(NSTHREAD_DIR) -l$(NSTHREAD)
+
+NSD	 	= nsd
+NSD_FILE	= lib$(NSD).so
+NSD_PATH	= $(NSD_DIR)/$(NSD_FILE)
+NSD_LIB		= -L$(NSD_DIR) -l$(NSD)
+
+RFLAG		= -R
+RPATH		= $(RFLAG) $(INSTLIB) $(RFLAG) $(NSTCL_DIR) $(RFLAG) $(NSTHREAD_DIR) $(RFLAG) $(NSD_DIR)
+
+LIBS	     	= -lm $(RPATH)
+MAINLIBS	= $(NSTCL_LIB) $(NSTHREAD_LIB) $(NSD_LIB) $(LIBS)
 
 #
 # Figure the OS and architecture.
@@ -77,16 +124,12 @@ PLAT     = $(shell uname -a)
 #
 ifneq (,$(findstring HP-UX,$(PLAT)))
     PLATFORM=hp10
-
-    ifndef gccme
-        CC=$(PURIFY) cc
+    ifneq (1,$(GCC))
         CFLAGS+=-Ae +DAportable +z
     else
         CFLAGS+=-mpa-risc-1-0
     endif
-
     LDSO=$(LD) -b
-    NSDLIBS=-lm
     LDFLAGS=-Wl,-E
     LIBS+=-ldce -lc_r
     CFLAGS+=-D__hp10=1 -DHAVE_PTHREAD_D4=1 -DUSE_DLSHL=1 -DNEED_HERRNO=1
@@ -107,8 +150,6 @@ ifneq (,$(findstring Linux,$(PLAT)))
     ifneq (,$(findstring "i586",$(PLAT)))
         CFLAGS+=-mcpu=i586
     endif
-
-    NSDLIBS=-lm
     LIBS+=-ldl -lpthread 
     CFLAGS+=-DHAVE_CMMSG=1 -DUSE_FIONREAD=1 -DHAVE_COND_EINTR=1
 endif
@@ -122,17 +163,17 @@ endif
 ifneq (,$(findstring SunOS,$(PLAT)))
     PLATFORM=solaris
 
-    ifdef nativeme
+    ifneq (1,$(GCC))
         CC=$(PURIFY) /opt/SUNWspro/bin/cc
-        #CCOPT = -x02
+	ifneq (1,$(DEBUG))
+            CCOPT = -xO2
+	endif
         CFLAGS+=-KPIC -erroff=%none
         ifneq (,$(findstring sparc,$(PLAT)))
             CFLAGS+=-xarch=v8plusa
         else
             CFLAGS+=-xpentium
         endif
-    	LD=/usr/ccs/bin/ld
-    	LDSO=$(LD) -G
     else
         ifneq (,$(findstring sparc,$(PLAT)))
             CFLAGS+=-mcpu=ultrasparc
@@ -140,9 +181,9 @@ ifneq (,$(findstring SunOS,$(PLAT)))
             CFLAGS+=-mcpu=pentium
         endif
     endif
-
-    NSDLIBS=-lm
-    LIBS+=-lsocket -lnsl -ldl -lposix4 -lthread -lresolv -R $(RPATH)
+    LDSO=/usr/ccs/bin/ld -G
+    RPATH += $(RFLAG) /usr/lib/lwp
+    LIBS+=-lsocket -lnsl -ldl -lposix4 -lthread -lresolv
     AR=/usr/ccs/bin/ar
     CFLAGS+=-D_POSIX_PTHREAD_SEMANTICS=1 -DUSE_PTHREAD_SYSSCOPE=1 \
             -DUSE_PTHREAD_PSHARED=1 -DHAVE_ETIME_BUG=1 \
@@ -155,11 +196,11 @@ endif
 #
 ifneq (,$(findstring OSF1,$(PLAT)))
     PLATFORM=osf
-    CC=$(PURIFY) cc
+    # gcc not verified
+    CC=cc
     CFLAGS+=-std1 -pthread -DNO__ENVIRON=1
     LDFLAGS+=-pthread
     LDSO=$(LD) -shared -expect_unresolved '*'
-    NSDLIBS=-lm
     LIBS+=-lrt
 endif
 
@@ -169,21 +210,17 @@ endif
 #
 ifneq (,$(findstring IRIX,$(PLAT)))
     PLATFORM=irix
-
     ## Purify seems to work on Irix o32 only.
-    ifndef gccme
+    ifneq (1,$(GCC))
         ABI=o32
-        CC=$(PURIFY) cc
         ##CCOPT = -g3 -O2
         CFLAGS  += -$(ABI) -KPIC -fullwarn -DUSE_DUPHIGH=1
     else
         ABI=n32
         CFLAGS += -mcpu=mips
     endif
-
     LDFLAGS += -$(ABI) 
     LDSO=$(LD) -$(ABI) -shared
-    NSDLIBS=-lm
     CFLAGS+=-D_SGI_MP_SOURCE=1 -DNO_LONGDBL=1
     ifeq ($(USE_SPROC), 0)
     	LIBS += -lpthread
@@ -192,7 +229,6 @@ ifneq (,$(findstring IRIX,$(PLAT)))
     endif
 
 endif
-
 
 #
 # FreeBSD
@@ -208,7 +244,6 @@ ifneq (,$(findstring FreeBSD,$(PLAT)))
     RANLIB=ranlib
     CFLAGS+=-D_THREAD_SAFE=1 -DHAVE_CMMSG=1 -DNO_TIMEZONE=1 \
 	   -DHAVE_TIMEGM=1 -DNO__ENVIRON=1
-    NSDLIBS=-lm
 endif
 
 
@@ -227,7 +262,6 @@ ifneq (,$(findstring OpenBSD,$(PLAT)))
     CFLAGS+=-DHAVE_CMMSG=1 -DUSE_DLSYMPREFIX=1 -DUSE_RTLD_LAZY=1 \
            -DNO_TIMEZONE=1 -DHAVE_TIMEGM=1 -D_THREAD_SAFE=1 \
 	   -DNO__ENVIRON=1
-    NSDLIBS=-lm
 endif
 
 
@@ -241,7 +275,6 @@ ifneq (,$(findstring UnixWare,$(PLAT)))
     LDFLAGS=-Wl,-B export
     LDSO=$(LD) -G
     LIBS+=-Kthread -lsocket
-    NSDLIBS=-lm
     CLFAGS+=-DUSE_PTHREAD_SYSSCOPE=1 -DHAVE_SENDV=1 -DHAVE_CMMSG=1
 endif
 
@@ -261,7 +294,6 @@ ifeq (osx,$(PLATFORM))
     CFLAGS+=-dynamic -traditional-cpp
     LDSO=$(LD) -bundle -undefined suppress
     RANLIB=ranlib
-    NSDLIBS=
     CFLAGS+=-DHAVE_CMMSG=1 -DUSE_DYLD=1 -DUSE_DLSYMPREFIX=1 \
             -DNO_RAND48=1 -DNO_TIMEZONE=1 -DMACOSX=1
 endif
@@ -275,24 +307,3 @@ endif
 #
 
 CFLAGS += $(CCOPT)
-
-#
-# Rules for library dependencies.
-#
-
-all:
-
-libnspd:
-	(cd $(NSHOME)/nspd && $(MAKE) all)
-
-libtcl:
-	(cd $(NSHOME)/$(TCL_DIR) && $(MAKE) all)
-
-libtcl-clean:
-	(cd $(NSHOME)/$(TCL_DIR) && $(MAKE) clean)
-
-libnsthread:
-	(cd $(NSHOME)/thread && $(MAKE) all)
-
-libnsthread-clean:
-	(cd $(NSHOME)/thread && $(MAKE) clean)

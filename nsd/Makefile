@@ -1,44 +1,50 @@
+#
+# The contents of this file are subject to the AOLserver Public License
+# Version 1.1 (the "License"); you may not use this file except in
+# compliance with the License. You may obtain a copy of the License at
+# http://aolserver.com/.
+#
+# Software distributed under the License is distributed on an "AS IS"
+# basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+# the License for the specific language governing rights and limitations
+# under the License.
+#
+# The Original Code is AOLserver Code and related documentation
+# distributed by AOL.
+# 
+# The Initial Developer of the Original Code is America Online,
+# Inc. Portions created by AOL are Copyright (C) 1999 America Online,
+# Inc. All Rights Reserved.
+#
+# Alternatively, the contents of this file may be used under the terms
+# of the GNU General Public License (the "GPL"), in which case the
+# provisions of GPL are applicable instead of those above.  If you wish
+# to allow use of your version of this file only under the terms of the
+# GPL and not to allow others to use your version of this file under the
+# License, indicate your decision by deleting the provisions above and
+# replace them with the notice and other provisions required by the GPL.
+# If you do not delete the provisions above, a recipient may use your
+# version of this file under either the License or the GPL.
+# 
+#
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Makefile,v 1.23 2001/05/28 21:30:04 jgdavidson Exp $
+#
 
-NSHOME   =  ..
 
-include $(NSHOME)/include/Makefile.global
-
-
-LIBS	+= $(NSDLIBS)
-
+LIB	= $(NSD_FILE)
 OBJS = \
 	adpcmds.o adpeval.o adpparse.o adprequest.o auth.o binder.o \
 	cache.o callbacks.o cls.o config.o conn.o connio.o crypt.o \
 	dbdrv.o dbinit.o dbtcl.o dbutil.o dns.o driver.o dstring.o \
 	dsprintf.o encoding.o exec.o fastpath.o fd.o filter.o form.o \
 	httptime.o index.o info.o lisp.o listen.o log.o \
-	main.o mimetypes.o modload.o nsconf.o nsmain.o nsthread.o \
+	mimetypes.o modload.o nsconf.o nsmain.o nsthread.o \
 	op.o pathname.o pidfile.o proc.o queue.o quotehtml.o \
 	random.o request.o return.o rollfile.o sched.o server.o \
 	set.o sock.o sockcallback.o str.o tclatclose.o tclcmds.o tclconf.o \
 	tclenv.o tclfile.o tclhttp.o tclimg.o tclinit.o tcljob.o tclmisc.o \
 	tclresp.o tclrequest.o tclsched.o tclset.o tclshare.o tclsock.o \
 	tclobj.o tclthread.o tclvar.o tclxkeylist.o tls.o unix.o url.o \
-	urlencode.o urlopen.o urlspace.o uuencode.o
+	urlencode.o urlopen.o urlspace.o uuencode.o stamp.o
 
-#
-# Name the executables
-#
-
-INIT	 = init.tcl
-NSD      = nsd
-all: $(NSD)
-
-$(NSD): $(LIBTCL) $(LIBNSTHREAD) $(OBJS) stamp.c
-	$(CC) -c stamp.c
-	$(CC) $(LDFLAGS) stamp.o $(OBJS) $(LIBTCL) $(LIBNSTHREAD) $(LIBS) -o $@
-
-$(OBJS): nsd.h nsconf.h
-
-install: $(NSD)
-	$(RM) $(INSTBIN)/$(NSD)
-	$(CP) $(NSD) $(INSTBIN)/
-	$(CP) $(INIT) $(INSTBIN)/
-
-clean:
-	$(RM) $(NSD) $(OBJS) so_locations
+include ../include/Makefile.library

@@ -8,29 +8,17 @@
 #         for most shared objects.
 #
 
-include $(NSHOME)/include/Makefile.global
+include ../include/Makefile.global
 
 all: $(MOD)
-
-# Override LIBS variable
-LIBS=
 
 $(MOD): $(OBJS)
 	$(RM) $(MOD)
 	$(LDSO) -o $(MOD) $(OBJS) $(MODLIBS)
 
-$(OBJS): $(HDRS)
-
-install: all
+install: all $(MODINST)
 	$(RM) $(INSTBIN)/$(MOD)
 	$(CP) $(MOD) $(INSTBIN)
 
 clean:
 	$(RM) $(OBJS) $(MOD) so_locations
-
-clobber: clean
-	$(RM) *.so *.o *.a *~
-
-distclean: clobber
-	$(RM) TAGS core
-

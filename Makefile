@@ -1,22 +1,52 @@
 #
-# Makefile --
+# The contents of this file are subject to the AOLserver Public License
+# Version 1.1 (the "License"); you may not use this file except in
+# compliance with the License. You may obtain a copy of the License at
+# http://aolserver.com/.
 #
-#      Compile, link, and install AOLserver.
+# Software distributed under the License is distributed on an "AS IS"
+# basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+# the License for the specific language governing rights and limitations
+# under the License.
+#
+# The Original Code is AOLserver Code and related documentation
+# distributed by AOL.
+# 
+# The Initial Developer of the Original Code is America Online,
+# Inc. Portions created by AOL are Copyright (C) 1999 America Online,
+# Inc. All Rights Reserved.
+#
+# Alternatively, the contents of this file may be used under the terms
+# of the GNU General Public License (the "GPL"), in which case the
+# provisions of GPL are applicable instead of those above.  If you wish
+# to allow use of your version of this file only under the terms of the
+# GPL and not to allow others to use your version of this file under the
+# License, indicate your decision by deleting the provisions above and
+# replace them with the notice and other provisions required by the GPL.
+# If you do not delete the provisions above, a recipient may use your
+# version of this file under either the License or the GPL.
+# 
+#
+# $Header: /Users/dossy/Desktop/cvs/aolserver/Makefile,v 1.21 2001/05/28 21:30:04 jgdavidson Exp $
 #
 
 #
 # Tell make where AOLserver source code lives.
 #
+
 NSHOME    =  $(shell pwd)
 MAKEFLAGS += NSHOME=$(NSHOME)
 
 include $(NSHOME)/include/Makefile.global
 
 #
-# AOLserver Dynamically-Loaded Modules
+# The nsthread, Tcl, nsd libraries and nsd main directories.
 #
-#  Choose the modules you want and put them in the MODULES variable below.
-#  A typical web server might load nssock, nslog, and nsperm.
+
+DIRS	= thread $(NSTCL_ROOT) nsd nsmain
+
+#
+# Optional module directories:
 #
 #   nssock      -- serves HTTP
 #   nsssl       -- serves HTTPS
@@ -28,29 +58,19 @@ include $(NSHOME)/include/Makefile.global
 #   nspd        -- Archive library for building an external driver
 #
 
-MODULES   =  nssock nsssl nscgi nscp nslog nsperm nsext nspd 
+DIRS	+= nssock nsssl nscgi nscp nslog nsperm nsext nspd 
 
-ALLDIRS   = thread $(TCL_DIR) nsd $(MODULES) 
-
-#
-# Main build rule.
-#
 all:
-	@for i in $(ALLDIRS); do \
+	@for i in $(DIRS); do \
 		$(ECHO) "building \"$$i\""; \
 		( cd $$i && $(MAKE) all ) || exit 1; \
 	done
 
-#
-# Installation rule.
-#
-install:
+install: all
 	$(MKDIR)                    $(INSTBIN)
 	$(MKDIR)                    $(INSTLOG)
 	$(MKDIR)                    $(INSTTCL)
 	$(MKDIR)                    $(INSTLIB)
-	$(MKDIR)                    $(INSTLIB)/tcl8.3
-	( cd $(TCL_DIR)/library && $(CP) -r . $(INSTLIB)/tcl8.3 || exit 1; )
 	$(MKDIR)                    $(INSTSRVMOD)
 	$(MKDIR)                    $(INSTSRVPAG)
 	$(CP) -r tcl                $(INSTMOD)
@@ -59,27 +79,19 @@ install:
 	$(CP) nsd/sample-config.tcl $(INST)
 	test -f $(INSTSRVPAG)/index.html \
 		|| $(CP) doc/default-home.html $(INSTSRVPAG)/index.html
-	@for i in $(ALLDIRS); do \
+	@for i in $(DIRS); do \
 		$(ECHO) "installing \"$$i\""; \
 		( cd $$i && $(MAKE) install) || exit 1; \
 	done
-	(cd thread && $(MAKE) install)
 
-
-#
-# Test pages and scripts installation rule.
-#
 install-tests:
 	$(CP) -r tests $(INSTSRVPAG)
 
-#
-# Cleaning rule.
-#
 clean: 
-	@for i in $(ALLDIRS); do \
+	@for i in $(DIRS); do \
 		$(ECHO) "cleaning \"$$i\""; \
 		( cd $$i && $(MAKE) $@) || exit 1; \
 	done
 
 distclean: clean
-	(cd $(TCL_DIR); make distclean)
+	(cd $(NSTCL_ROOT); make distclean)
