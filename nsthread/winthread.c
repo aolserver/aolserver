@@ -164,14 +164,16 @@ DllMain(HANDLE hModule, DWORD why, LPVOID lpReserved)
 	 */
 
 	wPtr = TlsGetValue(tlskey);
-	NsCleanupTls(wPtr->slots);
-	if (!CloseHandle(wPtr->event)) {
-	    NsThreadFatal("DllMain", "CloseHandle", GetLastError());
+	if (wPtr) {
+	    NsCleanupTls(wPtr->slots);
+	    if (!CloseHandle(wPtr->event)) {
+	        NsThreadFatal("DllMain", "CloseHandle", GetLastError());
+	    }
+	    if (!TlsSetValue(tlskey, NULL)) {
+	        NsThreadFatal("DllMain", "TlsSetValue", GetLastError());
+	    }
+	    ns_free(wPtr);
 	}
-	if (!TlsSetValue(tlskey, NULL)) {
-	    NsThreadFatal("DllMain", "TlsSetValue", GetLastError());
-	}
-	ns_free(wPtr);
 	break;
 
     case DLL_PROCESS_DETACH:
@@ -704,13 +706,12 @@ void
 NsCreateThread(void *arg, long stacksize, Ns_Thread *resultPtr)
 {
     ThreadArg *argPtr;
-    unsigned hdl, tid, flags;
+    unsigned hdl, tid;
 
-    flags = (resultPtr ? 0 : CREATE_SUSPENDED);
     argPtr = ns_malloc(sizeof(ThreadArg));
     argPtr->arg = arg;
     argPtr->self = NULL;
-    hdl = _beginthreadex(NULL, stacksize, ThreadMain, argPtr, flags, &tid);
+    hdl = _beginthreadex(NULL, stacksize, ThreadMain, argPtr, 0, &tid);
     if (hdl == 0) {
     	NsThreadFatal("NsCreateThread", "_beginthreadex", errno);
     }
@@ -718,7 +719,6 @@ NsCreateThread(void *arg, long stacksize, Ns_Thread *resultPtr)
 	CloseHandle((HANDLE) hdl);
     } else {
 	argPtr->self = (HANDLE) hdl;
-	ResumeThread(argPtr->self);
 	*resultPtr = (Ns_Thread) hdl;
     }
 }
