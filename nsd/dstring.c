@@ -35,7 +35,7 @@
  *	with Tcl_DString's.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/dstring.c,v 1.4 2000/08/25 13:49:57 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/dstring.c,v 1.5 2000/11/09 01:49:25 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -51,6 +51,7 @@ typedef struct {
 
 static Ns_Tls tls;  	    	    /* Cache TLS. */
 static Ns_Callback FlushDStrings;   /* Cache TLS cleannup. */
+static void GrowDString(Ns_DString *dsPtr, int length);
 
 
 /*
@@ -139,22 +140,11 @@ Ns_DStringAppendElement(Ns_DString *dsPtr, char *string)
     newSize = Tcl_ScanElement(string, &flags) + dsPtr->length + 1;
 
     /*
-     * Allocate a larger buffer for the string if the current one isn't
-     * large enough.  Allocate extra space in the new buffer so that there
-     * will be room to grow before we have to allocate again.
-     * SPECIAL NOTE: must use memcpy, not strcpy, to copy the string
-     * to a larger buffer, since there may be embedded NULLs in the
-     * string in some cases.
+     * Grow the string if necessary.
      */
 
     if (newSize >= dsPtr->spaceAvl) {
-	dsPtr->spaceAvl = newSize*2;
-	newString = ns_malloc((size_t) dsPtr->spaceAvl);
-	memcpy(newString, dsPtr->string, (size_t) dsPtr->length);
-	if (dsPtr->string != dsPtr->staticSpace) {
-	    ns_free(dsPtr->string);
-	}
-	dsPtr->string = newString;
+	GrowDString(dsPtr, newSize * 2);
     }
 
     /*
@@ -294,22 +284,7 @@ Ns_DStringSetLength(Ns_DString *dsPtr, int length)
 	length = 0;
     }
     if (length >= dsPtr->spaceAvl) {
-	char *newString;
-
-	dsPtr->spaceAvl = length+1;
-	newString = ns_malloc((size_t) dsPtr->spaceAvl);
-
-	/*
-	 * SPECIAL NOTE: must use memcpy, not strcpy, to copy the string
-	 * to a larger buffer, since there may be embedded NULLs in the
-	 * string in some cases.
-	 */
-
-	memcpy(newString, dsPtr->string, (size_t) dsPtr->length);
-	if (dsPtr->string != dsPtr->staticSpace) {
-	    ns_free(dsPtr->string);
-	}
-	dsPtr->string = newString;
+	GrowDString(dsPtr, length+1);
     }
     dsPtr->length = length;
     dsPtr->string[length] = 0;
@@ -364,25 +339,17 @@ Ns_DStringNAppend(Ns_DString *dsPtr, char *string, int length)
     }
     newSize = length + dsPtr->length;
 
-   /*
-    * Allocate a larger buffer for the string if the current one isn't large
-    * enough.  Allocate extra space in the new buffer so that there will be
-    * room to grow before we have to allocate again.
-    */
+    /*
+     * Grow the string if necessary.
+     */
 
     if (newSize >= dsPtr->spaceAvl) {
-	dsPtr->spaceAvl = newSize * 2;
-	newString = (char *) ns_malloc((unsigned) dsPtr->spaceAvl);
-	memcpy(newString, dsPtr->string, dsPtr->length);
-	if (dsPtr->string != dsPtr->staticSpace) {
-	    ns_free(dsPtr->string);
-	}
-	dsPtr->string = newString;
+	GrowDString(dsPtr, newSize * 2);
     }
 
-   /*
-    * Copy the new string into the buffer at the end of the old one.
-    */
+    /*
+     * Copy the new string into the buffer at the end of the old one.
+     */
 
     memcpy(dsPtr->string + dsPtr->length, string, length);
     dsPtr->length += length;
@@ -525,8 +492,8 @@ Ns_DStringPop(void)
 	Ns_DStringInit(dsPtr);
     } else {
 	dsPtr = sPtr->firstPtr;
-	sPtr->firstPtr = dsPtr->addr;
-    	dsPtr->addr = NULL;
+	sPtr->firstPtr = *((Ns_DString **) dsPtr->staticSpace);
+    	dsPtr->staticSpace[0] = 0;
 	--sPtr->ncached;
     }
     return dsPtr;
@@ -563,7 +530,7 @@ Ns_DStringPush(Ns_DString *dsPtr)
 	} else {
     	    Ns_DStringTrunc(dsPtr, 0);
 	}
-    	dsPtr->addr = sPtr->firstPtr;
+	*((Ns_DString **) dsPtr->staticSpace) = sPtr->firstPtr;
 	sPtr->firstPtr = dsPtr;
 	++sPtr->ncached;
     }
@@ -592,9 +559,42 @@ FlushDStrings(void *arg)
     Ns_DString *dsPtr;
 
     while ((dsPtr = sPtr->firstPtr) != NULL) {
-	sPtr->firstPtr = dsPtr->addr;
+	sPtr->firstPtr = *((Ns_DString **) dsPtr->staticSpace);
 	Ns_DStringFree(dsPtr);
 	ns_free(dsPtr);
     }
     ns_free(sPtr);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ * GrowDString --
+ *
+ *	Increase the space available in a dstring.  Note that
+ *	memcpy() is used instead of strcpy() because the string
+ *	may have embedded nulls.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *  	New memory will be allocated.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+GrowDString(Ns_DString *dsPtr, int length)
+{
+    char *newString;
+
+    if (dsPtr->string != dsPtr->staticSpace) {
+	newString = ns_realloc(dsPtr->string, (size_t) length);
+    } else {
+	newString = ns_malloc(length);
+	memcpy(newString, dsPtr->string, (size_t) dsPtr->length);
+    }
+    dsPtr->string = newString;
+    dsPtr->spaceAvl = length;
 }
