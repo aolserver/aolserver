@@ -33,7 +33,7 @@
  *	ADP connection request support.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adprequest.c,v 1.6 2001/03/26 15:34:15 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adprequest.c,v 1.7 2001/03/27 16:45:04 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -95,6 +95,7 @@ Ns_AdpRequest(Ns_Conn *conn, char *file)
 {
     Conn	     *connPtr = (Conn *) conn;
     Tcl_Interp       *interp;
+    Tcl_DString	      response;
     NsInterp          *itPtr;
     int               status;
     char             *type, *start, *argv[1];
@@ -108,6 +109,8 @@ Ns_AdpRequest(Ns_Conn *conn, char *file)
     interp = Ns_GetConnInterp(conn);
     itPtr = NsGetInterp(interp);
     servPtr = itPtr->servPtr;
+    Tcl_DStringInit(&response);
+    itPtr->adp.responsePtr = &response;
 
     /*
      * Set the old conn variable for backwards compatibility.
@@ -147,13 +150,9 @@ Ns_AdpRequest(Ns_Conn *conn, char *file)
      */
 
     status = NS_OK;
-    if (!(conn->flags & NS_CONN_SENTHDRS)) {
-	if (itPtr->adp.exception == ADP_OVERFLOW) {
-	    Ns_Log(Error, "adp: stack overflow: '%s'", file);
-	    status = Ns_ConnReturnInternalError(conn);
-	} else if (itPtr->adp.exception != ADP_ABORT) {
-	    status = AdpFlush(itPtr, 0);
-	}
+    if (!(conn->flags & NS_CONN_SENTHDRS)
+	    && itPtr->adp.exception != ADP_ABORT) {
+	status = AdpFlush(itPtr, 0);
     }
 
     /*
@@ -172,7 +171,7 @@ Ns_AdpRequest(Ns_Conn *conn, char *file)
     itPtr->adp.debugFile = NULL;
     NsAdpSetMimeType(itPtr, NULL);
     NsAdpSetCharSet(itPtr, NULL);
-    Tcl_DStringFree(&itPtr->adp.response);
+    Tcl_DStringFree(&response);
     return status;
 }
 
@@ -198,8 +197,8 @@ void
 NsAdpFlush(NsInterp *itPtr)
 {
     if (itPtr->adp.stream
-	&& itPtr->conn != NULL
-	&& itPtr->adp.response.length > 0) {
+	&& itPtr->adp.responsePtr != NULL
+	&& itPtr->adp.responsePtr->length > 0) {
 	if (AdpFlush(itPtr, 1) != NS_OK) {
 	    itPtr->adp.stream = 0;
 	}
@@ -303,15 +302,14 @@ static int
 AdpFlush(NsInterp *itPtr, int stream)
 {
     Ns_Conn *conn;
-    Tcl_DString  ds, *dsPtr;
+    Tcl_DString  ds;
     int result, len, senthdrs;
     char *buf, *charset, *type;
 
     Tcl_DStringInit(&ds);
     conn = itPtr->conn;
-    dsPtr = &itPtr->adp.response;
-    buf = dsPtr->string;
-    len = dsPtr->length;
+    buf = itPtr->adp.responsePtr->string;
+    len = itPtr->adp.responsePtr->length;
     type = itPtr->adp.mimetype;
 
     /*
@@ -366,6 +364,6 @@ AdpFlush(NsInterp *itPtr, int stream)
     }
 
     Tcl_DStringFree(&ds);
-    Tcl_DStringTrunc(dsPtr, 0);
+    Tcl_DStringTrunc(itPtr->adp.responsePtr, 0);
     return result;
 }

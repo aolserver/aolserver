@@ -99,7 +99,6 @@
 #define ADP_OK       0
 #define ADP_BREAK    1
 #define ADP_ABORT    2
-#define ADP_OVERFLOW 3
 #define ADP_RETURN   4
 
 #define Dev         (Debug+1)
@@ -630,7 +629,7 @@ typedef struct NsInterp {
 	Ns_Cache	  *cache;
 	Tcl_Encoding	   encoding;
 	Tcl_DString	  *outputPtr;
-	Tcl_DString	   response;
+	Tcl_DString	  *responsePtr;
     } adp;
     
     /*

@@ -33,7 +33,7 @@
  *	ADP string and file eval.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.5 2001/03/26 15:39:26 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.6 2001/03/27 16:45:04 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -219,22 +219,15 @@ NsAdpSource(NsInterp *itPtr, char *file, int argc, char **argv)
 int
 NsAdpInclude(NsInterp *itPtr, char *file, int argc, char **argv)
 {
-    Conn *connPtr = (Conn *) itPtr->conn;
-
-    /*
-     * Ensure a connection is active.
-     */
-
-    if (connPtr == NULL) {
-	Tcl_SetResult(itPtr->interp, "no connection", TCL_STATIC);
-	return TCL_ERROR;
-    }
-
     /*
      * Direct output to the ADP response buffer.
      */
 
-    return AdpRun(itPtr, file, argc, argv, &itPtr->adp.response);
+    if (itPtr->adp.responsePtr == NULL) {
+	Tcl_SetResult(itPtr->interp, "no connection", TCL_STATIC);
+	return TCL_ERROR;
+    }
+    return AdpRun(itPtr, file, argc, argv, itPtr->adp.responsePtr);
 }
 
 static int
@@ -472,8 +465,9 @@ NsAdpDebug(NsInterp *itPtr, char *host, char *port, char *procs)
 	 * which can be monitored with a variable watch.
 	 */
 
-	if (Tcl_LinkVar(itPtr->interp, "ns_adp_output",
-			(char *) &itPtr->adp.response.string,
+	if (itPtr->adp.responsePtr != NULL &&
+	    Tcl_LinkVar(itPtr->interp, "ns_adp_output",
+			(char *) &itPtr->adp.responsePtr->string,
 		TCL_LINK_STRING | TCL_LINK_READ_ONLY) != TCL_OK) {
 	    Ns_TclLogError(itPtr->interp);
 	}
