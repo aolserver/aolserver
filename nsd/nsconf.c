@@ -34,7 +34,7 @@
  *	Various core configuration.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsconf.c,v 1.10 2000/11/09 01:51:55 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsconf.c,v 1.11 2001/01/12 22:52:32 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #include "nsconf.h"
@@ -181,7 +181,11 @@ NsConfInit(void)
      */
      
     nsconf.dns.cache   = GetBool(PARAMS, "dnscache", DNS_CACHE_BOOL);
-    nsconf.dns.timeout = GetInt(PARAMS, "dnscachetimeout", DNS_TIMEOUT_INT) * 60;
+    nsconf.dns.timeout = GetInt(PARAMS, "dnscachetimeout", DNS_TIMEOUT_INT);
+    if (nsconf.dns.cache && nsconf.dns.timeout > 0) {
+	/* NB: Config in minutes, internally in seconds. */
+	NsEnableDNSCache(nsconf.dns.timeout * 60);
+    }
 
     /*
      * dstring.c
