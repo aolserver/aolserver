@@ -34,7 +34,7 @@
  *	Support for the socket callback thread.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sockcallback.c,v 1.12 2003/03/07 18:08:35 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sockcallback.c,v 1.13 2004/09/29 18:58:30 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -277,7 +277,7 @@ SockCallbackThread(void *ignored)
 {
     char          c;
     int           when[3], events[3];
-    int           n, i, whenany, new, stop;
+    int           n, i, new, stop;
     int		  max, nfds;
     Callback     *cbPtr;
     Tcl_HashEntry *hPtr;
@@ -293,8 +293,7 @@ SockCallbackThread(void *ignored)
     events[2] = POLLPRI;
     when[0] = NS_SOCK_READ;
     when[1] = NS_SOCK_WRITE;
-    when[2] = NS_SOCK_EXCEPTION;
-    whenany = (when[0] | when[1] | when[2] | NS_SOCK_EXIT);
+    when[2] = NS_SOCK_EXCEPTION | NS_SOCK_DROP;
     max = 100;
     pfds = ns_malloc(sizeof(struct pollfd) * max);
     pfds[0].fd = trigPipe[0];
@@ -340,7 +339,7 @@ SockCallbackThread(void *ignored)
 	hPtr = Tcl_FirstHashEntry(&table, &search);
 	while (hPtr != NULL) {
 	    cbPtr = Tcl_GetHashValue(hPtr);
-	    if (!(cbPtr->when & whenany)) {
+	    if (!(cbPtr->when & NS_SOCK_ANY)) {
 	    	Tcl_DeleteHashEntry(hPtr);
 		ns_free(cbPtr);
 	    } else {
