@@ -2,7 +2,7 @@
  * The contents of this file are subject to the AOLserver Public License
  * Version 1.1 (the "License"); you may not use this file except in
  * compliance with the License. You may obtain a copy of the License at
- * http://aolserver.com/.
+ * http://aolserver.lcs.mit.edu/.
  *
  * Software distributed under the License is distributed on an "AS IS"
  * basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
@@ -36,7 +36,7 @@
  *  	fixed size blocks from per-thread block caches.  
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/pool.c,v 1.3 2000/08/02 23:38:25 kriston Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/thread/Attic/pool.c,v 1.4 2000/08/14 19:34:19 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "thread.h"
 #include <assert.h>
@@ -111,29 +111,60 @@ static Ns_Mutex bucketLocks[NBUCKETS];
 
 #define GETTHREADPOOL()	(&(NsGetThread())->memPool)
 #define GETPOOL()	(initialized ? GETTHREADPOOL() : &sharedPool)
-#define BLOCK2PTR(bPtr) ((void *) ((bPtr) + 1))
-#define PTR2BLOCK(ptr)	((Block *) ((char *) (ptr) - sizeof(Block)))
+#define BLOCK2PTR(bp)	((void *) (bp + 1))
+#define PTR2BLOCK(ptr)	(((Block *) ptr) - 1)
 
-#define SETBLOCK(bPtr,bucket,size) \
-			(bPtr)->b_magic1 = (bPtr)->b_magic2 = MAGIC;\
-			(bPtr)->b_bucket = bucket;\
-			(bPtr)->b_size = size
+/*
+ * If range checking is enabled, an additional byte will be allocated
+ * to store the magic number at the end of the request memory.
+ * CHECKBLOCK and SETBLOCK will then verify this byte to detect
+ * possible overwrite.
+ */
 
-#define CHECKBLOCK(bPtr) \
-    	    	    	((bPtr)->b_magic1==MAGIC && (bPtr)->b_magic2==MAGIC)
+#ifndef RCHECK
+#ifdef NDEBUG
+#define RCHECK		0
+#else
+#define RCHECK		1
+#endif
+#endif
 
-#define POPBLOCK(pPtr,bucket,bPtr) \
-    	    	    	(bPtr) = ((pPtr)->firstPtr)[(bucket)];\
-			((pPtr)->firstPtr)[(bucket)] = (bPtr)->b_next;\
-			--(((pPtr)->nfree)[(bucket)])
+#if RCHECK
 
-#define PUSHBLOCK(pPtr,bPtr,bucket) \
-    	    	    	(bPtr)->b_next = ((pPtr)->firstPtr)[(bucket)];\
-			((pPtr)->firstPtr)[(bucket)] = (bPtr);\
-			++(((pPtr)->nfree)[(bucket)])
+#define SETBLOCK(bp,i,sz) 			\
+    bp->b_magic1 = bp->b_magic2 = MAGIC;	\
+    bp->b_bucket = i;				\
+    bp->b_size = sz;				\
+    ((unsigned char *)(bp+1))[sz] = MAGIC
 
-#define UNLOCKBUCKET(i) Ns_MutexUnlock(&bucketLocks[(i)])
-#define LOCKBUCKET(i)	Ns_MutexLock(&bucketLocks[(i)])
+#define CHECKBLOCK(bp) \
+    (bp->b_magic1==MAGIC && bp->b_magic2==MAGIC && \
+     ((unsigned char *)(bp+1))[bp->b_size]==MAGIC)
+
+#else
+
+#define SETBLOCK(bp,i,sz) 			\
+    bp->b_magic1 = bp->b_magic2 = MAGIC;	\
+    bp->b_bucket = i;				\
+    bp->b_size = sz
+
+#define CHECKBLOCK(bp) 				\
+    (bp->b_magic1==MAGIC && bp->b_magic2==MAGIC)
+
+#endif
+
+#define POPBLOCK(pp,i,bp) \
+    bp = pp->firstPtr[i];\
+    pp->firstPtr[i] = bp->b_next;\
+    --pp->nfree[i]
+
+#define PUSHBLOCK(pp,bp,i) \
+    bp->b_next = pp->firstPtr[i];\
+    pp->firstPtr[i] = bp;\
+    ++pp->nfree[i]
+
+#define UNLOCKBUCKET(i) Ns_MutexUnlock(&bucketLocks[i])
+#define LOCKBUCKET(i)	Ns_MutexLock(&bucketLocks[i])
 
 
 /*
@@ -228,10 +259,6 @@ NsPoolMalloc(size_t reqsize)
     register int   bucket;
     size_t  	   size;
     
-    if (reqsize > 0) {
-    	++reqsize;
-    }
-
     /*
      * Increment the requested size to include room for 
      * the Block structure.  Call malloc() directly if the
@@ -242,6 +269,9 @@ NsPoolMalloc(size_t reqsize)
 
     blockPtr = NULL;     
     size = reqsize + sizeof(Block);
+#if RCHECK
+    ++size;
+#endif
     if (size > MAXALLOC) {
 	bucket = SYSBUCKET;
     	blockPtr = malloc(size);
@@ -295,18 +325,22 @@ NsPoolFree(void *ptr)
      */
 
     blockPtr = PTR2BLOCK(ptr);
+#ifndef NDEBUG
     assert(CHECKBLOCK(blockPtr));
-    if (CHECKBLOCK(blockPtr)) {
-	bucket = blockPtr->b_bucket;
-	if (bucket == SYSBUCKET) {
-	    free(blockPtr);
-	} else {
-    	    poolPtr = GETPOOL();
-    	    PUSHBLOCK(poolPtr, blockPtr, bucket);
-    	    if (poolPtr != &sharedPool &&
-		poolPtr->nfree[bucket] > MAXBLOCKS(bucket)) {
-		PutBlocks(poolPtr, bucket, NMOVE(bucket));
-    	    }
+#else
+    if (!CHECKBLOCK(blockPtr)) {
+	return;
+    }
+#endif
+    bucket = blockPtr->b_bucket;
+    if (bucket == SYSBUCKET) {
+	free(blockPtr);
+    } else {
+    	poolPtr = GETPOOL();
+    	PUSHBLOCK(poolPtr, blockPtr, bucket);
+    	if (poolPtr != &sharedPool &&
+	    poolPtr->nfree[bucket] > MAXBLOCKS(bucket)) {
+	    PutBlocks(poolPtr, bucket, NMOVE(bucket));
 	}
     }
 }
@@ -336,19 +370,18 @@ NsPoolRealloc(void *ptr, size_t reqsize)
     size_t size, min;
     int bucket;
 
-    if (reqsize > 0) {
-	++reqsize;
-    }
-
     /*
      * First, get and block from the user pointer and verify it.
      */
 
     blockPtr = PTR2BLOCK(ptr);
+#ifndef NDEBUG
     assert(CHECKBLOCK(blockPtr));
+#else
     if (!CHECKBLOCK(blockPtr)) {
     	return NULL;
     }
+#endif
 
     /*
      * Next, if the block is not a system block and fits in place,
@@ -358,6 +391,9 @@ NsPoolRealloc(void *ptr, size_t reqsize)
      */
 
     size = reqsize + sizeof(Block);
+#if RCHECK
+    ++size;
+#endif
     bucket = blockPtr->b_bucket;
     if (bucket != SYSBUCKET) {
 	if (bucket > 0) {
@@ -471,7 +507,7 @@ GetBlocks(Pool *poolPtr, int bucket)
      * verified after the lock is actually aquired.
      */
      
-    if (poolPtr != &sharedPool && sharedPool.nfree[bucket] > 0) {    
+    if (poolPtr != &sharedPool && sharedPool.nfree[bucket] > 0) {
 	LOCKBUCKET(bucket);
 	if (sharedPool.nfree[bucket] > 0) {
 
