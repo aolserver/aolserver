@@ -1,3 +1,11 @@
+2002-12-02  Jim Davidson <jgdavidson@aol.com>
+
+	* nsthread/winthread.c:  Ns_ThreadSelf now returns actual
+	thread handle instead of silly pseudo handle.
+
+	* nsd/nsmain.c:  Fixed crash bug with win32 service mode.
+
+
 2002-12-02  Shahzad Chaudhri <schaudhri@aol.com>
 
 	* nsd/nsd.h:  Bumped label to aolserver_v35_b2.
@@ -6,6 +14,7 @@
         host entries.
 
 	* doc/...:  Added tcl api man pages.
+
 
 2002-11-10  Jim Davidson <jgdavidson@aol.com>
 
@@ -32,7 +41,7 @@
 	* nsthread/winthread.c (new file):
 	* nsthread/pthread.c (new file):
 	* nsthread/error.c:
-	* * nsthread/mutex.c:
+	* nsthread/mutex.c:
 	* nsthread/nsthreadtest.c:
 	* nsthread/reentrant.c:
 	* nsthread/thread.c:
@@ -44,7 +53,7 @@
 	* win32/README: 
 	* win32/nsthread:
 	* win32/nsd:
-	* win32/...:  Restore most of the previous WIN32 build environment.
+	* win32/...:  Restored most of the previous WIN32 build environment.
 	The README includes updated notes on how to build and test.
 
 
