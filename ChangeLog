@@ -1,5 +1,8 @@
 2003-06-18  Mark Page  <mpagenva@aol.com>
 
+	* nsthread/thread.c (Ns_ThreadCreate): Fix typo in Ns_ThreadCreate
+	that was causing it to ignore the stacksize parameter.
+
 	* nsd/init.tcl (_ns_eval): Fix ns_eval to prevent it's bleeding of
 	unintended Tcl environment change to the global interp state.
 
