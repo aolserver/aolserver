@@ -33,7 +33,7 @@
  *	Ns_Info* API and ns_info command support.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/info.c,v 1.10 2002/07/08 02:50:55 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/info.c,v 1.11 2002/10/30 00:01:44 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -567,7 +567,7 @@ NsTclInfoCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
     } else if (STREQ(cmd, "tcllib")
 	|| STREQ(cmd, "pageroot")
 	|| STREQ(cmd, "server")) {
-	if (itPtr == NULL) {
+	if (itPtr->servPtr == NULL) {
 	    Tcl_SetResult(interp, "no server", TCL_STATIC);
 	    return TCL_ERROR;
 	}
@@ -781,7 +781,7 @@ NsTclInfoObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
     case ITclLibIdx:
     case IPageRootIdx:
     case IServerIdx:
-	if (itPtr == NULL) {
+	if (itPtr->servPtr == NULL) {
 	    Tcl_SetResult(interp, "no server", TCL_STATIC);
 	    return TCL_ERROR;
 	}
