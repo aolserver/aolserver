@@ -1225,14 +1225,10 @@ fi
 if eval "test \"`echo '$ac_cv_func_'gethostbyname_r`\" = yes"; then
   echo "$ac_t""yes" 1>&6
   
-  cat >> confdefs.h <<\EOF
-#define HAVE_GETHOSTBYNAME_R 1
-EOF
-
   echo $ac_n "checking for gethostbyname_r with 6 args""... $ac_c" 1>&6
-echo "configure:1234: checking for gethostbyname_r with 6 args" >&5
+echo "configure:1230: checking for gethostbyname_r with 6 args" >&5
   cat > conftest.$ac_ext <<EOF
-#line 1236 "configure"
+#line 1232 "configure"
 #include "confdefs.h"
 
     #include <netdb.h>
@@ -1249,9 +1245,13 @@ int main() {
   
 ; return 0; }
 EOF
-if { (eval echo configure:1253: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
+if { (eval echo configure:1249: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
   rm -rf conftest*
   
+    cat >> confdefs.h <<\EOF
+#define HAVE_GETHOSTBYNAME_R 1
+EOF
+
     cat >> confdefs.h <<\EOF
 #define HAVE_GETHOSTBYNAME_R_6 1
 EOF
@@ -1288,6 +1288,10 @@ if { (eval echo configure:1288: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; 
   rm -rf conftest*
   
       cat >> confdefs.h <<\EOF
+#define HAVE_GETHOSTBYNAME_R 1
+EOF
+
+      cat >> confdefs.h <<\EOF
 #define HAVE_GETHOSTBYNAME_R_5 1
 EOF
 
@@ -1300,9 +1304,9 @@ else
   
       echo "$ac_t""no" 1>&6
       echo $ac_n "checking for gethostbyname_r with 3 args""... $ac_c" 1>&6
-echo "configure:1304: checking for gethostbyname_r with 3 args" >&5
+echo "configure:1308: checking for gethostbyname_r with 3 args" >&5
       cat > conftest.$ac_ext <<EOF
-#line 1306 "configure"
+#line 1310 "configure"
 #include "confdefs.h"
 
         #include <netdb.h>
@@ -1317,9 +1321,13 @@ int main() {
       
 ; return 0; }
 EOF
-if { (eval echo configure:1321: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
+if { (eval echo configure:1325: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
   rm -rf conftest*
   
+        cat >> confdefs.h <<\EOF
+#define HAVE_GETHOSTBYNAME_R 1
+EOF
+
         cat >> confdefs.h <<\EOF
 #define HAVE_GETHOSTBYNAME_R_3 1
 EOF
@@ -1350,12 +1358,12 @@ CFLAGS="$saved_CFLAGS"
 saved_CFLAGS=$CFLAGS
 CFLAGS="$CFLAGS -lnsl"
 echo $ac_n "checking for gethostbyaddr_r""... $ac_c" 1>&6
-echo "configure:1354: checking for gethostbyaddr_r" >&5
+echo "configure:1362: checking for gethostbyaddr_r" >&5
 if eval "test \"`echo '$''{'ac_cv_func_gethostbyaddr_r'+set}'`\" = set"; then
   echo $ac_n "(cached) $ac_c" 1>&6
 else
   cat > conftest.$ac_ext <<EOF
-#line 1359 "configure"
+#line 1367 "configure"
 #include "confdefs.h"
 /* System header to define __stub macros and hopefully few prototypes,
     which can conflict with char gethostbyaddr_r(); below.  */
@@ -1378,7 +1386,7 @@ gethostbyaddr_r();
 
 ; return 0; }
 EOF
-if { (eval echo configure:1382: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
+if { (eval echo configure:1390: \"$ac_link\") 1>&5; (eval $ac_link) 2>&5; } && test -s conftest${ac_exeext}; then
   rm -rf conftest*
   eval "ac_cv_func_gethostbyaddr_r=yes"
 else
@@ -1393,14 +1401,10 @@ fi
 if eval "test \"`echo '$ac_cv_func_'gethostbyaddr_r`\" = yes"; then
   echo "$ac_t""yes" 1>&6
   
-  cat >> confdefs.h <<\EOF
-#define HAVE_GETHOSTBYADDR_R 1
-EOF
-
   echo $ac_n "checking for gethostbyaddr_r with 7 args""... $ac_c" 1>&6
-echo "configure:1402: checking for gethostbyaddr_r with 7 args" >&5
+echo "configure:1406: checking for gethostbyaddr_r with 7 args" >&5
   cat > conftest.$ac_ext <<EOF
-#line 1404 "configure"
+#line 1408 "configure"
 #include "confdefs.h"
 
     #include <netdb.h>
@@ -1419,9 +1423,13 @@ int main() {
   
 ; return 0; }
 EOF
-if { (eval echo configure:1423: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
+if { (eval echo configure:1427: \"$ac_compile\") 1>&5; (eval $ac_compile) 2>&5; }; then
   rm -rf conftest*
   
+    cat >> confdefs.h <<\EOF
+#define HAVE_GETHOSTBYADDR_R 1
+EOF
+
     cat >> confdefs.h <<\EOF
 #define HAVE_GETHOSTBYADDR_R_7 1
 EOF
