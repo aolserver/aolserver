@@ -33,7 +33,7 @@
  *	ADP commands.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpcmds.c,v 1.11 2002/07/14 23:13:49 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpcmds.c,v 1.12 2003/01/15 21:04:08 shmooved Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -506,7 +506,9 @@ NsTclAdpArgvObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
     	if (Tcl_GetIntFromObj(interp, objv[1], &i) != TCL_OK) {
     	    return TCL_ERROR;
     	}
-    	Tcl_SetObjResult(interp, itPtr->adp.objv[i]);
+        if ((i + 1) <= itPtr->adp.objc) {
+    	    Tcl_SetObjResult(interp, itPtr->adp.objv[i]);
+        }
     }
     return TCL_OK;
 }
