@@ -33,7 +33,7 @@
  *	Routines for managing NsServer structures.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.32 2004/10/26 19:52:27 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.33 2005/01/15 23:56:24 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -146,21 +146,19 @@ NsInitServer(char *server, Ns_ServerInitProc *initProc)
      * Set some server options.
      */
      
+    servPtr->opts.flags = 0;
     servPtr->opts.realm = Ns_ConfigGetValue(path, "realm");
     if (servPtr->opts.realm == NULL) {
     	servPtr->opts.realm = server;
     }
-    if (!Ns_ConfigGetBool(path, "enableaolpress", &servPtr->opts.aolpress)) {
-    	servPtr->opts.aolpress = 0;
+    if (Ns_ConfigGetBool(path, "enableaolpress", &i) && i) {
+    	servPtr->opts.flags |= SERV_AOLPRESS;
     }
-    if (!Ns_ConfigGetBool(path, "checkmodifiedsince", &servPtr->opts.modsince)) {
-    	servPtr->opts.modsince = 1;
+    if (!Ns_ConfigGetBool(path, "checkmodifiedsince", &i) || i) {
+    	servPtr->opts.flags |= SERV_MODSINCE;
     }
-    if (!Ns_ConfigGetBool(path, "flushcontent", &servPtr->opts.flushcontent)) {
-    	servPtr->opts.flushcontent = 0;
-    }
-    if (!Ns_ConfigGetBool(path, "noticedetail", &servPtr->opts.noticedetail)) {
-    	servPtr->opts.noticedetail = 1;
+    if (!Ns_ConfigGetBool(path, "noticedetail", &i) || i) {
+    	servPtr->opts.flags |= SERV_NOTICEDETAIL;
     }
     p = Ns_ConfigGetValue(path, "headercase");
     if (p != NULL && STRIEQ(p, "tolower")) {
@@ -170,6 +168,20 @@ NsInitServer(char *server, Ns_ServerInitProc *initProc)
     } else {
     	servPtr->opts.hdrcase = Preserve;
     }
+    if (!Ns_ConfigGetBool(path, "chunked", &i) || i) {
+    	servPtr->opts.flags |= SERV_CHUNKED;
+    }
+    if (!Ns_ConfigGetBool(path, "gzip", &i) || i) {
+    	servPtr->opts.flags |= SERV_GZIP;
+    }
+    if (!Ns_ConfigGetInt(path, "gzipmin", &i) || i <= 0) {
+	i = 4 * 1024;
+    }
+    servPtr->opts.gzipmin = i;
+    if (!Ns_ConfigGetInt(path, "gziplevel", &i) || i < 0 || i > 9) {
+	i = 4;
+    }
+    servPtr->opts.gziplevel = i;
 
     /*
      * Encoding defaults for the server.
@@ -363,11 +375,11 @@ NsInitServer(char *server, Ns_ServerInitProc *initProc)
     if (Ns_ConfigGetBool(path, "singlescript", &i) && i) {
     	servPtr->adp.flags |= ADP_SINGLE;
     }
-    if (!Ns_ConfigGetBool(path, "enableexpire", &servPtr->adp.enableexpire)) {
-    	servPtr->adp.enableexpire = 0;
+    if (Ns_ConfigGetBool(path, "enableexpire", &i) && i) {
+    	servPtr->adp.flags |= ADP_EXPIRE;
     }
-    if (!Ns_ConfigGetBool(path, "enabledebug", &servPtr->adp.enabledebug)) {
-    	servPtr->adp.enabledebug = 0;
+    if (Ns_ConfigGetBool(path, "enabledebug", &i) && i) {
+    	servPtr->adp.flags |= ADP_DEBUG;
     }
     servPtr->adp.debuginit = Ns_ConfigGetValue(path, "debuginit");
     if (servPtr->adp.debuginit == NULL) {
@@ -381,6 +393,10 @@ NsInitServer(char *server, Ns_ServerInitProc *initProc)
 	n = 5 * 1024 * 1000;
     }
     servPtr->adp.cachesize = n;
+    if (!Ns_ConfigGetInt(path, "bufsize", &n)) {
+	n = 1 * 1024 * 1000;
+    }
+    servPtr->adp.bufsize = n;
 
     /*
      * Initialize the page and tag tables and locks.
@@ -401,6 +417,7 @@ NsInitServer(char *server, Ns_ServerInitProc *initProc)
     for (i = 0; set != NULL && i < Ns_SetSize(set); ++i) {
 	char **largv;
 	int largc, ttl;
+	Ns_Time *ttlPtr;
 	char *methods[] = {"GET", "HEAD", "POST"};
 
 	key = Ns_SetKey(set, i);
@@ -408,16 +425,20 @@ NsInitServer(char *server, Ns_ServerInitProc *initProc)
 	    map = Ns_SetValue(set, i);
 	    if (Tcl_SplitList(NULL, map, &largc, &largv) == TCL_OK) {
 		if (largc == 1) {
-		    ttl = -1;
-		} else if (largc == 2) {
-		    (void) Tcl_GetInt(NULL, largv[1], &ttl);
+		    ttlPtr = NULL;
 		} else {
-		    Ns_Log(Error, "adp[%s]: invalid map: %s", server, map);
-		    continue;
+		    if (largc != 2 ||
+			Tcl_GetInt(NULL, largv[1], &ttl) != TCL_OK) {
+		    	Ns_Log(Error, "adp[%s]: invalid map: %s", server, map);
+		    	continue;
+		    }
+		    ttlPtr = ns_malloc(sizeof(Ns_Time));
+		    ttlPtr->sec = ttl;
+		    ttlPtr->usec = 0;
 		}
 		for (j = 0; j < 3; ++j) {
 	    	    Ns_RegisterRequest(server, methods[j], largv[0],
-					NsAdpProc, NULL, (void *) ttl, 0);
+					NsAdpProc, NULL, ttlPtr, 0);
 		}
 	    	Ns_Log(Notice, "adp[%s]: mapped %s %d", server, map, ttl);
 		Tcl_Free((char *) largv);

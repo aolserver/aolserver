@@ -34,7 +34,7 @@
  *	Functions that return data to a browser. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.41 2004/07/30 12:38:47 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.42 2005/01/15 23:56:24 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -426,7 +426,7 @@ Ns_ConnSetRequiredHeaders(Ns_Conn *conn, char *type, int length)
      * if AOLpress support is enabled.
      */
 
-    if (connPtr->servPtr->opts.aolpress) {
+    if (connPtr->servPtr->opts.flags & SERV_AOLPRESS) {
     	Ns_DStringAppend(&ds, "NaviServer/2.0 ");
     }
     Ns_DStringVarAppend(&ds, Ns_InfoServerName(), "/", Ns_InfoServerVersion(), NULL);
@@ -674,7 +674,7 @@ Ns_ConnReturnNotice(Ns_Conn *conn, int status, char *title, char *notice)
     /*
      * Detailed server information at the bottom of the page.
      */
-    if (servPtr->opts.noticedetail) {
+    if (servPtr->opts.flags & SERV_NOTICEDETAIL) {
 	Ns_DStringVarAppend(&ds, "<P ALIGN=RIGHT><SMALL><I>",
 			    Ns_InfoServerName(), "/",
 			    Ns_InfoServerVersion(), " on ",
