@@ -1,5 +1,10 @@
 2004-09-24  Dossy Shiobara <dossy@panoptic.com>
 
+	* include/nsthread.h (1.27): Win32 supports the
+	  get{addr,name}info() API, so use it.
+
+2004-09-24  Dossy Shiobara <dossy@panoptic.com>
+
 	* nsd/dns.c (1.11): Small memory leak introduced on platforms w/
 	  getaddrinfo.	Closes SF Bug #1033575.
 
