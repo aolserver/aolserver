@@ -1,12 +1,12 @@
 <%
 set values [list \
     Host [ns_info hostname] \
-    Boot Time [clock format [ns_info boottime] -format %c] \
+    "Boot Time" [clock format [ns_info boottime] -format %c] \
     Label [ns_info label] \
     Version [ns_info version] \
     Build [ns_info builddate] \
     Uptime [_ns_stats.fmtSeconds [ns_info uptime]] \
-    Keep Alive [ns_server keepalive] \
+    "Keep Alive" [ns_server keepalive] \
     Threads [join [ns_server threads] <br>] \
     Active [join [ns_server active] <br>]]
   
