@@ -79,7 +79,7 @@
  *	"ns:data" and accessible by NsGetInterpData.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.43 2005/03/25 00:38:59 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.44 2005/05/07 23:36:18 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -149,6 +149,9 @@ static int UpdateInterp(NsInterp *itPtr);
 static void RunTraces(NsInterp *itPtr, int why);
 static int EvalTrace(Tcl_Interp *interp, void *arg);
 static int RegisterAt(Ns_TclTraceProc *proc, void *arg, int when);
+static Tcl_AsyncProc AsyncCancel;
+static Tcl_HashTable interps;
+static Ns_Mutex ilock;
 
 /*
  * Static variables defined in this file.
@@ -183,6 +186,8 @@ NsInitTcl(void)
      */
 
     Ns_TlsAlloc(&tls, DeleteInterps);
+    Tcl_InitHashTable(&interps, TCL_STRING_KEYS);
+    Ns_MutexSetName(&ilock, "ns:interps");
 }
 
 /*
@@ -856,20 +861,24 @@ int
 NsTclICtlObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 {
     NsInterp *itPtr = arg;
+    NsInterp *citPtr;
     NsServer *servPtr = itPtr->servPtr;
     Defer    *deferPtr;
     STrace   *stPtr;
+    Tcl_HashEntry *hPtr;
+    Tcl_HashSearch search;
     int	      when, length, result;
-    char     *script;
+    char     *script, *iname, *pattern;
     static CONST char *opts[] = {
 	"addmodule", "cleanup", "epoch", "get", "getmodules", "save",
 	"update", "oncreate", "oncleanup", "oninit", "ondelete", "trace",
+	"getinterp", "interps", "cancel",
 	NULL
     };
     enum {
 	IAddModuleIdx, ICleanupIdx, IEpochIdx, IGetIdx, IGetModulesIdx,
 	ISaveIdx, IUpdateIdx, IOnCreateIdx, IOnCleanupIdx, IOnInitIdx,
-        IOnDeleteIdx, ITraceIdx
+        IOnDeleteIdx, ITraceIdx, IGetInterpIdx, IInterpsIdx, ICancelIdx
     } opt;
     static CONST char *topts[] = {
 	"create", "delete", "allocate", "deallocate", "getconn", "freeconn",
@@ -1011,7 +1020,7 @@ NsTclICtlObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 	 */
 
         if (objc != 3) {
-            Tcl_WrongNumArgs(interp, 1, objv, "when script");
+            Tcl_WrongNumArgs(interp, 2, objv, "script");
 	    return TCL_ERROR;
         }
 	switch (opt) {
@@ -1034,7 +1043,7 @@ NsTclICtlObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 
     case ITraceIdx:
         if (objc != 4) {
-            Tcl_WrongNumArgs(interp, 1, objv, "trace when script");
+            Tcl_WrongNumArgs(interp, 2, objv, "when script");
 	    return TCL_ERROR;
         }
     	if (Tcl_GetIndexFromObj(interp, objv[2], topts, "when", 0,
@@ -1054,6 +1063,51 @@ NsTclICtlObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 	stPtr->length = length;
 	strcpy(stPtr->script,  script);
 	(void) Ns_TclRegisterTrace(servPtr->server, EvalTrace, stPtr, when);
+	break;
+
+    case IGetInterpIdx:
+	Tcl_SetResult(interp, itPtr->name, TCL_STATIC);
+	break;
+
+    case IInterpsIdx:
+        if (objc != 2 && objc != 3) {
+            Tcl_WrongNumArgs(interp, 2, objv, "?pattern?");
+	    return TCL_ERROR;
+        }
+	if (objc == 2) {
+	    pattern = NULL;
+	} else {
+	    pattern = Tcl_GetString(objv[2]);
+	}
+	Ns_MutexLock(&ilock);
+	hPtr = Tcl_FirstHashEntry(&interps, &search);
+	while (hPtr != NULL) {
+	    iname = Tcl_GetHashKey(&interps, hPtr);
+	    if (pattern == NULL || Tcl_StringMatch(iname, pattern)) {
+	    	Tcl_AppendElement(interp, iname);
+	    }
+	    hPtr = Tcl_NextHashEntry(&search);
+	}
+	Ns_MutexUnlock(&ilock);
+	break;
+
+    case ICancelIdx:
+	if (objc != 3) {
+            Tcl_WrongNumArgs(interp, 2, objv, "interp");
+	    return TCL_ERROR;
+        }
+	iname = Tcl_GetString(objv[2]);
+	Ns_MutexLock(&ilock);
+	hPtr = Tcl_FindHashEntry(&interps, iname);
+	if (hPtr != NULL) {
+	    citPtr = Tcl_GetHashValue(hPtr);
+	    Tcl_AsyncMark(citPtr->cancel);
+	}
+	Ns_MutexUnlock(&ilock);
+	if (hPtr == NULL) {
+	    Tcl_AppendResult(interp, "no such interp: ", iname, NULL);
+	    return TCL_ERROR;
+	}
 	break;
     }
     return result;
@@ -1349,6 +1403,12 @@ PopInterp(char *server)
     itPtr->nextPtr = NULL;
 
     /*
+     * Clear any pending async cancel message.
+     */
+
+    (void) Tcl_AsyncInvoke(itPtr->interp, TCL_OK);
+
+    /*
      * Run allocation traces and evaluate the ns_init proc which by
      * default updates the interp state with ns_ictl if necessary.
      */
@@ -1528,7 +1588,9 @@ static NsInterp *
 NewInterpData(Tcl_Interp *interp)
 {
     static volatile int initialized = 0;
+    static unsigned int next = 0;
     NsInterp *itPtr;
+    int new, tid;
 
     /*
      * Core one-time AOLserver initialization to add a few Tcl_Obj
@@ -1555,6 +1617,15 @@ NewInterpData(Tcl_Interp *interp)
     itPtr = ns_calloc(1, sizeof(NsInterp));
     itPtr->interp = interp;
     itPtr->servPtr = NULL;
+    tid = Ns_GetThreadId();
+    Ns_MutexLock(&ilock);
+    do {
+    	sprintf(itPtr->name, "nsinterp:%d:%d", tid, next++);
+    	itPtr->hPtr = Tcl_CreateHashEntry(&interps, itPtr->name, &new);
+    } while (!new);
+    Tcl_SetHashValue(itPtr->hPtr, itPtr);
+    Ns_MutexUnlock(&ilock);
+    itPtr->cancel = Tcl_AsyncCreate(AsyncCancel, itPtr);
     Tcl_InitHashTable(&itPtr->sets, TCL_STRING_KEYS);
     Tcl_InitHashTable(&itPtr->chans, TCL_STRING_KEYS);	
     Tcl_InitHashTable(&itPtr->https, TCL_STRING_KEYS);	
@@ -1571,6 +1642,7 @@ NewInterpData(Tcl_Interp *interp)
      */
 
     NsTclAddCmds(interp, itPtr);
+    Tcl_PkgProvide(interp, "Nsd", NS_VERSION);
     return itPtr;
 }
 
@@ -1651,10 +1723,14 @@ FreeInterpData(ClientData arg, Tcl_Interp *interp)
 {
     NsInterp *itPtr = arg;
 
+    Tcl_AsyncDelete(itPtr->cancel);
     NsFreeAdp(itPtr);
     Tcl_DeleteHashTable(&itPtr->sets);
     Tcl_DeleteHashTable(&itPtr->chans);
     Tcl_DeleteHashTable(&itPtr->https);
+    Ns_MutexLock(&ilock);
+    Tcl_DeleteHashEntry(itPtr->hPtr);
+    Ns_MutexUnlock(&ilock);
     ns_free(itPtr);
 }
 
@@ -1728,4 +1804,15 @@ RunTraces(NsInterp *itPtr, int why)
 	    tracePtr = tracePtr->nextPtr;
 	}
     }
+}
+
+
+static int
+AsyncCancel(ClientData arg, Tcl_Interp *interp, int code)
+{
+    NsInterp *itPtr = arg;
+
+    Tcl_ResetResult(itPtr->interp);
+    Tcl_SetResult(itPtr->interp, "async cancel", TCL_STATIC);
+    return TCL_ERROR;
 }
