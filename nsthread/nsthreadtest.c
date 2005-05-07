@@ -48,7 +48,7 @@
 #define PTHREAD_TEST 1
 #endif
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/nsthreadtest.c,v 1.4 2003/06/02 14:42:00 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/nsthreadtest.c,v 1.5 2005/05/07 22:40:18 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 /*
  * Collection of synchronization objects for tests.
@@ -118,11 +118,9 @@ TlsLogArg(void *arg)
 int
 RecursiveStackCheck(int n)
 {
-#if 0
     if (Ns_CheckStack() == NS_OK) {
 	n = RecursiveStackCheck(n);
     }
-#endif
     ++n;
     return n;
 }
@@ -132,6 +130,7 @@ CheckStackThread(void *arg)
 {
     int n;
 
+    Ns_ThreadSetName("checkstack");
     n = RecursiveStackCheck(0);
     Ns_ThreadExit((void *) n);
 }
@@ -238,6 +237,7 @@ MemThread(void *arg)
     int             i;
     void           *ptr;
 
+    Ns_ThreadSetName("memthread");
     Ns_MutexLock(&lock);
     ++nrunning;
     Ns_CondBroadcast(&cond);
@@ -342,6 +342,18 @@ DumperThread(void *arg)
     Ns_MutexUnlock(&block);
 }
 
+
+static void
+DetachedThread(void *ignored)
+{
+    int i;
+
+    for (i = 0; i < 10; ++i) {
+	Msg("\n\ndetached! %d", i);
+	sleep(1);
+    }
+}
+
 #if PTHREAD_TEST
 
 /*
@@ -371,6 +383,8 @@ Pthread(void *arg)
      * self-initialization style.
      */
 
+    Ns_ThreadSetName("pthread");
+    sleep(5);
     if (tls == NULL) {
 	Ns_MasterLock();
 	if (tls == NULL) {
@@ -436,6 +450,7 @@ int main(int argc, char *argv[])
 	}
     }
 
+    Ns_ThreadCreate(DetachedThread, NULL, 0, NULL);
     Ns_ThreadCreate(DumperThread, NULL, 0, &dumper);
     Ns_MutexSetName(&lock, "startlock");
     Ns_MutexSetName(&dlock, "dumplock");
