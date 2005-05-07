@@ -37,22 +37,61 @@
 #include "thread.h"
 #include <pthread.h>
 
-static pthread_cond_t  *GetCond(Ns_Cond *cond);
+#if defined(HAVE_PTHREAD_GETATTR_NP) && defined(GETATTRNP_NOT_DECLARED)
+extern int pthread_getattr_np(pthread_t tid, pthread_attr_t *attr);
+#endif
 
 /*
- * The following single Tls key is used to store the nsthread
- * Tls slots.
+ * The following constants define an integer magic number for marking pages
+ * at thread startup to be later checked at thread exit for stack usage and
+ * possible overflow.
+ */
+
+#define STACK_MAGIC	0xefefefef
+
+typedef struct Thread {
+    unsigned long uid;
+    int	   marked;
+    void  *stackaddr;
+    size_t stacksize;
+    void  *slots[NS_THREAD_MAXTLS];
+} Thread;
+
+static void *ThreadMain(void *arg);
+static Thread *NewThread(void);
+static void FreeThread(void *arg);
+static void SetKey(char *func, void *arg);
+static void StackPages(Thread *thrPtr, int mark);
+static int StackDown(char **outer);
+static int PageRound(int size);
+static pthread_cond_t *GetCond(Ns_Cond *cond);
+static Thread *GetThread(void);
+static Ns_Mutex uidlock;
+
+/*
+ * The following single Tls key is used to store the Thread struct
+ * including stack info, startup args, and TLS slots.
  */
 
 static pthread_key_t	key;
-static void CleanupTls(void *arg);
-static void *ThreadMain(void *arg);
+
+/*
+ * The following variables are used to manage stack sizes, guardzones, and
+ * size monitoring.
+ */
+
+static int stackdown;
+static int pagesize;
+static int guardsize;
+static int markpages;
+static FILE *logfp = NULL;
+static char *dumpdir = NULL;
 
 
 /*
  *----------------------------------------------------------------------
  *
- * NsthreadsInit --
+ * NsPthreadsInit --
  *
  *	Pthread library load time init routine.
  *
@@ -60,21 +99,42 @@ static void *ThreadMain(void *arg);
  *	None.
  *
  * Side effects:
- *	Creates pthread key.
+ *	Creates pthread key and set various stack management values.
  *
  *----------------------------------------------------------------------
  */
 
 void
-NsthreadsInit(void)
+NsPthreadsInit(void)
 {
+    char *env;
     int err;
 
-    err = pthread_key_create(&key, CleanupTls);
+    err = pthread_key_create(&key, FreeThread);
     if (err != 0) {
-	NsThreadFatal("NsthreadsInit", "pthread_key_create", err);
+	NsThreadFatal("NsPthreadsInit", "pthread_key_create", err);
+    }
+    stackdown = StackDown(&env);
+    pagesize = getpagesize();
+    env = getenv("NS_THREAD_GUARDSIZE");
+    if (env == NULL
+	    || Tcl_GetInt(NULL, env, &guardsize) != TCL_OK
+	    || guardsize < 2) {
+	guardsize = 2 * pagesize;
+    }
+    guardsize = PageRound(guardsize);
+    markpages = getenv("NS_THREAD_MARKPAGES") ? 1 : 0;
+    dumpdir = getenv("NS_THREAD_DUMPDIR");
+    env = getenv("NS_THREAD_LOGFILE");
+    if (env != NULL) {
+	if (strcmp(env, "-") == 0) {
+	    logfp = stderr;
+	} else {
+	    logfp = fopen(env, "a");
+	}
     }
     NsInitThreads();
+    Ns_MutexSetName(&uidlock, "ns:uidlock");
 }
 
 
@@ -97,14 +157,42 @@ NsthreadsInit(void)
 void **
 NsGetTls(void)
 {
-    void **slots;
+    Thread *thrPtr = GetThread();
 
-    slots = pthread_getspecific(key);
-    if (slots == NULL) {
-	slots = ns_calloc(NS_THREAD_MAXTLS, sizeof(void *));
-	pthread_setspecific(key, slots);
+    return thrPtr->slots;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsGetStack --
+ *
+ *	Return information about the stack.
+ *
+ * Results:
+ *	0:	Could not return stack.
+ *	-1:	Stack grows down.
+ *	1:	Stack grows up.
+ *
+ * Side effects:
+ *	Given addrPtr and sizePtr are updated with stack base
+ *	address and size.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+NsGetStack(void **addrPtr, size_t *sizePtr)
+{
+    Thread *thrPtr = GetThread();
+
+    if (thrPtr->stackaddr == NULL) {
+	return 0;
     }
-    return slots;
+    *addrPtr = thrPtr->stackaddr;
+    *sizePtr = thrPtr->stacksize;
+    return (stackdown ? -1 : 1);
 }
 
 
@@ -300,20 +388,21 @@ NsCreateThread(void *arg, long stacksize, Ns_Thread *resultPtr)
 {
     static char *func = "NsCreateThread";
     pthread_attr_t attr;
-    pthread_t thr;
+    pthread_t tid;
+    size_t size;
     int err;
-
-    /*
-     * Set the stack size.  It could be smarter to leave the default 
-     * on platforms which map large stacks with guard zones
-     * (e.g., Solaris and Linux).
-     */
 
     err = pthread_attr_init(&attr);
     if (err != 0) {
         NsThreadFatal(func, "pthread_attr_init", err);
     }
-    err = pthread_attr_setstacksize(&attr, (size_t) stacksize); 
+
+    /*
+     * Round the stacksize to a pagesize and include the guardzone.
+     */
+
+    size = PageRound(stacksize) + guardsize;
+    err = pthread_attr_setstacksize(&attr, size); 
     if (err != 0) {
         NsThreadFatal(func, "pthread_attr_setstacksize", err);
     }
@@ -326,8 +415,7 @@ NsCreateThread(void *arg, long stacksize, Ns_Thread *resultPtr)
     if (err != 0 && err != ENOTSUP) {
         NsThreadFatal(func, "pthread_setscope", err);
     }
-
-    err = pthread_create(&thr, &attr, ThreadMain, arg);
+    err = pthread_create(&tid, &attr, ThreadMain, arg);
     if (err != 0) {
         NsThreadFatal(func, "pthread_create", err);
     }
@@ -336,13 +424,43 @@ NsCreateThread(void *arg, long stacksize, Ns_Thread *resultPtr)
         NsThreadFatal(func, "pthread_attr_destroy", err);
     }
     if (resultPtr != NULL) {
-	*resultPtr = (Ns_Thread) thr;
+	*resultPtr = (Ns_Thread) tid;
     } else {
-    	err = pthread_detach(thr);
-        if (err != 0) {
-            NsThreadFatal(func, "pthread_detach", err);
-        }
+	err = pthread_detach(tid);
+	if (err != 0) {
+	    NsThreadFatal(func, "pthread_detach", err);
+	}
     }
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * ThreadMain --
+ *
+ *	Pthread startup routine.
+ *
+ * Results:
+ *	Does not return.
+ *
+ * Side effects:
+ *	NsThreadMain will call Ns_ThreadExit.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void *
+ThreadMain(void *arg)
+{
+    Thread *thrPtr = GetThread();
+
+    if (thrPtr->stackaddr != NULL && markpages) {
+	StackPages(thrPtr, 1);
+	thrPtr->marked = 1;
+    }
+    NsThreadMain(arg);
+    return NULL;
 }
 
 
@@ -388,10 +506,10 @@ Ns_ThreadExit(void *arg)
 void
 Ns_ThreadJoin(Ns_Thread *thread, void **argPtr)
 {
-    pthread_t thr = (pthread_t) *thread;
+    pthread_t tid = (pthread_t) *thread;
     int err;
 
-    err = pthread_join(thr, argPtr);
+    err = pthread_join(tid, argPtr);
     if (err != 0) {
 	NsThreadFatal("Ns_ThreadJoin", "pthread_join", err);
     }
@@ -710,31 +828,91 @@ GetCond(Ns_Cond *cond)
 /*
  *----------------------------------------------------------------------
  *
- * ThreadMain --
+ * GetThread --
  *
- *	Pthread startup routine.
+ *	Return the Thread struct for the current thread.
  *
  * Results:
- *	Does not return.
+ *	Pointer to Thread.
  *
  * Side effects:
- *	NsThreadMain will call Ns_ThreadExit.
+ *	None.
  *
  *----------------------------------------------------------------------
  */
 
-static void *
-ThreadMain(void *arg)
+static Thread *
+GetThread(void)
 {
-    NsThreadMain(arg);
-    return NULL;
+    Thread *thrPtr;
+
+    thrPtr = pthread_getspecific(key);
+    if (thrPtr == NULL) {
+    	thrPtr = NewThread();
+	SetKey("NsGetTls", thrPtr);
+    }
+    return thrPtr;
 }
 
 
 /*
  *----------------------------------------------------------------------
  *
- * CleanupTls --
+ * NewThread --
+ *
+ *	Create a new Thread struct for the current thread, determing
+ *	the stack addr and size if possible.
+ *
+ * Results:
+ *	Pointer to Thread.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static Thread *
+NewThread(void)
+{
+    Thread *thrPtr;
+    static char *func = "NewThread";
+    static unsigned int nextuid = 0;
+    pthread_attr_t attr;
+    int err;
+
+    thrPtr = ns_calloc(1, sizeof(Thread));
+    Ns_MutexLock(&uidlock);
+    thrPtr->uid = nextuid++;
+    Ns_MutexUnlock(&uidlock);
+
+#ifdef HAVE_PTHREAD_GETATTR_NP
+    err = pthread_getattr_np(pthread_self(), &attr);
+    if (err != 0) {
+	NsThreadFatal(func, "pthread_getattr_np", err);
+    }
+    err = pthread_attr_getstackaddr(&attr, &thrPtr->stackaddr);
+    if (err != 0) {
+	NsThreadFatal(func, "pthread_attr_getstackaddr", err);
+    }
+    err = pthread_attr_getstacksize(&attr, &thrPtr->stacksize);
+    if (err != 0) {
+	NsThreadFatal(func, "pthread_attr_getstacksize", err);
+    }
+    thrPtr->stacksize -= guardsize;
+    err = pthread_attr_destroy(&attr);
+    if (err != 0) {
+	NsThreadFatal(func, "pthread_attr_destroy", err);
+    }
+#endif
+    return thrPtr;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * FreeThread --
  *
  *	Pthread TLS cleanup.  This routine is called during thread
  *	exit.  This routine could be called more than once if some
@@ -750,17 +928,206 @@ ThreadMain(void *arg)
  */
 
 static void
-CleanupTls(void *arg)
+FreeThread(void *arg)
 {
-    void **slots = arg;
+    Thread *thrPtr = arg;
 
     /*
      * Restore the current slots during cleanup so handlers can access
      * TLS in other slots.
      */
 
-    pthread_setspecific(key, arg);
-    NsCleanupTls(slots);
-    pthread_setspecific(key, NULL);
-    ns_free(slots);
+    SetKey("FreeThread", arg);
+    NsCleanupTls(thrPtr->slots);
+    SetKey("FreeThread", NULL);
+    if (thrPtr->marked) {
+	StackPages(thrPtr, 0);
+    }
+    ns_free(thrPtr);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * SetKey --
+ *
+ *	Set the pthread key.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+SetKey(char *func, void *arg)
+{
+    int err;
+
+    err = pthread_setspecific(key, arg);
+    if (err != 0) {
+	NsThreadFatal(func, "pthread_setspecific", err);
+    }
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * StackDown --
+ *
+ *	Determine if the stack grows down.
+ *
+ * Results:
+ *	1 if stack grows down, 0 otherwise.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+StackDown(char **outer)
+{
+   char *local;
+
+   return (&local < outer ? 1 : 0);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * StackPages --
+ *
+ *	Mark or count used stack pages.
+ *
+ * Results:
+ *	Count of used pages.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+StackPages(Thread *thrPtr, int mark)
+{
+    Ns_Time now;
+    caddr_t start, end, guard, base;
+    int fd, overflow, pagewords, pages, maxpage, bytes;
+    uint32_t *ip;
+    char file[100];
+
+    /*
+     * Determine the range of pages to mark or check.  Basically the first
+     * page to be used is ignored assuming it's being used now and the
+     * guard pages are marked completely to check for overflow.  All pages
+     * in between are marked on the first integer word to be later counted
+     * to get a pages used count.
+     */
+
+    if (stackdown) {
+	start = thrPtr->stackaddr - thrPtr->stacksize + guardsize;
+	end   = thrPtr->stackaddr - pagesize;
+	guard = start - guardsize;
+    } else {
+	start = thrPtr->stackaddr + pagesize;
+	end = thrPtr->stackaddr + thrPtr->stacksize - guardsize;
+	guard = end;
+    }
+
+    /*
+     * Completely mark the guard page.
+     */
+
+    overflow = 0;
+    ip = (uint32_t *) guard;
+    while (ip < (uint32_t *) (guard + guardsize)) {
+	if (mark) {
+	    *ip = STACK_MAGIC;
+	} else if (*ip != STACK_MAGIC) {
+	    overflow = 1;
+	    break;
+	}
+	++ip;
+    }
+    
+    /*
+     * For each stack page, either mark with the magic number at thread
+     * startup or count unmarked pages at thread cleanup.
+     */
+
+    pagewords = pagesize / sizeof(uint32_t);
+    maxpage = pages = 1;
+    ip = (uint32_t *) start;
+    if (stackdown) {
+	/* NB: Mark last word, not first, of each page. */
+	ip += pagewords - 1;
+    }
+    while (ip < (uint32_t *) end) {
+	if (mark) {
+	    *ip = STACK_MAGIC;
+	} else if (*ip != STACK_MAGIC) {
+	    maxpage = pages;
+	}
+	++pages;
+	ip += pagewords;
+    }
+    if (!mark) {
+        pages = maxpage;
+    }
+    bytes = pages * pagesize;
+    if (!mark && dumpdir != NULL) {
+	sprintf(file, "%s/nsstack.%lu", dumpdir, thrPtr->uid);
+	fd = open(file, O_WRONLY|O_TRUNC|O_CREAT, 0644);
+	if (fd >= 0) {
+	    base = thrPtr->stackaddr;
+	    if (stackdown) {
+		base -= thrPtr->stacksize;
+	    }
+	    (void) write(fd, base, thrPtr->stacksize);
+	    close(fd);
+	}
+    }
+    if (logfp) {
+	Ns_GetTime(&now);
+	fprintf(logfp, "%s: time: %ld:%ld, thread: %lu, %s: %d pages, %d bytes%s\n", 
+		mark ? "create" : "exit", now.sec, now.usec, thrPtr->uid,
+		mark ? "stackavil" : "stackuse", pages, bytes,
+		overflow ? " - possible overflow!" : "");
+    }
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * PageRound --
+ *
+ *	Round bytes up to next pagesize.
+ *
+ * Results:
+ *	Rounded size.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+PageRound(int size)
+{
+    if (size % pagesize) {
+	size += pagesize;
+    }
+    size = (size / pagesize) * pagesize;
+    return size;
 }
