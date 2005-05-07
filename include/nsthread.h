@@ -32,7 +32,7 @@
  *
  *	Core threading and system headers.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/nsthread.h,v 1.28 2004/11/20 01:53:14 dossy Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/nsthread.h,v 1.29 2005/05/07 23:30:26 jgdavidson Exp $
  */
 
 #ifndef NSTHREAD_H
@@ -148,6 +148,7 @@ NS_EXTERN int closedir(DIR *dp);
 #define NS_OK              	0
 #define NS_ERROR         	(-1)
 #define NS_TIMEOUT       	(-2)
+#define NS_BREAK	       	(-3)
 #define NS_THREAD_DETACHED	1
 #define NS_THREAD_JOINED	2
 #define NS_THREAD_EXITED	4
@@ -292,6 +293,7 @@ NS_EXTERN char *Ns_ThreadGetName(void);
 NS_EXTERN char *Ns_ThreadGetParent(void);
 NS_EXTERN long Ns_ThreadStackSize(long size);
 NS_EXTERN void Ns_ThreadList(Tcl_DString *dsPtr, Ns_ThreadArgProc *proc);
+NS_EXTERN int Ns_CheckStack(void);
 
 /*
  * time.c:
