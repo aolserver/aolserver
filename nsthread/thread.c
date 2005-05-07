@@ -27,24 +27,34 @@
  * version of this file under either the License or the GPL.
  */
 
-
 /* 
  * thread.c --
  *
  *	Routines for creating, exiting, and joining threads.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/thread.c,v 1.6 2003/06/18 21:37:12 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/thread.c,v 1.7 2005/05/07 22:40:32 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "thread.h"
 
 /*
- * The following constants define the default and minimum stack
- * sizes for new threads.
+ * Private flags for managing threads.
  */
 
-#define STACK_DEFAULT	65536	/* 64k */
-#define STACK_MIN	16384	/* 16k */
+#define FLAG_DETACHED	1
+#define FLAG_HAVESTACK	2
+#define FLAG_STACKDOWN	4
+
+/*
+ * The following structure is used as the startup arg for new threads.
+ */
+
+typedef struct ThreadArg {
+    Ns_ThreadProc  *proc;	/* Thread startup routine. */ 
+    void           *arg;	/* Argument to startup proc. */
+    int		    flags;	/* Thread is detached. */
+    char	    parent[NS_THREAD_NAMESIZE];
+} ThreadArg;
 
 /*
  * The following structure maintains all state for a thread
@@ -53,31 +63,46 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nst
 
 typedef struct Thread {
     struct Thread  *nextPtr;	/* Next in list of all threads. */
-    time_t	    ctime;	/* Thread structure create time. */
+    Ns_Time	    ctime;	/* Thread structure create time. */
     int		    flags;	/* Detached, joined, etc. */
     Ns_ThreadProc  *proc;	/* Thread startup routine. */ 
     void           *arg;	/* Argument to startup proc. */
     int		    tid;        /* Id set by thread for logging. */
+    void	   *stackaddr;	/* Thread stack address. */
+    size_t	    stacksize;	/* Thread stack size. */
     char	    name[NS_THREAD_NAMESIZE+1]; /* Thread name. */
     char	    parent[NS_THREAD_NAMESIZE+1]; /* Parent name. */
 } Thread;
 
-static Thread *NewThread(void);
+/*
+ * Static functions defined in this file.
+ */
+
+static Thread *NewThread(ThreadArg *argPtr);
 static Thread *GetThread(void);
 static void CleanupThread(void *arg);
 
 /*
- * The following pointer maintains a linked list of all threads.
+ * The following pointer and lock maintain a linked list of all threads.
  */
 
 static Thread *firstThreadPtr;
+static Ns_Mutex threadlock;
+
+/*
+ * The following int and lock maintain the default stack size which can
+ * be changed dynamically at runtime.
+ */
+
+static int stackdef;
+static int stackmin;
+static Ns_Mutex sizelock;
 
 /*
  * The following maintains the tls key for the thread context.
  */
 
 static Ns_Tls key;
-static long stacksize = STACK_DEFAULT;
 
 
 /*
@@ -105,7 +130,11 @@ NsInitThreads(void)
 	once = 1;
     	NsInitMaster();
     	NsInitReentrant();
+	Ns_MutexSetName(&threadlock, "ns:threads");
+	Ns_MutexSetName(&sizelock, "ns:stacksize");
     	Ns_TlsAlloc(&key, CleanupThread);
+	stackdef = 64 * 1024;
+	stackmin = 16 * 1024;
     }
 }
 
@@ -127,38 +156,32 @@ NsInitThreads(void)
  */
 
 void
-Ns_ThreadCreate(Ns_ThreadProc *proc, void *arg, long stack,
+Ns_ThreadCreate(Ns_ThreadProc *proc, void *arg, long stacksize,
     	    	Ns_Thread *resultPtr)
 {
-    Thread *thrPtr;
-
-    Ns_MasterLock();
+    ThreadArg *argPtr;
 
     /*
-     * Determine the stack size and impose a 16k minimum.
+     * Determine the stack size and add the guard.
      */
 
-    if (stack <= 0) {
-	stack = stacksize;
+    if (stacksize <= 0) {
+    	stacksize = Ns_ThreadStackSize(0);
     }
-    if (stack < STACK_MIN) {
-	stack = STACK_MIN;
+    if (stacksize < stackmin) {
+	stacksize = stackmin;
     }
 
     /*
-     * Allocate a new thread structure and update values
-     * which are known for threads created here.
+     * Create the thread.
      */
 
-    thrPtr = NewThread();
-    thrPtr->proc = proc;
-    thrPtr->arg = arg;
-    if (resultPtr == NULL) {
-    	thrPtr->flags = NS_THREAD_DETACHED;
-    }
-    strcpy(thrPtr->parent, Ns_ThreadGetName());
-    Ns_MasterUnlock();
-    NsCreateThread(thrPtr, stack, resultPtr);
+    argPtr = ns_malloc(sizeof(ThreadArg));
+    argPtr->proc = proc;
+    argPtr->arg = arg;
+    argPtr->flags = resultPtr ? 0 : FLAG_DETACHED;
+    strcpy(argPtr->parent, Ns_ThreadGetName());
+    NsCreateThread(argPtr, stacksize, resultPtr);
 }
 
 
@@ -179,16 +202,16 @@ Ns_ThreadCreate(Ns_ThreadProc *proc, void *arg, long stack,
  */
 
 long
-Ns_ThreadStackSize(long size)
+Ns_ThreadStackSize(long stacksize)
 {
     long prev;
 
-    Ns_MasterLock();
-    prev = stacksize;
-    if (size > 0) {
-	stacksize = size;
+    Ns_MutexLock(&sizelock);
+    prev = stackdef;
+    if (stacksize > 0) {
+	stackdef = stacksize;
     }
-    Ns_MasterUnlock();
+    Ns_MutexUnlock(&sizelock);
     return prev;
 }
 
@@ -214,13 +237,11 @@ Ns_ThreadStackSize(long size)
 void
 NsThreadMain(void *arg)
 {
-    Thread      *thrPtr = (Thread *) arg;
-    char	 name[NS_THREAD_NAMESIZE];
+    ThreadArg   *argPtr = arg;
+    Thread      *thrPtr;
 
-    thrPtr->tid = Ns_ThreadId();
-    Ns_TlsSet(&key, thrPtr);
-    sprintf(name, "-thread%d-", thrPtr->tid);
-    Ns_ThreadSetName(name);
+    thrPtr = NewThread(argPtr);
+    ns_free(argPtr);
     (*thrPtr->proc) (thrPtr->arg);
 }
 
@@ -244,9 +265,9 @@ NsThreadMain(void *arg)
 char *
 Ns_ThreadGetName(void)
 {
-    Thread *thisPtr = GetThread();
+    Thread *thrPtr = GetThread();
 
-    return thisPtr->name;
+    return thrPtr->name;
 }
 
 
@@ -269,11 +290,11 @@ Ns_ThreadGetName(void)
 void
 Ns_ThreadSetName(char *name)
 {
-    Thread *thisPtr = GetThread();
+    Thread *thrPtr = GetThread();
 
-    Ns_MasterLock();
-    strncpy(thisPtr->name, name, NS_THREAD_NAMESIZE);
-    Ns_MasterUnlock();
+    Ns_MutexLock(&threadlock);
+    strncpy(thrPtr->name, name, NS_THREAD_NAMESIZE);
+    Ns_MutexUnlock(&threadlock);
 }
 
 
@@ -296,9 +317,9 @@ Ns_ThreadSetName(char *name)
 char *
 Ns_ThreadGetParent(void)
 {
-    Thread *thisPtr = GetThread();
+    Thread *thrPtr = GetThread();
 
-    return thisPtr->parent;
+    return thrPtr->parent;
 }
 
 
@@ -324,13 +345,15 @@ Ns_ThreadList(Tcl_DString *dsPtr, Ns_ThreadArgProc *proc)
     Thread *thrPtr;
     char buf[100];
 
-    Ns_MasterLock();
+    Ns_MutexLock(&threadlock);
     thrPtr = firstThreadPtr;
     while (thrPtr != NULL) {
 	Tcl_DStringStartSublist(dsPtr);
 	Tcl_DStringAppendElement(dsPtr, thrPtr->name);
 	Tcl_DStringAppendElement(dsPtr, thrPtr->parent);
-	sprintf(buf, " %d %d %ld", thrPtr->tid, thrPtr->flags, thrPtr->ctime);
+	sprintf(buf, " %d %d %ld", thrPtr->tid,
+		(thrPtr->flags & FLAG_DETACHED) ? NS_THREAD_DETACHED : 0,
+		thrPtr->ctime.sec);
 	Tcl_DStringAppend(dsPtr, buf, -1);
 	if (proc != NULL) {
 	    (*proc)(dsPtr, (void *) thrPtr->proc, thrPtr->arg);
@@ -341,7 +364,7 @@ Ns_ThreadList(Tcl_DString *dsPtr, Ns_ThreadArgProc *proc)
 	Tcl_DStringEndSublist(dsPtr);
 	thrPtr = thrPtr->nextPtr;
     }
-    Ns_MasterUnlock();
+    Ns_MutexUnlock(&threadlock);
 }
 
 
@@ -365,16 +388,35 @@ Ns_ThreadList(Tcl_DString *dsPtr, Ns_ThreadArgProc *proc)
  */
 
 static Thread *
-NewThread(void)
+NewThread(ThreadArg *argPtr)
 {
     Thread *thrPtr;
+    int stack;
 
     thrPtr = ns_calloc(1, sizeof(Thread));
-    thrPtr->ctime = time(NULL);
-    Ns_MasterLock();
+    Ns_GetTime(&thrPtr->ctime);
+    thrPtr->tid = Ns_ThreadId();
+    sprintf(thrPtr->name, "-thread%d-", thrPtr->tid);
+    if (argPtr == NULL) {
+    	thrPtr->flags = FLAG_DETACHED;
+    } else {
+	thrPtr->flags = argPtr->flags;
+	thrPtr->proc = argPtr->proc;
+	thrPtr->arg = argPtr->arg;
+	strcpy(thrPtr->parent, argPtr->parent);
+    }
+    stack = NsGetStack(&thrPtr->stackaddr, &thrPtr->stacksize);
+    if (stack) {
+	thrPtr->flags |= FLAG_HAVESTACK;
+	if (stack < 0) {
+	    thrPtr->flags |= FLAG_STACKDOWN;
+	}
+    }
+    Ns_TlsSet(&key, thrPtr);
+    Ns_MutexLock(&threadlock);
     thrPtr->nextPtr = firstThreadPtr;
     firstThreadPtr = thrPtr;
-    Ns_MasterUnlock();
+    Ns_MutexUnlock(&threadlock);
     return thrPtr;
 }
 
@@ -400,16 +442,13 @@ NewThread(void)
 static Thread *
 GetThread(void)
 {
-    Thread *thisPtr;
+    Thread *thrPtr;
 
-    thisPtr = Ns_TlsGet(&key);
-    if (thisPtr == NULL) {
-	thisPtr = NewThread();
-    	thisPtr->flags = NS_THREAD_DETACHED;
-	thisPtr->tid = Ns_ThreadId();
-	Ns_TlsSet(&key, thisPtr);
+    thrPtr = Ns_TlsGet(&key);
+    if (thrPtr == NULL) {
+	thrPtr = NewThread(NULL);
     }
-    return thisPtr;
+    return thrPtr;
 }
 
 
@@ -435,13 +474,62 @@ CleanupThread(void *arg)
     Thread **thrPtrPtr;
     Thread *thrPtr = arg;
 
-    Ns_MasterLock();
+    Ns_MutexLock(&threadlock);
     thrPtrPtr = &firstThreadPtr;
     while (*thrPtrPtr != thrPtr) {
 	thrPtrPtr = &(*thrPtrPtr)->nextPtr;
     }
     *thrPtrPtr = thrPtr->nextPtr;
     thrPtr->nextPtr = NULL;
-    Ns_MasterUnlock();
+    Ns_MutexUnlock(&threadlock);
     ns_free(thrPtr);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_CheckStack --
+ *
+ *	Check a thread stack for overflow.
+ *
+ * Results:
+ *	NS_ERROR if overflow appears possible, NS_OK otherwise.
+ *
+ * Side effects:
+ *	A new thread is allocated and started.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Ns_CheckStack(void)
+{
+    Thread *thrPtr = GetThread();
+    caddr_t limit;
+
+    /*
+     * Hope for the best when the stack isn't known.
+     */
+
+    if (!(thrPtr->flags & FLAG_HAVESTACK)) {
+	return NS_OK;
+    }
+
+    /*
+     * Check if the stack has grown into or beyond the guard.
+     */
+
+    if (thrPtr->flags & FLAG_STACKDOWN) {
+	limit = thrPtr->stackaddr - thrPtr->stacksize;
+	if ((caddr_t) &limit < limit) {
+	    return NS_ERROR;
+	}
+    } else {
+	limit = thrPtr->stackaddr + thrPtr->stacksize;
+	if ((caddr_t) &limit > limit) {
+	    return NS_ERROR;
+	}
+    }
+    return NS_OK;
 }
