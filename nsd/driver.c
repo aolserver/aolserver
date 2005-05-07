@@ -34,7 +34,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.45 2005/03/28 00:06:43 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.46 2005/05/07 23:35:46 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -1634,6 +1634,7 @@ SockRead(Sock *sockPtr)
     	connPtr->avail = connPtr->contentLength;
     	if (!(connPtr->flags & NS_CONN_FILECONTENT)) {
     	    connPtr->content[connPtr->avail] = '\0';
+	    connPtr->next = connPtr->content;
     	} else if (lseek(connPtr->tfd, (off_t) 0, SEEK_SET) != 0) {
 	    err = E_FDSEEK;
 	}
@@ -1694,7 +1695,7 @@ SockReadLine(Driver *drvPtr, Ns_Sock *sock, Conn *connPtr)
     Tcl_HashEntry *hPtr;
     struct iovec buf;
     char *s, *e, *hdr, save;
-    int  len, n, max, nbuf;
+    int len, n, max, nbuf, major;
 
     /*
      * Setup the request buffer and read more input.
@@ -1768,7 +1769,7 @@ SockReadLine(Driver *drvPtr, Ns_Sock *sock, Conn *connPtr)
         if (connPtr->rstart == NULL) {
 	    connPtr->rstart = s;
 	    connPtr->rend = e;
-	    if (NsFindVersion(s) == NULL) {
+	    if (NsFindVersion(s, &major, NULL) == NULL || major < 1) {
         	connPtr->flags |= NS_CONN_SKIPHDRS;
 		e = s;
 	    }
