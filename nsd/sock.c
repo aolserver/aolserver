@@ -34,7 +34,7 @@
  *	Wrappers and convenience functions for TCP/IP stuff. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sock.c,v 1.12 2004/10/06 18:50:50 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sock.c,v 1.13 2005/05/07 23:36:05 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -130,38 +130,41 @@ Ns_SockSend(SOCKET sock, void *buf, int towrite, int timeout)
  */
 
 int
-Ns_SockWait(SOCKET sock, int what, int timeout)
+Ns_SockWait(SOCKET sock, int what, int seconds)
 {
+    return Ns_SockWaitEx(sock, what, seconds * 1000);
+}
+
+int
+Ns_SockWaitEx(SOCKET sock, int what, int ms)
+{
+    Ns_Time timeout;
     struct pollfd pfd;
     int n;
 
-    if (timeout < 0) {
-    	return NS_TIMEOUT;
+    if (ms < 0) {
+	n = 0;
+    } else {
+    	Ns_GetTime(&timeout);
+    	Ns_IncrTime(&timeout, 0, ms * 1000);
+    	pfd.fd = sock;
+    	switch (what) {
+    	case NS_SOCK_READ:
+	    pfd.events = POLLIN;
+	    break;
+    	case NS_SOCK_WRITE:
+	    pfd.events = POLLOUT;
+	    break;
+    	case NS_SOCK_EXCEPTION:
+	    pfd.events = POLLPRI;
+	    break;
+    	default:
+	    return NS_ERROR;
+	    break;
+    	}
+    	n = NsPoll(&pfd, 1, &timeout);
     }
-    timeout *= 1000;
-    pfd.fd = sock;
-    switch (what) {
-    case NS_SOCK_READ:
-	pfd.events = POLLIN;
-	break;
-    case NS_SOCK_WRITE:
-	pfd.events = POLLOUT;
-	break;
-    case NS_SOCK_EXCEPTION:
-	pfd.events = POLLPRI;
-	break;
-    default:
-	return NS_ERROR;
-	break;
-    }
-    pfd.revents = 0;
-    do {
-	n = poll(&pfd, 1, timeout);
-    } while (n < 0 && errno == EINTR);
-    if (n > 0) {
-	return NS_OK;
-    }
-    return NS_TIMEOUT;
+    return (n ? NS_OK : NS_TIMEOUT);
 }
 
 
