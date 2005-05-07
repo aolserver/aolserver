@@ -33,7 +33,7 @@
  *	ADP connection request support.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adprequest.c,v 1.22 2005/03/25 00:33:19 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adprequest.c,v 1.23 2005/05/07 23:35:30 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -126,6 +126,7 @@ Ns_AdpRequestEx(Ns_Conn *conn, char *file, Ns_Time *ttlPtr)
 	type = NSD_TEXTHTML;
     }
     Ns_ConnSetType(conn, type);
+    Ns_ConnSetStatus(conn, 200);
 
     /*
      * Setup the response buffer and default size.
