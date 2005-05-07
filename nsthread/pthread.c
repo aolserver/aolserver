@@ -37,6 +37,14 @@
 #include "thread.h"
 #include <pthread.h>
 
+/* TODO: Move to configure. */
+#ifdef __APPLE__
+#define HAVE_PTHREAD_GET_STACKADDR_NP 1
+#endif
+#ifdef __linux
+#define HAVE_PTHREAD_GETATTR_NP 1
+#endif
+
 #if defined(HAVE_PTHREAD_GETATTR_NP) && defined(GETATTRNP_NOT_DECLARED)
 extern int pthread_getattr_np(pthread_t tid, pthread_attr_t *attr);
 #endif
@@ -876,18 +884,22 @@ static Thread *
 NewThread(void)
 {
     Thread *thrPtr;
-    static char *func = "NewThread";
     static unsigned int nextuid = 0;
+    pthread_t tid;
+#if defined(HAVE_PTHREAD_GETATTR_NP)
+    static char *func = "NewThread";
     pthread_attr_t attr;
     int err;
+#endif
 
     thrPtr = ns_calloc(1, sizeof(Thread));
     Ns_MutexLock(&uidlock);
     thrPtr->uid = nextuid++;
     Ns_MutexUnlock(&uidlock);
 
-#ifdef HAVE_PTHREAD_GETATTR_NP
-    err = pthread_getattr_np(pthread_self(), &attr);
+    tid = pthread_self();
+#if defined(HAVE_PTHREAD_GETATTR_NP)
+    err = pthread_getattr_np(tid, &attr);
     if (err != 0) {
 	NsThreadFatal(func, "pthread_getattr_np", err);
     }
@@ -904,6 +916,9 @@ NewThread(void)
     if (err != 0) {
 	NsThreadFatal(func, "pthread_attr_destroy", err);
     }
+#elif defined(HAVE_PTHREAD_GET_STACKADDR_NP)
+    thrPtr->stackaddr = pthread_get_stackaddr_np(tid);
+    thrPtr->stacksize = pthread_get_stacksize_np(tid) - guardsize;
 #endif
     return thrPtr;
 }
