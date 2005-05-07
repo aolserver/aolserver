@@ -35,7 +35,7 @@
  *	Pool memory is used as an optimization.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/request.c,v 1.10 2005/03/25 00:36:07 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/request.c,v 1.11 2005/05/07 23:36:43 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -111,6 +111,7 @@ Ns_ParseRequestEx(char *line, Tcl_Encoding encoding)
     char       *p;
     Ns_DString  ds;
     Ns_Request *request;
+    int		major, minor, i;
 
     request = ns_calloc(1, sizeof(Ns_Request));
     Ns_DStringInit(&ds);
@@ -160,25 +161,14 @@ Ns_ParseRequestEx(char *line, Tcl_Encoding encoding)
      */
     
     request->version = 0.0;
-    p = url + strlen(url);
-    while (p-- > url) {
-        if (!isdigit(UCHAR(*p)) && *p != '.') {
-            break;
-        }
-    }
-    p -= (sizeof(HTTP) - 2);
-    if (p >= url) {
-        if (strncmp(p, HTTP, sizeof(HTTP) - 1) == 0) {
-
-            /*
-             * If atof fails, version will be set to 0 and the server
-             * will treat the connection as if it had no HTTP/n.n keyword.
-             */
-	    
-            *p = '\0';
-            p += sizeof(HTTP) - 1;
-            request->version = atof(p);
-        }
+    p = NsFindVersion(url, &major, &minor);
+    if (p != NULL) {
+	*p = '\0';
+	i = 10;
+	while ((minor / i) > 0) {
+	    i *= 10;
+	}
+	request->version = major + (double) minor / i;
     }
     url = Ns_StrTrim(url);
     if (*url == '\0') {
@@ -221,7 +211,10 @@ Ns_ParseRequestEx(char *line, Tcl_Encoding encoding)
                 p = strchr(h, ':');
                 if (p != NULL) {
                     *p++ = '\0';
-                    request->port = atoi(p);
+		    if (Tcl_GetInt(NULL, p, &i) != TCL_OK) {
+			goto done;
+		    }
+		    request->port = (unsigned short) i;
                 }
                 request->host = ns_strdup(h);
             }
@@ -238,17 +231,47 @@ done:
     return request;
 }
 
-char *
-NsFindVersion(char *request)
-{
-    char *s, *v;
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsFindVersion --
+ *
+ *	Find the HTTP/x.y version string in a request line.
+ *
+ * Results:
+ *	Start of version string or NULL if not found.
+ *
+ * Side effects:
+ *	Given majorPtr and minorPtr will be updated.
+ *
+ *----------------------------------------------------------------------
+ */
 
-    v = NULL;
-    while ((s = strstr(request, " HTTP/")) != NULL) {
-	v = s;
-	request = s + 6;
+char *
+NsFindVersion(char *request, int *majorPtr, int *minorPtr)
+{
+    char *next, *version;
+    int major, minor;
+
+    version = NULL;
+    while ((next = strstr(request, " HTTP/")) != NULL) {
+	version = next;
+	request += 6;
     }
-    return v;
+    if (version != NULL && sscanf(version+6, "%d.%d", &major, &minor) != 2) {
+	version = NULL;
+    }
+    if (version != NULL) {
+	++version;
+	if (majorPtr != NULL) {
+	    *majorPtr = major;
+	}
+	if (minorPtr != NULL) {
+	    *minorPtr = minor;
+	}
+    }
+    return version;
 }
 
 
