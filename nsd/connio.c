@@ -34,7 +34,7 @@
  *      Handle connection I/O.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/connio.c,v 1.20 2005/03/25 00:33:36 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/connio.c,v 1.21 2005/05/07 23:35:37 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #define IOBUFSZ 2048
@@ -579,7 +579,7 @@ Ns_ConnFlushContent(Ns_Conn *conn)
     Conn *connPtr = (Conn *) conn;
 
     if (connPtr->sockPtr == NULL) {
-	return -1;
+	return NS_ERROR;
     }
     connPtr->next  += connPtr->avail;
     connPtr->avail  = 0;
