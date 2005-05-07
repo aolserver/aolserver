@@ -767,6 +767,9 @@ typedef struct NsInterp {
     NsServer  	    	  *servPtr;
     int		   	   delete;
     int			   epoch;
+    Tcl_AsyncHandler	   cancel;
+    char		   name[32];
+    Tcl_HashEntry	  *hPtr;
 
     /*
      * The following pointer maintains the first in
@@ -871,6 +874,7 @@ extern void NsInitTcl(void);
 extern void NsInitUrlSpace(void);
 extern void NsInitRequests(void);
 
+extern char *NsFindVersion(char *request, int *majorPtr, int *minorPtr);
 extern void NsQueueConn(Conn *connPtr);
 extern int NsCheckQuery(Ns_Conn *conn);
 extern void NsAppendConn(Tcl_DString *bufPtr, Conn *connPtr, char *state);
