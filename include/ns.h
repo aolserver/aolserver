@@ -33,7 +33,7 @@
  *      All the public types and function declarations for the core
  *	AOLserver.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.76 2005/03/25 00:32:03 jgdavidson Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.77 2005/05/07 23:30:19 jgdavidson Exp $
  */
 
 #ifndef NS_H
@@ -1095,6 +1095,7 @@ NS_EXTERN void Ns_SetPrint(Ns_Set *set);
 NS_EXTERN int Ns_SockRecv(SOCKET sock, void *vbuf, int nrecv, int timeout);
 NS_EXTERN int Ns_SockSend(SOCKET sock, void *vbuf, int nsend, int timeout);
 NS_EXTERN int Ns_SockWait(SOCKET sock, int what, int timeout);
+NS_EXTERN int Ns_SockWaitEx(SOCKET sock, int what, int ms);
 
 NS_EXTERN SOCKET Ns_BindSock(struct sockaddr_in *psa);
 NS_EXTERN SOCKET Ns_SockBind(struct sockaddr_in *psa);
