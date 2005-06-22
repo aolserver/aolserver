@@ -33,7 +33,7 @@
  *	Support for I/O tasks.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/task.c,v 1.1 2004/10/06 18:51:19 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/task.c,v 1.2 2005/06/22 00:02:15 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -291,7 +291,9 @@ Ns_TaskRun(Ns_Task *task)
 	}
 	pfd.revents = 0;
 	pfd.events = taskPtr->events;
-	NsPoll(&pfd, 1, timeoutPtr);
+	if (NsPoll(&pfd, 1, timeoutPtr) != 1) {
+	    break;
+	}
 	Ns_GetTime(&now);
 	RunTask(taskPtr, pfd.revents, &now);
     }
@@ -601,6 +603,13 @@ RunTask(Task *taskPtr, int revents, Ns_Time *nowPtr)
 {
     int i;
 
+    /*
+     * NB: Treat POLLHUP as POLLIN on systems which return it.
+     */
+
+    if (revents & POLLHUP) {
+	revents |= POLLIN;
+    }
     if (revents) {
     	for (i = 0; i < 3; ++i) {
 	    if (revents & map[i].event) {
