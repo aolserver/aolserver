@@ -1,3 +1,9 @@
+2005-06-21  Jim Davidson <jgdavidson@aol.com>
+
+	* nsd/connio.c:  Fixed bad return code for Ns_ConnReadLine.
+	* nsd/task.c:  Fixed to handle a return of POLLHUP from poll.
+
+
 2005-03-27  Jim Davidson <jgdavidson@aol.com>
 
 	* nsdb/dbtcl.c:  Updated ns_db to be an object command.
