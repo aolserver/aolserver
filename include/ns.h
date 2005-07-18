@@ -33,7 +33,7 @@
  *      All the public types and function declarations for the core
  *	AOLserver.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.77 2005/05/07 23:30:19 jgdavidson Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.78 2005/07/18 23:32:25 jgdavidson Exp $
  */
 
 #ifndef NS_H
@@ -374,6 +374,20 @@ typedef struct Ns_Conn {
 				 * specify the state of the connection. */
 } Ns_Conn;
 
+/* 
+ * The following structure maintains data from an
+ * updated form file.  File content can be accessed
+ * at the given offset and length from the bytes
+ * returned by Ns_ConnContent. 
+ */
+ 
+typedef struct Ns_ConnFile {
+    char   *name;
+    Ns_Set *headers;
+    off_t   offset;
+    off_t   length;
+} Ns_ConnFile;
+
 /*
  * The index data structure.  This is a linear array of values.
  */
@@ -592,6 +606,7 @@ NS_EXTERN void Ns_GetVersion(int *major, int *minor, int *patch, int *type);
 
 NS_EXTERN int Ns_ConnClose(Ns_Conn *conn);
 NS_EXTERN int Ns_ConnInit(Ns_Conn *connPtr);
+NS_EXTERN int Ns_ConnId(Ns_Conn *connPtr);
 NS_EXTERN int Ns_ConnRead(Ns_Conn *conn, void *vbuf, int toread);
 NS_EXTERN int Ns_ConnWrite(Ns_Conn *conn, void *buf, int towrite);
 NS_EXTERN int Ns_ConnFlush(Ns_Conn *conn, char *buf, int len, int stream);
@@ -605,6 +620,7 @@ NS_EXTERN int Ns_ConnSendDString(Ns_Conn *conn, Ns_DString *dsPtr);
 NS_EXTERN int Ns_ConnSendChannel(Ns_Conn *conn, Tcl_Channel chan, int nsend);
 NS_EXTERN int Ns_ConnSendFp(Ns_Conn *conn, FILE *fp, int nsend);
 NS_EXTERN int Ns_ConnSendFd(Ns_Conn *conn, int fd, int nsend);
+NS_EXTERN int Ns_ConnSendFdEx(Ns_Conn *conn, int fd, off_t off, int nsend);
 NS_EXTERN int Ns_ConnCopyToDString(Ns_Conn *conn, size_t ncopy,
 				   Ns_DString *dsPtr);
 NS_EXTERN int Ns_ConnCopyToChannel(Ns_Conn *conn, size_t ncopy, Tcl_Channel chan);
@@ -623,8 +639,6 @@ NS_EXTERN int Ns_ConnModifiedSince(Ns_Conn *conn, time_t inTime);
 NS_EXTERN char *Ns_ConnGets(char *outBuffer, size_t inSize, Ns_Conn *conn);
 NS_EXTERN int Ns_ConnReadHeaders(Ns_Conn *conn, Ns_Set *set, int *nreadPtr);
 NS_EXTERN int Ns_ParseHeader(Ns_Set *set, char *header, Ns_HeaderCaseDisposition disp);
-NS_EXTERN Ns_Set  *Ns_ConnGetQuery(Ns_Conn *conn);
-NS_EXTERN void Ns_ConnClearQuery(Ns_Conn *conn);
 NS_EXTERN int Ns_QueryToSet(char *query, Ns_Set *qset);
 NS_EXTERN Ns_Set *Ns_ConnHeaders(Ns_Conn *conn);
 NS_EXTERN Ns_Set *Ns_ConnOutputHeaders(Ns_Conn *conn);
@@ -1023,6 +1037,8 @@ NS_EXTERN int Ns_ConnReturnOpenFile(Ns_Conn *conn, int status, char *type,
 				 FILE *fp, int len);
 NS_EXTERN int Ns_ConnReturnOpenFd(Ns_Conn *conn, int status, char *type, int fd,
 			       int len);
+NS_EXTERN int Ns_ConnReturnOpenFdEx(Ns_Conn *conn, int status, char *type,
+				    int fd, off_t off, int len);
 NS_EXTERN int Ns_ConnReturnFile(Ns_Conn *conn, int status, char *type,
 			     char *filename);
 
@@ -1267,15 +1283,16 @@ NS_EXTERN void *Ns_ServerSpecificDestroy(char *handle, int id, int flags);
 NS_EXTERN int Ns_CloseOnExec(int fd);
 NS_EXTERN int Ns_NoCloseOnExec(int fd);
 NS_EXTERN int Ns_DupHigh(int *fdPtr);
+NS_EXTERN int Ns_DevNull(void);
 NS_EXTERN int Ns_GetTemp(void);
 NS_EXTERN void Ns_ReleaseTemp(int fd);
+NS_EXTERN int ns_sockpair(SOCKET *socks);
+NS_EXTERN int ns_pipe(int *fds);
 
 /*
  * unix.c, win32.c:
  */
 
-NS_EXTERN int ns_sockpair(SOCKET *socks);
-NS_EXTERN int ns_pipe(int *fds);
 NS_EXTERN int Ns_GetUserHome(Ns_DString *pds, char *user);
 NS_EXTERN int Ns_GetGid(char *group);
 NS_EXTERN int Ns_GetUserGid(char *user);
@@ -1285,7 +1302,11 @@ NS_EXTERN int Ns_GetUid(char *user);
  * form.c:
  */
 
+NS_EXTERN Ns_Set  *Ns_ConnGetQuery(Ns_Conn *conn);
 NS_EXTERN void Ns_ConnClearQuery(Ns_Conn *conn);
+NS_EXTERN Ns_ConnFile *Ns_ConnGetFile(Ns_Conn *conn, char *file);
+NS_EXTERN Ns_ConnFile *Ns_ConnFirstFile(Ns_Conn *conn, Tcl_HashSearch *searchPtr);
+NS_EXTERN Ns_ConnFile *Ns_ConnNextFile(Tcl_HashSearch *searchPtr);
 
 /*
  * Compatibility macros.
