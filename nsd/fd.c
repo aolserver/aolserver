@@ -34,11 +34,15 @@
  *      Manipulate file descriptors of open files.
  */
  
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/fd.c,v 1.9 2005/01/15 23:54:08 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/fd.c,v 1.10 2005/07/18 23:33:12 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #ifdef _WIN32
+#define DEVNULL "nul:"
 #include <share.h>
+#else
+#define DEVNULL "/dev/null"
+static int ClosePipeOnExec(int *fds);
 #endif
 
 /*
@@ -52,6 +56,7 @@ typedef struct Tmp {
 
 static Tmp *firstTmpPtr;
 static Ns_Mutex lock;
+static int devNull;
 
 /*
  * The following constants are defined for this file
@@ -60,6 +65,34 @@ static Ns_Mutex lock;
 #ifndef F_CLOEXEC
 #define F_CLOEXEC 1
 #endif
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsInitFd --
+ *
+ *	Initialize the fd API's.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	Will open a shared fd to /dev/null.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+NsInitFd(void)
+{
+    devNull = open(DEVNULL, O_RDONLY);
+    if (devNull < 0) {
+	Ns_Fatal("fd: open(%s) failed: %s", DEVNULL, strerror(errno));
+    }
+    Ns_DupHigh(&devNull);
+    Ns_CloseOnExec(devNull);
+}
 
 
 /*
@@ -288,4 +321,182 @@ Ns_ReleaseTemp(int fd)
 	firstTmpPtr = tmpPtr;
 	Ns_MutexUnlock(&lock);
     }
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_DevNull --
+ *
+ *	Return an open fd to /dev/null.  This is a read-only, shared
+ *	fd which can not be closed.
+ *
+ * Results:
+ *	Open file descriptor.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Ns_DevNull(void)
+{
+    return devNull;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ * ns_sockpair, ns_pipe --
+ *
+ *      Create a pipe/socketpair with fd's set close on exec.
+ *
+ * Results:
+ *      0 if ok, -1 otherwise.
+ *
+ * Side effects:
+ *      Updates given fd array.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+ns_pipe(int *fds)
+{
+#ifndef _WIN32
+    if (pipe(fds) == 0) {
+	return ClosePipeOnExec(fds);
+    }
+#else
+    if (_pipe(fds, 4096, _O_NOINHERIT|_O_BINARY) == 0) {
+	return 0;
+    }
+#endif
+    return -1;
+}
+
+int
+ns_sockpair(SOCKET *socks)
+{
+#ifndef _WIN32
+    if (socketpair(AF_UNIX, SOCK_STREAM, 0, socks) == 0) {
+	return ClosePipeOnExec(socks);
+    }
+    return -1;
+#else
+    SOCKET          sock;
+    struct sockaddr_in ia[2];
+    int             size;
+
+    size = sizeof(struct sockaddr_in);
+    sock = Ns_SockListen("127.0.0.1", 0);
+    if (sock == INVALID_SOCKET ||
+    	getsockname(sock, (struct sockaddr *) &ia[0], &size) != 0) {
+	return -1;
+    }
+    size = sizeof(struct sockaddr_in);
+    socks[1] = Ns_SockConnect("127.0.0.1", (int) ntohs(ia[0].sin_port));
+    if (socks[1] == INVALID_SOCKET ||
+    	getsockname(socks[1], (struct sockaddr *) &ia[1], &size) != 0) {
+	ns_sockclose(sock);
+	return -1;
+    }
+    size = sizeof(struct sockaddr_in);
+    socks[0] = accept(sock, (struct sockaddr *) &ia[0], &size);
+    ns_sockclose(sock);
+    if (socks[0] == INVALID_SOCKET) {
+	ns_sockclose(socks[1]);
+	return -1;
+    }
+    if (ia[0].sin_addr.s_addr != ia[1].sin_addr.s_addr ||
+	ia[0].sin_port != ia[1].sin_port) {
+	ns_sockclose(socks[0]);
+	ns_sockclose(socks[1]);
+	return -1;
+    }
+    return 0;
+#endif
+}
+
+#ifndef _WIN32
+static int
+ClosePipeOnExec(int *fds)
+{
+    if (Ns_CloseOnExec(fds[0]) == NS_OK && Ns_CloseOnExec(fds[1]) == NS_OK) {
+	return 0;
+    }
+    close(fds[0]);
+    close(fds[1]);
+    return -1;
+}
+#endif
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsMap --
+ *
+ *	Memory map a region of a file.
+ *
+ * Results:
+ *	Pointer to mapped region or NULL if mapping failed.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void *
+NsMap(int fd, off_t start, size_t len, int writable, void **argPtr)
+{
+#ifdef _WIN32
+    /* TODO: Make this work on Win32. */
+    return NULL;
+#else
+    int prot;
+
+    prot = PROT_READ;
+    if (writable) {
+	prot |= PROT_WRITE;
+    }
+    *argPtr = (void *) len;
+    return mmap(NULL, len, prot, MAP_SHARED, fd, start);
+#endif
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsUnMap --
+ *
+ *	Unmap a previosly mmapped region.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	Failure is considered fatal.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+NsUnMap(void *addr, void *arg)
+{
+#ifdef _WIN32
+    /* TODO: Make this work on Win32. */
+    Ns_Fatal("NsUnMap not supported");
+#else
+    size_t len = (size_t) arg;
+
+    if (munmap(addr, len) != 0) {
+	Ns_Fatal("munmap(%p, %u) failed: %s", addr, len, strerror(errno));
+    }
+#endif
 }

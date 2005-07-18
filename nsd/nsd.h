@@ -393,17 +393,6 @@ typedef struct Sock {
 } Sock;
 
 /*
- * The following structure maintains data from an
- * updated form file.
- */
-
-typedef struct FormFile {
-    Ns_Set *hdrs;
-    off_t   off;
-    off_t   len;
-} FormFile;
-
-/*
  * The following structure defines a per-request limits.
  */
 
@@ -511,6 +500,8 @@ typedef struct Conn {
     size_t          avail;	/* Bytes avail in buffer. */
     char	   *content;	/* Start of content. */
     int             tfd;        /* Temp fd for file-based content. */
+    void	   *map;	/* Mmap'ed content, if any. */
+    void	   *maparg;	/* Argument for NsUnMap. */
 
     /*
      * The following offsets are used to manage the 
@@ -670,7 +661,7 @@ typedef struct NsServer {
 
     struct {         
 	char	           *library;
-	struct Trace       *firstTracePtr;
+	struct TclTrace    *firstTracePtr;
 	char	    	   *initfile;
 	Ns_RWLock	    lock;
 	char		   *script;
@@ -859,6 +850,7 @@ extern void NsInitBinder(void);
 extern void NsInitCache(void);
 extern void NsInitConf(void);
 extern void NsInitEncodings(void);
+extern void NsInitFd(void);
 extern void NsInitListen(void);
 extern void NsInitLog(void);
 extern void NsInitInfo(void);
@@ -871,6 +863,7 @@ extern void NsInitPools(void);
 extern void NsInitDrivers(void);
 extern void NsInitSched(void);
 extern void NsInitTcl(void);
+extern void NsInitTclCache(void);
 extern void NsInitUrlSpace(void);
 extern void NsInitRequests(void);
 
@@ -879,7 +872,7 @@ extern void NsQueueConn(Conn *connPtr);
 extern int NsCheckQuery(Ns_Conn *conn);
 extern void NsAppendConn(Tcl_DString *bufPtr, Conn *connPtr, char *state);
 extern void NsAppendRequest(Tcl_DString *dsPtr, Ns_Request *request);
-extern int  NsSockSend(Sock *sockPtr, struct iovec *bufs, int nbufs);
+extern int  NsConnSend(Ns_Conn *conn, struct iovec *bufs, int nbufs);
 extern void NsSockClose(Sock *sockPtr, int keep);
 extern int  NsPoll(struct pollfd *pfds, int nfds, Ns_Time *timeoutPtr);
 extern void NsFreeConn(Conn *connPtr);
@@ -918,6 +911,11 @@ extern void NsGetCallbacks(Tcl_DString *dsPtr);
 extern void NsGetSockCallbacks(Tcl_DString *dsPtr);
 extern void NsGetScheduled(Tcl_DString *dsPtr);
 
+extern char *NsConnContent(Ns_Conn *conn, char **nextPtr, int *availPtr);
+extern void NsConnSeek(Ns_Conn *conn, int count);
+extern void *NsMap(int fd, off_t start, size_t len, int writeable, void **argPtr);
+extern void NsUnMap(void *addr, void *arg);
+
 #ifdef _WIN32
 extern int  NsConnectService(void);
 extern int  NsInstallService(char *service);
@@ -936,6 +934,7 @@ extern void NsBlockSignals(int debug);
 extern void NsHandleSignals(void);
 extern void NsStopDrivers(void);
 extern void NsPreBind(char *bindargs, char *bindfile);
+extern SOCKET NsSockGetBound(struct sockaddr_in *saPtr);
 extern void NsClosePreBound(void);
 extern void NsInitServer(char *server, Ns_ServerInitProc *initProc);
 extern char *NsConfigRead(char *file);

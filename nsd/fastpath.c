@@ -34,7 +34,7 @@
  *      Get page possibly from a file cache.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/fastpath.c,v 1.22 2005/01/15 23:54:08 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/fastpath.c,v 1.23 2005/07/18 23:33:12 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -468,12 +468,12 @@ static int
 FastReturn(NsServer *servPtr, Ns_Conn *conn, int status,
     char *type, char *file, struct stat *stPtr)
 {
-    int         result = NS_ERROR, fd, new, nread;
+    int             result = NS_ERROR, fd, new, nread;
     File	   *filePtr;
     char	   *key;
     Ns_Entry	   *entPtr;
+    void           *map, *arg;
 #ifndef _WIN32
-    char           *map;
     FileKey	    ukey;
 #endif
 
@@ -518,18 +518,16 @@ FastReturn(NsServer *servPtr, Ns_Conn *conn, int status,
 		   file, strerror(errno));
 	    goto notfound;
 	}
-#ifndef _WIN32
 	if (servPtr->fastpath.mmap) {
-	    map = mmap(0, (size_t) stPtr->st_size, PROT_READ, MAP_SHARED,
-			fd, (off_t) 0);
-	    if (map != MAP_FAILED) {
+	    map = NsMap(fd, 0, stPtr->st_size, 0, &arg);
+	    if (map == NULL) {
 	    	close(fd);
 	    	fd = -1;
-            	result = Ns_ConnReturnData(conn, status, map, (int) stPtr->st_size, type);
-	    	munmap(map, (size_t) stPtr->st_size);
+            	result = Ns_ConnReturnData(conn, status, map,
+					   (int) stPtr->st_size, type);
+		NsUnMap(map, arg);
 	    }
 	}
-#endif
 	if (fd != -1) {
             result = Ns_ConnReturnOpenFd(conn, status, type, fd,
 					 (int) stPtr->st_size);
