@@ -34,7 +34,7 @@
  *      DNS lookup routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/dns.c,v 1.12 2004/12/06 16:12:12 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/dns.c,v 1.13 2005/07/18 23:33:00 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -82,7 +82,7 @@ static int DnsGet(GetProc *getProc, Ns_DString *dsPtr,
 	Ns_Cache **cachePtr, char *key, int all);
 
 #if !defined(HAVE_GETADDRINFO) && !defined(HAVE_GETNAMEINFO)
-static void LogError(char *func, int h_errnop);
+static void DnsLogError(char *func, int h_errnop);
 #endif
 
 
@@ -242,88 +242,71 @@ NsEnableDNSCache(int timeout, int maxentries)
  *----------------------------------------------------------------------
  */
 
-#if defined(HAVE_GETNAMEINFO)
-
 static int
 GetHost(Ns_DString *dsPtr, char *addr)
 {
-    struct sockaddr_in sa;
+#if defined(HAVE_GETNAMEINFO)
     char buf[NI_MAXHOST];
-    int result;
-    int status = NS_FALSE;
+    int err;
+#elif defined(HAVE_GETHOSTBYADDR_R)
+    struct hostent he, *hp;
+    char buf[2048];
+    int err;
+#else
+    struct hostent *hp;
+    static Ns_Cs cs;
+#endif
+    struct sockaddr_in sa;
+    char *host;
 
+    host = NULL;
     sa.sin_family = AF_INET;
     sa.sin_addr.s_addr = inet_addr(addr);
-    if ((result = getnameinfo((const struct sockaddr *) &sa,
-                    sizeof(struct sockaddr_in), buf, sizeof(buf),
-                    NULL, 0, NI_NAMEREQD)) != 0) {
-        Ns_Log(Error, "dns: getnameinfo failed: %s", gai_strerror(result));
+    if (sa.sin_addr.s_addr == INADDR_NONE) {
+	return NS_FALSE;
+    }
+#if defined(HAVE_GETNAMEINFO)
+    err = getnameinfo((const struct sockaddr *) &sa,
+                      sizeof(struct sockaddr_in), buf, sizeof(buf),
+                      NULL, 0, NI_NAMEREQD);
+    if (err != 0) {
+        Ns_Log(Error, "dns: getnameinfo failed: %s", gai_strerror(err));
     } else {
-        Ns_DStringAppend(dsPtr, buf);
-        status = NS_TRUE;
-        
+	host = buf;
     }
-    return status;
-}
-
 #elif defined(HAVE_GETHOSTBYADDR_R)
-
-static int
-GetHost(Ns_DString *dsPtr, char *addr)
-{
-    struct hostent he, *hePtr;
-    struct sockaddr_in sa;
-    char buf[2048];
-    int h_errnop;
-    int status = NS_FALSE;
-
-    sa.sin_addr.s_addr = inet_addr(addr);
-    hePtr = gethostbyaddr_r((char *) &sa.sin_addr, sizeof(struct in_addr),
-            AF_INET, &he, buf, sizeof(buf), &h_errnop);
-    if (hePtr == NULL) {
-        LogError("gethostbyaddr_r", h_errnop);
-    } else if (he.h_name != NULL) {
-        Ns_DStringAppend(dsPtr, he.h_name);
-        status = NS_TRUE;
+    hp = gethostbyaddr_r((char *) &sa.sin_addr, sizeof(struct in_addr),
+            AF_INET, &he, buf, sizeof(buf), &err);
+    if (hp == NULL) {
+        DnsLogError("gethostbyaddr_r", err);
+    } else {
+	host = he.h_name;
     }
-    return status;
-}
-
 #else
+    /*
+     * This version is not thread-safe, but we have no thread-safe
+     * alternative on this platform.  Use critsec to try and serialize
+     * calls, but beware: Tcl core as of 8.4.6 still calls gethostbyaddr()
+     * as well, so it's still possible for two threads to call it at
+     * the same time.
+     */
 
-/*
- * This version is not thread-safe, but we have no thread-safe
- * alternative on this platform.  Use critsec to try and serialize
- * calls, but beware: Tcl core as of 8.4.6 still calls gethostbyaddr()
- * as well, so it's still possible for two threads to call it at
- * the same time.
- */
-
-static int
-GetHost(Ns_DString *dsPtr, char *addr)
-{
-    struct hostent *he;
-    struct sockaddr_in sa;
-    static Ns_Cs cs;
-    int status = NS_FALSE;
-
-    sa.sin_addr.s_addr = inet_addr(addr);
-    if (sa.sin_addr.s_addr != INADDR_NONE) {
-	Ns_CsEnter(&cs);
-        he = gethostbyaddr((char *) &sa.sin_addr,
-			   sizeof(struct in_addr), AF_INET);
-	if (he == NULL) {
-	    LogError("gethostbyaddr", h_errno);
-	} else if (he->h_name != NULL) {
-	    Ns_DStringAppend(dsPtr, he->h_name);
-	    status = NS_TRUE;
-	}
-	Ns_CsLeave(&cs);
+    Ns_CsEnter(&cs);
+    hp = gethostbyaddr((char *) &sa.sin_addr, sizeof(struct in_addr), AF_INET);
+    if (hp == NULL) {
+	DnsLogError("gethostbyaddr", h_errno);
+    } else {
+	host = hp->h_name;
     }
-    return status;
+    Ns_CsLeave(&cs);
+#endif
+    if (host == NULL) {
+	return NS_FALSE;
+    }
+    Ns_DStringAppend(dsPtr, host);
+    return NS_TRUE;
 }
 
-#endif
 
 #if defined(HAVE_GETADDRINFO)
 
@@ -384,7 +367,7 @@ GetAddr(Ns_DString *dsPtr, char *host)
 #endif
 
     if (result != 0) { 
-	LogError("gethostbyname_r", h_errnop);
+	DnsLogError("gethostbyname_r", h_errnop);
     } else {
         ptr = (struct in_addr *) he.h_addr_list[i];
         while (ptr != NULL) {
@@ -418,7 +401,7 @@ GetAddr(Ns_DString *dsPtr, char *host)
     Ns_CsEnter(&cs);
     he = gethostbyname(host);
     if (he == NULL) {
-	LogError("gethostbyname", h_errno);
+	DnsLogError("gethostbyname", h_errno);
     } else {
         ptr = (struct in_addr *) he.h_addr_list[i];
         while (ptr != NULL) {
@@ -436,7 +419,7 @@ GetAddr(Ns_DString *dsPtr, char *host)
 
 /*
  *----------------------------------------------------------------------
- * LogError -
+ * DnsLogError -
  *
  *      Log errors which may indicate a failure in the underlying
  *	resolver.
@@ -453,7 +436,7 @@ GetAddr(Ns_DString *dsPtr, char *host)
 #if !defined(HAVE_GETADDRINFO) && !defined(HAVE_GETNAMEINFO)
 
 static void
-LogError(char *func, int h_errnop)
+DnsLogError(char *func, int h_errnop)
 {
     char *h, *e, buf[20];
 

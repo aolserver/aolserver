@@ -35,7 +35,7 @@
 
 #include "nsd.h"
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclvar.c,v 1.15 2003/04/25 19:35:46 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclvar.c,v 1.16 2005/07/18 23:33:00 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 /*
  * The following structure defines a collection of arrays.
@@ -388,7 +388,7 @@ NsTclNsvArrayObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv
     static CONST char *opts[] = {
 	"set", "reset", "get", "names", "size", "exists", NULL
     };
-    enum ISubCmdIdx {
+    enum {
 	CSetIdx, CResetIdx, CGetIdx, CNamesIdx, CSizeIdx, CExistsIdx
     } opt;
 
