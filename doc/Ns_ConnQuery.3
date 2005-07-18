@@ -1,0 +1,167 @@
+
+'\"
+'\" The contents of this file are subject to the AOLserver Public License
+'\" Version 1.1 (the "License"); you may not use this file except in
+'\" compliance with the License. You may obtain a copy of the License at
+'\" http://aolserver.com/.
+'\"
+'\" Software distributed under the License is distributed on an "AS IS"
+'\" basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+'\" the License for the specific language governing rights and limitations
+'\" under the License.
+'\"
+'\" The Original Code is AOLserver Code and related documentation
+'\" distributed by AOL.
+'\" 
+'\" The Initial Developer of the Original Code is America Online,
+'\" Inc. Portions created by AOL are Copyright (C) 1999 America Online,
+'\" Inc. All Rights Reserved.
+'\"
+'\" Alternatively, the contents of this file may be used under the terms
+'\" of the GNU General Public License (the "GPL"), in which case the
+'\" provisions of GPL are applicable instead of those above.  If you wish
+'\" to allow use of your version of this file only under the terms of the
+'\" GPL and not to allow others to use your version of this file under the
+'\" License, indicate your decision by deleting the provisions above and
+'\" replace them with the notice and other provisions required by the GPL.
+'\" If you do not delete the provisions above, a recipient may use your
+'\" version of this file under either the License or the GPL.
+'\" 
+'\"
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_ConnQuery.3,v 1.1 2005/07/18 23:34:00 jgdavidson Exp $
+'\"
+'\" 
+.so man.macros
+
+.TH Ns_Conn 3 4.0 AOLserver "AOLserver Library Procedures"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+Ns_ConnFile, Ns_ConnGetQuery, Ns_ConnClearQuery, Ns_ConnGetFile, Ns_ConnFirstFile, Ns_ConnNextFile \- routines to access query data included with a connection request.
+.SH SYNOPSIS
+.nf
+\fB#include "ns.h"\fR
+.sp
+Ns_Set *
+\fBNs_ConnGetQuery\fR(\fINs_Conn *conn\fR)
+.sp
+void
+\fBNs_ConnClearQuery\fR(\fINs_Conn *conn\fR)
+.sp
+Ns_ConnFile *
+\fBNs_ConnGetFile\fR(\fINs_Conn *conn, char *file\fR)
+.sp
+Ns_ConnFile *
+\fBNs_ConnFirstFile\fR(\fINs_Conn *conn, Tcl_HashSearch *searchPtr\fR)
+.sp
+Ns_ConnFile *
+\fBNs_ConnNextFile\fR(\fINs_Conn *conn, Tcl_HashSearch *searchPtr\fR)
+.sp
+.SH ARGUMENTS
+.AS Tcl_HashSearch *searchPtr in/out
+.AP Ns_Conn *conn in
+Pointer to given connection. 
+.AP char *file in
+Name of embedded file.
+.AP Tcl_HashSearch *searchPtr in/out
+Pointer to buffer to maintain state of an active search.
+.sp
+.BE
+.SH DESCRIPTION
+.PP
+These routines provide access to connection query data, derived
+from either URL query arguments (i.e., key/value pairs after the
+\fI?\fR in an URL) or via an HTTP POST.  The server supports ordinary
+URL encoded forms  as well as \fImultipart/form-data\fR forms which
+may include one or more embedded files.
+.PP
+As form processing is a common and important aspect of dynamic web
+applications, AOLserver provides easy access to the query data
+within the core.  The parsing occurs on demand and the results are
+cached for reuse throughout the connection; there is no need to
+copy the returned \fINs_Set\fR or \fINs_ConnFile\fR structure(s).
+The results of these routines should be considered read-only.
+.SH "QUERY ROUTINES"
+.PP
+\fBNs_ConnGetQuery\fR returns a pointer to an \fINs_Set\fR with the
+fields of the connection query or \fINULL\fR if no valid query was
+present.  The keys and values are in UTF-8, decoded from the request
+based on the server \fIurlencoding\fR config option.  Subsequent
+calls to \fBNs_ConnGetQuery\fR will return the same set unless the
+server detects the connection encoding has changed in which case
+the previous query is cleared and a new query result is generated.
+.PP
+Data for the query is based on any URL query arguments which may
+be present (i.e., key/value pairs following the \fI?\fR in the URL).
+If there is no URL query data, the server will parse the content
+of an HTTP \fBPOST\fI.
+.PP
+\fBNs_ConnClearQuery\fR frees the previous parsed query, if any.
+There is normally no need to call this routine; it is normally only
+called internally when \fBNs_ConnGetQuery\fI detects the url encoding
+has been manually updated for the connection, potentially invalidating
+the character encoding on the previous form parsing.
+.PP
+\fBNs_ConnGetFile\fR returns the \fINs_ConnFile\fR structure for
+the given file if present which includes the following fields:
+.sp
+.CS
+typedef struct Ns_ConnFile {
+    char   *name; 
+    Ns_Set *headers;
+    off_t   offset;
+    off_t   length;
+} Ns_ConnFile;
+.CE
+.PP
+The \fIname\fR field is a pointer to a string which matches the
+name as provided by the corresponding form \fI<input>\fR tag.  The
+\fIheaders\fR field is a pointer to an \fINs_Set\fR with the key/value
+pairs for the file input meta data, e.g., a \fIContent-Type\fR
+header.  The \fIoffset\fR and \fIlength\fR fields specfy where
+within the content the actual file bytes are located.  See the
+\fBNs_ConnContent\fR man page for details on accessing the content
+bytes either through an in-memory buffer or open temp file.
+.PP
+\fBNs_ConnFirstFile\fR and \fBNs_ConnNextFile\fR routines
+allow you to manage a search through the underlying hash table
+of uploaded files.
+.SH EXAMPLE
+Given the following HTML form:
+.sp
+.CS
+<form enctype=multipart/form-data method=post>
+<textarea name=stringdata></textarea>
+<input type=file name=filedata>
+<input type=submit>
+</form>
+.CE
+the following code would dump the form strings and file info to the
+server log:
+.sp
+.CS
+void
+DumpQuery(Ns_Conn *conn)
+{
+    Ns_Set *query;
+    Ns_ConnFile *filePtr;
+    Tcl_HashSearch search;
+
+    query = Ns_ConnGetQuery(conn);
+    if (query != NULL) {
+        /* Dump key/values of all fields. */
+        Ns_SetPrint(query);
+        /* Dump info on each embedded file. */
+        filePtr = Ns_ConnFirstFile(conn);
+        while (filePtr != NULL) {
+            Ns_Log(Notice, "file: %s %d %d", filePtr->name,
+                   filePtr->offset, filePtr->length);
+            filePtr = Ns_ConnNextFile(conn);
+        }
+    }
+}
+.CE
+.SH "SEE ALSO"
+Ns_Set(3), Ns_Conn(3), Ns_ConnContent(3), ns_conn(n), ns_parsequery(n)
+.SH KEYWORDS
+form, query

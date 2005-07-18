@@ -1,0 +1,134 @@
+
+'\"
+'\" The contents of this file are subject to the AOLserver Public License
+'\" Version 1.1 (the "License"); you may not use this file except in
+'\" compliance with the License. You may obtain a copy of the License at
+'\" http://aolserver.com/.
+'\"
+'\" Software distributed under the License is distributed on an "AS IS"
+'\" basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+'\" the License for the specific language governing rights and limitations
+'\" under the License.
+'\"
+'\" The Original Code is AOLserver Code and related documentation
+'\" distributed by AOL.
+'\" 
+'\" The Initial Developer of the Original Code is America Online,
+'\" Inc. Portions created by AOL are Copyright (C) 1999 America Online,
+'\" Inc. All Rights Reserved.
+'\"
+'\" Alternatively, the contents of this file may be used under the terms
+'\" of the GNU General Public License (the "GPL"), in which case the
+'\" provisions of GPL are applicable instead of those above.  If you wish
+'\" to allow use of your version of this file only under the terms of the
+'\" GPL and not to allow others to use your version of this file under the
+'\" License, indicate your decision by deleting the provisions above and
+'\" replace them with the notice and other provisions required by the GPL.
+'\" If you do not delete the provisions above, a recipient may use your
+'\" version of this file under either the License or the GPL.
+'\" 
+'\"
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_ConnContent.3,v 1.1 2005/07/18 23:34:00 jgdavidson Exp $
+'\"
+'\" 
+.so man.macros
+
+.TH Ns_ConnContent 3 4.0 AOLserver "AOLserver Library Procedures"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+Ns_ConnContent, Ns_ConnContentLength, Ns_ConnContentFd \- access request content
+.SH SYNOPSIS
+.nf
+\fB#include "ns.h"\fR
+.sp
+char *
+\fBNs_ConnContent\fR(\fINs_Conn *conn\fR)
+.sp
+int
+\fBNs_ConnContentLength\fR(\fINs_Conn *conn\fR)
+.sp
+int
+\fBNs_ConnContentFd\fR(\fINs_Conn *conn\fR)
+.SH ARGUMENTS
+.AS Ns_Conn *conn in
+.AP Ns_Conn *conn in
+Pointer to given connection. 
+.sp
+.BE
+.SH DESCRIPTION
+.PP
+These procedures provide access to the content sent with a request.
+.PP
+\fBNs_ConnContent\fR returns a pointer to the content in memory.
+The result of \fBNs_ConnContent\fR is not guarenteed to be
+null-terminated.  Safe code should be careful to use the
+result of \fBNs_ConnContentLength\fR to avoid overrun.
+.PP
+\fBNs_ConnContentFd\fR returns an file descriptor to an open temporary
+file which contains the content.
+.PP
+\fBNs_ConnContentLength\fR returns the length of the memory buffer
+and/or the size of the open temp file.  Any trailing \\r\\n sent
+beyond the content from most browsers on a POST is not included.
+.SH "CONTENT PRE-READ"
+.PP
+While receiving the request before connection processing, the server
+will pre-read the entire content body and either copy the content
+to memory or spool it to an open file depending on virtual server
+config settings.  Requests with content beyond the \fImaxcontent\fR
+virtual server setting are rejected, requests with content between
+\fImaxinput\fR and \fImaxcontent\fR are spooled to a temp file, and
+small requests (the majority of simply POST's) are copied to memory.
+There is no need for a request processing extension to consider
+possible delays in reading content from the client as all content
+is available before connection processing begins.  The rationale
+for this approach is that the driver thread can efficiently multiplex
+reading content for serveral request, tolerating any network delays.
+Legacy direct content reading routines, e.g., \fBNs_ConnRead\fR,
+are now emulated on top of the \fBNs_ConnContent\fR.
+.SH "RESOURCE MANAGEMENT"
+.PP
+\fBNs_ConnContentFd\fR returns an open file descriptor allocated
+by a call \fBNs_GetTemp\fR and must not be closed as it is owned
+by the server core and will be closed at the end of the connection.
+In addition, there is no filename for the open file as the file is
+removed when opened for security reasons and to ensure garbage
+collection.  In practice, the open file should be used to verify,
+parse, and copy content elsewhere as required.  Access at the Tcl
+level is also available via the \fBns_conn contentchannel\fR option.
+.PP
+On a call to \fBNs_ConnContent\fR, either the existing memory buffer
+will be returned or the temp file will be memory mapped on the first
+call.  This will require temporary virtual memory to support the
+mapping until the end of the connection.  Likewise, on the first
+call to \fBNs_ConnContentFd\fR, if a temp file does not already
+exists one will be allocated and the memory content will be spooled
+to the file.  These semantics allow one to access the content in
+either mode, assuming resources are available, regardless of the
+original location of the content.
+
+.SH "DESIGN NOTES AND LARGE CONTENT CONSIDERATIONS"
+.PP
+The design goal of the server is to support the ordinary case of
+reasonably small content requests (i.e., POST forms and small file
+uploads) in a convienent way without limiting a custom app to support
+very large requests.  In particular, a call to \fBNs_ConnGetQuery\fR
+for a \fImultipart/file-upload\fR POST will result in an implicit
+call to \fBNs_ConnContent\fR to parse the fields.  This could require
+significant temporary virtual memory plus dynamic memory to copy
+non-file fields into the resulting \fINs_Set\fR. See the \fIns_limits\fR
+command to control maximum resource requirements.
+.PP
+For custom apps, an extension could work with the underlying open
+file via \fBNs_ConnContentFd\fR or \fBns_connn contentchannel\fR
+to avoid large virtual memory requirements subject to disk space
+availability.  To avoid inadvertant memory mapping of a large upload
+by other extensions calling \fBNs_ConnGetQuery\fR, consider using
+a HTTP method other than \fIGET\fR or \fIPOST\fR required by
+\fBNs_ConnGetQuery\fR, e.g., \fIPUT\fR.
+
+.SH "SEE ALSO"
+Ns_Conn(3), Ns_ConnRead(3), ns_limits(n), ns_conn(n)
+.SH KEYWORDS
+connection, content
