@@ -34,7 +34,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.46 2005/05/07 23:35:46 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.47 2005/07/18 23:33:06 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -77,6 +77,7 @@ typedef enum {
     E_RECV,
     E_FDAGAIN,
     E_FDWRITE,
+    E_FDTRUNC,
     E_FDSEEK,
     E_NOHOST,
     E_NOSERV,
@@ -86,7 +87,7 @@ typedef enum {
     E_LRANGE,
     E_RRANGE,
     E_CRANGE,
-} DrvErr;
+} ReadErr;
 
 /*
  * The following are valid driver state flags.
@@ -145,8 +146,8 @@ static void TriggerDriver(Driver *drvPtr);
 static Sock *SockAccept(SOCKET lsock, Driver *drvPtr);
 static void SockClose(Sock *sockPtr);
 static void SockRead(Sock *sockPtr);
-static int SockReadLine(Driver *drvPtr, Ns_Sock *sock, Conn *connPtr);
-static int SockReadContent(Driver *drvPtr, Ns_Sock *sock, Conn *connPtr);
+static ReadErr SockReadLine(Driver *drvPtr, Ns_Sock *sock, Conn *connPtr);
+static ReadErr SockReadContent(Driver *drvPtr, Ns_Sock *sock, Conn *connPtr);
 static int Poll(PollData *pdataPtr, SOCKET sock, int events, Ns_Time *timeoutPtr);
 static Conn *AllocConn(Driver *drvPtr, Ns_Time *nowPtr, Sock *sockPtr);
 static void FreeConn(Conn *connPtr);
@@ -156,7 +157,7 @@ static void SockWait(Sock *sockPtr, Ns_Time *nowPtr, int timeout,
 			  Sock **listPtrPtr);
 static void AppendConn(Driver *drvPtr, Conn *connPtr);
 #define SockPush(s, sp)		((s)->nextPtr = *(sp), *(sp) = (s))
-static void LogError(Sock *sockPtr, DrvErr err);
+static void LogReadError(Sock *sockPtr, ReadErr err);
 
 /*
  * Static variables defined in this file.
@@ -166,7 +167,7 @@ static Driver *firstDrvPtr; /* First in list of all drivers. */
 static Conn *firstConnPtr;  /* Conn free list. */
 static Ns_Mutex connlock;   /* Lock around Conn free list. */
 static Tcl_HashTable hosts; /* Host header to server table. */
-static ServerMap *defMapPtr;	/* Default server when not found in table. */
+static ServerMap *defMapPtr;/* Default server when not found in table. */
 
 
 /*
@@ -771,9 +772,9 @@ NsTclDriverObjCmd(ClientData dummy, Tcl_Interp *interp, int objc, Tcl_Obj **objv
 /* 
  *----------------------------------------------------------------------
  *
- * NsSockSend --
+ * NsConnSend --
  *
- *	Send buffers via the socket's driver callback.
+ *	Send buffers via the connection's driver callback.
  *
  * Results:
  *	# of bytes sent or -1 on error.
@@ -785,12 +786,16 @@ NsTclDriverObjCmd(ClientData dummy, Tcl_Interp *interp, int objc, Tcl_Obj **objv
  */
 
 int
-NsSockSend(Sock *sockPtr, struct iovec *bufs, int nbufs)
+NsConnSend(Ns_Conn *conn, struct iovec *bufs, int nbufs)
 {
-    Ns_Sock *sock = (Ns_Sock *) sockPtr;
+    Conn *connPtr = (Conn *) conn;
 
-    ++sockPtr->nwrites;
-    return (*sockPtr->drvPtr->proc)(DriverSend, sock, bufs, nbufs);
+    if (connPtr->sockPtr == NULL) {
+	return -1;
+    }
+    ++connPtr->sockPtr->nwrites;
+    return (*connPtr->sockPtr->drvPtr->proc)(DriverSend,
+		(Ns_Sock *) connPtr->sockPtr, bufs, nbufs);
 }
 
 
@@ -819,7 +824,7 @@ NsSockClose(Sock *sockPtr, int keep)
     Ns_Sock *sock = (Ns_Sock *) sockPtr;
 
     /*
-     * If keepalive is requested and enable, set the read wait
+     * If keepalive is requested and enabled, set the read wait
      * state. Otherwise, set close wait which simply drains any
      * remaining bytes to read.
      */
@@ -1602,10 +1607,9 @@ TriggerDriver(Driver *drvPtr)
  *	None.
  *
  * Side effects:
- *	Will set sockPtr->state to next state as needed. Also,
- *	the next byte to read mark and bytes available are set
- *	to the beginning of the content, just beyond the headers,
- *	when all content has been read.
+ *	Will set sockPtr->state to next state as needed and rewind
+ *	the content (in-memory or in temp file) when ready for
+ *	processing.
  *
  *----------------------------------------------------------------------
  */
@@ -1616,7 +1620,7 @@ SockRead(Sock *sockPtr)
     Driver *drvPtr = sockPtr->drvPtr;
     Conn *connPtr = sockPtr->connPtr;
     Ns_Sock *sock = (Ns_Sock *) sockPtr;
-    int err;
+    ReadErr err;
 
     ++sockPtr->nreads;
     if ((connPtr->flags & NS_CONN_READHDRS)) {
@@ -1626,16 +1630,19 @@ SockRead(Sock *sockPtr)
     }
 
     /*
-     * Rewind content and mark the connection ready if all input received.
+     * Mark the connection ready if all input received, truncating any
+     * extra \r\n and rewinding the input.
      */
 
-    if (!err && (connPtr->flags & NS_CONN_READHDRS) &&
-	connPtr->avail >= connPtr->contentLength) {
+    if (!err
+	    && (connPtr->flags & NS_CONN_READHDRS)
+	    && connPtr->avail >= connPtr->contentLength) {
     	connPtr->avail = connPtr->contentLength;
     	if (!(connPtr->flags & NS_CONN_FILECONTENT)) {
     	    connPtr->content[connPtr->avail] = '\0';
-	    connPtr->next = connPtr->content;
-    	} else if (lseek(connPtr->tfd, (off_t) 0, SEEK_SET) != 0) {
+    	} else if (ftruncate(connPtr->tfd, connPtr->avail) != 0) {
+	    err = E_FDTRUNC;
+	} else if (lseek(connPtr->tfd, (off_t) 0, SEEK_SET) != 0) {
 	    err = E_FDSEEK;
 	}
 	if (!err) {
@@ -1643,49 +1650,32 @@ SockRead(Sock *sockPtr)
 	}
     }
     if (err) {
-	LogError(sockPtr, err);
+	LogReadError(sockPtr, err);
 	sockPtr->state = SOCK_ERROR;
     }
 }
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * SockReadLine --
+ *
+ *	Read the next line of content from the connection, used during
+ *	request and header processing.
+ *
+ * Results:
+ *	0 if ok or an I/O error code.
+ *
+ * Side effects:
+ *	When request and headers are read, will setup the connection for
+ *	reading remaining content (if any) and for connection processing
+ *	based on the cooresponding limits.
+ *
+ *----------------------------------------------------------------------
+ */
 
-static int
-SockReadContent(Driver *drvPtr, Ns_Sock *sock, Conn *connPtr)
-{
-    struct iovec buf;
-    char fbuf[4096];
-    int n;
-
-    /*
-     * When reading content, allow for 2 bytes more then the expected
-     * content to absorb the extra \r\n, if any, at the end of a POST
-     * request.  Note this isn't guaranteed to work in the case the two
-     * bytes would have arrived in the next packet.
-     */
-
-    buf.iov_len = connPtr->contentLength - connPtr->avail + 2;
-    if (!(connPtr->flags & NS_CONN_FILECONTENT)) {
-        buf.iov_base = connPtr->content + connPtr->avail;
-    } else {
-	if (buf.iov_len > sizeof(fbuf)) {
-	    buf.iov_len = sizeof(fbuf);
-	}
-        buf.iov_base = fbuf;
-    }
-    n = (*drvPtr->proc)(DriverRecv, sock, &buf, 1);
-    if (n <= 0) {
-	return E_RECV;
-    }
-    if ((connPtr->flags & NS_CONN_FILECONTENT) &&
-	write(connPtr->tfd, fbuf, n) != n) {
-	return E_FDWRITE;
-    }
-    connPtr->avail += n;
-    return 0;
-}
-
-
-static int
+static ReadErr
 SockReadLine(Driver *drvPtr, Ns_Sock *sock, Conn *connPtr)
 {
     Tcl_DString *bufPtr;
@@ -1695,7 +1685,7 @@ SockReadLine(Driver *drvPtr, Ns_Sock *sock, Conn *connPtr)
     Tcl_HashEntry *hPtr;
     struct iovec buf;
     char *s, *e, *hdr, save;
-    int len, n, max, nbuf, major;
+    int len, n, max, major;
 
     /*
      * Setup the request buffer and read more input.
@@ -1703,10 +1693,10 @@ SockReadLine(Driver *drvPtr, Ns_Sock *sock, Conn *connPtr)
 
     bufPtr = &connPtr->ibuf;
     len = bufPtr->length;
-    max = bufPtr->spaceAvl - 1;
-    if (len == drvPtr->maxinput) {
+    if (len >= drvPtr->maxinput) {
 	return E_RRANGE;
     }
+    max = bufPtr->spaceAvl - 1;
     if (max < drvPtr->bufsize) {
         max += drvPtr->bufsize;
         if (max > drvPtr->maxinput) {
@@ -1736,7 +1726,7 @@ SockReadLine(Driver *drvPtr, Ns_Sock *sock, Conn *connPtr)
         s = bufPtr->string + connPtr->roff;
         e = strchr(s, '\n');
         if (e == NULL) {
-            return 0;
+            return E_NOERROR;
 	}
 
 	/*
@@ -1854,7 +1844,7 @@ SockReadLine(Driver *drvPtr, Ns_Sock *sock, Conn *connPtr)
                 }
                 len = strlen(e) + 3;
                 connPtr->authUser = ns_malloc((size_t) len);
-                len = Ns_HtuuDecode(e, connPtr->authUser, len);
+                len = Ns_HtuuDecode(e, (unsigned char *) connPtr->authUser, len);
                 connPtr->authUser[len] = '\0';
                 e = strchr(connPtr->authUser, ':');
                 if (e != NULL) {
@@ -1888,13 +1878,13 @@ SockReadLine(Driver *drvPtr, Ns_Sock *sock, Conn *connPtr)
      */
 
     connPtr->avail = bufPtr->length - connPtr->roff;
-    nbuf = connPtr->roff + connPtr->contentLength;
-    if (nbuf < connPtr->drvPtr->maxinput) {
+    max = connPtr->roff + connPtr->contentLength + 2;	/* NB: Space for \r\n if present. */
+    if (max < connPtr->drvPtr->maxinput) {
         /*
          * Content will fit at end of request buffer.
          */
 
-        Tcl_DStringSetLength(bufPtr, nbuf);
+        Tcl_DStringSetLength(bufPtr, max);
         connPtr->content = bufPtr->string + connPtr->roff;
     } else {
         /*
@@ -1912,7 +1902,136 @@ SockReadLine(Driver *drvPtr, Ns_Sock *sock, Conn *connPtr)
         }
         Tcl_DStringSetLength(bufPtr, connPtr->roff);
     }
-    return 0;
+    return E_NOERROR;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * SockReadContent --
+ *
+ *	Attempt to read available content into the pre-sized connection
+ *	dstring buffer or a temp file for large requests.
+ *
+ * Results:
+ *	0 if ok or an I/O error code.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static ReadErr
+SockReadContent(Driver *drvPtr, Ns_Sock *sock, Conn *connPtr)
+{
+    struct iovec buf;
+    char fbuf[4096];
+    int n;
+
+    /*
+     * When reading content, allow for 2 bytes more then the expected
+     * content to absorb the extra \r\n, if any, at the end of a POST
+     * request.  Note this isn't guaranteed to work in the case the two
+     * bytes would have arrived in the next packet.
+     */
+
+    buf.iov_len = connPtr->contentLength - connPtr->avail + 2;
+    if (!(connPtr->flags & NS_CONN_FILECONTENT)) {
+        buf.iov_base = connPtr->content + connPtr->avail;
+    } else {
+        buf.iov_base = fbuf;
+	if (buf.iov_len > sizeof(fbuf)) {
+	    buf.iov_len = sizeof(fbuf);
+	}
+    }
+    n = (*drvPtr->proc)(DriverRecv, sock, &buf, 1);
+    if (n <= 0) {
+	return E_RECV;
+    }
+    if ((connPtr->flags & NS_CONN_FILECONTENT)
+	    && write(connPtr->tfd, fbuf, n) != n) {
+	return E_FDWRITE;
+    }
+    connPtr->avail += n;
+    return E_NOERROR;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsConnContent --
+ *
+ *	Return the connction content buffer, mapping the temp file
+ *	if necessary.
+ *
+ *	NB: It may make better sense to update the various content
+ *	reading/parsing code to handle true incremental reads from
+ *	an open file instead of risking a potential mapping failure.
+ *	The current approach keeps the code simple and flexible.
+ *
+ * Results:
+ *	Pointer to start of content or NULL if mapping failed.
+ *
+ * Side effects:
+ *	If nextPtr and/or availPtr are not NULL, they are updated
+ *	with the next byte to read and remaining content available.
+ *
+ *----------------------------------------------------------------------
+ */
+
+char *
+NsConnContent(Ns_Conn *conn, char **nextPtr, int *availPtr)
+{
+    Conn *connPtr = (Conn *) conn;
+
+    if (connPtr->next == NULL) {
+	if (connPtr->content == NULL && (conn->flags & NS_CONN_FILECONTENT)) {
+	    connPtr->map = NsMap(connPtr->tfd, 0, conn->contentLength, 1,
+				 &connPtr->maparg);
+	    if (connPtr->map != NULL) {
+	        connPtr->content = connPtr->map;
+	    }
+	}
+	connPtr->next = connPtr->content;
+    }
+    if (connPtr->next != NULL) {
+	if (nextPtr != NULL) {
+	    *nextPtr = connPtr->next;
+	}
+	if (availPtr != NULL) {
+	    *availPtr = connPtr->avail;
+	}
+    }
+    return connPtr->content;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsConnSeek --
+ *
+ *	Update the next read and available content counter.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+NsConnSeek(Ns_Conn *conn, int count)
+{
+    Conn *connPtr = (Conn *) conn;
+    
+    connPtr->avail -= count;
+    connPtr->next  += count;
 }
 
 
@@ -1976,6 +2095,7 @@ RunQueWaits(PollData *pdataPtr, Ns_Time *nowPtr, Sock *sockPtr)
     }
     return (dropped ? 0 : 1);
 }
+
 
 /*
  *----------------------------------------------------------------------
@@ -2014,7 +2134,7 @@ AllocConn(Driver *drvPtr, Ns_Time *nowPtr, Sock *sockPtr)
         Tcl_InitHashTable(&connPtr->files, TCL_STRING_KEYS);
         connPtr->headers = Ns_SetCreate(NULL);
         connPtr->outputheaders = Ns_SetCreate(NULL);
-        connPtr->tfd = -1;
+    	connPtr->tfd = -1;
     }
     connPtr->drvPtr = drvPtr;
     connPtr->times.accept = *nowPtr;
@@ -2049,9 +2169,6 @@ static void
 FreeConn(Conn *connPtr)
 {
     Ns_Conn *conn = (Ns_Conn *) connPtr;
-    Tcl_HashEntry *hPtr;
-    Tcl_HashSearch search;
-    FormFile	  *filePtr;
 
     /*
      * Call CLS cleanups.
@@ -2090,22 +2207,17 @@ FreeConn(Conn *connPtr)
      * Cleanup private elements.
      */
 
-    hPtr = Tcl_FirstHashEntry(&connPtr->files, &search);
-    while (hPtr != NULL) {
-	filePtr = Tcl_GetHashValue(hPtr);
-	Ns_SetFree(filePtr->hdrs);
-	ns_free(filePtr);
-	hPtr = Tcl_NextHashEntry(&search);
-    }
-    Tcl_DeleteHashTable(&connPtr->files);
-    Tcl_InitHashTable(&connPtr->files, TCL_STRING_KEYS);
     connPtr->nContentSent = 0;
 
     /*
      * Cleanup content buffers.
      */
 
-    if (connPtr->tfd >= 0) {
+    if (connPtr->map != NULL) {
+	NsUnMap(connPtr->map, connPtr->maparg);
+	connPtr->map = connPtr->maparg = NULL;
+    }
+    if (connPtr->tfd != -1) {
         Ns_ReleaseTemp(connPtr->tfd);
         connPtr->tfd = -1;
     }
@@ -2219,11 +2331,27 @@ ThreadName(Driver *drvPtr, char *name)
     Ns_Log(Notice, "starting");
 }
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * LogReadError --
+ *
+ *	Log an extended error message on unusual I/O conditions.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	Message to server log.
+ *
+ *----------------------------------------------------------------------
+ */
 
 static void
-LogError(Sock *sockPtr, DrvErr err)
+LogReadError(Sock *sockPtr, ReadErr err)
 {
-    char *msg;
+    char *msg, *fmt;
 
     switch (err) {
     case E_NOERROR:		
@@ -2237,6 +2365,9 @@ LogError(Sock *sockPtr, DrvErr err)
 	break;
     case E_FDWRITE:		
 	msg = "fd write failed";
+	break;
+    case E_FDTRUNC:		
+	msg = "fd truncate failed";
 	break;
     case E_FDSEEK:		
 	msg = "fd seek failed";
@@ -2266,7 +2397,18 @@ LogError(Sock *sockPtr, DrvErr err)
 	msg = "max content exceeded";
 	break;
     }
+    switch (err) {
+    case E_RECV:		
+    case E_FDWRITE:		
+    case E_FDTRUNC:		
+    case E_FDSEEK:		
+	fmt = "%d: %s: %s";
+	break;
+    default:
+	fmt = "%d: %s";
+	break;
+    }
     if (1 /*drvPtr->debug */) {
-	Ns_Log(Error, "%d: %s", sockPtr->connPtr->id, msg);
+	Ns_Log(Error, fmt, sockPtr->connPtr->id, msg, strerror(errno));
     }
 }

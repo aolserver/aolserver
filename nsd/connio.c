@@ -34,7 +34,7 @@
  *      Handle connection I/O.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/connio.c,v 1.22 2005/06/17 16:35:20 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/connio.c,v 1.23 2005/07/18 23:33:06 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #define IOBUFSZ 2048
@@ -44,7 +44,7 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
  */
 
 static int ConnSend(Ns_Conn *conn, int nsend, Tcl_Channel chan,
-        FILE *fp, int fd);
+        FILE *fp, int fd, off_t off);
 static int ConnCopy(Ns_Conn *conn, size_t ncopy, Ns_DString *dsPtr,
         Tcl_Channel chan, FILE *fp, int fd);
  
@@ -54,15 +54,13 @@ static int ConnCopy(Ns_Conn *conn, size_t ncopy, Ns_DString *dsPtr,
  *
  * Ns_ConnInit --
  *
- *	Initialize a connection, setting the input URL encoding.
+ *	Initialize a connection, currently doing nothing.
  *
  * Results:
  *	Always NS_OK.
  *
  * Side effects:
- *	Query strings and forms will be decoded given encoding
- *	set here.  Note the URL itself has already been decoded
- *	with the server default encoding, if any.
+ *	None.
  *
  *-----------------------------------------------------------------
  */
@@ -70,17 +68,6 @@ static int ConnCopy(Ns_Conn *conn, size_t ncopy, Ns_DString *dsPtr,
 int
 Ns_ConnInit(Ns_Conn *conn)
 {
-    Conn *connPtr = (Conn *) conn;
-    Tcl_Encoding encoding = NULL;
-    
-    encoding = NsGetInputEncoding(connPtr);
-    if (encoding == NULL) {
-    	encoding = NsGetOutputEncoding(connPtr);
-	if (encoding == NULL) {
-	    encoding = connPtr->servPtr->urlEncoding;
-	}
-    }
-    Ns_ConnSetUrlEncoding(conn, encoding);
     return NS_OK;
 }
 
@@ -295,10 +282,6 @@ Ns_ConnSend(Ns_Conn *conn, struct iovec *bufs, int nbufs)
     int         nwrote, towrite, i, n;
     struct iovec    sbufs[16];
 
-    if (connPtr->sockPtr == NULL) {
-	return -1;
-    }
-
     /*
      * Send up to 16 buffers, including the queued output
      * buffer if necessary.
@@ -324,7 +307,7 @@ Ns_ConnSend(Ns_Conn *conn, struct iovec *bufs, int nbufs)
     bufs = sbufs;
     n = nwrote = 0;
     while (towrite > 0) {
-	n = NsSockSend(connPtr->sockPtr, bufs, nbufs);
+	n = NsConnSend(conn, bufs, nbufs);
 	if (n < 0) {
 	    break;
 	}
@@ -541,19 +524,25 @@ Ns_ConnSendDString(Ns_Conn *conn, Ns_DString *dsPtr)
 int
 Ns_ConnSendChannel(Ns_Conn *conn, Tcl_Channel chan, int nsend)
 {
-    return ConnSend(conn, nsend, chan, NULL, -1);
+    return ConnSend(conn, nsend, chan, NULL, -1, -1);
 }
 
 int
 Ns_ConnSendFp(Ns_Conn *conn, FILE *fp, int nsend)
 {
-    return ConnSend(conn, nsend, NULL, fp, -1);
+    return ConnSend(conn, nsend, NULL, fp, -1, -1);
 }
 
 int
 Ns_ConnSendFd(Ns_Conn *conn, int fd, int nsend)
 {
-    return ConnSend(conn, nsend, NULL, NULL, fd);
+    return ConnSend(conn, nsend, NULL, NULL, fd, -1);
+}
+
+int
+Ns_ConnSendFdEx(Ns_Conn *conn, int fd, off_t off, int nsend)
+{
+    return ConnSend(conn, nsend, NULL, NULL, fd, off);
 }
 
 
@@ -576,13 +565,12 @@ Ns_ConnSendFd(Ns_Conn *conn, int fd, int nsend)
 int
 Ns_ConnFlushContent(Ns_Conn *conn)
 {
-    Conn *connPtr = (Conn *) conn;
+    int avail;
 
-    if (connPtr->sockPtr == NULL) {
+    if (NsConnContent(conn, NULL, &avail) == NULL) {
 	return NS_ERROR;
     }
-    connPtr->next  += connPtr->avail;
-    connPtr->avail  = 0;
+    NsConnSeek(conn, avail);
     return NS_OK;
 }
 
@@ -643,17 +631,17 @@ Ns_ConnGets(char *buf, size_t bufsize, Ns_Conn *conn)
 int
 Ns_ConnRead(Ns_Conn *conn, void *vbuf, int toread)
 {
-    Conn *connPtr = (Conn *) conn;
+    int avail;
+    char *next;
 
-    if (connPtr->sockPtr == NULL) {
+    if (NsConnContent(conn, &next, &avail) == NULL) {
 	return -1;
     }
-    if (toread > connPtr->avail) {
-	toread = connPtr->avail;
+    if (toread > avail) {
+	toread = avail;
     }
-    memcpy(vbuf, connPtr->next, (size_t)toread);
-    connPtr->next  += toread;
-    connPtr->avail -= toread;
+    memcpy(vbuf, next, (size_t) toread);
+    NsConnSeek(conn, toread);
     return toread;
 }
 
@@ -679,12 +667,12 @@ Ns_ConnReadLine(Ns_Conn *conn, Ns_DString *dsPtr, int *nreadPtr)
 {
     Conn	   *connPtr = (Conn *) conn;
     Driver         *drvPtr = connPtr->drvPtr;
-    char           *eol;
+    char           *eol, *next;
     int             nread, ncopy;
 
-    if (connPtr->sockPtr == NULL
-	|| (eol = strchr(connPtr->next, '\n')) == NULL
-        || (nread = (eol - connPtr->next)) > drvPtr->maxline) {
+    if (NsConnContent(conn, &next, NULL) == NULL
+	|| (eol = strchr(next, '\n')) == NULL
+        || (nread = (eol - next)) > drvPtr->maxline) {
 	return NS_ERROR;
     }
     ncopy = nread;
@@ -695,9 +683,8 @@ Ns_ConnReadLine(Ns_Conn *conn, Ns_DString *dsPtr, int *nreadPtr)
     if (ncopy > 0 && eol[-1] == '\r') {
 	--ncopy;
     }
-    Ns_DStringNAppend(dsPtr, connPtr->next, ncopy);
-    connPtr->next  += nread;
-    connPtr->avail -= nread;
+    Ns_DStringNAppend(dsPtr, next, ncopy);
+    NsConnSeek(conn, nread);
     return NS_OK;
 }
 
@@ -814,33 +801,33 @@ static int
 ConnCopy(Ns_Conn *conn, size_t tocopy, Ns_DString *dsPtr, Tcl_Channel chan,
     FILE *fp, int fd)
 {
-    Conn       *connPtr = (Conn *) conn;
-    int		nwrote;
+    int		nwrote, avail;
     int		ncopy = (int) tocopy;
+    char       *next;
 
-    if (connPtr->sockPtr == NULL || connPtr->avail < ncopy) {
+    if (NsConnContent(conn, &next, &avail) == NULL || avail < ncopy) {
 	return NS_ERROR;
     }
     while (ncopy > 0) {
         if (dsPtr != NULL) {
-            Ns_DStringNAppend(dsPtr, connPtr->next, ncopy);
+            Ns_DStringNAppend(dsPtr, next, ncopy);
             nwrote = ncopy;
         } else if (chan != NULL) {
-	    nwrote = Tcl_Write(chan, connPtr->next, ncopy);
+	    nwrote = Tcl_Write(chan, next, ncopy);
     	} else if (fp != NULL) {
-            nwrote = fwrite(connPtr->next, 1, (size_t)ncopy, fp);
+            nwrote = fwrite(next, 1, (size_t) ncopy, fp);
             if (ferror(fp)) {
 		nwrote = -1;
 	    }
 	} else {
-	    nwrote = write(fd, connPtr->next, (size_t)ncopy);
+	    nwrote = write(fd, next, (size_t)ncopy);
 	}
 	if (nwrote < 0) {
 	    return NS_ERROR;
 	}
 	ncopy -= nwrote;
-	connPtr->next  += nwrote;
-	connPtr->avail -= nwrote;
+	next  += nwrote;
+	NsConnSeek(conn, nwrote);
     }
     return NS_OK;
 }
@@ -863,34 +850,42 @@ ConnCopy(Ns_Conn *conn, size_t tocopy, Ns_DString *dsPtr, Tcl_Channel chan,
  */
 
 static int
-ConnSend(Ns_Conn *conn, int nsend, Tcl_Channel chan, FILE *fp, int fd)
+ConnSend(Ns_Conn *conn, int nsend, Tcl_Channel chan, FILE *fp, int fd,
+	 off_t off)
 {
-    int             toread, nread, status;
+    size_t	    toread;
+    int             nread, status;
     char            buf[IOBUFSZ];
 
     /*
      * Even if nsend is 0, ensure all queued data (like HTTP response
      * headers) get flushed.
      */
+
     if (nsend == 0) {
         Ns_WriteConn(conn, NULL, 0);
     }
 
     status = NS_OK;
     while (status == NS_OK && nsend > 0) {
-        toread = nsend;
+        toread = (size_t) nsend;
         if (toread > sizeof(buf)) {
             toread = sizeof(buf);
         }
 	if (chan != NULL) {
-	    nread = Tcl_Read(chan, buf, toread);
+	    nread = Tcl_Read(chan, buf, (int) toread);
 	} else if (fp != NULL) {
-            nread = fread(buf, 1, (size_t)toread, fp);
+            nread = fread(buf, 1, toread, fp);
             if (ferror(fp)) {
 	    	nread = -1;
 	    }
-    	} else {
-	    nread = read(fd, buf, (size_t)toread);
+    	} else if (off < 0) {
+	    nread = read(fd, buf, toread);
+	} else {
+	    nread = pread(fd, buf, toread, off);
+	    if (nread > 0) {
+		off += (off_t) nread;
+	    }
     	}
 	if (nread == -1) {
 	    status = NS_ERROR;

@@ -33,12 +33,13 @@
  *      Routines for dealing with HTML FORM's.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/form.c,v 1.18 2005/03/25 00:34:58 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/form.c,v 1.19 2005/07/18 23:33:06 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
-static void ParseQuery(char *form, Ns_Set *set, Tcl_Encoding encoding);
-static void ParseMultiInput(Conn *connPtr, Tcl_Encoding encoding,
+static void ParseQuery(char *form, char *formend, Ns_Set *set,
+		       Tcl_Encoding encoding);
+static void ParseMultiInput(Conn *connPtr, char *form, Tcl_Encoding encoding,
 			    char *start, char *end);
 static char *Ext2Utf(Tcl_DString *dsPtr, char *s, int len, Tcl_Encoding encoding);
 static int GetBoundary(Tcl_DString *dsPtr, Ns_Conn *conn);
@@ -80,14 +81,14 @@ Ns_ConnGetQuery(Ns_Conn *conn)
 	if (!STREQ(connPtr->request->method, "POST")) {
 	    form = connPtr->request->query;
 	    if (form != NULL) {
-		ParseQuery(form, connPtr->query, encoding);
+		ParseQuery(form, NULL, connPtr->query, encoding);
 	    }
-	} else if ((form = connPtr->content) != NULL) {
+	} else if ((form = Ns_ConnContent(conn)) != NULL) {
 	    Tcl_DStringInit(&bound);
+	    formend = form + connPtr->contentLength;
 	    if (!GetBoundary(&bound, conn)) {
-		ParseQuery(form, connPtr->query, encoding);
+		ParseQuery(form, formend, connPtr->query, encoding);
 	    } else {
-	    	formend = form + connPtr->contentLength;
 		s = NextBoundry(&bound, form, formend);
 		while (s != NULL) {
 		    s += bound.length;
@@ -95,7 +96,7 @@ Ns_ConnGetQuery(Ns_Conn *conn)
 		    if (*s == '\n') ++s;
 		    e = NextBoundry(&bound, s, formend);
 		    if (e != NULL) {
-			ParseMultiInput(connPtr, encoding, s, e);
+			ParseMultiInput(connPtr, form, encoding, s, e);
 		    }
 		    s = e;
 		}
@@ -105,7 +106,6 @@ Ns_ConnGetQuery(Ns_Conn *conn)
     }
     return connPtr->query;
 }
-
 
 
 /*
@@ -132,7 +132,7 @@ Ns_ConnClearQuery(Ns_Conn *conn)
     Conn           *connPtr = (Conn *) conn;
     Tcl_HashEntry *hPtr;
     Tcl_HashSearch search;
-    FormFile	  *filePtr;
+    Ns_ConnFile	  *filePtr;
 
     if (conn == NULL || connPtr->query == NULL) {
         return;
@@ -143,12 +143,108 @@ Ns_ConnClearQuery(Ns_Conn *conn)
     hPtr = Tcl_FirstHashEntry(&connPtr->files, &search);
     while (hPtr != NULL) {
 	filePtr = Tcl_GetHashValue(hPtr);
-	Ns_SetFree(filePtr->hdrs);
+	Ns_SetFree(filePtr->headers);
 	ns_free(filePtr);
 	hPtr = Tcl_NextHashEntry(&search);
     }
     Tcl_DeleteHashTable(&connPtr->files);
     Tcl_InitHashTable(&connPtr->files, TCL_STRING_KEYS);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_ConnGetFile --
+ *
+ *	Return the Ns_ConnFile struct for given filename contained
+ *	in a multipart form POST.
+ *
+ * Results:
+ *	Pointer to Ns_ConnFile or NULL if no such file.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+Ns_ConnFile *
+Ns_ConnGetFile(Ns_Conn *conn, char *file)
+{
+    Conn *connPtr = (Conn *) conn;
+    Tcl_HashEntry *hPtr;
+
+    if (Ns_ConnGetQuery(conn) != NULL) {
+	hPtr = Tcl_FindHashEntry(&connPtr->files, file);
+	if (hPtr != NULL) {
+	    return Tcl_GetHashValue(hPtr);
+	}
+    }
+    return NULL;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_ConnFirstFile --
+ *
+ *	Begin a search of all files contained within a multipart
+ *	browser upload.  Note the order of the files are stored
+ *	in a hash table and the order returned is random.
+ *
+ * Results:
+ *	Pointer to first Ns_ConnFile or NULL if no files present.
+ *
+ * Side effects:
+ *	Contents of the Tcl_HashSearch struct pointed to by searchPtr
+ *	will be initialized and updated for the search.  This
+ *	parameter must be passed to subsequent calls to
+ *	Ns_ConnNextFile.
+ *
+ *----------------------------------------------------------------------
+ */
+
+Ns_ConnFile *
+Ns_ConnFirstFile(Ns_Conn *conn, Tcl_HashSearch *searchPtr)
+{
+    Conn *connPtr = (Conn *) conn;
+    Tcl_HashEntry *hPtr;
+
+    if (Ns_ConnGetQuery(conn) != NULL) {
+	hPtr = Tcl_FirstHashEntry(&connPtr->files, searchPtr);
+	if (hPtr != NULL) {
+	    return Tcl_GetHashValue(hPtr);
+	}
+    }
+    return NULL;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_ConnNextFile --
+ *
+ *	Return the next Ns_ConnFile in a search of all files.
+ *
+ * Results:
+ *	Pointer to next Ns_ConnFile or NULL when search is complete.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+Ns_ConnFile *
+Ns_ConnNextFile(Tcl_HashSearch *searchPtr)
+{
+    Tcl_HashEntry *hPtr;
+
+    hPtr = Tcl_NextHashEntry(searchPtr);
+    return (hPtr ? Tcl_GetHashValue(hPtr) : NULL);
 }
 
 
@@ -171,7 +267,7 @@ Ns_ConnClearQuery(Ns_Conn *conn)
 int
 Ns_QueryToSet(char *query, Ns_Set *set)
 {
-    ParseQuery(query, set, NULL);
+    ParseQuery(query, NULL, set, NULL);
     return NS_OK;
 }
 
@@ -264,39 +360,48 @@ NsCheckQuery(Ns_Conn *conn)
  */
 
 static void
-ParseQuery(char *form, Ns_Set *set, Tcl_Encoding encoding)
+ParseQuery(char *form, char *formend, Ns_Set *set, Tcl_Encoding encoding)
 {
-    char *p, *k, *v;
-    Tcl_DString      kds, vds;
+    char *next, *key, *value;
+    Tcl_DString kds, vds, eds;
+    int len;
 
+    if (formend == NULL) {
+	formend = form + strlen(form);
+    }
     Tcl_DStringInit(&kds);
     Tcl_DStringInit(&vds);
-    p = form;
-    while (p != NULL) {
-	k = p;
-	p = strchr(p, '&');
-	if (p != NULL) {
-	    *p = '\0';
+    Tcl_DStringInit(&eds);
+    next = form;
+    while (next != NULL) {
+	key = next;
+	len = formend - key;
+	next = memchr(next, '&', len);
+	if (next != NULL) {
+	    *next = '\0';
+	} else {
+	    key = Tcl_DStringAppend(&eds, key, len);
 	}
-	v = strchr(k, '=');
-	if (v != NULL) {
-	    *v = '\0';
+	value = memchr(key, '=', len);
+	if (value != NULL) {
+	    *value = '\0';
 	}
         Ns_DStringTrunc(&kds, 0);
-	k = Ns_DecodeUrlWithEncoding(&kds, k, encoding);
-	if (v != NULL) {
+	key = Ns_DecodeUrlWithEncoding(&kds, key, encoding);
+	if (value != NULL) {
             Ns_DStringTrunc(&vds, 0);
-	    Ns_DecodeUrlWithEncoding(&vds, v+1, encoding);
-	    *v = '=';
-	    v = vds.string;
+	    Ns_DecodeUrlWithEncoding(&vds, value+1, encoding);
+	    *value = '=';
+	    value = vds.string;
 	}
-	Ns_SetPut(set, k, v);
-	if (p != NULL) {
-	    *p++ = '&';
+	Ns_SetPut(set, key, value);
+	if (next != NULL) {
+	    *next++ = '&';
 	}
     }
     Tcl_DStringFree(&kds);
     Tcl_DStringFree(&vds);
+    Tcl_DStringFree(&eds);
 }
 
 
@@ -317,11 +422,12 @@ ParseQuery(char *form, Ns_Set *set, Tcl_Encoding encoding)
  */
 
 static void
-ParseMultiInput(Conn *connPtr, Tcl_Encoding encoding, char *start, char *end)
+ParseMultiInput(Conn *connPtr, char *form, Tcl_Encoding encoding,
+		char *start, char *end)
 {
     Tcl_DString kds, vds;
     Tcl_HashEntry *hPtr;
-    FormFile	  *filePtr;
+    Ns_ConnFile	  *filePtr;
     char *s, *e, *ks, *ke, *fs, *fe, save, saveend;
     char *key, *value, *disp;
     Ns_Set *set;
@@ -373,10 +479,11 @@ ParseMultiInput(Conn *connPtr, Tcl_Encoding encoding, char *start, char *end)
 	    value = Ext2Utf(&vds, fs, fe-fs, encoding);
 	    hPtr = Tcl_CreateHashEntry(&connPtr->files, key, &new);
 	    if (new) {
-		filePtr = ns_malloc(sizeof(FormFile));
-		filePtr->hdrs = set;
-	    	filePtr->off = start - connPtr->content;
-		filePtr->len = end - start;
+		filePtr = ns_malloc(sizeof(Ns_ConnFile));
+		filePtr->name = Tcl_GetHashKey(&connPtr->files, hPtr);
+		filePtr->headers = set;
+	    	filePtr->offset = start - form;
+		filePtr->length = end - start;
 		Tcl_SetHashValue(hPtr, filePtr);
 	    	set = NULL;
 	    }

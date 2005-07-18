@@ -34,7 +34,7 @@
  *	Functions that return data to a browser. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.44 2005/03/25 00:36:42 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.45 2005/07/18 23:33:06 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -46,7 +46,7 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
 
 static int ReturnRedirect(Ns_Conn *conn, int status, int *resultPtr);
 static int ReturnOpen(Ns_Conn *conn, int status, char *type, Tcl_Channel chan,
-		      FILE *fp, int fd, int len);
+		      FILE *fp, int fd, off_t off, int len);
 static int ReturnData(Ns_Conn *conn, int status, char *data, int len,
                           char *type, int sendRaw);
 static int HdrEq(Ns_Set *hdrs, char *key, char *value);
@@ -1211,7 +1211,7 @@ int
 Ns_ConnReturnOpenChannel(Ns_Conn *conn, int status, char *type,
 			 Tcl_Channel chan, int len)
 {
-    return ReturnOpen(conn, status, type, chan, NULL, -1, len);
+    return ReturnOpen(conn, status, type, chan, NULL, -1, -1, len);
 }
 
 
@@ -1234,7 +1234,7 @@ Ns_ConnReturnOpenChannel(Ns_Conn *conn, int status, char *type,
 int
 Ns_ConnReturnOpenFile(Ns_Conn *conn, int status, char *type, FILE *fp, int len)
 {
-    return ReturnOpen(conn, status, type, NULL, fp, -1, len);
+    return ReturnOpen(conn, status, type, NULL, fp, -1, -1, len);
 }
 
 
@@ -1257,7 +1257,32 @@ Ns_ConnReturnOpenFile(Ns_Conn *conn, int status, char *type, FILE *fp, int len)
 int
 Ns_ConnReturnOpenFd(Ns_Conn *conn, int status, char *type, int fd, int len)
 {
-    return ReturnOpen(conn, status, type, NULL, NULL, fd, len);
+    return ReturnOpen(conn, status, type, NULL, NULL, fd, -1, len);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_ConnReturnOpenFdEx --
+ *
+ *	Send an open fd out the conn starting at given offset.  The
+ *	current file position is not changed.
+ *
+ * Results:
+ *	See ReturnOpen. 
+ *
+ * Side effects:
+ *	See ReturnOpen. 
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Ns_ConnReturnOpenFdEx(Ns_Conn *conn, int status, char *type, int fd,
+		      off_t off, int len)
+{
+    return ReturnOpen(conn, status, type, NULL, NULL, fd, off, len);
 }
 
 
@@ -1318,7 +1343,7 @@ ReturnRedirect(Ns_Conn *conn, int status, int *resultPtr)
 
 static int
 ReturnOpen(Ns_Conn *conn, int status, char *type, Tcl_Channel chan,
-	FILE *fp, int fd, int len)
+	FILE *fp, int fd, off_t off, int len)
 {
     int result;
 
@@ -1328,8 +1353,10 @@ ReturnOpen(Ns_Conn *conn, int status, char *type, Tcl_Channel chan,
 	result = Ns_ConnSendChannel(conn, chan, len);
     } else if (fp != NULL) {
 	result = Ns_ConnSendFp(conn, fp, len);
-    } else {
+    } else if (off < 0) {
 	result = Ns_ConnSendFd(conn, fd, len);
+    } else {
+	result = Ns_ConnSendFdEx(conn, fd, off, len);
     }
     if (result == NS_OK) {
         result = Ns_ConnClose(conn);
@@ -1337,6 +1364,22 @@ ReturnOpen(Ns_Conn *conn, int status, char *type, Tcl_Channel chan,
     return result;
 }
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HdrEq --
+ *
+ *	Test if given set contains a key which matches given value.
+ *
+ * Results:
+ *	1 if there is a match, 0 otherwise.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
 
 static int
 HdrEq(Ns_Set *set, char *name, char *value)

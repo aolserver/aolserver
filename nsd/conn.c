@@ -34,7 +34,7 @@
  *      Manage the Ns_Conn structure
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.43 2005/03/25 00:34:10 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.44 2005/07/18 23:33:06 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -164,13 +164,17 @@ Ns_ConnContentLength(Ns_Conn *conn)
  *
  * Ns_ConnContent --
  *
- *	Return pointer to start of content.
+ *	Return pointer to start of content of length conn->contetLength.
+ *	Note the content is likely, but not guaranteed to be, null
+ *	terminated. Specifically, in the case of file mapped content
+ *	which ends on a page boundry, a terminating null may not be
+ *	present.  The content is safe to modify in place.
  *
  * Results:
- *	Start of content or NULL on no memory content.
+ *	Start of content or NULL on mapping failure.
  *
  * Side effects:
- *	None. 
+ *	Content file will be mapped if currently only in an open file.
  *
  *----------------------------------------------------------------------
  */
@@ -178,9 +182,7 @@ Ns_ConnContentLength(Ns_Conn *conn)
 char *
 Ns_ConnContent(Ns_Conn *conn)
 {
-    Conn *connPtr = (Conn *) conn;
-
-    return connPtr->content;
+    return NsConnContent(conn, NULL, NULL);
 }
 
 
@@ -189,13 +191,15 @@ Ns_ConnContent(Ns_Conn *conn)
  *
  * Ns_ConnContentFd --
  *
- *	Return pointer to content fd.
+ *	Return open fd with request content.  The fd is owned by the
+ *	connection and should not be closed by the caller.
  *
  * Results:
- *	Open file or -1 on no content file.
+ *	Open temp file or -1 on new temp file failure.
  *
  * Side effects:
- *	None. 
+ *	Content will be copied to a temp file if it is currently only
+ *	in memory.
  *
  *----------------------------------------------------------------------
  */
@@ -204,7 +208,31 @@ int
 Ns_ConnContentFd(Ns_Conn *conn)
 {
     Conn *connPtr = (Conn *) conn;
+    int len, fd;
+    char *err;
 
+    if (connPtr->tfd < 0) {
+	err = NULL;
+	fd = Ns_GetTemp();
+	if (fd < 0) {
+	    err = "Ns_GetTemp";
+	} else if ((len = connPtr->contentLength) > 0) {
+	    if (write(fd, connPtr->content, len) != len)  {
+		err = "write";
+	    } else if (lseek(fd, (off_t) 0, SEEK_SET) != 0) {
+		err = "lseek";
+	    }
+	    if (err) {
+		Ns_ReleaseTemp(fd);
+	    }
+	}
+	if (!err) {
+	    connPtr->tfd = fd;
+	} else {
+	    Ns_Log(Error, "conn[%d]: could not get fd: %s failed: %s",
+		connPtr->id, err, strerror(errno));
+	}
+    }
     return connPtr->tfd;
 }
 
@@ -921,10 +949,10 @@ NsTclConnObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
     Tcl_Encoding  encoding, *encodingPtr;
     Tcl_Channel   chan;
     Tcl_Obj	 *result;
-    Tcl_HashEntry *hPtr;
     Tcl_HashSearch search;
-    FormFile	 *filePtr;
+    Ns_ConnFile	 *filePtr;
     int		  idx, off, len, flag, fd;
+    char	 *content;
 
     static CONST char *opts[] = {
 	 "authpassword", "authuser", "close", "content", "contentlength",
@@ -935,7 +963,8 @@ NsTclConnObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 	 "query", "request", "server", "sock", "start", "status",
 	 "url", "urlc", "urlencoding", "urlv", "version",
 	 "write_encoded", NULL
-    }; enum ISubCmdIdx {
+    };
+    enum {
 	 CAuthPasswordIdx, CAuthUserIdx, CCloseIdx, CContentIdx,
 	 CContentLengthIdx, CContentChannelIdx, CCopyIdx, CDriverIdx,
 	 CEncodingIdx, CFilesIdx, CFileOffIdx, CFileLenIdx,
@@ -957,7 +986,8 @@ NsTclConnObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
     }
 
     result  = Tcl_GetObjResult(interp);
-    connPtr = (Conn *) conn = itPtr->conn;
+    conn = itPtr->conn;
+    connPtr = (Conn *) conn;
 
     /*
      * Only the "isconnected" option operates without a conn.
@@ -1109,10 +1139,10 @@ NsTclConnObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 		Tcl_WrongNumArgs(interp, 2, objv, NULL);
 		return TCL_ERROR;
 	    }
-	    hPtr = Tcl_FirstHashEntry(&connPtr->files, &search);
-	    while (hPtr != NULL) {
-		Tcl_AppendElement(interp, Tcl_GetHashKey(&connPtr->files, hPtr));
-		hPtr = Tcl_NextHashEntry(&search);
+	    filePtr = Ns_ConnFirstFile(conn, &search);
+	    while (filePtr != NULL) {
+		Tcl_AppendElement(interp, filePtr->name);
+		filePtr = Ns_ConnNextFile(&search);
 	    }
 	    break;
 
@@ -1123,19 +1153,18 @@ NsTclConnObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 		Tcl_WrongNumArgs(interp, 2, objv, "file");
 		return TCL_ERROR;
 	    }
-	    hPtr = Tcl_FindHashEntry(&connPtr->files, Tcl_GetString(objv[2]));
-	    if (hPtr == NULL) {
+	    filePtr = Ns_ConnGetFile(conn, Tcl_GetString(objv[2]));
+	    if (filePtr == NULL) {
 		Tcl_AppendResult(interp, "no such file: ",
 				 Tcl_GetString(objv[2]), NULL);
 		return TCL_ERROR;
 	    }
-	    filePtr = Tcl_GetHashValue(hPtr);
 	    if (opt == CFileOffIdx) {
-	    	Tcl_SetLongObj(result, (long) filePtr->off);
+	    	Tcl_SetLongObj(result, (long) filePtr->offset);
 	    } else if (opt == CFileLenIdx) {
-	    	Tcl_SetLongObj(result, (long) filePtr->len);
+	    	Tcl_SetLongObj(result, (long) filePtr->length);
 	    } else {
-		Ns_TclEnterSet(interp, filePtr->hdrs, NS_TCL_SET_STATIC);
+		Ns_TclEnterSet(interp, filePtr->headers, NS_TCL_SET_STATIC);
 	    }
 	    break;
 
@@ -1148,12 +1177,19 @@ NsTclConnObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 		GetChan(interp, Tcl_GetString(objv[4]), &chan) != TCL_OK) {
 		return TCL_ERROR;
 	    }
-	    if (Tcl_Write(chan, connPtr->content + off, len) != len) {
-		Tcl_AppendResult(interp, "could not write ",
+	    if (len > 0) {
+	    	content = Ns_ConnContent(conn);
+	    	if (content == NULL) {
+		    Tcl_SetResult(interp, "could not get content", TCL_STATIC);
+		    return TCL_ERROR;
+		}
+	    	if (Tcl_Write(chan, content + off, len) != len) {
+		    Tcl_AppendResult(interp, "could not write ",
 			Tcl_GetString(objv[3]), " bytes to ",
 		    	Tcl_GetString(objv[4]), ": ",
 			Tcl_PosixError(interp), NULL);
-		return TCL_ERROR;
+		    return TCL_ERROR;
+		}
 	    }
 	    break;
 
