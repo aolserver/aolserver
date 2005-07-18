@@ -33,7 +33,7 @@
  * 	Connect Tcl command names to the functions that implement them
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.47 2005/03/25 00:38:25 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.48 2005/07/18 23:33:35 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -65,6 +65,7 @@ extern Tcl_ObjCmdProc
     NsTclAdpStreamObjCmd,
     NsTclAdpMimeTypeObjCmd,
     NsTclAtCloseObjCmd,
+    NsTclCacheObjCmd,
     NsTclChanObjCmd,
     NsTclChmodObjCmd,
     NsTclCondObjCmd,
@@ -157,6 +158,7 @@ extern Tcl_ObjCmdProc
     NsTclStartContentObjCmd,
     NsTclStrftimeObjCmd,
     NsTclSymlinkObjCmd,
+    NsTclThreadObjCmd,
     NsTclTimeObjCmd,
     NsTclTmpNamObjCmd,
     NsTclTruncateObjCmd,
@@ -212,7 +214,6 @@ extern Tcl_CmdProc
     NsTclSchedWeeklyCmd,
     NsTclShareCmd,
     NsTclStripHtmlCmd,
-    NsTclThreadCmd,
     NsTclUnscheduleCmd;
 
 /*
@@ -242,6 +243,7 @@ static Cmd cmds[] = {
     {"ns_atexit", NsTclAtExitCmd, NULL},
     {"ns_atshutdown", NsTclAtShutdownCmd, NULL},
     {"ns_atsignal", NsTclAtSignalCmd, NULL},
+    {"ns_cache", NULL, NsTclCacheObjCmd},
     {"ns_cache_flush", NsTclCacheFlushCmd, NULL},
     {"ns_cache_keys", NsTclCacheKeysCmd, NULL},
     {"ns_cache_names", NsTclCacheNamesCmd, NULL},
@@ -321,7 +323,7 @@ static Cmd cmds[] = {
     {"ns_sockselect", NULL, NsTclSelectObjCmd},
     {"ns_striphtml", NsTclStripHtmlCmd, NULL},
     {"ns_symlink", NULL, NsTclSymlinkObjCmd},
-    {"ns_thread", NsTclThreadCmd, NULL},
+    {"ns_thread", NULL, NsTclThreadObjCmd},
     {"ns_time", NULL, NsTclTimeObjCmd},
     {"ns_tmpnam", NULL, NsTclTmpNamObjCmd},
     {"ns_truncate", NULL, NsTclTruncateObjCmd},

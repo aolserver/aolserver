@@ -34,7 +34,7 @@
  *	Tcl wrappers around all thread objects 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclthread.c,v 1.23 2005/03/25 00:32:37 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclthread.c,v 1.24 2005/07/18 23:33:36 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #ifdef NS_NOCOMPAT
 #undef NS_NOCOMPAT
@@ -51,8 +51,6 @@ typedef struct ThreadArg {
  * Local functions defined in this file
  */
 
-static int GetAddr(Tcl_Interp *interp, int type, char *id, void **addrPtr);
-static void SetAddr(Tcl_Interp *interp, int type, void *addr);
 static int GetArgs(Tcl_Interp *interp, int objc, Tcl_Obj **objv,
 	CONST char *opts[], int type, int create, int *optPtr, void **addrPtr);
 static void CreateTclThread(NsInterp *itPtr, char *script, int detached,
@@ -63,9 +61,11 @@ static void CreateTclThread(NsInterp *itPtr, char *script, int detached,
  */
 
 static int  SetAddrFromAny(Tcl_Interp *interp, Tcl_Obj *objPtr);
+static void SetAddrResult(Tcl_Interp *interp, int type, void *addr);
 static void UpdateStringOfAddr(Tcl_Obj *objPtr);
 static void SetAddrInternalRep(Tcl_Obj *objPtr, int type, void *addr);
-static int GetAddrFromObj(Tcl_Interp *interp, Tcl_Obj *objPtr, int type, void **addrPtr);
+static int GetAddrFromObj(Tcl_Interp *interp, Tcl_Obj *objPtr, int type,
+			  void **addrPtr);
 
 static Tcl_ObjType addrType = {
     "ns:addr",
@@ -314,7 +314,7 @@ NsTclCondObjCmd(ClientData data, Tcl_Interp *interp, int objc,
 	    Tcl_WrongNumArgs(interp, 2, objv, "condId mutexId ?timeout?");
             return TCL_ERROR;
         }
-	if (GetAddr(interp, 'm', Tcl_GetString(objv[3]), (void **) &lock) != TCL_OK) {
+	if (GetAddrFromObj(interp, objv[3], 'm', (void **) &lock) != TCL_OK) {
             return TCL_ERROR;
         }
         if (objc < 5) {
@@ -428,75 +428,98 @@ NsTclRWLockObjCmd(ClientData data, Tcl_Interp *interp, int objc,
 /*
  *----------------------------------------------------------------------
  *
- * NsTclThreadCmd --
+ * NsTclThreadObjCmd --
  *
- *	Implements ns_thread. 
+ *	Implements ns_thread to get data on the current thread and
+ *	create and wait on new Tcl-script based threads.  New threads will
+ *	be created in the virtual-server context of the current interp,
+ *	if any.
  *
  * Results:
- *	Tcl result. 
+ *	Standard Tcl result. 
  *
  * Side effects:
- *	See docs. 
+ *	May create a new thread or wait for an existing thread to exit.
  *
  *----------------------------------------------------------------------
  */
 
 int
-NsTclThreadCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
+NsTclThreadObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 {
     NsInterp *itPtr = arg;
-    void *status;
+    void *result;
+    char *script;
     Ns_Thread tid;
+    static CONST char *opts[] = {
+	"begin", "begindetached", "create", "wait", "join",
+	"name", "get", "getid", "id", "yield", NULL
+    };
+    enum {
+	TBeginIdx, TBeginDetachedIdx, TCreateIdx, TWaitIdx, TJoinIdx,
+	TNameIdx, TGetIdx, TGetIdIdx, TIdIdx, TYieldIdx
+    } opt;
 
-    if (argc < 2) {
-        Tcl_AppendResult(interp, "wrong # args: should be \"",
-            argv[0], " command arg\"", NULL);
+    if (objc < 2) {
+        Tcl_WrongNumArgs(interp, 1, objv, "option ?arg ...?");
         return TCL_ERROR;
     }
-    if (STREQ(argv[1], "begin") || STREQ(argv[1], "create") ||
-	STREQ(argv[1], "begindetached")) {
-        if (argc < 3) {
-            Tcl_AppendResult(interp, "wrong # args: should be \"",
-                argv[0], " ", argv[1], " script\"", NULL);
+    if (Tcl_GetIndexFromObj(interp, objv[1], opts, "option", 0,
+			    (int *) &opt) != TCL_OK) {
+	return TCL_ERROR;
+    }
+
+    switch (opt) {
+    case TBeginIdx:
+    case TBeginDetachedIdx:
+    case TCreateIdx:
+        if (objc != 3) {
+            Tcl_WrongNumArgs(interp, 2, objv, "script");
             return TCL_ERROR;
-        }
-	if (STREQ(argv[1], "begindetached")) {
-	    CreateTclThread(itPtr, argv[2], 1, NULL);
+	}
+	script = Tcl_GetString(objv[2]);
+	if (opt == TBeginDetachedIdx) {
+	    CreateTclThread(itPtr, script, 1, NULL);
         } else {
-	    CreateTclThread(itPtr, argv[2], 0, &tid);
-            SetAddr(interp, 't', tid);
+	    CreateTclThread(itPtr, script, 0, &tid);
+	    SetAddrResult(interp, 't', tid);
         }
-    } else if (STREQ(argv[1], "wait") || STREQ(argv[1], "join")) {
-        if (argc < 3) {
-            Tcl_AppendResult(interp, "wrong # args: should be \"",
-                argv[0], " ", argv[1], " tid\"", NULL);
+	break;
+
+    case TWaitIdx:
+    case TJoinIdx:
+        if (objc != 3) {
+            Tcl_WrongNumArgs(interp, 2, objv, "tid");
+            return TCL_ERROR;
+	}
+        if (GetAddrFromObj(interp, objv[2], 't', (void **) &tid) != TCL_OK) {
             return TCL_ERROR;
         }
-        if (GetAddr(interp, 't', argv[2], (void **) &tid) 
-	    != TCL_OK) {
-            return TCL_ERROR;
-        }
-	Ns_ThreadJoin(&tid, &status);
-	Tcl_SetResult(interp, (char *) status, (Tcl_FreeProc *) ns_free);
-    } else if (STREQ(argv[1], "get")) {
+	Ns_ThreadJoin(&tid, &result);
+	Tcl_SetResult(interp, (char *) result, (Tcl_FreeProc *) ns_free);
+	break;
+
+    case TGetIdx:
         Ns_ThreadSelf(&tid);
-        SetAddr(interp, 't', tid);
-    } else if (STREQ(argv[1], "getid") || STREQ(argv[1], "id")) {
+        SetAddrResult(interp, 't', tid);
+	break;
+
+    case TIdIdx:
+    case TGetIdIdx:
 	Tcl_SetObjResult(interp, Tcl_NewIntObj(Ns_ThreadId()));
-    } else if (STREQ(argv[1], "name")) {
-	if (argc > 2) {
-	    Ns_ThreadSetName(argv[2]);
+	break;
+
+    case TNameIdx:
+	if (objc > 2) {
+	    Ns_ThreadSetName(Tcl_GetString(objv[2]));
 	}
 	Tcl_SetResult(interp, Ns_ThreadGetName(), TCL_VOLATILE);
-    } else if (STREQ(argv[1], "yield")) {
-        Ns_ThreadYield();
-    } else {
-        Tcl_AppendResult(interp, "unknown command \"",
-            argv[1], "\":  should be begin, begindetached, create "
-            "get, getid, id, join, wait, or yield", NULL);
-        return TCL_ERROR;
-    }
+	break;
 
+    case TYieldIdx:
+        Ns_ThreadYield();
+	break;
+    }
     return TCL_OK;
 }
 
@@ -504,9 +527,9 @@ NsTclThreadCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 /*
  *----------------------------------------------------------------------
  *
- * SetAddr --
+ * SetAddrResult --
  *
- *	Set the interp result with an opaque thread-object string id.
+ *	Set the interp result with an opaque thread-object.
  *
  * Results:
  *	None.
@@ -518,45 +541,12 @@ NsTclThreadCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
  */
 
 static void
-SetAddr(Tcl_Interp *interp, int type, void *addr)
+SetAddrResult(Tcl_Interp *interp, int type, void *addr)
 {
-    char buf[40];
+    Tcl_Obj *objPtr;
 
-    sprintf(buf, "%cid%p", type, addr);
-    Tcl_SetResult(interp, buf, TCL_VOLATILE);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * GetObj --
- *
- *	Take an opaque thread-object Tcl handle and convert it into a 
- *	pointer. 
- *
- * Results:
- *	TCL_OK or TCL_ERROR 
- *
- * Side effects:
- *	An error will be put appended to the interp on failure 
- *
- *----------------------------------------------------------------------
- */
-
-static int
-GetAddr(Tcl_Interp *interp, int type, char *id, void **addrPtr)
-{
-    void *addr;
-
-    if (*id++ != type || *id++ != 'i' || *id++ != 'd'
-	|| sscanf(id, "%p", &addr) != 1 || addr == NULL) {
-	Tcl_AppendResult(interp, "invalid thread object id \"",
-	    id, "\"", NULL);
-	return TCL_ERROR;
-    }
-    *addrPtr = addr;
-    return TCL_OK;
+    objPtr = Tcl_GetObjResult(interp);
+    SetAddrInternalRep(objPtr, type, addr);
 }
 
 
@@ -716,7 +706,6 @@ static int
 GetArgs(Tcl_Interp *interp, int objc, Tcl_Obj **objv, CONST char *opts[],
 	 int type, int create, int *optPtr, void **addrPtr)
 {
-    Tcl_Obj *objPtr;
     int   opt;
     void *addr;
 
@@ -730,8 +719,7 @@ GetArgs(Tcl_Interp *interp, int objc, Tcl_Obj **objv, CONST char *opts[],
     }
     if (opt == create) {
 	addr = ns_malloc(sizeof(void *));
-	objPtr = Tcl_GetObjResult(interp);
-	SetAddrInternalRep(objPtr, type, addr);
+	SetAddrResult(interp, type, addr);
     } else {
         if (objc < 3) {
 	    Tcl_WrongNumArgs(interp, 2, objv, "object");
