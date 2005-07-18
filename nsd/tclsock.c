@@ -34,7 +34,7 @@
  *	Tcl commands that let you do TCP sockets. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclsock.c,v 1.21 2004/12/06 16:12:12 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclsock.c,v 1.22 2005/07/18 23:36:34 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -42,12 +42,12 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
  * The following structure is used for a socket callback.
  */
 
-typedef struct Callback {
+typedef struct TclSockCallback {
     char       *server;
     Tcl_Channel chan;
     int    	when;
     char        script[1];
-} Callback;
+} TclSockCallback;
 
 /*
  * The following structure is used for a socket listen callback.
@@ -76,7 +76,7 @@ static Ns_SockProc SockListenCallback;
 void
 NsTclSockArgProc(Tcl_DString *dsPtr, void *arg)
 {
-    Callback *cbPtr = arg;
+    TclSockCallback *cbPtr = arg;
 
     Tcl_DStringAppendElement(dsPtr, cbPtr->script);
 }
@@ -724,7 +724,7 @@ NsTclSockCallbackObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
     SOCKET sock;
     int     when;
     char   *s;
-    Callback *cbPtr;
+    TclSockCallback *cbPtr;
     NsInterp *itPtr = arg;
 
     if (objc != 4) {
@@ -772,7 +772,7 @@ NsTclSockCallbackObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
      */
 
     sock = ns_sockdup(sock);
-    cbPtr = ns_malloc(sizeof(Callback) + Tcl_GetCharLength(objv[2]));
+    cbPtr = ns_malloc(sizeof(TclSockCallback) + Tcl_GetCharLength(objv[2]));
     cbPtr->server = (itPtr->servPtr ? itPtr->servPtr->server : NULL);
     cbPtr->chan = NULL;
     cbPtr->when = when;
@@ -1069,7 +1069,7 @@ NsTclSockProc(SOCKET sock, void *arg, int why)
     Tcl_Obj	*objPtr;
     char        *w;
     int          result, ok;
-    Callback    *cbPtr = arg;
+    TclSockCallback    *cbPtr = arg;
 
     if (why != NS_SOCK_EXIT || (cbPtr->when & NS_SOCK_EXIT)) {
 	Tcl_DStringInit(&script);
