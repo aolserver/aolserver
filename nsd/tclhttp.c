@@ -33,58 +33,54 @@
  *	Support for the ns_http command.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclhttp.c,v 1.21 2004/09/30 19:46:55 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclhttp.c,v 1.22 2005/07/18 23:33:29 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
-/*
- * The following structure and flags maintains the state of a
- * background http request.
- */
- 
-#define REQ_SEND 	1
-#define REQ_RECV 	2
-#define REQ_DONE 	4
-#define REQ_CANCEL	8
-#define REQ_EOF		16
-#define REQ_ERR		32
-#define REQ_ANY		(0xff)
+extern Tcl_ObjCmdProc NsTclHttpObjCmd;
 
 typedef struct {
+    Ns_Task *task;
     SOCKET sock;
-    int state;
+    char *error;
     char *next;
     size_t len;
+    int status;
+    Ns_Time timeout;
     Ns_Time stime;
     Ns_Time etime;
     Tcl_DString ds;
 } Http;
 
-#define METHOD_GET  "GET"
-#define METHOD_POST "POST"
-
 /*
  * Local functions defined in this file
  */
 
-static Ns_SockProc HttpSend;
-static Ns_SockProc HttpRecv;
-static Ns_SockProc HttpCancel;
-static int HttpDone(SOCKET sock, Http *httpPtr, int state);
-static Http *HttpOpen(char *method, char *url, Ns_Set *hdrs, char *body);
-static void HttpClose(Http *httpPtr, int nb);
-static int HttpAbort(Http *httpPtr);
-static char *HttpResult(char *response, Ns_Set *hdrs);
-static Ns_Mutex lock;
-static Ns_Cond cond;
+static int HttpWaitCmd(NsInterp *itPtr, int objc, Tcl_Obj **objv);
+static int HttpQueueCmd(NsInterp *itPtr, int objc, Tcl_Obj **objv, int run);
+static int SetWaitVar(Tcl_Interp *interp, Tcl_Obj *varPtr, Tcl_Obj *valPtr);
+static int HttpConnect(Tcl_Interp *interp, char *method, char *url,
+			Ns_Set *hdrs, Tcl_Obj *bodyPtr, Http **httpPtrPtr);
+static char *HttpResult(char *response, int *statusPtr, Ns_Set *hdrs);
+static void HttpClose(Http *httpPtr);
+static void HttpCancel(Http *httpPtr);
+static void HttpAbort(Http *httpPtr);
+static int GetHttp(NsInterp *itPtr, Tcl_Obj *obj, Http **httpPtrPtr);
+static Ns_TaskProc HttpProc;
+
+/*
+ * Static variables defined in this file.
+ */
+ 
+static Ns_TaskQueue *queue;
 
 
 /*
  *----------------------------------------------------------------------
  *
- * NsTclHttpObjCmd --
+ * NsTclNHttpObjCmd --
  *
- *	Implements ns_http to handle async HTTP requests.
+ *	Implements the new ns_http to handle HTTP requests.
  *
  * Results:
  *	Standard Tcl result.
@@ -96,24 +92,19 @@ static Ns_Cond cond;
  */
 
 int
-NsTclHttpObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+NsTclNHttpObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     NsInterp *itPtr = arg;
     Http *httpPtr;
-    char buf[50], *result, *carg;
-    int new, status, n, timeidx;
-    Ns_Time timeout, incr;
-    Ns_Set *hdrs;
     Tcl_HashEntry *hPtr;
     Tcl_HashSearch search;
+    int run = 0;
     static CONST char *opts[] = {
-       "cancel", "cleanup", "queue", "wait", NULL
+       "cancel", "cleanup", "run", "queue", "wait", NULL
     };
     enum {
-        HCancelIdx, HCleanupIdx, HQueueIdx, HWaitIdx
+        HCancelIdx, HCleanupIdx, HRunIdx, HQueueIdx, HWaitIdx
     } opt;
-
-    char *method, *url, *body;
 
     if (objc < 2) {
         Tcl_WrongNumArgs(interp, 1, objv, "option ?args ...?");
@@ -125,142 +116,33 @@ NsTclHttpObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST obj
     }
 
     switch (opt) {
+    case HRunIdx:
+	run = 1;
+	/* FALLTHROUGH */
     case HQueueIdx:
-        if (objc < 4 || objc > 6) {
-            Tcl_WrongNumArgs(interp, 2, objv, "method url ?body? ?headers?");
-            return TCL_ERROR;
-        }
+	return HttpQueueCmd(itPtr, objc, objv, run);
+	break;
 
-        method = Tcl_GetString(objv[2]);
-        url    = Tcl_GetString(objv[3]);
-
-        if (objc > 4) {
-            body = Tcl_GetString(objv[4]);
-
-            if (objc > 5) {
-                if (Ns_TclGetSet2(interp, Tcl_GetString(objv[5]), &hdrs) != TCL_OK) {
-                    return TCL_ERROR;
-                }
-            }
-            else {
-                hdrs = NULL;
-            }
-        }
-        else {
-            body = NULL;
-            hdrs = NULL;
-        }
-
-        httpPtr = HttpOpen(method, url, hdrs, body);
-        if (httpPtr == NULL) {
-            Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), 
-                    "could not connect to : ", 
-                    url, NULL);
-            return TCL_ERROR;
-        }
-        Ns_GetTime(&httpPtr->stime);
-        Ns_SockCallback(httpPtr->sock, HttpSend, httpPtr, NS_SOCK_WRITE);
-        n = itPtr->https.numEntries;
-        do {
-            sprintf(buf, "http%d", n++);
-            hPtr = Tcl_CreateHashEntry(&itPtr->https, buf, &new);
-        } while (!new);
-        Tcl_SetHashValue(hPtr, httpPtr);
-        Tcl_SetResult(interp, buf, TCL_VOLATILE);
-        break;
+    case HWaitIdx:
+	return HttpWaitCmd(itPtr, objc, objv);
+	break;
 
     case HCancelIdx:
-        if (objc != 3) {
+        if (objc != 2) {
             Tcl_WrongNumArgs(interp, 2, objv, "id");
             return TCL_ERROR;
         }
-        hPtr = Tcl_FindHashEntry(&itPtr->https, Tcl_GetString(objv[2]));
-        if (hPtr == NULL) {
-            Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "no such request: ", 
-                                   Tcl_GetString(objv[2]), NULL);
-            return TCL_ERROR;
-        }
-        httpPtr = Tcl_GetHashValue(hPtr);
-        Tcl_DeleteHashEntry(hPtr);
-        Tcl_SetIntObj(Tcl_GetObjResult(interp), HttpAbort(httpPtr));
-        break;
-
-    case HWaitIdx:
-        if (objc < 4 || objc > 8) {
-            Tcl_WrongNumArgs(interp, 2, objv, "id resultsVar ?timeout? ?headers? ?-servicetime svcTime?");
-            return TCL_ERROR;
-        }
-        carg = Tcl_GetString(objv[objc - 2]);
-        if (STRIEQ(carg, "-servicetime")) {
-            timeidx = objc - 1;
-            objc -= 2; /* so I don't have to refactor the rest of the code */
-        } else {
-            timeidx = 0;
-        }
-        if (objc < 5) {
-            incr.sec  = 2;
-            incr.usec = 0;
-        } else if (Ns_TclGetTimeFromObj(interp, objv[4], &incr) != TCL_OK) {
-            return TCL_ERROR;
-        }
-        Ns_GetTime(&timeout);
-        Ns_IncrTime(&timeout, incr.sec, incr.usec);
-        if (objc < 6) {
-            hdrs = NULL;
-        } else if (Ns_TclGetSet2(interp, Tcl_GetString(objv[5]), &hdrs) != TCL_OK) {
-            return TCL_ERROR;
-        }
-        hPtr = Tcl_FindHashEntry(&itPtr->https, Tcl_GetString(objv[2]));
-        if (hPtr == NULL) {
-            Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "no such request: ", 
-                    Tcl_GetString(objv[2]), NULL);
-            return TCL_ERROR;
-        }
-        httpPtr= Tcl_GetHashValue(hPtr);
-        status = NS_OK;
-        Ns_MutexLock(&lock);
-        while (status == NS_OK && !(httpPtr->state & REQ_DONE)) {
-            status = Ns_CondTimedWait(&cond, &lock, &timeout);
-        }
-        Ns_MutexUnlock(&lock);
-        if (timeidx > 0) {
-            Ns_Time dtime;
-            if (status != NS_OK) {
-                /* if we timed-out, we didn't capture this yet */
-                Ns_GetTime(&httpPtr->etime);
-            }
-
-            Ns_DiffTime(&httpPtr->etime, &httpPtr->stime, &dtime);
-            snprintf(buf, 50, "%ld:%ld", dtime.sec, dtime.usec);
-            Tcl_SetVar(interp, Tcl_GetString(objv[timeidx]), buf, TCL_LEAVE_ERR_MSG);
-        }
-        if (status != NS_OK) {
-            httpPtr = NULL;
-            result = "timeout";
-        } else {
-            if (httpPtr->state & REQ_EOF) {
-                result = HttpResult(httpPtr->ds.string, hdrs);
-            } else {
-                status = NS_ERROR;
-                result = "error";
-            }
-        }
-        result = (char*)Tcl_SetVar(interp, Tcl_GetString(objv[3]), result, TCL_LEAVE_ERR_MSG);
-        if (httpPtr != NULL) {
-            Tcl_DeleteHashEntry(hPtr);
-            HttpClose(httpPtr, 0);
-        } 
-        if (result == NULL) {
-            return TCL_ERROR;
-        }
-        Tcl_SetBooleanObj(Tcl_GetObjResult(interp), status == NS_OK ? 1 : 0);
+	if (!GetHttp(itPtr, objv[2], &httpPtr)) {
+	    return TCL_ERROR;
+	}
+        HttpAbort(httpPtr);
         break;
 
     case HCleanupIdx:
         hPtr = Tcl_FirstHashEntry(&itPtr->https, &search);
         while (hPtr != NULL) {
             httpPtr = Tcl_GetHashValue(hPtr);
-            (void) HttpAbort(httpPtr);
+            HttpAbort(httpPtr);
             hPtr = Tcl_NextHashEntry(&search);
         }
         Tcl_DeleteHashTable(&itPtr->https);
@@ -274,32 +156,319 @@ NsTclHttpObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST obj
 /*
  *----------------------------------------------------------------------
  *
- * HttpOpen --
+ * HttpQueueCmd --
+ *
+ *	Implements "ns_http queue" subcommand.
+ *
+ * Results:
+ *	Standard Tcl result.
+ *
+ * Side effects:
+ *	May queue an HTTP request.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+HttpQueueCmd(NsInterp *itPtr, int objc, Tcl_Obj **objv, int run)
+{
+    Tcl_Interp *interp = itPtr->interp;
+    int new, i;
+    Tcl_HashEntry *hPtr;
+    Http *httpPtr;
+    char buf[100], *arg, *url;
+    char *method = "GET";
+    Ns_Set *hdrs = NULL;
+    Tcl_Obj *bodyPtr = NULL;
+    Ns_Time incr;
+    static CONST char *opts[] = {
+       "-method", "-timeout", "-body", "-headers", NULL
+    };
+    enum {
+        QMethodIdx, QTimeoutIdx, QBodyIdx, QHeadersIdx
+    } opt;
+
+    incr.sec = 2;
+    incr.usec = 0;
+    for (i = 2; i < objc; ++i) {
+	arg = Tcl_GetString(objv[i]);
+	if (arg[0] != '-') {
+	    break;
+	}
+    	if (Tcl_GetIndexFromObj(interp, objv[i], opts, "option", 0,
+                            (int *) &opt) != TCL_OK) {
+            return TCL_ERROR;
+	}
+	if ((i + 2) == objc) {
+	    Tcl_AppendResult(interp, "no argument given to ", opts[opt], NULL);
+	    return TCL_ERROR;
+	}
+	++i;
+	switch (opt) {
+	case QMethodIdx:
+	    method = Tcl_GetString(objv[i]);
+	    break;
+	case QTimeoutIdx:
+	    if (Ns_TclGetTimeFromObj(interp, objv[i], &incr) != TCL_OK) {
+		return TCL_ERROR;
+	    }
+	    break;
+	case QBodyIdx:
+	    bodyPtr = objv[i];
+	    break;
+	case QHeadersIdx:
+            if (Ns_TclGetSet2(interp, Tcl_GetString(objv[i]),
+				&hdrs) != TCL_OK) {
+		return TCL_ERROR;
+	    }
+	    break;
+	}
+    }
+    if ((objc - i) != 1) {
+        Tcl_WrongNumArgs(interp, 2, objv, "?flags? url");
+        return TCL_ERROR;
+    }
+    url = Tcl_GetString(objv[i]);
+    if (!HttpConnect(interp, method, url, hdrs, bodyPtr, &httpPtr)) {
+	return TCL_ERROR;
+    }
+    Ns_GetTime(&httpPtr->stime);
+    httpPtr->timeout = httpPtr->stime;
+    Ns_IncrTime(&httpPtr->timeout, incr.sec, incr.usec);
+    httpPtr->task = Ns_TaskCreate(httpPtr->sock, HttpProc, httpPtr);
+    if (run) {
+	Ns_TaskRun(httpPtr->task);
+    } else {
+	if (queue == NULL) {
+	    Ns_MasterLock();
+	    if (queue == NULL) {
+		queue = Ns_CreateTaskQueue("tclhttp");
+	    }
+	    Ns_MasterUnlock();
+	}
+	if (Ns_TaskEnqueue(httpPtr->task, queue) != NS_OK) {
+	    HttpClose(httpPtr);
+	    Tcl_AppendResult(interp, "could not queue http task", NULL);
+	    return TCL_ERROR;
+	}
+    }
+    i = itPtr->https.numEntries;
+    do {
+        sprintf(buf, "http%d", i++);
+        hPtr = Tcl_CreateHashEntry(&itPtr->https, buf, &new);
+    } while (!new);
+    Tcl_SetHashValue(hPtr, httpPtr);
+    Tcl_SetResult(interp, buf, TCL_VOLATILE);
+    return TCL_OK;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HttpWaitCmd --
+ *
+ *	Implements "ns_http wait" subcommand.
+ *
+ * Results:
+ *	Standard Tcl result.
+ *
+ * Side effects:
+ *	May queue an HTTP request.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+HttpWaitCmd(NsInterp *itPtr, int objc, Tcl_Obj **objv)
+{
+    Tcl_Interp *interp = itPtr->interp;
+    Tcl_Obj *valPtr;
+    Tcl_Obj *elapsedPtr = NULL;
+    Tcl_Obj *resultPtr = NULL;
+    Tcl_Obj *statusPtr = NULL;
+    Ns_Set *hdrs = NULL;
+    Ns_Time diff;
+    char *arg, *content;
+    Http *httpPtr;
+    int result = TCL_ERROR;
+    int i, status;
+    static CONST char *opts[] = {
+       "-elapsed", "-result", "-headers", "-status", NULL
+    };
+    enum {
+        WElapsedIdx, WResultIdx, WHeadersIdx, WStatusIdx
+    } opt;
+
+    for (i = 2; i < objc; ++i) {
+	arg = Tcl_GetString(objv[i]);
+	if (arg[0] != '-') {
+	    break;
+	}
+    	if (Tcl_GetIndexFromObj(interp, objv[i], opts, "option", 0,
+                            (int *) &opt) != TCL_OK) {
+            return TCL_ERROR;
+	}
+	if (++i == objc) {
+	    Tcl_AppendResult(interp, "no argument given to ", opts[opt], NULL);
+	    return TCL_ERROR;
+	}
+	switch (opt) {
+	case WElapsedIdx:
+	    elapsedPtr = objv[i];
+	    break;
+	case WResultIdx:
+	    resultPtr = objv[i];
+	    break;
+	case WStatusIdx:
+	    statusPtr = objv[i];
+	    break;
+	case WHeadersIdx:
+            if (Ns_TclGetSet2(interp, Tcl_GetString(objv[i]),
+				&hdrs) != TCL_OK) {
+		return TCL_ERROR;
+	    }
+	    break;
+	}
+    }
+    if ((objc - i) != 1) {
+        Tcl_WrongNumArgs(interp, 2, objv, "?flags? id");
+        return TCL_ERROR;
+    }
+    if (!GetHttp(itPtr, objv[i], &httpPtr)) {
+	return TCL_ERROR;
+    }
+    if (Ns_TaskWait(httpPtr->task, NULL) != NS_OK) {
+	HttpCancel(httpPtr);
+	Tcl_AppendResult(interp, "timeout waiting for task", NULL);
+	return TCL_ERROR;
+    }
+    result = TCL_ERROR;
+    if (elapsedPtr != NULL) {
+    	Ns_DiffTime(&httpPtr->etime, &httpPtr->stime, &diff);
+	valPtr = Tcl_NewObj();
+    	Ns_TclSetTimeObj(valPtr, &diff);
+    	if (!SetWaitVar(interp, elapsedPtr, valPtr)) {
+	    goto err;
+	}
+    }
+    if (httpPtr->error) {
+	Tcl_AppendResult(interp, "http failed: ", httpPtr->error, NULL);
+	goto err;
+    }
+    content = HttpResult(httpPtr->ds.string, &status, hdrs);
+    if (statusPtr != NULL &&
+		!SetWaitVar(interp, statusPtr, Tcl_NewIntObj(status))) {
+	goto err;
+    }
+    if (resultPtr == NULL) {
+	Tcl_SetResult(interp, content, TCL_VOLATILE);
+    } else {
+	if (!SetWaitVar(interp, resultPtr, Tcl_NewStringObj(content, -1))) {
+	    goto err;
+	}
+	Tcl_SetBooleanObj(Tcl_GetObjResult(interp), 1);
+    }
+    result = TCL_OK;
+
+err:
+    HttpClose(httpPtr);
+    return result;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * GetHttp --
+ *
+ *	Locate and remove the Http struct for a given id.
+ *
+ * Results:
+ *	1 on success, 0 otherwise.
+ *
+ * Side effects:
+ *	Will update given httpPtrPtr with pointer to Http struct.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+GetHttp(NsInterp *itPtr, Tcl_Obj *obj, Http **httpPtrPtr)
+{
+    Tcl_HashEntry *hPtr;
+    char *id;
+
+    id = Tcl_GetString(obj);
+    hPtr = Tcl_FindHashEntry(&itPtr->https, id);
+    if (hPtr == NULL) {
+        Tcl_AppendResult(itPtr->interp, "no such request: ", id, NULL);
+        return 0;
+    }
+    *httpPtrPtr = Tcl_GetHashValue(hPtr);
+    Tcl_DeleteHashEntry(hPtr);
+    return 1;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * SetWaitVar --
+ *
+ *	Set a variable by name.  Convience routine for for HttpWaitCmd.
+ *
+ * Results:
+ *	1 on success, 0 otherwise.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+SetWaitVar(Tcl_Interp *interp, Tcl_Obj *varPtr, Tcl_Obj *valPtr)
+{
+    Tcl_Obj *errPtr;
+
+    Tcl_IncrRefCount(valPtr);
+    errPtr = Tcl_ObjSetVar2(interp, varPtr, NULL, valPtr,
+			       TCL_PARSE_PART1|TCL_LEAVE_ERR_MSG);
+    Tcl_DecrRefCount(valPtr);
+    return (errPtr ? 1 : 0);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HttpConnect --
  *
  *        Open a connection to the given URL host and construct
  *        an Http structure to fetch the file.
  *
  * Results:
- *        Pointer to Http struct or NULL on error.
+ *        1 if successful, 0 otherwise.
  *
  * Side effects:
- *        Will open a socket connection.
+ *        Updates httpPtrPtr with newly allocated Http struct.
  *
  *----------------------------------------------------------------------
  */
 
-Http *
-HttpOpen(char *method, char *url, Ns_Set *hdrs, char *body)
+int
+HttpConnect(Tcl_Interp *interp, char *method, char *url, Ns_Set *hdrs,
+	    Tcl_Obj *bodyPtr, Http **httpPtrPtr)
 {
     Http *httpPtr = NULL;
     SOCKET sock;
-    char *host, *file, *port;
-    int i;
-    int body_len = 0;
-    char lenbuf[20];
+    char *body, *host, *file, *port;
+    int i, len;
 
     if (strncmp(url, "http://", 7) != 0 || url[7] == '\0') {
-        return NULL;
+	Tcl_AppendResult(interp, "invalid url: ", url, NULL);
+        return 0;
     }
     host = url + 7;
     file = strchr(host, '/');
@@ -319,20 +488,22 @@ HttpOpen(char *method, char *url, Ns_Set *hdrs, char *body)
     }
     if (sock != INVALID_SOCKET) {
         httpPtr = ns_malloc(sizeof(Http));
-        httpPtr->state = REQ_SEND;
         httpPtr->sock = sock;
+	httpPtr->error = NULL;
         Tcl_DStringInit(&httpPtr->ds);
         if (file != NULL) {
             *file = '/';
         }
         Ns_DStringAppend(&httpPtr->ds, method);
         Ns_StrToUpper(Ns_DStringValue(&httpPtr->ds));
-        Ns_DStringVarAppend(&httpPtr->ds, " ", file ? file : "/", " HTTP/1.0\r\n", NULL);
+        Ns_DStringVarAppend(&httpPtr->ds, " ", file ? file : "/",
+			    " HTTP/1.0\r\n", NULL);
         if (file != NULL) {
             *file = '\0';
         }
         Ns_DStringVarAppend(&httpPtr->ds,
-            "User-Agent: ", Ns_InfoServerName(), "/", Ns_InfoServerVersion(), "\r\n"
+            "User-Agent: ", Ns_InfoServerName(), "/",
+			    Ns_InfoServerVersion(), "\r\n"
             "Connection: close\r\n"
             "Host: ", host, "\r\n", NULL);
         if (file != NULL) {
@@ -341,36 +512,37 @@ HttpOpen(char *method, char *url, Ns_Set *hdrs, char *body)
         if (hdrs != NULL) {
             for (i = 0; i < Ns_SetSize(hdrs); i++) {
                 Ns_DStringVarAppend(&httpPtr->ds,
-                    Ns_SetKey(hdrs, i), ": ", Ns_SetValue(hdrs, i), "\r\n", NULL);
+                    Ns_SetKey(hdrs, i), ": ",
+		    Ns_SetValue(hdrs, i), "\r\n", NULL);
             }
         }
-
+	body = NULL;
+	if (bodyPtr != NULL) {
+	    body = Tcl_GetStringFromObj(bodyPtr, &len);
+	    if (len == 0) {
+		body = NULL;
+	    }
+	}
         if (body != NULL) {
-            body_len = strlen(body);
-
-            if (body_len > 0) {
-                sprintf(lenbuf, "%d", body_len);
-                Ns_DStringVarAppend(&httpPtr->ds,
-                                    "Content-Length: ",
-                                    lenbuf,
-                                    "\r\n",
-                                    NULL);
-            }
+            Ns_DStringPrintf(&httpPtr->ds, "Content-Length: %d\r\n", len);
         }
-
         Tcl_DStringAppend(&httpPtr->ds, "\r\n", 2);
-
-        if (body_len > 0) {
-            Tcl_DStringAppend(&httpPtr->ds, body, body_len);
+        if (body != NULL) {
+            Tcl_DStringAppend(&httpPtr->ds, body, len);
         }
-
         httpPtr->next = httpPtr->ds.string;
         httpPtr->len = httpPtr->ds.length;
     }
     if (file != NULL) {
         *file = '/';
     }
-    return httpPtr;
+    if (httpPtr == NULL) {
+	Tcl_AppendResult(interp, "connect to \"", url, "\" failed: ",
+	 		 ns_sockstrerror(ns_sockerrno), NULL);
+	return 0;
+    }
+    *httpPtrPtr = httpPtr;
+    return 1;
 }
 
 
@@ -382,20 +554,20 @@ HttpOpen(char *method, char *url, Ns_Set *hdrs, char *body)
  *        Parse an Http response for the result body and headers.
  *
  * Results:
- *        Pointer body within Http buffer.
+ *        Pointer to body within Http buffer.
  *
  * Side effects:
  *        Will append parsed response headers to given hdrs if
- *        not NULL.
+ *        not NULL and set HTTP status code in given statusPtr.
  *
  *----------------------------------------------------------------------
  */
 
 static char *
-HttpResult(char *response, Ns_Set *hdrs)
+HttpResult(char *response, int *statusPtr, Ns_Set *hdrs)
 {
-    int firsthdr, len;
-    char *eoh, *body, *p;
+    int firsthdr, major, minor, len;
+    char *eoh, *body, *p, save;
 
     body = response;
     eoh = strstr(response, "\r\n\r\n");
@@ -406,137 +578,144 @@ HttpResult(char *response, Ns_Set *hdrs)
         eoh = strstr(response, "\n\n");
         if (eoh != NULL) {
             body = eoh + 2;
-	    eoh += 2;
+	    eoh += 1;
         }
     }
-    if (eoh != NULL) {
-        *eoh = '\0';
-    }
-
-    /*
-     * Parse the headers saved in the dstring if requested.
-     */
-
-    if (hdrs != NULL) {
-        firsthdr = 1;
-        p = response;
-        while ((eoh = strchr(p, '\n')) != NULL) {
-            *eoh++ = '\0';
-            len = strlen(p);
-            if (len > 0 && p[len-1] == '\r') {
-                p[len-1] = '\0';
-            }
-            if (firsthdr) {
-                if (hdrs->name != NULL) {
-                    ns_free(hdrs->name);
-                }
-                hdrs->name = ns_strdup(p);
-                firsthdr = 0;
-            } else if (Ns_ParseHeader(hdrs, p, ToLower) != NS_OK) {
-                break;
-            }
-            p = eoh;
+    if (eoh == NULL) {
+	*statusPtr = 0;
+    } else {
+	*eoh = '\0';
+	sscanf(response, "HTTP/%d.%d %d", &major, &minor, statusPtr);
+    	if (hdrs != NULL) {
+	    save = *body;
+	    *body = '\0';
+            firsthdr = 1;
+            p = response;
+            while ((eoh = strchr(p, '\n')) != NULL) {
+            	*eoh++ = '\0';
+            	len = strlen(p);
+            	if (len > 0 && p[len-1] == '\r') {
+                    p[len-1] = '\0';
+            	}
+            	if (firsthdr) {
+                    if (hdrs->name != NULL) {
+                    	ns_free(hdrs->name);
+                    }
+                    hdrs->name = ns_strdup(p);
+                    firsthdr = 0;
+            	} else if (Ns_ParseHeader(hdrs, p, ToLower) != NS_OK) {
+                    break;
+            	}
+            	p = eoh;
+	    }
+	    *body = save;
         }
     }
     return body;
 }
 
 
+
 static void
-HttpClose(Http *httpPtr, int nb)
+HttpClose(Http *httpPtr)
 {
+    Ns_TaskFree(httpPtr->task);
     Tcl_DStringFree(&httpPtr->ds);
-    if (nb) {
-        ns_socknbclose(httpPtr->sock);
-    } else {
-        ns_sockclose(httpPtr->sock);
-    }
+    ns_sockclose(httpPtr->sock);
     ns_free(httpPtr);
 }
 
 
-static int
-HttpSend(SOCKET sock, void *arg, int why)
+static void
+HttpCancel(Http *httpPtr)
 {
-    Http *httpPtr = arg;
-    int n;
-
-    n = send(sock, httpPtr->next, httpPtr->len, 0);
-    if (n < 0) {
-        Tcl_DStringFree(&httpPtr->ds);
-        return HttpDone(sock, httpPtr, (REQ_DONE|REQ_ERR));
-    }
-    httpPtr->next += n;
-    httpPtr->len -= n;
-    if (httpPtr->len == 0) {
-        shutdown(sock, 1);
-        Tcl_DStringTrunc(&httpPtr->ds, 0);
-        Ns_MutexLock(&lock);
-        httpPtr->state = REQ_RECV;
-        Ns_MutexUnlock(&lock);
-        Ns_SockCallback(sock, HttpRecv, arg, NS_SOCK_READ);
-    }
-    return NS_TRUE;
+    Ns_TaskCancel(httpPtr->task);
+    Ns_TaskWait(httpPtr->task, NULL);
 }
 
 
-static int
-HttpRecv(SOCKET sock, void *arg, int why)
+static void
+HttpAbort(Http *httpPtr)
+{
+    HttpCancel(httpPtr);
+    HttpClose(httpPtr);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * HttpProc --
+ *
+ *        Task callback for ns_http connections.
+ *
+ * Results:
+ *        None.
+ *
+ * Side effects:
+ *        Will call Ns_TaskCallback and Ns_TaskDone to manage state
+ *        of task.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+HttpProc(Ns_Task *task, SOCKET sock, void *arg, int why)
 {
     Http *httpPtr = arg;
     char buf[1024];
-    int n, state;
+    int n;
 
-    n = recv(sock, buf, sizeof(buf), 0);
-    if (n > 0) {
-        Tcl_DStringAppend(&httpPtr->ds, buf, n);
-        return NS_TRUE;
+    switch (why) {
+    case NS_SOCK_INIT:
+	Ns_TaskCallback(task, NS_SOCK_WRITE, &httpPtr->timeout);
+	return;
+	break;
+
+    case NS_SOCK_WRITE:
+    	n = send(sock, httpPtr->next, httpPtr->len, 0);
+    	if (n < 0) {
+	    httpPtr->error = "send failed";
+	} else {
+    	    httpPtr->next += n;
+    	    httpPtr->len -= n;
+    	    if (httpPtr->len == 0) {
+            	shutdown(sock, 1);
+            	Tcl_DStringTrunc(&httpPtr->ds, 0);
+	    	Ns_TaskCallback(task, NS_SOCK_READ, &httpPtr->timeout);
+	    }
+	    return;
+	}
+	break;
+
+    case NS_SOCK_READ:
+    	n = recv(sock, buf, sizeof(buf), 0);
+    	if (n > 0) {
+            Tcl_DStringAppend(&httpPtr->ds, buf, n);
+	    return;
+	}
+	if (n < 0) {
+	    httpPtr->error = "recv failed";
+	}
+	break;
+
+    case NS_SOCK_TIMEOUT:
+	httpPtr->error = "timeout";
+	break;
+
+    case NS_SOCK_EXIT:
+	httpPtr->error = "shutdown";
+	break;
+
+    case NS_SOCK_CANCEL:
+	httpPtr->error = "cancelled";
+	break;
     }
-    state = REQ_DONE;
-    if (n < 0) {
-        state |= REQ_ERR;
-    } else {
-        state |= REQ_EOF;
-    }
+
+    /*
+     * Get completion time and mark task as done.
+     */
+     
     Ns_GetTime(&httpPtr->etime);
-    return HttpDone(sock, httpPtr, state);
-}
-
-
-static int
-HttpCancel(SOCKET sock, void *arg, int why)
-{
-    Http *httpPtr = arg;
-
-    return HttpDone(sock, httpPtr, (REQ_CANCEL|REQ_DONE));
-}
-
-
-static int
-HttpDone(SOCKET sock, Http *httpPtr, int state)
-{
-    Ns_MutexLock(&lock);
-    httpPtr->state = state;
-    Ns_MutexUnlock(&lock);
-    Ns_CondBroadcast(&cond);
-    return NS_FALSE;
-}
-
-
-static int
-HttpAbort(Http *httpPtr)
-{
-    int state;
-
-    Ns_MutexLock(&lock);
-    state = httpPtr->state;
-    if (!(state & REQ_DONE)) {
-        Ns_SockCancelCallbackEx(httpPtr->sock, HttpCancel, httpPtr);
-        while (!(httpPtr->state & REQ_DONE)) {
-            Ns_CondWait(&cond, &lock);
-        }
-    }
-    Ns_MutexUnlock(&lock);
-    HttpClose(httpPtr, 1);
-    return state;
+    Ns_TaskDone(httpPtr->task);
 }
