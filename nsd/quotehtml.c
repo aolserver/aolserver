@@ -34,7 +34,7 @@
  *	Take text and make it safe for HTML. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/quotehtml.c,v 1.4 2005/01/15 23:54:08 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/quotehtml.c,v 1.5 2005/07/18 23:33:23 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -58,7 +58,11 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
 void
 Ns_QuoteHtml(Ns_DString *pds, char *string)
 {
-    while (*string != '\0') {
+    char *end, *next;
+
+    end = string + strlen(string);
+    do {
+	next = Tcl_UtfNext(string);
         switch (*string) {
         case '<':
             Ns_DStringAppend(pds, "&lt;");
@@ -81,11 +85,11 @@ Ns_QuoteHtml(Ns_DString *pds, char *string)
 	    break;
 	    
 	default:
-            Ns_DStringNAppend(pds, string, 1);
+            Ns_DStringNAppend(pds, string, next - string);
             break;
         }
-        ++string;
-    }
+	string = next;
+    } while (string < end);
 }
 
 
