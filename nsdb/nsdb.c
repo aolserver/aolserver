@@ -33,7 +33,7 @@
  *	Database module entry point.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsdb/nsdb.c,v 1.1 2002/06/05 22:57:41 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsdb/nsdb.c,v 1.2 2005/07/18 23:33:41 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "db.h"
 
@@ -61,6 +61,10 @@ Ns_ModuleInit(char *server, char *module)
 {
     static int once;
 
+    if (server == NULL) {
+	Ns_Log(Error, "%s: attempt to load outside a virual server", module);
+	return NS_ERROR;
+    }
     if (!once) {
 	NsDbInitPools();
 	once = 1;
