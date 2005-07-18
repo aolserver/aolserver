@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/Makefile,v 1.52 2004/09/07 23:59:37 dossy Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/Makefile,v 1.53 2005/07/18 23:32:19 jgdavidson Exp $
 #
 
 NSBUILD=1
@@ -69,7 +69,7 @@ install-tests-new:
 	done
 
 install-doc:
-	cd doc && /bin/sh ./install-doc $(AOLSERVER)
+	cd doc && $(MAKE) install
 
 test: all
 	cd tests/new && ./all.tcl
