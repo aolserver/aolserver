@@ -1,3 +1,70 @@
+2005-07-18  Jim Davidson <jgdavidson@aol.com>
+
+	* Makefile:
+	* doc/Makefile:
+	* doc/nsinstall-man-sh: New approach to installing man
+	pages.
+
+	* doc/Ns_ConnContent.3:
+	* doc/Ns_ConnQuery.3:
+	* doc/Ns_Conn.3: Broke out some Ns_Conn related man pages.
+
+	* doc/Ns_Config.3:
+	* doc/Ns_Exec.3: Cleaned out some trailing linefeeds.
+
+	* nsd/Makefile:
+	* nsd/tclcache.c:
+	* nsd/tclcmds.c:
+	* nsd/tclthread.c: New ns_cache command based on ideas from
+	nscache module and made ns_thread an object command.
+
+	* include/ns.h
+	* nsd/conn.c:
+	* nsd/connio.c:
+	* nsd/driver.c:
+	* nsd/fastpath.c
+	* nsd/fd.c
+	* nsd/form.c:
+	* nsd/nsd.h
+	* nsd/return.c: Finished up support for temp-file based
+	content, allowing access via Ns_ConnContent or Ns_ConnContentFd.
+	Also, added new Ns_ConnFile routines to access uploaded
+	files and Ns_ConnSendFdEx and Ns_ConnReturnOpenFdEx routines
+	to send open file descriptors using pread, allowing
+	multi-threaded use.
+
+	* nsd/queue.c: Moved code from Ns_ConnInit to the core as
+	Ns_ConnInit is now a no-op to avoid confusing folks on
+	whether it's required to call or not.
+
+	* nsd/quotehtml.c:  Fix to support UTF-8.
+
+	* nsd/server.c:
+	* nsd/tclhttp.c: Removed old-style ns_http in favor of only the new Ns_Task-based code.
+
+	* nsdb/nsdb.c: Fixed crash loading nsdb outside a virtual server.
+
+	* nsd/adpcmds.c:
+	* nsd/adpeval.c:
+	* nsd/binder.c:
+	* nsd/callbacks.c:
+	* nsd/compress.c:
+	* nsd/dns.c:
+	* nsd/listen.c:
+	* nsd/log.c:
+	* nsd/nswin32.c:
+	* nsd/rollfile.c:
+	* nsd/sock.c:
+	* nsd/sockcallback.c:
+	* nsd/task.c:
+	* nsd/tclinit.c:
+	* nsd/tcljob.c:
+	* nsd/tclsched.c:
+	* nsd/tclvar.c:
+	* nsd/unix.c: Code cleanup to avoid duplicate routine and
+	struct names across files.
+
+
 2005-06-21  Jim Davidson <jgdavidson@aol.com>
 
 	* nsd/connio.c:  Fixed bad return code for Ns_ConnReadLine.
