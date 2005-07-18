@@ -33,17 +33,17 @@
  *	Routines to roll files.
  */
  
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/rollfile.c,v 1.6 2003/03/07 18:08:34 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/rollfile.c,v 1.7 2005/07/18 23:32:12 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
-typedef struct File {
+typedef struct FInfo {
     time_t  	mtime;
     char        name[4];
-} File;
+} FInfo;
 
-static int AppendFile(Ns_DString *dsPtr, char *dir, char *tail);
-static int CmpFile(const void *p1, const void *p2);
+static int AppendFInfo(Ns_DString *dsPtr, char *dir, char *tail);
+static int CmpFInfo(const void *p1, const void *p2);
 static int Rename(char *from, char *to);
 static int Exists(char *file);
 static int Unlink(char *file);
@@ -154,7 +154,7 @@ Ns_PurgeFiles(char *file, int max)
     char *slash, *tail;
     DIR *dp;
     struct dirent *ent;
-    File **files;
+    FInfo **files;
     int tlen, i, nfiles, status;
     Ns_DString dir, list;
     
@@ -187,17 +187,17 @@ Ns_PurgeFiles(char *file, int max)
 	if (strncmp(tail, ent->d_name, (size_t)tlen) != 0) {
 	    continue;
 	}
-    	if (!AppendFile(&list, dir.string, ent->d_name)) {
+    	if (!AppendFInfo(&list, dir.string, ent->d_name)) {
 	    closedir(dp);
 	    goto err;
 	}
     }
     closedir(dp);
 
-    nfiles = list.length / sizeof(File *);
+    nfiles = list.length / sizeof(FInfo *);
     if (nfiles >= max) {
-	files = (File **) list.string;
-	qsort(files, (size_t)nfiles, sizeof(File *), CmpFile);
+	files = (FInfo **) list.string;
+	qsort(files, (size_t)nfiles, sizeof(FInfo *), CmpFInfo);
 	for (i = max; i < nfiles; ++i) {
 	    if (Unlink(files[i]->name) != 0) {
 	    	goto err;
@@ -207,9 +207,9 @@ Ns_PurgeFiles(char *file, int max)
     status = NS_OK;
 
 err:
-    nfiles = list.length / sizeof(File *);
+    nfiles = list.length / sizeof(FInfo *);
     if (nfiles > 0) {
-	files = (File **) list.string;
+	files = (FInfo **) list.string;
 	for (i = 0; i < nfiles; ++i) {
     	    ns_free(files[i]);
 	}
@@ -223,7 +223,7 @@ err:
 /*
  *----------------------------------------------------------------------
  *
- * AppendFile --
+ * AppendFInfo --
  *
  *	Append a file entry with mtime to the list kept in the dstring.
  *
@@ -237,12 +237,12 @@ err:
  */
 
 static int
-AppendFile(Ns_DString *dsPtr, char *dir, char *tail)
+AppendFInfo(Ns_DString *dsPtr, char *dir, char *tail)
 {
-    File *fPtr;
+    FInfo *fPtr;
     struct stat st;
     
-    fPtr = ns_malloc(sizeof(File) + strlen(dir) + strlen(tail));
+    fPtr = ns_malloc(sizeof(FInfo) + strlen(dir) + strlen(tail));
     sprintf(fPtr->name, "%s/%s", dir, tail);
     if (stat(fPtr->name, &st) != 0) {
     	Ns_Log(Error, "rollfile: failed to append to file '%s': '%s'",
@@ -251,7 +251,7 @@ AppendFile(Ns_DString *dsPtr, char *dir, char *tail)
 	return 0;
     }
     fPtr->mtime = st.st_mtime;
-    Ns_DStringNAppend(dsPtr, (char *) &fPtr, sizeof(File *));
+    Ns_DStringNAppend(dsPtr, (char *) &fPtr, sizeof(FInfo *));
     return 1;
 }
 
@@ -259,7 +259,7 @@ AppendFile(Ns_DString *dsPtr, char *dir, char *tail)
 /*
  *----------------------------------------------------------------------
  *
- * CmpFile --
+ * CmpFInfo --
  *
  *	qsort() callback to select oldest file.
  *
@@ -273,10 +273,10 @@ AppendFile(Ns_DString *dsPtr, char *dir, char *tail)
  */
 
 static int 
-CmpFile(const void *arg1, const void *arg2)
+CmpFInfo(const void *arg1, const void *arg2)
 {
-    File *f1Ptr = *((File **) arg1);
-    File *f2Ptr = *((File **) arg2);
+    FInfo *f1Ptr = *((FInfo **) arg1);
+    FInfo *f2Ptr = *((FInfo **) arg2);
     
     if (f1Ptr->mtime < f2Ptr->mtime) {
 	return 1;

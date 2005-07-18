@@ -34,7 +34,7 @@
  *	Support for the socket callback thread.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sockcallback.c,v 1.15 2004/11/06 03:30:47 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sockcallback.c,v 1.16 2005/07/18 23:32:12 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -42,28 +42,28 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
  * The following defines a socket being monitored.
  */
 
-typedef struct Callback {
-    struct Callback     *nextPtr;
+typedef struct SockCallback {
+    struct SockCallback *nextPtr;
     SOCKET               sock;
     int			 idx;
     int                  when;
     Ns_SockProc         *proc;
     void                *arg;
-} Callback;
+} SockCallback;
 
 /*
  * Local functions defined in this file
  */
 
 static Ns_ThreadProc SockCallbackThread;
-static int Queue(SOCKET sock, Ns_SockProc *proc, void *arg, int when);
+static int QueueSock(SOCKET sock, Ns_SockProc *proc, void *arg, int when);
 static void CallbackTrigger(void);
 
 /*
  * Static variables defined in this file
  */
 
-static Callback	    *firstQueuePtr, *lastQueuePtr;
+static SockCallback *firstCallbackPtr, *lastCallbackPtr;
 static int	     shutdownPending;
 static int	     running;
 static Ns_Thread     sockThread;
@@ -93,7 +93,7 @@ static Tcl_HashTable table;
 int
 Ns_SockCallback(SOCKET sock, Ns_SockProc *proc, void *arg, int when)
 {
-    return Queue(sock, proc, arg, when);
+    return QueueSock(sock, proc, arg, when);
 }
 
 
@@ -123,7 +123,7 @@ Ns_SockCancelCallback(SOCKET sock)
 int
 Ns_SockCancelCallbackEx(SOCKET sock, Ns_SockProc *proc, void *arg)
 {
-    return Queue(sock, proc, arg, NS_SOCK_CANCEL);
+    return QueueSock(sock, proc, arg, NS_SOCK_CANCEL);
 }
 
 
@@ -203,7 +203,7 @@ CallbackTrigger(void)
 /*
  *----------------------------------------------------------------------
  *
- * Queue --
+ * QueueSock --
  *
  *	Queue a callback for socket.
  *
@@ -217,12 +217,12 @@ CallbackTrigger(void)
  */
 
 static int
-Queue(SOCKET sock, Ns_SockProc *proc, void *arg, int when)
+QueueSock(SOCKET sock, Ns_SockProc *proc, void *arg, int when)
 {
-    Callback   *cbPtr;
+    SockCallback *cbPtr;
     int         status, trigger, create;
 
-    cbPtr = ns_malloc(sizeof(Callback));
+    cbPtr = ns_malloc(sizeof(SockCallback));
     cbPtr->sock = sock;
     cbPtr->proc = proc;
     cbPtr->arg = arg;
@@ -238,16 +238,16 @@ Queue(SOCKET sock, Ns_SockProc *proc, void *arg, int when)
 	    Ns_MutexSetName(&lock, "ns:sockcallbacks");
 	    create = 1;
 	    running = 1;
-	} else if (firstQueuePtr == NULL) {
+	} else if (firstCallbackPtr == NULL) {
 	    trigger = 1;
 	}
-        if (firstQueuePtr == NULL) {
-            firstQueuePtr = cbPtr;
+        if (firstCallbackPtr == NULL) {
+            firstCallbackPtr = cbPtr;
         } else {
-            lastQueuePtr->nextPtr = cbPtr;
+            lastCallbackPtr->nextPtr = cbPtr;
         }
         cbPtr->nextPtr = NULL;
-        lastQueuePtr = cbPtr;
+        lastCallbackPtr = cbPtr;
     	status = NS_OK;
     }
     Ns_MutexUnlock(&lock);
@@ -286,7 +286,7 @@ SockCallbackThread(void *ignored)
     int           when[3], events[3];
     int           n, i, new, stop;
     int		  max, nfds;
-    Callback     *cbPtr, *nextPtr;
+    SockCallback *cbPtr, *nextPtr;
     Tcl_HashEntry *hPtr;
     Tcl_HashSearch search;
     struct pollfd *pfds;
@@ -314,9 +314,9 @@ SockCallbackThread(void *ignored)
 	 */
 
     	Ns_MutexLock(&lock);
-	cbPtr = firstQueuePtr;
-	firstQueuePtr = NULL;
-        lastQueuePtr = NULL;
+	cbPtr = firstCallbackPtr;
+	firstCallbackPtr = NULL;
+        lastCallbackPtr = NULL;
 	stop = shutdownPending;
 	Ns_MutexUnlock(&lock);
     
@@ -446,7 +446,7 @@ SockCallbackThread(void *ignored)
 void
 NsGetSockCallbacks(Tcl_DString *dsPtr)
 {
-    Callback     *cbPtr;
+    SockCallback  *cbPtr;
     Tcl_HashEntry *hPtr;
     Tcl_HashSearch search;
     char buf[100];

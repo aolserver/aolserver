@@ -33,7 +33,7 @@
  *	Support for I/O tasks.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/task.c,v 1.2 2005/06/22 00:02:15 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/task.c,v 1.3 2005/07/18 23:32:12 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -43,8 +43,8 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
 
 #define NAME_SIZE 31
 
-typedef struct Queue {
-    struct Queue *nextPtr;	  /* Next in list of all queues. */
+typedef struct TaskQueue {
+    struct TaskQueue *nextPtr;	  /* Next in list of all queues. */
     struct Task  *firstSignalPtr; /* First in list of task signals. */
     Ns_Thread	  tid;		  /* Thread id. */
     Ns_Mutex	  lock;		  /* Queue list and signal lock. */
@@ -53,7 +53,7 @@ typedef struct Queue {
     int		  stopped;	  /* Stop flag. */
     SOCKET	  trigger[2];	  /* Trigger pipe. */
     char	  name[NAME_SIZE+1]; /* String name. */
-} Queue;
+} TaskQueue;
 
 /*
  * The following bits are used to send signals to a task queue
@@ -72,7 +72,7 @@ typedef struct Queue {
  */
 
 typedef struct Task {
-    struct Queue *queuePtr;	  /* Monitoring queue. */
+    struct TaskQueue *queuePtr;	  /* Monitoring queue. */
     struct Task  *nextWaitPtr;	  /* Next on wait queue. */
     struct Task  *nextSignalPtr;  /* Next on signal queue. */
     SOCKET	  sock;		  /* Underlying socket. */
@@ -89,11 +89,11 @@ typedef struct Task {
  * Local functions defined in this file
  */
 
-static void TriggerQueue(Queue *queuePtr);
-static void JoinQueue(Queue *queuePtr);
-static void StopQueue(Queue *queuePtr);
+static void TriggerQueue(TaskQueue *queuePtr);
+static void JoinQueue(TaskQueue *queuePtr);
+static void StopQueue(TaskQueue *queuePtr);
 static int SignalQueue(Task *taskPtr, int bit);
-static Ns_ThreadProc TaskQueue;
+static Ns_ThreadProc TaskThread;
 static void RunTask(Task *taskPtr, int revents, Ns_Time *nowPtr);
 #define Call(tp,w) ((*((tp)->proc))((Ns_Task *)(tp),(tp)->sock,(tp)->arg,(w)))
 
@@ -101,7 +101,7 @@ static void RunTask(Task *taskPtr, int revents, Ns_Time *nowPtr);
  * Static variables defined in this file
  */
 
-static Queue *firstQueuePtr;	/* List of all queues. */
+static TaskQueue *firstQueuePtr;	/* List of all queues. */
 static Ns_Mutex lock;		/* Lock for queue list. */
 
 /*
@@ -139,9 +139,9 @@ static struct {
 Ns_TaskQueue *
 Ns_CreateTaskQueue(char *name)
 {
-    Queue *queuePtr;
+    TaskQueue *queuePtr;
 
-    queuePtr = ns_calloc(1, sizeof(Queue));
+    queuePtr = ns_calloc(1, sizeof(TaskQueue));
     strncpy(queuePtr->name, name ? name : "", NAME_SIZE);
     if (ns_sockpair(queuePtr->trigger) != 0) {
 	Ns_Fatal("queue: ns_sockpair() failed: %s",
@@ -150,7 +150,7 @@ Ns_CreateTaskQueue(char *name)
     Ns_MutexLock(&lock);
     queuePtr->nextPtr = firstQueuePtr;
     firstQueuePtr = queuePtr;
-    Ns_ThreadCreate(TaskQueue, queuePtr, 0, &queuePtr->tid);
+    Ns_ThreadCreate(TaskThread, queuePtr, 0, &queuePtr->tid);
     Ns_MutexUnlock(&lock);
     return (Ns_TaskQueue *) queuePtr;
 }
@@ -175,8 +175,8 @@ Ns_CreateTaskQueue(char *name)
 void
 Ns_DestroyTaskQueue(Ns_TaskQueue *queue)
 {
-    Queue *queuePtr = (Queue *) queue;
-    Queue **nextPtrPtr;
+    TaskQueue *queuePtr = (TaskQueue *) queue;
+    TaskQueue **nextPtrPtr;
 
     /*
      * Remove queue from list of all queues.
@@ -248,7 +248,7 @@ int
 Ns_TaskEnqueue(Ns_Task *task, Ns_TaskQueue *queue)
 {
     Task *taskPtr = (Task *) task;
-    Queue *queuePtr = (Queue *) queue;
+    TaskQueue *queuePtr = (TaskQueue *) queue;
 
     taskPtr->queuePtr = queuePtr;
     if (!SignalQueue(taskPtr, TASK_INIT)) {
@@ -354,7 +354,7 @@ int
 Ns_TaskWait(Ns_Task *task, Ns_Time *timeoutPtr)
 {
     Task *taskPtr = (Task *) task;
-    Queue *queuePtr = taskPtr->queuePtr;
+    TaskQueue *queuePtr = taskPtr->queuePtr;
     int status = NS_OK;
 
     if (queuePtr == NULL) {
@@ -511,7 +511,7 @@ Ns_TaskFree(Ns_Task *task)
 void
 NsStartQueueShutdown(void)
 {
-    Queue *queuePtr;
+    TaskQueue *queuePtr;
 
     /*
      * Trigger all queues to shutdown.
@@ -546,7 +546,7 @@ NsStartQueueShutdown(void)
 void
 NsWaitQueueShutdown(Ns_Time *toPtr)
 {
-    Queue *queuePtr, *nextPtr;
+    TaskQueue *queuePtr, *nextPtr;
     int status;
     
     /*
@@ -643,7 +643,7 @@ RunTask(Task *taskPtr, int revents, Ns_Time *nowPtr)
 static int
 SignalQueue(Task *taskPtr, int bit)
 {
-    Queue *queuePtr = taskPtr->queuePtr;
+    TaskQueue *queuePtr = taskPtr->queuePtr;
     int pending, shutdown;
 
     Ns_MutexLock(&queuePtr->lock);
@@ -691,7 +691,7 @@ SignalQueue(Task *taskPtr, int bit)
  */
 
 static void
-TriggerQueue(Queue *queuePtr)
+TriggerQueue(TaskQueue *queuePtr)
 {
     if (send(queuePtr->trigger[1], "", 1, 0) != 1) {
 	Ns_Fatal("queue: trigger send() failed: %s",
@@ -718,7 +718,7 @@ TriggerQueue(Queue *queuePtr)
  */
 
 static void
-StopQueue(Queue *queuePtr)
+StopQueue(TaskQueue *queuePtr)
 {
     Ns_MutexLock(&queuePtr->lock);
     queuePtr->shutdown = 1;
@@ -744,7 +744,7 @@ StopQueue(Queue *queuePtr)
  */
 
 static void
-JoinQueue(Queue *queuePtr)
+JoinQueue(TaskQueue *queuePtr)
 {
     Ns_ThreadJoin(&queuePtr->tid, NULL);
     ns_sockclose(queuePtr->trigger[0]);
@@ -757,7 +757,7 @@ JoinQueue(Queue *queuePtr)
 /*
  *----------------------------------------------------------------------
  *
- * TaskQueue --
+ * TaskThread --
  *
  *	Run an task queue.
  *
@@ -771,9 +771,9 @@ JoinQueue(Queue *queuePtr)
  */
 
 static void
-TaskQueue(void *arg)
+TaskThread(void *arg)
 {
-    Queue	 *queuePtr = arg;
+    TaskQueue	 *queuePtr = arg;
     char          c;
     int           n, broadcast, max, nfds, shutdown;
     Task	 *taskPtr, *nextPtr, *firstWaitPtr;

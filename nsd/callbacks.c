@@ -36,7 +36,7 @@
  *	that are run at various points during the server's execution.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/callbacks.c,v 1.6 2002/05/15 20:07:47 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/callbacks.c,v 1.7 2005/07/18 23:32:12 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -58,7 +58,7 @@ static Ns_ThreadProc RunThread;
 static void     RunCallbacks(Callback *firstPtr);
 static void 	RunStart(Callback **firstPtrPtr, Ns_Thread *threadPtr);
 static void 	RunWait(Callback **firstPtrPtr, Ns_Thread *threadPtr, Ns_Time *toPtr);
-static void    *RegisterAt(Callback **firstPtrPtr, Ns_Callback *proc, void *arg);
+static void    *RegisterCallback(Callback **firstPtrPtr, Ns_Callback *proc, void *arg);
 
 /*
  * Static variables defined in this file
@@ -79,7 +79,7 @@ static Ns_Thread serverShutdownThread;
 void *
 Ns_RegisterAtReady(Ns_Callback *proc, void *arg)
 {
-    return RegisterAt(&firstReady, proc, arg);
+    return RegisterCallback(&firstReady, proc, arg);
 }
 
 void
@@ -108,7 +108,7 @@ NsRunAtReadyProcs(void)
 void *
 Ns_RegisterAtStartup(Ns_Callback *proc, void *arg)
 {
-    return RegisterAt(&firstStartup, proc, arg);
+    return RegisterCallback(&firstStartup, proc, arg);
 }
 
 
@@ -131,7 +131,7 @@ Ns_RegisterAtStartup(Ns_Callback *proc, void *arg)
 void *
 Ns_RegisterAtPreStartup(Ns_Callback *proc, void *arg)
 {
-    return RegisterAt(&firstPreStartup, proc, arg);
+    return RegisterCallback(&firstPreStartup, proc, arg);
 }
 
 
@@ -154,7 +154,7 @@ Ns_RegisterAtPreStartup(Ns_Callback *proc, void *arg)
 void *
 Ns_RegisterAtSignal(Ns_Callback * proc, void *arg)
 {
-    return RegisterAt(&firstSignal, proc, arg);
+    return RegisterCallback(&firstSignal, proc, arg);
 }
 
 
@@ -179,7 +179,7 @@ Ns_RegisterAtSignal(Ns_Callback * proc, void *arg)
 void *
 Ns_RegisterAtServerShutdown(Ns_Callback *proc, void *arg)
 {
-    return RegisterAt(&firstServerShutdown, proc, arg);
+    return RegisterCallback(&firstServerShutdown, proc, arg);
 }
 
 void *
@@ -208,7 +208,7 @@ Ns_RegisterServerShutdown(char *ignored, Ns_Callback *proc, void *arg)
 void *
 Ns_RegisterAtShutdown(Ns_Callback *proc, void *arg)
 {
-    return RegisterAt(&firstShutdown, proc, arg);
+    return RegisterCallback(&firstShutdown, proc, arg);
 }
 
 void *
@@ -238,7 +238,7 @@ Ns_RegisterShutdown(Ns_Callback *proc, void *arg)
 void *
 Ns_RegisterAtExit(Ns_Callback * proc, void *arg)
 {
-    return RegisterAt(&firstExit, proc, arg);
+    return RegisterCallback(&firstExit, proc, arg);
 }
 
 
@@ -357,7 +357,7 @@ NsRunAtExitProcs(void)
 /*
  *----------------------------------------------------------------------
  *
- * RegisterAt --
+ * RegisterCallback --
  *
  *	A generic function that registers callbacks for any event 
  *
@@ -371,7 +371,7 @@ NsRunAtExitProcs(void)
  */
 
 static void *
-RegisterAt(Callback **firstPtrPtr, Ns_Callback *proc, void *arg)
+RegisterCallback(Callback **firstPtrPtr, Ns_Callback *proc, void *arg)
 {
     Callback       *cbPtr;
     static int first = 1;

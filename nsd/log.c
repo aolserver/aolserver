@@ -34,7 +34,7 @@
  *	Manage the server log file.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/log.c,v 1.27 2004/10/06 18:50:29 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/log.c,v 1.28 2005/07/18 23:32:12 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -43,7 +43,7 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
  * cached formatted time strings and log buffers.
  */
 
-typedef struct Cache {
+typedef struct LogCache {
     int		hold;
     int		count;
     time_t	gtime;
@@ -51,7 +51,7 @@ typedef struct Cache {
     char	gbuf[100];
     char	lbuf[100];
     Ns_DString  buffer;
-} Cache;
+} LogCache;
 
 /*
  * Local functions defined in this file
@@ -59,12 +59,12 @@ typedef struct Cache {
 
 static int    LogReOpen(void);
 static void   Log(Ns_LogSeverity severity, char *fmt, va_list ap);
-static Cache *LogGetCache(void);
+static LogCache *LogGetCache(void);
 static Ns_TlsCleanup LogFreeCache;
-static void   LogFlush(Cache *cachePtr);
-static char  *LogTime(Cache *cachePtr, int gmtoff, long *usecPtr);
-static int    LogStart(Cache *cachePtr, Ns_LogSeverity severity);
-static void   LogEnd(Cache *cachePtr);
+static void   LogFlush(LogCache *cachePtr);
+static char  *LogTime(LogCache *cachePtr, int gmtoff, long *usecPtr);
+static int    LogStart(LogCache *cachePtr, Ns_LogSeverity severity);
+static void   LogEnd(LogCache *cachePtr);
 
 /*
  * Static variables defined in this file
@@ -340,7 +340,7 @@ NsTclLogCtlObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
 	       Tcl_Obj *CONST objv[])
 {
     int len;
-    Cache *cachePtr;
+    LogCache *cachePtr;
     static CONST char *opts[] = {
 	"hold",
 	"count",
@@ -431,7 +431,7 @@ NsTclLogObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
 	       Tcl_Obj *CONST objv[])
 {
     Ns_LogSeverity severity;
-    Cache *cachePtr;
+    LogCache *cachePtr;
     char *severitystr;
     int i;
     Ns_DString ds;
@@ -498,7 +498,7 @@ NsTclLogObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
 static void
 Log(Ns_LogSeverity severity, char *fmt, va_list ap)
 {
-    Cache *cachePtr;
+    LogCache *cachePtr;
 
     cachePtr = LogGetCache();
     if (nslogProcPtr == NULL) {
@@ -534,7 +534,7 @@ Log(Ns_LogSeverity severity, char *fmt, va_list ap)
  */
 
 static int
-LogStart(Cache *cachePtr, Ns_LogSeverity severity)
+LogStart(LogCache *cachePtr, Ns_LogSeverity severity)
 {
     char *severityStr, buf[10];
     long usec;
@@ -609,7 +609,7 @@ LogStart(Cache *cachePtr, Ns_LogSeverity severity)
  */
 
 static void
-LogEnd(Cache *cachePtr)
+LogEnd(LogCache *cachePtr)
 {
     Ns_DStringNAppend(&cachePtr->buffer, "\n", 1);
     if (nsconf.log.flags & LOG_EXPAND) {
@@ -639,7 +639,7 @@ LogEnd(Cache *cachePtr)
  */
 
 static void
-LogFlush(Cache *cachePtr)
+LogFlush(LogCache *cachePtr)
 {
     Ns_DString *dsPtr = &cachePtr->buffer;
 
@@ -735,7 +735,7 @@ LogReOpen(void)
  */
 
 static char *
-LogTime(Cache *cachePtr, int gmtoff, long *usecPtr)
+LogTime(LogCache *cachePtr, int gmtoff, long *usecPtr)
 {
     time_t   *tp;
     struct tm *ptm;
@@ -800,14 +800,14 @@ LogTime(Cache *cachePtr, int gmtoff, long *usecPtr)
  *----------------------------------------------------------------------
  */
 
-static Cache *
+static LogCache *
 LogGetCache(void)
 {
-    Cache *cachePtr;
+    LogCache *cachePtr;
 
     cachePtr = Ns_TlsGet(&tls);
     if (cachePtr == NULL) {
-	cachePtr = ns_calloc(1, sizeof(Cache));
+	cachePtr = ns_calloc(1, sizeof(LogCache));
 	Ns_DStringInit(&cachePtr->buffer);
 	Ns_TlsSet(&tls, cachePtr);
     }
@@ -834,7 +834,7 @@ LogGetCache(void)
 static void
 LogFreeCache(void *arg)
 {
-    Cache *cachePtr = arg;
+    LogCache *cachePtr = arg;
 
     LogFlush(cachePtr);
     Ns_DStringFree(&cachePtr->buffer);

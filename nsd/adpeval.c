@@ -33,7 +33,7 @@
  *	ADP string and file eval.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.33 2005/01/15 23:53:22 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.34 2005/07/18 23:32:12 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -41,11 +41,11 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
  * The following structure defines a cached ADP page result.
  */
 
-typedef struct Cache {
+typedef struct AdpCache {
     int	      	   refcnt;
     Ns_Time	   expires;
     AdpCode	   code;
-} Cache;
+} AdpCache;
 
 /*
  * The following structure defines a shared page in the ADP cache.  The
@@ -63,7 +63,7 @@ typedef struct Page {
     int		   evals;
     int		   locked;
     int		   cgen;
-    Cache	  *cachePtr;
+    AdpCache	  *cachePtr;
     AdpCode	   code;
     char	   file[1];
 } Page;
@@ -121,14 +121,14 @@ static Page *ParseFile(NsInterp *itPtr, char *file, struct stat *stPtr);
 static void PushFrame(NsInterp *itPtr, Frame *framePtr, char *file, 
 		      int objc, Tcl_Obj *objv[], Tcl_DString *outputPtr);
 static void PopFrame(NsInterp *itPtr, Frame *framePtr);
-static void LogError(NsInterp *itPtr, int nscript);
+static void AdpLogError(NsInterp *itPtr, int nscript);
 static int AdpSource(NsInterp *itPtr, int objc, Tcl_Obj *objv[],
 		char *resvar, int safe, int file);
 static int AdpRun(NsInterp *itPtr, char *file, int objc, Tcl_Obj *objv[],
 		Tcl_DString *outputPtr, Ns_Time *ttlPtr);
 static int AdpEval(NsInterp *itPtr, AdpCode *codePtr, Objs *objsPtr);
 static int AdpDebug(NsInterp *itPtr, char *ptr, int len, int nscript);
-static void DecrCache(Cache *cachePtr);
+static void DecrCache(AdpCache *cachePtr);
 static Objs *AllocObjs(int nobjs);
 static void FreeObjs(Objs *objsPtr);
 static void AdpTrace(NsInterp *itPtr, char *ptr, int len);
@@ -264,7 +264,7 @@ AdpRun(NsInterp *itPtr, char *file, int objc, Tcl_Obj *objv[],
     Frame frame;
     InterpPage *ipagePtr;
     Page *pagePtr, *oldPagePtr;
-    Cache *cachePtr;
+    AdpCache *cachePtr;
     AdpCode *codePtr;
     Ns_Time now;
     Ns_Entry *ePtr;
@@ -477,7 +477,7 @@ AdpRun(NsInterp *itPtr, char *file, int objc, Tcl_Obj *objv[],
 		status = AdpEval(itPtr, codePtr, ipagePtr->objs);
 		--itPtr->adp.refresh;
     		PopFrame(itPtr, &frame);
-		cachePtr = ns_malloc(sizeof(Cache));
+		cachePtr = ns_malloc(sizeof(AdpCache));
 		NsAdpParse(&cachePtr->code, itPtr->servPtr, buf.string, 0);
 		Ns_DStringFree(&buf);
 		Ns_GetTime(&cachePtr->expires);
@@ -837,7 +837,7 @@ done:
 /*
  *----------------------------------------------------------------------
  *
- * LogError --
+ * AdpLogError --
  *
  *	Log an ADP error, possibly invoking the log handling ADP
  *	file if configured.
@@ -853,7 +853,7 @@ done:
 
 
 static void
-LogError(NsInterp *itPtr, int nscript)
+AdpLogError(NsInterp *itPtr, int nscript)
 {
     Tcl_Interp *interp = itPtr->interp;
     Ns_DString ds;
@@ -950,7 +950,7 @@ AdpEval(NsInterp *itPtr, AdpCode *codePtr, Objs *objsPtr)
 	    }
 	    if (result != TCL_OK && result != TCL_RETURN
 		    && itPtr->adp.exception == ADP_OK) {
-    	    	LogError(itPtr, nscript);
+    	    	AdpLogError(itPtr, nscript);
 	    }
 	    ++nscript;
 	}
@@ -1146,7 +1146,7 @@ FreeObjs(Objs *objsPtr)
  */
 
 static void
-DecrCache(Cache *cachePtr)
+DecrCache(AdpCache *cachePtr)
 {
     if (--cachePtr->refcnt == 0) {
 	NsAdpFreeCode(&cachePtr->code);

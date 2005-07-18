@@ -79,7 +79,7 @@
  *	"ns:data" and accessible by NsGetInterpData.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.44 2005/05/07 23:36:18 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.45 2005/07/18 23:32:12 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -92,21 +92,21 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
  * e.g., the "ns_accesslog" command in nslog.
  */
 
-typedef struct Trace {
-    struct Trace	 *nextPtr;
-    Ns_TclInterpInitProc *proc;
+typedef struct TclTrace {
+    struct TclTrace	 *nextPtr;
+    Ns_TclTraceProc      *proc;
     void		 *arg;  
     int			  when;
-} Trace;
+} TclTrace;
 
 /*
  * The following structure maintains Tcl-script based traces.
  */
 
-typedef struct STrace {
+typedef struct ScriptTrace {
     int  length;
     char script[1];
-} STrace;
+} ScriptTrace;
 
 /*
  * The following structure maintains procs to call during interp garbage
@@ -146,7 +146,7 @@ static NsInterp *PopInterp(char *server);
 static void PushInterp(NsInterp *itPtr);
 static Tcl_HashEntry *GetCacheEntry(NsServer *servPtr);
 static int UpdateInterp(NsInterp *itPtr);
-static void RunTraces(NsInterp *itPtr, int why);
+static void RunTclTraces(NsInterp *itPtr, int why);
 static int EvalTrace(Tcl_Interp *interp, void *arg);
 static int RegisterAt(Ns_TclTraceProc *proc, void *arg, int when);
 static Tcl_AsyncProc AsyncCancel;
@@ -380,7 +380,7 @@ Ns_TclDeAllocateInterp(Tcl_Interp *interp)
  *	Pointer to Tcl interp data initialized for given connection.
  *
  * Side effects:
- *	See Ns_ConnInit for details on connection encoding setup
+ *	See NsGetInputEncodings for details on connection encoding setup
  *	required to ensure proper UTF-8 input and output.
  *
  *----------------------------------------------------------------------
@@ -399,7 +399,7 @@ Ns_GetConnInterp(Ns_Conn *conn)
 	connPtr->itPtr = itPtr;
     	Tcl_SetVar2(itPtr->interp, "conn", NULL, connPtr->idstr,
 		    TCL_GLOBAL_ONLY);
-	RunTraces(itPtr, NS_TCL_TRACE_GETCONN);
+	RunTclTraces(itPtr, NS_TCL_TRACE_GETCONN);
     }
     return connPtr->itPtr->interp;
 }
@@ -481,7 +481,7 @@ Ns_TclDestroyInterp(Tcl_Interp *interp)
      */
 
     if (itPtr != NULL) {
-	RunTraces(itPtr, NS_TCL_TRACE_DELETE);
+	RunTclTraces(itPtr, NS_TCL_TRACE_DELETE);
     }
 
     /*
@@ -541,14 +541,14 @@ Ns_TclMarkForDelete(Tcl_Interp *interp)
 int
 Ns_TclRegisterTrace(char *server, Ns_TclTraceProc *proc, void *arg, int when)
 {
-    Trace *tracePtr, **firstPtrPtr;
+    TclTrace *tracePtr, **firstPtrPtr;
     NsServer *servPtr;
 
     servPtr = NsGetServer(server);
     if (servPtr == NULL || Ns_InfoStarted()) {
 	return NS_ERROR;
     }
-    tracePtr = ns_malloc(sizeof(Trace));
+    tracePtr = ns_malloc(sizeof(TclTrace));
     tracePtr->proc = proc;
     tracePtr->arg = arg;
     tracePtr->when = when;
@@ -864,7 +864,7 @@ NsTclICtlObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
     NsInterp *citPtr;
     NsServer *servPtr = itPtr->servPtr;
     Defer    *deferPtr;
-    STrace   *stPtr;
+    ScriptTrace *stPtr;
     Tcl_HashEntry *hPtr;
     Tcl_HashSearch search;
     int	      when, length, result;
@@ -1059,7 +1059,7 @@ NsTclICtlObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 	}
 	script = Tcl_GetString(objv[objc-1]);
 	length = strlen(script);
-	stPtr = ns_malloc(sizeof(STrace) + length);
+	stPtr = ns_malloc(sizeof(ScriptTrace) + length);
 	stPtr->length = length;
 	strcpy(stPtr->script,  script);
 	(void) Ns_TclRegisterTrace(servPtr->server, EvalTrace, stPtr, when);
@@ -1291,7 +1291,7 @@ NsFreeConnInterp(Conn *connPtr)
     NsInterp *itPtr = connPtr->itPtr;
 
     if (itPtr != NULL) {
-    	RunTraces(itPtr, NS_TCL_TRACE_FREECONN);
+    	RunTclTraces(itPtr, NS_TCL_TRACE_FREECONN);
     	itPtr->conn = NULL;
     	itPtr->nsconn.flags = 0;
     	PushInterp(itPtr);
@@ -1391,7 +1391,7 @@ PopInterp(char *server)
 	if (servPtr != NULL) {
     	    itPtr->servPtr = servPtr;
     	    NsTclAddServerCmds(itPtr->interp, itPtr);
-    	    RunTraces(itPtr, NS_TCL_TRACE_CREATE);
+    	    RunTclTraces(itPtr, NS_TCL_TRACE_CREATE);
     	    if (UpdateInterp(itPtr) != TCL_OK) {
 		Ns_TclLogError(itPtr->interp);
     	    }
@@ -1413,7 +1413,7 @@ PopInterp(char *server)
      * default updates the interp state with ns_ictl if necessary.
      */
 
-    RunTraces(itPtr, NS_TCL_TRACE_ALLOCATE);
+    RunTclTraces(itPtr, NS_TCL_TRACE_ALLOCATE);
     if (Tcl_EvalEx(itPtr->interp, "ns_init", -1, 0) != TCL_OK) {
 	Ns_TclLogError(itPtr->interp);
     }
@@ -1449,7 +1449,7 @@ PushInterp(NsInterp *itPtr)
      * per-thread list.
      */
 
-    RunTraces(itPtr, NS_TCL_TRACE_DEALLOCATE);
+    RunTclTraces(itPtr, NS_TCL_TRACE_DEALLOCATE);
     if (Tcl_EvalEx(interp, "ns_cleanup", -1, 0) != TCL_OK) {
 	Ns_TclLogError(interp);
     }
@@ -1516,7 +1516,7 @@ GetCacheEntry(NsServer *servPtr)
 static int
 EvalTrace(Tcl_Interp *interp, void *arg)
 {
-    STrace *stPtr = arg;
+    ScriptTrace *stPtr = arg;
 
     return Tcl_EvalEx(interp, stPtr->script, stPtr->length, 0);
 }
@@ -1604,6 +1604,7 @@ NewInterpData(Tcl_Interp *interp)
 	    NsTclInitQueueType();
 	    NsTclInitAddrType();
 	    NsTclInitTimeType();
+	    NsTclInitCacheType();
 	    NsTclInitKeylistType();
 	    initialized = 1;
 	}
@@ -1775,7 +1776,7 @@ DeleteInterps(void *arg)
 /*
  *----------------------------------------------------------------------
  *
- * RunTraces --
+ * RunTclTraces --
  *
  *  	Execute trace callbacks.
  *
@@ -1789,9 +1790,9 @@ DeleteInterps(void *arg)
  */
  
 static void
-RunTraces(NsInterp *itPtr, int why)
+RunTclTraces(NsInterp *itPtr, int why)
 {
-    Trace *tracePtr;
+    TclTrace *tracePtr;
 
     if (itPtr->servPtr != NULL) {
     	tracePtr = itPtr->servPtr->tcl.firstTracePtr;

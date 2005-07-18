@@ -35,7 +35,7 @@
  *	connections. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/listen.c,v 1.8 2003/03/07 18:08:28 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/listen.c,v 1.9 2005/07/18 23:32:12 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -52,7 +52,7 @@ typedef struct ListenData {
  * Local functions defined in this file
  */
 
-static Ns_SockProc  ListenCallback; 
+static Ns_SockProc  ListenProc; 
 
 /*
  * Static variables defined in this file
@@ -150,7 +150,7 @@ Ns_SockListenCallback(char *addr, int port, Ns_SockProc *proc, void *arg)
             tablePtr = ns_malloc(sizeof(Tcl_HashTable));
             Tcl_InitHashTable(tablePtr, TCL_ONE_WORD_KEYS);
             Tcl_SetHashValue(hPtr, tablePtr);
-            Ns_SockCallback(sock, ListenCallback, tablePtr,
+            Ns_SockCallback(sock, ListenProc, tablePtr,
 			    NS_SOCK_READ | NS_SOCK_EXIT);
         }
     }
@@ -203,7 +203,7 @@ Ns_SockPortBound(int port)
 /*
  *----------------------------------------------------------------------
  *
- * ListenCallback --
+ * ListenProc --
  *
  *	This is a wrapper callback that runs the user's callback iff 
  *	a valid socket exists. 
@@ -218,7 +218,7 @@ Ns_SockPortBound(int port)
  */
 
 static int
-ListenCallback(SOCKET sock, void *arg, int why)
+ListenProc(SOCKET sock, void *arg, int why)
 {
     struct sockaddr_in  sa;
     int                 len;

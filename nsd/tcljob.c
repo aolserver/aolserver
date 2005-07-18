@@ -80,7 +80,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tcljob.c,v 1.28 2005/03/28 00:06:44 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tcljob.c,v 1.29 2005/07/18 23:32:12 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -144,7 +144,7 @@ typedef struct Job {
  * Queue structure. A queue manages a set of jobs.
  */
 
-typedef struct Queue {
+typedef struct JobQueue {
     char                *name;
     char                *desc;
     Ns_Mutex            lock;
@@ -155,12 +155,12 @@ typedef struct Queue {
     int                 nRunning;
     Tcl_HashTable       jobs;
     int                 refCount;
-} Queue;
-
+} JobQueue;
 
 /*
  * Thread pool structure. ns_job mananges a global set of threads.
  */
+
 typedef struct ThreadPool {
     Ns_Cond             cond;
     Ns_Mutex            queuelock;
@@ -174,28 +174,22 @@ typedef struct ThreadPool {
     Job                 *firstPtr;
 } ThreadPool;
 
-
 /*
  * Function prototypes/forward declarations.
  */
 
 static void JobThread(void *arg);
-static Job* getNextJob(void);
-
-Queue* NewQueue(CONST char* queueName, CONST char* queueDesc, int maxThreads);
-void FreeQueue(Queue *queuePtr);
-
-Job* NewJob(CONST char* server, CONST char* queueName, int type, Tcl_Obj *script);
-void FreeJob(Job *jobPtr);
-
+static Job *NextJob(void);
+static JobQueue *NewQueue(CONST char* queueName, CONST char* queueDesc, int maxThreads);
+static void FreeQueue(JobQueue *queuePtr);
+static Job* NewJob(CONST char* server, CONST char* queueName, int type, Tcl_Obj *script);
+static void FreeJob(Job *jobPtr);
 static int LookupQueue(Tcl_Interp       *interp,
                        CONST char       *queue_name,
-                       Queue            **queuePtr,
+                       JobQueue        **queuePtr,
                        int              locked);
-static int ReleaseQueue(Queue *queuePtr, int locked);
-
-static int AnyDone(Queue *queue);
-
+static int ReleaseQueue(JobQueue *queuePtr, int locked);
+static int AnyDone(JobQueue *queue);
 static CONST char* GetJobCodeStr(int code);
 static CONST char* GetJobStateStr(JobStates state);
 static CONST char* GetJobTypeStr(JobTypes type);
@@ -355,7 +349,7 @@ int
 NsTclJobObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 {
     NsInterp            *itPtr = arg;
-    Queue               *queuePtr = NULL;
+    JobQueue            *queuePtr = NULL;
     Job                 *jobPtr = NULL, **nextPtrPtr;
     int                 code, new, create = 0, max;
     char                *jobId = NULL, buf[100], *queueId;
@@ -1054,7 +1048,7 @@ JobThread(void *arg)
     Job                 *jobPtr;
     char                buf[100];
     CONST char          *err;
-    Queue               *queuePtr;
+    JobQueue           *queuePtr;
     Tcl_HashEntry       *jPtr;
 
     Ns_WaitForStartup();
@@ -1064,7 +1058,7 @@ JobThread(void *arg)
     Ns_Log(Notice, "Starting thread: %s", buf);
     while (1) {
 	++tp.nidle;
-	while (((jobPtr = getNextJob()) == NULL) &&
+	while (((jobPtr = NextJob()) == NULL) &&
                !(tp.req == THREADPOOL_REQ_STOP)) {
 	    Ns_CondWait(&tp.cond, &tp.queuelock);
 	}
@@ -1144,10 +1138,10 @@ JobThread(void *arg)
  *----------------------------------------------------------------------
  */
 
-static Job*
-getNextJob(void)
+static Job *
+NextJob(void)
 {
-    Queue               *queuePtr;
+    JobQueue            *queuePtr;
     Tcl_HashEntry       *jPtr;
     Job                 *prev = NULL;
     Job                 *tmp = NULL;
@@ -1156,16 +1150,14 @@ getNextJob(void)
 
     jobPtr = tp.firstPtr;
     prev = tp.firstPtr;
-
     while ((!done) && (jobPtr != NULL)) {
-
         LookupQueue(NULL, jobPtr->queueId, &queuePtr, 1);
 
         /*
          * Check if the job is not cancel and 
          */
-        if (jobPtr->req == JOB_CANCEL)
-        {
+
+        if (jobPtr->req == JOB_CANCEL) {
             /*
              * Remove job from the list.
              */
@@ -1183,9 +1175,7 @@ getNextJob(void)
             jPtr = Tcl_FindHashEntry(&queuePtr->jobs, Tcl_DStringValue(&tmp->id));
             Tcl_DeleteHashEntry(jPtr);
             FreeJob(tmp);
-        }
-        else if (queuePtr->nRunning < queuePtr->maxThreads)
-        {
+        } else if (queuePtr->nRunning < queuePtr->maxThreads) {
             /*
              * Remove job from the list.
              */
@@ -1229,12 +1219,12 @@ getNextJob(void)
  *----------------------------------------------------------------------
  */
 
-Queue*
+static JobQueue *
 NewQueue(CONST char* queueName, CONST char* queueDesc, int maxThreads)
 {
-    Queue *queuePtr = NULL;
+    JobQueue *queuePtr = NULL;
 
-    queuePtr = ns_calloc(1, sizeof(Queue));
+    queuePtr = ns_calloc(1, sizeof(JobQueue));
     queuePtr->req = QUEUE_REQ_NONE;
 
     queuePtr->name = ns_calloc(1, strlen(queueName) + 1);
@@ -1271,8 +1261,8 @@ NewQueue(CONST char* queueName, CONST char* queueDesc, int maxThreads)
  *----------------------------------------------------------------------
  */
 
-void
-FreeQueue(Queue *queuePtr)
+static void
+FreeQueue(JobQueue *queuePtr)
 {
     Ns_MutexDestroy(&queuePtr->lock);
     Tcl_DeleteHashTable(&queuePtr->jobs);
@@ -1298,7 +1288,7 @@ FreeQueue(Queue *queuePtr)
  *----------------------------------------------------------------------
  */
 
-Job*
+static Job *
 NewJob(CONST char* server, CONST char* queueId, int type, Tcl_Obj *script)
 {
     Job *jobPtr = NULL;
@@ -1377,7 +1367,7 @@ FreeJob(Job *jobPtr)
  */
 static int LookupQueue(Tcl_Interp       *interp,
                        CONST char       *queueId,
-                       Queue            **queuePtr,
+                       JobQueue        **queuePtr,
                        int              locked)
 {
     Tcl_HashEntry *hPtr;
@@ -1420,7 +1410,7 @@ static int LookupQueue(Tcl_Interp       *interp,
  *----------------------------------------------------------------------
  */
 static int
-ReleaseQueue(Queue *queuePtr, int locked)
+ReleaseQueue(JobQueue *queuePtr, int locked)
 {
     Tcl_HashEntry       *qPtr;
     Tcl_HashSearch      search;
@@ -1479,7 +1469,7 @@ ReleaseQueue(Queue *queuePtr, int locked)
  */
 
 static int
-AnyDone(Queue *queue)
+AnyDone(JobQueue *queue)
 {
     Tcl_HashEntry       *hPtr;
     Job                 *jobPtr;
