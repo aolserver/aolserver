@@ -34,7 +34,7 @@
  *Support for pre-bound privileged ports.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/binder.c,v 1.16 2003/11/16 15:04:01 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/binder.c,v 1.17 2005/07/18 23:32:53 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -50,13 +50,12 @@ static Ns_Mutex lock;
 /*
  *----------------------------------------------------------------------
  *
- * Ns_SockListenEx --
+ * NsSockGetBound --
  *
- *	Create a new socket bound to the specified port and listening
- *	for new connections.
+ *	Get a pre-bound socket if available.
  *
  * Results:
- *	Socket descriptor or -1 on error.
+ *	Socket descriptor or INVALID_SOCKET on error.
  *
  * Side effects:
  *	None.
@@ -65,31 +64,18 @@ static Ns_Mutex lock;
  */
 
 int
-Ns_SockListenEx(char *address, int port, int backlog)
+NsSockGetBound(struct sockaddr_in *saPtr)
 {
-    int err, sock = -1;
-    struct sockaddr_in sa;
+    SOCKET sock = INVALID_SOCKET;
     Tcl_HashEntry *hPtr;
 
-    if (Ns_GetSockAddr(&sa, address, port) != NS_OK) {
-	return -1;
-    }
     Ns_MutexLock(&lock);
-    hPtr = Tcl_FindHashEntry(&prebound, (char *) &sa);
+    hPtr = Tcl_FindHashEntry(&prebound, (char *) saPtr);
     if (hPtr != NULL) {
 	sock = (int) Tcl_GetHashValue(hPtr);
 	Tcl_DeleteHashEntry(hPtr);
     }
     Ns_MutexUnlock(&lock);
-    if (hPtr == NULL) {
-    	sock = Ns_SockBind(&sa);
-    }
-    if (sock != -1 && listen(sock, backlog) != 0) {
-	err = errno;
-	close(sock);
-	errno = err;
-	sock = -1;
-    }
     return sock;
 }
 

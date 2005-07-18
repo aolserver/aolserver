@@ -34,7 +34,7 @@
  *	Wrappers and convenience functions for TCP/IP stuff. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sock.c,v 1.13 2005/05/07 23:36:05 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sock.c,v 1.14 2005/07/18 23:32:53 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -171,7 +171,7 @@ Ns_SockWaitEx(SOCKET sock, int what, int ms)
 /*
  *----------------------------------------------------------------------
  *
- * Ns_SockListen --
+ * Ns_SockListen, Ns_SockListenEx --
  *
  *	Listen for connections with default backlog.
  *
@@ -188,6 +188,30 @@ SOCKET
 Ns_SockListen(char *address, int port)
 {
     return Ns_SockListenEx(address, port, nsconf.backlog);
+}
+
+SOCKET
+Ns_SockListenEx(char *address, int port, int backlog)
+{
+    SOCKET sock;
+    struct sockaddr_in sa;
+
+    if (Ns_GetSockAddr(&sa, address, port) != NS_OK) {
+	return -1;
+    }
+#ifdef WIN32
+    sock = Ns_SockBind(&sa);
+#else
+    sock = NsSockGetBound(&sa);
+    if (sock == INVALID_SOCKET) {
+	sock = Ns_SockBind(&sa);
+    }
+#endif
+    if (sock != INVALID_SOCKET && listen(sock, backlog) != 0) {
+	ns_sockclose(sock);
+	sock = INVALID_SOCKET;
+    }
+    return sock;
 }
 
 

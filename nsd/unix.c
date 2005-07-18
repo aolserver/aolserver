@@ -34,48 +34,14 @@
  *	Unix specific routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/unix.c,v 1.19 2004/10/06 18:50:56 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/unix.c,v 1.20 2005/07/18 23:32:53 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #include <pwd.h>
 #include <grp.h>
 
 static Ns_Mutex lock;
-
-
-/*
- *----------------------------------------------------------------------
- *
- * FatalSignalHandler --
- *
- * 	Ensure that we drop core on fatal signals like SIGBUS and
- * 	SIGSEGV.
- *
- * Results:
- * 	None.
- *
- * Side effects:
- * 	A core file will be left wherever the server was running.
- *
- *----------------------------------------------------------------------
- */
-
-void
-FatalSignalHandler(int signal)
-{
-#ifdef __linux
-    /*
-     * LinuxThreads thread manager needs to kill all child threads
-     * on fatal signals, else they get left behind as dead threads.
-     * As of glibc 2.3 with NPTL, this should be a no-op.
-     */
-
-    pthread_kill_other_threads_np();
-#endif
-
-    Ns_Log(Fatal, "received fatal signal %d", signal);
-    abort();
-}
+static void Abort(int signal);
 
 
 /*
@@ -124,11 +90,11 @@ NsBlockSignals(int debug)
      * that caused them) have an appropriate handler installed.
      */
 
-    ns_signal(SIGILL, FatalSignalHandler); 
-    ns_signal(SIGTRAP, FatalSignalHandler); 
-    ns_signal(SIGBUS, FatalSignalHandler); 
-    ns_signal(SIGSEGV, FatalSignalHandler); 
-    ns_signal(SIGFPE, FatalSignalHandler); 
+    ns_signal(SIGILL, Abort); 
+    ns_signal(SIGTRAP, Abort); 
+    ns_signal(SIGBUS, Abort); 
+    ns_signal(SIGSEGV, Abort); 
+    ns_signal(SIGFPE, Abort); 
 }
 
 
@@ -236,51 +202,6 @@ NsSendSignal(int sig)
     if (kill(Ns_InfoPid(),  sig) != 0) {
     	Ns_Fatal("unix: kill() failed: '%s'", strerror(errno));
     }
-}
-
-
-/*
- *----------------------------------------------------------------------
- * ns_sockpair, ns_pipe --
- *
- *      Create a pipe/socketpair with fd's set close on exec.
- *
- * Results:
- *      0 if ok, -1 otherwise.
- *
- * Side effects:
- *      Updates given fd array.
- *
- *----------------------------------------------------------------------
- */
-
-static int
-Pipe(int *fds, int sockpair)
-{
-    int err;
-
-    if (sockpair) {
-    	err = socketpair(AF_UNIX, SOCK_STREAM, 0, fds);
-    } else {
-    	err = pipe(fds);
-    }
-    if (!err) {
-	fcntl(fds[0], F_SETFD, 1);
-	fcntl(fds[1], F_SETFD, 1);
-    }
-    return err;
-}
-
-int
-ns_sockpair(int *socks)
-{
-    return Pipe(socks, 1);
-}
-
-int
-ns_pipe(int *fds)
-{
-    return Pipe(fds, 0);
 }
 
 
@@ -418,3 +339,29 @@ Ns_GetUid(char *user)
     Ns_MutexUnlock(&lock);
     return retcode;
 }
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Abort --
+ *
+ * 	Ensure that we drop core on fatal signals like SIGBUS and
+ * 	SIGSEGV.
+ *
+ * Results:
+ * 	None.
+ *
+ * Side effects:
+ * 	A core file will be left wherever the server was running.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+Abort(int signal)
+{
+    Ns_Log(Fatal, "received fatal signal %d", signal);
+    abort();
+}
+

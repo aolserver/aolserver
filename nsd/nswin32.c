@@ -34,7 +34,7 @@
  *	Win32 specific routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nswin32.c,v 1.12 2004/10/06 18:50:44 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nswin32.c,v 1.13 2005/07/18 23:32:53 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -452,118 +452,6 @@ ns_sockdup(SOCKET sock)
     }
     return (SOCKET) dup;
 }   
-
-
-/*
- *----------------------------------------------------------------------
- *
- * ns_pipe --
- *
- *	Create a pipe marked close-on-exec.
- *
- * Results:
- *  	0 if ok, -1 on error.
- *
- * Side effects:
- *  	None.
- *
- *----------------------------------------------------------------------
- */
-
-int
-ns_pipe(int *fds)
-{
-    return _pipe(fds, 4096, _O_NOINHERIT|_O_BINARY);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * ns_sockpair --
- *
- *	Create a pair of connected sockets via brute force.  Sock pairs
- *  	are used as trigger pipes in various subsystems.
- *
- * Results:
- *  	0 if ok, -1 on error.
- *
- * Side effects:
- *  	None.
- *
- *----------------------------------------------------------------------
- */
-
-int
-ns_sockpair(SOCKET socks[2])
-{
-    SOCKET          sock;
-    struct sockaddr_in ia[2];
-    int             size;
-
-    size = sizeof(struct sockaddr_in);
-    sock = Ns_SockListen("127.0.0.1", 0);
-    if (sock == INVALID_SOCKET ||
-    	getsockname(sock, (struct sockaddr *) &ia[0], &size) != 0) {
-	return -1;
-    }
-    size = sizeof(struct sockaddr_in);
-    socks[1] = Ns_SockConnect("127.0.0.1", (int) ntohs(ia[0].sin_port));
-    if (socks[1] == INVALID_SOCKET ||
-    	getsockname(socks[1], (struct sockaddr *) &ia[1], &size) != 0) {
-	ns_sockclose(sock);
-	return -1;
-    }
-    size = sizeof(struct sockaddr_in);
-    socks[0] = accept(sock, (struct sockaddr *) &ia[0], &size);
-    ns_sockclose(sock);
-    if (socks[0] == INVALID_SOCKET) {
-	ns_sockclose(socks[1]);
-	return -1;
-    }
-    if (ia[0].sin_addr.s_addr != ia[1].sin_addr.s_addr ||
-	ia[0].sin_port != ia[1].sin_port) {
-	ns_sockclose(socks[0]);
-	ns_sockclose(socks[1]);
-	return -1;
-    }
-    return 0;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Ns_SockListen --
- *
- *	Simple socket listen implementation for Win32 without privileged
- *  	port issues.
- *
- * Results:
- *	Socket descriptor or INVALID_SOCKET on error.
- *
- * Side effects:
- *	None.
- *
- *----------------------------------------------------------------------
- */
-
-SOCKET
-Ns_SockListenEx(char *address, int port, int backlog)
-{
-    SOCKET          sock;
-    struct sockaddr_in sa;
-
-    if (Ns_GetSockAddr(&sa, address, port) != NS_OK) {
-	return -1;
-    }
-    sock = Ns_SockBind(&sa);
-    if (sock != INVALID_SOCKET && listen(sock, backlog) != 0) {
-	ns_sockclose(sock);
-	sock = INVALID_SOCKET;
-    }
-    return sock;
-}
 
 
 /*
