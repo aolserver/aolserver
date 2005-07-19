@@ -2,6 +2,8 @@
 
 	* Makefile:
 	* doc/Makefile:
+	* doc/mkLinks (removed):
+	* doc/install-doc (removed):
 	* doc/nsinstall-man-sh: New approach to installing man
 	pages.
 
@@ -39,8 +41,13 @@
 
 	* nsd/quotehtml.c:  Fix to support UTF-8.
 
+	* nsd/fd.c:
+	* nsd/init.c: Support for new Ns_DevNull API which was going
+	to be used by Ns_ConnContentFd.
+
 	* nsd/server.c:
-	* nsd/tclhttp.c: Removed old-style ns_http in favor of only the new Ns_Task-based code.
+	* nsd/tclhttp.c: Removed old-style ns_http in favor of only
+	the new Ns_Task-based code.
 
 	* nsdb/nsdb.c: Fixed crash loading nsdb outside a virtual server.
 
@@ -60,6 +67,7 @@
 	* nsd/tclinit.c:
 	* nsd/tcljob.c:
 	* nsd/tclsched.c:
+	* nsd/tclsock.c:
 	* nsd/tclvar.c:
 	* nsd/unix.c: Code cleanup to avoid duplicate routine and
 	struct names across files.
