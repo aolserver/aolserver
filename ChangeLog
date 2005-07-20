@@ -1,3 +1,7 @@
+2005-07-19  Nahan Folkman <shmooved@aol.com>
+
+        * nsd/log.c: Fixed bug where log level "Dev" wasn't supported.
+
 2005-07-18  Jim Davidson <jgdavidson@aol.com>
 
 	* Makefile:
