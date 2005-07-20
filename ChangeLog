@@ -1,10 +1,10 @@
 2005-07-20  Nahan Folkman <shmooved@aol.com>
 
-        * nsd/nsconf.c: Added new logdebug parameter for consistency.
+        * nsd/nsconf.c:
+        * nsd/nsconf.h: Added new logdebug parameter for consistency.
         Supported parameters are: (debug or logdebug), logdev, 
-        and lognotice. Updated dnscachemaxentries to use 
+        and lognotice. Updated dnscachemaxentries to use new
         DNS_MAX_ENTRIES constant.
-        * nsd/nsconf.h: Added new DNS_MAX_ENTRIES constant.
 
 2005-07-19  Nahan Folkman <shmooved@aol.com>
 
