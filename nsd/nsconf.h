@@ -51,6 +51,7 @@
 #define BACKLOG                32
 
 #define DNS_CACHE_BOOL         NS_TRUE
+#define DNS_MAX_ENTRIES        100
 #define DNS_TIMEOUT_INT        60
 
 #define KEEPALIVE_MAXKEEP_INT  100

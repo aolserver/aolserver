@@ -33,7 +33,7 @@
  *	Various core configuration.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsconf.c,v 1.36 2005/07/20 13:49:12 shmooved Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsconf.c,v 1.37 2005/07/20 19:04:41 shmooved Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #include "nsconf.h"
@@ -223,7 +223,7 @@ NsConfUpdate(void)
      */
      
     if (GetBool("dnscache", DNS_CACHE_BOOL)) {
-	int max = GetInt("dnscachemaxentries", 100);
+	int max = GetInt("dnscachemaxentries", DNS_MAX_ENTRIES);
 	i = GetInt("dnscachetimeout", DNS_TIMEOUT_INT);
 	if (max > 0 && i > 0) {
 	    i *= 60; /* NB: Config minutes, seconds internally. */
