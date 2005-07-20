@@ -34,7 +34,7 @@
  *	Manage the server log file.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/log.c,v 1.28 2005/07/18 23:32:12 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/log.c,v 1.29 2005/07/20 01:09:30 shmooved Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -454,12 +454,14 @@ NsTclLogObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
 	severity = Bug;
     } else if (STRIEQ(severitystr, "debug")) {
 	severity = Debug;
+    } else if (STRIEQ(severitystr, "dev")) {
+        severity = Dev;
     } else if (Tcl_GetIntFromObj(NULL, objv[1], &i) == TCL_OK) {
 	severity = i;
     } else {
 	Tcl_AppendResult(interp, "unknown severity: \"", severitystr,
 	    "\": should be notice, warning, error, "
-	    "fatal, bug, debug or integer value", NULL);
+	    "fatal, bug, debug, dev, or integer value", NULL);
 	return TCL_ERROR;
     }
 
