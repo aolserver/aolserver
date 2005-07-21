@@ -1,4 +1,4 @@
-2005-07-21  Nahan Folkman <shmooved@aol.com>
+2005-07-21  Nathan Folkman <shmooved@aol.com>
         * Makefile:
         * index.adp: Created new default index.adp page which displays
         a number of AOLserver configuration settings. Updated the 
@@ -6,7 +6,7 @@
 
         * nsd/dns.c: Fixed infinite recursion bug in GetAddr().
 
-2005-07-20  Nahan Folkman <shmooved@aol.com>
+2005-07-20  Nathan Folkman <shmooved@aol.com>
 
         * nsd/nsconf.c:
         * nsd/nsconf.h: Added new logdebug parameter for consistency.
@@ -14,7 +14,7 @@
         and lognotice. Updated dnscachemaxentries to use new
         DNS_MAX_ENTRIES constant.
 
-2005-07-19  Nahan Folkman <shmooved@aol.com>
+2005-07-19  Nathan Folkman <shmooved@aol.com>
 
         * nsd/log.c: Fixed bug where log level "Dev" wasn't supported.
 
