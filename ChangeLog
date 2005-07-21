@@ -1,4 +1,8 @@
 2005-07-21  Nahan Folkman <shmooved@aol.com>
+        * Makefile:
+        * index.adp: Created new default index.adp page which displays
+        a number of AOLserver configuration settings. Updated the 
+        Makefile to install in the default page root. 
 
         * nsd/dns.c: Fixed infinite recursion bug in GetAddr().
 
