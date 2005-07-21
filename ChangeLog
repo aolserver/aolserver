@@ -1,3 +1,7 @@
+2005-07-21  Nahan Folkman <shmooved@aol.com>
+
+        * nsd/dns.c: Fixed infinite recursion bug in GetAddr().
+
 2005-07-20  Nahan Folkman <shmooved@aol.com>
 
         * nsd/nsconf.c:
