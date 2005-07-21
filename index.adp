@@ -41,10 +41,13 @@ lappend config "Page Root" [ns_info pageroot]
 lappend config "Tcl Library" [ns_info tcllib]
 %>
 
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+        "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
 <html>
 <head>
 <title>Welcome to AOLserver</title> 
-<style>
+<style type="text/css">
     body { 
         font-family: verdana, arial; 
         font-size: 10pt; 
@@ -126,7 +129,7 @@ lappend config "Tcl Library" [ns_info tcllib]
 
 <h2>Configuration</h2>
 
-<table cellpadding=3 cellspacing=0>
+<table cellpadding="3" cellspacing="0">
 <tr>
     <td><b>Key</b></td>
     <td><b>Value</b></td>
@@ -142,7 +145,7 @@ foreach {key value} $config {
 
 <h2>Loaded AOLserver Modules</h2>
 
-<table cellpadding=3 cellspacing=0>
+<table cellpadding="3" cellspacing="0">
 <tr>
     <td><b>Type</b></td>
     <td><b>Name</b></td>
@@ -177,7 +180,7 @@ if {[string length $modules]} {
     ns_adp_puts "\
     <h2>Loaded Tcl Modules</h2>
 
-    <table cellpadding=3 cellspacing=0>
+    <table cellpadding=\"3\" cellspacing=\"0\">
     <tr>
         <td><b>Name</b></td>
         <td><b>Location</b></td>
