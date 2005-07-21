@@ -2,18 +2,18 @@
 set uptime [ns_info uptime]
 
 if {$uptime < 60} {
-    set uptime $uptime 
+    set uptime [format %.2d $uptime] 
 } elseif {$uptime < 3600} {
     set mins [expr $uptime / 60]
     set secs [expr $uptime - ($mins * 60)]
 
-    set uptime  "${mins}:${secs}"
+    set uptime "[format %.2d $mins]:[format %.2d $secs]"
 } else {
     set hours [expr $uptime / 3600]
     set mins [expr ($uptime - ($hours * 3600)) / 60]
     set secs [expr $uptime - (($hours * 3600) + ($mins * 60))]
 
-    set uptime "${hours}.${mins}:${secs}"
+    set uptime "${hours}:[format %.2d $mins]:[format %.2d $secs]"
 }
 
 set config ""
@@ -31,6 +31,7 @@ lappend config "Host Name" [ns_info hostname]
 lappend config "Address" [ns_info address]
 lappend config "Server Config" [ns_info config]
 lappend config "Server Log" [ns_info log]
+lappend config "Access Log" [ns_accesslog file]
 lappend config "&nbsp;" "&nbsp;"
 lappend config "Tcl Version" [info tclversion]
 lappend config "Tcl Patch Level" [info patchlevel]
