@@ -1,4 +1,9 @@
+2005-07-22  Jim Davidson <jgdavidson@aol.com>
+
+	* doc/Makefile: Fix install target bugs.
+
 2005-07-21  Nathan Folkman <shmooved@aol.com>
+
         * Makefile:
         * index.adp: Created new default index.adp page which displays
         a number of AOLserver configuration settings. Updated the 
