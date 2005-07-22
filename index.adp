@@ -164,7 +164,7 @@ foreach {name binary} [ns_set array $modSection] {
         set location "$tclDir/$name"
     } else {
         set type "C"
-        set location "${binDir}$binary"
+        set location "$binDir/$binary"
     }
 
     ns_adp_puts "<tr><td>$type</td><td>$name</td><td>$location</td></tr>"
