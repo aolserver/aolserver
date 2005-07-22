@@ -26,11 +26,10 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Makefile,v 1.1 2005/07/18 23:33:47 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Makefile,v 1.2 2005/07/22 12:24:57 jgdavidson Exp $
 #
 
-AOLSERVER ?= /usr/local/aolserver
-include $(AOLSERVER)/include/Makefile.global
+include ../include/Makefile.global
 
 MAN3 := $(wildcard *.3)
 MANN := $(wildcard *.n)
@@ -53,11 +52,13 @@ install-man1:
 	done
 
 install-man3:
+	$(MKDIR) $(MAN3_DIR)
 	for i in $(MAN3); do \
 		sh $(MAN_INST) $$i $(MAN3_DIR)/; \
 	done
 
 install-mann:
+	$(MKDIR) $(MANN_DIR)
 	for i in $(MANN); do \
 		sh $(MAN_INST) $$i $(MANN_DIR)/; \
 	done
