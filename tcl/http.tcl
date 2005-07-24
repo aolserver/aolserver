@@ -28,7 +28,7 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/http.tcl,v 1.13 2003/02/03 16:07:10 jrasmuss23 Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/http.tcl,v 1.14 2005/07/24 04:25:27 pjaol Exp $
 #
 
 # http.tcl -
@@ -224,10 +224,10 @@ proc ns_httppost {url {rqset ""} {qsset ""} {type ""} {timeout 30}} {
 	    }
 	    append querystring "$key=[ns_urlencode $value]"
 	}
-	ns_log notice "QS that will be sent is $querystring"
+	ns_log debug "QS that will be sent is $querystring"
 	ns_set put $rqset "Content-length" [string length $querystring]
     } else {
-	ns_log notice "QS string is empty"
+        ns_log debug	"QS string is empty"
 	ns_set put $rqset "Content-length" "0"
     }
 
