@@ -1,3 +1,24 @@
+2005-08-01  Jim Davidson <jgdavidson@aol.com>
+
+	Work to enhance ADP error handling and reporting.
+
+	nsd.h:
+	server.c:
+	adpcmds.c:  Added strict, display, and detail error options
+	which can be set via server config and/or ns_adp_ctl.
+
+	Example (with defaults):
+
+        ns_section "ns/server/server1/adp"
+            ns_param stricterror false;  # Stop execution on error.
+            ns_param detailerror true;	 # Include connection detail.
+            ns_param displayerror false; # Return error message in page. 
+
+	adpeval.c:  Support for error options above plus inhibit
+	cacheing of failed execution results (more work required
+	here).
+
+
 2005-08-01  Nathan Folkman <shmooved@aol.com>
 
         * nsd/adpeval.c:
