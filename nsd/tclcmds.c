@@ -33,7 +33,7 @@
  * 	Connect Tcl command names to the functions that implement them
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.48 2005/07/18 23:33:35 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.49 2005/08/01 20:29:41 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -42,28 +42,31 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
  */
 
 extern Tcl_ObjCmdProc
-    NsTclAdpAppendObjCmd,
-    NsTclAdpCloseObjCmd,
-    NsTclAdpCtlObjCmd,
-    NsTclAdpPutsObjCmd,
-    NsTclAdpEvalObjCmd,
-    NsTclAdpFlushObjCmd,
-    NsTclAdpSafeEvalObjCmd,
-    NsTclAdpIncludeObjCmd,
-    NsTclAdpParseObjCmd,
-    NsTclAdpDirObjCmd,
-    NsTclAdpReturnObjCmd,
-    NsTclAdpBreakObjCmd,
     NsTclAdpAbortObjCmd,
-    NsTclAdpTellObjCmd,
-    NsTclAdpTruncObjCmd,
-    NsTclAdpDumpObjCmd,
+    NsTclAdpAppendObjCmd,
     NsTclAdpArgcObjCmd,
     NsTclAdpArgvObjCmd,
     NsTclAdpBindArgsObjCmd,
+    NsTclAdpBreakObjCmd,
+    NsTclAdpCloseObjCmd,
+    NsTclAdpCtlObjCmd,
+    NsTclAdpDirObjCmd,
+    NsTclAdpDumpObjCmd,
+    NsTclAdpEvalObjCmd,
     NsTclAdpExceptionObjCmd,
-    NsTclAdpStreamObjCmd,
+    NsTclAdpFlushObjCmd,
+    NsTclAdpIncludeObjCmd,
     NsTclAdpMimeTypeObjCmd,
+    NsTclAdpParseObjCmd,
+    NsTclAdpPutsObjCmd,
+    NsTclAdpRegisterAdpObjCmd,
+    NsTclAdpRegisterAdpObjCmd,
+    NsTclAdpRegisterProcObjCmd,
+    NsTclAdpReturnObjCmd,
+    NsTclAdpSafeEvalObjCmd,
+    NsTclAdpStreamObjCmd,
+    NsTclAdpTellObjCmd,
+    NsTclAdpTruncObjCmd,
     NsTclAtCloseObjCmd,
     NsTclCacheObjCmd,
     NsTclChanObjCmd,
@@ -73,8 +76,8 @@ extern Tcl_ObjCmdProc
     NsTclConnSendFpObjCmd,
     NsTclCpFpObjCmd,
     NsTclCpObjCmd,
-    NsTclCryptObjCmd,
     NsTclCritSecObjCmd,
+    NsTclCryptObjCmd,
     NsTclDriverObjCmd,
     NsTclDummyObjCmd,
     NsTclFTruncateObjCmd,
@@ -87,7 +90,6 @@ extern Tcl_ObjCmdProc
     NsTclHTUUDecodeObjCmd,
     NsTclHTUUEncodeObjCmd,
     NsTclHeadersObjCmd,
-    NsTclNHttpObjCmd,
     NsTclHttpTimeObjCmd,
     NsTclICtlObjCmd,
     NsTclInfoObjCmd,
@@ -97,13 +99,14 @@ extern Tcl_ObjCmdProc
     NsTclLimitsObjCmd,
     NsTclLinkObjCmd,
     NsTclLocalTimeObjCmd,
-    NsTclLogObjCmd,
     NsTclLogCtlObjCmd,
+    NsTclLogObjCmd,
     NsTclLogRollObjCmd,
     NsTclMarkForDeleteObjCmd,
     NsTclMkdirObjCmd,
     NsTclModulePathObjCmd,
     NsTclMutexObjCmd,
+    NsTclNHttpObjCmd,
     NsTclNormalizePathObjCmd,
     NsTclNsvAppendObjCmd,
     NsTclNsvArrayObjCmd,
@@ -118,11 +121,13 @@ extern Tcl_ObjCmdProc
     NsTclParseQueryObjCmd,
     NsTclPoolsObjCmd,
     NsTclPurgeFilesObjCmd,
+    NsTclRWLockObjCmd,
     NsTclRandObjCmd,
     NsTclRegisterAdpObjCmd,
     NsTclRegisterEncodingObjCmd,
     NsTclRegisterFilterObjCmd,
     NsTclRegisterProcObjCmd,
+    NsTclRegisterTagObjCmd,
     NsTclRegisterTraceObjCmd,
     NsTclRenameObjCmd,
     NsTclRequestAuthorizeObjCmd,
@@ -138,7 +143,6 @@ extern Tcl_ObjCmdProc
     NsTclReturnUnauthorizedObjCmd,
     NsTclRmdirObjCmd,
     NsTclRollFileObjCmd,
-    NsTclRWLockObjCmd,
     NsTclSelectObjCmd,
     NsTclSemaObjCmd,
     NsTclServerObjCmd,
@@ -178,9 +182,6 @@ extern Tcl_ObjCmdProc
 
 extern Tcl_CmdProc
     NsTclAdpDebugCmd,
-    NsTclAdpRegisterAdpCmd,
-    NsTclAdpRegisterAdpCmd,
-    NsTclAdpRegisterProcCmd,
     NsTclAdpStatsCmd,
     NsTclAfterCmd,
     NsTclAtExitCmd,
@@ -198,14 +199,12 @@ extern Tcl_CmdProc
     NsTclConfigSectionsCmd,
     NsTclEncodingForCharsetCmd,
     NsTclEnvCmd,
-    NsTclEnvCmd,
     NsTclHrefsCmd,
     NsTclLibraryCmd,
     NsTclMkTempCmd,
     NsTclParseHeaderCmd,
     NsTclPauseCmd,
     NsTclQuoteHtmlCmd,
-    NsTclRegisterTagCmd,
     NsTclResumeCmd,
     NsTclReturnAdminNoticeCmd,
     NsTclReturnNoticeCmd,
@@ -233,13 +232,42 @@ typedef struct Cmd {
  */
 
 static Cmd cmds[] = {
+    {"_ns_adp_include", NULL, NsTclAdpIncludeObjCmd},
     {"env", NsTclEnvCmd, NULL}, /* NB: Backwards compatible. */
     {"keyldel", NULL, TclX_KeyldelObjCmd},
     {"keylget", NULL, TclX_KeylgetObjCmd},
     {"keylkeys", NULL, TclX_KeylkeysObjCmd},
     {"keylset", NULL, TclX_KeylsetObjCmd},
     {"ns_addrbyhost", NULL, NsTclGetAddrObjCmd},
+    {"ns_adp_abort", NULL, NsTclAdpAbortObjCmd},
+    {"ns_adp_append", NULL, NsTclAdpAppendObjCmd},
+    {"ns_adp_argc", NULL, NsTclAdpArgcObjCmd},
+    {"ns_adp_argv", NULL, NsTclAdpArgvObjCmd},
+    {"ns_adp_bind_args", NULL, NsTclAdpBindArgsObjCmd},
+    {"ns_adp_break", NULL, NsTclAdpBreakObjCmd},
+    {"ns_adp_close", NULL, NsTclAdpCloseObjCmd},
+    {"ns_adp_ctl", NULL, NsTclAdpCtlObjCmd},
+    {"ns_adp_debug", NsTclAdpDebugCmd, NULL},
+    {"ns_adp_dir", NULL, NsTclAdpDirObjCmd},
+    {"ns_adp_dump", NULL, NsTclAdpDumpObjCmd},
+    {"ns_adp_eval", NULL, NsTclAdpEvalObjCmd},
+    {"ns_adp_exception", NULL, NsTclAdpExceptionObjCmd},
+    {"ns_adp_flush", NULL, NsTclAdpFlushObjCmd},
+    {"ns_adp_mime", NULL, NsTclAdpMimeTypeObjCmd},
+    {"ns_adp_mimetype", NULL, NsTclAdpMimeTypeObjCmd},
+    {"ns_adp_parse", NULL, NsTclAdpParseObjCmd},
+    {"ns_adp_puts", NULL, NsTclAdpPutsObjCmd},
+    {"ns_adp_registeradp", NULL, NsTclAdpRegisterAdpObjCmd},
+    {"ns_adp_registerproc", NULL, NsTclAdpRegisterProcObjCmd},
+    {"ns_adp_registertag", NULL, NsTclAdpRegisterAdpObjCmd},
+    {"ns_adp_return", NULL, NsTclAdpReturnObjCmd},
+    {"ns_adp_safeeval", NULL, NsTclAdpSafeEvalObjCmd},
+    {"ns_adp_stats", NsTclAdpStatsCmd, NULL},
+    {"ns_adp_stream", NULL, NsTclAdpStreamObjCmd},
+    {"ns_adp_tell", NULL, NsTclAdpTellObjCmd},
+    {"ns_adp_trunc", NULL, NsTclAdpTruncObjCmd},
     {"ns_after", NsTclAfterCmd, NULL},
+    {"ns_atclose", NULL, NsTclAtCloseObjCmd},
     {"ns_atexit", NsTclAtExitCmd, NULL},
     {"ns_atshutdown", NsTclAtShutdownCmd, NULL},
     {"ns_atsignal", NsTclAtSignalCmd, NULL},
@@ -250,13 +278,18 @@ static Cmd cmds[] = {
     {"ns_cache_size", NsTclCacheSizeCmd, NULL},
     {"ns_cache_stats", NsTclCacheStatsCmd, NULL},
     {"ns_cancel", NsTclCancelCmd, NULL},
+    {"ns_chan", NULL, NsTclChanObjCmd},
     {"ns_charsets", NsTclCharsetsCmd, NULL},
+    {"ns_checkurl", NULL, NsTclRequestAuthorizeObjCmd},
     {"ns_chmod", NULL, NsTclChmodObjCmd},
     {"ns_cleanup", NULL, NsTclDummyObjCmd},
     {"ns_cond", NULL, NsTclCondObjCmd},
     {"ns_config", NsTclConfigCmd, NULL},
     {"ns_configsection", NsTclConfigSectionCmd, NULL},
     {"ns_configsections", NsTclConfigSectionsCmd, NULL},
+    {"ns_conn", NULL, NsTclConnObjCmd},
+    {"ns_conncptofp", NULL, NsTclWriteContentObjCmd},
+    {"ns_connsendfp", NULL, NsTclConnSendFpObjCmd},
     {"ns_cp", NULL, NsTclCpObjCmd},
     {"ns_cpfp", NULL, NsTclCpFpObjCmd},
     {"ns_critsec", NULL, NsTclCritSecObjCmd},
@@ -267,18 +300,22 @@ static Cmd cmds[] = {
     {"ns_event", NULL, NsTclCondObjCmd},
     {"ns_fmttime", NULL, NsTclStrftimeObjCmd},
     {"ns_ftruncate", NULL, NsTclFTruncateObjCmd},
+    {"ns_geturl", NULL, NsTclGetUrlObjCmd},
     {"ns_gifsize", NULL, NsTclGifSizeObjCmd},
     {"ns_gmtime", NULL, NsTclGmTimeObjCmd},
     {"ns_guesstype", NULL, NsTclGuessTypeObjCmd},
+    {"ns_headers", NULL, NsTclHeadersObjCmd},
     {"ns_hostbyaddr", NULL, NsTclGetHostObjCmd},
     {"ns_hrefs", NsTclHrefsCmd, NULL},
     {"ns_http", NULL, NsTclNHttpObjCmd},
     {"ns_httptime", NULL, NsTclHttpTimeObjCmd},
+    {"ns_ictl", NULL, NsTclICtlObjCmd},
     {"ns_info", NULL, NsTclInfoObjCmd},
     {"ns_init", NULL, NsTclDummyObjCmd},
     {"ns_job", NULL, NsTclJobObjCmd},
     {"ns_jpegsize", NULL, NsTclJpegSizeObjCmd},
     {"ns_kill", NULL, NsTclKillObjCmd},
+    {"ns_library", NsTclLibraryCmd, NULL},
     {"ns_limits", NULL, NsTclLimitsObjCmd},
     {"ns_link", NULL, NsTclLinkObjCmd},
     {"ns_localtime", NULL, NsTclLocalTimeObjCmd},
@@ -297,10 +334,30 @@ static Cmd cmds[] = {
     {"ns_pause", NsTclPauseCmd, NULL},
     {"ns_pools", NULL, NsTclPoolsObjCmd},
     {"ns_purgefiles", NULL, NsTclPurgeFilesObjCmd},
+    {"ns_puts", NULL, NsTclAdpPutsObjCmd},
     {"ns_quotehtml", NsTclQuoteHtmlCmd, NULL},
     {"ns_rand", NULL, NsTclRandObjCmd},
+    {"ns_register_adp", NULL, NsTclRegisterAdpObjCmd},
+    {"ns_register_adptag", NULL, NsTclRegisterTagObjCmd},
+    {"ns_register_encoding", NULL, NsTclRegisterEncodingObjCmd},
+    {"ns_register_filter", NULL, NsTclRegisterFilterObjCmd},
+    {"ns_register_proc", NULL, NsTclRegisterProcObjCmd},
+    {"ns_register_trace", NULL, NsTclRegisterTraceObjCmd},
     {"ns_rename", NULL, NsTclRenameObjCmd},
+    {"ns_requestauthorize", NULL, NsTclRequestAuthorizeObjCmd},
+    {"ns_respond", NULL, NsTclRespondObjCmd},
     {"ns_resume", NsTclResumeCmd, NULL},
+    {"ns_return", NULL, NsTclReturnObjCmd},
+    {"ns_returnadminnotice", NsTclReturnAdminNoticeCmd, NULL},
+    {"ns_returnbadrequest", NULL, NsTclReturnBadRequestObjCmd},
+    {"ns_returnerror", NULL, NsTclReturnErrorObjCmd},
+    {"ns_returnfile", NULL, NsTclReturnFileObjCmd},
+    {"ns_returnforbidden", NULL, NsTclReturnForbiddenObjCmd},
+    {"ns_returnfp", NULL, NsTclReturnFpObjCmd},
+    {"ns_returnnotfound", NULL, NsTclReturnNotFoundObjCmd},
+    {"ns_returnnotice", NsTclReturnNoticeCmd, NULL},
+    {"ns_returnredirect", NULL, NsTclReturnRedirectObjCmd},
+    {"ns_returnunauthorized", NULL, NsTclReturnUnauthorizedObjCmd},
     {"ns_rmdir", NULL, NsTclRmdirObjCmd},
     {"ns_rollfile", NULL, NsTclRollFileObjCmd},
     {"ns_rwlock", NULL, NsTclRWLockObjCmd},
@@ -308,7 +365,10 @@ static Cmd cmds[] = {
     {"ns_schedule_proc", NsTclSchedCmd, NULL},
     {"ns_schedule_weekly", NsTclSchedWeeklyCmd, NULL},
     {"ns_sema", NULL, NsTclSemaObjCmd},
+    {"ns_server", NULL, NsTclServerObjCmd},
     {"ns_set", NULL, NsTclSetObjCmd},
+    {"ns_share", NsTclShareCmd, NULL},
+    {"ns_shutdown", NULL, NsTclShutdownObjCmd},
     {"ns_sleep", NULL, NsTclSleepObjCmd},
     {"ns_sockaccept", NULL, NsTclSockAcceptObjCmd},
     {"ns_sockblocking", NULL, NsTclSockSetBlockingObjCmd},
@@ -321,6 +381,7 @@ static Cmd cmds[] = {
     {"ns_socknread", NULL, NsTclSockNReadObjCmd},
     {"ns_sockopen", NULL, NsTclSockOpenObjCmd},
     {"ns_sockselect", NULL, NsTclSelectObjCmd},
+    {"ns_startcontent", NULL, NsTclStartContentObjCmd},
     {"ns_striphtml", NsTclStripHtmlCmd, NULL},
     {"ns_symlink", NULL, NsTclSymlinkObjCmd},
     {"ns_thread", NULL, NsTclThreadObjCmd},
@@ -328,94 +389,18 @@ static Cmd cmds[] = {
     {"ns_tmpnam", NULL, NsTclTmpNamObjCmd},
     {"ns_truncate", NULL, NsTclTruncateObjCmd},
     {"ns_unlink", NULL, NsTclUnlinkObjCmd},
+    {"ns_unregister_adp", NULL, NsTclUnRegisterObjCmd},
+    {"ns_unregister_proc", NULL, NsTclUnRegisterObjCmd},
     {"ns_unschedule_proc", NsTclUnscheduleCmd, NULL},
+    {"ns_url2file", NULL, NsTclUrl2FileObjCmd},
     {"ns_urldecode", NULL, NsTclUrlDecodeObjCmd},
     {"ns_urlencode", NULL, NsTclUrlEncodeObjCmd},
     {"ns_uudecode", NULL, NsTclHTUUDecodeObjCmd},
     {"ns_uuencode", NULL, NsTclHTUUEncodeObjCmd},
-    {"ns_writefp", NULL, NsTclWriteFpObjCmd},
-
-    /*
-     * Add more basic Tcl commands here.
-     */
-
-    {NULL, NULL}
-};
-
-/*
- * The following commands require the NsServer context and
- * are available only in virtual server interps.
- */
-
-static Cmd servCmds[] = {
-    {"_ns_adp_include", NULL, NsTclAdpIncludeObjCmd},
-    {"ns_adp_abort", NULL, NsTclAdpAbortObjCmd},
-    {"ns_adp_append", NULL, NsTclAdpAppendObjCmd},
-    {"ns_adp_argc", NULL, NsTclAdpArgcObjCmd},
-    {"ns_adp_argv", NULL, NsTclAdpArgvObjCmd},
-    {"ns_adp_bind_args", NULL, NsTclAdpBindArgsObjCmd},
-    {"ns_adp_break", NULL, NsTclAdpBreakObjCmd},
-    {"ns_adp_close", NULL, NsTclAdpCloseObjCmd},
-    {"ns_adp_ctl", NULL, NsTclAdpCtlObjCmd},
-    {"ns_adp_debug", NsTclAdpDebugCmd, NULL},
-    {"ns_adp_dir", NULL, NsTclAdpDirObjCmd},
-    {"ns_adp_dump", NULL, NsTclAdpDumpObjCmd},
-    {"ns_adp_eval", NULL, NsTclAdpEvalObjCmd},
-    {"ns_adp_flush", NULL, NsTclAdpFlushObjCmd},
-    {"ns_adp_exception", NULL, NsTclAdpExceptionObjCmd},
-    {"ns_adp_mime", NULL, NsTclAdpMimeTypeObjCmd},
-    {"ns_adp_mimetype", NULL, NsTclAdpMimeTypeObjCmd},
-    {"ns_adp_parse", NULL, NsTclAdpParseObjCmd},
-    {"ns_adp_puts", NULL, NsTclAdpPutsObjCmd},
-    {"ns_adp_registeradp", NsTclAdpRegisterAdpCmd, NULL},
-    {"ns_adp_registerproc", NsTclAdpRegisterProcCmd, NULL},
-    {"ns_adp_registertag", NsTclAdpRegisterAdpCmd, NULL},
-    {"ns_adp_return", NULL, NsTclAdpReturnObjCmd},
-    {"ns_adp_safeeval", NULL, NsTclAdpSafeEvalObjCmd},
-    {"ns_adp_stats", NsTclAdpStatsCmd, NULL},
-    {"ns_adp_stream", NULL, NsTclAdpStreamObjCmd},
-    {"ns_adp_tell", NULL, NsTclAdpTellObjCmd},
-    {"ns_adp_trunc", NULL, NsTclAdpTruncObjCmd},
-    {"ns_atclose", NULL, NsTclAtCloseObjCmd},
-    {"ns_chan", NULL, NsTclChanObjCmd},
-    {"ns_checkurl", NULL, NsTclRequestAuthorizeObjCmd},
-    {"ns_conn", NULL, NsTclConnObjCmd},
-    {"ns_conncptofp", NULL, NsTclWriteContentObjCmd},
-    {"ns_connsendfp", NULL, NsTclConnSendFpObjCmd},
-    {"ns_geturl", NULL, NsTclGetUrlObjCmd},
-    {"ns_headers", NULL, NsTclHeadersObjCmd},
-    {"ns_ictl", NULL, NsTclICtlObjCmd},
-    {"ns_library", NsTclLibraryCmd, NULL},
-    {"ns_puts", NULL, NsTclAdpPutsObjCmd},
-    {"ns_register_adp", NULL, NsTclRegisterAdpObjCmd},
-    {"ns_register_adptag", NsTclRegisterTagCmd, NULL},
-    {"ns_register_encoding", NULL, NsTclRegisterEncodingObjCmd},
-    {"ns_register_filter", NULL, NsTclRegisterFilterObjCmd},
-    {"ns_register_proc", NULL, NsTclRegisterProcObjCmd},
-    {"ns_register_trace", NULL, NsTclRegisterTraceObjCmd},
-    {"ns_requestauthorize", NULL, NsTclRequestAuthorizeObjCmd},
-    {"ns_respond", NULL, NsTclRespondObjCmd},
-    {"ns_return", NULL, NsTclReturnObjCmd},
-    {"ns_returnadminnotice", NsTclReturnAdminNoticeCmd, NULL},
-    {"ns_returnbadrequest", NULL, NsTclReturnBadRequestObjCmd},
-    {"ns_returnerror", NULL, NsTclReturnErrorObjCmd},
-    {"ns_returnfile", NULL, NsTclReturnFileObjCmd},
-    {"ns_returnforbidden", NULL, NsTclReturnForbiddenObjCmd},
-    {"ns_returnfp", NULL, NsTclReturnFpObjCmd},
-    {"ns_returnnotfound", NULL, NsTclReturnNotFoundObjCmd},
-    {"ns_returnnotice", NsTclReturnNoticeCmd, NULL},
-    {"ns_returnredirect", NULL, NsTclReturnRedirectObjCmd},
-    {"ns_returnunauthorized", NULL, NsTclReturnUnauthorizedObjCmd},
-    {"ns_server", NULL, NsTclServerObjCmd},
-    {"ns_share", NsTclShareCmd, NULL},
-    {"ns_shutdown", NULL, NsTclShutdownObjCmd},
-    {"ns_startcontent", NULL, NsTclStartContentObjCmd},
-    {"ns_unregister_adp", NULL, NsTclUnRegisterObjCmd},
-    {"ns_unregister_proc", NULL, NsTclUnRegisterObjCmd},
-    {"ns_url2file", NULL, NsTclUrl2FileObjCmd},
     {"ns_var", NULL, NsTclVarObjCmd},
     {"ns_write", NULL, NsTclWriteObjCmd},
     {"ns_writecontent", NULL, NsTclWriteContentObjCmd},
+    {"ns_writefp", NULL, NsTclWriteFpObjCmd},
     {"nsv_append", NULL, NsTclNsvAppendObjCmd},
     {"nsv_array", NULL, NsTclNsvArrayObjCmd},
     {"nsv_exists", NULL, NsTclNsvExistsObjCmd},
@@ -427,11 +412,18 @@ static Cmd servCmds[] = {
     {"nsv_unset", NULL, NsTclNsvUnsetObjCmd},
 
     /*
-     * Add more server Tcl commands here.
+     * Add more Tcl commands here.
      */
 
     {NULL, NULL}
 };
+
+/*
+ * The following script adds addition required procedures.
+ */
+
+static char *initScript = \
+	"proc ns_adp_include {args} {eval _ns_adp_include $args}";
 
 
 /*
@@ -450,27 +442,21 @@ static Cmd servCmds[] = {
  *----------------------------------------------------------------------
  */
 
-static void
-AddCmds(Cmd *cmdPtr, ClientData arg, Tcl_Interp *interp)
-{
-    while (cmdPtr->name != NULL) {
-	if (cmdPtr->objProc != NULL) {
-	    Tcl_CreateObjCommand(interp, cmdPtr->name, cmdPtr->objProc, arg, NULL);
-	} else {
-	    Tcl_CreateCommand(interp, cmdPtr->name, cmdPtr->proc, arg, NULL);
-	}
-	++cmdPtr;
-    }
-}
 
 void
 NsTclAddCmds(Tcl_Interp *interp, NsInterp *itPtr)
 {
-    AddCmds(cmds, itPtr, interp);
-}
+    Cmd *cmdPtr = cmds;
 
-void
-NsTclAddServerCmds(Tcl_Interp *interp, NsInterp *itPtr)
-{
-    AddCmds(servCmds, itPtr, interp);
+    while (cmdPtr->name != NULL) {
+	if (cmdPtr->objProc != NULL) {
+	    Tcl_CreateObjCommand(interp, cmdPtr->name, cmdPtr->objProc, itPtr, NULL);
+	} else {
+	    Tcl_CreateCommand(interp, cmdPtr->name, cmdPtr->proc, itPtr, NULL);
+	}
+	++cmdPtr;
+    }
+    if (Tcl_EvalEx(interp, initScript, -1, 0) != TCL_OK) {
+	Ns_TclLogError(interp);
+    }
 }
