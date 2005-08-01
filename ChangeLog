@@ -1,3 +1,92 @@
+2005-08-01  Jim Davidson <jgdavidson@aol.com>
+
+	Quite a few changes, mostly to enable all commands to run
+	outside a virtual server as a step toward enabling more
+	effective unit testing of individual compontents.  Also,
+	updated ADP to enable much more detailed error messages on
+	execeptions which includes line numbers, include file traces,
+	and connection details.
+
+	* nsd/Makefile:  Added ctags target.
+
+	* nsd/adpeval.c:
+	* nsd/adprequest.c:  New ADP frame management approach for
+	enhanced error messages (file trace and connection details)
+	and relocation of init/flush calls to top level frame.
+
+	* nsd/adpcmds.c:  Added ns_adp_ctl "channel" option and updated
+	code for new ADP frame management.
+
+	* nsd/adpparse.c:  Updated parser to save line number info
+	for possible error reporting.
+
+	* nsd/conn.c:
+	* nsd/tclresp.c: Standard usage of NsTclGetConn to verify
+	and active connection and cleanup of ns_startcontent command.
+
+	* nsd/auth.c:
+	* nsd/encoding.c:
+	* nsd/info.c:
+	* nsd/tclrequest.c:
+	* nsd/tclset.c:  Use of NsTclGetServer call to verify when
+	a server is required for a command.
+
+	* nsd/config.c:
+	* nsd/dns.c:
+	* nsd/log.c:
+	* nsd/nsconf.c:
+	* nsd/nsconf.h:
+	* nsd/nsd.h:
+	* nsd/pidfile.c: Moved components of nsconf struct to
+	cooresponding private code and added NsParam functions to
+	simplify core parameter config.
+
+	* nsd/driver.c: Added debug config option which will enable
+	logging of unusual I/O or protocol errors.
+
+	* nsd/fastpath.c: Minor edits.
+
+	* nsd/fd.c:
+	* nsd/nsmain.c: Moved core fd init code from Ns_Main to
+	NsInitFd.
+
+	* nsd/init.c: Re-ordered inits to ensure fds and log are
+	initialized first.
+
+	* nsd/queue.c: Disabled ns_server "keepalive" option as the
+	cooresponding variable was no longer being maintained.
+
+	* nsd/return.c: Cleaned up and isolated the complex keep-alive
+	check and enabled configurable HTTP response version (default
+	1.1).
+
+	* nsd/server.c: Enabled a global, psuedo-server, to support
+	all Tcl commands outside the context of a virtual server.
+
+	* nsd/task.c:
+	* nsd/tclcache.c:
+	* nsd/tclfile.c:
+	* nsd/tclimg.c: Minor edits to silence the compiler.
+
+	* nsd/tclcmds.c:  Made all commands available outside a
+	virtual server and moved ns_adp_include proc creation to
+	C.
+
+	* nsd/tclinit.c:  Fixed async cancel support which is really
+	the ability to send a thread a signal to cancel Tcl script
+	eval in the currently active interp, if any. Also, updated
+	code to support running outside a virtual server.
+
+	* nsd/tcljob.c:
+	* nsd/tclshare.c:
+	* nsd/tclsock.c:
+	* nsd/tclthread.c:  Updated to work outside a virtual server.
+
+	* nscgi/nscgi.c
+	* nsd/tclhttp.c:  Switched to strtol fromm atoi which evidently
+	isnt always thread safe.
+
+
 2005-07-22  Jim Davidson <jgdavidson@aol.com>
 
 	* doc/Makefile: Fix install target bugs.
