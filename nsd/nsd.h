@@ -213,8 +213,10 @@ typedef struct AdpFrame {
     struct AdpFrame   *prevPtr;
     int		       line;
     int                objc;
+    Tcl_Obj	      *ident;
     Tcl_Obj          **objv;
     char	      *savecwd;
+    char	      *file;
     Ns_DString         cwdbuf;
     Tcl_DString	      *outputPtr;
 } AdpFrame;
