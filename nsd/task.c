@@ -33,7 +33,7 @@
  *	Support for I/O tasks.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/task.c,v 1.3 2005/07/18 23:32:12 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/task.c,v 1.4 2005/08/01 20:29:24 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -644,7 +644,7 @@ static int
 SignalQueue(Task *taskPtr, int bit)
 {
     TaskQueue *queuePtr = taskPtr->queuePtr;
-    int pending, shutdown;
+    int pending = 0, shutdown;
 
     Ns_MutexLock(&queuePtr->lock);
     shutdown = queuePtr->shutdown;

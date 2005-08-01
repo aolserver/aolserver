@@ -33,7 +33,7 @@
  *	Tcl API for cache.c.  Based on work from the nscache module.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcache.c,v 1.1 2005/07/18 23:31:27 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcache.c,v 1.2 2005/08/01 20:29:24 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -158,7 +158,7 @@ NsTclCacheObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
     char *key, *pattern, *var;
     Ns_Entry *entry;
     Ns_CacheSearch search;
-    Tcl_Obj *objPtr;
+    Tcl_Obj *objPtr = NULL;
     Ns_Time now, timeout;
 
     if (objc < 2) {
