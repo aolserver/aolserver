@@ -33,7 +33,7 @@
  *	Defines standard default charset to encoding mappings.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/encoding.c,v 1.16 2005/03/25 00:34:45 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/encoding.c,v 1.17 2005/08/01 20:27:35 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -483,7 +483,9 @@ badargs:
 	flags = 0;
 	idx = 1;
     }
-    server = itPtr->servPtr->server;
+    if (NsTclGetServer(itPtr, &server) != TCL_OK) {
+	return TCL_ERROR;
+    }
     method = Tcl_GetString(objv[idx++]);
     url = Tcl_GetString(objv[idx++]);
     charset = Tcl_GetString(objv[idx++]);

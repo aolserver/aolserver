@@ -33,7 +33,7 @@
  *	Routines for Tcl proc and ADP registered requests.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclrequest.c,v 1.11 2005/03/28 00:06:44 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclrequest.c,v 1.12 2005/08/01 20:27:35 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -60,7 +60,7 @@ static Ns_FilterProc ProcFilter;
 static Proc *NewProc(char *name, char *args);
 static Ns_Callback FreeProc;
 static void AppendConnId(Tcl_DString *dsPtr, Ns_Conn *conn);
-static void RegisterFilterObj(NsInterp *itPtr, int when, int objc,
+static int RegisterFilterObj(NsInterp *itPtr, int when, int objc,
 			      Tcl_Obj *CONST objv[]);
 static int GetNumArgs(Tcl_Interp *interp, Proc *procPtr);
 
@@ -136,7 +136,9 @@ badargs:
 	flags = 0;
 	idx = 1;
     }
-    server = itPtr->servPtr->server;
+    if (NsTclGetServer(itPtr, &server) != TCL_OK) {
+	return TCL_ERROR;
+    }
     method = Tcl_GetString(objv[idx++]);
     url = Tcl_GetString(objv[idx++]);
     name = Tcl_GetString(objv[idx++]);
@@ -178,7 +180,9 @@ badargs:
     if (objc == 5 && !STREQ(Tcl_GetString(objv[1]), "-noinherit")) {
 	goto badargs;
     }
-    server = itPtr->servPtr->server;
+    if (NsTclGetServer(itPtr, &server) != TCL_OK) {
+	return TCL_ERROR;
+    }
     method = Tcl_GetString(objv[objc-3]);
     url = Tcl_GetString(objv[objc-2]);
     file = ns_strdup(Tcl_GetString(objv[objc-1]));
@@ -208,7 +212,7 @@ int
 NsTclUnRegisterObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
     NsInterp *itPtr = arg;
-    char *server = itPtr->servPtr->server;
+    char *server;
     
     if (objc != 3 && objc != 4) {
         Tcl_WrongNumArgs(interp, 1, objv, "?-noinherit? method url");
@@ -218,6 +222,9 @@ NsTclUnRegisterObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CON
 	Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "unknown flag \"", 
 		Tcl_GetString(objv[1]),
 		"\": should be -noinherit", NULL);
+	return TCL_ERROR;
+    }
+    if (NsTclGetServer(itPtr, &server) != TCL_OK) {
 	return TCL_ERROR;
     }
     Ns_UnRegisterRequest(server, Tcl_GetString(objv[objc-2]), Tcl_GetString(objv[objc-1]), 
@@ -292,8 +299,7 @@ NsTclRegisterFilterObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj 
 	Tcl_SetResult(interp, "blank filter when specification", TCL_STATIC);
 	return TCL_ERROR;
     }
-    RegisterFilterObj(itPtr, when, objc - 2, objv + 2);
-    return TCL_OK;
+    return RegisterFilterObj(itPtr, when, objc - 2, objv + 2);
 }
 
 
@@ -322,8 +328,7 @@ NsTclRegisterTraceObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *
         Tcl_WrongNumArgs(interp, 1, objv, "method urlPattern script ?arg?");
         return TCL_ERROR;
     }
-    RegisterFilterObj(itPtr, NS_FILTER_VOID_TRACE, objc - 1, objv + 1);
-    return TCL_OK;
+    return RegisterFilterObj(itPtr, NS_FILTER_VOID_TRACE, objc - 1, objv + 1);
 }
 
 
@@ -551,28 +556,30 @@ GetNumArgs(Tcl_Interp *interp, Proc *procPtr)
  *	Register a Tcl filter. 
  *
  * Results:
- *	TCL_OK. 
+ *	TCL_ERROR if no server, TCL_OK otherwise. 
  *
  * Side effects:
- *	Will allocate memory for TclContext as well as strdup all the 
- *	arguments. 
+ *	Will register a filter to run later.
  *
  *----------------------------------------------------------------------
  */
 
-static void
+static int
 RegisterFilterObj(NsInterp *itPtr, int when, int objc, Tcl_Obj *CONST objv[])
 {
     Proc	    *procPtr;
     char	    *server, *method, *url, *name, *args;
 
-    server = itPtr->servPtr->server;
+    if (NsTclGetServer(itPtr, &server) != TCL_OK) {
+	return TCL_ERROR;
+    }
     method = Tcl_GetString(objv[0]);
     url = Tcl_GetString(objv[1]);
     name = Tcl_GetString(objv[2]);
     args = (objc > 3 ? Tcl_GetString(objv[3]) : NULL);
     procPtr = NewProc(name, args);
     Ns_RegisterFilter(server, method, url, ProcFilter, when, procPtr);
+    return TCL_OK;
 }
 
 
