@@ -34,7 +34,7 @@
  *      Manage the Ns_Conn structure
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.44 2005/07/18 23:33:06 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.45 2005/08/01 20:28:04 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -829,7 +829,7 @@ Ns_ConnSetUrlEncoding(Ns_Conn *conn, Tcl_Encoding encoding)
 /*
  *----------------------------------------------------------------------
  *
- * NsIsIdConn --
+ * NsTclCheckConnId --
  *
  *	Given an conn ID, could this be a conn ID?
  *
@@ -837,15 +837,21 @@ Ns_ConnSetUrlEncoding(Ns_Conn *conn, Tcl_Encoding encoding)
  *	Boolean. 
  *
  * Side effects:
- *	None. 
+ *	If interp is non-null, an error message will be left if
+ *	necessary.
  *
  *----------------------------------------------------------------------
  */
 
 int
-NsIsIdConn(char *connId)
+NsTclCheckConnId(Tcl_Interp *interp, Tcl_Obj *objPtr)
 {
-    if (connId == NULL || *connId != 'c') {
+    char *id = Tcl_GetString(objPtr);
+
+    if (id[0] != 'c') {
+	if (interp != NULL) {
+	    Tcl_AppendResult(interp, "invalid connid: ", id, NULL);
+	}
 	return NS_FALSE;
     }
     return NS_TRUE;
@@ -984,25 +990,21 @@ NsTclConnObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 			    (int *) &opt) != TCL_OK) {
 	return TCL_ERROR;
     }
-
     result  = Tcl_GetObjResult(interp);
-    conn = itPtr->conn;
-    connPtr = (Conn *) conn;
 
     /*
      * Only the "isconnected" option operates without a conn.
      */
 
     if (opt == CIsConnectedIdx) {
-	Tcl_SetBooleanObj(result, connPtr ? 1 : 0);
+	Tcl_SetBooleanObj(result, itPtr->conn ? 1 : 0);
 	return TCL_OK;
     }
-    if (connPtr == NULL) {
-	Tcl_SetResult(interp, "no current connection", TCL_STATIC);
+    if (NsTclGetConn(itPtr, &conn) != TCL_OK) {
         return TCL_ERROR;
     }
-
-    request = connPtr->request;
+    request = conn->request;
+    connPtr = (Conn *) conn;
     switch (opt) {
 
 	case CIsConnectedIdx:
@@ -1010,7 +1012,7 @@ NsTclConnObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 	    break;
 		
 	case CUrlvIdx:
-	    if (objc == 2 || (objc == 3 && NsIsIdConn(Tcl_GetString(objv[2])))) {
+	    if (objc == 2 || (objc == 3 && NsTclCheckConnId(NULL, objv[2]))) {
 		for (idx = 0; idx < request->urlc; idx++) {
 		    Tcl_AppendElement(interp, request->urlv[idx]);
 		}
@@ -1304,32 +1306,28 @@ int
 NsTclWriteContentObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 {
     NsInterp	*itPtr = arg;
+    Ns_Conn	*conn;
     Tcl_Channel  chan;
 
     if (objc != 2 && objc != 3) {
         Tcl_WrongNumArgs(interp, 1, objv, "?connid? channel");
         return TCL_ERROR;
     }
-    if (objc == 3 && !NsIsIdConn(Tcl_GetString(objv[1]))) {
-	Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "bad connid: \"", 
-		Tcl_GetString(objv[1]), "\"", NULL);
+    if (objc == 3 && !NsTclCheckConnId(interp, objv[1])) {
 	return TCL_ERROR;
     }
-    if (itPtr->conn == NULL) {
-	Tcl_SetResult(interp, "no connection", TCL_STATIC);
+    if (NsTclGetConn(itPtr, &conn) != TCL_OK) {
         return TCL_ERROR;
     }
     if (GetChan(interp, Tcl_GetString(objv[objc-1]), &chan) != TCL_OK) {
 	return TCL_ERROR;
     }
     Tcl_Flush(chan);
-    if (Ns_ConnCopyToChannel(itPtr->conn, (size_t)itPtr->conn->contentLength, 
-                             chan) != NS_OK) {
+    if (Ns_ConnCopyToChannel(conn, (size_t) conn->contentLength, chan) != NS_OK) {
         Tcl_SetResult(interp, "could not copy content (likely client disconnect)",
 		TCL_STATIC);
         return TCL_ERROR;
     }
-    
     return TCL_OK;
 }
 
@@ -1355,74 +1353,48 @@ int
 NsTclStartContentObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
                         Tcl_Obj **objv)
 {
-    NsInterp     *itPtr = arg;
     Tcl_Encoding  encoding;
-    char         *opt;
-    int           status;
-    int           i;
+    Ns_Conn	 *conn;
+    char	 *opt;
+    static CONST char *flags[] = {
+	"-charset", "-type", NULL
+    };
+    enum {
+	FCharsetIdx, FTypeIdx
+    } flag;
 
-    status = TCL_OK;
+    if (objc != 1 && objc != 3) {
+	Tcl_WrongNumArgs(interp, 1, objv, "?-charset charset|-type type?");
+	return TCL_ERROR;
+    }
     encoding = NULL;
-
-    for (i = 1; i < objc && status == TCL_OK; i++) {
-	opt = Tcl_GetString(objv[i]);
-	if (STREQ(opt, "-charset")) {
-
-	    if (encoding != NULL) {
-		Tcl_AppendResult(interp, Tcl_GetString(objv[0]),
-		    ": charset may only be specified by one flag", NULL);
-		status = TCL_ERROR;
-	    }
-
-	    if (++i >= objc) {
-		Tcl_AppendResult(interp, Tcl_GetString(objv[0]),
-		    ": missing argument for -charset flag", NULL);
-		status = TCL_ERROR;
-	    }
-
-	    encoding = Ns_GetCharsetEncoding(Tcl_GetString(objv[i]));
-	    if (encoding == NULL) {
-		Tcl_AppendResult(interp, Tcl_GetString(objv[0]),
-		    ": could not find an encoding for charset ",
-		    Tcl_GetString(objv[i]), NULL);
-		status = TCL_ERROR;
-	    }
+    if (objc == 3) {
+	if (Tcl_GetIndexFromObj(interp, objv[1], flags, "flag", 0,
+		(int *) &flag) != TCL_OK) {
+	    return TCL_ERROR;
 	}
-
-	else if (STREQ(opt, "-type")) {
-
-	    if (encoding != NULL) {
-		Tcl_AppendResult(interp, Tcl_GetString(objv[0]),
-		    ": charset may only be specified by one flag", NULL);
-		status = TCL_ERROR;
-	    }
-
-	    if (++i >= objc) {
-		Tcl_AppendResult(interp, Tcl_GetString(objv[0]),
-		    ": missing argument for -type flag", NULL);
-		status = TCL_ERROR;
-	    }
-
-	    encoding = Ns_GetTypeEncoding(Tcl_GetString(objv[i]));
+	opt = Tcl_GetString(objv[2]);
+	switch (flag) {
+	case FCharsetIdx:
+	    encoding = Ns_GetCharsetEncoding(opt);
+	    break;
+	case FTypeIdx:
+	    encoding  = Ns_GetTypeEncoding(opt);
+	    break;
 	}
-
-	else {
-	    Tcl_AppendResult(interp, "usage: ", Tcl_GetString(objv[0]),
-		" ?-charset charsetname? ?-type content-type?", NULL);
-	    status = TCL_ERROR;
+	if (encoding == NULL) {
+	    Tcl_AppendResult(interp, "no encoding for ",
+		(flags[flag])+1, " \"", opt, "\"", NULL);
+	    return TCL_ERROR;
 	}
     }
-
-    if (status != TCL_OK) {
-	return status;
-    }
-
-    Ns_ConnSetWriteEncodedFlag(itPtr->conn, NS_TRUE);
-    Ns_ConnSetEncoding(itPtr->conn, encoding);
-
-    return status;
+    if (NsTclGetConn((NsInterp *) arg, &conn) != TCL_OK) {
+	return TCL_ERROR;
+    } 
+    Ns_ConnSetWriteEncodedFlag(conn, NS_TRUE);
+    Ns_ConnSetEncoding(conn, encoding);
+    return TCL_OK;
 }
-
 
 
 /*
