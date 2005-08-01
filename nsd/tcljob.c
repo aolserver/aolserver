@@ -80,7 +80,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tcljob.c,v 1.29 2005/07/18 23:32:12 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tcljob.c,v 1.30 2005/08/01 20:29:58 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -481,7 +481,7 @@ NsTclJobObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
             /*
              * Create a new job and add to the Thread Pool's list of jobs.
              */
-            jobPtr = NewJob((itPtr->servPtr ? itPtr->servPtr->server : NULL),
+            jobPtr = NewJob(itPtr->servPtr->server,
                             queuePtr->name,
                             job_type,
                             objv[argIndex++]);

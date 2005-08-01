@@ -34,7 +34,7 @@
  *	Tcl wrappers around all thread objects 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclthread.c,v 1.24 2005/07/18 23:33:36 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclthread.c,v 1.25 2005/08/01 20:29:58 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #ifdef NS_NOCOMPAT
 #undef NS_NOCOMPAT
@@ -623,11 +623,7 @@ CreateTclThread(NsInterp *itPtr, char *script, int detached, Ns_Thread *thrPtr)
     argPtr = ns_malloc(sizeof(ThreadArg) + strlen(script));
     argPtr->detached = detached;
     strcpy(argPtr->script, script);
-    if (itPtr != NULL && itPtr->servPtr != NULL) {
-    	argPtr->server = itPtr->servPtr->server;
-    } else {
-    	argPtr->server = NULL;
-    }
+    argPtr->server = (itPtr ? itPtr->servPtr->server : NULL);
     Ns_ThreadCreate(NsTclThread, argPtr, 0, thrPtr);
 }
 

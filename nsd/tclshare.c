@@ -97,10 +97,6 @@ NsTclShareCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
 		argv[0], " ?-init script? varName ?varName ...?\"", NULL);
 	return TCL_ERROR;
     }
-    if (itPtr == NULL) {
-	Tcl_SetResult(interp, "no server", TCL_STATIC);
-	return TCL_ERROR;
-    }
     if (STREQ(argv[1], "-init")) {
         if (argc != 4) {
 	    Tcl_AppendResult(interp, "wrong # args: should be \"",
