@@ -258,6 +258,8 @@ typedef struct AdpCode {
 #define ADP_ERROR	0x40	/* Output error. */
 #define ADP_GZIP	0x80	/* Enable gzip compression. */
 #define ADP_DETAIL	0x100	/* Log connection details on error. */
+#define ADP_STRICT	0x200	/* Strict error handling. */
+#define ADP_DISPLAY	0x400	/* Display error messages in output stream. */
 
 /*
  * The following structure maitains data for each instance of

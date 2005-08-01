@@ -33,7 +33,7 @@
  *	Routines for managing NsServer structures.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.39 2005/08/01 22:32:41 shmooved Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.40 2005/08/01 23:26:11 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -472,8 +472,14 @@ CreateServer(char *server)
     if (Ns_ConfigGetBool(path, "trace", &i) && i) {
     	servPtr->adp.flags |= ADP_TRACE;
     }
-    if (!Ns_ConfigGetBool(path, "errordetail", &i) || i) {
+    if (!Ns_ConfigGetBool(path, "detailerror", &i) || i) {
     	servPtr->adp.flags |= ADP_DETAIL;
+    }
+    if (Ns_ConfigGetBool(path, "stricterror", &i) && i) {
+    	servPtr->adp.flags |= ADP_STRICT;
+    }
+    if (Ns_ConfigGetBool(path, "displayerror", &i) && i) {
+    	servPtr->adp.flags |= ADP_DISPLAY;
     }
     servPtr->adp.debuginit = Ns_ConfigGetValue(path, "debuginit");
     if (servPtr->adp.debuginit == NULL) {

@@ -33,7 +33,7 @@
  *	ADP commands.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpcmds.c,v 1.20 2005/08/01 22:28:37 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpcmds.c,v 1.21 2005/08/01 23:26:09 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -107,10 +107,13 @@ NsTclAdpCtlObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
     NsInterp *itPtr = arg;
     char *id;
     static CONST char *opts[] = {
-	 "bufsize", "nocache", "trace", "gzip", "channel", NULL
+	"bufsize", "nocache", "trace", "gzip", "channel",
+	"stricterror", "detailerror", "displayerror",
+	NULL
     };
     enum {
-	 CBufSizeIdx, CNoCacheIdx, CTraceIdx, CGzipIdx, CChanIdx
+	CBufSizeIdx, CNoCacheIdx, CTraceIdx, CGzipIdx, CChanIdx,
+	CStrictIdx, CDetailIdx, CDispIdx
     };
     int opt, flag, old, new;
 
@@ -145,6 +148,9 @@ NsTclAdpCtlObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
     case CNoCacheIdx:
     case CTraceIdx:
     case CGzipIdx:
+    case CStrictIdx:
+    case CDetailIdx:
+    case CDispIdx:
 	if (objc != 2 && objc !=3 ) {
 	    Tcl_WrongNumArgs(interp, 2, objv, "?bool?");
             return TCL_ERROR;
@@ -159,6 +165,15 @@ NsTclAdpCtlObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
 	    break;
 	case CGzipIdx:
 	    flag = ADP_GZIP;
+	    break;
+	case CStrictIdx:
+	    flag = ADP_STRICT;
+	    break;
+	case CDetailIdx:
+	    flag = ADP_DETAIL;
+	    break;
+	case CDispIdx:
+	    flag = ADP_DISPLAY;
 	    break;
 	}
 	old = (itPtr->adp.flags & flag);
