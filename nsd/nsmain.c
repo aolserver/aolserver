@@ -33,14 +33,9 @@
  *	AOLserver Ns_Main() startup routine.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.61 2005/01/15 23:54:08 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.62 2005/08/01 20:28:23 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
-#ifdef _WIN32
-#define DEVNULL "nul:"
-#else
-#define DEVNULL "/dev/null"
-#endif
 
 /*
  * Local functions defined in this file.
@@ -49,11 +44,6 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
 static void UsageError(char *msg);
 static void StatusMsg(int state);
 static char *FindConfig(char *config);
-
-#if (STATIC_BUILD == 1)
-extern void NsthreadsInit();
-extern void NsdInit();
-#endif
 
 
 /*
@@ -77,7 +67,7 @@ extern void NsdInit();
 int
 Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 {
-    int            i, fd;
+    int            i;
     char          *config;
     Ns_Time 	   timeout;
     char	   buf[PATH_MAX];
@@ -109,30 +99,21 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 #endif
 
     /*
-     * For static builds only, we have to initialize
-     * otherwise dynamically loaded shared libraries.
-     */
-
-#if (STATIC_BUILD == 1)
-    NsthreadsInit();
-    NsdInit();
-#endif
-
-    /*
      * Mark the server stopped until initialization is complete.
      */
 
     Ns_MutexLock(&nsconf.state.lock);
     nsconf.state.started = 0;
     Ns_MutexUnlock(&nsconf.state.lock);
+
+#ifdef _WIN32
     /*
      * When run as a Win32 service, Ns_Main will be re-entered
      * in the service main thread.  In this case, jump past
      * the point where the initial thread blocked when
      * connected to the service control manager.
      */
-     
-#ifdef _WIN32
+
     if (mode == 'S') {
     	goto contservice;
     }
@@ -149,27 +130,8 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
      * ensure the server never blocks reading stdin.
      */
      
-    fd = open(DEVNULL, O_RDONLY);
-    if (fd > 0) {
-    	dup2(fd, 0);
-	close(fd);
-    }
-
-    /*     
-     * Also, file descriptors 1 and 2 may not be open if the server
-     * is starting from /etc/init.  If so, open them on /dev/null
-     * as well because the server will assume they're open during
-     * initialization.  In particular, the log file will be duped
-     * to fd's 1 and 2.
-     */
-
-    fd = open(DEVNULL, O_WRONLY);
-    if (fd > 0 && fd != 1) {
-	close(fd);
-    }
-    fd = open(DEVNULL, O_WRONLY);
-    if (fd > 0 && fd != 2) {
-	close(fd);
+    if (dup2(Ns_DevNull(), 0) == -1) {
+	Ns_Log(Warning, "dup2(/dev/null, 0) failed: %s", strerror(errno));
     }
 
     /*
@@ -203,7 +165,7 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 	    if (server != NULL) {
 		UsageError("multiple -s <server> options");
 	    }
-	    nsconf.server = server = optarg;
+	    server = optarg;
             break;
 	case 't':
 	    if (nsconf.config != NULL) {
@@ -419,7 +381,6 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
      */
 
     NsBlockSignals(nsconf.debug);
-
 #endif
 
     /*
@@ -465,7 +426,7 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
      * Verify and change to the home directory.
      */
      
-    nsconf.home = Ns_ConfigGetValue(NS_CONFIG_PARAMETERS, "home");
+    nsconf.home = NsParamString("home", NULL);
     if (nsconf.home == NULL) {
 	Ns_Fatal("nsmain: missing: [%s]home", NS_CONFIG_PARAMETERS);
     }
@@ -518,7 +479,6 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
     }
 
     contservice:
-
 #endif
 
     /*
