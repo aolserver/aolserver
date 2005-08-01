@@ -27,16 +27,26 @@
  * version of this file under either the License or the GPL.
  */
 
-
 /*
  * log.c --
  *
  *	Manage the server log file.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/log.c,v 1.29 2005/07/20 01:09:30 shmooved Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/log.c,v 1.30 2005/08/01 20:43:21 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
+
+/*
+ * The following define available flags bits.
+ */
+
+#define LOG_ROLL	1
+#define LOG_EXPAND	2
+#define LOG_DEBUG	4
+#define LOG_DEV		8
+#define LOG_NONOTICE	16
+#define LOG_USEC	32
 
 /*
  * The following struct maintains per-thread
@@ -72,8 +82,13 @@ static void   LogEnd(LogCache *cachePtr);
 
 static Ns_Tls tls;
 static Ns_Mutex lock;
-static Ns_LogFlushProc    *flushProcPtr;
-static Ns_LogProc         *nslogProcPtr;
+static Ns_LogFlushProc *flushProcPtr;
+static Ns_LogProc *nslogProcPtr;
+static char *file;
+static int flags;
+static int maxback;
+static int maxlevel;
+static int maxbuffer;;
 
 
 /*
@@ -97,8 +112,60 @@ NsInitLog(void)
 {
     Ns_MutexSetName(&lock, "ns:log");
     Ns_TlsAlloc(&tls, LogFreeCache);
-    flushProcPtr = NULL;
-    nslogProcPtr = NULL;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsLogConfig --
+ *
+ *	Config the logging interface.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+NsLogConf(void)
+{
+    if (NsParamBool("logusec", 0)) {
+	flags |= LOG_USEC;
+    }
+    if (NsParamBool("logroll", 1)) {
+	flags |= LOG_ROLL;
+    }
+    if (NsParamBool("logexpanded", 0)) {
+	flags |= LOG_EXPAND;
+    }
+    if (NsParamBool("debug", 0)) {
+	flags |= LOG_DEBUG;
+    }
+    if (NsParamBool("logdebug", 0)) {
+	flags |= LOG_DEBUG;
+    }
+    if (NsParamBool("logdev", 0)) {
+	flags |= LOG_DEV;
+    }
+    if (!NsParamBool("lognotice", 1)) {
+	flags |= LOG_NONOTICE;
+    }
+    maxback  = NsParamBool("logmaxbackup", 10);
+    maxlevel = NsParamBool("logmaxlevel", INT_MAX);
+    maxbuffer  = NsParamBool("logmaxbuffer", 10);
+    file = NsParamString("serverlog", "server.log");
+    if (!Ns_PathIsAbsolute(file)) {
+	Ns_DString ds;
+
+	Ns_DStringInit(&ds);
+	Ns_HomePath(&ds, "log", file, NULL);
+	file = Ns_DStringExport(&ds);
+    }
 }
 
 
@@ -121,7 +188,7 @@ NsInitLog(void)
 char *
 Ns_InfoErrorLog(void)
 {
-    return nsconf.log.file;
+    return file;
 }
 
 
@@ -145,11 +212,11 @@ Ns_InfoErrorLog(void)
 int
 Ns_LogRoll(void)
 {
-    if (nsconf.log.file != NULL) {
-        if (access(nsconf.log.file, F_OK) == 0) {
-            Ns_RollFile(nsconf.log.file, nsconf.log.maxback);
+    if (file != NULL) {
+        if (access(file, F_OK) == 0) {
+            Ns_RollFile(file, maxback);
         }
-        Ns_Log(Notice, "log: re-opening log file '%s'", nsconf.log.file);
+        Ns_Log(Notice, "log: re-opening log file '%s'", file);
         if (LogReOpen() != NS_OK) {
 	    return NS_ERROR;
 	}
@@ -284,9 +351,9 @@ NsLogOpen(void)
 
     if (LogReOpen() != NS_OK) {
 	Ns_Fatal("log: failed to open server log '%s': '%s'", 
-		 nsconf.log.file, strerror(errno));
+		 file, strerror(errno));
     }
-    if (nsconf.log.flags & LOG_ROLL) {
+    if (flags & LOG_ROLL) {
 	Ns_RegisterAtSignal((Ns_Callback *) Ns_LogRoll, NULL);
     }
 }
@@ -543,7 +610,7 @@ LogStart(LogCache *cachePtr, Ns_LogSeverity severity)
 
     switch (severity) {
 	case Notice:
-	    if (nsconf.log.flags & LOG_NONOTICE) {
+	    if (flags & LOG_NONOTICE) {
 		return 0;
 	    }
 	    severityStr = "Notice";
@@ -561,19 +628,19 @@ LogStart(LogCache *cachePtr, Ns_LogSeverity severity)
 	    severityStr = "Bug";
 	    break;
 	case Debug:
-	    if (!(nsconf.log.flags & LOG_DEBUG)) {
+	    if (!(flags & LOG_DEBUG)) {
 		return 0;
 	    }
 	    severityStr = "Debug";
 	    break;
 	case Dev:
-	    if (!(nsconf.log.flags & LOG_DEV)) {
+	    if (!(flags & LOG_DEV)) {
 		return 0;
 	    }
 	    severityStr = "Dev";
 	    break;
 	default:
-	    if (severity > nsconf.log.maxlevel) {
+	    if (severity > maxlevel) {
 		return 0;
 	    }
 	    sprintf(buf, "Level%d", severity);
@@ -581,13 +648,13 @@ LogStart(LogCache *cachePtr, Ns_LogSeverity severity)
 	    break;
     }
     Ns_DStringAppend(&cachePtr->buffer, LogTime(cachePtr, 0, &usec));
-    if (nsconf.log.flags & LOG_USEC) {
+    if (flags & LOG_USEC) {
     	Ns_DStringTrunc(&cachePtr->buffer, cachePtr->buffer.length-1);
 	Ns_DStringPrintf(&cachePtr->buffer, ".%ld]", usec);
     }
     Ns_DStringPrintf(&cachePtr->buffer, "[%d.%lu][%s] %s: ",
 	Ns_InfoPid(), (unsigned long) Ns_ThreadId(), Ns_ThreadGetName(), severityStr);
-    if (nsconf.log.flags & LOG_EXPAND) {
+    if (flags & LOG_EXPAND) {
 	Ns_DStringAppend(&cachePtr->buffer, "\n    ");
     }
     return 1;
@@ -614,7 +681,7 @@ static void
 LogEnd(LogCache *cachePtr)
 {
     Ns_DStringNAppend(&cachePtr->buffer, "\n", 1);
-    if (nsconf.log.flags & LOG_EXPAND) {
+    if (flags & LOG_EXPAND) {
 	Ns_DStringNAppend(&cachePtr->buffer, "\n", 1);
     }
     ++cachePtr->count;
@@ -682,10 +749,10 @@ LogReOpen(void)
     int status;
 
     status = NS_OK;
-    fd = open(nsconf.log.file, O_WRONLY|O_APPEND|O_CREAT, 0644);
+    fd = open(file, O_WRONLY|O_APPEND|O_CREAT, 0644);
     if (fd < 0) {
         Ns_Log(Error, "log: failed to re-open log file '%s': '%s'",
-	       nsconf.log.file, strerror(errno));
+	       file, strerror(errno));
         status = NS_ERROR;
     } else {
 	/*
@@ -694,7 +761,7 @@ LogReOpen(void)
 	
         if (fd != STDERR_FILENO && dup2(fd, STDERR_FILENO) == -1) {
             fprintf(stdout, "dup2(%s, STDERR_FILENO) failed: %s\n",
-		nsconf.log.file, strerror(errno));
+		file, strerror(errno));
             status = NS_ERROR;
         }
 	

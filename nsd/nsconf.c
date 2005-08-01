@@ -33,13 +33,18 @@
  *	Various core configuration.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsconf.c,v 1.37 2005/07/20 19:04:41 shmooved Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsconf.c,v 1.38 2005/08/01 20:43:23 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
-#include "nsconf.h"
 
-static int GetInt(char *key, int def);
-static int GetBool(char *key, int def);
+#define THREAD_STACKSIZE	(128*1024)
+#define SCHED_MAXELAPSED	2
+#define SHUTDOWNTIMEOUT		20
+#define LISTEN_BACKLOG		32
+#define TCL_INITLCK		0
+#define HTTP_MAJOR		1
+#define HTTP_MINOR		1
+
 struct _nsconf nsconf;
 
 
@@ -62,57 +67,25 @@ struct _nsconf nsconf;
 void
 NsInitConf(void)
 {
+    Ns_DString addr;
     static char cwd[PATH_MAX];
     extern char *nsBuildDate; /* NB: Declared in stamp.c */
 
     Ns_ThreadSetName("-main-");
 
     /*
-     * At library load time the server is considered started. 
-     * Normally it's marked stopped immediately by Ns_Main unless
-     * libnsd is being used for some other, non-server program.
+     * Set various core environment variables.
      */
-     
-    nsconf.state.started = 1;
-    Ns_MutexInit(&nsconf.state.lock);
-    Ns_MutexSetName(&nsconf.state.lock, "nsd:conf");
 
     nsconf.build	 = nsBuildDate;
     nsconf.name          = NSD_NAME;
     nsconf.version       = NSD_VERSION;
     nsconf.tcl.version	 = TCL_VERSION;
+    nsconf.http.major    = HTTP_MAJOR;
+    nsconf.http.minor    = HTTP_MINOR;
     time(&nsconf.boot_t);
     nsconf.pid = getpid();
     nsconf.home = getcwd(cwd, sizeof(cwd));
-
-    Tcl_InitHashTable(&nsconf.sections, TCL_STRING_KEYS);
-    Tcl_DStringInit(&nsconf.servers);
-    Tcl_InitHashTable(&nsconf.servertable, TCL_STRING_KEYS);
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsInitInfo --
- *
- *	Initialize the elements of the nsconf structure which may
- *	require Ns_Log to be initialized first.
- *
- * Results:
- *	None.
- *
- * Side effects:
- *	None.
- *
- *----------------------------------------------------------------------
- */
-
-void
-NsInitInfo(void)
-{
-    Ns_DString addr;
-
     if (gethostname(nsconf.hostname, sizeof(nsconf.hostname)) != 0) {
         strcpy(nsconf.hostname, "localhost");
     }
@@ -123,6 +96,26 @@ NsInitInfo(void)
         strcpy(nsconf.address, "0.0.0.0");
     }
     Ns_DStringFree(&addr);
+
+    /*
+     * Set various default values.
+     */
+
+    nsconf.shutdowntimeout = SHUTDOWNTIMEOUT;
+    nsconf.sched.maxelapsed = SCHED_MAXELAPSED;
+    nsconf.backlog = LISTEN_BACKLOG;
+    nsconf.http.major = HTTP_MAJOR;
+    nsconf.http.minor = HTTP_MINOR;
+    nsconf.tcl.lockoninit = TCL_INITLCK;
+    
+    /*
+     * At library load time the server is considered started. 
+     * Normally it's marked stopped immediately by Ns_Main unless
+     * libnsd is being used for some other, non-server program.
+     */
+     
+    Ns_MutexSetName(&nsconf.state.lock, "nsd:state");
+    nsconf.state.started = 1;
 }
 
 
@@ -146,123 +139,42 @@ NsInitInfo(void)
 void
 NsConfUpdate(void)
 {
-    int i;
+    int stacksize;
     Ns_DString ds;
     
-    NsUpdateEncodings();
-    NsUpdateMimeTypes();
-
     Ns_DStringInit(&ds);
-
-    /*
-     * libnsthread
-     */
-
-    if (!Ns_ConfigGetInt(NS_CONFIG_THREADS, "stacksize", &i)) {
-    	i = GetInt("stacksize", THREAD_STACKSIZE_INT);
-    }
-    Ns_ThreadStackSize(i);
-
-    /*
-     * log.c
-     */
-    
-    if (GetBool("logusec", LOG_USEC_BOOL)) {
-	nsconf.log.flags |= LOG_USEC;
-    }
-    if (GetBool("logroll", LOG_ROLL_BOOL)) {
-	nsconf.log.flags |= LOG_ROLL;
-    }
-    if (GetBool("logexpanded", LOG_EXPANDED_BOOL)) {
-	nsconf.log.flags |= LOG_EXPAND;
-    }
-    if (GetBool("debug", LOG_DEBUG_BOOL)) {
-	nsconf.log.flags |= LOG_DEBUG;
-    } else if (GetBool("logdebug", LOG_DEBUG_BOOL)) {
-        nsconf.log.flags |= LOG_DEBUG;
-    }
-    if (GetBool("logdev", LOG_DEV_BOOL)) {
-	nsconf.log.flags |= LOG_DEV;
-    }
-    if (!GetBool("lognotice", LOG_NOTICE_BOOL)) {
-	nsconf.log.flags |= LOG_NONOTICE;
-    }
-    nsconf.log.maxback  = GetInt("logmaxbackup", LOG_MAXBACK_INT);
-    nsconf.log.maxlevel = GetInt("logmaxlevel", LOG_MAXLEVEL_INT);
-    nsconf.log.maxbuffer  = GetInt("logmaxbuffer", LOG_MAXBUFFER_INT);
-    nsconf.log.flushint  = GetInt("logflushinterval", LOG_FLUSHINT_INT);
-    nsconf.log.file = Ns_ConfigGetValue(NS_CONFIG_PARAMETERS, "serverlog");
-    if (nsconf.log.file == NULL) {
-	nsconf.log.file = "server.log";
-    }
-    if (Ns_PathIsAbsolute(nsconf.log.file) == NS_FALSE) {
-	Ns_HomePath(&ds, "log", nsconf.log.file, NULL);
-	nsconf.log.file = Ns_DStringExport(&ds);
-    }
-
-    /*
-     * nsmain.c
-     */
-         
-    nsconf.shutdowntimeout = GetInt("shutdowntimeout", SHUTDOWNTIMEOUT);
-
-    /*
-     * sched.c
-     */
-
-    nsconf.sched.maxelapsed = GetInt("schedmaxelapsed", SCHED_MAXELAPSED_INT);
-
-    /*
-     * binder.c, win32.c
-     */
-
-    nsconf.backlog = GetInt("listenbacklog", BACKLOG);
-    
-    /*
-     * dns.c
-     */
-     
-    if (GetBool("dnscache", DNS_CACHE_BOOL)) {
-	int max = GetInt("dnscachemaxentries", DNS_MAX_ENTRIES);
-	i = GetInt("dnscachetimeout", DNS_TIMEOUT_INT);
-	if (max > 0 && i > 0) {
-	    i *= 60; /* NB: Config minutes, seconds internally. */
-	    NsEnableDNSCache(i, max);
-	}
-    }
-
-    /*
-     * keepalive.c
-     */
-     
-    nsconf.keepalive.timeout = GetInt("keepalivetimeout", KEEPALIVE_TIMEOUT_INT);
-    if (nsconf.keepalive.timeout > 0) {
-	nsconf.keepalive.enabled = 1;
-    }
-    nsconf.keepalive.maxkeep = GetInt("maxkeepalive", KEEPALIVE_MAXKEEP_INT);
-
-    /*
-     * tclinit.c
-     */
-     
     Ns_HomePath(&ds, "modules", "tcl", NULL);
     nsconf.tcl.sharedlibrary = Ns_DStringExport(&ds);
-    nsconf.tcl.lockoninit = GetBool("tclinitlock", TCL_INITLCK_BOOL);
 
-    Ns_DStringFree(&ds);
+    nsconf.shutdowntimeout = NsParamInt("shutdowntimeout", SHUTDOWNTIMEOUT);
+    nsconf.sched.maxelapsed = NsParamInt("schedmaxelapsed", SCHED_MAXELAPSED);
+    nsconf.backlog = NsParamInt("listenbacklog", LISTEN_BACKLOG);
+    nsconf.http.major = (unsigned) NsParamInt("httpmajor", HTTP_MAJOR);
+    nsconf.http.minor = (unsigned) NsParamInt("httpmajor", HTTP_MINOR);
+    nsconf.tcl.lockoninit = NsParamBool("tclinitlock", TCL_INITLCK);
+
+    if (!Ns_ConfigGetInt(NS_CONFIG_THREADS, "stacksize", &stacksize)) {
+    	stacksize = NsParamInt("stacksize", THREAD_STACKSIZE);
+    }
+    Ns_ThreadStackSize(stacksize);
+
+    NsEnableDNSCache();
+    NsUpdateEncodings();
+    NsUpdateMimeTypes();
 }
 
 
 /*
  *----------------------------------------------------------------------
  *
- * GetInt, GetBool --
+ * NsParamInt, NsParamBool, NsParamString --
  *
- *	Helper routines for getting int or bool config values, using
- *	default values if necessary.
+ *	Helper routines for getting int, bool, or string paramaters
+ *	from the ns/parameters config section, returning defaults
+ *	if no config is set.
  *
  * Results:
- *	Int value of 1/0 bool.
+ *	Config value or default.
  *
  * Side effects:
  *	None.
@@ -270,8 +182,8 @@ NsConfUpdate(void)
  *----------------------------------------------------------------------
  */
 
-static int
-GetInt(char *key, int def)
+int
+NsParamInt(char *key, int def)
 {
     int i;
 
@@ -281,8 +193,8 @@ GetInt(char *key, int def)
     return i;
 }
 
-static bool
-GetBool(char *key, int def)
+bool
+NsParamBool(char *key, int def)
 {
     int i;
 
@@ -290,4 +202,16 @@ GetBool(char *key, int def)
 	i = def;
     }
     return i;
+}
+
+char *
+NsParamString(char *key, char *def)
+{
+    char *val;
+
+    val = Ns_ConfigGet(NS_CONFIG_PARAMETERS, key);
+    if (val == NULL) {
+	val = def;
+    }
+    return val;
 }

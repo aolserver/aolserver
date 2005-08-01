@@ -34,7 +34,7 @@
  *      DNS lookup routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/dns.c,v 1.14 2005/07/21 13:51:29 shmooved Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/dns.c,v 1.15 2005/08/01 20:43:21 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -210,16 +210,25 @@ DnsGet(GetProc *getProc, Ns_DString *dsPtr, Ns_Cache **cachePtr, char *key, int 
  */
 
 void
-NsEnableDNSCache(int timeout, int maxentries)
+NsEnableDNSCache(void)
 {
+    int max, timeout;
+
     Ns_MutexSetName(&lock, "ns:dns");
-    Ns_MutexLock(&lock);
-    cachetimeout = timeout;
-    hostCache = Ns_CacheCreateSz("ns:dnshost", TCL_STRING_KEYS,
-	(size_t) maxentries, ns_free);
-    addrCache = Ns_CacheCreateSz("ns:dnsaddr", TCL_STRING_KEYS,
-	(size_t) maxentries, ns_free);
-    Ns_MutexUnlock(&lock);
+    if (NsParamBool("dnscache", 1)) {
+        max = NsParamInt("dnscachemaxentries", 100);
+        timeout = NsParamInt("dnscachetimeout", 60);
+        if (max > 0 && timeout > 0) {
+            timeout *= 60;	/* NB: Config minutes, seconds internally. */
+    	    Ns_MutexLock(&lock);
+    	    cachetimeout = timeout;
+    	    hostCache = Ns_CacheCreateSz("ns:dnshost", TCL_STRING_KEYS,
+					 (size_t) max, ns_free);
+	    addrCache = Ns_CacheCreateSz("ns:dnsaddr", TCL_STRING_KEYS,
+					 (size_t) max, ns_free);
+    	    Ns_MutexUnlock(&lock);
+	}
+    }
 }
 
 

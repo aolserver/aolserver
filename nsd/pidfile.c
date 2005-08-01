@@ -34,7 +34,7 @@
  *	Implement the PID file routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/pidfile.c,v 1.8 2003/03/07 18:08:32 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/pidfile.c,v 1.9 2005/08/01 20:48:09 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -89,16 +89,32 @@ NsRemovePidFile(char *procname)
     }
 }
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * GetFile --
+ *
+ *	Return the server process id file name.
+ *
+ * Results:
+ *	Pointer to filename in static string 
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
 static char *
 GetFile(char *procname)
 {
     static char *file;
+    Ns_DString ds;
     
     if (file == NULL) {
-    	file = Ns_ConfigGetValue(NS_CONFIG_PARAMETERS, "pidfile");
+    	file = NsParamString("pidfile", NULL);
 	if (file == NULL) {
-    	    Ns_DString ds;
-
 	    Ns_DStringInit(&ds);
 	    Ns_HomePath(&ds, "log/nspid.", NULL);
 	    Ns_DStringAppend(&ds, procname);
