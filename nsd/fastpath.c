@@ -34,7 +34,7 @@
  *      Get page possibly from a file cache.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/fastpath.c,v 1.23 2005/07/18 23:33:12 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/fastpath.c,v 1.24 2005/08/01 20:28:17 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -305,11 +305,12 @@ FastGetRestart(Ns_Conn *conn, char *page)
 int
 NsFastGet(void *arg, Ns_Conn *conn)
 {
-    Ns_DString      ds;
-    NsServer  	   *servPtr = arg;
+    Conn	   *connPtr = (Conn *) conn;
+    NsServer  	   *servPtr = connPtr->servPtr;
     char	   *url = conn->request->url;
-    int             result, i;
+    Ns_DString      ds;
     struct stat	    st;
+    int             result, i;
 
     Ns_DStringInit(&ds);
     if (NsUrlToFile(&ds, servPtr, url) != NS_OK
