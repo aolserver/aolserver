@@ -33,7 +33,7 @@
  *	ADP string and file eval.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.37 2005/08/01 22:28:43 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.38 2005/08/01 22:32:41 shmooved Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -1198,8 +1198,8 @@ AdpTrace(NsInterp *itPtr, char *ptr, int len)
 	type = 'S';
 	len = -len;
     }
-    if (len > 40) {
-	len = 40;
+    if (len > itPtr->servPtr->adp.tracesize) {
+	len = itPtr->servPtr->adp.tracesize;
     }
     Ns_Log(Notice, "adp[%d%c]: %.*s", itPtr->adp.depth, type, len, ptr);
 }

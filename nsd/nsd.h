@@ -678,6 +678,7 @@ typedef struct NsServer {
 	char	    	   *debuginit;
 	size_t		    bufsize;
 	size_t		    cachesize;
+	size_t		    tracesize;
 	Ns_Cond	    	    pagecond;
 	Ns_Mutex	    pagelock;
 	Tcl_HashTable       pages;

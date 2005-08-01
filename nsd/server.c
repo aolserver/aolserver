@@ -33,7 +33,7 @@
  *	Routines for managing NsServer structures.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.38 2005/08/01 20:29:17 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.39 2005/08/01 22:32:41 shmooved Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -479,6 +479,10 @@ CreateServer(char *server)
     if (servPtr->adp.debuginit == NULL) {
     	servPtr->adp.debuginit = "ns_adp_debuginit";
     }
+    if (!Ns_ConfigGetInt(path, "tracesize", &i)) {
+        i = 40;
+    }
+    servPtr->adp.tracesize = i;
     if (!Ns_ConfigGetInt(path, "cachesize", &i)) {
 	i = 5 * 1024 * 1000;
     }
