@@ -33,7 +33,7 @@
  *	Routines for managing NsServer structures.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.37 2005/07/18 23:33:29 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.38 2005/08/01 20:29:17 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -41,14 +41,68 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
  * Static functions defined in this file. 
  */
 
-static void GetCharsetEncoding(char *path, char *config, char **charsetPtr,
+static void GetCharsetEncoding(char *path, char *key, char **charsetPtr,
 		   	       Tcl_Encoding *encodingPtr);
+static NsServer *CreateServer(char *server);
+static void RegisterMaps(char *server, char *type, Ns_OpProc *proc);
+static void RegisterMap(char *server, char *type, char *map, Ns_OpProc *proc);
 
 /*
  * Static variables defined in this file. 
  */
 
-static NsServer *initServPtr; /* Holds currently initializing server. */
+static Tcl_HashTable servers;	/* Table of all virtual servers. */
+static Tcl_DString serverlist;	/* Tcl list of all virtual servers. */
+static NsServer *initPtr;	/* Pointer to server being initialized. */
+static NsServer *globalPtr;	/* Pointer to global pseudo-server. */
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsGetServers --
+ *
+ *	Return Tcl list of all servers.
+ *
+ * Results:
+ *	Pointer to server list string.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+char *
+NsGetServers(void)
+{
+    return serverlist.string;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsInitServers --
+ *
+ *	Server data structures library init.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	Allocates the global pseudo-server.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+NsInitServers(void)
+{
+    Tcl_DStringInit(&serverlist);
+    Tcl_InitHashTable(&servers, TCL_STRING_KEYS);
+    globalPtr = CreateServer(NULL);
+}
 
 
 /*
@@ -71,14 +125,17 @@ NsServer *
 NsGetServer(char *server)
 {
     Tcl_HashEntry *hPtr;
+    NsServer *servPtr = NULL;
 
-    if (server != NULL) {
-    	hPtr = Tcl_FindHashEntry(&nsconf.servertable, server);
+    if (server == NULL) {
+	servPtr = globalPtr;
+    } else {
+	hPtr = Tcl_FindHashEntry(&servers, server);
 	if (hPtr != NULL) {
-	    return Tcl_GetHashValue(hPtr);
+	    servPtr = Tcl_GetHashValue(hPtr);
 	}
     }
-    return NULL;
+    return servPtr;
 }
 
 
@@ -101,7 +158,7 @@ NsGetServer(char *server)
 NsServer *
 NsGetInitServer(void)
 {
-    return initServPtr;
+    return initPtr;
 }
 
 
@@ -110,13 +167,13 @@ NsGetInitServer(void)
  *
  * NsInitServer --
  *
- *	Initialize a virtual server and all its crazy state.
+ *	Create and initialize a new virtual server.
  *
  * Results:
  *	None.
  *
  * Side effects:
- *	Server will later be started.
+ *	Depends on resulting Tcl and module inits.
  *
  *----------------------------------------------------------------------
  */
@@ -124,36 +181,79 @@ NsGetInitServer(void)
 void
 NsInitServer(char *server, Ns_ServerInitProc *initProc)
 {
-    Tcl_Encoding outputEncoding;
     Tcl_HashEntry *hPtr;
+    NsServer *servPtr;
+    int new;
+
+    hPtr = Tcl_CreateHashEntry(&servers, server, &new);
+    if (!new) {
+	Ns_Log(Error, "duplicate server: %s", server);
+	return;
+    }
+    servPtr = CreateServer(server);
+    Tcl_SetHashValue(hPtr, servPtr);
+    Tcl_DStringAppendElement(&serverlist, server);
+
+    /*
+     * Register the fastpath and ADP requests.  Fastpath is
+     * register by default for all URL's.
+     */
+
+    RegisterMap(server, "fastpath", "/", NsFastGet);
+    RegisterMaps(server, "fastpath", NsFastGet);
+    RegisterMaps(server, "adp", NsAdpProc);
+
+    /*
+     * Call the given init proc, if any, which may register
+     * additional static modules and then load all dynamic and static
+     * modules and initialize Tcl.  The order is significant.
+     */
+
+    initPtr = servPtr;
+    if (initProc != NULL) {
+	(*initProc)(server);
+    }
+    NsLoadModules(server);
+    NsTclInitServer(server);
+    initPtr = NULL;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * CreateServer --
+ *
+ *	Create a new server with all its crazy state.
+ *
+ * Results:
+ *	Pointer to NsServer.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static NsServer *
+CreateServer(char *server)
+{
+    Tcl_Encoding outputEncoding;
     Ns_DString ds;
     NsServer *servPtr;
     char *path, *spath, *map, *key, *dirf, *p;
     Ns_Set *set;
-    int i, j, n, status;
+    int i, n, status;
 
-    hPtr = Tcl_CreateHashEntry(&nsconf.servertable, server, &n);
-    if (!n) {
-	Ns_Log(Error, "duplicate server: %s", server);
-	return;
-    }
-    Tcl_DStringAppendElement(&nsconf.servers, server);   
-    servPtr = ns_calloc(1, sizeof(NsServer));
-    Tcl_SetHashValue(hPtr, servPtr);
-    initServPtr = servPtr;
-
-    /*
-     * Create a new NsServer.
-     */
-     
     Ns_DStringInit(&ds);
-    spath = path = Ns_ConfigGetPath(server, NULL, NULL);
+    servPtr = ns_calloc(1, sizeof(NsServer));
     servPtr->server = server;
 
     /*
      * Set some server options.
      */
      
+    spath = path = Ns_ConfigGetPath(server, NULL, NULL);
     servPtr->opts.flags = 0;
     servPtr->opts.realm = Ns_ConfigGetValue(path, "realm");
     if (servPtr->opts.realm == NULL) {
@@ -230,10 +330,12 @@ NsInitServer(char *server, Ns_ServerInitProc *initProc)
     }
     
     /*
-     * Initialize Tcl.
+     * Initialize Tcl module config support.
      */
      
     path = Ns_ConfigGetPath(server, NULL, "tcl", NULL);
+    Tcl_DStringInit(&servPtr->tcl.modules);
+    Ns_RWLockInit(&servPtr->tcl.lock);
     servPtr->tcl.library = Ns_ConfigGetValue(path, "library");
     if (servPtr->tcl.library == NULL) {
 	Ns_ModulePath(&ds, server, "tcl", NULL);
@@ -244,9 +346,11 @@ NsInitServer(char *server, Ns_ServerInitProc *initProc)
 	Ns_HomePath(&ds, "bin", "init.tcl", NULL);
 	servPtr->tcl.initfile = Ns_DStringExport(&ds);
     }
-    servPtr->tcl.modules = Tcl_NewObj();
-    Tcl_IncrRefCount(servPtr->tcl.modules);
-    Ns_RWLockInit(&servPtr->tcl.lock);
+
+    /*
+     * Initialize Tcl shared variables, sets, and channels interfaces.
+     */
+     
     if (!Ns_ConfigGetInt(path, "nsvbuckets", &n) || n < 1) {
 	n = 8;
     }
@@ -256,13 +360,9 @@ NsInitServer(char *server, Ns_ServerInitProc *initProc)
     Tcl_InitHashTable(&servPtr->share.vars, TCL_STRING_KEYS);
     Ns_MutexSetName2(&servPtr->share.lock, "nstcl:share", server);
     Tcl_InitHashTable(&servPtr->var.table, TCL_STRING_KEYS);
+    Ns_MutexSetName2(&servPtr->var.lock, "nstcl:var", server);
     Tcl_InitHashTable(&servPtr->sets.table, TCL_STRING_KEYS);
     Ns_MutexSetName2(&servPtr->sets.lock, "nstcl:sets", server);
-
-    /*
-     * Initialize the Tcl detached channel support.
-     */
-
     Tcl_InitHashTable(&servPtr->chans.table, TCL_STRING_KEYS);
     Ns_MutexSetName2(&servPtr->chans.lock, "nstcl:chans", server);
 
@@ -279,7 +379,7 @@ NsInitServer(char *server, Ns_ServerInitProc *initProc)
 	    i = n / 10;
 	}
 	servPtr->fastpath.cachemaxentry = i;
-    	servPtr->fastpath.cache =  NsFastpathCache(server, n);
+    	servPtr->fastpath.cache = NsFastpathCache(server, n);
     }
     if (!Ns_ConfigGetBool(path, "mmap", &servPtr->fastpath.mmap)) {
     	servPtr->fastpath.mmap = 0;
@@ -347,17 +447,9 @@ NsInitServer(char *server, Ns_ServerInitProc *initProc)
     }
 
     /*
-     * Register the fastpath requests.
-     */
-     
-    Ns_RegisterRequest(server, "GET", "/", NsFastGet, NULL, servPtr, 0);
-    Ns_RegisterRequest(server, "HEAD", "/", NsFastGet, NULL, servPtr, 0);
-    Ns_RegisterRequest(server, "POST", "/", NsFastGet, NULL, servPtr, 0);
-
-    /*
      * Initialize ADP.
      */
-     
+
     path = Ns_ConfigGetPath(server, NULL, "adp", NULL);
     servPtr->adp.errorpage = Ns_ConfigGetValue(path, "errorpage");
     servPtr->adp.startpage = Ns_ConfigGetValue(path, "startpage");
@@ -380,25 +472,24 @@ NsInitServer(char *server, Ns_ServerInitProc *initProc)
     if (Ns_ConfigGetBool(path, "trace", &i) && i) {
     	servPtr->adp.flags |= ADP_TRACE;
     }
+    if (!Ns_ConfigGetBool(path, "errordetail", &i) || i) {
+    	servPtr->adp.flags |= ADP_DETAIL;
+    }
     servPtr->adp.debuginit = Ns_ConfigGetValue(path, "debuginit");
     if (servPtr->adp.debuginit == NULL) {
     	servPtr->adp.debuginit = "ns_adp_debuginit";
     }
-    servPtr->adp.defaultparser = Ns_ConfigGetValue(path, "defaultparser");
-    if (servPtr->adp.defaultparser == NULL) {
-    	servPtr->adp.defaultparser = "adp";
+    if (!Ns_ConfigGetInt(path, "cachesize", &i)) {
+	i = 5 * 1024 * 1000;
     }
-    if (!Ns_ConfigGetInt(path, "cachesize", &n)) {
-	n = 5 * 1024 * 1000;
+    servPtr->adp.cachesize = i;
+    if (!Ns_ConfigGetInt(path, "bufsize", &i)) {
+	i = 1 * 1024 * 1000;
     }
-    servPtr->adp.cachesize = n;
-    if (!Ns_ConfigGetInt(path, "bufsize", &n)) {
-	n = 1 * 1024 * 1000;
-    }
-    servPtr->adp.bufsize = n;
+    servPtr->adp.bufsize = i;
 
     /*
-     * Initialize the page and tag tables and locks.
+     * Initialize the ADP page and tag tables and locks.
      */
 
     Tcl_InitHashTable(&servPtr->adp.pages, FILE_KEYS);
@@ -408,59 +499,7 @@ NsInitServer(char *server, Ns_ServerInitProc *initProc)
     Tcl_InitHashTable(&servPtr->adp.tags, TCL_STRING_KEYS);
     Ns_RWLockInit(&servPtr->adp.taglock);
 
-    /*
-     * Register ADP for any requested URLs.
-     */
-
-    set = Ns_ConfigGetSection(path);
-    for (i = 0; set != NULL && i < Ns_SetSize(set); ++i) {
-	char **largv;
-	int largc, ttl;
-	Ns_Time *ttlPtr;
-	char *methods[] = {"GET", "HEAD", "POST"};
-
-	key = Ns_SetKey(set, i);
-	if (!strcasecmp(key, "map")) {
-	    map = Ns_SetValue(set, i);
-	    if (Tcl_SplitList(NULL, map, &largc, &largv) == TCL_OK) {
-		if (largc == 1) {
-		    ttlPtr = NULL;
-		} else {
-		    if (largc != 2 ||
-			Tcl_GetInt(NULL, largv[1], &ttl) != TCL_OK) {
-		    	Ns_Log(Error, "adp[%s]: invalid map: %s", server, map);
-		    	continue;
-		    }
-		    ttlPtr = ns_malloc(sizeof(Ns_Time));
-		    ttlPtr->sec = ttl;
-		    ttlPtr->usec = 0;
-		}
-		for (j = 0; j < 3; ++j) {
-	    	    Ns_RegisterRequest(server, methods[j], largv[0],
-					NsAdpProc, NULL, ttlPtr, 0);
-		}
-	    	Ns_Log(Notice, "adp[%s]: mapped %s %d", server, map, ttl);
-		Tcl_Free((char *) largv);
-	    }
-	}
-    }
-
-    /*
-     * Call the static server init proc, if any, which may register
-     * static modules.
-     */
-    
-    if (initProc != NULL) {
-	(*initProc)(server);
-    }
-
-    /*
-     * Load modules and initialize Tcl.  The order is significant.
-     */
-
-    NsLoadModules(server);
-    NsTclInitServer(server);
-    initServPtr = NULL;
+    return servPtr;
 }
 
 
@@ -469,7 +508,7 @@ NsInitServer(char *server, Ns_ServerInitProc *initProc)
  *
  * GetCharsetEncoding --
  *
- *	Get the charset and/or encoding for given server config.
+ *	Get the charset and/or encoding for given server config key.
  *	Will use process-wide config if no server config is present.
  *
  * Results:
@@ -482,29 +521,120 @@ NsInitServer(char *server, Ns_ServerInitProc *initProc)
  */
 
 static void
-GetCharsetEncoding(char *path, char *config, char **charsetPtr,
+GetCharsetEncoding(char *path, char *key, char **charsetPtr,
 		   Tcl_Encoding *encodingPtr)
 {
-    Tcl_Encoding encoding;
+    Tcl_Encoding encoding = NULL;
     char *charset;
 
-    charset = Ns_ConfigGetValue(path, config);
+    charset = Ns_ConfigGetValue(path, key);
     if (charset == NULL) {
-	charset = Ns_ConfigGetValue(NS_CONFIG_PARAMETERS, config);
+	charset = NsParamString(key, NULL);
     }
-    if (charset == NULL) {
-	Ns_Log(Warning, "missing charset: %s[%s]", path, config);
-	encoding = NULL;
-    } else {
+    if (charset != NULL) {
 	encoding = Ns_GetCharsetEncoding(charset);
-	if (encoding == NULL) {
-	    Ns_Log(Warning, "no encoding for charset: %s", charset);
-	}
     }
     if (charsetPtr != NULL) {
     	*charsetPtr = charset;
     }
     if (encodingPtr != NULL) {
 	*encodingPtr = encoding;
+    }
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * RegisterMaps --
+ *
+ *	Register requests for all "map" config lines in given
+ *	config path.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	See RegisterMap.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+RegisterMaps(char *server, char *type, Ns_OpProc *proc)
+{
+    char *path, *key;
+    Ns_Set *set;
+    int i;
+
+    path = Ns_ConfigGetPath(server, NULL, type, NULL);
+    set = Ns_ConfigGetSection(path);
+    for (i = 0; set != NULL && i < Ns_SetSize(set); ++i) {
+	key = Ns_SetKey(set, i);
+	if (!strcasecmp(key, "map")) {
+	    RegisterMap(server, type, Ns_SetValue(set, i), proc);
+	}
+    }
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * RegisterMap --
+ *
+ *	Register requests for a given "map" config line.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	Server will process requests for given URL and standard
+ *	methods with given proc.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+RegisterMap(char *server, char *type, char *map, Ns_OpProc *proc)
+{
+    static char *methods[] = {"GET", "HEAD", "POST", NULL};
+    static int nmethods = 3;
+    char **largv;
+    int largc, ttl, i, skip;
+    Ns_Time *ttlPtr;
+
+    /*
+     * Split the map line which is either a single element for an
+     * URL pattern or two elements, URL followed by time to live.
+     */
+ 
+    if (Tcl_SplitList(NULL, map, &largc, &largv) == TCL_OK) {
+	skip = 0;
+	if (largc == 1) {
+	    ttlPtr = NULL;
+	} else {
+	    if (largc != 2 || Tcl_GetInt(NULL, largv[1], &ttl) != TCL_OK) {
+		Ns_Log(Error, "adp[%s]: invalid map: %s", server, map);
+		skip = 1;
+	    } else {
+	    	ttlPtr = ns_malloc(sizeof(Ns_Time));
+	    	ttlPtr->sec = ttl;
+	    	ttlPtr->usec = 0;
+	    }
+	}
+	if (!skip) {
+	    /*
+	     * Register the request for the default methods.
+	     */
+
+	    for (i = 0; i < nmethods; ++i) {
+		Ns_RegisterRequest(server, methods[i], largv[0], proc,
+				   ns_free, ttlPtr, 0);
+	    	Ns_Log(Notice, "%s[%s]: mapped %s %s", type, server,
+		       methods[i], map);
+	    }
+	}
+	Tcl_Free((char *) largv);
     }
 }
