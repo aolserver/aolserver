@@ -33,7 +33,7 @@
  *	ADP string and file eval.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.35 2005/08/01 20:27:22 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.36 2005/08/01 21:03:47 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -859,7 +859,7 @@ AdpLogError(NsInterp *itPtr)
     Ns_DStringPrintf(&ds, "\n    at line %d in ",
 		     framePtr->line + interp->errorLine);
     while (framePtr != NULL) {
-	Ns_DStringPrintf(&ds, "adp %.40s", Tcl_GetString(framePtr->objv[0]));
+	Ns_DStringPrintf(&ds, "adp %s", Tcl_GetString(framePtr->objv[0]));
 	framePtr = framePtr->prevPtr;
 	if (framePtr != NULL) {
 	    Ns_DStringAppend(&ds, "\n    included from ");
