@@ -33,7 +33,7 @@
  *	ADP string and file eval.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.36 2005/08/01 21:03:47 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.37 2005/08/01 22:28:43 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -667,6 +667,8 @@ PushFrame(NsInterp *itPtr, AdpFrame *framePtr, char *file, int objc,
     framePtr->objv = objv;
     framePtr->outputPtr = outputPtr;
     framePtr->prevPtr = itPtr->adp.framePtr;
+    framePtr->ident = NULL;
+    framePtr->file = file;
     Ns_DStringInit(&framePtr->cwdbuf);
     framePtr->savecwd = itPtr->adp.cwd;
     if (file != NULL && (slash = strrchr(file, '/')) != NULL) {
@@ -708,8 +710,14 @@ PopFrame(NsInterp *itPtr)
     AdpFrame *framePtr;
 
     framePtr = itPtr->adp.framePtr;
-    itPtr->adp.framePtr = framePtr->prevPtr;;
+    itPtr->adp.framePtr = framePtr->prevPtr;
+    framePtr->prevPtr = NULL;
     itPtr->adp.cwd = framePtr->savecwd;
+    framePtr->savecwd = NULL;
+    if (framePtr->ident != NULL) {
+	Tcl_DecrRefCount(framePtr->ident);
+	framePtr->ident = NULL;
+    }
     Ns_DStringFree(&framePtr->cwdbuf);
     if (--itPtr->adp.depth == 0) {
 	NsAdpFlush(itPtr, 0);
@@ -851,26 +859,32 @@ AdpLogError(NsInterp *itPtr)
     Ns_DString ds;
     Tcl_Obj *objv[2];
     AdpFrame *framePtr;
-    char *file;
+    char *file, *inc;
     int i;
     
     framePtr = itPtr->adp.framePtr;
     Ns_DStringInit(&ds);
-    Ns_DStringPrintf(&ds, "\n    at line %d in ",
+    Ns_DStringPrintf(&ds, "\n    at line %d of adp:",
 		     framePtr->line + interp->errorLine);
+    inc = "";
     while (framePtr != NULL) {
-	Ns_DStringPrintf(&ds, "adp %s", Tcl_GetString(framePtr->objv[0]));
-	framePtr = framePtr->prevPtr;
-	if (framePtr != NULL) {
-	    Ns_DStringAppend(&ds, "\n    included from ");
+	file = framePtr->file;
+	if (file == NULL) {
+	    file = "<inline script>";
 	}
+	Ns_DStringPrintf(&ds, "\n        %s%s", inc, file);
+	inc = "included from: ";
+	if (framePtr->ident != NULL) {
+	    Ns_DStringPrintf(&ds, " {%s}", Tcl_GetString(framePtr->ident));
+	}
+	framePtr = framePtr->prevPtr;
     }
     if (conn != NULL && (itPtr->servPtr->adp.flags & ADP_DETAIL)) {
 	Ns_DStringPrintf(&ds, "\n    while processing connection #%d:\n%8s%s",
 			 Ns_ConnId(conn), "",
 			 conn->request->line);
 	for (i = 0; i < Ns_SetSize(conn->headers); ++i) {
-	    Ns_DStringPrintf(&ds, "\n%8s%s: %s", "",
+	    Ns_DStringPrintf(&ds, "\n        %s: %s",
 			     Ns_SetKey(conn->headers, i),
 			     Ns_SetValue(conn->headers, i));
 	}
@@ -920,6 +934,10 @@ AdpEval(NsInterp *itPtr, AdpCode *codePtr, Objs *objsPtr)
     int nscript, nblocks, result, len, i;
     char *ptr;
 
+    if (Ns_CheckStack() != NS_OK) {
+	Tcl_SetResult(interp, "stack overflow", TCL_STATIC);
+	return TCL_ERROR;
+    }
     ptr = AdpCodeText(codePtr);
     nblocks = AdpCodeBlocks(codePtr);
     nscript = 0;
