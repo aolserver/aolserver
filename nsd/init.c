@@ -33,7 +33,7 @@
  *	AOLserver libnsd entry.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/init.c,v 1.10 2005/07/18 23:36:03 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/init.c,v 1.11 2005/08/01 20:28:38 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -45,7 +45,6 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
  *
  *	Library entry point for libnsd.  This routine calls various
  *	data structure initialization functions throughout the core.
- *	Order of the initialization calls is significant.
  *
  * Results:
  	None.
@@ -63,26 +62,42 @@ NsdInit(void)
 
     if (!once) {
 	once = 1;
+
+	/*
+	 * Log must be initialized first in case later inits log messages.
+	 */
+
+	NsInitFd();
+    	NsInitLog();
+
+	/*
+	 * Caches and URL space are used by some of the remaining inits.
+	 */
+
+    	NsInitCache();
+    	NsInitUrlSpace();
+
+	/*
+	 * Order of the remaining inits is not significant.
+	 */
+
 #ifndef _WIN32
     	NsInitBinder();
 #endif
-    	NsInitCache();
     	NsInitConf();
+    	NsInitConfig();
+    	NsInitDrivers();
     	NsInitEncodings();
-	NsInitFd();
+        NsInitLimits();
     	NsInitListen();
-    	NsInitLog();
-	NsInitInfo();
     	NsInitMimeTypes();
     	NsInitModLoad();
-    	NsInitProcInfo();
-    	NsInitDrivers();
-    	NsInitUrlSpace();
-    	NsInitQueue();
-        NsInitLimits();
         NsInitPools();
-    	NsInitSched();
-    	NsInitTcl();
+    	NsInitProcInfo();
+    	NsInitQueue();
     	NsInitRequests();
+    	NsInitSched();
+    	NsInitServers();
+    	NsInitTcl();
     }
 }
