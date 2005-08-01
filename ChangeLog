@@ -1,3 +1,19 @@
+2005-08-01  Nathan Folkman <shmooved@aol.com>
+
+        * nsd/adpeval.c:
+        * nsd/nsd.h:
+        * nsd/server.c: Added new configurable option which allows
+        you to specify the max size (in characters) of the ADP
+        trace output. If not specified, a default of 40 characters
+        will be used. 
+
+        Example:
+
+        ns_section "ns/server/server1/adp"
+            ns_param trace true
+            ns_param tracesize 80 
+
+
 2005-08-01  Jim Davidson <jgdavidson@aol.com>
 
 	Quite a few changes, mostly to enable all commands to run
