@@ -33,7 +33,7 @@
  *	ADP string and file eval.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.34 2005/07/18 23:32:12 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.35 2005/08/01 20:27:22 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -91,43 +91,20 @@ typedef struct InterpPage {
 } InterpPage;
 
 /*
- * The following structure maintains an ADP call frame.  PushFrame
- * is used to save the previous state of the per-thread NsInterp
- * structure in a Frame allocated on the stack and PopFrame restores
- * the previous state from the Frame.
- */
-
-typedef struct Frame {
-    int                objc;
-    Tcl_Obj          **objv;
-    char              *cwd;
-    Ns_DString         cwdBuf;
-    Tcl_DString	      *outputPtr;
-} Frame;
-
-
-/*
- * Constants to support construction of evaluation error messages
- */
-#define ADPEVAL_MAX_SCRIPT_TEXT 150
-#define ADPEVAL_ELIPSIS_LEN     3
-
-
-/*
  * Local functions defined in this file.
  */
 
 static Page *ParseFile(NsInterp *itPtr, char *file, struct stat *stPtr);
-static void PushFrame(NsInterp *itPtr, Frame *framePtr, char *file, 
-		      int objc, Tcl_Obj *objv[], Tcl_DString *outputPtr);
-static void PopFrame(NsInterp *itPtr, Frame *framePtr);
-static void AdpLogError(NsInterp *itPtr, int nscript);
+static void AdpLogError(NsInterp *itPtr);
 static int AdpSource(NsInterp *itPtr, int objc, Tcl_Obj *objv[],
 		char *resvar, int safe, int file);
 static int AdpRun(NsInterp *itPtr, char *file, int objc, Tcl_Obj *objv[],
 		Tcl_DString *outputPtr, Ns_Time *ttlPtr);
 static int AdpEval(NsInterp *itPtr, AdpCode *codePtr, Objs *objsPtr);
 static int AdpDebug(NsInterp *itPtr, char *ptr, int len, int nscript);
+static void PushFrame(NsInterp *itPtr, AdpFrame *framePtr, char *file, int objc,
+	  	      Tcl_Obj *objv[], Tcl_DString *outputPtr);
+static void PopFrame(NsInterp *itPtr);
 static void DecrCache(AdpCache *cachePtr);
 static Objs *AllocObjs(int nobjs);
 static void FreeObjs(Objs *objsPtr);
@@ -187,40 +164,48 @@ int
 NsAdpInclude(NsInterp *itPtr, char *file, int objc, Tcl_Obj *objv[],
 		Ns_Time *ttlPtr)
 {
-    Tcl_DString *dsPtr;
+    Tcl_DString *dsPtr = &itPtr->adp.output;
 
-    /*
-     * Direct output to the current ADP output buffer.
-     */
-
-    if (NsAdpGetBuf(itPtr, &dsPtr) != TCL_OK) {
-	return TCL_ERROR;
-    }
     return AdpRun(itPtr, file, objc, objv, dsPtr, ttlPtr);
 }
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * AdpSource --
+ *
+ *	Evaluate ADP code, either in a string or file, with the output
+ *	returned as the interp result.
+ *
+ * Results:
+ *	Tcl result from AdpRun or AdpEval.
+ *
+ * Side effects:
+ *	Variable named by resvar, if any, is updated with results of
+ *	Tcl interp before being replaced with ADP output.
+ *
+ *----------------------------------------------------------------------
+ */
 
 static int
 AdpSource(NsInterp *itPtr, int objc, Tcl_Obj *objv[], char *resvar,
 	  int safe, int file)
 {
+    Tcl_Interp	     *interp;
     AdpCode	      code;
-    Frame             frame;
+    AdpFrame          frame;
     Tcl_DString       output;
+    Tcl_Obj	     *objPtr;
     int               result;
     char	     *obj0;
     
     /*
      * Push a frame, execute the code, and then move any result to the
-     * interp from the local output buffer.  If we are not acting
-     * within a context which has set up the adp output buffer,
-     * hook responsePtr to a local buffer.
+     * interp from the local output buffer.
      */
 
     Tcl_DStringInit(&output);
-    if (itPtr->adp.responsePtr == NULL) {
-        itPtr->adp.responsePtr = &output;
-    }
     obj0 = Tcl_GetString(objv[0]);
     if (file) {
     	result = AdpRun(itPtr, obj0, objc, objv, &output, 0);
@@ -228,11 +213,8 @@ AdpSource(NsInterp *itPtr, int objc, Tcl_Obj *objv[], char *resvar,
     	PushFrame(itPtr, &frame, NULL, objc, objv, &output);
     	NsAdpParse(&code, itPtr->servPtr, obj0, safe ? ADP_SAFE : 0);
     	result = AdpEval(itPtr, &code, NULL);
-    	PopFrame(itPtr, &frame);
+    	PopFrame(itPtr);
     	NsAdpFreeCode(&code);
-    }
-    if (itPtr->adp.responsePtr == &output) {
-        itPtr->adp.responsePtr = NULL;
     }
     if (result == TCL_OK) {
         /*
@@ -240,17 +222,39 @@ AdpSource(NsInterp *itPtr, int objc, Tcl_Obj *objv[], char *resvar,
          * then save the interp's result there prior to overwritting it.
          */
 
-        if (resvar != NULL && Tcl_SetVar2Ex(itPtr->interp, resvar, NULL,
-            	Tcl_GetObjResult(itPtr->interp), TCL_LEAVE_ERR_MSG) == NULL) {
+	interp = itPtr->interp;
+	objPtr = Tcl_GetObjResult(interp);
+        if (resvar != NULL && Tcl_SetVar2Ex(interp, resvar, NULL, objPtr,
+					    TCL_LEAVE_ERR_MSG) == NULL) {
             result = TCL_ERROR;
         } else { 
-	    Tcl_DStringResult(itPtr->interp, &output);
+	    objPtr = Tcl_NewStringObj(output.string, output.length);
+	    Tcl_SetObjResult(interp, objPtr);
 	}
     }
     Tcl_DStringFree(&output);
     return result;
 }
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * AdpRun --
+ *
+ *	Execute ADP code in a file with results returned in given
+ *	dstring.
+ *
+ * Results:
+ *	TCL_OK if file could be parsed and executated, TCL_ERROR otherwise.
+ *	Note the result of the scripts executed is ignored.
+ *
+ * Side effects:
+ *	Page text and ADP code results may be cached up to given time
+ *	limit, if any.
+ *
+ *----------------------------------------------------------------------
+ */
 
 static int
 AdpRun(NsInterp *itPtr, char *file, int objc, Tcl_Obj *objv[],
@@ -261,7 +265,7 @@ AdpRun(NsInterp *itPtr, char *file, int objc, Tcl_Obj *objv[],
     Tcl_HashEntry *hPtr;
     struct stat st;
     Ns_DString tmp, path;
-    Frame frame;
+    AdpFrame frame;
     InterpPage *ipagePtr;
     Page *pagePtr, *oldPagePtr;
     AdpCache *cachePtr;
@@ -285,14 +289,11 @@ AdpRun(NsInterp *itPtr, char *file, int objc, Tcl_Obj *objv[],
      * Construct the full, normalized path to the ADP file.
      */
 
-    if (Ns_PathIsAbsolute(file)) {
-	Ns_NormalizePath(&path, file);
-    } else {
-	Ns_MakePath(&tmp, itPtr->adp.cwd, file, NULL);
-	Ns_NormalizePath(&path, tmp.string);
-	Ns_DStringTrunc(&tmp, 0);
+    if (!Ns_PathIsAbsolute(file)) {
+	file = Ns_MakePath(&tmp, itPtr->adp.cwd, file, NULL);
     }
-    file = path.string;
+    file = Ns_NormalizePath(&path, file);
+    Ns_DStringTrunc(&tmp, 0);
 
     /*
      * Check for TclPro debugging.
@@ -320,7 +321,7 @@ AdpRun(NsInterp *itPtr, char *file, int objc, Tcl_Obj *objv[],
     }
 
     if (itPtr->adp.cache == NULL) {
-	Ns_DStringPrintf(&tmp, "nsadp:%s:%p", itPtr->servPtr->server, itPtr);
+	Ns_DStringPrintf(&tmp, "nsadp:%p", itPtr);
 #ifdef _WIN32
 	itPtr->adp.cache = Ns_CacheCreateSz(tmp.string, TCL_STRING_KEYS,
 				itPtr->servPtr->adp.cachesize, FreeInterpPage);
@@ -476,7 +477,7 @@ AdpRun(NsInterp *itPtr, char *file, int objc, Tcl_Obj *objv[],
 		++itPtr->adp.refresh;
 		status = AdpEval(itPtr, codePtr, ipagePtr->objs);
 		--itPtr->adp.refresh;
-    		PopFrame(itPtr, &frame);
+    		PopFrame(itPtr);
 		cachePtr = ns_malloc(sizeof(AdpCache));
 		NsAdpParse(&cachePtr->code, itPtr->servPtr, buf.string, 0);
 		Ns_DStringFree(&buf);
@@ -513,7 +514,7 @@ AdpRun(NsInterp *itPtr, char *file, int objc, Tcl_Obj *objv[],
 	}
     	PushFrame(itPtr, &frame, file, objc, objv, outputPtr);
 	status = AdpEval(itPtr, codePtr, objsPtr);
-    	PopFrame(itPtr, &frame);
+    	PopFrame(itPtr);
 	Ns_MutexLock(&servPtr->adp.pagelock);
 	++ipagePtr->pagePtr->evals;
 	if (cachePtr != NULL) {
@@ -573,13 +574,12 @@ NsAdpDebug(NsInterp *itPtr, char *host, char *port, char *procs)
 	}
 
 	/*
-	 * Link the ADP response buffer result to a global variable
+	 * Link the ADP output buffer result to a global variable
 	 * which can be monitored with a variable watch.
 	 */
 
-	if (itPtr->adp.responsePtr != NULL &&
-	    Tcl_LinkVar(interp, "ns_adp_output",
-			(char *) &itPtr->adp.responsePtr->string,
+	if (Tcl_LinkVar(interp, "ns_adp_output",
+			(char *) &itPtr->adp.output.string,
 		TCL_LINK_STRING | TCL_LINK_READ_ONLY) != TCL_OK) {
 	    Ns_TclLogError(interp);
 	}
@@ -649,45 +649,38 @@ NsTclAdpStatsCmd(ClientData arg, Tcl_Interp *interp, int argc, char **argv)
  *	None.
  *
  * Side effects:
- *	The given Frame is initialized, the current working directory
- *	is determined from the absolute filename (if not NULL), the
- *	previous state of the per-thread NsInterp structure is saved
- *	and then updated with the current call's arguments.
+ *	The given AdpFrame is initialized with the current context,
+ *	constructing a new current working directory from the given
+ *	filename if not NULL.  If this is the first frame on the stack,
+ *	ADP options are set to their defaults.
  *
  *----------------------------------------------------------------------
  */
 
 static void
-PushFrame(NsInterp *itPtr, Frame *framePtr, char *file, int objc,
+PushFrame(NsInterp *itPtr, AdpFrame *framePtr, char *file, int objc,
 	  Tcl_Obj *objv[], Tcl_DString *outputPtr)
 {
     char    *slash;
 
-    /*
-     * Save current NsInterp state.
-     */
-
-    framePtr->cwd = itPtr->adp.cwd;
-    framePtr->objc = itPtr->adp.objc;
-    framePtr->objv = itPtr->adp.objv;
-    framePtr->outputPtr = itPtr->adp.outputPtr;
-    itPtr->adp.outputPtr = outputPtr;
-    itPtr->adp.objc = objc;
-    itPtr->adp.objv = objv;
-    ++itPtr->adp.depth;
-
-    /*
-     * If file is not NULL it indicates a call from
-     * NsAdpSource or NsAdpInclude.  If so, update the
-     * current working directory based on the
-     * absolute file pathname.
-     */
-
-    Ns_DStringInit(&framePtr->cwdBuf);
-    if (file != NULL) {
-	slash = strrchr(file, '/');
-    	Ns_DStringNAppend(&framePtr->cwdBuf, file, slash - file);
-    	itPtr->adp.cwd = framePtr->cwdBuf.string;
+    framePtr->objc = objc;
+    framePtr->objv = objv;
+    framePtr->outputPtr = outputPtr;
+    framePtr->prevPtr = itPtr->adp.framePtr;
+    Ns_DStringInit(&framePtr->cwdbuf);
+    framePtr->savecwd = itPtr->adp.cwd;
+    if (file != NULL && (slash = strrchr(file, '/')) != NULL) {
+    	Ns_DStringNAppend(&framePtr->cwdbuf, file, slash - file);
+	itPtr->adp.cwd = framePtr->cwdbuf.string;
+    }
+    itPtr->adp.framePtr = framePtr;
+    if (itPtr->adp.depth++ == 0) {
+	itPtr->adp.exception = ADP_OK;
+	itPtr->adp.debugLevel = 0;
+	itPtr->adp.debugInit = 0;
+	itPtr->adp.debugFile = NULL;
+	itPtr->adp.bufsize = itPtr->servPtr->adp.bufsize;
+	itPtr->adp.flags = (itPtr->servPtr->adp.flags & (ADP_GZIP|ADP_TRACE));
     }
 }
 
@@ -697,31 +690,30 @@ PushFrame(NsInterp *itPtr, Frame *framePtr, char *file, int objc,
  *
  * PopFrame --
  *
- *	Pop a previously pushed ADP call frame from the ADP stack.
+ *	Pops the current AdpFrame from the ADP context stack.
  *
  * Results:
  *	None.
  *
  * Side effects:
- *	Previous state of the per-thread NsInterp structure is restored
- *	and the Frame is free'ed.
+ *	Previous AdpFrame, if any, is restored.  If this is the last
+ *	frame on the stack, output is flushed.
  *
  *----------------------------------------------------------------------
  */
 
 static void
-PopFrame(NsInterp *itPtr, Frame *framePtr)
+PopFrame(NsInterp *itPtr)
 {
-    /*
-     * Restore the previous frame.
-     */
+    AdpFrame *framePtr;
 
-    itPtr->adp.objc = framePtr->objc;
-    itPtr->adp.objv = framePtr->objv;
-    itPtr->adp.cwd = framePtr->cwd;
-    itPtr->adp.outputPtr = framePtr->outputPtr;
-    --itPtr->adp.depth;
-    Ns_DStringFree(&framePtr->cwdBuf);
+    framePtr = itPtr->adp.framePtr;
+    itPtr->adp.framePtr = framePtr->prevPtr;;
+    itPtr->adp.cwd = framePtr->savecwd;
+    Ns_DStringFree(&framePtr->cwdbuf);
+    if (--itPtr->adp.depth == 0) {
+	NsAdpFlush(itPtr, 0);
+    }
 }
 
 
@@ -851,33 +843,42 @@ done:
  *----------------------------------------------------------------------
  */
 
-
 static void
-AdpLogError(NsInterp *itPtr, int nscript)
+AdpLogError(NsInterp *itPtr)
 {
     Tcl_Interp *interp = itPtr->interp;
+    Ns_Conn *conn = itPtr->conn; 
     Ns_DString ds;
     Tcl_Obj *objv[2];
+    AdpFrame *framePtr;
     char *file;
-    char *script;
-    char buffer[ADPEVAL_MAX_SCRIPT_TEXT+ADPEVAL_ELIPSIS_LEN+1];
+    int i;
     
+    framePtr = itPtr->adp.framePtr;
     Ns_DStringInit(&ds);
-    Ns_DStringAppend(&ds, "\n    invoked from within chunk: ");
-    Ns_DStringPrintf(&ds, "%d", nscript);
-    Ns_DStringAppend(&ds, " of adp: ");
-    /*
-     * Need to limit the amount of text put into the error.
-     */
-    script = Tcl_GetString(itPtr->adp.objv[0]);
-    if (strlen(script) > 150) {
-        sprintf(buffer, "%.*s...", ADPEVAL_MAX_SCRIPT_TEXT, script);
-        script = buffer;
+    Ns_DStringPrintf(&ds, "\n    at line %d in ",
+		     framePtr->line + interp->errorLine);
+    while (framePtr != NULL) {
+	Ns_DStringPrintf(&ds, "adp %.40s", Tcl_GetString(framePtr->objv[0]));
+	framePtr = framePtr->prevPtr;
+	if (framePtr != NULL) {
+	    Ns_DStringAppend(&ds, "\n    included from ");
+	}
     }
-    Ns_DStringAppend(&ds, script);
+    if (conn != NULL && (itPtr->servPtr->adp.flags & ADP_DETAIL)) {
+	Ns_DStringPrintf(&ds, "\n    while processing connection #%d:\n%8s%s",
+			 Ns_ConnId(conn), "",
+			 conn->request->line);
+	for (i = 0; i < Ns_SetSize(conn->headers); ++i) {
+	    Ns_DStringPrintf(&ds, "\n%8s%s: %s", "",
+			     Ns_SetKey(conn->headers, i),
+			     Ns_SetValue(conn->headers, i));
+	}
+    }
     Tcl_AddErrorInfo(interp, ds.string);
     Ns_TclLogError(interp);
     Ns_DStringFree(&ds);
+
     file = itPtr->servPtr->adp.errorpage;
     if (file != NULL && itPtr->adp.errorLevel == 0) {
 	++itPtr->adp.errorLevel;
@@ -914,6 +915,7 @@ static int
 AdpEval(NsInterp *itPtr, AdpCode *codePtr, Objs *objsPtr)
 {
     Tcl_Interp *interp = itPtr->interp;
+    AdpFrame *framePtr = itPtr->adp.framePtr;
     Tcl_Obj *objPtr;
     int nscript, nblocks, result, len, i;
     char *ptr;
@@ -923,14 +925,13 @@ AdpEval(NsInterp *itPtr, AdpCode *codePtr, Objs *objsPtr)
     nscript = 0;
     result = TCL_OK;
     for (i = 0; itPtr->adp.exception == ADP_OK && i < nblocks; ++i) {
+	framePtr->line = AdpCodeLine(codePtr, i);
 	len = AdpCodeLen(codePtr, i);
 	if (itPtr->adp.flags & ADP_TRACE) {
 	    AdpTrace(itPtr, ptr, len);
 	}
 	if (len > 0) {
-	    if (NsAdpAppend(itPtr, ptr, len) != TCL_OK) {
-		return TCL_ERROR;
-	    }
+	    result = NsAdpAppend(itPtr, ptr, len);
 	} else {
 	    len = -len;
 	    if (itPtr->adp.debugLevel > 0) {
@@ -939,20 +940,17 @@ AdpEval(NsInterp *itPtr, AdpCode *codePtr, Objs *objsPtr)
 		result = Tcl_EvalEx(interp, ptr, len, 0);
 	    } else {
 		objPtr = objsPtr->objs[nscript];
-		if (objPtr != NULL) {
-    	            result = Tcl_EvalObjEx(interp, objPtr, 0);
-		} else {
+		if (objPtr == NULL) {
 		    objPtr = Tcl_NewStringObj(ptr, len);
 		    Tcl_IncrRefCount(objPtr);
-    	            result = Tcl_EvalObjEx(interp, objPtr, 0);
 		    objsPtr->objs[nscript] = objPtr;
 		}
-	    }
-	    if (result != TCL_OK && result != TCL_RETURN
-		    && itPtr->adp.exception == ADP_OK) {
-    	    	AdpLogError(itPtr, nscript);
+    	        result = Tcl_EvalObjEx(interp, objPtr, 0);
 	    }
 	    ++nscript;
+	}
+	if (result != TCL_OK && itPtr->adp.exception == ADP_OK) {
+    	    AdpLogError(itPtr);
 	}
 	ptr += len;
     }
@@ -988,7 +986,7 @@ AdpDebug(NsInterp *itPtr, char *ptr, int len, int nscript)
     int code, fd;
     Tcl_Interp *interp = itPtr->interp;
     int level = itPtr->adp.debugLevel;
-    char *file = Tcl_GetString(itPtr->adp.objv[0]);
+    char *file = Tcl_GetString(itPtr->adp.framePtr->objv[0]);
     char buf[10], debugfile[255];
     Ns_DString ds;
 

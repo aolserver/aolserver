@@ -33,7 +33,7 @@
  *	ADP connection request support.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adprequest.c,v 1.23 2005/05/07 23:35:30 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adprequest.c,v 1.24 2005/08/01 20:27:22 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -101,14 +101,15 @@ Ns_AdpRequestEx(Ns_Conn *conn, char *file, Ns_Time *ttlPtr)
 {
     Conn	     *connPtr = (Conn *) conn;
     Tcl_Interp       *interp;
-    Tcl_DString	      rds;
     NsInterp         *itPtr;
-    int               result;
     char             *start, *type;
     Ns_Set           *query;
     NsServer	     *servPtr;
     Tcl_Obj	     *objv[2];
     
+    interp = Ns_GetConnInterp(conn);
+    itPtr = NsGetInterpData(interp);
+
     /*
      * Verify the file exists.
      */
@@ -129,22 +130,10 @@ Ns_AdpRequestEx(Ns_Conn *conn, char *file, Ns_Time *ttlPtr)
     Ns_ConnSetStatus(conn, 200);
 
     /*
-     * Setup the response buffer and default size.
-     */
-
-    Tcl_DStringInit(&rds);
-    servPtr = connPtr->servPtr;
-    interp = Ns_GetConnInterp(conn);
-    itPtr = NsGetInterpData(interp);
-    itPtr->adp.responsePtr = &rds;
-    itPtr->adp.outputPtr = itPtr->adp.responsePtr;
-    itPtr->adp.bufsize = servPtr->adp.bufsize;
-    itPtr->adp.flags = (servPtr->adp.flags & (ADP_GZIP|ADP_TRACE));
-
-    /*
      * Enable TclPro debugging if requested.
      */
 
+    servPtr = connPtr->servPtr;
     if ((servPtr->adp.flags & ADP_DEBUG) &&
 	STREQ(conn->request->method, "GET") &&
 	(query = Ns_ConnGetQuery(conn)) != NULL) {
@@ -168,38 +157,12 @@ Ns_AdpRequestEx(Ns_Conn *conn, char *file, Ns_Time *ttlPtr)
     objv[1] = Tcl_NewStringObj(file, -1);
     Tcl_IncrRefCount(objv[0]);
     Tcl_IncrRefCount(objv[1]);
-    if (NsAdpInclude(itPtr, start, 2, objv, ttlPtr) != TCL_OK &&
-        itPtr->adp.exception == ADP_OK) {
+    if (NsAdpInclude(itPtr, start, 2, objv, ttlPtr) != TCL_OK
+	    && itPtr->adp.exception == ADP_OK) {
 	Ns_TclLogError(interp);
     }
     Tcl_DecrRefCount(objv[0]);
     Tcl_DecrRefCount(objv[1]);
-
-    /*
-     * Flush the output if the connection isn't already closed.
-     */
-
-    result = NsAdpFlush(itPtr, 0);
-    if (result != TCL_OK) {
-	Ns_TclLogError(interp);
-    }
-
-    /*
-     * Cleanup the per-thead ADP context.
-     */
-
-    itPtr->adp.flags = 0;
-    itPtr->adp.outputPtr = NULL;
-    itPtr->adp.responsePtr = NULL;
-    itPtr->adp.exception = ADP_OK;
-    itPtr->adp.debugLevel = 0;
-    itPtr->adp.debugInit = 0;
-    itPtr->adp.debugFile = NULL;
-    Tcl_DStringFree(&rds);
-
-    if (result != TCL_OK) {
-	return NS_ERROR;
-    }
     return NS_OK;
 }
 
@@ -226,37 +189,9 @@ NsFreeAdp(NsInterp *itPtr)
     if (itPtr->adp.cache != NULL) {
 	Ns_CacheDestroy(itPtr->adp.cache);
     }
+    Tcl_DStringFree(&itPtr->adp.output);
 }
 
-
-/*
- *----------------------------------------------------------------------
- *
- * NsAdpGetBuf --
- *
- *	Return the current ADP buffer.
- *
- * Results:
- *	TCL_OK if there is a valid buffer, TCL_ERROR otherwise.
- *
- * Side effects:
- *	On success, updates given bufPtrPtr with current buffer. On error,
- *	formats and error message in given interp.
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsAdpGetBuf(NsInterp *itPtr, Tcl_DString **bufPtrPtr)
-{
-    if (itPtr->adp.outputPtr == NULL) {
-	Tcl_SetResult(itPtr->interp, "no output buffer", TCL_STATIC);
-	return TCL_ERROR;
-    }
-    *bufPtrPtr = itPtr->adp.outputPtr;
-    return TCL_OK;
-}
-	
 
 /*
  *----------------------------------------------------------------------
@@ -279,19 +214,16 @@ NsAdpGetBuf(NsInterp *itPtr, Tcl_DString **bufPtrPtr)
 int
 NsAdpAppend(NsInterp *itPtr, char *buf, int len)
 {
-    Tcl_DString *bufPtr;
+    Tcl_DString *bufPtr = itPtr->adp.framePtr->outputPtr;
 
-    if (NsAdpGetBuf(itPtr, &bufPtr) != TCL_OK) {
-	return TCL_ERROR;
-    }
     Ns_DStringNAppend(bufPtr, buf, len);
-    if (bufPtr == itPtr->adp.responsePtr
-	    && bufPtr->length > itPtr->adp.bufsize
+    if (bufPtr->length > itPtr->adp.bufsize
 	    && NsAdpFlush(itPtr, 1) != TCL_OK) {
 	return TCL_ERROR;
     }
     return TCL_OK;
 }
+
 
 /*
  *----------------------------------------------------------------------
@@ -312,24 +244,37 @@ NsAdpAppend(NsInterp *itPtr, char *buf, int len)
 int
 NsAdpFlush(NsInterp *itPtr, int stream)
 {
-    Tcl_DString *bufPtr = itPtr->adp.responsePtr;
-    int status;
+    Ns_Conn *conn;
+    Tcl_Interp *interp = itPtr->interp;
+    Tcl_DString *bufPtr = &itPtr->adp.output;
+    int result = TCL_ERROR;
 
-    if (bufPtr != NULL
-	    && itPtr->adp.exception != ADP_ABORT
+    if (itPtr->adp.exception != ADP_ABORT
 	    && !(itPtr->adp.flags & ADP_ERROR)
 	    && (bufPtr->length > 0 || !stream)) {
-	if (itPtr->adp.flags & ADP_GZIP) {
-	    itPtr->conn->flags |= NS_CONN_GZIP;
-	}
-	status = Ns_ConnFlush(itPtr->conn,
-			      bufPtr->string, bufPtr->length, stream);
-    	Tcl_DStringTrunc(bufPtr, 0);
-	if (status != NS_OK) {
-	    itPtr->adp.flags |= ADP_ERROR;
-	    Tcl_SetResult(itPtr->interp, "flush failed", TCL_STATIC);
-	    return TCL_ERROR;
+	if (itPtr->adp.chan != NULL) {
+	    int len = bufPtr->length;
+	    if (Tcl_Write(itPtr->adp.chan, bufPtr->string, len) != len) {
+	    	Tcl_AppendResult(interp, "write failed: ",
+				 Tcl_PosixError(interp), NULL);
+	    } else {
+		result = TCL_OK;
+	    }
+	} else if (NsTclGetConn(itPtr, &conn) == TCL_OK) {
+	    if (itPtr->adp.flags & ADP_GZIP) {
+	    	itPtr->conn->flags |= NS_CONN_GZIP;
+	    }
+	    if (Ns_ConnFlush(itPtr->conn, bufPtr->string,
+				  bufPtr->length, stream) == NS_OK) {
+		result = TCL_OK;
+	    } else {
+	    	Tcl_SetResult(interp, "flush failed", TCL_STATIC);
+	    }
 	}
     }
-    return TCL_OK;
+    Tcl_DStringTrunc(bufPtr, 0);
+    if (result != TCL_OK) {
+	itPtr->adp.flags |= ADP_ERROR;
+    }
+    return result;
 }
