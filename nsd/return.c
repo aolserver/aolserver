@@ -34,7 +34,7 @@
  *	Functions that return data to a browser. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.45 2005/07/18 23:33:06 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.46 2005/08/01 20:29:08 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -50,6 +50,7 @@ static int ReturnOpen(Ns_Conn *conn, int status, char *type, Tcl_Channel chan,
 static int ReturnData(Ns_Conn *conn, int status, char *data, int len,
                           char *type, int sendRaw);
 static int HdrEq(Ns_Set *hdrs, char *key, char *value);
+static int CheckKeep(Ns_Conn *conn, int status);
 
 /*
  * This structure connections HTTP response codes to their descriptions.
@@ -112,7 +113,7 @@ static struct {
  * Static variables defined in this file.
  */
 
-static int             nreasons = (sizeof(reasons) / sizeof(reasons[0]));
+static int nreasons = (sizeof(reasons) / sizeof(reasons[0]));
 
 
 /*
@@ -176,23 +177,16 @@ Ns_RegisterReturn(int status, char *url)
 void
 Ns_ConnConstructHeaders(Ns_Conn *conn, Ns_DString *dsPtr)
 {
-    int   i, length, minor, status;
+    int   i, status;
     char *reason;
     char *value, *keep;
-    char *key, *lengthHdr;
-    Conn *connPtr;
+    char *key;
 
     /*
      * Construct the HTTP response status line.
      */
 
-    connPtr = (Conn *) conn;
     status = Ns_ConnGetStatus(conn);
-    if (HdrEq(conn->outputheaders, "transfer-encoding", "chunked")) {
-	minor = 1;
-    } else {
-	minor = 0;
-    }
     reason = "Unknown Reason";
     for (i = 0; i < nreasons; i++) {
 	if (reasons[i].status == status) {
@@ -200,7 +194,9 @@ Ns_ConnConstructHeaders(Ns_Conn *conn, Ns_DString *dsPtr)
 	    break;
 	}
     }
-    Ns_DStringPrintf(dsPtr, "HTTP/1.%d %d %s\r\n", minor, status, reason);
+    Ns_DStringPrintf(dsPtr, "HTTP/%u.%u %d %s\r\n",
+		     nsconf.http.major, nsconf.http.minor,
+		     status, reason);
 
     /*
      * Output any headers.
@@ -208,33 +204,10 @@ Ns_ConnConstructHeaders(Ns_Conn *conn, Ns_DString *dsPtr)
 
     if (conn->outputheaders != NULL) {
 	/*
-	 * Update the response length value directly from the
-	 * header to be sent, i.e., don't trust programmers
-	 * correctly called Ns_ConnSetLengthHeader().
+	 * Set keep-alive if the driver and connection support it.
 	 */
 
-	length = connPtr->responseLength;
-	lengthHdr = Ns_SetIGet(conn->outputheaders, "content-length");
-	if (lengthHdr != NULL) {
-	    connPtr->responseLength = atoi(lengthHdr);
-	}
-	
-	/*
-	 * If not already set, enable keep-alive only on basic HTTP status
-	 * 200 GET responses which include a valid and correctly set
-	 * content-length header.
-	 */
-
-	if (!Ns_ConnGetKeepAliveFlag(conn) &&
-	    nsconf.keepalive.enabled &&
-	    connPtr->headers != NULL &&
-	    connPtr->request != NULL &&
-	    ((status == 200 &&
-	    (lengthHdr != NULL &&
-	    (connPtr->responseLength == length)) || (minor > 0)) ||
-	    status == 304) &&
-	    STREQ(connPtr->request->method, "GET") &&
-	    HdrEq(conn->headers, "connection", "keep-alive")) {
+	if (!Ns_ConnGetKeepAliveFlag(conn) && CheckKeep(conn, status)) {
 	    Ns_ConnSetKeepAliveFlag(conn, NS_TRUE);
 	}
 	if (Ns_ConnGetKeepAliveFlag(conn)) {
@@ -243,6 +216,10 @@ Ns_ConnConstructHeaders(Ns_Conn *conn, Ns_DString *dsPtr)
 	    keep = "close";
 	}
 	Ns_ConnCondSetHeaders(conn, "Connection", keep);
+
+	/*
+	 * Output all headers.
+	 */
 
 	for (i = 0; i < Ns_SetSize(conn->outputheaders); i++) {
 	    key = Ns_SetKey(conn->outputheaders, i);
@@ -1391,5 +1368,54 @@ HdrEq(Ns_Set *set, char *name, char *value)
 	&& STRIEQ(hdrvalue, value)) {
 	return 1;
     }
+    return 0;
+}
+
+
+static int
+CheckKeep(Ns_Conn *conn, int status)
+{
+    Conn *connPtr = (Conn *) conn;
+    char *hdr;
+
+    /*
+     * First, ensure the driver supports keep-alive, the request method
+     * was GET, and the client sent a connection: keep-alive header.
+     */
+
+    if (connPtr->drvPtr->keepwait > 0 &&
+	conn->request != NULL &&
+	STREQ(conn->request->method, "GET") &&
+	HdrEq(conn->headers, "connection", "keep-alive")) {
+
+	/*
+	 * Status 304, without any content, is ok.
+	 */
+
+    	if (status == 304) {
+	    return 1;
+    	}
+
+	/*
+	 * Status 200 requires either chunked encoding or a a valid
+	 * content-length header.
+	 */
+
+	if (status == 200) {
+    	    if (HdrEq(conn->outputheaders, "transfer-encoding", "chunked")) {
+		return 1;
+	    }
+    	    hdr = Ns_SetIGet(conn->outputheaders, "content-length");
+    	    if (hdr != NULL &&
+		((int) strtol(hdr, NULL, 10) == connPtr->responseLength)) {
+	    	return 1;
+	    }
+	}
+    }
+
+    /*
+     * Test for keep-alive failed.
+     */
+
     return 0;
 }
