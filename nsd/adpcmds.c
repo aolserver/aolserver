@@ -33,7 +33,7 @@
  *	ADP commands.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpcmds.c,v 1.19 2005/08/01 20:27:16 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpcmds.c,v 1.20 2005/08/01 22:28:37 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -43,6 +43,44 @@ static int EvalObjCmd(NsInterp *itPtr, int objc, Tcl_Obj **objv,
 		      int safe);
 static int GetFrame(ClientData arg, AdpFrame **framePtrPtr);
 static int GetOutput(ClientData arg, Tcl_DString **dsPtrPtr);
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsTclAdpIdentObjCmd --
+ *
+ *	Set RCS/CVS ident string for current file.
+ *
+ * Results:
+ *	A standard Tcl result.
+ *
+ * Side effects:
+ *	Depends on subcommand.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+NsTclAdpIdentObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
+		   Tcl_Obj **objv)
+{
+    AdpFrame *framePtr;
+
+    if (objc != 2) {
+	Tcl_WrongNumArgs(interp, 1, objv, "ident");
+	return TCL_ERROR;
+    }
+    if (GetFrame(arg, &framePtr) != TCL_OK) {
+	return TCL_ERROR;
+    }
+    if (framePtr->ident != NULL) {
+	Tcl_DecrRefCount(framePtr->ident);
+    }
+    framePtr->ident = objv[1];
+    Tcl_IncrRefCount(framePtr->ident);
+    return TCL_OK;
+}
 
 
 /*

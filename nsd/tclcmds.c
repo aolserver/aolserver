@@ -33,7 +33,7 @@
  * 	Connect Tcl command names to the functions that implement them
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.49 2005/08/01 20:29:41 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.50 2005/08/01 22:28:37 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -55,6 +55,7 @@ extern Tcl_ObjCmdProc
     NsTclAdpEvalObjCmd,
     NsTclAdpExceptionObjCmd,
     NsTclAdpFlushObjCmd,
+    NsTclAdpIdentObjCmd,
     NsTclAdpIncludeObjCmd,
     NsTclAdpMimeTypeObjCmd,
     NsTclAdpParseObjCmd,
@@ -252,6 +253,7 @@ static Cmd cmds[] = {
     {"ns_adp_dump", NULL, NsTclAdpDumpObjCmd},
     {"ns_adp_eval", NULL, NsTclAdpEvalObjCmd},
     {"ns_adp_exception", NULL, NsTclAdpExceptionObjCmd},
+    {"ns_adp_ident", NULL, NsTclAdpIdentObjCmd},
     {"ns_adp_flush", NULL, NsTclAdpFlushObjCmd},
     {"ns_adp_mime", NULL, NsTclAdpMimeTypeObjCmd},
     {"ns_adp_mimetype", NULL, NsTclAdpMimeTypeObjCmd},
