@@ -34,7 +34,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.47 2005/07/18 23:33:06 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.48 2005/08/01 20:28:12 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -98,6 +98,7 @@ typedef enum {
 #define DRIVER_SHUTDOWN    4
 #define DRIVER_FAILED      8
 #define DRIVER_QUERY	  16
+#define DRIVER_DEBUG	  32
 
 /*
  * The following structure manages polling.  The PollIn macro is
@@ -340,6 +341,9 @@ Ns_DriverInit(char *server, char *module, Ns_DriverInitData *init)
     drvPtr->arg = init->arg;
     drvPtr->opts = init->opts;
     drvPtr->servPtr = servPtr;
+    if (!Ns_ConfigGetBool(path, "debug", &n) && n) {
+	drvPtr->flags |= DRIVER_DEBUG;
+    }
     if (!Ns_ConfigGetInt(path, "bufsize", &n) || n < 1) { 
         n = 16000; 	/* ~16k */
     }
@@ -2353,6 +2357,9 @@ LogReadError(Sock *sockPtr, ReadErr err)
 {
     char *msg, *fmt;
 
+    if (!(sockPtr->drvPtr->flags & DRIVER_DEBUG)) {
+	return;
+    }
     switch (err) {
     case E_NOERROR:		
 	msg = "no error";
@@ -2396,6 +2403,8 @@ LogReadError(Sock *sockPtr, ReadErr err)
     case E_CRANGE:		
 	msg = "max content exceeded";
 	break;
+    default:
+	msg = "unknown error";
     }
     switch (err) {
     case E_RECV:		
@@ -2408,7 +2417,5 @@ LogReadError(Sock *sockPtr, ReadErr err)
 	fmt = "%d: %s";
 	break;
     }
-    if (1 /*drvPtr->debug */) {
-	Ns_Log(Error, fmt, sockPtr->connPtr->id, msg, strerror(errno));
-    }
+    Ns_Log(Error, fmt, sockPtr->connPtr->id, msg, strerror(errno));
 }
