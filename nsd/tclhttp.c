@@ -33,7 +33,7 @@
  *	Support for the ns_http command.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclhttp.c,v 1.22 2005/07/18 23:33:29 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclhttp.c,v 1.23 2005/08/01 20:27:05 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -480,7 +480,7 @@ HttpConnect(Tcl_Interp *interp, char *method, char *url, Ns_Set *hdrs,
         i = 80;
     } else {
         *port = '\0';
-        i = atoi(port+1);
+        i = (int) strtol(port+1, NULL, 10);
     }
     sock = Ns_SockAsyncConnect(host, i);
     if (port != NULL) {

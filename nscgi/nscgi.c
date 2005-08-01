@@ -28,7 +28,7 @@
  */
 
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscgi/nscgi.c,v 1.27 2005/05/10 01:21:37 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscgi/nscgi.c,v 1.28 2005/08/01 20:27:04 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 #include <sys/stat.h>
@@ -1116,7 +1116,7 @@ CgiCopy(Cgi *cgiPtr, Ns_Conn *conn)
                 ++value;
             }
             if (STRIEQ(ds.string, "status")) {
-                httpstatus = atoi(value);
+                httpstatus = (int) strtol(value, NULL, 10);
             } else if (STRIEQ(ds.string, "location")) {
                 httpstatus = 302;
                 if (*value == '/') {
