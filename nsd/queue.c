@@ -34,7 +34,7 @@
  *	and service threads.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/queue.c,v 1.34 2005/07/18 23:33:18 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/queue.c,v 1.35 2005/08/01 20:29:00 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -252,7 +252,7 @@ NsTclServerObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
 	break;
 
     case SKeepaliveIdx:
-        Tcl_SetObjResult(interp, Tcl_NewIntObj(nsconf.keepalive.npending));
+        Tcl_SetObjResult(interp, Tcl_NewIntObj(0/*nsconf.keepalive.npending*/));
 	break;
 
     case SConnectionsIdx:
