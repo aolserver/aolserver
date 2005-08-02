@@ -34,7 +34,7 @@
  *	Tcl commands that do stuff to the filesystem. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclfile.c,v 1.22 2005/08/01 20:29:24 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclfile.c,v 1.23 2005/08/02 19:56:36 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #ifdef _WIN32
@@ -1065,8 +1065,8 @@ NsTclChanObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST obj
 	Ns_MutexLock(&servPtr->chans.lock);
 	hPtr = Tcl_CreateHashEntry(&servPtr->chans.table, name, &new);
 	if (new) {
-	    regChan = Ns_Malloc(sizeof(NsRegChan));
-	    regChan->name = Ns_Malloc(strlen(chanName)+1);
+	    regChan = ns_malloc(sizeof(NsRegChan));
+	    regChan->name = ns_malloc(strlen(chanName)+1);
 	    regChan->chan = chan;
 	    strcpy(regChan->name, chanName);
 	    Tcl_SetHashValue(hPtr, regChan);
@@ -1177,8 +1177,8 @@ NsTclChanObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST obj
 	    } else {
 		Tcl_UnregisterChannel(interp, regChan->chan);
 	    }
-	    Ns_Free(regChan->name);
-	    Ns_Free(regChan);
+	    ns_free(regChan->name);
+	    ns_free(regChan);
 	    Tcl_DeleteHashEntry(hPtr);
 	    hPtr = Tcl_NextHashEntry(&search);
 	}
