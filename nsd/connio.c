@@ -34,7 +34,7 @@
  *      Handle connection I/O.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/connio.c,v 1.24 2005/08/02 21:42:33 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/connio.c,v 1.25 2005/08/02 22:11:57 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #define IOBUFSZ 2048
@@ -165,7 +165,7 @@ Ns_ConnFlush(Ns_Conn *conn, char *buf, int len, int stream)
     if (!stream
 	    && (conn->flags & NS_CONN_GZIP)
 	    && (servPtr->opts.flags & SERV_GZIP)
-	    && (len > servPtr->opts.gzipmin)
+	    && (len > (int) servPtr->opts.gzipmin)
 	    && (ahdr = Ns_SetIGet(conn->headers, "Accept-Encoding")) != NULL
 	    && strstr(ahdr, "gzip") != NULL
 	    && Ns_Compress(buf, len, &gzip, servPtr->opts.gziplevel) == NS_OK) {

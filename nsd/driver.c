@@ -34,7 +34,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.48 2005/08/01 20:28:12 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.49 2005/08/02 22:11:58 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -1640,7 +1640,7 @@ SockRead(Sock *sockPtr)
 
     if (!err
 	    && (connPtr->flags & NS_CONN_READHDRS)
-	    && connPtr->avail >= connPtr->contentLength) {
+	    && connPtr->avail >= (size_t) connPtr->contentLength) {
     	connPtr->avail = connPtr->contentLength;
     	if (!(connPtr->flags & NS_CONN_FILECONTENT)) {
     	    connPtr->content[connPtr->avail] = '\0';
@@ -1872,7 +1872,7 @@ SockReadLine(Driver *drvPtr, Ns_Sock *sock, Conn *connPtr)
     } else if (sscanf(hdr, "%d", &len) != 1 || len < 0) {
         return E_NINVAL;
     }
-    if (len > connPtr->limitsPtr->maxupload) {
+    if (len > (int) connPtr->limitsPtr->maxupload) {
         return E_CRANGE;
     }
     connPtr->contentLength = len;

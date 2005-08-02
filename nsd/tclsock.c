@@ -34,7 +34,7 @@
  *	Tcl commands that let you do TCP sockets. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclsock.c,v 1.23 2005/08/01 20:29:58 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclsock.c,v 1.24 2005/08/02 22:11:58 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -976,8 +976,8 @@ GetSet(Tcl_Interp *interp, char *flist, int write, fd_set **setPtrPtr,
             status = TCL_ERROR;
             break;
         }
-        if (sock > *maxPtr) {
-            *maxPtr = sock;
+        if (sock > (SOCKET) *maxPtr) {
+            *maxPtr = (int) sock;
         }
         FD_SET(sock, setPtr);
     }
