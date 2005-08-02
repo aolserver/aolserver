@@ -33,7 +33,7 @@
  *	Routines for creating, exiting, and joining threads.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/thread.c,v 1.8 2005/05/07 23:30:53 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/thread.c,v 1.9 2005/08/02 20:28:39 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "thread.h"
 
@@ -494,10 +494,12 @@ CleanupThread(void *arg)
  *	Check a thread stack for overflow.
  *
  * Results:
- *	NS_ERROR if overflow appears possible, NS_OK otherwise.
+ *	NS_OK:	   Stack appears ok.
+ *	NS_BREAK:  Overflow appears likely.
+ *	NS_ERROR:  Stack address/size unknown.
  *
  * Side effects:
- *	A new thread is allocated and started.
+ *	None.
  *
  *----------------------------------------------------------------------
  */

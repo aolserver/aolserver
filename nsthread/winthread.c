@@ -189,6 +189,29 @@ DllMain(HANDLE hModule, DWORD why, LPVOID lpReserved)
 /*
  *----------------------------------------------------------------------
  *
+ * NsGetStack --
+ *
+ *	Return stack info.
+ *
+ * Results:
+ *	Unsupport, always returns 0.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+NsGetTls(void **addrPtr, size_t *sizePtr)
+{
+    return 0;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  * NsGetTls --
  *
  *	Return the TLS slots for this thread.
