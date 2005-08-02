@@ -1,3 +1,35 @@
+2005-08-02  Jim Davidson <jgdavidson@aol.com>
+
+	Some updates to get code to compile on Win32.  Unfortunately
+	there is still no simple way to export the build environment
+	so the project/workspace files in the win32/ directory will
+	still be a struggle to use.
+
+	* Makefile:
+	* install-sh: Updated to not overwrite existing index.adp.
+
+	* nsd/adpeval.c: Fixed bug checking result of Ns_CheckStack.
+
+	* nsd/nsd.h
+	* nsd/adpparse.c:
+	* nsd/adprequest.c:
+	* nsd/server.c: Separated adp server config and interp
+	option flags.
+
+	* nsd/connio.c: Ns_ConnSendFdEx disabled for Win32 (no
+	pread).
+
+	* nsd/queue.c:
+	* nsd/pools.c: Connection threads are now joined and don't
+	run detached.
+
+	* nsthread/thread.h:
+	* nsthread/thread.c:
+	* nsthreadd/winthread.c: Updates for Win32 including adding
+	NsGetStack (which, unfortunately does not actually get the
+	stack).
+
+
 2005-08-01  Jim Davidson <jgdavidson@aol.com>
 
 	Work to enhance ADP error handling and reporting.
