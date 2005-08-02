@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/Makefile,v 1.54 2005/07/21 20:14:37 shmooved Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/Makefile,v 1.55 2005/08/02 22:26:17 jgdavidson Exp $
 #
 
 NSBUILD=1
@@ -53,7 +53,7 @@ install-binaries: all
 		$(INSTALL_DATA) $$i $(AOLSERVER)/modules/tcl/; \
 	done
 	$(INSTALL_DATA) sample-config.tcl $(AOLSERVER)/
-	$(INSTALL_DATA) index.adp $(AOLSERVER)/servers/server1/pages/
+	$(INSTALL_DATA) -n index.adp $(AOLSERVER)/servers/server1/pages/
 	$(INSTALL_SH) install-sh $(INSTBIN)/
 	for i in $(dirs); do \
 		(cd $$i && $(MAKE) install) || exit 1; \
