@@ -203,7 +203,7 @@ DllMain(HANDLE hModule, DWORD why, LPVOID lpReserved)
  */
 
 int
-NsGetTls(void **addrPtr, size_t *sizePtr)
+NsGetStack(void **addrPtr, size_t *sizePtr)
 {
     return 0;
 }
