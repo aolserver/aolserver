@@ -34,7 +34,7 @@
  *      Handle connection I/O.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/connio.c,v 1.23 2005/07/18 23:33:06 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/connio.c,v 1.24 2005/08/02 21:42:33 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #define IOBUFSZ 2048
@@ -882,11 +882,15 @@ ConnSend(Ns_Conn *conn, int nsend, Tcl_Channel chan, FILE *fp, int fd,
     	} else if (off < 0) {
 	    nread = read(fd, buf, toread);
 	} else {
+#ifdef WIN32
+	    nread = -1;
+#else
 	    nread = pread(fd, buf, toread, off);
 	    if (nread > 0) {
 		off += (off_t) nread;
 	    }
-    	}
+#endif
+	}
 	if (nread == -1) {
 	    status = NS_ERROR;
 	} else if (nread == 0) { 
