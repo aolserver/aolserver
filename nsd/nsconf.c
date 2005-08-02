@@ -33,7 +33,7 @@
  *	Various core configuration.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsconf.c,v 1.38 2005/08/01 20:43:23 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsconf.c,v 1.39 2005/08/02 21:43:58 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -209,7 +209,7 @@ NsParamString(char *key, char *def)
 {
     char *val;
 
-    val = Ns_ConfigGet(NS_CONFIG_PARAMETERS, key);
+    val = Ns_ConfigGetValue(NS_CONFIG_PARAMETERS, key);
     if (val == NULL) {
 	val = def;
     }
