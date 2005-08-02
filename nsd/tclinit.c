@@ -79,7 +79,7 @@
  *	"ns:data" and accessible by NsGetInterpData.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.46 2005/08/01 20:29:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.47 2005/08/02 21:44:52 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -1778,7 +1778,7 @@ GetData(void)
 	dataPtr = ns_malloc(sizeof(TclData));
 	dataPtr->cancel = Tcl_AsyncCreate(AsyncCancel, NULL);
 	Tcl_InitHashTable(&dataPtr->interps, TCL_ONE_WORD_KEYS);
-	tid = Ns_GetThreadId();
+	tid = Ns_ThreadId();
 	Ns_MutexLock(&lock);
 	dataPtr->hPtr = Tcl_CreateHashEntry(&threads, (char *) tid, &new);
 	Tcl_SetHashValue(dataPtr->hPtr, dataPtr);
