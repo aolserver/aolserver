@@ -675,7 +675,8 @@ typedef struct NsServer {
      */
 
     struct {
-	int		    flags;
+	int		    sflags;
+	int		    iflags;
 	int		    tracesize;
 	char	    	   *errorpage;
 	char	    	   *startpage;
@@ -939,6 +940,7 @@ extern void NsStopPools(Ns_Time *timeoutPtr);
 extern int NsTclGetPool(Tcl_Interp *interp, char *pool, Pool **poolPtrPtr);
 extern Tcl_ObjCmdProc NsTclListPoolsObjCmd;
 extern void NsCreateConnThread(Pool *poolPtr);
+extern void NsJoinConnThreads(void);
 extern int  NsStartDrivers(void);
 extern void NsWaitDriversShutdown(Ns_Time *toPtr);
 extern void NsStartSchedShutdown(void);
