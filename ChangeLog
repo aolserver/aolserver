@@ -31,7 +31,7 @@
 
         ns_section "ns/server/server1/adp"
             ns_param trace false;        # Enable text/script debug info.
-            ns_param tracesize 40;       # Max chars for each chunk to log.
+            ns_param tracesize 40;       # Max chars of each chunk to log.
 
 
 2005-08-01  Jim Davidson <jgdavidson@aol.com>
