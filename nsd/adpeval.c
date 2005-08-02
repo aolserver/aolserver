@@ -33,7 +33,7 @@
  *	ADP string and file eval.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.40 2005/08/02 14:50:03 shmooved Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.41 2005/08/02 21:58:37 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -95,7 +95,7 @@ typedef struct InterpPage {
  */
 
 static Page *ParseFile(NsInterp *itPtr, char *file, struct stat *stPtr);
-static char *AdpLogError(NsInterp *itPtr);
+static void AdpLogError(NsInterp *itPtr);
 static int AdpSource(NsInterp *itPtr, int objc, Tcl_Obj *objv[],
 		char *resvar, int safe, int file);
 static int AdpRun(NsInterp *itPtr, char *file, int objc, Tcl_Obj *objv[],
@@ -301,7 +301,7 @@ AdpRun(NsInterp *itPtr, char *file, int objc, Tcl_Obj *objv[],
 
     if (itPtr->adp.debugLevel > 0) {
 	++itPtr->adp.debugLevel;
-    } else if ((servPtr->adp.flags & ADP_DEBUG) &&
+    } else if ((servPtr->adp.sflags & ADP_DEBUG) &&
 	itPtr->adp.debugFile != NULL &&
 	(p = strrchr(file, '/')) != NULL &&
 	Tcl_StringMatch(p+1, itPtr->adp.debugFile)) {
@@ -683,7 +683,7 @@ PushFrame(NsInterp *itPtr, AdpFrame *framePtr, char *file, int objc,
 	itPtr->adp.debugInit = 0;
 	itPtr->adp.debugFile = NULL;
 	itPtr->adp.bufsize = itPtr->servPtr->adp.bufsize;
-	itPtr->adp.flags = (itPtr->servPtr->adp.flags & (ADP_GZIP|ADP_TRACE));
+	itPtr->adp.flags = itPtr->servPtr->adp.iflags;
     }
 }
 
@@ -852,7 +852,7 @@ done:
  *----------------------------------------------------------------------
  */
 
-static char *
+static void
 AdpLogError(NsInterp *itPtr)
 {
     Tcl_Interp *interp = itPtr->interp;
@@ -892,8 +892,14 @@ AdpLogError(NsInterp *itPtr)
     }
     Tcl_AddErrorInfo(interp, ds.string);
     err = Ns_TclLogError(interp);
+    if (itPtr->adp.flags & ADP_DISPLAY) {
+	Ns_DStringTrunc(&ds, 0);
+	Ns_DStringAppend(&ds, "<br><pre>\n");
+	Ns_QuoteHtml(&ds, err);
+	Ns_DStringAppend(&ds, "\n<br></pre>\n");
+	NsAdpAppend(itPtr, ds.string, ds.length);
+    }
     Ns_DStringFree(&ds);
-
     file = itPtr->servPtr->adp.errorpage;
     if (file != NULL && itPtr->adp.errorLevel == 0) {
 	++itPtr->adp.errorLevel;
@@ -907,7 +913,6 @@ AdpLogError(NsInterp *itPtr)
 	Tcl_DecrRefCount(objv[0]);
 	--itPtr->adp.errorLevel;
     }
-    return err;
 }
 
 
@@ -933,13 +938,13 @@ AdpEval(NsInterp *itPtr, AdpCode *codePtr, Objs *objsPtr)
 {
     Tcl_Interp *interp = itPtr->interp;
     AdpFrame *framePtr = itPtr->adp.framePtr;
-    Ns_DString buf;
     Tcl_Obj *objPtr;
     int nscript, nblocks, result, len, i;
-    char *ptr, *err;
+    char *ptr;
 
-    if (Ns_CheckStack() != NS_OK) {
+    if (Ns_CheckStack() == NS_BREAK) {
 	Tcl_SetResult(interp, "stack overflow", TCL_STATIC);
+	AdpLogError(itPtr);
 	return TCL_ERROR;
     }
     ptr = AdpCodeText(codePtr);
@@ -971,22 +976,8 @@ AdpEval(NsInterp *itPtr, AdpCode *codePtr, Objs *objsPtr)
 	    ++nscript;
 	}
 	if (result != TCL_OK && itPtr->adp.exception == ADP_OK) {
-	    /*
-	     * Log all error conditions and optionally return
-	     * the error message within the output stream and/or
-	     * return immediately.
-	     */
-
-    	    err = AdpLogError(itPtr);
-	    if (itPtr->servPtr->adp.flags & ADP_DISPLAY) {
-		Ns_DStringInit(&buf);
-		Ns_DStringAppend(&buf, "<br><pre>\n");
-		Ns_QuoteHtml(&buf, err);
-		Ns_DStringAppend(&buf, "\n<br></pre>\n");
-		NsAdpAppend(itPtr, buf.string, buf.length);
-		Ns_DStringFree(&buf);
-	    }
-	    if (itPtr->servPtr->adp.flags & ADP_STRICT) {
+	    AdpLogError(itPtr);
+	    if (itPtr->adp.flags & ADP_STRICT) {
 		return TCL_ERROR;
 	    }
 	}
