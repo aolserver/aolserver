@@ -33,7 +33,7 @@
  *	Routines for creating, exiting, and joining threads.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/thread.c,v 1.9 2005/08/02 20:28:39 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/thread.c,v 1.10 2005/08/02 22:01:20 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "thread.h"
 
@@ -523,12 +523,12 @@ Ns_CheckStack(void)
      */
 
     if (thrPtr->flags & FLAG_STACKDOWN) {
-	limit = thrPtr->stackaddr - thrPtr->stacksize;
+	limit = (caddr_t) thrPtr->stackaddr - thrPtr->stacksize;
 	if ((caddr_t) &limit < limit) {
 	    return NS_BREAK;
 	}
     } else {
-	limit = thrPtr->stackaddr + thrPtr->stacksize;
+	limit = (caddr_t) thrPtr->stackaddr + thrPtr->stacksize;
 	if ((caddr_t) &limit > limit) {
 	    return NS_BREAK;
 	}

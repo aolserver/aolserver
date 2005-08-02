@@ -32,13 +32,17 @@
  *
  *	Private nsthread library include.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/thread.h,v 1.5 2005/05/07 22:40:38 jgdavidson Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/thread.h,v 1.6 2005/08/02 22:01:21 jgdavidson Exp $
  */
 
 #ifndef THREAD_H
 #define THREAD_H
 
 #include "nsthread.h"
+
+#ifdef WIN32
+typedef char *caddr_t;
+#endif
 
 extern int    NsGetStack(void **addrPtr, size_t *sizePtr);
 extern void   NsthreadsInit(void);
