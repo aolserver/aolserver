@@ -33,7 +33,7 @@
  *  Routines for the managing the connection thread pools.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/pools.c,v 1.9 2005/03/28 00:06:44 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/pools.c,v 1.10 2005/08/02 21:58:52 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -331,12 +331,12 @@ NsStartPools(void)
     IteratePools(StartPool, NULL);
 }
 
-
 void
 NsStopPools(Ns_Time *timePtr)
 {
     IteratePools(StopPool, NULL);
     IteratePools(WaitPool, timePtr);
+    NsJoinConnThreads();
 }
 
 
@@ -502,11 +502,16 @@ WaitPool(Pool *poolPtr, void *arg)
     
     status = NS_OK;
     Ns_MutexLock(&poolPtr->lock);
-    while (status == NS_OK &&
-            (poolPtr->queue.wait.firstPtr != NULL ||
-             poolPtr->threads.current > 0)) {
+    while (status == NS_OK) {
+	if (poolPtr->queue.wait.firstPtr == NULL) {
+	    break;
+	}
+	if (poolPtr->threads.current == 0) {
+	    break;
+	}
         status = Ns_CondTimedWait(&poolPtr->cond, &poolPtr->lock, timePtr);
     }
+    Ns_MutexUnlock(&poolPtr->lock);
     if (status != NS_OK) {
         Ns_Log(Warning, "timeout waiting for connection thread exit");
     }

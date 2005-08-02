@@ -34,7 +34,7 @@
  *	and service threads.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/queue.c,v 1.35 2005/08/01 20:29:00 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/queue.c,v 1.36 2005/08/02 21:59:46 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -44,10 +44,12 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
  * info for running threads.
  */
 
-typedef struct ConnThreadData {
+typedef struct ConnData {
+    struct ConnData *nextPtr;
     Pool *poolPtr;
     Conn *connPtr;
-} ConnThreadData;
+    Ns_Thread thread;
+} ConnData;
 
 /*
  * Local functions defined in this file
@@ -62,6 +64,8 @@ static void AppendConnList(Tcl_DString *dsPtr, Conn *firstPtr, char *state);
 
 static Ns_Tls        ctdtls;
 static Ns_Mutex	     connlock;
+static Ns_Mutex	     joinlock;
+static ConnData     *joinPtr;
 
 
 /*
@@ -83,8 +87,9 @@ static Ns_Mutex	     connlock;
 void
 NsInitQueue(void)
 {
-    Ns_TlsAlloc(&ctdtls, ns_free);
-    Ns_MutexSetName(&connlock, "nsconnlock");
+    Ns_TlsAlloc(&ctdtls, NULL);
+    Ns_MutexSetName(&connlock, "ns:connlock");
+    Ns_MutexSetName(&joinlock, "ns:joinlock");
 }
 
 
@@ -130,7 +135,7 @@ Ns_QueueConn(void *drv, void *arg)
 Ns_Conn *
 Ns_GetConn(void)
 {
-    ConnThreadData *dataPtr;
+    ConnData *dataPtr;
 
     dataPtr = Ns_TlsGet(&ctdtls);
     return (dataPtr ? ((Ns_Conn *) dataPtr->connPtr) : NULL);
@@ -308,7 +313,7 @@ NsTclServerObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
 void
 NsConnArgProc(Tcl_DString *dsPtr, void *arg)
 {
-    ConnThreadData *dataPtr = arg;
+    ConnData *dataPtr = arg;
     
     Ns_MutexLock(&connlock);
     if (dataPtr->connPtr != NULL) {
@@ -339,7 +344,7 @@ NsConnArgProc(Tcl_DString *dsPtr, void *arg)
 void
 NsConnThread(void *arg)
 {
-    ConnThreadData  *dataPtr = arg;
+    ConnData  	    *dataPtr = arg;
     Pool            *poolPtr = dataPtr->poolPtr;
     Conn            *connPtr;
     Ns_Time          wait, *timePtr;
@@ -447,16 +452,31 @@ NsConnThread(void *arg)
         NsFreeConn(connPtr);
         Ns_MutexLock(&poolPtr->lock);
     }
+
+    /*
+     * Append this thread to list of threads to reap.
+     */
+
+    Ns_MutexLock(&joinlock);
+    dataPtr->nextPtr = joinPtr;
+    joinPtr = dataPtr;
+    Ns_MutexUnlock(&joinlock);
+
+    /*
+     * Mark this thread as no longer active.
+     */
+
+    if (poolPtr->shutdown) {
+	msg = "shutdown pending";
+    }
     poolPtr->threads.idle--;
     poolPtr->threads.current--;
     if (poolPtr->threads.current == 0) {
         Ns_CondBroadcast(&poolPtr->cond);
     }
-    if (poolPtr->shutdown) {
-	msg = "shutdown pending";
-    }
-    Ns_Log(Notice, "exiting: %s", msg);
     Ns_MutexUnlock(&poolPtr->lock);
+
+    Ns_Log(Notice, "exiting: %s", msg);
     Ns_ThreadExit(dataPtr);
 }
 
@@ -589,12 +609,56 @@ ConnRun(Conn *connPtr)
 void
 NsCreateConnThread(Pool *poolPtr)
 {
-    ConnThreadData *dataPtr;
+    ConnData *dataPtr;
 
-    dataPtr = ns_malloc(sizeof(ConnThreadData));
+    /*
+     * Reap any dead threads.
+     */
+
+    NsJoinConnThreads();
+
+    /*
+     * Create a new connection thread.
+     */
+
+    dataPtr = ns_malloc(sizeof(ConnData));
     dataPtr->poolPtr = poolPtr;
     dataPtr->connPtr = NULL;
-    Ns_ThreadCreate(NsConnThread, dataPtr, 0, NULL);
+    Ns_ThreadCreate(NsConnThread, dataPtr, 0, &dataPtr->thread);
+}
+ 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsJoinConnThreads --
+ *
+ *	Join any connection threads which have exited.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+NsJoinConnThreads(void)
+{
+    ConnData *firstPtr;
+    void *arg;
+
+    Ns_MutexLock(&joinlock);
+    firstPtr = joinPtr;
+    joinPtr = NULL;
+    Ns_MutexUnlock(&joinlock);
+    while (firstPtr != NULL) {
+	Ns_ThreadJoin(&firstPtr->thread, &arg);
+	firstPtr = firstPtr->nextPtr;
+	ns_free(arg);
+    }
 }
 
 
