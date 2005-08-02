@@ -675,12 +675,12 @@ typedef struct NsServer {
 
     struct {
 	int		    flags;
+	int		    tracesize;
 	char	    	   *errorpage;
 	char	    	   *startpage;
 	char	    	   *debuginit;
 	size_t		    bufsize;
 	size_t		    cachesize;
-	size_t		    tracesize;
 	Ns_Cond	    	    pagecond;
 	Ns_Mutex	    pagelock;
 	Tcl_HashTable       pages;

@@ -33,7 +33,7 @@
  *	ADP string and file eval.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.39 2005/08/01 23:26:19 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.40 2005/08/02 14:50:03 shmooved Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -978,7 +978,7 @@ AdpEval(NsInterp *itPtr, AdpCode *codePtr, Objs *objsPtr)
 	     */
 
     	    err = AdpLogError(itPtr);
-	    if (itPtr->adp.flags & ADP_DISPLAY) {
+	    if (itPtr->servPtr->adp.flags & ADP_DISPLAY) {
 		Ns_DStringInit(&buf);
 		Ns_DStringAppend(&buf, "<br><pre>\n");
 		Ns_QuoteHtml(&buf, err);
@@ -986,7 +986,7 @@ AdpEval(NsInterp *itPtr, AdpCode *codePtr, Objs *objsPtr)
 		NsAdpAppend(itPtr, buf.string, buf.length);
 		Ns_DStringFree(&buf);
 	    }
-	    if (itPtr->adp.flags & ADP_STRICT) {
+	    if (itPtr->servPtr->adp.flags & ADP_STRICT) {
 		return TCL_ERROR;
 	    }
 	}
