@@ -68,7 +68,8 @@
 #else
   #define POLLIN 1
   #define POLLOUT 2
-  #define POLLPRI 3
+  #define POLLPRI 4
+  #define POLLHUP 8
   struct pollfd {
     int fd;
     short events;
