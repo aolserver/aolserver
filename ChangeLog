@@ -2,9 +2,9 @@
 
 	Work to enhance ADP error handling and reporting.
 
-	nsd.h:
-	server.c:
-	adpcmds.c:  Added strict, display, and detail error options
+        * nsd/adpcmds.c:
+	* nsd/nsd.h:
+	* nsd/server.c: Added strict, display, and detail error options
 	which can be set via server config and/or ns_adp_ctl.
 
 	Example (with defaults):
@@ -14,7 +14,7 @@
             ns_param detailerror true;	 # Include connection detail.
             ns_param displayerror false; # Return error message in page. 
 
-	adpeval.c:  Support for error options above plus inhibit
+	* nsd/adpeval.c:  Support for error options above plus inhibit
 	cacheing of failed execution results (more work required
 	here).
 
@@ -25,14 +25,13 @@
         * nsd/nsd.h:
         * nsd/server.c: Added new configurable option which allows
         you to specify the max size (in characters) of the ADP
-        trace output. If not specified, a default of 40 characters
-        will be used. 
+        trace output. 
 
-        Example:
+        Example (with defaults):
 
         ns_section "ns/server/server1/adp"
-            ns_param trace true
-            ns_param tracesize 80 
+            ns_param trace false;        # Enable text/script debug info.
+            ns_param tracesize 40;       # Max chars for each chunk to log.
 
 
 2005-08-01  Jim Davidson <jgdavidson@aol.com>
