@@ -33,7 +33,7 @@
  *	ADP connection request support.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adprequest.c,v 1.26 2005/08/02 22:11:57 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adprequest.c,v 1.27 2005/08/04 00:06:20 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -134,18 +134,10 @@ Ns_AdpRequestEx(Ns_Conn *conn, char *file, Ns_Time *ttlPtr)
      */
 
     servPtr = connPtr->servPtr;
-    if ((servPtr->adp.sflags & ADP_DEBUG) &&
+    if ((servPtr->adp.flags & ADP_DEBUG) &&
 	STREQ(conn->request->method, "GET") &&
 	(query = Ns_ConnGetQuery(conn)) != NULL) {
 	itPtr->adp.debugFile = Ns_SetIGet(query, "debug");
-    }
-
-    /*
-     * Queue the Expires header if enabled.
-     */
-
-    if (servPtr->adp.sflags & ADP_EXPIRE) {
-	Ns_ConnCondSetHeaders(conn, "Expires", "now");
     }
 
     /*
@@ -247,30 +239,64 @@ NsAdpFlush(NsInterp *itPtr, int stream)
     Ns_Conn *conn;
     Tcl_Interp *interp = itPtr->interp;
     Tcl_DString *bufPtr = &itPtr->adp.output;
-    int result = TCL_ERROR;
+    int len, wrote, result = TCL_ERROR, flags = itPtr->adp.flags;
+    char *buf;
 
-    if (itPtr->adp.exception != ADP_ABORT
-	    && !(itPtr->adp.flags & ADP_ERROR)
-	    && (bufPtr->length > 0 || !stream)) {
+    buf = bufPtr->string;
+    len = bufPtr->length;
+
+    /*
+     * If enabled, trim leading whitespace if no content has been sent yet.
+     */
+
+    if ((flags & ADP_TRIM) && !(flags & ADP_FLUSHED)) {
+	while (len > 0 && isspace(UCHAR(*buf))) {
+	    ++buf;
+	    --len;
+	}
+    }
+
+    /*
+     * Leave error messages if output is disabled or failed. Otherwise,
+     * send data if there's any to send or stream is 0, indicating this
+     * is the final flush call.
+     */
+
+    if (itPtr->adp.exception == ADP_ABORT) {
+	Tcl_SetResult(interp, "adp aborted", TCL_STATIC);
+    } else if (flags & ADP_ERROR) {
+	Tcl_SetResult(interp, "adp output failed", TCL_STATIC);
+    } else if (len == 0 && stream) {
+	result = TCL_OK;
+    } else {
 	if (itPtr->adp.chan != NULL) {
-	    int len = bufPtr->length;
-	    if (Tcl_Write(itPtr->adp.chan, bufPtr->string, len) != len) {
-	    	Tcl_AppendResult(interp, "write failed: ",
-				 Tcl_PosixError(interp), NULL);
-	    } else {
+	    while (len > 0) {
+		wrote = Tcl_Write(itPtr->adp.chan, buf, len);
+		if (wrote < 0) { 
+	    	    Tcl_AppendResult(interp, "write failed: ",
+				     Tcl_PosixError(interp), NULL);
+		    break;
+		}
+		buf += wrote;
+		len -= wrote;
+	    }
+	    if (len == 0) {
 		result = TCL_OK;
 	    }
 	} else if (NsTclGetConn(itPtr, &conn) == TCL_OK) {
-	    if (itPtr->adp.flags & ADP_GZIP) {
+	    if (flags & ADP_GZIP) {
 	    	itPtr->conn->flags |= NS_CONN_GZIP;
 	    }
-	    if (Ns_ConnFlush(itPtr->conn, bufPtr->string,
-				  bufPtr->length, stream) == NS_OK) {
+	    if (!(flags & ADP_FLUSHED) && (flags & ADP_EXPIRE)) {
+		Ns_ConnCondSetHeaders(conn, "Expires", "now");
+	    }
+	    if (Ns_ConnFlush(itPtr->conn, buf, len, stream) == NS_OK) {
 		result = TCL_OK;
 	    } else {
 	    	Tcl_SetResult(interp, "flush failed", TCL_STATIC);
 	    }
 	}
+	itPtr->adp.flags |= ADP_FLUSHED;
     }
     Tcl_DStringTrunc(bufPtr, 0);
     if (result != TCL_OK) {
