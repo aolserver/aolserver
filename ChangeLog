@@ -1,3 +1,20 @@
+2005-08-03  Jim Davidson <jgdavidson@aol.com>
+
+	* adpeval.c:  Moved frame management directly into AdpEval
+	with better comments to describe how Tcl errors and ADP
+	exceptions are treated.  Also, further tweaked the error
+	message format.
+
+	* adpparse.c
+	* adpcmds.c:
+	* adprequest.c
+	* nsd.h:
+	* server.c:  Moved remaining server-wide ADP flags to
+	interp-level which can be set/unset via ns_adp_ctl and added
+	"trimspace" option and config to trim leading whitespace
+	from output (helpful when generating xml).
+
+
 2005-08-02  Jim Davidson <jgdavidson@aol.com>
 
 	Some updates to get code to compile on Win32.  Unfortunately
