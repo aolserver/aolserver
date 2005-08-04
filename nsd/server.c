@@ -33,7 +33,7 @@
  *	Routines for managing NsServer structures.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.41 2005/08/02 21:58:43 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.42 2005/08/04 00:06:07 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -453,33 +453,36 @@ CreateServer(char *server)
     path = Ns_ConfigGetPath(server, NULL, "adp", NULL);
     servPtr->adp.errorpage = Ns_ConfigGetValue(path, "errorpage");
     servPtr->adp.startpage = Ns_ConfigGetValue(path, "startpage");
-    servPtr->adp.sflags = servPtr->adp.iflags = 0;
-    if (Ns_ConfigGetBool(path, "safeeval", &i) && i) {
-    	servPtr->adp.sflags |= ADP_SAFE;
-    }
-    if (Ns_ConfigGetBool(path, "singlescript", &i) && i) {
-    	servPtr->adp.sflags |= ADP_SINGLE;
-    }
+    servPtr->adp.flags = 0;
     if (Ns_ConfigGetBool(path, "enableexpire", &i) && i) {
-    	servPtr->adp.sflags |= ADP_EXPIRE;
+    	servPtr->adp.flags |= ADP_EXPIRE;
     }
     if (Ns_ConfigGetBool(path, "enabledebug", &i) && i) {
-    	servPtr->adp.sflags |= ADP_DEBUG;
+    	servPtr->adp.flags |= ADP_DEBUG;
+    }
+    if (Ns_ConfigGetBool(path, "safeeval", &i) && i) {
+    	servPtr->adp.flags |= ADP_SAFE;
+    }
+    if (Ns_ConfigGetBool(path, "singlescript", &i) && i) {
+    	servPtr->adp.flags |= ADP_SINGLE;
     }
     if (Ns_ConfigGetBool(path, "gzip", &i) && i) {
-    	servPtr->adp.iflags |= ADP_GZIP;
+    	servPtr->adp.flags |= ADP_GZIP;
     }
     if (Ns_ConfigGetBool(path, "trace", &i) && i) {
-    	servPtr->adp.iflags |= ADP_TRACE;
+    	servPtr->adp.flags |= ADP_TRACE;
     }
     if (!Ns_ConfigGetBool(path, "detailerror", &i) || i) {
-    	servPtr->adp.iflags |= ADP_DETAIL;
+    	servPtr->adp.flags |= ADP_DETAIL;
     }
     if (Ns_ConfigGetBool(path, "stricterror", &i) && i) {
-    	servPtr->adp.iflags |= ADP_STRICT;
+    	servPtr->adp.flags |= ADP_STRICT;
     }
     if (Ns_ConfigGetBool(path, "displayerror", &i) && i) {
-    	servPtr->adp.iflags |= ADP_DISPLAY;
+    	servPtr->adp.flags |= ADP_DISPLAY;
+    }
+    if (Ns_ConfigGetBool(path, "trimspace", &i) && i) {
+    	servPtr->adp.flags |= ADP_TRIM;
     }
     servPtr->adp.debuginit = Ns_ConfigGetValue(path, "debuginit");
     if (servPtr->adp.debuginit == NULL) {

@@ -261,6 +261,8 @@ typedef struct AdpCode {
 #define ADP_DETAIL	0x100	/* Log connection details on error. */
 #define ADP_STRICT	0x200	/* Strict error handling. */
 #define ADP_DISPLAY	0x400	/* Display error messages in output stream. */
+#define ADP_TRIM	0x800	/* Display error messages in output stream. */
+#define ADP_FLUSHED	0x1000	/* Some output has been sent. */
 
 /*
  * The following structure maitains data for each instance of
@@ -675,8 +677,7 @@ typedef struct NsServer {
      */
 
     struct {
-	int		    sflags;
-	int		    iflags;
+	int		    flags;
 	int		    tracesize;
 	char	    	   *errorpage;
 	char	    	   *startpage;
@@ -984,7 +985,7 @@ extern int NsAdpGetBuf(NsInterp *itPtr, Tcl_DString **dsPtrPtr);
 extern int NsAdpAppend(NsInterp *itPtr, char *buf, int len);
 extern int NsAdpFlush(NsInterp *itPtr, int stream);
 extern int NsAdpDebug(NsInterp *itPtr, char *host, char *port, char *procs);
-extern int NsAdpEval(NsInterp *itPtr, int objc, Tcl_Obj *objv[], int safe,
+extern int NsAdpEval(NsInterp *itPtr, int objc, Tcl_Obj *objv[], int flags,
                      char *resvar);
 extern int NsAdpSource(NsInterp *itPtr, int objc, Tcl_Obj *objv[],
                        char *resvar);

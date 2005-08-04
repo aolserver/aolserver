@@ -33,14 +33,14 @@
  *	ADP commands.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpcmds.c,v 1.21 2005/08/01 23:26:09 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpcmds.c,v 1.22 2005/08/04 00:06:06 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
 static int ExceptionObjCmd(NsInterp *itPtr, int objc, Tcl_Obj **objv,
 			int exception);
 static int EvalObjCmd(NsInterp *itPtr, int objc, Tcl_Obj **objv,
-		      int safe);
+		      int flags);
 static int GetFrame(ClientData arg, AdpFrame **framePtrPtr);
 static int GetOutput(ClientData arg, Tcl_DString **dsPtrPtr);
 
@@ -67,18 +67,23 @@ NsTclAdpIdentObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
 {
     AdpFrame *framePtr;
 
-    if (objc != 2) {
+    if (objc != 1 && objc != 2) {
 	Tcl_WrongNumArgs(interp, 1, objv, "ident");
 	return TCL_ERROR;
     }
     if (GetFrame(arg, &framePtr) != TCL_OK) {
 	return TCL_ERROR;
     }
-    if (framePtr->ident != NULL) {
-	Tcl_DecrRefCount(framePtr->ident);
+    if (objc == 2) {
+    	if (framePtr->ident != NULL) {
+	    Tcl_DecrRefCount(framePtr->ident);
+    	}
+    	framePtr->ident = objv[1];
+    	Tcl_IncrRefCount(framePtr->ident);
     }
-    framePtr->ident = objv[1];
-    Tcl_IncrRefCount(framePtr->ident);
+    if (framePtr->ident != NULL) {
+	Tcl_SetObjResult(interp, framePtr->ident);
+    }
     return TCL_OK;
 }
 
@@ -107,13 +112,15 @@ NsTclAdpCtlObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
     NsInterp *itPtr = arg;
     char *id;
     static CONST char *opts[] = {
-	"bufsize", "nocache", "trace", "gzip", "channel",
-	"stricterror", "detailerror", "displayerror",
+	"bufsize", "channel",
+	"detailerror", "displayerror", "expire", "gzip", "nocache",
+	"safe", "singlescript", "stricterror", "trace", "trimspace",
 	NULL
     };
     enum {
-	CBufSizeIdx, CNoCacheIdx, CTraceIdx, CGzipIdx, CChanIdx,
-	CStrictIdx, CDetailIdx, CDispIdx
+	CBufSizeIdx, CChanIdx,
+	CDetailIdx, CDispIdx, CExpireIdx, CGzipIdx, CNoCacheIdx,
+	CSafeIdx, CSingleIdx, CStrictIdx, CTraceIdx, CTrimIdx
     };
     int opt, flag, old, new;
 
@@ -125,7 +132,6 @@ NsTclAdpCtlObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
 			    &opt) != TCL_OK) {
 	return TCL_ERROR;
     }
-
     switch (opt) {
     case CBufSizeIdx:
 	if (objc != 2 && objc !=3 ) {
@@ -144,51 +150,6 @@ NsTclAdpCtlObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
 	}
 	Tcl_SetIntObj(Tcl_GetObjResult(interp), old);
 	break;
-	
-    case CNoCacheIdx:
-    case CTraceIdx:
-    case CGzipIdx:
-    case CStrictIdx:
-    case CDetailIdx:
-    case CDispIdx:
-	if (objc != 2 && objc !=3 ) {
-	    Tcl_WrongNumArgs(interp, 2, objv, "?bool?");
-            return TCL_ERROR;
-	}
-	flag = 0;
-    	switch (opt) {
-	case CTraceIdx:
-	    flag = ADP_TRACE;
-	    break;
-	case CNoCacheIdx:
-	    flag = ADP_TRACE;
-	    break;
-	case CGzipIdx:
-	    flag = ADP_GZIP;
-	    break;
-	case CStrictIdx:
-	    flag = ADP_STRICT;
-	    break;
-	case CDetailIdx:
-	    flag = ADP_DETAIL;
-	    break;
-	case CDispIdx:
-	    flag = ADP_DISPLAY;
-	    break;
-	}
-	old = (itPtr->adp.flags & flag);
-	if (objc == 3) {
-	    if (Tcl_GetBooleanFromObj(interp, objv[2], &new) != TCL_OK) {
-	    	return TCL_ERROR;
-	    }
-	    if (new) {
-		itPtr->adp.flags |= flag;
-	    } else {
-		itPtr->adp.flags &= ~flag;
-	    }
-	}
-	Tcl_SetBooleanObj(Tcl_GetObjResult(interp), old);
-	break;
 
     case CChanIdx:
 	if (objc != 3) {
@@ -204,6 +165,63 @@ NsTclAdpCtlObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
 	    }
 	    itPtr->adp.chan = chan;
 	}
+	break;
+	
+    default:
+	/*
+	 * Query or update an ADP option.
+	 */
+
+	if (objc != 2 && objc !=3 ) {
+	    Tcl_WrongNumArgs(interp, 2, objv, "?bool?");
+            return TCL_ERROR;
+	}
+	flag = 0;
+    	switch (opt) {
+	case CDetailIdx:
+	    flag = ADP_DETAIL;
+	    break;
+	case CDispIdx:
+	    flag = ADP_DISPLAY;
+	    break;
+	case CExpireIdx:
+	    flag = ADP_EXPIRE;
+	    break;
+	case CGzipIdx:
+	    flag = ADP_GZIP;
+	    break;
+	case CNoCacheIdx:
+	    flag = ADP_NOCACHE;
+	    break;
+	case CSafeIdx:
+	    flag = ADP_SAFE;
+	    break;
+	case CSingleIdx:
+	    flag = ADP_SINGLE;
+	    break;
+	case CStrictIdx:
+	    flag = ADP_STRICT;
+	    break;
+	case CTraceIdx:
+	    flag = ADP_TRACE;
+	    break;
+	case CTrimIdx:
+	    flag = ADP_TRIM;
+	    break;
+	}
+	old = (itPtr->adp.flags & flag);
+	if (objc == 3) {
+	    if (Tcl_GetBooleanFromObj(interp, objv[2], &new) != TCL_OK) {
+	    	return TCL_ERROR;
+	    }
+	    if (new) {
+		itPtr->adp.flags |= flag;
+	    } else {
+		itPtr->adp.flags &= ~flag;
+	    }
+	}
+	Tcl_SetBooleanObj(Tcl_GetObjResult(interp), old);
+	break;
     }
     return TCL_OK;
 }
@@ -237,17 +255,17 @@ int
 NsTclAdpSafeEvalObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
 		       Tcl_Obj **objv)
 {
-    return EvalObjCmd(arg, objc, objv, 1);
+    return EvalObjCmd(arg, objc, objv, ADP_SAFE);
 }
 
 static int
-EvalObjCmd(NsInterp *itPtr, int objc, Tcl_Obj **objv, int safe)
+EvalObjCmd(NsInterp *itPtr, int objc, Tcl_Obj **objv, int flags)
 {
     if (objc < 2) {
 	Tcl_WrongNumArgs(itPtr->interp, 1, objv, "page ?args ...?");
 	return TCL_ERROR;
     }
-    return NsAdpEval(itPtr, objc-1, objv+1, safe, NULL);
+    return NsAdpEval(itPtr, objc-1, objv+1, flags, NULL);
 }
 
 
@@ -355,7 +373,7 @@ NsTclAdpParseObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
 		    Tcl_Obj **objv)
 {
     NsInterp   *itPtr = arg;
-    int         isfile, i, safe, result;
+    int         isfile, i, flags, result;
     char       *opt;
     char       *resvarname = NULL;
     char       *cwd = NULL, *savecwd = NULL;
@@ -366,7 +384,7 @@ badargs:
                          "?-file|-string? ?-savedresult varname? ?-cwd path? arg ?arg ...?");
         return TCL_ERROR;
     }
-    isfile = safe = 0;
+    isfile = flags = 0;
     for (i = 1; i < objc; ++i) {
 	opt = Tcl_GetString(objv[i]);
 	if (STREQ(opt, "-global")) {
@@ -387,7 +405,7 @@ badargs:
                 goto badargs;
             }
 	} else if (STREQ(opt, "-safe")) {
-	    safe = 1;
+	    flags |= ADP_SAFE;
 	} else if (!STREQ(opt, "-string") && !STREQ(opt, "-local")) {
 	    break;
 	}
@@ -410,7 +428,7 @@ badargs:
     if (isfile) {
         result = NsAdpSource(arg, objc, objv, resvarname);
     } else {
-        result = NsAdpEval(arg, objc, objv, safe, resvarname);
+        result = NsAdpEval(arg, objc, objv, flags, resvarname);
     }
     if (cwd != NULL) {
 	itPtr->adp.cwd = savecwd;

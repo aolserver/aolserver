@@ -33,7 +33,7 @@
  *	ADP parser.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpparse.c,v 1.18 2005/08/02 21:58:43 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpparse.c,v 1.19 2005/08/04 00:06:06 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -229,7 +229,6 @@ NsAdpParse(AdpCode *codePtr, NsServer *servPtr, char *utf, int flags)
      * other tags.
      */
 
-    flags = servPtr->adp.sflags | flags;
     while ((s = strstr(utf, "<%")) && (e = strstr(s, "%>"))) {
 	/*
 	 * Parse text preceeding the script.
