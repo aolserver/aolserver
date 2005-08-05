@@ -1,3 +1,11 @@
+2005-08-05  Nathan Folkman <shmooved@aol.com>
+
+        * nsd/log.c:
+        * nsd/nsconf.c:
+        * nsd/nsd.h: Fixed bug where NsLogConf() procedure was
+        not defined or being called during server initialization.
+
+
 2005-08-03  Jim Davidson <jgdavidson@aol.com>
 
 	* adpeval.c:  Moved frame management directly into AdpEval
