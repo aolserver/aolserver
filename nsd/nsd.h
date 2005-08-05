@@ -921,6 +921,7 @@ extern void NsCreatePidFile(char *service);
 extern void NsRemovePidFile(char *service);
 
 extern void NsLogOpen(void);
+extern void NsLogConf(void);
 extern void NsTclInitObjs(void);
 extern void NsUpdateMimeTypes(void);
 extern void NsUpdateEncodings(void);

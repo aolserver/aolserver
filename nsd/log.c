@@ -33,7 +33,7 @@
  *	Manage the server log file.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/log.c,v 1.30 2005/08/01 20:43:21 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/log.c,v 1.31 2005/08/05 18:45:28 shmooved Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -118,7 +118,7 @@ NsInitLog(void)
 /*
  *----------------------------------------------------------------------
  *
- * NsLogConfig --
+ * NsLogConf --
  *
  *	Config the logging interface.
  *
