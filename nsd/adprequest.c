@@ -33,7 +33,7 @@
  *	ADP connection request support.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adprequest.c,v 1.27 2005/08/04 00:06:20 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adprequest.c,v 1.28 2005/08/06 23:58:57 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -134,7 +134,7 @@ Ns_AdpRequestEx(Ns_Conn *conn, char *file, Ns_Time *ttlPtr)
      */
 
     servPtr = connPtr->servPtr;
-    if ((servPtr->adp.flags & ADP_DEBUG) &&
+    if ((itPtr->servPtr->adp.flags & ADP_DEBUG) &&
 	STREQ(conn->request->method, "GET") &&
 	(query = Ns_ConnGetQuery(conn)) != NULL) {
 	itPtr->adp.debugFile = Ns_SetIGet(query, "debug");
@@ -149,39 +149,13 @@ Ns_AdpRequestEx(Ns_Conn *conn, char *file, Ns_Time *ttlPtr)
     objv[1] = Tcl_NewStringObj(file, -1);
     Tcl_IncrRefCount(objv[0]);
     Tcl_IncrRefCount(objv[1]);
-    if (NsAdpInclude(itPtr, start, 2, objv, ttlPtr) != TCL_OK
+    if (NsAdpInclude(itPtr, 2, objv, start, ttlPtr) != TCL_OK
 	    && itPtr->adp.exception == ADP_OK) {
 	Ns_TclLogError(interp);
     }
     Tcl_DecrRefCount(objv[0]);
     Tcl_DecrRefCount(objv[1]);
     return NS_OK;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsFreeAdp --
- *
- *	Interp delete callback to free ADP resources.
- *
- * Results:
- *	None.
- *
- * Side effects:
- *  	None.
- *
- *----------------------------------------------------------------------
- */
-
-void
-NsFreeAdp(NsInterp *itPtr)
-{
-    if (itPtr->adp.cache != NULL) {
-	Ns_CacheDestroy(itPtr->adp.cache);
-    }
-    Tcl_DStringFree(&itPtr->adp.output);
 }
 
 

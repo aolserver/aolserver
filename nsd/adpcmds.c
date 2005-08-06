@@ -33,7 +33,7 @@
  *	ADP commands.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpcmds.c,v 1.22 2005/08/04 00:06:06 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpcmds.c,v 1.23 2005/08/06 23:58:57 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -347,7 +347,7 @@ badargs:
     	Tcl_DStringAppend(dsPtr, "%>", 2);
 	return TCL_OK;
     }
-    return NsAdpInclude(arg, file, objc, objv, ttlPtr);
+    return NsAdpInclude(arg, objc, objv, file, ttlPtr);
 }
 
 
@@ -375,13 +375,14 @@ NsTclAdpParseObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
     NsInterp   *itPtr = arg;
     int         isfile, i, flags, result;
     char       *opt;
-    char       *resvarname = NULL;
+    char       *resvar = NULL;
     char       *cwd = NULL, *savecwd = NULL;
     
     if (objc < 2) {
 badargs:
 	Tcl_WrongNumArgs(interp, 1, objv,
-                         "?-file|-string? ?-savedresult varname? ?-cwd path? arg ?arg ...?");
+                         "?-file|-string? ?-savedresult varname? ?-cwd path? "
+			 "arg ?arg ...?");
         return TCL_ERROR;
     }
     isfile = flags = 0;
@@ -394,7 +395,7 @@ badargs:
 	    isfile = 1;
         } else if (STREQ(opt, "-savedresult")) {
 	    if (++i < objc) {
-                resvarname = Tcl_GetString(objv[i]);
+                resvar = Tcl_GetString(objv[i]);
             } else {
                 goto badargs;
             }
@@ -426,9 +427,9 @@ badargs:
 	itPtr->adp.cwd = cwd;
     }
     if (isfile) {
-        result = NsAdpSource(arg, objc, objv, resvarname);
+        result = NsAdpSource(arg, objc, objv, flags, resvar);
     } else {
-        result = NsAdpEval(arg, objc, objv, flags, resvarname);
+        result = NsAdpEval(arg, objc, objv, flags, resvar);
     }
     if (cwd != NULL) {
 	itPtr->adp.cwd = savecwd;

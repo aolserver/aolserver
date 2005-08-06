@@ -879,10 +879,9 @@ extern Ns_OpProc NsFastGet;
 extern Ns_OpProc NsAdpProc;
 
 extern Ns_Cache *NsFastpathCache(char *server, int size);
-
-extern void NsFreeAdp(NsInterp *itPtr);
+extern void NsAdpFree(NsInterp *itPtr);
+extern void NsAdpInit(NsInterp *itPtr);
 extern void NsTclRunAtClose(NsInterp *itPtr);
-
 extern int  NsUrlToFile(Ns_DString *dsPtr, NsServer *servPtr, char *url);
 
 /*
@@ -989,10 +988,11 @@ extern int NsAdpDebug(NsInterp *itPtr, char *host, char *port, char *procs);
 extern int NsAdpEval(NsInterp *itPtr, int objc, Tcl_Obj *objv[], int flags,
                      char *resvar);
 extern int NsAdpSource(NsInterp *itPtr, int objc, Tcl_Obj *objv[],
-                       char *resvar);
-extern int NsAdpInclude(NsInterp *itPtr, char *file, int objc,
-			Tcl_Obj *objv[], Ns_Time *ttlPtr);
-extern void NsAdpParse(AdpCode *codePtr, NsServer *servPtr, char *utf, int safe);
+                       int flags, char *resvar);
+extern int NsAdpInclude(NsInterp *itPtr, int objc, Tcl_Obj *objv[],
+			char *file, Ns_Time *ttlPtr);
+extern void NsAdpParse(AdpCode *codePtr, NsServer *servPtr, char *utf,
+		       int flags);
 extern void NsAdpFreeCode(AdpCode *codePtr);
 
 /*
