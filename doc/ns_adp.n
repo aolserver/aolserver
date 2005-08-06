@@ -28,7 +28,7 @@
 '\" version of this file under either the License or the GPL.
 '\" 
 '\"
-'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_adp.n,v 1.5 2005/01/15 23:59:18 jgdavidson Exp $
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_adp.n,v 1.6 2005/08/06 23:58:19 jgdavidson Exp $
 '\"
 '\" 
 .so man.macros
@@ -37,199 +37,367 @@
 .BS
 '\" Note:  do not modify the .SH NAME line immediately below!
 .SH NAME
-ns_adp_abort, ns_adp_argc, ns_adp_argv, ns_adp_bind_args, ns_adp_break, ns_adp_close, ns_adp_ctl, ns_adp_debug, ns_adp_dir, ns_adp_dump, ns_adp_eval, ns_adp_exception, ns_adp_flush, ns_adp_mimetype, ns_adp_parse, ns_adp_puts, ns_adp_registeradp, ns_adp_registertag, ns_adp_return, ns_adp_stream, ns_adp_tell, ns_adp_trunc, ns_puts, ns_register_adptag \- AOLserver Dynamic Page (ADP) commands
+ns_adp, ns_adp_abort, ns_adp_append, ns_adp_argc, ns_adp_argv, ns_adp_bind_args, ns_adp_break, ns_adp_close, ns_adp_ctl, ns_adp_debug, ns_adp_dir, ns_adp_dump, ns_adp_eval, ns_adp_exception, ns_adp_ident, ns_adp_include, ns_adp_flush, ns_adp_mimetype, ns_adp_parse, ns_adp_puts, ns_adp_registeradp, ns_adp_registerproc, ns_adp_registertag, ns_adp_return, ns_adp_stats, ns_adp_stream, ns_adp_tell, ns_adp_trunc, ns_puts, ns_register_adp, ns_register_adptag, ns_unregister_adp \- AOLserver Dynamic Page (ADP) commands
 .SH SYNOPSIS
-\fBns_adp_abort \fR?\fIreturn_value\fR?
+\fBns_adp_abort\fR ?\fIresult\fR?
+.sp
+\fBns_adp_append\fR
 .sp
 \fBns_adp_argc\fR
 .sp
-\fBns_adp_argv \fR?\fIindex\fR?
+\fBns_adp_argv\fR ?\fIindex\fR?
 .sp
-\fBns_adp_bind_args \fIvar1\fR ?\fIvar2...\fR?
+\fBns_adp_bind_args\fR \fIvar1\fR ?\fIvar2...\fR?
 .sp
-\fBns_adp_break\fR ?\fIreturn_value\fR?
+\fBns_adp_break\fR ?\fIresult\fR?
 .sp
 \fBns_adp_close\fR
 .sp
-\fBns_adp_ctl\fR
+\fBns_adp_ctl\fR \fIoption \fR?\fIarg\fR?
 .sp
 \fBns_adp_debug\fR ?\fIprocs\fR? ?\fIhost\fR? ?\fIport\fR?
 .sp
-\fBns_adp_dir
+\fBns_adp_dir\fR
 .sp
-\fBns_adp_dump
+\fBns_adp_dump\fR
 .sp
-\fBns_adp_eval\fR ?\fI-parser parser\fR? \fIpage\fR ?\fIarg ...\fR?
+\fBns_adp_eval\fR \fIpage\fR ?\fIarg ...\fR?
 .sp
-\fBns_adp_exception ?\fIstate\fR?
+\fBns_adp_exception\fR ?\fvarName\fR?
 .sp
-\fBns_adp_flush
+\fBns_adp_ident\fR ?\fIstring\fR?
+.sp
+\fBns_adp_include\fR ?\fI-cache seconds\fR? ?\fI-nocache\fR? \fIfile \fR?\fIarg ...\fR?
+.sp
+\fBns_adp_flush\fR
 .sp
 \fBns_adp_include\fR \fIfilename\fR ?\fIarg...\fR?
 .sp
 \fBns_adp_mimetype\fR ?\fImimetype\fR?
 .sp
-\fBns_adp_parse ?\fIsource-option\fR? ?\fIscope-option\fR? \fIadp\fR ?\fIarg ...\fR?
+\fBns_adp_parse ?\fI-file file\fR? ?\fI-string string\fR? ?\fI-savedresult varName\fR? ?\fI-cwd path\fR? ?\fIargs ... \fR?
 .sp
 \fBns_adp_puts\fR ?\fI-nonewline\fR? \fIstring\fR
 .sp
 \fBns_adp_registeradp\fR \fItag\fR ?\fIendtag\fR? \fIadpstring\fR
 .sp
+\fBns_adp_registerproc\fR \fItag\fR ?\fIendtag\fR? \fIproc\fR
+.sp
 \fBns_adp_registertag\fR \fItag\fR ?\fIendtag\fR? \fIadpstring\fR
 .sp
-\fBns_adp_return\fR ?\fIreturn_value\fR?
+\fBns_adp_return\fR ?\fIresult\fR?
 .sp
-\fBns_adp_stream
+\fBns_adp_safeeval\fR \fIpage\fR ?\fIarg ...\fR?
 .sp
-\fBns_adp_tell
+\fBns_adp_stats\fR
 .sp
-\fBns_adp_trunc
+\fBns_adp_stream\fR
+.sp
+\fBns_adp_tell\fR
+.sp
+\fBns_adp_trunc\fR ?\fIlength\fR?
 .sp
 \fBns_puts\fR ?\fI-nonewline\fR? \fIstring\fR
 .sp
+\fBns_register_adp\fR ?\fI-noinherit\fR? \fImethod url file\fR
+.sp
 \fBns_register_adptag\fR \fItag\fR ?\fIendtag\fR? \fIproc\fR
+.sp
+\fBns_unregister_adp\fR ?\fI-noinherit\fR? \fImethod url\fR
 .BE
 
 .SH DESCRIPTION
+
 .PP
-AOLserver Dynamic Pages, or ADPs, are a server-side environment for
-generating and delivering dynamic content by combining HTML and Tcl
-scripts.
+\fBAOLserver Dynamic Pages\fR, or \fBADP's\fR, are a server-side
+environment for embedding Tcl code within static text blocks
+(typically HTML or XML).  The Tcl code is normally delimited within
+\fI<%\fR and \fI%>\fR tags and can be used to generate additional
+text or for any other purpose, e.g., updating a database.  By
+default, the final string result of a script block is ignored unless
+the starting tag is instead \fI<%=\fR in which case the result is included
+in the output.  A simple ADP file could contain:
+
+.CS
+<html>
+<head><title>Hello from <%=[ns_info hostname]%></title></head>
+<body>
+Time is: <%=[clock format [clock seconds]]%>
+Four links:
+<%
+for {set i 0} {$i < 4} {incr i} {
+	ns_adp_puts "<a href=/link/$i.htm>Link $i</a><br>"
+}
+%>
+</body></html>
+.CE
+.sp
+
 .PP
-An AOLserver is configured to recognize certain filenames as indicating an ADP
-using the mapping parameter of the server's adp configuration section.  When
-the AOLserver receives a request for a file indicated by the mapping, it reads,
-parses and executes the file, resulting in output consisting of the static
-content from the file combined with the scripted content of the file.
-A programmer can use a number of functions to interact with the ADP execution
-environment, and to obtain information about the environment:
+Accessing this page would generate output similar to:
+
+.CS
+<html>
+<head><title>Hello from jgdavidson.local</title></head>
+<body> 
+Time is: Mon Aug 01 22:15:18 EDT 2005
+Ten links:
+<a href=/link/0.htm>Link 0</a><br>
+<a href=/link/1.htm>Link 1</a><br>
+<a href=/link/2.htm>Link 2</a><br>
+<a href=/link/3.htm>Link 3</a><br>
+
+</body></html>
+.CE
+
+.SH CONFIGURATION
+
+.PP
+The server can be configured to execute ADP's placed with other
+static files within a virtual server's pages directory via the
+\fImap\fR parameter in the \fIadp\fR server config section, for
+example:
+
+.CS
+ns_section ns/server/server1/adp
+	ns_param map /*.adp
+	ns_param map {/stories/*.adp 60}
+.CE
+.sp
+
+.PP
+The first map will evaluate all files which end in \fI.adp\fR and
+do not have more specific mappings (such as the second map).  The
+second config map will execute files which end with \fI.adp\fR
+located under the \fI/stories\fR directly and also specifies a cache
+timeout in seconds. In this case, results will be retained and
+returned to subsequent requests without re-executing the ADP for
+up to 60 seconds (see the \fI-cache\fR paramter to the \fBns_adp_include\fR
+command for more details).
+
+.PP
+Alternatively, arbitrary URL's may be mapped to individual ADP files
+using the \fBns_register_adp\fR command.  This command would normally
+be included in a virtual-server initialization scripts within the
+\fImodules/tcl/\fR server subdirectory.
+
+.SH "ERROR HANDLING AND EXCEPTIONS"
+
+.PP
+By default, errors within an ADP script block are reported in the
+server log and interrupt execution of the current block only;
+subsequent text and script blocks continue to be processed and and
+no error message is included in the output.  This approach is highly
+defensive and has the benefit of generating a valid, if partial,
+responses after minor errors.  A negative aspect of this approach
+is that, without careful monitoring of the server log, such errors
+can easily be ignored.
+
+.PP
+The default error handling behavior can be modified by settings one
+or more virtual-server configuration flags:
+
+.CS
+ns_section ns/server/server1/adp
+	ns_param stricterror false;  # Interrupt execution on any error.
+	ns_param displayerror false; # Include error message in output.
+	ns_param detailerror true;   # Include connection details messages.
+.CE
+
+These flags, along with other options, can be queried or modified
+for an individual ADP execution stream via the \fBns_adp_ctl\fR.
+
+.SH "SCRIPT BLOCK SCOPE"
+.PP
+By default, each Tcl block is independent of other blocks and must
+be a complete script.  In particular, this means that conditional
+code cannot span blocks, e.g., the following does not work by default:
+
+.CS
+<% foreach elem $list { %>
+	Here is an <%=$elem%> element.
+<% } %>
+.CE
+
+.PP
+This behavior can be changed with the \fIsinglescript\fR config
+option or via the \fBns_adp_ctl\fR command which instructs the ADP
+parser to converts all text/code blocks within an ADP into a single
+Tcl script block:
+
+.CS
+ns_section ns/server/server1/adp
+	ns_param singlescript false;  # Combine code blocks into one scripts.
+.CE
+
+.PP
+Setting this option would covert the script above into the following
+equivalent:
+
+.CS
+<% foreach elem $list {
+	ns_adp_puts -nonewline "\\n    Here is an "
+	ns_adp_puts -nonewline $elem
+	ns_adp_puts -nonewline " element.\\n"
+} %>
+.CE
+
+.PP
+Note that this option combines scripts within a particular ADP file,
+it does not combine scripts which span multiple included ADP's.  In
+addition, error semantics described above apply to the combined
+script and any error within any block combined into a single script
+will stop execution of the entire included page.
+
+.SH "BUFFER MANAGEMENT"
+.PP
+Output including accumulated text blocks and output generated by
+Tcl script blocks is normally buffered internally until the end of
+the connection.  Once complete, a single response is generated which
+follows HTTP response headers indicating the resulting content
+length.  The content may optionally be gzip compressed first.
+
+.PP
+Alternatively, an incremental response can be be generated either
+in response to calling the \fBns_adp_stream\fR or \fBns_adp_flush\fR
+commands or automatically due to buffer overflow.  In this case,
+an HTTP response will be generated on the first flush which specifies
+incremental content using HTTP/1.1 chunked-encoding.  Forcing a
+connection into streaming mode can be useful for certain long running
+requests where it's reasonable to expect the browser can render
+incremental respnoses.
+
+.PP
+The size of the internal buffer and gzip compression options can
+be set with corresponding server and ADP config options. Note both
+the virtual-server wide gzip and ADP gzip options must be enabled
+to support compression of ADP output.
+
+.CS
+ns_section ns/server/server1
+	ns_param gzip true;	 # Enable compression.
+	ns_param gziplevel 4;	 # Compression level.
+	ns_param gzipmin 4096;	 # Minimum size before gzip.
+
+ns_section ns/server/server1/adp
+	ns_param gzip true;	 # Enable ADP output compression.
+	ns_param bufsize 102400; # Buffer size, 1meg default.
+.CE
+
+.SH "CHARACTER ENCODING"
+.PP
+The ADP interface uses server's mimetype configuration to map file
+extensions to charsets and cooresponding encoding.  This configuration
+is necessary to ensure the file text and script blocks are properly
+coverted to UTF-8 for use internally.  This mimetype is also used
+to set the character output encoding although the \fBns_conn
+encoding\fR option can be used to override the encoding if necessary.
+
+
+.SH "ADP COMMANDS"
+.PP
+Several \fBns_adp\fR Tcl commands are provide to support ADP
+execution.  Typical commands include \fBns_adp_puts\fR to add a
+line of of content to the output stream as in the examples above
+and \fBns_adp_include\fR to include another ADP page within the
+current ADP.  The use of \fBns_adp_include\fR allows modular
+programming and re-use of ADP's.
+
+.PP
+Other commands are provided to access arguments to included ADP's,
+manipulate the output buffer, or interace with the internals of the
+ADP engine.
+
 .TP
-\fbns_adp_abort\fR ?\fIreturn_value\fR?
-
-This function aborts processing of the ADP file and any pending
-output up to that point is deleted. (By contrast, \fBns_adp_break\fR
-will send pending output.) However, if a streaming script
-was processed before \fBns_adp_abort\fR was called, the data will already
-have been output. Also, if any functions that cause output (such as
-\fBns_return\fR or \fBns_write\fR) were called before \fBns_adp_abort\fR,
-their output will already have been output also.
-
-\fBns_adp_abort\fR closes the connection without returning an empty HTML page.
-Every \fBns_return\fIxxx\fR call in an ADP should be followed with a call to
-\fBns_adp_abort\fR.
-
-The \fIreturn_value\fR, if specified, becomes the return value of the ADP.
-
-Note that this function returns all the way up the call stack.
-For example, assuming a page setup like the following:
+\fbns_adp_abort\fR ?\fIresult\fR?
+.TP
+\fbns_adp_break\fR ?\fIresult\fR?
+.TP
+\fbns_adp_return\fR ?\fIresult\fR?
+.TP
+\fbns_adp_exception\fR ?\fIvarName\fR?
 .RS
-.CS
-a.adp includes
-.CS
-b.adp includes
-.CS
-c.adp calls
-.CS
-\fBns_adp_abort\fR
-.CE
-.CE
-other code in b.adp
-.CE
-other code in a.adp
-.CE
-Then no code in \fIb.adp\fR or \fIa.adp\fR after the includes will be
-executed. You can get around this in one of two ways:
-.RS
-* You can execute these calls in \fIa.adp\fR and \fIb.adp\fR, respectively:
-.CS
-catch {ns_adp_include b.adp} retval
-catch {ns_adp_include c.adp} retval
-.CE
-* Or, you can execute this call in \fIc.adp\fR:
-.CS
-ns_adp_return $retval
-.CE
+.sp
+These commands can be used to interrupt the execution of an ADP.
+The \fIresult\fR string, if any, is made the interp result before
+setting the exception.
+.sp
+\fBns_adp_return\fR will stop execution of the current block;
+execution will continue at the next text or script block.  Note
+that if the ADP has been parsed in \fIsinglescript\fR mode (see
+above), the entire page will return.
+.sp
+\fBns_adp_break\fR stops all execution entirely; any output generated
+up until the point of the break will be sent to the client as normal.
+.sp
+\fBns_adp_abort\fR stops all execution as with \fBns_adp_break\fR
+but also flags the connection to not send any output which may have
+been generated.  \fBns_adp_abort\fR is often used in cases where
+an \fBns_return\fR class of commands is used to generate and send
+a complete response, e.g.:
 .RE
-The \fBns_adp_return\fR function returns up only one level, while both
-\fBns_adp_return\fR and \fBns_adp_abort\fR return all the way up the
-call stack.
 
-\fBns_adp_abort\fR has no return value.
+.CS
+<%
+if !$authorized {
+	ns_returnunauthorized; # Send complete response.
+	ns_adp_abort; # Execution stops here.
+}
+%>.
+.CE
+.RS
+.sp
+Internally, the exception routines sets a flag and return TCL_ERROR
+to begin unwinding the current Tcl call stack and return control
+to the ADP evaluation engine.  It is possible for an enclosing
+\fBcatch\fR command to catch the exception and stop Tcl from returning
+control to ADP.  The \fBns_adp_exception\fR command can be used to
+test for this condition and will return \fI1\fR if an exception has
+been raised, \fI0\fR otherwise.  If given, the variable specified
+by \fIvarName\fR will be updated with the specific exception,
+\fIreturn\fR, \fIbreak\fR, or \fIabort\fR.
 .RE
+
 .TP
 \fBns_adp_argc\fR
-
-Returns as an integer value the number of arguments passed to the ADP.
-The number of arguments includes the name of the ADP itself,
-which can be fetched with \fBns_adp_argv 0\fR.
 .TP
-\fBns_adp_argv \fR\fIindex\fR
-
-This function returns the value of the argument corresponding to the
-argument number specified in index. If \fIindex\fR is 0, the filename of
-the ADP is returned. Only the values 0 through the number of arguments
-minus one (obtained with \fBns_adp_argc\fR) are valid for index.
+\fBns_adp_argv\fR \fIindex\fR
 .TP
 \fBns_adp_bind_args \fIvar1\fR ?\fIvar2...\fR?
-
-This function copies the arguments from the current ADP frame to the
-local variable names specified in var1, var2, etc. You must bind the
-same number of arguments in the \fBns_adp_bind_args\fR function that were
-passed into the ADP. Attempting to bind any other number of arguments
-results in an error.
-
-\fBns_adp_bind_args\fR has no return value.
-.TP
-\fBns_adp_break\fR ?\fIreturn_value\fR?
-
-This function aborts processing of the ADP file and sends any pending
-output (from \fBns_adp_puts\fR or static HTML) up to the point where
-it was called to the browser. (By contrast, \fBns_adp_abort\fR deletes
-pending output.) Nothing is output or executed after it
-is called.
-
-The \fIreturn_value\fR, if specified, becomes the return value of the ADP.
-
-Note that this function returns all the way up the call stack.
-For example, assuming a page setup like the following:
 .RS
-.CS
-a.adp includes
-.CS
-b.adp includes
-.CS
-c.adp calls
-.CS
-\fBns_adp_break\fR
-.CE
-.CE
-other code in b.adp
-.CE
-other code in a.adp
-.CE
-Then no code in \fIb.adp\fR or \fIa.adp\fR after the includes will be
-executed. You can get around this in one of two ways:
-.RS
-* You can execute these calls in \fIa.adp\fR and \fIb.adp\fR, respectively:
-.CS
-catch {ns_adp_include b.adp} retval
-catch {ns_adp_include c.adp} retval
-.CE
-* Or, you can execute this call in \fIc.adp\fR:
-.CS
-ns_adp_return $retval
-.CE
-.RE
-The \fBns_adp_return\fR function returns up only one level, while both
-\fBns_adp_return\fR and \fBns_adp_abort\fR return all the way up the
-call stack.
+These commands provide access to arguments included with the
+\fBns_adp_include\fR command.
+.sp
+\fBns_adp_argc\fR returns the count of available arguments.  The number
+includes the name of the ADP file, for example after including an ADP
+with:
+.sp
 
-\fBns_adp_break\fR has no return value.
+.CS
+<% ns_adp_include /some/include/file.adp arg1 arg2 arg3 %>
+.CE
+.sp
+a call to \fBns_adp_argc\fR placed within \fI/some/include/file.adp\fR
+would return the value 4.
+.sp
+
+\fBns_adp_argv\fR returns the value of the argument at the given
+index.  For the \fIindex\fR 0, the filename of the ADP is returned.
+Passing an index beyond the range of arguments available results
+in an error being raised.
+.sp
+\fBns_adp_bind_args\fR can be used to map \fBns_adp_include\fR
+arguments to local variables.  The value for each variable specified
+will be set to the value of corresponding \fBns_adp_include\fR
+argument.  The index to the \fBns_adp_include\fR arguments starts
+a \fI1\fR, i.e., beyond the first argument index 0 which is the
+name of the file.
 .RE
+
 .TP
 \fBns_adp_debug\fR ?\fIprocs\fR? ?\fIhost\fR? ?\fIport\fR?
 
-This function connects to the TclPro debugger, if it is not already
+This command connects to the TclPro debugger, if it is not already
 connected. It essentially runs the TclPro command:
 .RS
 .CS
@@ -239,71 +407,75 @@ debuginit "procs" "host" "port"
 .TP
 \fBns_adp_dir
 
-This function returns the directory in which the ADP currently being
-processed resides. It is an error to call this function outside
-of ADP processing.
+This command returns the directory in which the ADP currently being
+processed resides and which relative ADP files will be found.
+
 .TP
 \fBns_adp_dump
+This command returns the text of the ADP output buffer as its result.
 
-This function returns the text of the ADP output buffer as its result.
 .TP
-\fBns_adp_eval\fR ?\fI-parser parser\fR? \fIpage\fR ?\fIarg ...\fR?
+\fBns_adp_eval\fR \fIpage\fR ?\fIarg ...\fR?
 
-This function evaluates the ADP specified by \fIpage\fR and returns the
+This command evaluates the ADP specified by \fIpage\fR and returns the
 output as the result. If any arguments are specified, they will be
 passed to the ADP.
 
-If the \fI-parser\fR switch is specified, the ADP is evaluated using the
-specified parser. You can specify one of the pre-defined parsers,
-"adp" or "fancy", or an alternate parser that you have registered with the
-\fBNs_AdpRegisterParser\fR C API function. By default, the parser specified
-by the DefaultParser parameter is used. If no DefaultParser is
-specified, the "adp" parser is used. 
 .TP
-\fBns_adp_exception ?\fIstate\fR?
+\fBns_adp_include\fR ?\fI-cache seconds\fR? ?\fI-nocache\fR? \fIfilename\fR ?\fIarg...\fR?
 
-This function is used to examine the current ADP exception state.
-The function returns 0 if the exception state is \fBok\fR and 1 otherwise.
-
-If the optional \fIstate\fR argument is passed, a variable with that
-name will be set for the caller, and will contain the exception state
-with one of the following possible values:
+This command parses the specified file as an ADP, including the text blocks
+and any output generated by script blocks in the current output buffer.
+.sp
+The \fIfilename\fR is the file containing the ADP to be parsed.  If
+the file is not an absolute filename, the file is considered relative
+to the current ADP working directory which is the directory of the
+previously included file.
+.sp
+Optional arguments (\fIarg...\fR) can be passed to the included ADP;
+see the \fBns_adp_argv\fR command above for details on accessing the
+values of these variables.
+.sp
+The optional \fI-cache seconds\fR argument specifies the time to cache 
+the results of execution.  All output generated by any scripts and 
+included ADP's are saved for subsequent requests unless an included
+ADP has a \fI-nocache\fR option. For example, with the following three
+files:
+.sp
+\fItop.adp:\fR
+.CS
+<% ns_adp_include -cache 60 cached.adp %>
+.CE
+.sp
 .RS
-.IP \fBok\fR 10
-ADP was evaluated successfully
-.IP \fBoverflow\fR 10
-Stack overflow occurred. This might happen, for example, if there was
-a recursive call to \fBns_adp_include\fR.
-.IP \fBabort\fR 10
-An attempt to debug failed or \fBns_adp_abort\fR was called.
-.IP \fBbreak\fR 10
-\fBns_adp_break\fR was called
-.IP \fBunknown\fR 10
-Unrecognized exception status. This should not occur.
+\fIcached.adp:\fR
 .RE
-.TP
-\fBns_adp_include\fR \fIfilename\fR ?\fIarg...\fR?
-
-This functions parses the specified file as an ADP and inserts it
-into the page as if it were an argument to \fBns_adp_puts\fR.
-Note that the ADP streaming cannot be turned on from within an
-ADP executed with the \fBns_adp_include\fR command. Tcl commands in
-the ADP will be evaluated locally.
-
-The \fIfilename\fR is the file containing the ADP to be parsed.
-This function uses the directory where the ADP resides to resolve
-any relative file names.
-
-You can pass optional arguments (\fIarg...\fR) to the ADP.
-The arguments can be accessed within the ADP using the
-\fBns_adp_argc\fR, \fBns_adp_argv\fR, and \fBns_adp_bind_args\fR functions.
-
-If this call is a nested ADP evaluation (where one ADP calls another),
-an error will be returned if the maximum number of nested
-ADP evaluations, 256, has been exceeded.
-
-This call can only be used from an ADP. Use \fBns_adp_parse\fR to
-parse ADPs from outside the context of an ADP.
+.CS
+<%
+ns_adp_puts "Time at cache: [ns_time]"
+ns_adp_include -nocache nocache.adp
+%>
+.CE
+.sp
+.RS
+\fInocache.adp:\fR
+.RE
+.CS
+<% ns_adp_puts "Time now: [ns_time]" %>
+.CE
+.sp
+.RS
+the results of \fIcached.adp\fR will only update once every 60
+seconds while the results of \fInocache.adp\fR will be executed on
+each request, even though it's included withing \fIcached.adp\fR.
+.sp
+The use of \fI-cache\fR and \fI-nocache\fR can be used to increase
+performance of ADP used to generated a mix of personalized,
+non-cacheable, content and shared content which changes more slowly.
+Under high load, the performance improvement can be substaintial,
+especially in cases where the cached content is the result of
+accessing a slow databases or web services.
+.RE
 .TP
 \fBns_adp_mimetype\fR ?\fImimetype\fR?
 
