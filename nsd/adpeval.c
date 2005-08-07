@@ -33,7 +33,7 @@
  *	ADP string and file eval.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.43 2005/08/06 23:58:07 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.44 2005/08/07 00:11:44 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -419,7 +419,8 @@ AdpRun(NsInterp *itPtr, int objc, Tcl_Obj *objv[], char *file,
 	if (ePtr != NULL) {
     	    ipagePtr = Ns_CacheGetValue(ePtr);
     	    if (ipagePtr->pagePtr->mtime != st.st_mtime
-			|| ipagePtr->pagePtr->size != st.st_size) {
+			|| ipagePtr->pagePtr->size != st.st_size
+			|| ipagePtr->pagePtr->flags != flags) {
 		Ns_CacheFlushEntry(ePtr);
 		ipagePtr = NULL;
 	    }
@@ -437,7 +438,8 @@ AdpRun(NsInterp *itPtr, int objc, Tcl_Obj *objv[], char *file,
 		hPtr = Tcl_CreateHashEntry(&servPtr->adp.pages, key, &new);
 	    }
 	    if (!new && (pagePtr->mtime != st.st_mtime
-			|| pagePtr->size != st.st_size)) {
+			|| pagePtr->size != st.st_size
+			|| pagePtr->flags != flags)) {
 		/* NB: Clear entry to indicate read/parse in progress. */
 		Tcl_SetHashValue(hPtr, NULL);
 		pagePtr->hPtr = NULL;
@@ -791,6 +793,7 @@ ParseFile(NsInterp *itPtr, char *file, struct stat *stPtr, int flags)
 	pagePtr = ns_malloc(sizeof(Page) + strlen(file));
 	strcpy(pagePtr->file, file);
 	pagePtr->servPtr = itPtr->servPtr;
+	pagePtr->flags = flags;
 	pagePtr->refcnt = 0;
 	pagePtr->evals = 0;
 	pagePtr->locked = 0;
@@ -855,7 +858,7 @@ AdpLogError(NsInterp *itPtr)
 		len = 150;
 		dot = "...";
 	    }
-	    while ((adp[i] & 0xC0) == 0x80) {
+	    while ((adp[len] & 0xC0) == 0x80) {
 		/* NB: Avoid truncating multi-byte UTF-8 character. */
 		len--;
 		dot = "...";
