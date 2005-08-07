@@ -1,3 +1,16 @@
+2005-08-04  Jim Davidson <jgdavidson@aol.com>
+
+	* doc/ns_adp.n: Updated docs, needs more work.
+
+	* nsd/nsd.h:
+	* nsd/adpeval.c:
+	* nsd/adpcmds.c:
+	* nsd/adprequest.c:  Updated the init/re-init approach for
+	adp options so they can be set before the first include.
+	Also, fixed AdpRun so it detects parse/compile safe and/or
+	singlescript options may have changed.
+
+
 2005-08-05  Nathan Folkman <shmooved@aol.com>
 
         * nsd/log.c:
