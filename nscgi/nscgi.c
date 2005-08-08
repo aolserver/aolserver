@@ -28,7 +28,7 @@
  */
 
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscgi/nscgi.c,v 1.29 2005/08/08 11:42:34 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscgi/nscgi.c,v 1.30 2005/08/08 11:43:17 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 #include <sys/stat.h>
@@ -150,7 +150,6 @@ NsCgi_ModInit(char *server, char *module)
     Ns_Set         *set;
     Ns_DString      ds;
     Mod		   *modPtr;
-    static int	    initialized;
 
     /*
      * Config basic options.
