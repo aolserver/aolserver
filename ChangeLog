@@ -39,6 +39,9 @@
 	* nscgi/nscgi.c: Updated to use new mod init stub and new
 	Ns_DevNull and Ns_ContentFd API's.
 
+	* examples/mynsd:  Example of building a custom static linked
+	nsd binary.
+
 
 2005-08-04  Jim Davidson <jgdavidson@aol.com>
 
