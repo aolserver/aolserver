@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/Makefile,v 1.56 2005/08/08 11:29:32 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/Makefile,v 1.57 2005/08/08 19:27:46 jgdavidson Exp $
 #
 
 NSBUILD=1
@@ -41,7 +41,7 @@ all:
 		( cd $$i && $(MAKE) all) || exit 1; \
 	done
 
-install: install-binaries install-doc
+install: install-binaries install-doc install-util
 
 install-binaries: all
 	for i in bin lib log include modules/tcl servers/server1/pages; do \
@@ -72,7 +72,13 @@ install-tests-new:
 	done
 
 install-doc:
+	$(INSTALL_SH) doc/nsinstall-man.sh $(INSTBIN)/
 	cd doc && $(MAKE) install
+
+install-util:
+	for i in util/*.sh util/*.tcl; do \
+		$(INSTALL_SH) $$i $(INSTBIN)/; \
+	done
 
 test: all
 	cd tests/new && ./all.tcl
