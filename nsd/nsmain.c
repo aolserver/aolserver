@@ -33,7 +33,7 @@
  *	AOLserver Ns_Main() startup routine.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.62 2005/08/01 20:28:23 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.63 2005/08/08 11:29:58 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -97,6 +97,12 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
     static char	  *server;
 
 #endif
+
+    /*
+     * Initialize libnsd.
+     */
+
+    Ns_LibInit();
 
     /*
      * Mark the server stopped until initialization is complete.

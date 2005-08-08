@@ -33,7 +33,7 @@
  *	AOLserver libnsd entry.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/init.c,v 1.11 2005/08/01 20:28:38 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/init.c,v 1.12 2005/08/08 11:29:58 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -41,10 +41,11 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
 /*
  *----------------------------------------------------------------------
  *
- * NsdInit --
+ * Ns_LibInit --
  *
- *	Library entry point for libnsd.  This routine calls various
- *	data structure initialization functions throughout the core.
+ *	Initializes core nsd library.  Should be called automatically
+ *	during dynamic library initialization, otherwise explicitly for
+ *	static builds.
  *
  * Results:
  	None.
@@ -56,12 +57,18 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
  */
 
 void
-NsdInit(void)
+Ns_LibInit(void)
 {
     static int once = 0;
 
     if (!once) {
 	once = 1;
+
+	/*
+	 * Initialize the threads interface.
+	 */
+
+	NsThreads_LibInit();
 
 	/*
 	 * Log must be initialized first in case later inits log messages.

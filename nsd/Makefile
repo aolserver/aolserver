@@ -27,14 +27,14 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Makefile,v 1.46 2005/08/01 20:27:11 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Makefile,v 1.47 2005/08/08 11:29:58 jgdavidson Exp $
 #
 
 INSTALL	= install-init
 LIB	= nsd
+LIBINIT	= Ns_LibInit
 PGM	= nsd
 PGMOBJS	= main.o
-LIBINIT	= NsdInit
 HDRS	= nsd.h
 SRCS	:= $(wildcard *.c ../nsthread/*.c)
 

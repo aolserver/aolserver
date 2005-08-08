@@ -79,7 +79,7 @@
  *	"ns:data" and accessible by NsGetInterpData.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.48 2005/08/06 23:58:58 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.49 2005/08/08 11:29:58 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -252,6 +252,13 @@ Ns_TclCreateInterp(void)
 int
 Ns_TclInit(Tcl_Interp *interp)
 {
+    /*
+     * Initialize libnsd if not already initialized at library load
+     * time.
+     */
+
+    Ns_LibInit();
+
     NewInterpData(interp, NULL);
     return TCL_OK;
 }
