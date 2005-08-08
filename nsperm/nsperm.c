@@ -33,19 +33,13 @@
  *	Permissions
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsperm/nsperm.c,v 1.9 2004/02/18 06:30:32 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsperm/nsperm.c,v 1.10 2005/08/08 11:30:15 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 
 #ifndef INADDR_NONE
 #define INADDR_NONE (-1)
 #endif
-
-/*
- * For AOLserver
- */
-
-int Ns_ModuleVersion = 1;
 
 /*
  * The following structure is allocated for each instance of the module.
@@ -120,7 +114,7 @@ static Tcl_HashTable   serversTable;
 /*
  *----------------------------------------------------------------------
  *
- * Ns_ModuleInit --
+ * NsPerm_ModInit --
  *
  *	Initialize the perms module 
  *
@@ -134,7 +128,7 @@ static Tcl_HashTable   serversTable;
  */
 
 int
-Ns_ModuleInit(char *server, char *module)
+NsPerm_ModInit(char *server, char *module)
 {
     Server *servPtr;
     char *path;

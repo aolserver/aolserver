@@ -27,11 +27,11 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsdb/Makefile,v 1.3 2002/09/21 17:07:36 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsdb/Makefile,v 1.4 2005/08/08 11:30:13 jgdavidson Exp $
 
 LIB	= nsdb
-LIBOBJS	= dbinit.o dbdrv.o dbtcl.o dbutil.o
+LIBOBJS	= dbinit.o dbdrv.o dbtcl.o dbutil.o nsdb.o
 MOD	= nsdb.so
-OBJS	= nsdb.o
+MODINIT = NsDb_ModInit
 HDRS	= db.h
 include ../include/Makefile.build

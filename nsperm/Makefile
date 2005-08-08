@@ -27,11 +27,13 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsperm/Makefile,v 1.6 2002/09/21 17:07:36 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsperm/Makefile,v 1.7 2005/08/08 11:30:14 jgdavidson Exp $
 #
 
+LIB	 =  nsperm
+LIBOBJS  =  nsperm.o
 MOD      =  nsperm.so
-OBJS     =  nsperm.o
+MODINIT	 =  NsPerm_ModInit
 MODINST	 =  cpfiles
 
 include ../include/Makefile.build
@@ -46,5 +48,5 @@ cpfiles:
 	$(INSTALL_DATA) compat.tcl $(modtcl)/
 	$(MKDIR) $(moddat)
 	for f in passwd group hosts.allow hosts.deny perms; do \
-		test -f $(moddat)/$$f || $(INSTALL_DATA) $$f $(moddat)/; \
+		$(INSTALL_DATA) -n $$f $(moddat)/; \
 	done

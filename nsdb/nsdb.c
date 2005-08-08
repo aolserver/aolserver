@@ -33,17 +33,15 @@
  *	Database module entry point.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsdb/nsdb.c,v 1.2 2005/07/18 23:33:41 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsdb/nsdb.c,v 1.3 2005/08/08 11:32:17 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "db.h"
-
-int Ns_ModuleVersion = 1;
 
 
 /*
  *----------------------------------------------------------------------
  *
- * Ns_ModuleInit --
+ * NsDb_ModInit --
  *
  *	Module initialization point.
  *
@@ -57,7 +55,7 @@ int Ns_ModuleVersion = 1;
  */
 
 int
-Ns_ModuleInit(char *server, char *module)
+NsDb_ModInit(char *server, char *module)
 {
     static int once;
 

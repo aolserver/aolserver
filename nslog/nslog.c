@@ -34,7 +34,7 @@
  *	This file implements the access log using NCSA Common Log format.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nslog/nslog.c,v 1.15 2004/07/13 20:59:05 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nslog/nslog.c,v 1.16 2005/08/08 11:32:18 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 #include <sys/stat.h>	/* mkdir */
@@ -43,12 +43,6 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsl
 #define LOG_COMBINED	1
 #define LOG_FMTTIME	2
 #define LOG_REQTIME	4
-
-/*
- * Exported variables
- */
-
-int Ns_ModuleVersion = 1; 		/* Needed for AOLserver */
 
 typedef struct {
     char	   *module;
@@ -81,15 +75,11 @@ static Ns_ArgProc LogArg;
 static Tcl_CmdProc LogCmd;
 static Ns_TclInterpInitProc AddCmds;
 
-/*
- * Static variables defined in this file
- */
-
 
 /*
  *----------------------------------------------------------------------
  *
- * Ns_ModuleInit --
+ * NsLog_ModInit --
  *
  *	Module initialization routine.
  *
@@ -105,7 +95,7 @@ static Ns_TclInterpInitProc AddCmds;
  */
 
 int
-Ns_ModuleInit(char *server, char *module)
+NsLog_ModInit(char *server, char *module)
 {
     char 	*path;
     int 	 opt, hour;

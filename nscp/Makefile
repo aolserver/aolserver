@@ -27,9 +27,11 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nscp/Makefile,v 1.4 2002/09/21 17:07:36 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nscp/Makefile,v 1.5 2005/08/08 11:30:12 jgdavidson Exp $
 #
 
+LIB	 =  nscp
+LIBOBJS  =  nscp.o
 MOD      =  nscp.so
-OBJS     =  nscp.o
+MODINIT	 =  NsCp_ModInit
 include  ../include/Makefile.build

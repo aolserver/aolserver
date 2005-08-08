@@ -40,13 +40,11 @@ static Ns_DriverProc SockProc;
 static int SockRecv(SOCKET sock, struct iovec *bufs, int nbufs);
 static int SockSend(SOCKET sock, struct iovec *bufs, int nbufs);
 
-int Ns_ModuleVersion = 1;
-
 
 /*
  *----------------------------------------------------------------------
  *
- * Ns_ModuleInit --
+ * NsSock_ModInit --
  *
  *	Sock module init routine.
  *
@@ -60,7 +58,7 @@ int Ns_ModuleVersion = 1;
  */
 
 int
-Ns_ModuleInit(char *server, char *module)
+NsSock_ModInit(char *server, char *module)
 {
     Ns_DriverInitData init;
     char *path;
