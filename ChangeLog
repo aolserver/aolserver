@@ -1,3 +1,45 @@
+2005-08-08  Jim Davidson <jgdavidson@aol.com>
+
+	* include/nsmodinit.c (new file):
+	* include/nslibinit.c (new file):
+	* include/Makefile.global.in:
+	* include/Makefile.module.in:  New stubs and makefile targets to
+	support building a library or module in a consistent way which
+	separates the library code installed as both a static archive and
+	dynamic lib from the library and/or module init calls.
+
+	* nscp/Makefile:
+	* nscp/nscp.c:
+	* nsdb/Makefile:
+	* nsdb/nsdb.c:
+	* nslog/Makefile:
+	* nslog/nslog.c
+	* nsperm/Makefile:
+	* nsperm/nsperm.c:
+	* nssock/Makefile:
+	* nssock/nssock.c:  Updated to use init stubs described above.
+
+	* include/ns.h
+	* include/nsthread.h
+	* nsthread/Makefile:
+	* nsthread/thread.c:
+	* nsthread/pthread.c:
+	* nsthread/winthread.c:
+	* nsthread/nsthreadtest.c:
+	* nsd/Makefile:
+	* nsd/init.c:
+	* nsd/nsmain.c:
+	* nsd/tclinit.c: Added Ns_LibInit and NsThreads_LibInit which,
+	in addition to being called at dynamic library load time, are
+	now also called at the Ns_Main and Ns_TclInit entry points to
+	support initialization of static builds assuming code starts at
+	the two supported entry points.
+
+	* nscgi/Makefile
+	* nscgi/nscgi.c: Updated to use new mod init stub and new
+	Ns_DevNull and Ns_ContentFd API's.
+
+
 2005-08-04  Jim Davidson <jgdavidson@aol.com>
 
 	* doc/ns_adp.n: Updated docs, needs more work.
