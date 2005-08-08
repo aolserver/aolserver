@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Attic/Makefile.module.in,v 1.6 2004/11/15 13:38:38 dossy Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Attic/Makefile.module.in,v 1.7 2005/08/08 11:29:38 jgdavidson Exp $
 
 #
 # Makefile.module --
@@ -58,16 +58,6 @@
 #	See ../nsd/Makefile and ../nsdb/Makefile for examples.
 #	
 
-STATIC_BUILD = @STATIC_BUILD@
-
-ifdef NSBUILD
-    ifeq ($(STATIC_BUILD), 1)
-        ALIB 	:= $(LIB)
-        LIB	:=
-        LIBINIT	:= 
-    endif
-endif
-
 ifdef MOD
     BUILD	+= $(MOD)
     INSTALL 	+= install-mod
@@ -75,24 +65,22 @@ ifdef MOD
     ifeq ($(origin MODOBJS), undefined)
         MODOBJS	= $(OBJS)
     endif
+    ifdef MODINIT
+	MODINIT_OBJ = _modinit.o
+    endif
 endif
 
 ifdef LIB
-    LIBFILE	=  lib$(LIB)$(LIBEXT)
-    BUILD	+= $(LIBFILE)
-    INSTALL 	+= install-lib
-    CLEAN   	+= clean-lib
-    MODLIBS	+= $(LIBFILE)
-    PGMLIBS	+= $(LIBFILE)
-endif
-
-ifdef ALIB
-    ALIBFILE 	= lib$(ALIB).a
-    BUILD	+= $(ALIBFILE)
-    INSTALL	+= install-alib
-    CLEAN	+= clean-alib
-    MODLIBS	+= $(ALIBFILE)
-    PGMLIBS	+= $(ALIBFILE)
+    ALIB	 = lib$(LIB).a
+    SLIB	 = lib$(LIB)$(LIBEXT)
+    BUILD	+= $(ALIB) $(SLIB)
+    INSTALL	+= install-lib
+    CLEAN  	+= clean-lib
+    MODLIBS	+= -L. -l$(LIB)
+    PGMLIBS	+= -L. -l$(LIB)
+    ifdef LIBINIT
+	LIBINIT_OBJ = _libinit.o
+    endif
 endif
 
 ifdef PGM
@@ -113,21 +101,30 @@ install: $(INSTALL)
 
 clean: $(CLEAN)
 
-$(MOD): $(LIBFILE) $(ALIBFILE) $(MODOBJS)
+$(SLIB): $(LIBOBJS) $(LIBINIT_OBJ)
+	$(RM) $(SLIB)
+	$(LDLIB) $(LDFLAGS) -o $(SLIB) $(LIBOBJS) $(LIBINIT_OBJ) \
+		$(LIBLIBS) $(LIBS) @LDRPATHS@
+
+$(ALIB): $(LIBOBJS)
+	$(AR) rv $(ALIB) $(LIBOBJS)
+	$(RANLIB) $(ALIB)
+
+$(MOD): $(MODOBJS) $(MODINIT_OBJ) $(ALIB) $(SLIB)
 	$(RM) $(MOD)
-	$(LDSO) $(LDFLAGS) -o $(MOD) $(MODOBJS) $(MODLIBS) $(LIBS) @LDRPATHS@
+	$(LDSO) $(LDFLAGS) -o $(MOD) $(MODOBJS) $(MODINIT_OBJ) \
+		$(MODLIBS) $(LIBS) @LDRPATHS@
 
-$(LIBFILE): $(LIBOBJS)
-	$(RM) $(LIBFILE)
-	$(LDLIB) $(LDFLAGS) -o $(LIBFILE) $(LIBOBJS) $(LIBLIBS) $(LIBS) @LDRPATHS@
+$(MODINIT_OBJ): $(INCDIR)/nsmodinit.c
+	$(CC) $(CFLAGS) -DNS_MODINIT=$(MODINIT) -c -o $@ $<
 
-$(ALIBFILE): $(LIBOBJS)
-	$(AR) rv $(ALIBFILE) $(LIBOBJS)
-	$(RANLIB) $(ALIBFILE)
+$(LIBINIT_OBJ): $(INCDIR)/nslibinit.c
+	$(CC) $(CFLAGS) -DNS_LIBINIT=$(LIBINIT) -c -o $@ $<
 
-$(PGM): $(PGMOBJS) $(LIBFILE) $(ALIBFILE)
+$(PGM): $(PGMOBJS) $(ALIB) $(SLIB)
 	$(RM) $(PGM)
-	$(CC) $(LDFLAGS) -o $(PGM) $(PGMOBJS) $(PGMLIBS) $(CCLIBS) @CCRPATHS@
+	$(CC) $(LDFLAGS) -o $(PGM) $(PGMOBJS) \
+		$(PGMLIBS) $(CCLIBS) @CCRPATHS@
 
 $(MODOBJS) $(LIBOBJS) $(PGMOBJS): $(HDRS) $(INCDIR)/ns.h $(INCDIR)/nsthread.h
 
@@ -135,25 +132,20 @@ install-mod: $(MOD) $(MODINST)
 	$(INSTALL_SH) $(MOD) $(INSTBIN)/
 
 install-lib: $(LIBFILE)
-	$(INSTALL_SH) $(LIBFILE) $(INSTLIB)/
-
-install-alib: $(ALIBFILE)
-	$(INSTALL_SH) $(ALIBFILE) $(INSTLIB)/
-	$(RANLIB) $(ALIBFILE)
+	$(INSTALL_SH) $(SLIB) $(INSTLIB)/
+	$(INSTALL_SH) $(ALIB) $(INSTLIB)/
+	$(RANLIB) $(INSTLIB)/$(ALIB)
 
 install-pgm: $(PGM)
 	$(INSTALL_SH) $(PGM) $(INSTBIN)/
 
 clean-mod:
-	$(RM) $(MOD) $(MODOBJS)
+	$(RM) $(MOD) $(MODOBJS) $(MODINIT_OBJ) 
 
 clean-lib:
-	$(RM) $(LIBFILE) $(LIBOBJS)
-
-clean-alib:
-	$(RM) $(ALIBFILE) $(LIBOBJS)
+	$(RM) $(SLIB) $(ALIB) $(LIBOBJS) $(LIBINIT_OBJ)
 
 clean-pgm:
 	$(RM) $(PGM) $(PGMOBJS)
 
-.PHONY: clean-mod clean-lib clean-alib clean-pgm
+.PHONY: clean-mod clean-lib clean-pgm

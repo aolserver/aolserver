@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Attic/Makefile.global.in,v 1.17 2004/11/20 01:46:00 dossy Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Attic/Makefile.global.in,v 1.18 2005/08/08 11:29:38 jgdavidson Exp $
 #
 
 #
@@ -70,19 +70,17 @@ DEFS      	= -DNO_CONST @TCL_DEFS@ @DEFS@
 CFLAGS		+= @CFLAGS_DEFAULT@ $(CFLAGS_WARNING) $(CFLAGS_EXTRA) $(CFLAGS_INCLUDE) @CPPFLAGS@ $(DEFS)
 
 ifndef NSBUILD
-    LDFLAGS	+= -L$(AOLSERVER)/lib
-    LIBS	+= -lnsthread -lnsd
+    LIBS	+= -L$(AOLSERVER)/lib -lnsd -lnsthread
     INCDIR	= $(AOLSERVER)/include
 else
-    LDFLAGS	+= -L../nsthread -L../nsd
     INCDIR	= ../include
     ifneq (nsthread,$(LIB))
-    	LIBS	+= -lnsthread
     	ifneq (nsd,$(LIB))
             ifneq (nsthreadtest,$(PGM))
-                LIBS	+= -lnsd
+                LIBS += -L../nsd -lnsd
             endif
     	endif
+    	LIBS += -L../nsthread -lnsthread
     endif
 endif
 
@@ -113,9 +111,7 @@ endif
 # Add dynamic library entry point flags.
 ifdef LIBINIT
     ifneq (,$(findstring Darwin,$(uname)))
-	LDLIB	+= -init _$(LIBINIT)
-    else
-	CFLAGS	+= -D$(LIBINIT)=_init
+	LDLIB	+= -init _init
     endif
 endif
  
