@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Attic/Makefile.global.in,v 1.18 2005/08/08 11:29:38 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Attic/Makefile.global.in,v 1.19 2005/08/08 15:33:01 jgdavidson Exp $
 #
 
 #
@@ -111,7 +111,10 @@ endif
 # Add dynamic library entry point flags.
 ifdef LIBINIT
     ifneq (,$(findstring Darwin,$(uname)))
-	LDLIB	+= -init _init
+	INIT	 =  _$(LIBINIT)
+	LDLIB	+= -init _$(INIT)
+    else
+	INIT	 =  _init
     endif
 endif
  

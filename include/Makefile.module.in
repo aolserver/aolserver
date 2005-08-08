@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Attic/Makefile.module.in,v 1.7 2005/08/08 11:29:38 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Attic/Makefile.module.in,v 1.8 2005/08/08 15:33:01 jgdavidson Exp $
 
 #
 # Makefile.module --
@@ -53,7 +53,7 @@
 #	MODOBJS will default to OBJS and MODINST can be used for module install.
 #
 #       For static builds (use configure --disable-shared) the LIB variable is
-#       replaced with ALIB which triggers the linking of the static library.
+#       replaced with ALIBFILE which triggers the linking of the static library.
 #
 #	See ../nsd/Makefile and ../nsdb/Makefile for examples.
 #	
@@ -71,9 +71,9 @@ ifdef MOD
 endif
 
 ifdef LIB
-    ALIB	 = lib$(LIB).a
-    SLIB	 = lib$(LIB)$(LIBEXT)
-    BUILD	+= $(ALIB) $(SLIB)
+    ALIBFILE	 = lib$(LIB).a
+    LIBFILE	 = lib$(LIB)$(LIBEXT)
+    BUILD	+= $(ALIBFILE) $(LIBFILE)
     INSTALL	+= install-lib
     CLEAN  	+= clean-lib
     MODLIBS	+= -L. -l$(LIB)
@@ -101,16 +101,16 @@ install: $(INSTALL)
 
 clean: $(CLEAN)
 
-$(SLIB): $(LIBOBJS) $(LIBINIT_OBJ)
-	$(RM) $(SLIB)
-	$(LDLIB) $(LDFLAGS) -o $(SLIB) $(LIBOBJS) $(LIBINIT_OBJ) \
+$(LIBFILE): $(LIBOBJS) $(LIBINIT_OBJ)
+	$(RM) $(LIBFILE)
+	$(LDLIB) $(LDFLAGS) -o $(LIBFILE) $(LIBOBJS) $(LIBINIT_OBJ) \
 		$(LIBLIBS) $(LIBS) @LDRPATHS@
 
-$(ALIB): $(LIBOBJS)
-	$(AR) rv $(ALIB) $(LIBOBJS)
-	$(RANLIB) $(ALIB)
+$(ALIBFILE): $(LIBOBJS)
+	$(AR) rv $(ALIBFILE) $(LIBOBJS)
+	$(RANLIB) $(ALIBFILE)
 
-$(MOD): $(MODOBJS) $(MODINIT_OBJ) $(ALIB) $(SLIB)
+$(MOD): $(MODOBJS) $(MODINIT_OBJ) $(ALIBFILE) $(LIBFILE)
 	$(RM) $(MOD)
 	$(LDSO) $(LDFLAGS) -o $(MOD) $(MODOBJS) $(MODINIT_OBJ) \
 		$(MODLIBS) $(LIBS) @LDRPATHS@
@@ -119,9 +119,9 @@ $(MODINIT_OBJ): $(INCDIR)/nsmodinit.c
 	$(CC) $(CFLAGS) -DNS_MODINIT=$(MODINIT) -c -o $@ $<
 
 $(LIBINIT_OBJ): $(INCDIR)/nslibinit.c
-	$(CC) $(CFLAGS) -DNS_LIBINIT=$(LIBINIT) -c -o $@ $<
+	$(CC) $(CFLAGS) -DNS_INIT=$(INIT) -DNS_LIBINIT=$(LIBINIT) -c -o $@ $<
 
-$(PGM): $(PGMOBJS) $(ALIB) $(SLIB)
+$(PGM): $(PGMOBJS) $(ALIBFILE) $(LIBFILE)
 	$(RM) $(PGM)
 	$(CC) $(LDFLAGS) -o $(PGM) $(PGMOBJS) \
 		$(PGMLIBS) $(CCLIBS) @CCRPATHS@
@@ -132,9 +132,9 @@ install-mod: $(MOD) $(MODINST)
 	$(INSTALL_SH) $(MOD) $(INSTBIN)/
 
 install-lib: $(LIBFILE)
-	$(INSTALL_SH) $(SLIB) $(INSTLIB)/
-	$(INSTALL_SH) $(ALIB) $(INSTLIB)/
-	$(RANLIB) $(INSTLIB)/$(ALIB)
+	$(INSTALL_SH) $(LIBFILE) $(INSTLIB)/
+	$(INSTALL_SH) $(ALIBFILE) $(INSTLIB)/
+	$(RANLIB) $(INSTLIB)/$(ALIBFILE)
 
 install-pgm: $(PGM)
 	$(INSTALL_SH) $(PGM) $(INSTBIN)/
@@ -143,7 +143,7 @@ clean-mod:
 	$(RM) $(MOD) $(MODOBJS) $(MODINIT_OBJ) 
 
 clean-lib:
-	$(RM) $(SLIB) $(ALIB) $(LIBOBJS) $(LIBINIT_OBJ)
+	$(RM) $(LIBFILE) $(ALIBFILE) $(LIBOBJS) $(LIBINIT_OBJ)
 
 clean-pgm:
 	$(RM) $(PGM) $(PGMOBJS)
