@@ -1,5 +1,10 @@
 2005-08-08  Jim Davidson <jgdavidson@aol.com>
 
+	* include/ns.h:
+	* nsd/conn.c:
+	* doc/Ns_ConnContent.3:  Incorporated patch from Fred Cox
+	to add the Ns_ConnContentOnDisk API.
+
 	* include/nsmodinit.c (new file):
 	* include/nslibinit.c (new file):
 	* include/Makefile.global.in:
