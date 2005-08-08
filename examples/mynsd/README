@@ -1,0 +1,29 @@
+
+mynsd
+-----
+
+Example of building a custom static linked nsd binary.  This could be
+useful to avoid distributing dynamic libraries and/or advanced debugging.
+
+To use:
+
+1.  Build Tcl normally with shared libraries.
+
+2.  Build and instal AOLserver normally.  The install directory should
+include static and dynamic libaries in the lib/ subdirectory.
+
+3.  Build Tcl again with --disable-shared.
+
+4.  Modify the config structure in mynsd.c and Makefile for the modules
+you would like to use.
+
+5.  Comment out any AOLserver modules from the ns/server/{server}/modules
+section of your config file (the cooresponding config sections will
+continue to be used).
+
+6.  Type "make AOLSERVER=/you/install/dir install"
+
+7.  Use mynsd as you would nsd.
+
+
+$Id: README,v 1.1 2005/08/08 12:14:30 jgdavidson Exp $
