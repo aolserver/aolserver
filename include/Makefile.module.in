@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Attic/Makefile.module.in,v 1.8 2005/08/08 15:33:01 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/include/Attic/Makefile.module.in,v 1.9 2005/08/08 19:26:51 jgdavidson Exp $
 
 #
 # Makefile.module --
@@ -89,6 +89,18 @@ ifdef PGM
     CLEAN	+= clean-pgm
 endif
 
+ifdef MAN1
+    INSTALL	+= install-man1
+endif
+
+ifdef MAN3
+    INSTALL	+= install-man3
+endif
+
+ifdef MANN
+    INSTALL	+= install-mann
+endif
+
 ifdef NSBUILD
     include ../include/Makefile.global
 else
@@ -139,6 +151,24 @@ install-lib: $(LIBFILE)
 install-pgm: $(PGM)
 	$(INSTALL_SH) $(PGM) $(INSTBIN)/
 
+install-man1:
+	$(MKDIR) $(MAN1_DIR)
+	for i in $(MAN1); do \
+		$(MAN_INST) $$i $(MAN1_DIR)/; \
+	done
+
+install-man3:
+	$(MKDIR) $(MAN3_DIR)
+	for i in $(MAN3); do \
+		$(MAN_INST) $$i $(MAN3_DIR)/; \
+	done
+
+install-mann:
+	$(MKDIR) $(MANN_DIR)
+	for i in $(MANN); do \
+		$(MAN_INST) $$i $(MANN_DIR)/; \
+	done
+
 clean-mod:
 	$(RM) $(MOD) $(MODOBJS) $(MODINIT_OBJ) 
 
@@ -148,4 +178,4 @@ clean-lib:
 clean-pgm:
 	$(RM) $(PGM) $(PGMOBJS)
 
-.PHONY: clean-mod clean-lib clean-pgm
+.PHONY: clean-mod clean-lib clean-pgm install-man1 install-man3 install-mann

@@ -26,42 +26,16 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Makefile,v 1.2 2005/07/22 12:24:57 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Makefile,v 1.3 2005/08/08 19:26:53 jgdavidson Exp $
 #
 
-include ../include/Makefile.global
 
+NSLIBS = $(wildcard $(AOLSERVER)/lib/libns*$(LIBEXT))
 MAN3 := $(wildcard *.3)
 MANN := $(wildcard *.n)
 MAN1 := $(wildcard *.1)
-MAN_DIR = $(AOLSERVER)/man
-MAN1_DIR = $(MAN_DIR)/man1
-MAN3_DIR = $(MAN_DIR)/man3
-MANN_DIR = $(MAN_DIR)/mann
-MAN_INST = nsinstall-man.sh
-NSLIBS = $(wildcard $(AOLSERVER)/lib/libns*$(LIBEXT))
 
-all: install
-
-install: install-man1 install-man3 install-mann
-
-install-man1:
-	$(MKDIR) $(MAN1_DIR)
-	for i in $(MAN1); do \
-		sh $(MAN_INST) $$i $(MAN1_DIR)/; \
-	done
-
-install-man3:
-	$(MKDIR) $(MAN3_DIR)
-	for i in $(MAN3); do \
-		sh $(MAN_INST) $$i $(MAN3_DIR)/; \
-	done
-
-install-mann:
-	$(MKDIR) $(MANN_DIR)
-	for i in $(MANN); do \
-		sh $(MAN_INST) $$i $(MANN_DIR)/; \
-	done
+include ../include/Makefile.build
 
 missing: 
 	@nm $(NSLIBS) | awk '/T _Ns_/ {print $$3}' | sort > lib.out
