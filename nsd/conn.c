@@ -34,7 +34,7 @@
  *      Manage the Ns_Conn structure
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.45 2005/08/01 20:28:04 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.46 2005/08/08 18:44:05 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -183,6 +183,35 @@ char *
 Ns_ConnContent(Ns_Conn *conn)
 {
     return NsConnContent(conn, NULL, NULL);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_ConnContentOnDisk --
+ *
+ *	Return 1 if the content has been copied to a temp file, either
+ *	because it was greater than maxinput, or because Ns_ConnContentFd
+ *	has been called.  Returns 0, otherwise.  This is useful in the case
+ *	the application wants to be as efficient as possible, and not cause
+ *	excess file creation or mmap()ing.
+ *
+ * Results:
+ *	0 if content only in RAM, 1 if in /tmp file.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Ns_ConnContentOnDisk(Ns_Conn *conn)
+{
+    Conn *connPtr = (Conn *) conn;
+
+    return connPtr->tfd > -1;
 }
 
 

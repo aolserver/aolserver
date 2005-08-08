@@ -28,7 +28,7 @@
 '\" version of this file under either the License or the GPL.
 '\" 
 '\"
-'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_ConnContent.3,v 1.1 2005/07/18 23:34:00 jgdavidson Exp $
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_ConnContent.3,v 1.2 2005/08/08 18:44:04 jgdavidson Exp $
 '\"
 '\" 
 .so man.macros
@@ -37,7 +37,7 @@
 .BS
 '\" Note:  do not modify the .SH NAME line immediately below!
 .SH NAME
-Ns_ConnContent, Ns_ConnContentLength, Ns_ConnContentFd \- access request content
+Ns_ConnContent, Ns_ConnContentLength, Ns_ConnContentFd, Ns_ConnContentOnDisk  \- access request content
 .SH SYNOPSIS
 .nf
 \fB#include "ns.h"\fR
@@ -50,6 +50,9 @@ int
 .sp
 int
 \fBNs_ConnContentFd\fR(\fINs_Conn *conn\fR)
+.sp
+int
+\fBNs_ConnContentOnDisk\fR(\fINs_Conn *conn\fR)
 .SH ARGUMENTS
 .AS Ns_Conn *conn in
 .AP Ns_Conn *conn in
@@ -71,6 +74,11 @@ file which contains the content.
 \fBNs_ConnContentLength\fR returns the length of the memory buffer
 and/or the size of the open temp file.  Any trailing \\r\\n sent
 beyond the content from most browsers on a POST is not included.
+.PP
+\fBNs_ConnContentOnDisk\fR returns 1 if the content is currently on
+disk, such that a call to Ns_ConnContentFd will not cause a new file
+to be created.  When it returns 0, a call to Ns_ConnContent will not require
+a mmap() call.
 .SH "CONTENT PRE-READ"
 .PP
 While receiving the request before connection processing, the server
@@ -79,7 +87,7 @@ to memory or spool it to an open file depending on virtual server
 config settings.  Requests with content beyond the \fImaxcontent\fR
 virtual server setting are rejected, requests with content between
 \fImaxinput\fR and \fImaxcontent\fR are spooled to a temp file, and
-small requests (the majority of simply POST's) are copied to memory.
+small requests (the majority of simple POST's) are copied to memory.
 There is no need for a request processing extension to consider
 possible delays in reading content from the client as all content
 is available before connection processing begins.  The rationale

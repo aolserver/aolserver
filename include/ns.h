@@ -33,7 +33,7 @@
  *      All the public types and function declarations for the core
  *	AOLserver.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.79 2005/08/08 11:29:45 jgdavidson Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.80 2005/08/08 18:44:05 jgdavidson Exp $
  */
 
 #ifndef NS_H
@@ -617,6 +617,7 @@ NS_EXTERN int Ns_ConnRead(Ns_Conn *conn, void *vbuf, int toread);
 NS_EXTERN int Ns_ConnWrite(Ns_Conn *conn, void *buf, int towrite);
 NS_EXTERN int Ns_ConnFlush(Ns_Conn *conn, char *buf, int len, int stream);
 NS_EXTERN int Ns_ConnContentFd(Ns_Conn *conn);
+NS_EXTERN int Ns_ConnContentOnDisk(Ns_Conn *conn);
 NS_EXTERN int Ns_ConnReadLine(Ns_Conn *conn, Ns_DString *dsPtr, int *nreadPtr);
 NS_EXTERN int Ns_WriteConn(Ns_Conn *conn, char *buf, int len);
 NS_EXTERN int Ns_WriteCharConn(Ns_Conn *conn, char *buf, int len);
