@@ -28,20 +28,18 @@
  */
 
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscgi/nscgi.c,v 1.28 2005/08/01 20:27:04 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscgi/nscgi.c,v 1.29 2005/08/08 11:42:34 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 #include <sys/stat.h>
 #include <ctype.h>
 #include <stdlib.h>	/* environ */
 
-#define BUFSIZE	    4096
-#define NDSTRINGS   5
-#define DEFAULT_MAXINPUT    1024000
+#define BUFSIZE	    	4096
+#define NDSTRINGS   	5
 #define CGI_NPH	    	1
 #define CGI_GETHOST	2
-#define CGI_ECONTENT	4
-#define CGI_SYSENV	8
+#define CGI_SYSENV	4
 
 #ifdef _WIN32
 #define S_ISREG(m)	((m)&_S_IFREG)
@@ -65,7 +63,6 @@ typedef struct Mod {
     Ns_Set         *mergeEnv;
     struct Cgi     *firstCgiPtr;
     int		    flags;
-    int             maxInput;
     int             maxCgi;
     int     	    maxWait;
     int             activeCgi;
@@ -113,14 +110,6 @@ typedef struct Map {
     char     *path;
 } Map;
 
-/*
- * The following file descriptor is opened once on the first load and used
- * simply for duping as stdin in the child process.  This ensures the child
- * will get a proper EOF without having to allocate an empty temp file.
- */
- 
-static int devNull;
-
 static Ns_OpProc CgiRequest;
 static void     CgiRegister(Mod *modPtr, char *map);
 static Ns_Callback CgiFreeMap;
@@ -128,7 +117,6 @@ static Ns_DString *CgiDs(Cgi *cgiPtr);
 static int	CgiInit(Cgi *cgiPtr, Map *mapPtr, Ns_Conn *conn);
 static void	CgiFree(Cgi *cgiPtr);
 static int  	CgiExec(Cgi *cgiPtr, Ns_Conn *conn);
-static int	CgiSpool(Cgi *cgiPtr, Ns_Conn *conn);
 static int	CgiCopy(Cgi *cgiPtr, Ns_Conn *conn);
 static int	CgiRead(Cgi *cgiPtr);
 static int	CgiReadLine(Cgi *cgiPtr, Ns_DString *dsPtr);
@@ -136,13 +124,11 @@ static char    *NextWord(char *s);
 static void	SetAppend(Ns_Set *set, int index, char *sep, char *value);
 static void	SetUpdate(Ns_Set *set, char *key, char *value);
 
-int Ns_ModuleVersion = 1;	
-
 
 /*
  *----------------------------------------------------------------------
  *
- * Ns_ModuleInit --
+ * NsCgi_ModInit --
  *
  *	Create a new CGI module instance.  Note: This module can
  *	be loaded multiple times.
@@ -157,7 +143,7 @@ int Ns_ModuleVersion = 1;
  */
  
 int
-Ns_ModuleInit(char *server, char *module)
+NsCgi_ModInit(char *server, char *module)
 {
     char           *path, *key, *value, *section;
     int             i;
@@ -165,24 +151,6 @@ Ns_ModuleInit(char *server, char *module)
     Ns_DString      ds;
     Mod		   *modPtr;
     static int	    initialized;
-
-    /*
-     * On the first (and likely only) load, register
-     * the temp file cleanup routine and open devNull
-     * for requests without content data.
-     */
-
-    if (!initialized) {
-	devNull = open(DEVNULL, O_RDONLY);
-	if (devNull < 0) {
-	    Ns_Log(Error, "nscgi: open(%s) failed: %s",
-		   DEVNULL, strerror(errno));
-	    return NS_ERROR;
-	}
-	Ns_DupHigh(&devNull);
-	Ns_CloseOnExec(devNull);
-	initialized = 1;
-    }
 
     /*
      * Config basic options.
@@ -194,9 +162,6 @@ Ns_ModuleInit(char *server, char *module)
     modPtr->server = server;
     Ns_MutexInit(&modPtr->lock);
     Ns_MutexSetName2(&modPtr->lock, "nscgi", server);
-    if (!Ns_ConfigGetInt(path, "maxinput", &modPtr->maxInput)) {
-        modPtr->maxInput = DEFAULT_MAXINPUT;
-    }
     if (!Ns_ConfigGetInt(path, "limit", &modPtr->maxCgi)) {
         modPtr->maxCgi = 0;
     }
@@ -291,9 +256,6 @@ CgiRequest(void *arg, Ns_Conn *conn)
      * Check for input overflow and initialize the CGI context.
      */
 
-    if (modPtr->maxInput > 0 && conn->contentLength > modPtr->maxInput) {
-        return Ns_ReturnBadRequest(conn, "Exceeded maximum CGI input size");
-    }
     if (CgiInit(&cgi, mapPtr, conn) != NS_OK) {
 	return Ns_ReturnNotFound(conn);
     } else if (cgi.interp == NULL && access(cgi.exec, X_OK) != 0) {
@@ -314,16 +276,17 @@ CgiRequest(void *arg, Ns_Conn *conn)
     }
 
     /*
-     * Spool input to temp file if necessary.
+     * Get the content fd if necessary.
      */
 
-    if (conn->contentLength > 0 && CgiSpool(&cgi, conn) != NS_OK) {
-	if (cgi.flags & CGI_ECONTENT) {
-	    status = Ns_ConnReturnBadRequest(conn, "Insufficient Content");
-	} else {
+    if (conn->contentLength <= 0) {
+	cgi.ifd = Ns_DevNull();
+    } else {
+	cgi.ifd = Ns_ConnContentFd(conn);
+	if (cgi.ifd < 0) {
 	    status = Ns_ConnReturnInternalError(conn);
+	    goto done;
 	}
-	goto done;
     }
 
     /*
@@ -563,52 +526,6 @@ err:
 /*
  *----------------------------------------------------------------------
  *
- * CgiSpool --
- *
- *	Spool content to a temp file.
- *
- * Results:
- *	File descriptor of temp file or -1 on error.
- *
- * Side effects:
- *	May open a new temp file.
- *
- *----------------------------------------------------------------------
- */
-
-static int
-CgiSpool(Cgi *cgiPtr, Ns_Conn *conn)
-{
-    int     len, fd;
-    char   *content, *err;
-
-    err = NULL;
-    len = conn->contentLength;
-    content = Ns_ConnContent(conn);
-    fd = Ns_GetTemp();
-    if (fd < 0) {
-	Ns_Log(Error, "nscgi: could not allocate temp file.");
-    } else if (write(fd, content, (size_t)len) != len) {
-	err = "write";
-    } else if (lseek(fd, 0, SEEK_SET) != 0) {
-	err = "lseek";
-    }
-    if (err != NULL) {
-	Ns_Log(Error, "nscgi: temp file %s failed: %s", err, strerror(errno));
-	close(fd);
-	fd = -1;
-    }
-    if (fd < 0) {
-	return NS_ERROR;
-    }
-    cgiPtr->ifd = fd;
-    return NS_OK;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
  * CgiDs -
  *
  *	Return the next available dstring in the CGI context.
@@ -656,14 +573,6 @@ CgiFree(Cgi *cgiPtr)
     	close(cgiPtr->ofd);
     }
         
-    /*
-     * Release the temp file.
-     */
-
-    if (cgiPtr->ifd >= 0) {
-	Ns_ReleaseTemp(cgiPtr->ifd);
-    }
-     
     /*
      * Free the environment.
      */
@@ -970,9 +879,8 @@ CgiExec(Cgi *cgiPtr, Ns_Conn *conn)
      * Execute the CGI.
      */
      
-    cgiPtr->pid = Ns_ExecProcess(cgiPtr->exec, cgiPtr->dir,
-	cgiPtr->ifd < 0 ? devNull : cgiPtr->ifd,
-	opipe[1], dsPtr->string, cgiPtr->env);
+    cgiPtr->pid = Ns_ExecProcess(cgiPtr->exec, cgiPtr->dir, cgiPtr->ifd,
+				 opipe[1], dsPtr->string, cgiPtr->env);
     close(opipe[1]);
     if (cgiPtr->pid < 0) {
     	close(opipe[0]);
