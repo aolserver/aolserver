@@ -35,7 +35,7 @@
  *  	Tcl commands.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscp/nscp.c,v 1.23 2005/08/08 11:32:17 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscp/nscp.c,v 1.24 2005/08/08 15:32:34 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 
@@ -96,7 +96,7 @@ static unsigned char wont_echo[]  = {TN_IAC, TN_WONT, TN_ECHO};
 /*
  *----------------------------------------------------------------------
  *
- * NsCp_Init --
+ * NsCp_ModInit --
  *
  *	Load the config parameters, setup the structures, and
  *	listen on the control port.
@@ -112,7 +112,7 @@ static unsigned char wont_echo[]  = {TN_IAC, TN_WONT, TN_ECHO};
  */
  
 int
-NsCp_Init(char *server, char *module)
+NsCp_ModInit(char *server, char *module)
 {
     Mod *modPtr;
     char *path, *addr, *pass, *user, *key, *end;
