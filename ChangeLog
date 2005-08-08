@@ -29,17 +29,19 @@
 	* nsd/Makefile:
 	* nsd/init.c:
 	* nsd/nsmain.c:
-	* nsd/tclinit.c: Added Ns_LibInit and NsThreads_LibInit which,
+	* nsd/tclinit.c:  Added Ns_LibInit and NsThreads_LibInit which,
 	in addition to being called at dynamic library load time, are
 	now also called at the Ns_Main and Ns_TclInit entry points to
 	support initialization of static builds assuming code starts at
 	the two supported entry points.
 
 	* nscgi/Makefile
-	* nscgi/nscgi.c: Updated to use new mod init stub and new
+	* nscgi/nscgi.c:  Updated to use new mod init stub and new
 	Ns_DevNull and Ns_ContentFd API's.
 
-	* examples/mynsd:  Example of building a custom static linked
+	* nstclsh/:  New simple Tcl shell with AOLserver commands.
+
+	* examples/mynsd/:  Example of building a custom static linked
 	nsd binary.
 
 
