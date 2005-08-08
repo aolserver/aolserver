@@ -33,7 +33,7 @@
  *      All the public types and function declarations for the core
  *	AOLserver.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.78 2005/07/18 23:32:25 jgdavidson Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.79 2005/08/08 11:29:45 jgdavidson Exp $
  */
 
 #ifndef NS_H
@@ -497,6 +497,12 @@ typedef int   (Ns_FilterProc) (void *arg, Ns_Conn *conn, int why);
 typedef int   (Ns_UrlToFileProc) (Ns_DString *dsPtr, char *server, char *url);
 typedef char *(Ns_LocationProc) (Ns_Conn *conn);
 typedef void  (Ns_QueueWaitProc) (Ns_Conn *conn, SOCKET sock, void *arg, int why);
+
+/*
+ * init.c:
+ */
+
+NS_EXTERN void Ns_LibInit(void);
 
 /*
  * adpparse.c:
