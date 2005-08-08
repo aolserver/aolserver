@@ -99,7 +99,7 @@ static char *dumpdir = NULL;
 /*
  *----------------------------------------------------------------------
  *
- * NsPthreadsInit --
+ * NsInitThreads --
  *
  *	Pthread library load time init routine.
  *
@@ -113,7 +113,7 @@ static char *dumpdir = NULL;
  */
 
 void
-NsPthreadsInit(void)
+NsInitThreads(void)
 {
     char *env;
     int err;
@@ -141,7 +141,6 @@ NsPthreadsInit(void)
 	    logfp = fopen(env, "a");
 	}
     }
-    NsInitThreads();
     Ns_MutexSetName(&uidlock, "ns:uidlock");
 }
 

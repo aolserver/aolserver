@@ -27,14 +27,14 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/Makefile,v 1.6 2005/05/07 22:39:56 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/Makefile,v 1.7 2005/08/08 11:30:51 jgdavidson Exp $
 #
 
 LIB     = nsthread
 HDRS	= thread.h
-LIBINIT	= NsPthreadsInit
 PGM	= nsthreadtest
 PGMOBJS	= nsthreadtest.o
+LIBINIT = NsThreads_LibInit
 LIBOBJS = \
 	error.o master.o memory.o mutex.o cslock.o	\
 	rwlock.o reentrant.o sema.o thread.o tls.o signal.o	\

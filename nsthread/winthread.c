@@ -138,11 +138,7 @@ DllMain(HANDLE hModule, DWORD why, LPVOID lpReserved)
 
     switch (why) {
     case DLL_PROCESS_ATTACH:
-	tlskey = TlsAlloc();
-	if (tlskey == 0xFFFFFFFF) {
-	    return FALSE;
-	}
-	NsInitThreads();
+	NsThreads_LibInit();
 	/* FALLTHROUGH */
 
     case DLL_THREAD_ATTACH:
@@ -183,6 +179,32 @@ DllMain(HANDLE hModule, DWORD why, LPVOID lpReserved)
 	break;
     }
     return TRUE;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsInitThreads --
+ *
+ *	Core threads init.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void
+NsInitThreads(void)
+{
+    tlskey = TlsAlloc();
+    if (tlskey == 0xFFFFFFFF) {
+	NsThreadFatal("NsInitThreads", "TlsAlloc", GetLastError());
+    }
 }
 
 

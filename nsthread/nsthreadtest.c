@@ -48,7 +48,7 @@
 #define PTHREAD_TEST 1
 #endif
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/nsthreadtest.c,v 1.5 2005/05/07 22:40:18 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/nsthreadtest.c,v 1.6 2005/08/08 11:30:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 /*
  * Collection of synchronization objects for tests.
@@ -427,11 +427,7 @@ int main(int argc, char *argv[])
     pthread_t tids[10];
 #endif
 
-#if (STATIC_BUILD == 1)
-    extern void NsthreadsInit();
-    NsthreadsInit();
-#endif
-
+    NsThreads_LibInit();
     Ns_ThreadSetName("-main-");
 
     /*

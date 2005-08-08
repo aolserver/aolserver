@@ -33,7 +33,7 @@
  *	Routines for creating, exiting, and joining threads.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/thread.c,v 1.10 2005/08/02 22:01:20 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/thread.c,v 1.11 2005/08/08 11:30:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "thread.h"
 
@@ -108,7 +108,7 @@ static Ns_Tls key;
 /*
  *----------------------------------------------------------------------
  *
- * NsInitThreads --
+ * NsThreads_LibInit --
  *
  *	Initialize threads interface.
  *
@@ -122,12 +122,13 @@ static Ns_Tls key;
  */
 
 void
-NsInitThreads(void)
+NsThreads_LibInit(void)
 {
     static int once = 0;
 
     if (!once) {
 	once = 1;
+	NsInitThreads();
     	NsInitMaster();
     	NsInitReentrant();
 	Ns_MutexSetName(&threadlock, "ns:threads");
