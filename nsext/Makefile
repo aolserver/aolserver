@@ -27,12 +27,12 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsext/Makefile,v 1.6 2002/09/21 17:07:36 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsext/Makefile,v 1.7 2005/08/08 11:30:05 jgdavidson Exp $
 
 LIB	= nsext
 LIBOBJS	= msg.o
 MOD	= nsext.so
-OBJS	= nsext.o
+MODOBJS	= nsext.o
 MODLIBS	= -L../nsdb -lnsdb
 HDRS	= ../include/nsextmsg.h
 include ../include/Makefile.build
