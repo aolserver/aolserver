@@ -33,7 +33,7 @@
  *	ADP string and file eval.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.44 2005/08/07 00:11:44 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.45 2005/08/10 13:24:35 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -1003,8 +1003,11 @@ AdpEval(NsInterp *itPtr, AdpCode *codePtr, Objs *objsPtr, char *file,
 	 */
 	
 	if (result != TCL_OK && itPtr->adp.exception == ADP_OK) {
-	    AdpLogError(itPtr);
+	    if (!(itPtr->adp.flags & ADP_ERRLOGGED)) {
+	    	AdpLogError(itPtr);
+	    }
 	    if (itPtr->adp.flags & ADP_STRICT) {
+    	    	itPtr->adp.flags |= ADP_ERRLOGGED;
 		break;
 	    }
 	}
@@ -1012,11 +1015,18 @@ AdpEval(NsInterp *itPtr, AdpCode *codePtr, Objs *objsPtr, char *file,
     }
 
     /*
-     * Clear any return exception.
+     * Clear the return exception and reset result.
      */
 
-    if (itPtr->adp.exception == ADP_RETURN) {
+    switch (itPtr->adp.exception) {
+    case ADP_OK:
+	break;
+    case ADP_RETURN:
 	itPtr->adp.exception = ADP_OK;
+	/* FALLTHROUGH */
+    default: 
+	result = TCL_OK;
+	break;
     }
 
     /*
