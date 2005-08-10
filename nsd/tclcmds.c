@@ -33,7 +33,7 @@
  * 	Connect Tcl command names to the functions that implement them
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.51 2005/08/10 13:24:47 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.52 2005/08/10 20:06:03 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -429,7 +429,7 @@ static char *initScript = \
 	    if [catch {eval _ns_adp_include $args} errMsg] {\n\
 		return -code error $errMsg\n\
 	    }\n\
-	    return -code -ok\n\
+	    return -code ok\n\
 	}";
 
 
