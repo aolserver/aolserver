@@ -35,7 +35,7 @@
  *	Pool memory is used as an optimization.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/request.c,v 1.11 2005/05/07 23:36:43 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/request.c,v 1.12 2005/08/10 13:24:41 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -111,7 +111,8 @@ Ns_ParseRequestEx(char *line, Tcl_Encoding encoding)
     char       *p;
     Ns_DString  ds;
     Ns_Request *request;
-    int		major, minor, i;
+    unsigned int major, minor;
+    int i;
 
     request = ns_calloc(1, sizeof(Ns_Request));
     Ns_DStringInit(&ds);
@@ -249,7 +250,7 @@ done:
  */
 
 char *
-NsFindVersion(char *request, int *majorPtr, int *minorPtr)
+NsFindVersion(char *request, unsigned int *majorPtr, unsigned int *minorPtr)
 {
     char *next, *version;
     int major, minor;
@@ -259,7 +260,7 @@ NsFindVersion(char *request, int *majorPtr, int *minorPtr)
 	version = next;
 	request += 6;
     }
-    if (version != NULL && sscanf(version+6, "%d.%d", &major, &minor) != 2) {
+    if (version != NULL && sscanf(version+6, "%u.%u", &major, &minor) != 2) {
 	version = NULL;
     }
     if (version != NULL) {

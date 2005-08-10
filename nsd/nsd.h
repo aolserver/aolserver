@@ -155,15 +155,6 @@ struct _nsconf {
     int             debug;
 
     /*
-     * The following struct is the servers HTTP protocol version.
-     */
-
-    struct {
-	unsigned int major;
-	unsigned int minor;
-    } http;
-
-    /*
      * The following struct maintains server state.
      */
 
@@ -173,6 +164,16 @@ struct _nsconf {
     	int		started;
     	int		stopping;
     } state;
+
+    /*
+     * The following struct is the maximum HTTP major/minor version
+     * supported.
+     */
+
+    struct {
+	unsigned int major;
+	unsigned int minor;
+    } http;
     
     struct {
 	int maxelapsed;
@@ -263,6 +264,7 @@ typedef struct AdpCode {
 #define ADP_DISPLAY	0x400	/* Display error messages in output stream. */
 #define ADP_TRIM	0x800	/* Display error messages in output stream. */
 #define ADP_FLUSHED	0x1000	/* Some output has been sent. */
+#define ADP_ERRLOGGED	0x2000	/* Error message has already been logged. */
 
 /*
  * The following structure maitains data for each instance of
@@ -427,6 +429,13 @@ typedef struct Conn {
     struct Conn *prevPtr;
     struct Sock *sockPtr;
     struct Limits *limitsPtr;
+
+    /*
+     * Client http major/minor version number.
+     */
+
+    unsigned int major;
+    unsigned int minor;
 
     /*
      * Start and end of request line for later parsing.
@@ -860,8 +869,8 @@ extern void NsInitTcl(void);
 extern void NsInitTclCache(void);
 extern void NsInitUrlSpace(void);
 extern void NsInitRequests(void);
-
-extern char *NsFindVersion(char *request, int *majorPtr, int *minorPtr);
+extern char *NsFindVersion(char *request, unsigned int *majorPtr,
+			   unsigned int *minorPtr);
 extern void NsQueueConn(Conn *connPtr);
 extern int NsCheckQuery(Ns_Conn *conn);
 extern void NsAppendConn(Tcl_DString *bufPtr, Conn *connPtr, char *state);
