@@ -1,3 +1,19 @@
+2005-08-09  Jim Davidson <jgdavidson@aol.com>
+
+	* nsd/adpeval.c: Updated to suppress multiple error log
+	messages in stricterror mode
+
+	* nsd/driver.c:
+	* nsd/nsd.h:
+	* nsd/request.c:
+	* nsd/return.c:  Updated to match response http version
+	with client version.
+
+	* nsd/init.tcl:
+	* nsd/tclcmds.c:  Removed ns_adp_include proc now in
+	tclcmds.c.
+
+
 2005-08-08  Jim Davidson <jgdavidson@aol.com>
 
 	* include/ns.h:
