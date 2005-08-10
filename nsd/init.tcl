@@ -28,7 +28,7 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/init.tcl,v 1.31 2004/07/02 04:06:32 dossy Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/init.tcl,v 1.32 2005/08/10 13:24:47 jgdavidson Exp $
 #
 
 #
@@ -213,17 +213,6 @@ proc _ns_helper_eval {args} {
 	rename _saved_ns_eval ns_eval
     }
     return -code $code $result
-}
-
-#
-# ns_adp_include --
-#
-#   Wrapper for _ns_adp_include to ensure a
-#   new call frame with private variables.
-#
-
-proc ns_adp_include {args} {
-    eval _ns_adp_include $args
 }
 
 
