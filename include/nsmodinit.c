@@ -33,12 +33,12 @@
  *	Dynamic module init.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/include/nsmodinit.c,v 1.1 2005/08/08 11:16:48 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/include/nsmodinit.c,v 1.2 2005/08/11 23:00:13 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 
-NS_EXTERN int Ns_ModuleVersion;
-NS_EXTERN Ns_ModuleInitProc Ns_ModuleInit;
+NS_EXPORT int Ns_ModuleVersion;
+NS_EXPORT Ns_ModuleInitProc Ns_ModuleInit;
 
 int Ns_ModuleVersion = 1;
 
