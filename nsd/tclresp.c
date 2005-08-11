@@ -34,7 +34,7 @@
  *	Tcl commands for returning data to the user agent. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclresp.c,v 1.18 2005/08/01 20:28:04 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclresp.c,v 1.19 2005/08/11 22:55:49 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -61,7 +61,6 @@ int
 NsTclGetConn(NsInterp *itPtr, Ns_Conn **connPtr)
 {
     if (itPtr->conn == NULL) {
-	Tcl_AddErrorInfo(itPtr->interp, "no connection");
 	Tcl_SetResult(itPtr->interp, "no connection", TCL_STATIC);
 	return TCL_ERROR;
     }
