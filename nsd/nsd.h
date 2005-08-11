@@ -257,7 +257,6 @@ typedef struct AdpCode {
 #define ADP_EXPIRE	0x08	/* Send Expires: now header on output. */
 #define ADP_NOCACHE	0x10	/* Disable caching. */
 #define ADP_TRACE	0x20	/* Trace execution. */
-#define ADP_ERROR	0x40	/* Output error. */
 #define ADP_GZIP	0x80	/* Enable gzip compression. */
 #define ADP_DETAIL	0x100	/* Log connection details on error. */
 #define ADP_STRICT	0x200	/* Strict error handling. */
@@ -265,6 +264,7 @@ typedef struct AdpCode {
 #define ADP_TRIM	0x800	/* Display error messages in output stream. */
 #define ADP_FLUSHED	0x1000	/* Some output has been sent. */
 #define ADP_ERRLOGGED	0x2000	/* Error message has already been logged. */
+#define ADP_AUTOABORT	0x4000	/* Raise abort on flush error. */
 
 /*
  * The following structure maitains data for each instance of
@@ -1003,6 +1003,7 @@ extern int NsAdpInclude(NsInterp *itPtr, int objc, Tcl_Obj *objv[],
 extern void NsAdpParse(AdpCode *codePtr, NsServer *servPtr, char *utf,
 		       int flags);
 extern void NsAdpFreeCode(AdpCode *codePtr);
+extern void NsAdpLogError(NsInterp *itPtr);
 
 /*
  * Tcl support routines.

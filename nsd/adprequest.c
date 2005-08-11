@@ -33,7 +33,7 @@
  *	ADP connection request support.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adprequest.c,v 1.28 2005/08/06 23:58:57 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adprequest.c,v 1.29 2005/08/11 22:55:42 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -106,6 +106,7 @@ Ns_AdpRequestEx(Ns_Conn *conn, char *file, Ns_Time *ttlPtr)
     Ns_Set           *query;
     NsServer	     *servPtr;
     Tcl_Obj	     *objv[2];
+    int		      result;
     
     interp = Ns_GetConnInterp(conn);
     itPtr = NsGetInterpData(interp);
@@ -149,12 +150,12 @@ Ns_AdpRequestEx(Ns_Conn *conn, char *file, Ns_Time *ttlPtr)
     objv[1] = Tcl_NewStringObj(file, -1);
     Tcl_IncrRefCount(objv[0]);
     Tcl_IncrRefCount(objv[1]);
-    if (NsAdpInclude(itPtr, 2, objv, start, ttlPtr) != TCL_OK
-	    && itPtr->adp.exception == ADP_OK) {
-	Ns_TclLogError(interp);
-    }
+    result = NsAdpInclude(itPtr, 2, objv, start, ttlPtr);
     Tcl_DecrRefCount(objv[0]);
     Tcl_DecrRefCount(objv[1]);
+    if (result != TCL_OK) {
+	return NS_ERROR;
+    }
     return NS_OK;
 }
 
@@ -202,7 +203,7 @@ NsAdpAppend(NsInterp *itPtr, char *buf, int len)
  *	TCL_ERROR if flush failed, TCL_OK otherwise.
  *
  * Side effects:
- *  	None.
+ *  	Output buffer is truncated in all cases.
  *
  *----------------------------------------------------------------------
  */
@@ -236,10 +237,9 @@ NsAdpFlush(NsInterp *itPtr, int stream)
      * is the final flush call.
      */
 
+    Tcl_ResetResult(interp);
     if (itPtr->adp.exception == ADP_ABORT) {
-	Tcl_SetResult(interp, "adp aborted", TCL_STATIC);
-    } else if (flags & ADP_ERROR) {
-	Tcl_SetResult(interp, "adp output failed", TCL_STATIC);
+	Tcl_SetResult(interp, "adp flush disabled: adp aborted", TCL_STATIC);
     } else if (len == 0 && stream) {
 	result = TCL_OK;
     } else {
@@ -258,23 +258,37 @@ NsAdpFlush(NsInterp *itPtr, int stream)
 		result = TCL_OK;
 	    }
 	} else if (NsTclGetConn(itPtr, &conn) == TCL_OK) {
-	    if (flags & ADP_GZIP) {
-	    	itPtr->conn->flags |= NS_CONN_GZIP;
-	    }
-	    if (!(flags & ADP_FLUSHED) && (flags & ADP_EXPIRE)) {
-		Ns_ConnCondSetHeaders(conn, "Expires", "now");
-	    }
-	    if (Ns_ConnFlush(itPtr->conn, buf, len, stream) == NS_OK) {
-		result = TCL_OK;
+	    if (conn->flags & NS_CONN_CLOSED) {
+		Tcl_SetResult(interp, "adp flush failed: connection closed",
+			      TCL_STATIC);
 	    } else {
-	    	Tcl_SetResult(interp, "flush failed", TCL_STATIC);
+	    	if (flags & ADP_GZIP) {
+		    Ns_ConnSetGzipFlag(conn, 1);
+	    	}
+	    	if (!(flags & ADP_FLUSHED) && (flags & ADP_EXPIRE)) {
+		    Ns_ConnCondSetHeaders(conn, "Expires", "now");
+	    	}
+	    	if (Ns_ConnFlush(itPtr->conn, buf, len, stream) == NS_OK) {
+		    result = TCL_OK;
+	    	} else {
+	    	    Tcl_SetResult(interp,
+				  "adp flush failed: connection flush error",
+				  TCL_STATIC);
+	    	}
 	    }
 	}
 	itPtr->adp.flags |= ADP_FLUSHED;
+
+	/*
+	 * Raise an abort exception if autoabort is enabled.
+	 */ 
+
+    	if (result != TCL_OK && (flags & ADP_AUTOABORT)) {
+	    Tcl_AddErrorInfo(interp, "\n    abort exception raised");
+	    NsAdpLogError(itPtr);
+	    itPtr->adp.exception = ADP_ABORT;
+    	}
     }
     Tcl_DStringTrunc(bufPtr, 0);
-    if (result != TCL_OK) {
-	itPtr->adp.flags |= ADP_ERROR;
-    }
     return result;
 }
