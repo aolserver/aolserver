@@ -33,7 +33,7 @@
  *	ADP string and file eval.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.45 2005/08/10 13:24:35 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.46 2005/08/11 22:55:33 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -99,7 +99,6 @@ typedef struct InterpPage {
 
 static Page *ParseFile(NsInterp *itPtr, char *file, struct stat *stPtr,
 		       int flags);
-static void AdpLogError(NsInterp *itPtr);
 static int AdpSource(NsInterp *itPtr, int objc, Tcl_Obj *objv[], int isfile,
 		     int flags, char *resvar);
 static int AdpRun(NsInterp *itPtr, int objc, Tcl_Obj *objv[], char *file,
@@ -633,7 +632,7 @@ NsAdpDebug(NsInterp *itPtr, char *host, char *port, char *procs)
 	code = Tcl_EvalEx(interp, ds.string, ds.length, 0);
         Tcl_DStringFree(&ds);
 	if (code != TCL_OK) {
-	    Ns_TclLogError(interp);
+	    NsAdpLogError(itPtr);
 	    return TCL_ERROR;
 	}
 
@@ -645,7 +644,7 @@ NsAdpDebug(NsInterp *itPtr, char *host, char *port, char *procs)
 	if (Tcl_LinkVar(interp, "ns_adp_output",
 			(char *) &itPtr->adp.output.string,
 		TCL_LINK_STRING | TCL_LINK_READ_ONLY) != TCL_OK) {
-	    Ns_TclLogError(interp);
+	    NsAdpLogError(itPtr);
 	}
 
 	itPtr->adp.debugInit = 1;
@@ -815,7 +814,7 @@ done:
 /*
  *----------------------------------------------------------------------
  *
- * AdpLogError --
+ * NsAdpLogError --
  *
  *	Log an ADP error, possibly invoking the log handling ADP
  *	file if configured.
@@ -829,8 +828,8 @@ done:
  *----------------------------------------------------------------------
  */
 
-static void
-AdpLogError(NsInterp *itPtr)
+void
+NsAdpLogError(NsInterp *itPtr)
 {
     Tcl_Interp *interp = itPtr->interp;
     Ns_Conn *conn = itPtr->conn; 
@@ -1004,7 +1003,7 @@ AdpEval(NsInterp *itPtr, AdpCode *codePtr, Objs *objsPtr, char *file,
 	
 	if (result != TCL_OK && itPtr->adp.exception == ADP_OK) {
 	    if (!(itPtr->adp.flags & ADP_ERRLOGGED)) {
-	    	AdpLogError(itPtr);
+	    	NsAdpLogError(itPtr);
 	    }
 	    if (itPtr->adp.flags & ADP_STRICT) {
     	    	itPtr->adp.flags |= ADP_ERRLOGGED;
