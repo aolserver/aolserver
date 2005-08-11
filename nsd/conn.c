@@ -34,7 +34,7 @@
  *      Manage the Ns_Conn structure
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.46 2005/08/08 18:44:05 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.47 2005/08/11 22:55:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -892,8 +892,9 @@ NsTclCheckConnId(Tcl_Interp *interp, Tcl_Obj *objPtr)
  *
  * Ns_ConnGetWriteEncodedFlag --
  * Ns_ConnGetKeepAliveFlag --
+ * Ns_ConnGetGzipFlag --
  *
- *	Is the given connection set for encoded writes/keepalive.
+ *	Get the current write encoding, keepalive, or gzip flag.
  *
  * Results:
  *	Boolean. 
@@ -916,14 +917,21 @@ Ns_ConnGetKeepAliveFlag(Ns_Conn *conn)
     return (conn->flags & NS_CONN_KEEPALIVE);
 }
 
+int
+Ns_ConnGetGzipFlag(Ns_Conn *conn)
+{
+    return (conn->flags & NS_CONN_GZIP);
+}
+
 
 /*
  *----------------------------------------------------------------------
  *
  * Ns_ConnSetWriteEncodedFlag --
  * Ns_ConnSetKeepAliveFlag --
+ * Ns_ConnSetGzipFlag --
  *
- *	Set the given connection encoded writes flag per parameter.
+ *	Set the current write encoding, keepalive, or gzip flag.
  *
  * Results:
  *	void. 
@@ -944,6 +952,12 @@ void
 Ns_ConnSetKeepAliveFlag(Ns_Conn *conn, int flag)
 {
     SetFlag(conn, NS_CONN_KEEPALIVE, flag);
+}
+
+void
+Ns_ConnSetGzipFlag(Ns_Conn *conn, int flag)
+{
+    SetFlag(conn, NS_CONN_GZIP, flag);
 }
 
 static void
