@@ -33,7 +33,7 @@
  *	ADP commands.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpcmds.c,v 1.23 2005/08/06 23:58:57 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpcmds.c,v 1.24 2005/08/11 22:55:24 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -113,14 +113,16 @@ NsTclAdpCtlObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
     char *id;
     static CONST char *opts[] = {
 	"bufsize", "channel",
-	"detailerror", "displayerror", "expire", "gzip", "nocache",
-	"safe", "singlescript", "stricterror", "trace", "trimspace",
+	"autoabort", "detailerror", "displayerror", "expire", "gzip",
+	"nocache", "safe", "singlescript", "stricterror", "trace",
+	"trimspace",
 	NULL
     };
     enum {
 	CBufSizeIdx, CChanIdx,
-	CDetailIdx, CDispIdx, CExpireIdx, CGzipIdx, CNoCacheIdx,
-	CSafeIdx, CSingleIdx, CStrictIdx, CTraceIdx, CTrimIdx
+	CAbortIdx, CDetailIdx, CDispIdx, CExpireIdx, CGzipIdx,
+	CNoCacheIdx, CSafeIdx, CSingleIdx, CStrictIdx, CTraceIdx,
+	CTrimIdx
     };
     int opt, flag, old, new;
 
@@ -178,6 +180,9 @@ NsTclAdpCtlObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
 	}
 	flag = 0;
     	switch (opt) {
+	case CAbortIdx:
+	    flag = ADP_AUTOABORT;
+	    break;
 	case CDetailIdx:
 	    flag = ADP_DETAIL;
 	    break;
