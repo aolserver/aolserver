@@ -34,7 +34,7 @@
  *	Win32 specific routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nswin32.c,v 1.13 2005/07/18 23:32:53 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nswin32.c,v 1.14 2005/08/11 23:00:44 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -58,8 +58,6 @@ static int tick;
 static int sigpending;
 
 #define SysErrMsg()    (NsWin32ErrMsg(GetLastError()))
-
-void NsdInit(void);
 
 
 /*
@@ -85,12 +83,13 @@ DllMain(HANDLE hModule, DWORD why, LPVOID lpReserved)
     WSADATA         wsd;
 
     if (why == DLL_PROCESS_ATTACH) {
+	NsThreads_LibInit();
 	Ns_TlsAlloc(&tls, ns_free);
 	if (WSAStartup(MAKEWORD(1, 1), &wsd) != 0) {
             return FALSE;
         }
         DisableThreadLibraryCalls(hModule);
-        NsdInit();
+	Ns_LibInit();
     } else if (why == DLL_PROCESS_DETACH) {
         WSACleanup();
     }
