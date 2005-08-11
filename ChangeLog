@@ -1,3 +1,20 @@
+2005-08-11  Jim Davidson <jgdavidson@aol.com>
+
+	* include/ns.h:
+	* nsd/conn.c:   Added Ns_ConnGet/SetGzipFlag API's.
+
+	* nsd/adpeval.c
+	* nsd/adprequest.c:
+	* nsd/nsd.h:
+	* nsd/server.c:  Added autoabort config/flag to raise adp
+	abort exception when a flush fails.
+
+	* nsd/tclresp.c:  Cleaned up error message on no conn.
+
+	* nstclsh/nstclsh.c:  Added call to fully initialize Tcl
+	shell.
+
+
 2005-08-09  Jim Davidson <jgdavidson@aol.com>
 
 	* nsd/adpeval.c: Updated to suppress multiple error log
