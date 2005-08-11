@@ -33,12 +33,25 @@
  *	Simple Tcl shell with AOLserver commands.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nstclsh/nstclsh.c,v 1.1 2005/08/08 11:15:55 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nstclsh/nstclsh.c,v 1.2 2005/08/11 22:55:57 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 
-void
+static Tcl_AppInitProc AppInit;
+
+int
 main(int argc, char **argv)
 {
-    Tcl_Main(argc, argv, Ns_TclInit);
+    Tcl_Main(argc, argv, AppInit);
+    return 0;
+}
+
+static int
+AppInit(Tcl_Interp *interp)
+{
+    if (Tcl_Init(interp) != TCL_OK ||
+	Ns_TclInit(interp) != TCL_OK) {
+	return TCL_ERROR;
+    }
+    return TCL_OK;
 }
