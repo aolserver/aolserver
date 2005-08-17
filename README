@@ -4,7 +4,7 @@ README:  AOLserver
     This is the AOLserver 4.0.0 source distribution.  AOLserver is
     available at http://aolserver.com, a SourceForge hosted site.
 
-RCS: @(#) $Id: README,v 1.4 2003/01/24 18:49:23 elizthom Exp $
+RCS: @(#) $Id: README,v 1.5 2005/08/17 23:06:28 jgdavidson Exp $
 
 
 Contents
@@ -73,25 +73,46 @@ be easy.  To compile and install AOLserver:
 	(e.g., /usr/local/aolserver) or in some other location.
 	The following should work:
 
+	Unix:
+
 	% gunzip < tcl8.4.0-src.tar.gz | tar xvf -
 	% cd tcl8.4.0/unix
 	% ./configure --prefix=/usr/local/aolserver --enable-threads
 	% make install
+
+	Windows:
+
+	c:\tcl\srcdir> cd win
+	c:\tcl\srcdir\win> nmake -f makefile.vc \
+		INSTALLDIR=c:\aolserver OPTS=threads,thrdalloc,symbols \
+		install
 	
-3b.     If you don't have GNU make (Linux make is GNU make), install
-	it as AOLserver's makefiles require it.  If you're not sure
-	if you have GNU make, try "make -v" to check.  You can get
-	GNU make at http://www.gnu.org.
+3b.     On Unix, if you don't have GNU make (Linux make is GNU
+	make), install it as AOLserver's makefiles require it.  If
+	you're not sure if you have GNU make, try "make -v" to
+	check.  You can get GNU make at http://www.gnu.org.
 
 3c.     Download, configure, build, and install AOLserver.  The
-	following should work:
+	build process requires a working, installed Tcl, and
+	supports Unix and Windows.  The following should work:
 
-	% gunzip < aolserver-4.0.0.src.tar.gz | tar xvf -
+	Windows:
+
+	c:\aolserver\srcdir> c:\aolserver\bin\tclsh84.exe configure.tcl
+	c:\aolserver\srcdir> nmake install
+
+	Unix:
+
 	% cd aolserver-4.0.0
-	% ./configure 
-	% make install
+	% /usr/local/aolserver/bin/tclsh84 ./configure.tcl 
+	% gmake install
 
-	AOLserver's configure script takes the following options:
+	AOLserver's configure.tcl script takes a single optional
+	arg, the installation directory for AOLserver.  The default
+	is to use the cooresponding Tcl install directory.  The
+	script verifies the Tcl config and uses it to call the
+	actual configure script.  You can also call configure
+	directly with the following options:
 
 	--with-tcl=/usr/local/aolserver/lib
 
@@ -110,14 +131,8 @@ be easy.  To compile and install AOLserver:
 		Set the installation directory for AOLserver.  All
 		program, man page, and runtime files (e.g., log
 		files) will be install or updated within this
-		directory.
-
-
-        To make AOLserver with purify, set the variable $PURIFY to 
-        your purify executable along with any options you desire, e.g.,
-
-        make PURIFY="purify -cache-dir=/home/joe/my-cache-dir" install
- 
+		directory.  The default is to install in the
+		same directory as used by the tclsh.
 
 3d.     Create and edit a config file, nsd.tcl by convention.  A
 	sample is provided to get started:
