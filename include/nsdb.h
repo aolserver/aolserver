@@ -32,13 +32,22 @@
  *
  *      Public types and function declarations for the nsdb module.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/nsdb.h,v 1.1 2002/05/15 20:21:35 jgdavidson Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/nsdb.h,v 1.2 2005/08/17 21:21:18 jgdavidson Exp $
  */
 
 #ifndef NSDB_H
 #define NSDB_H
 
 #include "ns.h"
+
+#ifdef NSDB_EXPORTS
+#undef NS_EXTERN
+#ifdef __cpluscplus
+#define NS_EXTERN extern "C" NS_EXPORT
+#else
+#define NS_EXTERN extern NS_EXPORT
+#endif
+#endif
 
 /*
  * The following are nsdb return codes.
