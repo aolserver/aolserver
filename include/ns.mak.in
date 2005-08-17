@@ -1,0 +1,278 @@
+#
+# The contents of this file are subject to the AOLserver Public License
+# Version 1.1 (the "License"); you may not use this file except in
+# compliance with the License. You may obtain a copy of the License at
+# http://aolserver.com/.
+#
+# Software distributed under the License is distributed on an "AS IS"
+# basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+# the License for the specific language governing rights and limitations
+# under the License.
+#
+# The Original Code is AOLserver Code and related documentation
+# distributed by AOL.
+# 
+# The Initial Developer of the Original Code is America Online,
+# Inc. Portions created by AOL are Copyright (C) 1999 America Online,
+# Inc. All Rights Reserved.
+#
+# Alternatively, the contents of this file may be used under the terms
+# of the GNU General Public License (the "GPL"), in which case the
+# provisions of GPL are applicable instead of those above.  If you wish
+# to allow use of your version of this file only under the terms of the
+# GPL and not to allow others to use your version of this file under the
+# License, indicate your decision by deleting the provisions above and
+# replace them with the notice and other provisions required by the GPL.
+# If you do not delete the provisions above, a recipient may use your
+# version of this file under either the License or the GPL.
+# 
+#
+# $Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.mak.in,v 1.1 2005/08/17 22:54:21 jgdavidson Exp $
+
+#
+# ns.mak.in --
+#
+#	Makefile include for AOLserver modules, libraries, and programs.  Variables to set
+#	before including this file include:
+#
+#	AOLSERVER	AOLserver install directory.
+#	MOD		Name of module
+#	MODOBJS		List of module object files (required with MOD)
+#	DLL		Root name of dynamic library (without lib prefix or extension)
+#	OBJS		List of library object files (required with LIB)
+#	PGM		Name of executable program
+#	PGMOBJS		List of program object files (required with PGM)
+#	HDRS		Header files which objects depend on
+#	MODLIBS		Extra module link libraries
+#	LIBLIBS		Extra dynamic library link libraries
+#	PGMLIBS		Extra program link libraries
+#	INSTALL		Extra install directive(s)
+#	CLEAN		Extra clean directive(s)
+#
+#	At least one of PGM, MOD, or DLL must be defined.
+#
+#	See ../nsd/Makefile and ../nsdb/Makefile for examples.
+#	
+
+#
+# Install directories.
+#
+
+AOLSERVER	= @AOLSERVER@
+TCLSH		= @TCLSH@
+INSTBIN		= $(AOLSERVER)/bin
+INSTLIB		= $(AOLSERVER)/lib
+INSTINC		= $(AOLSERVER)/include
+MAN_DIR 	= $(AOLSERVER)/man
+MAN1_DIR 	= $(MAN_DIR)/man1
+MAN3_DIR 	= $(MAN_DIR)/man3
+MANN_DIR 	= $(MAN_DIR)/mann
+
+#
+# Compiler and linker options.
+#
+
+LIBEXT		= @TCL_SHLIB_SUFFIX@
+TCL_EXEC_PREFIX	= @TCL_EXEC_PREFIX@
+LIB_RUNTIME_DIR =
+LDLIB		= @LDLIB@
+LDSO		= @LDSO@
+CCRFLAG         = @CCRFLAG@
+LDRFLAG         = @LDRFLAG@
+CCRPATH         += @CCRPATH@
+LDRPATH         += @LDRPATH@
+CC		= $(PURIFY) @TCL_CC@
+CFLAGS_DEBUG	= @TCL_CFLAGS_DEBUG@
+CFLAGS_OPTIMIZE = @TCL_CFLAGS_OPTIMIZE@
+CFLAGS_WARNING	= @TCL_CFLAGS_WARNING@
+CFLAGS_INCLUDE	= -I$(INCDIR) @TCL_INCLUDE_SPEC@
+CFLAGS_EXTRA	= @TCL_SHLIB_CFLAGS@ @TCL_EXTRA_CFLAGS@
+DEFS      	= -DNO_CONST @TCL_DEFS@ @DEFS@
+CFLAGS		+= @CFLAGS_DEFAULT@ $(CFLAGS_WARNING) $(CFLAGS_EXTRA) $(CFLAGS_INCLUDE) @CPPFLAGS@ $(DEFS)
+ifndef SRCDIR
+    LIBS	+= -L$(AOLSERVER)/lib -lnsd -lnsthread
+    INCDIR	 = $(AOLSERVER)/include
+else
+    INCDIR	 = $(SRCDIR)/include
+    ifneq (nsthread,$(DLL))
+    	ifneq (nsd,$(DLL))
+            ifneq (nsthreadtest,$(PGM))
+                LIBS += -L$(SRCDIR)/nsd -lnsd
+            endif
+    	endif
+    	LIBS += -L$(SRCDIR)/nsthread -lnsthread
+    endif
+endif
+LIBS		+= @TCL_LIB_SPEC@ @TCL_LIBS@ @LDFLAGS@ @LIBS@
+CCLIBS		 = $(LIBS) @TCL_LD_FLAGS@
+
+
+#
+# Shell utilities.
+#
+
+MAKEALL		 = $(TCLSH) $(SRCDIR)/util/nsmakeall.tcl
+RANLIB	     	 = @TCL_RANLIB@
+ifdef SRCDIR
+    RM           = $(TCLSH) $(SRCDIR)/util/nsremove.tcl
+    INST	 = $(TCLSH) $(SRCDIR)/util/nsinstall.tcl
+    MAN_INST 	 = $(SRCDIR)/util/nsinstall-man.sh
+else
+    RM           = $(TCLSH) $(INSTBIN)/nsremove.tcl
+    INST	 = $(TCLSH) $(INSTBIN)/nsinstall.tcl
+    MAN_INST 	 = $(INSTBIN)/nsinstall-man.sh
+endif
+
+
+#
+# Platform-specific options.
+#
+
+uname = $(shell uname -a)
+
+# Solaris 2.6+
+ifneq (,$(findstring SunOS,$(uname)))
+    ifneq (,$(findstring 5.6,$(uname)))
+        LIBS+=-lthread -lposix4
+    else
+        LIBS+=-lrt
+    endif
+endif
+
+# Add dynamic library entry point flags.
+ifdef LIBINIT
+    ifneq (,$(findstring Darwin,$(uname)))
+	INIT	 =  _$(LIBINIT)
+	LDLIB	+= -init _$(INIT)
+    else
+	INIT	 =  _init
+    endif
+endif
+ 
+#
+# For static linking on Darwin, link modules 
+# against server image.
+#
+
+ifneq (,$(findstring Darwin,$(uname)))
+    ifeq ($(STATIC_BUILD), 1)
+        ifdef SRCDIR
+            LDSO += -bundle_loader $(SRCDIR)/nsd/nsd
+        else
+            LDSO += -bundle_loader $(AOLSERVER)/bin/nsd
+        endif
+    endif
+endif
+ifdef MOD
+    BUILD	+= $(MOD)
+    INSTALL 	+= install-mod
+    CLEAN	+= clean-mod
+    ifeq ($(origin MODOBJS), undefined)
+        MODOBJS	= $(OBJS)
+    endif
+    ifdef MODINIT
+	MODINIT_OBJ = _modinit.o
+    endif
+endif
+
+ifdef DLL
+    ALIBFILE	 = lib$(DLL).a
+    LIBFILE	 = lib$(DLL)$(LIBEXT)
+    BUILD	+= $(ALIBFILE) $(LIBFILE)
+    INSTALL	+= install-lib
+    CLEAN  	+= clean-lib
+    OBJS	+= $(UNIXOBJS)
+    MODLIBS	+= -L. -l$(DLL)
+    PGMLIBS	+= -L. -l$(DLL)
+    ifdef LIBINIT
+	LIBINIT_OBJ = _libinit.o
+    endif
+endif
+
+ifdef PGM
+    BUILD	+= $(PGM)
+    INSTALL	+= install-pgm
+    CLEAN	+= clean-pgm
+endif
+
+ifdef MAN1
+    INSTALL	+= install-man1
+endif
+
+ifdef MAN3
+    INSTALL	+= install-man3
+endif
+
+ifdef MANN
+    INSTALL	+= install-mann
+endif
+
+all build: $(BUILD)
+
+install: $(INSTALL)
+
+clean: $(CLEAN)
+
+$(LIBFILE): $(OBJS) $(LIBINIT_OBJ)
+	$(RM) $(LIBFILE)
+	$(LDLIB) $(LDFLAGS) -o $(LIBFILE) $(OBJS) $(LIBINIT_OBJ) \
+		$(LIBLIBS) $(LIBS) @LDRPATHS@
+
+$(ALIBFILE): $(OBJS)
+	$(AR) rv $(ALIBFILE) $(OBJS)
+	$(RANLIB) $(ALIBFILE)
+
+$(MOD): $(MODOBJS) $(MODINIT_OBJ) $(ALIBFILE) $(LIBFILE)
+	$(RM) $(MOD)
+	$(LDSO) $(LDFLAGS) -o $(MOD) $(MODOBJS) $(MODINIT_OBJ) \
+		$(MODLIBS) $(LIBS) @LDRPATHS@
+
+$(MODINIT_OBJ): $(INCDIR)/nsmodinit.c
+	$(CC) $(CFLAGS) -DNS_MODINIT=$(MODINIT) -c -o $@ $<
+
+$(LIBINIT_OBJ): $(INCDIR)/nslibinit.c
+	$(CC) $(CFLAGS) -DNS_INIT=$(INIT) -DNS_LIBINIT=$(LIBINIT) -c -o $@ $<
+
+$(PGM): $(PGMOBJS) $(ALIBFILE) $(LIBFILE)
+	$(RM) $(PGM)
+	$(CC) $(LDFLAGS) -o $(PGM) $(PGMOBJS) \
+		$(PGMLIBS) $(CCLIBS) @CCRPATHS@
+
+$(MODOBJS) $(OBJS) $(PGMOBJS): $(HDRS) $(INCDIR)/ns.h $(INCDIR)/nsthread.h
+
+install-mod: $(MOD) $(MODINST)
+	$(INST) -d $(INSTBIN) -e $(MOD)
+
+install-lib: $(LIBFILE)
+	$(INST) -d $(INSTLIB) -e $(LIBFILE)
+	$(INST) -d $(INSTLIB) $(ALIBFILE) 
+	$(RANLIB) $(INSTLIB)/$(ALIBFILE)
+
+install-pgm: $(PGM)
+	$(INST) -d $(INSTBIN) -e $(PGM)
+
+install-man1:
+	for i in $(MAN1); do \
+		$(MAN_INST) $$i $(MAN1_DIR)/; \
+	done
+
+install-man3:
+	for i in $(MAN3); do \
+		$(MAN_INST) $$i $(MAN3_DIR)/; \
+	done
+
+install-mann:
+	for i in $(MANN); do \
+		$(MAN_INST) $$i $(MANN_DIR)/; \
+	done
+
+clean-mod:
+	$(RM) $(MOD) $(MODOBJS) $(MODINIT_OBJ) 
+
+clean-lib:
+	$(RM) $(LIBFILE) $(ALIBFILE) $(OBJS) $(LIBINIT_OBJ)
+
+clean-pgm:
+	$(RM) $(PGM) $(PGMOBJS)
+
+.PHONY: clean-mod clean-lib clean-pgm install-man1 install-man3 install-mann
