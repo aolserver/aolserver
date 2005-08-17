@@ -26,7 +26,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Makefile,v 1.3 2005/08/08 19:26:53 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Makefile,v 1.4 2005/08/17 23:07:21 jgdavidson Exp $
 #
 
 
@@ -34,8 +34,8 @@ NSLIBS = $(wildcard $(AOLSERVER)/lib/libns*$(LIBEXT))
 MAN3 := $(wildcard *.3)
 MANN := $(wildcard *.n)
 MAN1 := $(wildcard *.1)
-
-include ../include/Makefile.build
+SRCDIR = ..
+include $(SRCDIR)/include/ns.mak
 
 missing: 
 	@nm $(NSLIBS) | awk '/T _Ns_/ {print $$3}' | sort > lib.out
