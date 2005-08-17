@@ -30,6 +30,7 @@
 #ifndef DB_H
 #define DB_H
 
+#define NSDB_EXPORTS
 #include "nsdb.h"
 
 extern void NsDbInitPools(void);

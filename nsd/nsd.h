@@ -34,7 +34,9 @@
 #define _GNU_SOURCE
 #endif
 
+#define NSD_EXPORTS
 #include "ns.h"
+
 #ifndef _WIN32
 #include <pthread.h>
 #include <sys/mman.h>

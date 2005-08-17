@@ -32,12 +32,13 @@
  *
  *	Private nsthread library include.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/thread.h,v 1.6 2005/08/02 22:01:21 jgdavidson Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/thread.h,v 1.7 2005/08/17 21:21:28 jgdavidson Exp $
  */
 
 #ifndef THREAD_H
 #define THREAD_H
 
+#define NSTHREAD_EXPORTS
 #include "nsthread.h"
 
 #ifdef WIN32
