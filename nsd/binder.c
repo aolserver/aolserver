@@ -34,7 +34,7 @@
  *Support for pre-bound privileged ports.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/binder.c,v 1.17 2005/07/18 23:32:53 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/binder.c,v 1.18 2005/08/17 21:18:21 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -63,7 +63,7 @@ static Ns_Mutex lock;
  *----------------------------------------------------------------------
  */
 
-int
+SOCKET
 NsSockGetBound(struct sockaddr_in *saPtr)
 {
     SOCKET sock = INVALID_SOCKET;
