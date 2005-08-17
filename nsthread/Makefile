@@ -27,17 +27,18 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/Makefile,v 1.7 2005/08/08 11:30:51 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/Makefile,v 1.8 2005/08/17 21:20:22 jgdavidson Exp $
 #
 
-LIB     = nsthread
 HDRS	= thread.h
 PGM	= nsthreadtest
 PGMOBJS	= nsthreadtest.o
-LIBINIT = NsThreads_LibInit
-LIBOBJS = \
-	error.o master.o memory.o mutex.o cslock.o	\
-	rwlock.o reentrant.o sema.o thread.o tls.o signal.o	\
-	compat.o time.o fork.o pthread.o
+DLL     = nsthread
+DLLINIT = NsThreads_LibInit
+OBJS	= error.o master.o memory.o mutex.o cslock.o\
+	  rwlock.o reentrant.o sema.o thread.o tls.o \
+	  compat.o time.o
+UNIXOBJS= pthread.o fork.o signal.o
+WINOBJS = winthread.o
 
-include ../include/Makefile.build
+include ../include/ns.mak

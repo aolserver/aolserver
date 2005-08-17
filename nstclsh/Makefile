@@ -27,9 +27,9 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nstclsh/Makefile,v 1.1 2005/08/08 11:15:55 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nstclsh/Makefile,v 1.2 2005/08/17 21:20:22 jgdavidson Exp $
 #
 
 PGM      =  nstclsh
 PGMOBJS  =  nstclsh.o
-include  ../include/Makefile.build
+include  ../include/ns.mak

@@ -27,11 +27,10 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nscgi/Makefile,v 1.5 2005/08/08 11:42:22 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nscgi/Makefile,v 1.6 2005/08/17 21:20:17 jgdavidson Exp $
 #
 
-LIB	 =  nscgi
-LIBOBJS  =  nscgi.o
-MOD      =  nscgi.so
+MOD	 =  nscgi
+OBJS	 =  nscgi.o
 MODINIT	 =  NsCgi_ModInit
-include  ../include/Makefile.build
+include  ../include/ns.mak

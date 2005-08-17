@@ -27,68 +27,28 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/Makefile,v 1.57 2005/08/08 19:27:46 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/Makefile,v 1.58 2005/08/17 21:20:17 jgdavidson Exp $
+#
 #
 
-NSBUILD=1
-include include/Makefile.global
+dirs=nsthread nsd nsdb nstclsh nssock nslog nsperm nscgi nscp
+SRCDIR=.
+include include/ns.mak
 
-dirs   = nsthread nsd nssock nsssl nscgi nscp nslog nsperm nsdb nsext nspd \
-	 nstclsh
+all: build
 
-all: 
-	@for i in $(dirs); do \
-		( cd $$i && $(MAKE) all) || exit 1; \
-	done
+build clean:
+	$(MAKEALL) $* $(dirs)
 
-install: install-binaries install-doc install-util
-
-install-binaries: all
-	for i in bin lib log include modules/tcl servers/server1/pages; do \
-		$(MKDIR) $(AOLSERVER)/$$i; \
-	done
-	for i in include/*.h include/ns*init.c \
-			include/Makefile.global include/Makefile.module; do \
-		$(INSTALL_DATA) $$i $(AOLSERVER)/include/; \
-	done
-	for i in tcl/*.tcl; do \
-		$(INSTALL_DATA) $$i $(AOLSERVER)/modules/tcl/; \
-	done
-	$(INSTALL_DATA) sample-config.tcl $(AOLSERVER)/
-	$(INSTALL_DATA) -n index.adp $(AOLSERVER)/servers/server1/pages/
-	$(INSTALL_SH) install-sh $(INSTBIN)/
-	for i in $(dirs); do \
-		(cd $$i && $(MAKE) install) || exit 1; \
-	done
-
-install-tests:
-	$(CP) -r tests $(INSTSRVPAG)
-
-install-tests-new:
-	$(INSTALL_DATA) tests/new/http-test-config.tcl $(AOLSERVER)/
-	$(MKDIR) $(INSTSRVPAG)/tests
-	for i in tests/new/harness.tcl tests/new/*.adp; do \
-		$(INSTALL_DATA) $$i $(INSTSRVPAG)/tests/; \
-	done
-
-install-doc:
-	$(INSTALL_SH) doc/nsinstall-man.sh $(INSTBIN)/
-	cd doc && $(MAKE) install
-
-install-util:
-	for i in util/*.sh util/*.tcl; do \
-		$(INSTALL_SH) $$i $(INSTBIN)/; \
-	done
-
-test: all
-	cd tests/new && ./all.tcl
-
-clean:
-	@for i in $(dirs); do \
-		(cd $$i && $(MAKE) clean) || exit 1; \
-	done
+install:
+	$(MAKEALL) $* $(dirs)
+	$(INST) -d $(AOLSERVER) sample-config.tcl
+	$(INST) -d $(AOLSERVER)/servers/server1/pages -n index.adp
+	$(INST) -d $(AOLSERVER)/modules/tcl tcl/*.tcl
+	$(INST) -d $(INSTBIN) util/*.tcl
+	$(INST) -d $(INSTBIN) -e util/nsinstall-man.sh
+	$(INST) -d $(INSTINC) include/ns.mak include/*.c include/*.h
 
 distclean: clean
-	$(RM) config.status config.log config.cache include/Makefile.global include/Makefile.module
-
-.PHONY: all install install-binaries install-doc install-tests clean distclean
+	$(RM) include/ns.mak include/ns.bak \
+		config.status config.log config.cache

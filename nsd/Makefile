@@ -27,18 +27,16 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Makefile,v 1.47 2005/08/08 11:29:58 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Makefile,v 1.48 2005/08/17 21:20:18 jgdavidson Exp $
 #
 
 INSTALL	= install-init
-LIB	= nsd
-LIBINIT	= Ns_LibInit
+HDRS	= nsd.h
 PGM	= nsd
 PGMOBJS	= main.o
-HDRS	= nsd.h
-SRCS	:= $(wildcard *.c ../nsthread/*.c)
-
-LOBJS	= adpcmds.o adpeval.o adpparse.o adprequest.o auth.o binder.o \
+DLL	= nsd
+DLLINIT	= Ns_LibInit
+OBJS	= adpcmds.o adpeval.o adpparse.o adprequest.o auth.o binder.o \
 	  cache.o callbacks.o cls.o compress.o config.o conn.o connio.o \
 	  crypt.o dns.o driver.o dsprintf.o dstring.o encoding.o exec.o \
 	  fastpath.o fd.o filter.o form.o httptime.o index.o info.o \
@@ -49,18 +47,13 @@ LOBJS	= adpcmds.o adpeval.o adpparse.o adprequest.o auth.o binder.o \
 	  task.o tclcache.o tclcmds.o tclconf.o tclenv.o tclfile.o \
 	  tclhttp.o tclimg.o tclinit.o tcljob.o tclmisc.o \
 	  tclobj.o tclrequest.o tclresp.o tclsched.o tclset.o tclshare.o \
-	  tclsock.o tclthread.o tclvar.o tclxkeylist.o unix.o url.o \
-	  urlencode.o urlopen.o urlspace.o uuencode.o
+	  tclsock.o tclthread.o tclvar.o tclxkeylist.o url.o \
+	  urlencode.o urlopen.o urlspace.o uuencode.o stamp.o
 
-LIBOBJS	= $(LOBJS) stamp.o
+UNXOBJS	= unix.o
+WINOBJS	= nswin32.o getopt.o
 
-include ../include/Makefile.build
-
-stamp.o: $(LOBJS)
-	$(CC) -c -o stamp.o stamp.c
-
-tags: $(SRCS)
-	ctags $(SRCS)
+include ../include/ns.mak
 
 install-init:
-	$(INSTALL_DATA) init.tcl $(INSTBIN)/
+	$(INST) -d $(INSTBIN) init.tcl

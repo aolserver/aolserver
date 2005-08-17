@@ -27,11 +27,10 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nssock/Makefile,v 1.17 2005/08/08 11:30:15 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nssock/Makefile,v 1.18 2005/08/17 21:20:21 jgdavidson Exp $
 #
 
-LIB	 =  nssock
-LIBOBJS  =  nssock.o
-MOD      =  nssock.so
+MOD      =  nssock
+OBJS	 =  nssock.o
 MODINIT	 =  NsSock_ModInit
-include  ../include/Makefile.build
+include  ../include/ns.mak

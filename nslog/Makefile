@@ -27,11 +27,10 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nslog/Makefile,v 1.5 2005/08/08 11:30:13 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nslog/Makefile,v 1.6 2005/08/17 21:20:21 jgdavidson Exp $
 #
 
-LIB	 =  nslog
-LIBOBJS  =  nslog.o
-MOD      =  nslog.so
+MOD	 =  nslog
+OBJS  	 =  nslog.o
 MODINIT	 =  NsLog_ModInit
-include  ../include/Makefile.build
+include  ../include/ns.mak
