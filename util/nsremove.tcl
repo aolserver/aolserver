@@ -41,5 +41,8 @@
 
 
 foreach f $argv {
-	file delete $f
+	if [file exists $f] {
+		file delete $f
+		puts "removed: $f"
+	}
 }

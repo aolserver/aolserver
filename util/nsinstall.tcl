@@ -43,7 +43,7 @@
 #
 
 
-set exec 0
+set mode 0644
 set overwrite 1
 set done 0
 set i 0
@@ -60,7 +60,7 @@ while {$i < $argc} {
 			set dir [lindex $argv [incr i]]
 		}
 		-e {
-			set exec 1
+			set mode 0755
 		}
 		-n {
 			set overwrite 0
@@ -93,20 +93,31 @@ file mkdir $dir
 # Copy files specified by each glob pattern.
 #
 
+if $iswin {
+	set modestr ""
+} else {
+	set modestr " ($mode)"
+}
+set pid [pid]
 while {$i < $argc} {
 	foreach src [glob -nocomplain [lindex $argv $i]] {
 		set src [file normalize $src]
-		set dst [file normalize $dir/[file tail $src]]
+		set tail [file tail $src]
+		set dst [file normalize $dir/$tail]
+		set tmp [file normalize $dir/.#inst.$tail.$pid]
 		incr i
-		if {!$overwrite && [file exists $dst]} {
-			puts "exists: $dst"
-			continue
+		if [file exists $dst] {
+			if !$overwrite {
+				puts "exists: $dst"
+				continue
+			}
+			file delete $dst
 		}
-		file copy -force $src $dst
+		file copy $src $tmp
 		if {!$iswin} {
-			file attributes $dst -permission 755
-			puts "chmod: $dst"
+			file attributes $tmp -permission $mode
 		}
-		puts "install: $dst"
+		file rename $tmp $dst
+		puts "installed: $dst$modestr"
 	}
 }

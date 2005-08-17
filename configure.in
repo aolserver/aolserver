@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/configure.in,v 1.19 2004/11/20 03:10:45 dossy Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/configure.in,v 1.20 2005/08/17 22:55:57 jgdavidson Exp $
 #
 
 #
@@ -51,6 +51,7 @@ if test "${TCL_THREADS}" != "1"; then
 fi
 SC_ENABLE_SYMBOLS
 
+AC_SUBST(TCLSH)
 AC_SUBST(TCL_LIB_SPEC)
 AC_SUBST(TCL_LIBS)
 AC_SUBST(TCL_INCLUDE_SPEC)
@@ -240,4 +241,4 @@ fi
 # Create Makefile.global.
 #
 
-AC_OUTPUT(include/Makefile.global include/Makefile.module)
+AC_OUTPUT(include/ns.mak)

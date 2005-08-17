@@ -42,25 +42,30 @@
 
 
 #
-# Sanity check.
+# Sanity check and basic vars.
 #
 
 if ![info exists tcl_platform(threaded)] {
 	puts "Tcl not built with threads enabled."
 	exit 1
 }
-
-
-#
-# Check for debug build of Tcl.
-#
-
+set tclsh [file native [info nameofexecutable]]
+set tcldir [file native [file dirname [file dirname $tclsh]]]
 set debug [info exists tcl_platform(debug)]
-if $debug {
-	set g g
+if {$argc < 1} {
+	set aolserver $tcldir
 } else {
-	set g ""
+	set aolserver [file native [lindex $argv 0]]
 }
+if [string equal $tcl_platform(platform) unix] {
+	set args [list --prefix=$aolserver --with-tcl=$tcldir/lib]
+	if $debug {
+		lappend args --enable-symbols
+	}
+	eval exec ./configure TCLSH=$tclsh $args >&@ stdout
+	exit 0
+}
+
 
 #
 # Determine Tcl version.
@@ -72,29 +77,22 @@ scan [info tclversion] %d.%d major minor
 # Set and verify Tcl config variables.
 #
 
-set tclsh [file native [info nameofexecutable]]
-set tcldir [file native [file dirname [file dirname $tclsh]]]
 set tclinc [file native $tcldir/include]
+if ![file exists $tclinc/tcl.h] {
+	puts "Can't find Tcl header $tclinc/tcl.h"
+	exit 1
+}
+if $debug {
+	set g g
+} else {
+	set g ""
+}
 set tcllib [file native $tcldir/lib/tcl${major}${minor}t${g}.lib]
 if ![file exists $tcllib] {
 	puts "Can't find Tcl library $tcllib"
 	exit 1
 }
-if ![file exists $tclinc/tcl.h] {
-	puts "Can't find Tcl header $tclinc/tcl.h"
-	exit 1
-}
 
-
-#
-# Set AOLserver install directory.
-#
-
-if {$argc < 1} {
-	set aolserver $tcldir
-} else {
-	set aolserver [file native [lindex $argv 0]]
-}
 
 #
 # Create ns.mak.

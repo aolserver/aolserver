@@ -42,8 +42,8 @@
 
 
 
-if {$argc < 3} {
-	puts "Usage: $argv0 make-pgm target dir ?dir dir ...?"
+if {$argc < 2} {
+	puts "Usage: $argv0 target dir ?dir dir ...?"
 	exit 1
 }
 if [string equal $tcl_platform(platform) unix] {
@@ -56,6 +56,6 @@ set srcdir [file native [pwd]]
 for {set i 1} {$i < $argc} {incr i} {
 	set dir [lindex $argv $i]
 	cd $srcdir/$dir
-	puts "$target: $dir"
+	puts "make $target: $dir"
 	exec $make SRCDIR=$srcdir $target >&@ stdout
 }

@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/aclocal.m4,v 1.4 2004/09/21 23:26:09 dossy Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/aclocal.m4,v 1.5 2005/08/17 22:55:57 jgdavidson Exp $
 #
 
 #
@@ -36,7 +36,7 @@
 #	AOLserver autoconf include which simply includes Tcl's tcl.m4.
 #
 
-builtin(include,../tcl8.4/unix/tcl.m4)
+builtin(include,../tcl/unix/tcl.m4)
 
 
 dnl
