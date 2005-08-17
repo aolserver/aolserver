@@ -6,7 +6,7 @@
 #	Install a man page, making links to all functions/commands
 #	documented in the file.  Taken from the Tcl source.
 #
-# $Id: nsinstall-man.sh,v 1.1 2005/08/08 19:27:58 jgdavidson Exp $
+# $Id: nsinstall-man.sh,v 1.2 2005/08/17 22:55:03 jgdavidson Exp $
 #
 
 ZIP=:
@@ -60,6 +60,7 @@ NAMES=`sed -n '
 SECTION=`echo $MANPAGE | sed 's/.*\(.\)$/\1/'`
 SRCDIR=`dirname $MANPAGE`
 FIRST=""
+/bin/mkdir -p $DIR
 for f in $NAMES; do
     f=$f.$SECTION$SUFFIX
     if test -z "$FIRST" ; then
