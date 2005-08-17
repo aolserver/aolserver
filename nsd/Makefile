@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Makefile,v 1.48 2005/08/17 21:20:18 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Makefile,v 1.49 2005/08/17 22:54:50 jgdavidson Exp $
 #
 
 INSTALL	= install-init
@@ -50,7 +50,7 @@ OBJS	= adpcmds.o adpeval.o adpparse.o adprequest.o auth.o binder.o \
 	  tclsock.o tclthread.o tclvar.o tclxkeylist.o url.o \
 	  urlencode.o urlopen.o urlspace.o uuencode.o stamp.o
 
-UNXOBJS	= unix.o
+UNIXOBJS= unix.o 
 WINOBJS	= nswin32.o getopt.o
 
 include ../include/ns.mak
