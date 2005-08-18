@@ -28,76 +28,124 @@
 #
 
 #
-# configure.tcl --
+# nsconfig.tcl --
 #
-#	Configure build of AOLserver.  By default, matches the build
-#	and install environment of cooresponding Tcl directory.
-#
-# Usage:
-#	tclsh configure.tcl [install-dir]
-#
-# Where:
-#	install-dir	Path to install AOLserver (default: Tcl directory)
+#	Configure build of AOLserver.  See usage proc for details.
 #
 
 
 #
-# Sanity check and basic vars.
+# Set arg defaults.
 #
 
-if ![info exists tcl_platform(threaded)] {
-	puts "Tcl not built with threads enabled."
-	exit 1
-}
 set tclsh [file native [info nameofexecutable]]
 set tcldir [file native [file dirname [file dirname $tclsh]]]
-set debug [info exists tcl_platform(debug)]
-if {$argc < 1} {
-	set aolserver $tcldir
-} else {
-	set aolserver [file native [lindex $argv 0]]
+set install $tcldir
+set debug 0
+
+#
+# Utility procs used below.
+#
+
+proc err str {
+	puts stderr $str
+	exit 1
 }
-if [string equal $tcl_platform(platform) unix] {
-	set args [list --prefix=$aolserver --with-tcl=$tcldir/lib]
-	if $debug {
-		lappend args --enable-symbols
+
+proc usage {{ishelp 0}} {
+	global install argv0 
+	set msg {Usage: $argv0 ?-help? ?-install dir? ?-debug?
+
+Where:
+	-help		This message.
+	-install dir	Specify path to install (default: $install)
+	-debug		Debug build with symbols and without optimization.
+}
+	set msg [subst $msg]
+	if !$ishelp {
+		err $msg
 	}
-	eval exec ./configure TCLSH=$tclsh $args >&@ stdout
+	puts $msg
 	exit 0
 }
 
 
 #
-# Determine Tcl version.
+# Parse arg list.
 #
 
-scan [info tclversion] %d.%d major minor
+set i 0
+while {$i < $argc} {
+	set opt [lindex $argv $i]
+	switch -glob -- $opt {
+		-h* {
+			usage 1
+		}
+		-i* {
+			set install [lindex $argv [incr i]]
+			if ![string length $install] {
+				usage
+			}
+		}
+		-d* {
+			set debug 1
+		}
+		default {
+			usage
+		}
+	}
+	incr i
+}
 
 #
-# Set and verify Tcl config variables.
+# Validate arguments.
 #
 
+set install [file native $install]
+if {[file exists $install] && ![file isdirectory $install]} {
+	err "Invalid install directory: $install"
+}
+
+
+#
+# On Unix, call configure shell script and exit.
+#
+
+if [string equal $tcl_platform(platform) unix] {
+	set configure [list ./configure TCLSH=$tclsh --prefix=$install --with-tcl=$tcldir/lib]
+	if $debug {
+		lappend configure --enable-symbols
+	}
+	puts "Executing $configure"
+	eval exec $configure >&@ stdout
+	exit 0
+}
+
+
+#
+# On Windows, determine and verify Tcl library and includes.
+#
+
+if ![info exists tcl_platform(threaded)] {
+	err "Tcl not built with threads enabled."
+}
 set tclinc [file native $tcldir/include]
-if ![file exists $tclinc/tcl.h] {
-	puts "Can't find Tcl header $tclinc/tcl.h"
-	exit 1
+if ![file exists $tclinc] {
+	err "Missing Tcl include directory: $tclinc"
 }
-if $debug {
-	set g g
-} else {
-	set g ""
+scan [info tclversion] %d.%d major minor
+set tcllib $tcldir/lib/tcl${major}${minor}t
+if [info exists tcl_platform(debug)] {
+	append tcllib g
 }
-set tcllib [file native $tcldir/lib/tcl${major}${minor}t${g}.lib]
+set tcllib [file native [append tcllib .lib]]
 if ![file exists $tcllib] {
-	puts "Can't find Tcl library $tcllib"
-	exit 1
+	err "Missing Tcl lib: $tcllib"
 }
-
 
 #
 # Create ns.mak.
 #
-
 
 set makout include/ns.mak
 set makbak include/ns.bak
@@ -110,7 +158,7 @@ if [file exists $makout] {
 	file copy -force $makout $makbak
 }
 puts "Configuring $makout with variables:"
-puts "	AOLSERVER=$aolserver"
+puts "	AOLSERVER=$install"
 puts "	DEBUG=$debug"
 puts "	TCLSH=$tclsh"
 puts "	TCLINC=$tclinc"
@@ -125,7 +173,7 @@ puts $fp "#"
 puts $fp "# Config variables:"
 puts $fp "#"
 puts $fp ""
-puts $fp "CONFIG_AOLSERVER=$aolserver"
+puts $fp "CONFIG_AOLSERVER=$install"
 puts $fp "CONFIG_DEBUG=$debug"
 puts $fp "CONFIG_TCLSH=$tclsh"
 puts $fp "CONFIG_TCLINC=$tclinc"
