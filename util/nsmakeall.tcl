@@ -57,5 +57,7 @@ for {set i 1} {$i < $argc} {incr i} {
 	set dir [lindex $argv $i]
 	cd $srcdir/$dir
 	puts "make $target: $dir"
-	exec $make SRCDIR=$srcdir $target >&@ stdout
+	if [catch {exec $make SRCDIR=$srcdir $target >&@ stdout}] {
+		exit 1
+	}
 }
