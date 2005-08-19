@@ -1,3 +1,20 @@
+2005-08-19  Nathan Folkman <shmooved@aol.com>
+
+        * full-config.tcl (new file):  Currently just a copy
+        of the original sample-config.tcl. Over time this file
+        will contain all of the configurable options for 
+        AOLserver along with detailed comments.
+
+        * sample-config.tcl:  Stripped away as much as possible 
+        in order to simplify the default configuration example.
+        Also update to enable the Web statistics interface by
+        default, as well as also enabling the control port. 
+
+        You should be sure to update the default user names and 
+        passwords for both the stats interface and control port 
+        before installing in a production environment.
+
+
 2005-08-11  Jim Davidson <jgdavidson@aol.com>
 
 	* include/ns.h:
@@ -16,7 +33,6 @@
 
 	* include/nsmodinit.c:
 	* nsd/nswin32.c:  Minor fixes for Win32.
-
 
 
 2005-08-09  Jim Davidson <jgdavidson@aol.com>
