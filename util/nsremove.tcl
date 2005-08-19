@@ -33,16 +33,18 @@
 #	Remove one or more files.
 #
 # Usage:
-#	nsremove.tcl file ?file ...?
+#	nsremove.tcl pattern ?pattern ...?
 #
 # Where:
-#	file		File to remove.
+#	pattern		Glob-style pattern of files to remove.
 #
 
 
-foreach f $argv {
-	if [file exists $f] {
-		file delete $f
-		puts "removed: $f"
+foreach pattern $argv {
+	foreach file [glob -nocomplain $pattern] {
+		if [file exists $file] {
+			file delete $file
+			puts "removed: $file"
+		}
 	}
 }
