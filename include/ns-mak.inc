@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/include/ns-mak.inc,v 1.1 2005/08/17 21:18:46 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/include/ns-mak.inc,v 1.2 2005/08/19 00:49:58 jgdavidson Exp $
 
 #
 # ns.mak -- 
@@ -52,7 +52,7 @@
 #		against a DLL, if any.
 #
 #	MODINIT	Name of module entry point, e.g., "MODINIT=MyMod_ModInit".
-#		Causes _modinit.o to be added to OBJS list.
+#		Causes $(MOD)-mod.obj to be added to OBJS list.
 #
 #	In addition, you can also define:
 #
@@ -104,30 +104,51 @@ INSTINC	= "$(AOLSERVER)\include"
 
 
 #
-# Variables for building a DLL, including module DLL's.
+# Common compiler and linker options.
+#
+
+COPTS	= /EHsc /W3 /nologo /c
+DEFS	= $(DEFS) /D "_WINDOWS" /D "TCL_THREADS=1" /D "WIN32" \
+	  /D "FD_SETSIZE=128" /D "NO_CONST=1" /D "_MBCS" 
+LOPTS   = /NOLOGO /SUBSYSTEM:CONSOLE /OPT:NOREF /OPT:NOWIN98 /OPT:NOICF
+
+
+#
+# Variables for building a module with cooresponding DLL.
 #
 
 !ifdef MOD
 DLL	= $(MOD)
+MODBIN	= $(MOD)-mod.dll
+BUILD	= $(BUILD) $(MODBIN)
+INSTALL = $(INSTALL) install-mod
+CLEAN	= $(CLEAN) clean-mod
 !ifdef MODINIT
-OBJS	= $(OBJS) $(MODOBJ)
+MODOBJS	= $(MODOBJS) $(MODOBJ)
 !endif
-!endif
-
-!ifdef DLL
-DLLBIN  = $(DLL).dll
-DLLLIB  = $(DLL).lib
-BUILD	= $(DLLBIN)
-INSTALL = $(INSTALL) install-dll
-CLEAN	= $(CLEAN) clean-dll
-OBJS	= $(OBJS) $(WINOBJS)
-HDRS	= $(HDRS) $(INCDIR)/ns.h $(INCDIR)/nsthread.h
-PGMLIBS	 = $(PGMLIBS) $(DLLLIB)
 !endif
 
 
 #
-# Variables for building a program, perhaps using cooresponding DLL.
+# Variables for building a DLL.
+#
+
+!ifdef DLL
+DLLBIN  = $(DLL).dll
+DLLLIB  = $(DLL).lib
+BUILD	= $(BUILD) $(DLLBIN)
+INSTALL = $(INSTALL) install-dll
+CLEAN	= $(CLEAN) clean-dll
+OBJS	= $(OBJS) $(WINOBJS)
+HDRS	= $(HDRS) $(INCDIR)/ns.h $(INCDIR)/nsthread.h
+!ifdef MODINIT
+LOPTS	= $(LOPTS) /EXPORT:$(MODINIT)
+!endif
+!endif
+
+
+#
+# Variables for building a program, optionally with cooresponding DLL.
 #
 
 !ifdef PGM
@@ -139,16 +160,6 @@ CLEAN  	 = $(CLEAN) clean-pgm
 PGMLIBS  = $(PGMLIBS) $(DLLLIB)
 !endif
 !endif
-
-
-#
-# Common compiler and linker options.
-#
-
-COPTS	= /EHsc /W3 /nologo /c
-DEFS	= $(DEFS) /D "_WINDOWS" /D "TCL_THREADS=1" /D "WIN32" \
-	  /D "FD_SETSIZE=128" /D "NO_CONST=1" /D "_MBCS" 
-LOPTS   = /NOLOGO /SUBSYSTEM:CONSOLE /OPT:NOREF /OPT:NOWIN98 /OPT:NOICF
 
 
 #
@@ -168,7 +179,7 @@ LIBS = $(LIBS) /LIBPATH:"$(SRCDIR)\nsd" nsd.lib
 !endif
 !endif
 MODSRC = $(INCDIR)\nsmodinit.c
-MODOBJ = nsmodinit.o
+MODOBJ = $(MOD)-mod.obj
 
 
 #
@@ -212,8 +223,11 @@ $(DLLBIN): $(OBJS)
 	link.exe $(LOPTS) /DLL /OUT:$(DLLBIN) /IMPLIB:$(DLLLIB) $(OBJS) $(LIBS)
 !endif
 
-$(MODOBJ): $(MODSRC)
-	$(CC) $(CFLAGS) -DNS_MODINIT=$(MODINIT) /Fo$(MODOBJ) $(MODSRC)
+!ifdef MOD
+$(MODBIN): $(MODSRC) $(DLLBIN) 
+	$(CC) $(CFLAGS) /DNS_MODINIT=$(MODINIT) /c /Fo$(MODOBJ) $(MODSRC)
+	link.exe $(LOPTS) /DLL /OUT:$(MODBIN) $(MODOBJS) $(MODLIBS) $(DLLLIB) $(LIBS)
+!endif
 
 !ifdef OBJS
 $(OBJS): $(HDRS)
@@ -224,20 +238,29 @@ $(OBJS): $(HDRS)
 
 !ifdef PGM
 $(PGMBIN): $(PGMOBJS) $(DLLLIB)
-	link.exe $(LOPTS) /OUT:$(PGMBIN) $(PGMOBJS) $(PGMLIBS) $(LIBS)
+	link.exe $(LOPTS) /OUT:$(PGMBIN) $(PGMOBJS) $(PGMLIBS) $(DLLLIB) $(LIBS)
 !endif
 
 install-dll: $(DLLBIN) $(DLLLIB)
 	$(INST) -d $(INSTBIN) $(DLLBIN)
 	$(INST) -d $(INSTLIB) $(DLLLIB)
 
+install-mod: $(MODBIN)
+	$(INST) -f $(INSTBIN)/$(MOD).so $(MODBIN)
+
 install-pgm: $(PGMBIN)
 	$(INST) -d $(INSTBIN) $(PGMBIN)
 
-clean-dll:
-	$(RM) $(DLLBIN) $(DLLLIB) $(DLL).exp $(DLL).ilk $(DLL).pdb $(MODOBJ) $(OBJS)
+clean-extra:
+	$(RM) *.exp *.ilk *.pdb
+
+clean-dll: clean-extra
+	$(RM) $(OBJS) $(DLLBIN) $(DLLLIB)
+
+clean-mod: clean-extra
+	$(RM) $(MODOBJS) $(MODBIN) $(MODLIB)
 
 clean-pgm:
-	$(RM) $(PGMBIN) $(PGMOBJS) $(PGM).ilk $(PGM).pdb
+	$(RM) $(PGMBIN) $(PGMOBJS)
 
 .PHONY: clean-dll clean-pgm install-dll install-pgm
