@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/include/ns-mak.inc,v 1.2 2005/08/19 00:49:58 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/include/ns-mak.inc,v 1.3 2005/08/19 01:22:28 jgdavidson Exp $
 
 #
 # ns.mak -- 
@@ -168,9 +168,11 @@ PGMLIBS  = $(PGMLIBS) $(DLLLIB)
 
 !ifndef SRCDIR
 INCDIR = $(AOLSERVER)\include
+UTILDIR = $(INSTBIN)
 LIBS = $(LIBS) /LIBPATH:"$(AOLSERVER)\lib" nsd.lib nsthread.lib
 !else
 INCDIR = $(SRCDIR)\include
+UTILDIR = $(SRCDIR)\util
 !if "$(DLL)" != "nsthread"
 LIBS = $(LIBS) /LIBPATH:"$(SRCDIR)\nsthread" nsthread.lib
 !if "$(DLL)" != "nsd"
@@ -204,9 +206,9 @@ LIBS	= $(LIBS) $(TCLLIB) advapi32.lib ws2_32.lib
 # Utility commands.
 #
 
-RM	= $(TCLSH) $(SRCDIR)\util\nsremove.tcl
-MAKEALL	= $(TCLSH) $(SRCDIR)\util\nsmakeall.tcl
-INST	= $(TCLSH) $(SRCDIR)\util\nsinstall.tcl
+RM	= $(TCLSH) $(UTILDIR)\nsremove.tcl
+MAKEALL	= $(TCLSH) $(UTILDIR)\nsmakeall.tcl
+INST	= $(TCLSH) $(UTILDIR)\nsinstall.tcl
 
 #
 # Rules.
