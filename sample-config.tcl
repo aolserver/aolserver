@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/Attic/sample-config.tcl,v 1.15 2005/08/06 23:58:27 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/Attic/sample-config.tcl,v 1.16 2005/08/19 00:49:51 jgdavidson Exp $
 #
 
 #
@@ -64,19 +64,9 @@ set bindir                 [file dirname [ns_info nsd]]
 set pageroot               ${homedir}/servers/${servername}/pages
 set directoryfile          index.adp,index.html,index.htm,index.xhtml,index.xht
 
-#
-# Module extension is .dll on windows, .so on all Unix platforms.
-#
-
-if [ns_info winnt] {
-	set modext dll
-} else {
-	set modext so
-}
-
 # nsssl: Only loads if keyfile.pem and certfile.pem exist.
-#set sslmodule              nsssl.${modext}  ;# Domestic 128-bit/1024-bit SSL.
-set sslmodule              nsssle.${modext} ;# Exportable 40-bit/512-bit SSL.
+#set sslmodule              nsssl.so  ;# Domestic 128-bit/1024-bit SSL.
+set sslmodule              nsssle.so ;# Exportable 40-bit/512-bit SSL.
 set sslkeyfile   ${homedir}/servers/${servername}/modules/nsssl/keyfile.pem
 set sslcertfile  ${homedir}/servers/${servername}/modules/nsssl/certfile.pem
 
@@ -319,7 +309,7 @@ ns_param   certfile        $sslcertfile
 #    ns_param user "nsadmin:t2GqvvaiIUbF2:"
 #
 #ns_section "ns/server/${servername}/modules"
-#    ns_param nscp ${bindir}/nscp.${modext}
+#    ns_param nscp ${bindir}/nscp.so
 #
 
 #
@@ -348,18 +338,16 @@ ns_section "ns/server/${servername}/module/nscgi"
 #
 
 ns_section "ns/server/${servername}/modules"
-    ns_param nssock ${bindir}/nssock.${modext}
-    ns_param nslog ${bindir}/nslog.${modext}
-    #ns_param nscgi ${bindir}/nscgi.${modext}
-    #ns_param nsperm ${bindir}/nsperm.${modext}
+    ns_param nssock ${bindir}/nssock.so
+    ns_param nslog ${bindir}/nslog.so
+    #ns_param nscgi ${bindir}/nscgi.so
+    #ns_param nsperm ${bindir}/nsperm.so
 
 #
 # nsssl: Only loads if sslcertfile and sslkeyfile exist (see above).
 #
 if { [file exists $sslcertfile] && [file exists $sslkeyfile] } {
     ns_param nsssl ${bindir}/${sslmodule}
-} else {
-    ns_log warning "config.tcl: nsssl not loaded -- key/cert files do not exist."
 }
 
 #
@@ -374,7 +362,7 @@ if { [file exists $sslcertfile] && [file exists $sslkeyfile] } {
 #    virtual server.
 #
 #ns_section "ns/modules"
-#    ns_param   nssock          ${bindir}/nssock.${modext}
+#    ns_param   nssock          ${bindir}/nssock.so
 #
 #ns_section "ns/module/nssock"
 #    ns_param   port            $httpport
