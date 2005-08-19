@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/Makefile,v 1.59 2005/08/17 22:55:57 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/Makefile,v 1.60 2005/08/19 00:49:42 jgdavidson Exp $
 #
 #
 
@@ -45,6 +45,7 @@ clean:
 
 install:
 	$(MAKEALL) install $(dirs)
+	$(INST) -d $(AOLSERVER)/log
 	$(INST) -d $(AOLSERVER) sample-config.tcl
 	$(INST) -d $(AOLSERVER)/servers/server1/pages -n index.adp
 	$(INST) -d $(AOLSERVER)/modules/tcl tcl/*.tcl
