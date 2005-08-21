@@ -1,3 +1,66 @@
+2005-08-21  Jim Davidson <jgdavidson@aol.com>
+
+	Several updates to simplify maintenance of the build process.
+	Basically, the makefiles support both gmake on Unix and
+	nmake on Windows by including a platform-specific include/ns.mak
+	created by the nsconfig.tcl script.  See comments README
+	for instructions.
+
+	README:  Updated with new build instructions.
+
+	include/Makefile.global.in (removed):
+	include/Makefile.module.in (removed):
+	include/Makefile.build (removed):
+	include/ns.mak.in (new file):
+	include/ns-mak.inc (new file):  Unix and Windows templates
+	for include/ns.mak, replacing the previous include/Makefile.*
+	files.
+
+	nsconfig.tcl (new file):  Tcl configure script which calls
+	configure on Unix and creates include/ns.mak directly on
+	Windows.
+
+	util/nsinstall.sh (removed):
+	util/nsmakeall.tcl (new file):
+	util/nsinstall.tcl (new file):
+	util/nsremove.tcl (new file):  Tcl shell utility scripts
+	called by include/ns.mak.
+
+	ini2tcl.tcl (removed):
+	tcl2ini.tcl (removed):
+	util/ini2tcl.tcl (new file):
+	util/tcl2ini.tcl (new file):  Moved files from top level.
+
+	util/nsinstall-man.sh:  Updated to create directories as
+	needed (Unix only).
+
+	Makefile:
+	aclocal.m4:
+	configure.in:
+	configure:
+	doc/Makefile:
+	nscgi/Makefile:
+	nscgi/Makefile:
+	nscp/Makefile:
+	nsd/Makefile:
+	nsdb/Makefile:
+	nslog/Makefile:
+	nsperm/Makefile:
+	nssock/Makefile:
+	nsthread/Makefile:
+	nstclsh/Makefile:  Updated to build using include/ns.mak.
+
+	win32/ (removed):  Removed previous Windows build enviornment.
+
+	sample-config.tcl:  Updated to change module file extension
+	to .so on Windows to match Unix.
+
+	include/nsdb.h:
+	nsdb/db.h:
+	nsthread/thread.h:  Updated to export public functions on
+	Windows.
+
+
 2005-08-19  Nathan Folkman <shmooved@aol.com>
 
         * full-config.tcl (new file):  Currently just a copy
