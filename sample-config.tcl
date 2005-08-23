@@ -1,5 +1,5 @@
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/Attic/sample-config.tcl,v 1.17 2005/08/19 13:41:36 shmooved Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/Attic/sample-config.tcl,v 1.18 2005/08/23 22:29:20 shmooved Exp $
 # $Name:  $
 #
 # sample-config.tcl --
@@ -11,21 +11,7 @@
 #
 #         http://<address>:8000/
 #
-#     AOLserver Stats Web Interface: 
-#
-#         http://<address>:8000/_stats/ 
-#
-#         User name: aolserver
-#         Password: stats    
-#
-#     Control Port (nscp): 
-#
-#         127.0.0.1:8001 
-#
-#         User name: <empty>
-#         Password: <empty>
-#
-#     Page Root:      
+#     Server Page Root:      
 #     
 #         $AOLSERVER/servers/server1/pages
 #
@@ -43,11 +29,8 @@
 set home [file dirname [ns_info config]]
 set pageRoot $home/servers/server1/pages
 
-set sockAddress [ns_info address]
-set sockPort 8000
-
-set nscpAddress "127.0.0.1"
-set nscpPort 8001
+set address [ns_info address]
+set port 8000
 
 ns_section "ns/parameters"
     ns_param home $home
@@ -67,12 +50,6 @@ ns_section "ns/threads"
 ns_section "ns/servers"
     ns_param server1 "server1"
 
-ns_section "ns/server/stats"
-    ns_param enabled true
-    ns_param user "aolserver"
-    ns_param password "stats"
-    ns_param url "/_stats"
-
 ns_section "ns/server/server1"
     ns_param directoryfile "index.htm,index.html,index.adp"
     ns_param pageroot $pageRoot
@@ -89,11 +66,10 @@ ns_section "ns/server/server1/adp"
 ns_section "ns/server/server1/modules"
     ns_param nssock nssock.so
     ns_param nslog nslog.so
-    ns_param nscp nscp.so
 
 ns_section "ns/server/server1/module/nssock"
-    ns_param address $sockAddress
-    ns_param port $sockPort
+    ns_param address $address
+    ns_param port $port
     ns_param hostname [ns_info hostname]
 
 ns_section "ns/server/server1/module/nslog"
@@ -101,10 +77,3 @@ ns_section "ns/server/server1/module/nslog"
     ns_param rollonsignal true
     ns_param rollhour 0
     ns_param maxbackup 2
-
-ns_section "ns/server/server1/module/nscp"
-    ns_param address $nscpAddress
-    ns_param port $nscpPort
-
-ns_section "ns/server/server1/module/nscp/users"
-    ns_param user ":"
