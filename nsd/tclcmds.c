@@ -33,7 +33,7 @@
  * 	Connect Tcl command names to the functions that implement them
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.52 2005/08/10 20:06:03 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.53 2005/08/23 22:05:04 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -130,6 +130,7 @@ extern Tcl_ObjCmdProc
     NsTclRegisterProcObjCmd,
     NsTclRegisterTagObjCmd,
     NsTclRegisterTraceObjCmd,
+    NsTclRegisterFastPathObjCmd,
     NsTclRenameObjCmd,
     NsTclRequestAuthorizeObjCmd,
     NsTclRespondObjCmd,
@@ -342,6 +343,7 @@ static Cmd cmds[] = {
     {"ns_register_adp", NULL, NsTclRegisterAdpObjCmd},
     {"ns_register_adptag", NULL, NsTclRegisterTagObjCmd},
     {"ns_register_encoding", NULL, NsTclRegisterEncodingObjCmd},
+    {"ns_register_fastpath", NULL, NsTclRegisterFastPathObjCmd},
     {"ns_register_filter", NULL, NsTclRegisterFilterObjCmd},
     {"ns_register_proc", NULL, NsTclRegisterProcObjCmd},
     {"ns_register_trace", NULL, NsTclRegisterTraceObjCmd},

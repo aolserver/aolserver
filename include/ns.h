@@ -33,7 +33,7 @@
  *      All the public types and function declarations for the core
  *	AOLserver.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.82 2005/08/23 21:41:31 jgdavidson Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.83 2005/08/23 22:05:04 jgdavidson Exp $
  */
 
 #ifndef NS_H
@@ -733,6 +733,7 @@ NS_EXTERN void Ns_SetUrlToFileProc(char *server, Ns_UrlToFileProc *procPtr);
 NS_EXTERN int Ns_UrlToFile(Ns_DString *dsPtr, char *server, char *url);
 NS_EXTERN int Ns_UrlIsFile(char *server, char *url);
 NS_EXTERN int Ns_UrlIsDir(char *server, char *url);
+NS_EXTERN int Ns_FastPathOp(void *arg, Ns_Conn *conn);
 
 /*
  * filter.c:

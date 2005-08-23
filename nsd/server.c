@@ -33,7 +33,7 @@
  *	Routines for managing NsServer structures.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.43 2005/08/11 22:55:42 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.44 2005/08/23 22:05:04 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -199,8 +199,8 @@ NsInitServer(char *server, Ns_ServerInitProc *initProc)
      * register by default for all URL's.
      */
 
-    RegisterMap(server, "fastpath", "/", NsFastGet);
-    RegisterMaps(server, "fastpath", NsFastGet);
+    RegisterMap(server, "fastpath", "/", Ns_FastPathOp);
+    RegisterMaps(server, "fastpath", Ns_FastPathOp);
     RegisterMaps(server, "adp", NsAdpProc);
 
     /*

@@ -886,7 +886,6 @@ extern char *NsGetServers(void);
 extern NsServer *NsGetInitServer(void);
 extern NsInterp *NsGetInterpData(Tcl_Interp *interp);
 extern void NsFreeConnInterp(Conn *connPtr);
-extern Ns_OpProc NsFastGet;
 extern Ns_OpProc NsAdpProc;
 
 extern Ns_Cache *NsFastpathCache(char *server, int size);

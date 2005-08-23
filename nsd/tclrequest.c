@@ -33,7 +33,7 @@
  *	Routines for Tcl proc and ADP registered requests.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclrequest.c,v 1.12 2005/08/01 20:27:35 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclrequest.c,v 1.13 2005/08/23 22:05:04 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -329,6 +329,52 @@ NsTclRegisterTraceObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *
         return TCL_ERROR;
     }
     return RegisterFilterObj(itPtr, NS_FILTER_VOID_TRACE, objc - 1, objv + 1);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsTclRegisterFastPathObjCmd --
+ *
+ *	Implements ns_register_fastpath as obj command.
+ *
+ * Results:
+ *	Tcl result. 
+ *
+ * Side effects:
+ *	See docs. 
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+NsTclRegisterFastPathObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    NsInterp *itPtr = arg;
+    NsServer *servPtr = itPtr->servPtr;
+    char     *server, *method, *url;
+    int       flags, idx;
+
+    if (objc < 3 || objc > 4) {
+    badargs:
+        Tcl_WrongNumArgs(interp, 1, objv, "?-noinherit? method url");
+        return TCL_ERROR;
+    }
+    flags = 0;
+    idx = 1;
+    if (objc == 4) {
+        if (!STREQ(Tcl_GetString(objv[1]), "-noinherit")) {
+            goto badargs;
+        }
+        flags = NS_OP_NOINHERIT;
+        idx++;
+    }
+    server = servPtr->server;
+    method = Tcl_GetString(objv[idx++]);
+    url = Tcl_GetString(objv[idx++]);
+    Ns_RegisterRequest(server, method, url, Ns_FastPathOp, NULL, servPtr, flags);
+    return TCL_OK;
 }
 
 
