@@ -34,7 +34,7 @@
  *	Routines for dealing with fatal errors.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/error.c,v 1.2 2003/01/18 19:56:30 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/error.c,v 1.3 2005/08/23 21:41:40 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "thread.h"
 
@@ -63,4 +63,5 @@ NsThreadFatal(char *func, char *osfunc, int err)
 #else
     Tcl_Panic("nsthreads: %s failed in %s: %s", osfunc, func, strerror(err));
 #endif
+    abort();
 }
