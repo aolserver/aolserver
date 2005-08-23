@@ -33,7 +33,7 @@
  *      All the public types and function declarations for the core
  *	AOLserver.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.81 2005/08/11 22:55:14 jgdavidson Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.82 2005/08/23 21:41:31 jgdavidson Exp $
  */
 
 #ifndef NS_H
@@ -540,7 +540,7 @@ NS_EXTERN Ns_Cache *Ns_CacheCreateSz(char *name, int keys, size_t maxSize,
 				  Ns_Callback *freeProc);
 NS_EXTERN void Ns_CacheDestroy(Ns_Cache *cache);
 NS_EXTERN Ns_Cache *Ns_CacheFind(char *name);
-NS_EXTERN void *Ns_CacheMalloc(Ns_Cache *cache, size_t len);
+NS_EXTERN void *Ns_CacheMalloc(Ns_Cache *cache, size_t len) _nsmalloc;
 NS_EXTERN void Ns_CacheFree(Ns_Cache *cache, void *bytes);
 NS_EXTERN Ns_Entry *Ns_CacheFindEntry(Ns_Cache *cache, char *key);
 NS_EXTERN Ns_Entry *Ns_CacheCreateEntry(Ns_Cache *cache, char *key, int *newPtr);
@@ -704,7 +704,7 @@ NS_EXTERN void Ns_QueueWait(Ns_Conn *conn, SOCKET sock, Ns_QueueWaitProc *proc,
 NS_EXTERN char **Ns_DStringAppendArgv(Ns_DString *dsPtr);
 NS_EXTERN char *Ns_DStringVarAppend(Ns_DString *dsPtr, ...);
 NS_EXTERN char *Ns_DStringExport(Ns_DString *dsPtr);
-NS_EXTERN char *Ns_DStringPrintf(Ns_DString *dsPtr, char *fmt,...);
+NS_EXTERN char *Ns_DStringPrintf(Ns_DString *dsPtr, char *fmt,...) _nsprintflike(2,3);
 NS_EXTERN char *Ns_DStringVPrintf(Ns_DString *dsPtr, char *fmt, va_list ap);
 NS_EXTERN char *Ns_DStringAppendArg(Ns_DString *dsPtr, char *string);
 NS_EXTERN Ns_DString *Ns_DStringPop(void);
@@ -872,8 +872,8 @@ NS_EXTERN int Ns_SockPortBound(int port);
 
 NS_EXTERN char *Ns_InfoErrorLog(void);
 NS_EXTERN int   Ns_LogRoll(void);
-NS_EXTERN void  Ns_Log(Ns_LogSeverity severity, char *fmt, ...);
-NS_EXTERN void  Ns_Fatal(char *fmt, ...);
+NS_EXTERN void  Ns_Log(Ns_LogSeverity severity, char *fmt, ...) _nsprintflike(2,3);
+NS_EXTERN void  Ns_Fatal(char *fmt, ...) _nsprintflike(1,2);
 NS_EXTERN char *Ns_LogTime(char *timeBuf);
 NS_EXTERN char *Ns_LogTime2(char *timeBuf, int gmt);
 NS_EXTERN int   Ns_RollFile(char *file, int max);
@@ -1017,7 +1017,7 @@ NS_EXTERN void Ns_ConnSetTypeHeader(Ns_Conn *conn, char *type);
 NS_EXTERN void Ns_ConnSetLengthHeader(Ns_Conn *conn, int length);
 NS_EXTERN void Ns_ConnSetLastModifiedHeader(Ns_Conn *conn, time_t *mtime);
 NS_EXTERN void Ns_ConnSetExpiresHeader(Ns_Conn *conn, char *expires);
-NS_EXTERN int Ns_ConnPrintfHeader(Ns_Conn *conn, char *fmt,...);
+NS_EXTERN int Ns_ConnPrintfHeader(Ns_Conn *conn, char *fmt,...) _nsprintflike(2,3);
 NS_EXTERN int Ns_ConnResetReturn(Ns_Conn *conn);
 NS_EXTERN int Ns_ConnReturnAdminNotice(Ns_Conn *conn, int status, char *title,
 				    char *notice);

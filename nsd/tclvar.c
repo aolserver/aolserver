@@ -35,7 +35,7 @@
 
 #include "nsd.h"
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclvar.c,v 1.16 2005/07/18 23:33:00 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclvar.c,v 1.17 2005/08/23 21:41:31 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 /*
  * The following structure defines a collection of arrays.
@@ -390,7 +390,7 @@ NsTclNsvArrayObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv
     };
     enum {
 	CSetIdx, CResetIdx, CGetIdx, CNamesIdx, CSizeIdx, CExistsIdx
-    } opt;
+    } _nsmayalias opt;
 
     if (objc < 2) {
     	Tcl_WrongNumArgs(interp, 1, objv, "option ...");
@@ -777,7 +777,7 @@ NsTclVarObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
     };
     enum {
 	VExistsIdx, VGetIdx, VListIdx, VSetIdx, VUnsetIdx
-    } opt; 
+    } _nsmayalias opt; 
 
     if (objc < 2) {
 	Tcl_WrongNumArgs(interp, 1, objv, "option ?args?");

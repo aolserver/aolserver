@@ -32,7 +32,7 @@
  *
  *	Private nsthread library include.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/thread.h,v 1.7 2005/08/17 21:21:28 jgdavidson Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/thread.h,v 1.8 2005/08/23 21:41:31 jgdavidson Exp $
  */
 
 #ifndef THREAD_H
@@ -61,6 +61,6 @@ extern void   NsCleanupTls(void **slots);
 extern void **NsGetTls(void);
 extern void   NsThreadMain(void *arg);
 extern void   NsCreateThread(void *arg, long stacksize, Ns_Thread *threadPtr);
-extern void   NsThreadFatal(char *func, char *osfunc, int err);
+extern void   NsThreadFatal(char *func, char *osfunc, int err) _nsnoreturn;
 
 #endif /* THREAD_H */

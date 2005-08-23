@@ -79,7 +79,7 @@
  *	"ns:data" and accessible by NsGetInterpData.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.49 2005/08/08 11:29:58 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.50 2005/08/23 21:41:31 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -936,7 +936,7 @@ NsTclICtlObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
     enum {
 	TCreateIdx, TDeleteIdx, TAllocateIdx, TDeAllocateIdx,
 	TGetConnIdx, TFreeConnIdx
-    } topt;
+    } _nsmayalias topt;
     static int twhen[] = {
 	NS_TCL_TRACE_CREATE, NS_TCL_TRACE_DELETE,
 	NS_TCL_TRACE_ALLOCATE, NS_TCL_TRACE_DEALLOCATE,

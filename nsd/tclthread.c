@@ -34,7 +34,7 @@
  *	Tcl wrappers around all thread objects 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclthread.c,v 1.25 2005/08/01 20:29:58 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclthread.c,v 1.26 2005/08/23 21:41:31 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #ifdef NS_NOCOMPAT
 #undef NS_NOCOMPAT
@@ -118,13 +118,13 @@ NsTclInitAddrType(void)
 int
 NsTclMutexObjCmd(ClientData data, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 {
-    Ns_Mutex *lockPtr;
+    Ns_Mutex *lockPtr _nsmayalias;
     static CONST char *opts[] = {
 	"create", "destroy", "lock", "unlock", NULL
     };
     enum {
 	MCreateIdx, MDestroyIdx, MLockIdx, MUnlockIdx
-    } opt;
+    } _nsmayalias opt;
 
     if (!GetArgs(interp, objc, objv, opts, 'm', MCreateIdx,
 		  (int *) &opt, (void **) &lockPtr)) {
@@ -172,13 +172,13 @@ int
 NsTclCritSecObjCmd(ClientData data, Tcl_Interp *interp, int objc,
 		   Tcl_Obj **objv)
 {
-    Ns_Cs *csPtr;
+    Ns_Cs *csPtr _nsmayalias;
     static CONST char *opts[] = {
 	"create", "destroy", "enter", "leave", NULL
     };
     enum {
 	CCreateIdx, CDestroyIdx, CEnterIdx, CLeaveIdx
-    } opt;
+    } _nsmayalias opt;
 
     if (!GetArgs(interp, objc, objv, opts, 'c', CCreateIdx,
 		  (int *) &opt, (void **) &csPtr)) {
@@ -223,14 +223,14 @@ int
 NsTclSemaObjCmd(ClientData data, Tcl_Interp *interp, int objc,
 		Tcl_Obj **objv)
 {
-    Ns_Sema *semaPtr;
+    Ns_Sema *semaPtr _nsmayalias;
     int      cnt;
     static CONST char *opts[] = {
 	"create", "destroy", "release", "wait", NULL
     };
     enum {
 	SCreateIdx, SDestroyIdx, SReleaseIdx, SWaitIdx
-    } opt;
+    } _nsmayalias opt;
 
     if (!GetArgs(interp, objc, objv, opts, 's', SCreateIdx,
 		  (int *) &opt, (void **) &semaPtr)) {
@@ -286,8 +286,8 @@ NsTclCondObjCmd(ClientData data, Tcl_Interp *interp, int objc,
 		Tcl_Obj **objv)
 {
     Tcl_Obj *objPtr;
-    Ns_Cond *condPtr;
-    Ns_Mutex *lock;
+    Ns_Cond *condPtr _nsmayalias;
+    Ns_Mutex *lock _nsmayalias;
     Ns_Time   timeout;
     int       result;
     static CONST char *opts[] = {
@@ -297,7 +297,7 @@ NsTclCondObjCmd(ClientData data, Tcl_Interp *interp, int objc,
     enum {
 	EAbsWaitIdx, EBroadcastIdx, ECreateIdx, EDestroyIdx, ESetIdx,
 	ESignalIdx, ETimedWaitIdx, EWaitIdx
-    } opt;
+    } _nsmayalias opt;
 
     if (!GetArgs(interp, objc, objv, opts, 'e', ECreateIdx,
 		  (int *) &opt, (void **) &condPtr)) {
@@ -386,7 +386,8 @@ int
 NsTclRWLockObjCmd(ClientData data, Tcl_Interp *interp, int objc,
 		  Tcl_Obj **objv)
 {
-    Ns_RWLock *rwlockPtr;
+    Ns_RWLock *rwlockPtr _nsmayalias;
+
     static CONST char *opts[] = {
 	"create", "destroy", "readlock", "readunlock",
 	"writelock", "writeunlock", "unlock", NULL
@@ -394,7 +395,7 @@ NsTclRWLockObjCmd(ClientData data, Tcl_Interp *interp, int objc,
     enum {
 	RCreateIdx, RDestroyIdx, RReadLockIdx, RReadUnlockIdx,
 	RWriteLockIdx, RWriteUnlockIdx, RUnlockIdx
-    } opt;
+    } _nsmayalias opt;
 
     if (!GetArgs(interp, objc, objv, opts, 'r', RCreateIdx,
 		  (int *) &opt, (void **) &rwlockPtr)) {

@@ -34,7 +34,7 @@
  *	Implements a lot of Tcl API commands. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclmisc.c,v 1.31 2004/08/13 15:04:30 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclmisc.c,v 1.32 2005/08/23 21:41:31 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -440,7 +440,7 @@ NsTclTimeObjCmd(ClientData dummy, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
     enum {
 	TAdjustIdx, TDiffIdx, TGetIdx, TIncrIdx, TMakeIdx,
 	TSecondsIdx, TMicroSecondsIdx
-    } opt;
+    } _nsmayalias opt;
 
     if (objc < 2) {
     	Tcl_SetLongObj(Tcl_GetObjResult(interp), time(NULL));
