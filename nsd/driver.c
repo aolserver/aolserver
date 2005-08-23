@@ -34,7 +34,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.50 2005/08/10 13:24:41 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.51 2005/08/23 21:41:36 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -472,7 +472,7 @@ Ns_DriverInit(char *server, char *module, Ns_DriverInitData *init)
 	}
         if (defMapPtr == NULL) {
             Ns_Fatal("%s: default server %s not defined in %s",
-                    module, path);
+                    module, server, path);
         }
     }
     Ns_DStringFree(&ds);

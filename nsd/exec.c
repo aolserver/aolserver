@@ -33,7 +33,7 @@
  *	Routines for creating and waiting for child processes.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/exec.c,v 1.20 2005/03/28 01:55:11 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/exec.c,v 1.21 2005/08/23 21:41:36 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -537,7 +537,7 @@ ExecProc(char *exec, char *dir, int fdin, int fdout, char **argv,
 				exec, dir, strerror(errnum));
 	    		break;
 		    case ERR_DUP:
-	    		Ns_Log(Error, "exec %s: dup(%d) failed: %s",
+	    		Ns_Log(Error, "exec %s: dup failed: %s",
 				exec, strerror(errnum));
 	    		break;
 		    case ERR_EXEC:
