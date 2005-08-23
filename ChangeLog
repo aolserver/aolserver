@@ -1,25 +1,36 @@
 2005-08-23  Jim Davidson <jgdavidson@aol.com>
 
-	include/ns.h
-	include/nsattributes.h (new file):
-	include/nsthread.h
-	nsd/info.c
-	nsd/log.c
-	nsd/queue.c
-	nsd/tclfile.c
-	nsd/tclinit.c
-	nsd/tcljob.c
-	nsd/tclmisc.c
-	nsd/tclthread.c
-	nsd/tclvar.c
-	nsthread/thread.h:  Applied patches from Stephen Deasey for
-	better compile time error checking.
+	* include/ns.h:
+	* nsd/fastpath.c:
+	* nsd/nsd.h:
+	* nsd/server.c:
+	* nsd/tclcmds.c:
+	* nsd/tclrequest.c:  Applied patch from Stephen Deasey for
+	new ns_register_fastpath command.
 
-	nsd/driver.c:
-	nsd/exec.c:  Fixed bugs found by new compile time checks.
 
-	nsthread/error.c:  Silence compiler warning from new compile
-	time checks.
+2005-08-23  Jim Davidson <jgdavidson@aol.com>
+
+	* include/ns.h:
+	* include/nsattributes.h (new file):
+	* include/nsthread.h:
+	* nsd/info.c:
+	* nsd/log.c:
+	* nsd/queue.c:
+	* nsd/tclfile.c:
+	* nsd/tclinit.c:
+	* nsd/tcljob.c:
+	* nsd/tclmisc.c:
+	* nsd/tclthread.c:
+	* nsd/tclvar.c:
+	* nsthread/thread.h:  Applied patches from Stephen Deasey
+	for better compile time error checking.
+
+	* nsd/driver.c:
+	* nsd/exec.c:  Fixed bugs found by new compile time checks.
+
+	* nsthread/error.c:  Silence compiler warning from new
+	compile time checks.
 
 
 2005-08-21  Jim Davidson <jgdavidson@aol.com>
