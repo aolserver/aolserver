@@ -30,87 +30,99 @@
 /*
  * nsattrs.h --
  *      
- *	Type and programmer error checking attributes.
+ *	Type and programmer error checking attributes for GCC compiler.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/nsattributes.h,v 1.1 2005/08/23 21:41:31 jgdavidson Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/nsattributes.h,v 1.2 2005/08/24 13:51:12 jgdavidson Exp $
  */
 
 #ifndef NSATTRS_H
 #define NSATTRS_H
 
+#ifndef __GNUC__ 
 
-
-#undef  __GNUC_PREREQ
-#if defined __GNUC__ && defined __GNUC_MINOR__
-# define __GNUC_PREREQ(maj, min) \
-        ((__GNUC__ << 16) + __GNUC_MINOR__ >= ((maj) << 16) + (min))
-#endif
-
-
-#if __GNUC_PREREQ(2,96)
-# define _nsmalloc       __attribute__ ((malloc))
-# define _nspure         __attribute__ ((pure))
-# define _nsconst        __attribute__ ((const))
-# define _nslikely(x)    __builtin_expect((x),1)
-# define _nsunlikely(x)  __builtin_expect((x),0)
-#else
 # define _nsmalloc
 # define _nspure
 # define _nsconst
 # define _nslikely(x) x
 # define _nsunlikely(x) x
-#endif
-
-
-#if __GNUC_PREREQ(2,7)
-# define _nsunused       __attribute__ ((unused))
-# define _nsnoreturn     __attribute__ ((noreturn))
-# define _nsprintflike(fmtarg, firstvararg) \
-             __attribute__((format (printf, fmtarg, firstvararg)))
-# define _nsscanflike(fmtarg, firstvararg) \
-             __attribute__((format (scanf, fmtarg, firstvararg)))
-#else
 # define _nsunused
 # define _nsnoreturn
 # define _nsprintflike(fmtarg, firstvararg)
 # define _nsscanflike(fmtarg, firstvararg)
-#endif
-
-
-#if __GNUC_PREREQ(2,8)
-# define _nsfmtarg(x)    __attribute__ ((format_arg(x)))
-#else
 # define _nsfmtarg(x)
-#endif
-
-
-#if __GNUC_PREREQ(3,1)
-# define _nsused         __attribute__ ((used))
-#else
 # define _nsused
-#endif
-
-
-#if __GNUC_PREREQ(3,2)
-# define _nsdeprecated   __attribute__ ((deprecated))
-#else
 # define _nsdeprecated
-#endif
-
-
-#if __GNUC_PREREQ(3,3)
-# define _nsnonnull(...) __attribute__ ((nonnull(__VA_ARGS__)))
-# define _nswarnunused   __attribute__ ((warn_unused_result))
-# define _nsmayalias     __attribute__ ((may_alias))
-#else
-# define _nsnonnull(...)
+# define _nsnonnull
 # define _nswarnunused
 # define _nsmayalias
+
+#else
+
+#ifdef __GNUC_MINOR__
+#ifdef __GNUC_PREREQ
+#undef __GNUC_PREREQ
+#endif
+# define __GNUC_PREREQ(maj, min) \
+        ((__GNUC__ << 16) + __GNUC_MINOR__ >= ((maj) << 16) + (min))
 #endif
 
+#ifdef __GNUC_PREREQ
+
+#if __GNUC_PREREQ(2,96)
+# undef _nsmalloc
+# define _nsmalloc       __attribute__ ((malloc))
+# undef _nspure
+# define _nspure         __attribute__ ((pure))
+# undef _nsconst
+# define _nsconst        __attribute__ ((const))
+# undef _nslikely(x) x
+# define _nslikely(x)    __builtin_expect((x),1)
+# undef _nsunlikely(x) x
+# define _nsunlikely(x)  __builtin_expect((x),0)
+#endif
+
+#if __GNUC_PREREQ(2,7)
+# undef _nsunused
+# define _nsunused       __attribute__ ((unused))
+# undef _nsnoreturn
+# define _nsnoreturn     __attribute__ ((noreturn))
+# undef _nsprintflike
+# define _nsprintflike(fmtarg, firstvararg) \
+             __attribute__((format (printf, fmtarg, firstvararg)))
+# undef _nsscanflike(fmtarg, firstvararg)
+# define _nsscanflike(fmtarg, firstvararg) \
+             __attribute__((format (scanf, fmtarg, firstvararg)))
+#endif
+
+#if __GNUC_PREREQ(2,8)
+# undef _nsfmtarg(x)
+# define _nsfmtarg(x)    __attribute__ ((format_arg(x)))
+#endif
+
+#if __GNUC_PREREQ(3,1)
+# undef _nsused
+# define _nsused         __attribute__ ((used))
+#endif
+
+#if __GNUC_PREREQ(3,2)
+# undef _nsdeprecated
+# define _nsdeprecated   __attribute__ ((deprecated))
+#endif
+
+#if __GNUC_PREREQ(3,3)
+# undef _nsnonnull
+# define _nsnonnull	__attribute__ ((nonnull))
+# undef _nswarnunused
+# define _nswarnunused   __attribute__ ((warn_unused_result))
+# undef _nsmayalias
+# define _nsmayalias     __attribute__ ((may_alias))
+#endif
+
+#endif /* __GNUC__PREREQ */
+
+#endif /* __GNUC__ */
 
 #define NS_RCSID(string) static const char *RCSID _nsunused = string \
     ", compiled: " __DATE__ " " __TIME__
-
 
 #endif /* NSATTRS_H */
