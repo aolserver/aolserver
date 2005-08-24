@@ -4,7 +4,7 @@ README:  AOLserver
     This is the AOLserver 4.5 source distribution.  AOLserver is
     available at http://aolserver.com, a SourceForge hosted site.
 
-RCS: @(#) $Id: README,v 1.6 2005/08/18 21:05:31 jgdavidson Exp $
+RCS: @(#) $Id: README,v 1.7 2005/08/24 14:12:45 shmooved Exp $
 
 
 Contents
@@ -132,19 +132,16 @@ such as HP/UX should be easy.  To compile and install AOLserver:
 	to get started:
 
 	% cd /usr/local/aolserver
-	% cp sample-config.tcl nsd.tcl
+	% cp base.tcl nsd.tcl
 	% vi nsd.tcl
 
+        Additional configuration examples can be found in the 
+        examples/config directory.
 
 3e.	Try running the server in a shell window:
 
 	% cd /usr/local/aolserver
 	% bin/nsd -ft nsd.tcl
-
-
-More information on configuration and running AOLserver can be
-found within the sample-config.tcl script and the AOLserver.n man
-page.
 
 
 4. Mailing lists
