@@ -1,5 +1,5 @@
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/examples/config/base.tcl,v 1.1 2005/08/24 13:40:37 shmooved Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/examples/config/base.tcl,v 1.2 2005/08/24 14:00:18 shmooved Exp $
 # $Name:  $
 #
 # base.tcl --
@@ -45,7 +45,6 @@ ns_section "ns/encodings"
 
 ns_section "ns/threads"
     ns_param stacksize [expr 128 * 1024]
-    ns_param mutexmeter true
 
 ns_section "ns/servers"
     ns_param server1 "server1"
