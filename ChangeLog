@@ -1,3 +1,25 @@
+2005-08-24  Nathan Folkman <shmooved@aol.com>
+
+        * examples/config/README (new file):
+        * examples/config/base.tcl (new file):
+        * examples/config/nscp.tcl (new file):
+        * examples/config/stats.tcl (new file):  Examples showing
+        various configuration options for the core AOLserver,
+        as well as other standard AOLserver modules. 
+
+        * sample-config.tcl (removed): This file has been replaced
+        by examples/config/base.tcl.
+
+        * full-config.tcl (removed): This file is being replaced
+        by smaller, more specific, configuration example files.
+
+        * Makefile: Updated to install examples/config/base.tcl
+        as the default configuration example.
+
+        * README: Updated to reflect changes made to default
+        configuration file.
+ 
+
 2005-08-23  Jim Davidson <jgdavidson@aol.com>
 
 	* include/ns.h:
