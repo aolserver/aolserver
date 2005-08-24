@@ -1,0 +1,21 @@
+$Header: /Users/dossy/Desktop/cvs/aolserver/examples/config/README,v 1.1 2005/08/24 13:48:21 shmooved Exp $
+$Name:  $
+
+README --
+
+This directory contains examples showing how AOLserver, and
+many of the standard modules can be configured. 
+
+The base.tcl file contains all of the parameters necessary
+to start up an AOLserver. The other example configuration
+files found in this directory can be used in conjunction with
+the base configuration, by simply concatinating the files
+together.
+
+Example:
+
+    % cat base.tcl nscp.tcl > nsd.tcl
+
+The resulting nsd.tcl configuration file will contain
+everything necessary to start up the AOLserver, along with
+configuration for the control port.
