@@ -1,3 +1,11 @@
+2005-10-06  Dossy Shiobara <dossy@panoptic.com>
+
+	* nsd/: op.c (1.11.2.2), return.c (1.33.2.7), tclcmds.c (1.38.2.2),
+	  tclresp.c (1.16.2.2): Add ns_internalredirect Tcl command to make
+	  Ns_ConnRedirect available from Tcl.  Moved recursion detection
+	  into Ns_ConnRunRequest.  Closes SF RFE #1315460.  Backport from
+	  HEAD for 4.0.11.
+
 2005-03-11  Dossy Shiobara <dossy@panoptic.com>
 
 	* nsd/driver.c (1.17.2.10): Ensure that socket driver's DriverClose
