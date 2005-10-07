@@ -34,7 +34,7 @@
  *	Tcl commands for returning data to the user agent. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclresp.c,v 1.19 2005/08/11 22:55:49 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclresp.c,v 1.20 2005/10/07 00:48:23 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -670,6 +670,44 @@ NsTclReturnRedirectObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
     }
     location = Tcl_GetString(objv[objc-1]);
     return Result(interp, Ns_ConnReturnRedirect(conn, location));
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsTclInternalRedirectObjCmd --
+ *
+ *	Implements ns_internalredirect as obj command. 
+ *
+ * Results:
+ *	Tcl result. 
+ *
+ * Side effects:
+ *	See docs. 
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+NsTclInternalRedirectObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
+			  Tcl_Obj *CONST objv[])
+{
+    Ns_Conn *conn;
+    char    *location;
+
+    if (objc != 2 && objc != 3) {
+        Tcl_WrongNumArgs(interp, 1, objv, "?connid? location");
+        return TCL_ERROR;
+    }
+    if (objc == 3 && !NsTclCheckConnId(interp, objv[1])) {
+	return TCL_ERROR;
+    }
+    if (NsTclGetConn((NsInterp *) arg, &conn) != TCL_OK) {
+	return TCL_ERROR;
+    }
+    location = Tcl_GetString(objv[objc-1]);
+    return Result(interp, Ns_ConnRedirect(conn, location));
 }
 
 

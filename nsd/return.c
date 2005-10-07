@@ -34,11 +34,9 @@
  *	Functions that return data to a browser. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.47 2005/08/10 13:24:41 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.48 2005/10/07 00:48:23 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
-
-#define MAX_RECURSION 3       /* Max return direct recursion limit. */
 
 /*
  * Local functions defined in this file
@@ -1292,13 +1290,8 @@ ReturnRedirect(Ns_Conn *conn, int status, int *resultPtr)
     servPtr = connPtr->servPtr;
     hPtr = Tcl_FindHashEntry(&servPtr->request.redirect, (char *) status);
     if (hPtr != NULL) {
-	if (++connPtr->recursionCount > MAX_RECURSION) {
-	    Ns_Log(Error, "return: failed to redirect '%d': "
-		   "exceeded recursion limit of %d", status, MAX_RECURSION);
-	} else {
-    	    *resultPtr = Ns_ConnRedirect(conn, Tcl_GetHashValue(hPtr));
-	    return 1;
-	}
+        *resultPtr = Ns_ConnRedirect(conn, Tcl_GetHashValue(hPtr));
+        return 1;
     }
     return 0;
 }
