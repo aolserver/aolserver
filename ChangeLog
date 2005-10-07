@@ -1,3 +1,10 @@
+2005-10-06  Dossy Shiobara <dossy@panoptic.com>
+
+	* nsd/: op.c (1.15), return.c (1.48), tclcmds.c (1.54), tclresp.c
+	  (1.20): Add ns_internalredirect Tcl command to make
+	  Ns_ConnRedirect available from Tcl.  Moved recursion detection
+	  into Ns_ConnRunRequest.  Closes SF RFE #1315460.
+
 2005-09-26  Nathan Folkman <shmooved@aol.com>
 
        * nsd/mimetypes.c: Updated with additional MIME types.
