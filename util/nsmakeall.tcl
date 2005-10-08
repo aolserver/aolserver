@@ -46,10 +46,17 @@ if {$argc < 2} {
 	puts "Usage: $argv0 target dir ?dir dir ...?"
 	exit 1
 }
-if [string equal $tcl_platform(platform) unix] {
-	set make make
-} else {
+if ![string equal $tcl_platform(platform) unix] {
 	set make nmake
+} else {
+	# Look for gmake if available in the path, otherwise try make.
+	set make make
+	foreach p [split $env(PATH) :] {
+		if [file executable $p/gmake] {
+			set make $p/gmake
+			break
+		}
+	}
 }
 set target [lindex $argv 0]
 set srcdir [file native [pwd]]
