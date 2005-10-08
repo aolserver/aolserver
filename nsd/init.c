@@ -33,7 +33,7 @@
  *	AOLserver libnsd entry.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/init.c,v 1.12 2005/08/08 11:29:58 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/init.c,v 1.13 2005/10/08 20:20:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -74,8 +74,8 @@ Ns_LibInit(void)
 	 * Log must be initialized first in case later inits log messages.
 	 */
 
-	NsInitFd();
     	NsInitLog();
+	NsInitFd();
 
 	/*
 	 * Caches and URL space are used by some of the remaining inits.

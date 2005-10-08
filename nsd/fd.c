@@ -34,7 +34,7 @@
  *      Manipulate file descriptors of open files.
  */
  
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/fd.c,v 1.11 2005/08/01 20:28:23 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/fd.c,v 1.12 2005/10/08 20:20:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #ifdef _WIN32
@@ -43,6 +43,9 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
 #else
 #define DEVNULL "/dev/null"
 static int ClosePipeOnExec(int *fds);
+#ifdef USE_DUPHIGH
+static int dupHigh = 0;
+#endif
 #endif
 
 /*
@@ -87,6 +90,9 @@ static int devNull;
 void
 NsInitFd(void)
 {
+#ifndef _WIN32
+    struct rlimit  rl;
+#endif
     int fd;
 
     /*
@@ -105,6 +111,33 @@ NsInitFd(void)
     if (fd > 0 && fd != 2) {
 	close(fd);
     }
+
+#ifndef _WIN32
+    /*
+     * AOLserver now uses poll() but Tcl and other components may
+     * still use select() which will likely break when fd's exceed
+     * FD_SETSIZE.  We now allow setting the fd limit above FD_SETSIZE,
+     * but do so at your own risk.
+     */
+
+    if (getrlimit(RLIMIT_NOFILE, &rl) != 0) {
+	Ns_Log(Warning, "fd: getrlimit(RLIMIT_NOFILE) failed: %s",
+	       strerror(errno));
+    } else {
+	if (rl.rlim_cur != rl.rlim_max) {
+    	    rl.rlim_cur = rl.rlim_max;
+    	    if (setrlimit(RLIMIT_NOFILE, &rl) != 0) {
+	        Ns_Log(Warning, "fd: setrlimit(RLIMIT_NOFILE, %d) failed: %s",
+		       rl.rlim_max, strerror(errno));
+	    } 
+	}
+#ifdef USE_DUPHIGH
+    	if (getrlimit(RLIMIT_NOFILE, &rl) == 0 && rl.rlim_cur > 256) {
+	    dupHigh = 1;
+	}
+#endif
+    }
+#endif
 
     /*
      * Open a fd on /dev/null which can be later re-used.
@@ -222,20 +255,22 @@ Ns_DupHigh(int *fdPtr)
 #ifdef USE_DUPHIGH
     int             nfd, ofd, flags;
 
-    ofd = *fdPtr;
-    if ((flags = fcntl(ofd, F_GETFD)) < 0) {
-	Ns_Log(Warning, "fd: duphigh failed: fcntl(%d, F_GETFD): '%s'",
-	       ofd, strerror(errno));
-    } else if ((nfd = fcntl(ofd, F_DUPFD, 256)) < 0) {
-	Ns_Log(Warning, "fd: duphigh failed: fcntl(%d, F_DUPFD, 256): '%s'",
-	       ofd, strerror(errno));
-    } else if (fcntl(nfd, F_SETFD, flags) < 0) {
-	Ns_Log(Warning, "fd: duphigh failed: fcntl(%d, F_SETFD, %d): '%s'",
-	       nfd, flags, strerror(errno));
-	close(nfd);
-    } else {
-	close(ofd);
-	*fdPtr = nfd;
+    if (dupHigh) {
+    	ofd = *fdPtr;
+    	if ((flags = fcntl(ofd, F_GETFD)) < 0) {
+	    Ns_Log(Warning, "fd: duphigh failed: fcntl(%d, F_GETFD): '%s'",
+		   ofd, strerror(errno));
+    	} else if ((nfd = fcntl(ofd, F_DUPFD, 256)) < 0) {
+	    Ns_Log(Warning, "fd: duphigh failed: fcntl(%d, F_DUPFD, 256): '%s'",
+		   ofd, strerror(errno));
+    	} else if (fcntl(nfd, F_SETFD, flags) < 0) {
+	    Ns_Log(Warning, "fd: duphigh failed: fcntl(%d, F_SETFD, %d): '%s'",
+		   nfd, flags, strerror(errno));
+	    close(nfd);
+    	} else {
+	    close(ofd);
+	    *fdPtr = nfd;
+	}
     }
 #endif
     return *fdPtr;

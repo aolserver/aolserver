@@ -33,7 +33,7 @@
  *	AOLserver Ns_Main() startup routine.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.63 2005/08/08 11:29:58 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/nsmain.c,v 1.64 2005/10/08 20:20:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -253,7 +253,7 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 	    uarg = NULL;
 	}
 	if (uid == 0) {
-	    Ns_Fatal("nsmain: invalid user '%s'", uarg);
+	    Ns_Fatal("nsmain: invalid user: %s", uarg);
 	}
     }
     if (garg != NULL) {
@@ -261,32 +261,8 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 	if (gid < 0) {
 	    gid = atoi(garg);
 	    if (gid == 0) {
-		Ns_Fatal("nsmain: invalid group '%s'", garg);
+		Ns_Fatal("nsmain: invalid group: %s", garg);
 	    }
-	}
-    }
-
-    /*
-     * AOLserver now uses poll() but Tcl and other components may
-     * still use select() which will likely break when fd's exceed
-     * FD_SETSIZE.  We now allow setting the fd limit above FD_SETSIZE,
-     * but do so at your own risk.
-     *
-     * Note this limit must be set now to ensure it's inherited by
-     * all future threads on certain platforms such as Linux.
-     */
-
-    if (getrlimit(RLIMIT_NOFILE, &rl) != 0) {
-	Ns_Log(Warning, "nsmain: getrlimit(RLIMIT_NOFILE) failed: '%s'",
-	       strerror(errno));
-    } else {
-	if (rl.rlim_cur != rl.rlim_max) {
-    	    rl.rlim_cur = rl.rlim_max;
-    	    if (setrlimit(RLIMIT_NOFILE, &rl) != 0) {
-	        Ns_Log(Warning, "nsmain: "
-		       "setrlimit(RLIMIT_NOFILE, %d) failed: '%s'",
-		       rl.rlim_max, strerror(errno));
-	    } 
 	}
     }
 
@@ -304,10 +280,10 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 
     if (root != NULL) {
 	if (chroot(root) != 0) {
-	    Ns_Fatal("nsmain: chroot(%s) failed: '%s'", root, strerror(errno));
+	    Ns_Fatal("nsmain: chroot(%s) failed: %s", root, strerror(errno));
 	}
 	if (chdir("/") != 0) {
-	    Ns_Fatal("nsmain: chdir(/) failed: '%s'", strerror(errno));
+	    Ns_Fatal("nsmain: chdir(/) failed: %s", strerror(errno));
 	}
 	nsconf.home = "/";
     }
@@ -332,21 +308,21 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 
 	if (uarg != NULL) {
 	    if (initgroups(uarg, (int) gid) != 0) {
-		Ns_Fatal("nsmain: initgroups(%s, %d) failed: '%s'",
+		Ns_Fatal("nsmain: initgroups(%s, %d) failed: %s",
 			uarg, gid, strerror(errno));
 	    }
 	} else {
 	    if (setgroups(0, NULL) != 0) {
-		Ns_Fatal("nsmain: setgroups(0, NULL) failed: '%s'",
+		Ns_Fatal("nsmain: setgroups(0, NULL) failed: %s",
 			strerror(errno));
 	    }
 	}
 
 	if (gid != getgid() && setgid(gid) != 0) {
-	    Ns_Fatal("nsmain: setgid(%d) failed: '%s'", gid, strerror(errno));
+	    Ns_Fatal("nsmain: setgid(%d) failed: %s", gid, strerror(errno));
 	}
 	if (setuid(uid) != 0) {
-	    Ns_Fatal("nsmain: setuid(%d) failed: '%s'", uid, strerror(errno));
+	    Ns_Fatal("nsmain: setuid(%d) failed: %s", uid, strerror(errno));
 	}
     }
 
@@ -359,7 +335,7 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
      */
      
     if (prctl(PR_SET_DUMPABLE, 1, 0, 0, 0) < 0) {
-        Ns_Fatal("nsmain: prctl(PR_SET_DUMPABLE) failed: '%s'",
+        Ns_Fatal("nsmain: prctl(PR_SET_DUMPABLE) failed: %s",
                 strerror(errno));
     }
 #endif
@@ -372,7 +348,7 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
     if (mode == 0) {
 	i = ns_fork();
 	if (i < 0) {
-	    Ns_Fatal("nsmain: fork() failed: '%s'", strerror(errno));
+	    Ns_Fatal("nsmain: fork() failed: %s", strerror(errno));
 	}
 	if (i > 0) {
 	    return 0;
@@ -399,7 +375,7 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
     ns_free(config);
 
     /*
-     * Ensure servers where defined.
+     * Ensure servers were defined.
      */
 
     servers = Ns_ConfigGetSection("ns/servers");
@@ -417,7 +393,7 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
     if (server != NULL) {
 	i = Ns_SetFind(servers, server);
 	if (i < 0) {
-	    Ns_Fatal("nsmain: no such server '%s'", server);
+	    Ns_Fatal("nsmain: no such server: %s", server);
 	}
 	server = Ns_SetKey(servers, i);
     }
@@ -437,7 +413,7 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 	Ns_Fatal("nsmain: missing: [%s]home", NS_CONFIG_PARAMETERS);
     }
     if (chdir(nsconf.home) != 0) {
-	Ns_Fatal("nsmain: chdir(%s) failed: '%s'", nsconf.home, strerror(errno));
+	Ns_Fatal("nsmain: chdir(%s) failed: %s", nsconf.home, strerror(errno));
     }
 
 #ifdef _WIN32
@@ -449,7 +425,7 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
 
     nsconf.home = getcwd(buf, sizeof(buf));
     if (nsconf.home == NULL) {
-	Ns_Fatal("nsmain: getcwd failed: '%s'", strerror(errno));
+	Ns_Fatal("nsmain: getcwd failed: %s", strerror(errno));
     }
     while (*nsconf.home != '\0') {
 	if (*nsconf.home == '\\') {
@@ -518,7 +494,7 @@ Ns_Main(int argc, char **argv, Ns_ServerInitProc *initProc)
      
     if (getrlimit(RLIMIT_NOFILE, &rl) != 0) {
 	Ns_Log(Warning, "nsmain: "
-                "getrlimit(RLIMIT_NOFILE) failed: '%s'", strerror(errno));
+                "getrlimit(RLIMIT_NOFILE) failed: %s", strerror(errno));
     } else {
 	Ns_Log(Notice, "nsmain: "
 	       "max files: FD_SETSIZE = %d, rl_cur = %d, rl_max = %d",
