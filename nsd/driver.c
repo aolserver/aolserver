@@ -34,7 +34,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.51 2005/08/23 21:41:36 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.52 2005/10/09 16:16:43 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -2136,11 +2136,17 @@ AllocConn(Driver *drvPtr, Ns_Time *nowPtr, Sock *sockPtr)
         connPtr = ns_calloc(1, sizeof(Conn));
         Tcl_DStringInit(&connPtr->ibuf);
         Tcl_DStringInit(&connPtr->obuf);
-        Tcl_InitHashTable(&connPtr->files, TCL_STRING_KEYS);
-        connPtr->headers = Ns_SetCreate(NULL);
-        connPtr->outputheaders = Ns_SetCreate(NULL);
-    	connPtr->tfd = -1;
     }
+
+    /*
+     * All elements of the Conn are zero'ed at the start of a connection
+     * except the I/O buffers and the items set below.
+     */
+
+    connPtr->tfd = -1;
+    connPtr->headers = Ns_SetCreate(NULL);
+    connPtr->outputheaders = Ns_SetCreate(NULL);
+    Tcl_InitHashTable(&connPtr->files, TCL_STRING_KEYS);
     connPtr->drvPtr = drvPtr;
     connPtr->times.accept = *nowPtr;
     connPtr->id = id;
@@ -2149,7 +2155,6 @@ AllocConn(Driver *drvPtr, Ns_Time *nowPtr, Sock *sockPtr)
     strcpy(connPtr->peer, ns_inet_ntoa(sockPtr->sa.sin_addr));
     connPtr->times.accept = sockPtr->acceptTime;
     connPtr->sockPtr = sockPtr;
-    connPtr->nextPtr = connPtr->prevPtr = NULL;
     return connPtr;
 }
 
@@ -2173,71 +2178,50 @@ AllocConn(Driver *drvPtr, Ns_Time *nowPtr, Sock *sockPtr)
 static void
 FreeConn(Conn *connPtr)
 {
+    size_t zlen;
     Ns_Conn *conn = (Ns_Conn *) connPtr;
 
     /*
-     * Call CLS cleanups.
+     * Call CLS cleanups which may access other conn data.
      */
 
     NsClsCleanup(connPtr);
 
     /*
-     * Call public reset routines.
+     * Free resources which may have been allocated during the request.
      */
 
-    Ns_ConnClearQuery(conn);
-    Ns_ConnSetType(conn, NULL);
-    Ns_ConnSetStatus(conn, 0);
-    Ns_ConnSetEncoding(conn, NULL);
-    Ns_ConnSetUrlEncoding(conn, NULL);
-
-    /*
-     * Cleanup public elements.
-     */
-
+    if (connPtr->query != NULL) {
+    	Ns_ConnClearQuery(conn);
+    }
+    if (connPtr->type != NULL) {
+    	Ns_ConnSetType(conn, NULL);
+    }
     if (conn->request != NULL) {
     	Ns_FreeRequest(conn->request);
-        conn->request = NULL;
     }
-    Ns_SetTrunc(conn->headers, 0);
-    Ns_SetTrunc(conn->outputheaders, 0);
-    if (conn->authUser != NULL) {
-        ns_free(conn->authUser);
-        conn->authUser = conn->authPasswd = NULL;
-    }
-    conn->flags = 0;
-    conn->contentLength = 0;
-
-    /*
-     * Cleanup private elements.
-     */
-
-    connPtr->nContentSent = 0;
-
-    /*
-     * Cleanup content buffers.
-     */
-
     if (connPtr->map != NULL) {
 	NsUnMap(connPtr->map, connPtr->maparg);
-	connPtr->map = connPtr->maparg = NULL;
     }
     if (connPtr->tfd != -1) {
         Ns_ReleaseTemp(connPtr->tfd);
-        connPtr->tfd = -1;
     }
-    connPtr->rstart = connPtr->rend = NULL;
-    connPtr->major = connPtr->minor = 0;
-    connPtr->avail = 0;
-    connPtr->roff = 0;
-    connPtr->content = NULL;
-    connPtr->next = NULL;
-    Ns_DStringTrunc(&connPtr->ibuf, 0);
-    Ns_DStringTrunc(&connPtr->obuf, 0);
+    if (connPtr->authUser != NULL) {
+        ns_free(connPtr->authUser);
+    }
+    Ns_SetFree(connPtr->headers);
+    Ns_SetFree(connPtr->outputheaders);
 
     /*
-     * Dump on the free list.
+     * Truncate the I/O buffers, zero remaining elements of the Conn,
+     * and return the Conn to the free list.
+     *
      */
+
+    Ns_DStringTrunc(&connPtr->ibuf, 0);
+    Ns_DStringTrunc(&connPtr->obuf, 0);
+    zlen = (size_t) ((char *) &connPtr->ibuf - (char *) connPtr);
+    memset(connPtr, 0, zlen);
 
     Ns_MutexLock(&connlock);
     connPtr->nextPtr = firstConnPtr;
