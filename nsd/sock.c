@@ -34,7 +34,7 @@
  *	Wrappers and convenience functions for TCP/IP stuff. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sock.c,v 1.14 2005/07/18 23:32:53 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sock.c,v 1.15 2005/10/09 16:16:54 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -699,35 +699,23 @@ SockSetup(SOCKET sock)
     return sock;
 }
 
-
-int
-NsPoll(struct pollfd *pfds, int nfds, Ns_Time *timeoutPtr)
-{
-    Ns_Time now, diff;
-    int n, ms;
-
-    do {
-	if (timeoutPtr == NULL) {
-            ms = -1;
-	} else {
-	    Ns_GetTime(&now);
-            if (Ns_DiffTime(timeoutPtr, &now, &diff) <= 0)  {
-                ms = 0;
-            } else {
-            	ms = diff.sec * 1000 + diff.usec / 1000;
-            }
-	}
-	n = poll(pfds, (size_t) nfds, ms);
-    } while (n < 0 && ns_sockerrno == EINTR);
-
-    if (n < 0) {
-	Ns_Fatal("poll() failed: %s", ns_sockstrerror(ns_sockerrno));
-    }
-
-    return n;
-}
-
-#ifndef HAVE_POLL
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * ns_poll --
+ *
+ *	Poll file descriptors.  Emulation using select(2) is provided
+ *	for platforms without poll(2).
+ *
+ * Results:
+ *	See poll(2) man page.
+ *
+ * Side effects:
+ *	See poll(2) man page.
+ *
+ *----------------------------------------------------------------------
+ */
 
 /* Copyright (C) 1994, 1996, 1997 Free Software Foundation, Inc.
    This file is part of the GNU C Library.
@@ -754,11 +742,14 @@ NsPoll(struct pollfd *pfds, int nfds, Ns_Time *timeoutPtr)
    or -1 for errors.  */
 
 int
-poll (fds, nfds, timeout)
+ns_poll(fds, nfds, timeout)
      struct pollfd *fds;
      unsigned long int nfds;
      int timeout;
 {
+#ifdef HAVE_POLL
+ return poll(fds, nfds, timeout);
+#else
  struct timeval tv, *tvp;
  fd_set rset, wset, xset;
  struct pollfd *f;
@@ -807,6 +798,69 @@ poll (fds, nfds, timeout)
    }
  
  return ready;
+#endif
 }
 
-#endif
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsPoll --
+ *
+ *	Poll file descriptors using an absolute timeout and restarting
+ *	after any interrupts which may be received.
+ *
+ * Results:
+ *	See poll(2) man page.
+ *
+ * Side effects:
+ *	See poll(2) man page.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+NsPoll(struct pollfd *pfds, int nfds, Ns_Time *timeoutPtr)
+{
+    Ns_Time now, diff;
+    int i, n, ms;
+
+    /*
+     * Clear revents.
+     */
+
+    for (i = 0; i < nfds; ++i) {
+	pfds[i].revents = 0;
+    }
+
+    /*
+     * Determine relative time from absolute time and continue polling
+     * if any interrupts are received.
+     */
+
+    do {
+	if (timeoutPtr == NULL) {
+            ms = -1;
+	} else {
+	    Ns_GetTime(&now);
+            if (Ns_DiffTime(timeoutPtr, &now, &diff) <= 0)  {
+                ms = 0;
+            } else {
+            	ms = diff.sec * 1000 + diff.usec / 1000;
+            }
+	}
+	n = ns_poll(pfds, (size_t) nfds, ms);
+    } while (n < 0 && ns_sockerrno == EINTR);
+
+    /*
+     * Poll errors are not tolerated in AOLserver as they must indicate
+     * a code error which if ignored could lead to data lose and/or
+     * endless polling loops and error messages.
+     */
+
+    if (n < 0) {
+	Ns_Fatal("poll() failed: %s", ns_sockstrerror(ns_sockerrno));
+    }
+
+    return n;
+}
