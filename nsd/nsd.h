@@ -284,7 +284,6 @@ typedef struct Driver {
     void	*arg;		    /* Driver callback data. */
     char	*server;	    /* Virtual server name. */
     char	*module;	    /* Driver module. */
-    char	*fullname;	    /* Full name, i.e., server/module. */
     char        *name;		    /* Driver name, e.g., "nssock". */
     char        *location;	    /* Location, e.g, "http://foo:9090" */
     char        *address;	    /* Address in location. */
@@ -300,6 +299,7 @@ typedef struct Driver {
 
     struct Driver *nextPtr;	    /* Next in list of drivers. */
     struct NsServer *servPtr;	    /* Driver virtual server. */
+    char	*fullname;	    /* Full name, i.e., server/module. */
     int          flags;             /* Driver state flags. */
     Ns_Thread	 thread;	    /* Thread id to join on shutdown. */
     Ns_Mutex	 lock;		    /* Lock to protect lists below. */
@@ -508,6 +508,10 @@ typedef struct Conn {
     /*
      * The following offsets are used to manage the 
      * buffer read-ahead process.
+     *
+     * NB: The ibuf and obuf dstrings must be the last elements of
+     * the conn as all elements before are zero'ed during conn cleanup.
+     *
      */
 
     int		    roff;	/* Next read buffer offset. */
