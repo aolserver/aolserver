@@ -1,3 +1,25 @@
+2005-10-09  Jim Davidson <jgdavidson@aol.com>
+
+	* nsd/init.c:  Fixed bug with NsInitFd called before
+	NsInitLog.
+
+	* nsd/fd.c:
+	* nsd/nsmain.c: Moved code to increase open fd limit to
+	NsInitFd and
+
+	* nsd/sock.c: Added comments for NsPoll and renamed poll
+	emulation function to ns_poll.
+
+	* nsd/driver.c: Simplified code to reset a Conn after a
+	connection, simply zero'ing all fields except the I/O
+	buffers. This fixed a bug with recursionCount not being
+	reset.
+
+	* nsd/nsd.h: Fixed bug with large responses caused by
+	'sendwait' fields in Ns_Driver and Driver not being aligned
+	due to addition of 'fullname' field in Ns_Driver alone.
+
+
 2005-10-06  Dossy Shiobara <dossy@panoptic.com>
 
 	* nsd/: op.c (1.15), return.c (1.48), tclcmds.c (1.54), tclresp.c
