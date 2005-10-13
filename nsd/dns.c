@@ -34,7 +34,7 @@
  *      DNS lookup routines.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/dns.c,v 1.7.2.4 2004/12/06 16:33:42 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/dns.c,v 1.7.2.5 2005/10/13 14:11:58 shmooved Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -386,8 +386,7 @@ GetAddr(Ns_DString *dsPtr, char *host)
     if (result != 0) { 
 	LogError("gethostbyname_r", h_errnop);
     } else {
-        ptr = (struct in_addr *) he.h_addr_list[i];
-        while (ptr != NULL) {
+        while ((ptr = (struct in_addr *) he.h_addr_list[i++]) != NULL) {
             ia.s_addr = ptr->s_addr;
             Tcl_DStringAppendElement(dsPtr, ns_inet_ntoa(ia));
             status = NS_TRUE;
@@ -420,8 +419,7 @@ GetAddr(Ns_DString *dsPtr, char *host)
     if (he == NULL) {
 	LogError("gethostbyname", h_errno);
     } else {
-        ptr = (struct in_addr *) he.h_addr_list[i];
-        while (ptr != NULL) {
+        while ((ptr = (struct in_addr *) he.h_addr_list[i++])  != NULL) {
             ia.s_addr = ptr->s_addr;
             Tcl_DStringAppendElement(dsPtr, ns_inet_ntoa(ia));
             status = NS_TRUE;
