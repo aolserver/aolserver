@@ -1,3 +1,15 @@
+2005-10-25  Nathan Folkman <shmooved@aol.com>
+
+        * tcl/return.c (new file): Implements ns_returnmoved
+        command. More information can be found here:
+
+        http://panoptic.com/wiki/aolserver/Ns_returnmoved
+
+        * Makefile:
+        * index.adp (new file): Created new default index.adp page which displays
+        a number of AOLserver configuration settings. Updated the
+        Makefile to install in the default page root.
+
 2005-10-06  Dossy Shiobara <dossy@panoptic.com>
 
 	* nsd/: op.c (1.11.2.2), return.c (1.33.2.7), tclcmds.c (1.38.2.2),
