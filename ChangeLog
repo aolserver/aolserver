@@ -1,6 +1,14 @@
+2005-10-25  Nathan Folkman <shmooved@aol.com>
+
+        * tcl/return.c (new file): Implements ns_returnmoved
+        command. More information can be found here:
+
+        http://panoptic.com/wiki/aolserver/Ns_returnmoved
+
+
 2005-10-09  Jim Davidson <jgdavidson@aol.com>
 
-	* nsd/init.c:  Fixed bug with NsInitFd called before
+	* nsd/init.c: Fixed bug with NsInitFd called before
 	NsInitLog.
 
 	* nsd/fd.c:
