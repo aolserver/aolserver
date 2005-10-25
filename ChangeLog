@@ -5,6 +5,10 @@
 
         http://panoptic.com/wiki/aolserver/Ns_returnmoved
 
+2005-10-24  Daniel P. Stasinski <mooooooo@avenues.org>
+
+        * nsd/compress.c: Fixed gzip compression of ADP
+        files.
 
 2005-10-09  Jim Davidson <jgdavidson@aol.com>
 
