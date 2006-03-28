@@ -28,7 +28,7 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/sendmail.tcl,v 1.6.2.1 2006/03/28 19:25:51 apiskors Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/sendmail.tcl,v 1.6.2.2 2006/03/28 19:34:19 apiskors Exp $
 #
 
 #
@@ -114,6 +114,10 @@ proc ns_sendmail { to from subject body {extraheaders {}} {bcc {}} } {
 }
 
 
+if { ![nsv_exists ns_sendmail sequence] } {
+    nsv_set ns_sendmail sequence 0
+}
+
 proc _ns_sendmail {smtp smtpport timeout tolist bcclist \
         from subject body extraheaders} {
 
@@ -124,11 +128,58 @@ proc _ns_sendmail {smtp smtpport timeout tolist bcclist \
     set msg "To: $rfcto\nFrom: $from\nSubject: $subject\nDate: [ns_httptime [ns_time]]"
 
     ## Insert extra headers, if any (not for BCC)
+    set message_id_already_done_p 0
     if {![string match "" $extraheaders]} {
         set size [ns_set size $extraheaders]
         for {set i 0} {$i < $size} {incr i} {
-            append msg "\n[ns_set key $extraheaders $i]: [ns_set value $extraheaders $i]"
+            set key [ns_set key $extraheaders $i]
+            if { [string equal $key {Message-ID}] } {
+                set message_id_already_done_p 1
+            }
+            append msg "\n${key}: [ns_set value $extraheaders $i]"
         }
+    }
+
+    # Insert a unique "Message-ID:" header, but only if the caller did
+    # not manually include a Message-ID header:
+    #
+    # An application could use the Message-ID header for
+    # e.g. threading support, but we're not trying to do anything
+    # fancy like that here.  We just want to include a globally-unique
+    # ID.  Why?  Well, for one thing, since most email user agents
+    # include a Message-ID, but most SPAM software does not, some
+    # anti-SPAM software filters out email which does not have a
+    # Message-ID...
+    #
+    # Note: The $message_id below is guaranteed to be globally unique
+    # if and only if *ALL* of the following conditions are true:
+    #
+    # 1. Your unix box's hostname (which is what [ns_info hostname]
+    #    returns) is set to a fully-qualified name like
+    #    "philip.greenspun.com", NOT just a local hostname like
+    #    "philip".
+    # 2. Your fully-qualified hostname is in fact globally-unique.
+    #    AKA, you didn't do something foolish like set up two separate
+    #    machines that both think their hostname is
+    #    "philip.greenspun.com".
+    # 3. On your unix host, you have only ONE AOLserver running with
+    #    the server name returned by [ns_info server].
+    # 4. Since [ns_info boottime] is in seconds, you never restart
+    #    your AOLserver multiple times in < 1 second, jump your system
+    #    clock backwards in time, or etc.
+    # 5. Once the "ns_sendmail sequence" nsv variable is set, you
+    #    never manually fool with it to re-set it to a previous value.
+    #    While the server is running, this value must always increase,
+    #    never decrease.
+    #
+    # --atp@piskorski.com, 2001/10/11 11:51 EDT
+
+    # For more info on messgage-id and other email fields, see RFC 2822:
+    #   http://www.faqs.org/rfcs/rfc2822.html
+
+    if { ! $message_id_already_done_p } {
+       set message_id "[nsv_incr ns_sendmail sequence].[ns_info boottime].[ns_info server]@[ns_info hostname]"
+       append msg "\nMessage-ID: <$message_id>"
     }
 
     ## Blank line between headers and body
@@ -159,6 +210,15 @@ proc _ns_sendmail {smtp smtpport timeout tolist bcclist \
         _ns_smtp_recv $rfp 250 $timeout
         _ns_smtp_send $wfp "MAIL FROM:<$from>" $timeout
         _ns_smtp_recv $rfp 250 $timeout
+
+        # TODO: Above, should optionally take a "Return-Path" to use
+        # as the envelope sender address (aka, envelope return path)
+        # rather than always using $from.  This would allow using
+        # VERPs, for instance, as discussed at:
+        #   "http://cr.yp.to/proto/verp.txt"
+        # See also discussion at:
+        #   "http://www.arsdigita.com/bboard/q-and-a-fetch-msg?msg%5fid=000awU"
+        # --atp@piskorski.com, 2001/10/11 10:25 EDT
 
         ## Loop through To and BCC list via multiple RCPT TO lines
         ## A BCC should never, ever appear in the header
