@@ -1,5 +1,5 @@
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/examples/config/nscp.tcl,v 1.1 2005/08/24 13:34:59 shmooved Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/examples/config/nscp.tcl,v 1.2 2006/04/10 18:51:26 shmooved Exp $
 # $Name:  $
 #
 # nscp.tcl --
@@ -43,7 +43,7 @@
 #     debugging and auditing purposes.
 #
 
-ns_section "ns/servers/server1/modules"
+ns_section "ns/server/server1/modules"
     ns_param nscp nscp.so
 
 ns_section "ns/server/server1/module/nscp"
