@@ -33,7 +33,7 @@
  *	ADP commands.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpcmds.c,v 1.24 2005/08/11 22:55:24 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpcmds.c,v 1.25 2006/04/11 14:01:18 shmooved Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -777,8 +777,8 @@ NsTclAdpArgvObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
     AdpFrame *framePtr;
     int i;
 
-    if (objc != 1 && objc != 2) {
-	Tcl_WrongNumArgs(interp, 1, objv, "?index?");
+    if (objc > 3) {
+	Tcl_WrongNumArgs(interp, 1, objv, "?index? ?default?");
 	return TCL_ERROR;
     }
     if (GetFrame(arg, &framePtr) != TCL_OK) {
@@ -793,6 +793,10 @@ NsTclAdpArgvObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
     	}
         if ((i + 1) <= framePtr->objc) {
     	    Tcl_SetObjResult(interp, framePtr->objv[i]);
+        } else {
+            if (objc == 3) {
+                Tcl_SetObjResult(interp, objv[2]);
+            }
         }
     }
     return TCL_OK;
