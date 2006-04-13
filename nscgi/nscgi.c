@@ -28,7 +28,7 @@
  */
 
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscgi/nscgi.c,v 1.30 2005/08/08 11:43:17 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscgi/nscgi.c,v 1.31 2006/04/13 19:05:57 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 #include <sys/stat.h>
@@ -111,7 +111,7 @@ typedef struct Map {
 } Map;
 
 static Ns_OpProc CgiRequest;
-static void     CgiRegister(Mod *modPtr, char *map);
+static int      CgiRegister(Mod *modPtr, char *map);
 static Ns_Callback CgiFreeMap;
 static Ns_DString *CgiDs(Cgi *cgiPtr);
 static int	CgiInit(Cgi *cgiPtr, Map *mapPtr, Ns_Conn *conn);
@@ -146,7 +146,7 @@ int
 NsCgi_ModInit(char *server, char *module)
 {
     char           *path, *key, *value, *section;
-    int             i;
+    int             i, ok;
     Ns_Set         *set;
     Ns_DString      ds;
     Mod		   *modPtr;
@@ -159,8 +159,6 @@ NsCgi_ModInit(char *server, char *module)
     modPtr = ns_calloc(1, sizeof(Mod));
     modPtr->module = module;
     modPtr->server = server;
-    Ns_MutexInit(&modPtr->lock);
-    Ns_MutexSetName2(&modPtr->lock, "nscgi", server);
     if (!Ns_ConfigGetInt(path, "limit", &modPtr->maxCgi)) {
         modPtr->maxCgi = 0;
     }
@@ -210,16 +208,22 @@ NsCgi_ModInit(char *server, char *module)
      * Register all requested mappings.
      */
 
+    ok = 0;
     set = Ns_ConfigGetSection(path);
     for (i = 0; set != NULL && i < Ns_SetSize(set); ++i) {
         key = Ns_SetKey(set, i);
         value = Ns_SetValue(set, i);
         if (STRIEQ(key, "map")) {
-            CgiRegister(modPtr, value);
+            ok += CgiRegister(modPtr, value);
         }
     }
     Ns_DStringFree(&ds);
-
+    if (!ok) {
+	ns_free(modPtr);
+    } else {
+    	Ns_MutexInit(&modPtr->lock);
+    	Ns_MutexSetName2(&modPtr->lock, "nscgi", server);
+    }
     return NS_OK;
 }
 
@@ -1117,9 +1121,10 @@ NextWord(char *s)
  *----------------------------------------------------------------------
  */
 
-static void
+static int
 CgiRegister(Mod *modPtr, char *map)
 {
+    int		    ok = 0;
     char           *method;
     char           *url;
     char           *path;
@@ -1148,7 +1153,6 @@ CgiRegister(Mod *modPtr, char *map)
 	    goto done;
 	}
     }
-
     mapPtr = ns_malloc(sizeof(Map));
     mapPtr->modPtr = modPtr;
     mapPtr->url = ns_strdup(url);
@@ -1157,10 +1161,12 @@ CgiRegister(Mod *modPtr, char *map)
 	   method, url, path ? " -> " : "", path ? path : "");
     Ns_RegisterRequest(modPtr->server, method, url, 
 		       CgiRequest, CgiFreeMap, mapPtr, 0);
+    ok = 1;
 
 done:
     Ns_DStringFree(&ds1);
     Ns_DStringFree(&ds2);
+    return ok;
 }
 
 
