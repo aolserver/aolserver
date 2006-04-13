@@ -28,7 +28,7 @@
 '\" version of this file under either the License or the GPL.
 '\" 
 '\"
-'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_at.n,v 1.4 2003/04/10 22:01:10 shmooved Exp $
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_at.n,v 1.5 2006/04/13 19:05:43 jgdavidson Exp $
 '\"
 '\" 
 .so man.macros
@@ -37,23 +37,39 @@
 .BS
 '\" Note:  do not modify the .SH NAME line immediately below!
 .SH NAME
-ns_atclose, ns_atexit, ns_atshutdown, ns_atsignal \- commands
+ns_atclose, ns_atexit, ns_atshutdown, ns_atsignal \- Facilities to register a script callback.
 .SH SYNOPSIS
-\fBns_atclose \fIoption \fR?\fIarg arg ...\fR?
-.sp
-\fBns_atexit \fIoption \fR?\fIarg arg ...\fR?
-.sp
-\fBns_atshutdown \fIoption \fR?\fIarg arg ...\fR?
-.sp
-\fBns_atsignal \fIoption \fR?\fIarg arg ...\fR?
+.nf
+\fBns_atclose \fIscript\fR
+\fBns_atexit \fIscript\fR
+\fBns_atshutdown \fIscript\fR
+\fBns_atsignal \fIscript\fR
+.fi
 .BE
-
 .SH DESCRIPTION
 .PP
-These commands...
-
+These commands register a callback to execute a later time.  The
+callbacks are executed once in the context of the current Tcl
+interpreter.
+.TP
+\fBns_atclose \fIscript\fR
+Invoke given script when the current connection is closed. The
+callback can be registered within the Tcl interpreter associated with
+the current HTTP connection; if no connection exists, and error is
+returned.
+.TP
+\fBns_atexit \fIscript\fR
+Invoke given script before the AOLserver exists after all virtual
+servers have stopped.
+.TP
+\fBns_atshutdown \fIscript\fR
+Invoke given script when the current virtual server is shutdown during
+AOLserver exit.
+.TP
+\fBns_atsignal \fIscript\fR
+Invoke given script when a SIGHUP signal is received in the main startup
+thread of the AOLserver.
 .SH "SEE ALSO"
-nsd(1), info(n)
-
+ns_shutdown(n), ns_kill(n)
 .SH KEYWORDS
-
+shutdown, callback

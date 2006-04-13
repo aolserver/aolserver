@@ -28,7 +28,7 @@
 '\" version of this file under either the License or the GPL.
 '\" 
 '\"
-'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_init.n,v 1.1 2002/09/28 19:58:27 jgdavidson Exp $
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_init.n,v 1.2 2006/04/13 19:05:43 jgdavidson Exp $
 '\"
 '\" 
 .so man.macros
@@ -37,11 +37,9 @@
 .BS
 '\" Note:  do not modify the .SH NAME line immediately below!
 .SH NAME
-ns_cleanup, ns_ictl, ns_init \- commands
+ns_cleanup, ns_init \- commands
 .SH SYNOPSIS
 \fBns_cleanup \fIoption \fR?\fIarg arg ...\fR?
-.sp
-\fBns_ictl \fIoption \fR?\fIarg arg ...\fR?
 .sp
 \fBns_init \fIoption \fR?\fIarg arg ...\fR?
 .BE

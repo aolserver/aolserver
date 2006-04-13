@@ -27,7 +27,7 @@
 '\" version of this file under either the License or the GPL.
 '\" 
 '\"
-'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_cache.n,v 1.4 2003/04/10 22:01:11 shmooved Exp $
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_cache.n,v 1.5 2006/04/13 19:05:43 jgdavidson Exp $
 '\"
 '\" 
 '\" transliterated from index.html by davis@xarg.net 2002-11-10 
@@ -41,28 +41,25 @@
 .SH NAME
 ns_cache \- Cache arbitrary data
 .SH SYNOPSIS
+.nf
+\fBns_cache append \fIcachename key string ?string ...?\fR
 \fBns_cache create \fIcachename\fR ?\fB-size\fI maxsize\fR?\fR ?\fB-timeout\fI timeout\fR? ?\fB-thread\fI thread\fR?
-.sp
 \fBns_cache eval \fIcachename key script\fR
-.sp
 \fBns_cache flush \fIcachename key\fR
-.sp
 \fBns_cache get \fIcachename key \fR?\fIvarname\fR?
-.sp
+\fBns_cache incr \fIcachename key ?value?\fR
+\fBns_cache lappend \fIcachename key string ?string ...?\fR
 \fBns_cache names \fIcachename\fR
-.sp
-\fBns_cache set \fIcachename key value\fR
+\fBns_cache set \fIcachename key string\fR
+.fi
 .BE
-
 .SH DESCRIPTION
 .PP
 AOLserver implements a C API for caching arbitrary data. This module
-provides a Tcl API on top of the C API. The module is only compatible
-with nsd8x, not nsd76.
-.PP
-A cache, in this context, is simply a dictionary that maps keys to
-values. Keys are always stored as NUL-terminated strings. How values
-are stored depends on the type of cache.
+provides a Tcl API on top of the C API.  A cache, in this context,
+is simply a dictionary that maps keys to values. Keys are always
+stored as NUL-terminated strings. How values are stored depends on
+the type of cache.
 .TP
 \fBns_cache create \fIcachename\fR ?\fB-size\fI maxsize\fR?\fR ?\fB-timeout\fI timeout\fR? ?\fB-thread\fI thread\fR?
 This command creates a new cache named \fIcachename\fR. If -thread is given

@@ -28,7 +28,7 @@
 '\" version of this file under either the License or the GPL.
 '\" 
 '\"
-'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_addr.n,v 1.4 2003/04/10 22:01:09 shmooved Exp $
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_addr.n,v 1.5 2006/04/13 19:05:43 jgdavidson Exp $
 '\"
 '\" 
 .so man.macros
@@ -37,19 +37,28 @@
 .BS
 '\" Note:  do not modify the .SH NAME line immediately below!
 .SH NAME
-ns_addrbyhost, ns_hostbyaddr \- commands
+ns_addrbyhost, ns_hostbyaddr \- Domain Name Service routines.
 .SH SYNOPSIS
-\fBns_addrbyhost \fIoption \fR?\fIarg arg ...\fR?
-.sp
-\fBns_hostbyaddr \fIoption \fR?\fIarg arg ...\fR?
+.nf
+\fBns_addrbyhost \fIaddress\fR
+\fBns_hostbyaddr \fIhostname\fR
+.fi
 .BE
-
 .SH DESCRIPTION
 .PP
-These commands...
+These commands utilize the platforms name resolution routines which
+normally access the Domain Name Service (DNS) to translate IP
+addresses into fully qualified hostnames and vice versa.
 
-.SH "SEE ALSO"
-nsd(1), info(n)
+.TP
+\fBns_addrbyhost \fIaddress\fR
+Returns the fully qualified domain name for given IP address expressed
+in dotted decimal format (e.g., 72.14.207.99).
+
+.TP
+\fBns_hostbyaddr \Ihostname\fR
+Returns the dotted decimal address for a partial or fully qualified
+domain name (e.g., google.com).
 
 .SH KEYWORDS
-
+DNS, hostname, address

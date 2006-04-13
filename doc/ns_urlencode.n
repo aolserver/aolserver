@@ -28,40 +28,36 @@
 '\" version of this file under either the License or the GPL.
 '\" 
 '\"
-'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_urlencode.n,v 1.3 2003/04/10 16:16:09 shmooved Exp $
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_urlencode.n,v 1.4 2006/04/13 19:05:43 jgdavidson Exp $
 '\"
 '\" 
 .so man.macros
-
 .TH ns_urlencode n 4.0 AOLserver "AOLserver Built-In Commands"
 .BS
 '\" Note:  do not modify the .SH NAME line immediately below!
 .SH NAME
-ns_urlencode \- commands
+ns_urlencode \- URL encode a string.
 .SH SYNOPSIS
-.sp
-\fBns_urlencode \fIdata \fI
+\fBns_urlencode \fIstring\fR
 .BE
-
 .SH DESCRIPTION
 .PP
-Encodes data according to the encoding defined in RFC #1738, Uniform Resource
-Locators. 
-
-ns_urlencode encodes all non-alphanumeric characters in data. The encoding for a character is a "%" followed by the two-character hexadecimal representation for the character. 
-
-urlencoding the string: 
-   http://www.aolserver.com/redirect.adp?url=http://www.aol.com&t=1,2,3 
-yields the string: 
-   http%3a%2f%2fwww%2eaolserver%2ecom%2fredirect%2eadp%3furl%3dhttp%3a%2f%2fwww%2eaol%2ecom%26t%3d1%2c2%2c3
-
-.SH EXAMPLES
+Encodes given string according to the encoding defined in RFC #1738,
+Uniform Resource Locators.  The command encodes all non-alphanumeric
+characters in data. The encoding for a character is a "%" followed
+by the two-character hexadecimal representation for the character.
+.SH EXAMPLE
 .PP
-ns_urlencode: 
-    set link [ns_urlencode http://www.aolserver.com/redirect.adp?url=http://www.aol.com&t=1,2,3]
-    ns_adp_puts "<a href=[ns_urlencode $link]>click</a>"
-
+The following command:
+.CS
+ns_urlencode "http://www.aolserver.com/redirect.adp?url=http://www.aol.com&t=1,2,3"
+.CE
+.PP
+returns:
+.CS
+http%3a%2f%2fwww%2eaolserver%2ecom%2fredirect%2eadp%3furl%3dhttp%3a%2f%2fwww%2eaol%2ecom%26t%3d1%2c2%2c3
+.CE
 .SH "SEE ALSO"
 ns_urldecode(n)
-
 .SH KEYWORDS
+encoding, url
