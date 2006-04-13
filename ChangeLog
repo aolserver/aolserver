@@ -1,3 +1,96 @@
+2006-04-13  Jim Davidson <jgdavidson@aol.com>
+
+	* Makefile:  Added install-tcl and install-docs directives.
+
+	* configure:
+	* configure.in:  Uses CC var on OS/X which can be set for
+	64bit build.  Regenerated configure from configure.in
+
+	* nscgi/nscgi.c: Removed minor memory leak when no CGI
+	mappings are present.
+
+	* nsd/Makefile: 
+	* nsd/tclloop.c: Added new ns_for, ns_foreach, ns_while,
+	and ns_loop_ctl commands to support monitored Tcl loop
+	structures.
+
+	* nsd/adpparse.c: Clarified difference between script, proc,
+	and adp registered tags.
+
+	* nsd/conn.c: Added optional arg to ns_conn status to set
+	result status if present.
+
+	* nsd/connio.c: Switch to memchr to avoid running off the
+	end of mmap'ed content.
+
+	* nsd/driver.c:
+	* nsd/queue.c: Moved free of various conn structures to
+	driver where they were allocated to avoid illusion of driver
+	constantly leaking memory freed in conn threads.
+
+	* nsd/init.tcl: Init and interp dup code now makes better
+	use of ns_ictl.
+
+	* nsd/nsd.h:
+	* nsd/server.c: Added support for ns_ictl package and once
+	in the NsInterp struct.
+
+	* nsd/nsmain.c: Added call to Tcl_Finalize on exit.
+
+	* nsd/sockcallback.c: Switched to NsPoll from direct poll.
+
+	* nsd/tclcmds.c: Added ns_adp_registerscript, ns_for,
+	ns_foreach, and ns_while commands and removed the dummy
+	ns_init and ns_cleanup commands.
+
+	* nsd/tclinit.c: Updated trace execution order to be FIFO
+	and LIFO for init and cleanup callbacks and moved more of
+	the interp dup code to the bootstrap script. Also, added
+	the ns_ictl package and once commands.
+
+	* nsd/tclobj.c: Removed panic when compiling on 64bit
+	machines and simplified int to time conversion code.
+
+	* doc/Ns_Alloc.3:
+	* doc/Ns_Exec.3:
+	* doc/ns_addr.n
+	* doc/ns_at.n
+	* doc/ns_cache.n
+	* doc/ns_chan.n
+	* doc/ns_init.n
+	* doc/ns_urlencode.n:  Updated some man pages (much more to do).
+
+	* doc/ns_adp.n:  Modified to be an ADP overview only with
+	commands in separate files.
+
+	* doc/ns_proc.n (removed):  Moved to ns_register_proc.n.
+
+	* doc/ns_crash.n (removed):  Not implemented.
+
+	* doc/Makefile: Uses new simple man page install independent
+	of section and added install of index.adp html browser.
+
+	* doc/index.adp (new file):
+	* doc/ns_adp_ctl.n (new file):
+	* doc/ns_adp_debug.n (new file):
+	* doc/ns_adp_exception.n (new file):
+	* doc/ns_adp_include.n (new file):
+	* doc/ns_adp_mimetype.n (new file):
+	* doc/ns_adp_puts.n (new file):
+	* doc/ns_adp_registertag.n (new file):
+	* doc/ns_adp_stats.n (new file):
+	* doc/ns_ictl.n (new file):
+	* doc/ns_lctl.n (new file):
+	* doc/ns_register_proc.n (new file):  New man pages.
+
+	* include/ns.mak.in: Simplified man page install and added
+	support to convert man pages to html.
+
+	* util/nsinstall-man.sh: Added -h option to generate html
+	pages with groff instead of man pages and removed the -e,
+	-s, and -z options not used.
+
+
 2005-10-25  Nathan Folkman <shmooved@aol.com>
 
         * tcl/return.tcl (new file): Implements ns_returnmoved
