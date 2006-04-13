@@ -34,7 +34,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.52 2005/10/09 16:16:43 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.53 2006/04/13 19:06:24 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -1307,7 +1307,7 @@ dropped:
 	    Ns_DStringPrintf(drvPtr->queryPtr,
 		"time %ld:%ld "
 		"spins %ld accepts %u queued %u reads %u "
-		"dropped %u overflow %d timeout %d",
+		"dropped %u overflow %d timeout %u",
 	    	now.sec, now.usec,
 		drvPtr->stats.spins, drvPtr->stats.accepts,
 		drvPtr->stats.queued, drvPtr->stats.reads,
@@ -2122,7 +2122,7 @@ static Conn *
 AllocConn(Driver *drvPtr, Ns_Time *nowPtr, Sock *sockPtr)
 {
     Conn *connPtr;
-    static int nextid = 0;
+    static unsigned int nextid = 0;
     int id;
     
     Ns_MutexLock(&connlock);
@@ -2145,12 +2145,11 @@ AllocConn(Driver *drvPtr, Ns_Time *nowPtr, Sock *sockPtr)
 
     connPtr->tfd = -1;
     connPtr->headers = Ns_SetCreate(NULL);
-    connPtr->outputheaders = Ns_SetCreate(NULL);
     Tcl_InitHashTable(&connPtr->files, TCL_STRING_KEYS);
     connPtr->drvPtr = drvPtr;
     connPtr->times.accept = *nowPtr;
     connPtr->id = id;
-    sprintf(connPtr->idstr, "cns%d", connPtr->id);
+    sprintf(connPtr->idstr, "cns%u", connPtr->id);
     connPtr->port = ntohs(sockPtr->sa.sin_port);
     strcpy(connPtr->peer, ns_inet_ntoa(sockPtr->sa.sin_addr));
     connPtr->times.accept = sockPtr->acceptTime;
@@ -2191,12 +2190,6 @@ FreeConn(Conn *connPtr)
      * Free resources which may have been allocated during the request.
      */
 
-    if (connPtr->query != NULL) {
-    	Ns_ConnClearQuery(conn);
-    }
-    if (connPtr->type != NULL) {
-    	Ns_ConnSetType(conn, NULL);
-    }
     if (conn->request != NULL) {
     	Ns_FreeRequest(conn->request);
     }
@@ -2210,7 +2203,6 @@ FreeConn(Conn *connPtr)
         ns_free(connPtr->authUser);
     }
     Ns_SetFree(connPtr->headers);
-    Ns_SetFree(connPtr->outputheaders);
 
     /*
      * Truncate the I/O buffers, zero remaining elements of the Conn,
@@ -2219,7 +2211,6 @@ FreeConn(Conn *connPtr)
      */
 
     Ns_DStringTrunc(&connPtr->ibuf, 0);
-    Ns_DStringTrunc(&connPtr->obuf, 0);
     zlen = (size_t) ((char *) &connPtr->ibuf - (char *) connPtr);
     memset(connPtr, 0, zlen);
 
