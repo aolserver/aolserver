@@ -26,16 +26,20 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Makefile,v 1.4 2005/08/17 23:07:21 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Makefile,v 1.5 2006/04/13 19:05:39 jgdavidson Exp $
 #
 
-
+MAN := $(wildcard *.[13n])
+INSTALL=install-index
 NSLIBS = $(wildcard $(AOLSERVER)/lib/libns*$(LIBEXT))
 MAN3 := $(wildcard *.3)
-MANN := $(wildcard *.n)
-MAN1 := $(wildcard *.1)
-SRCDIR = ..
-include $(SRCDIR)/include/ns.mak
+
+all: install
+
+include ../include/ns.mak
+
+install-index:
+	$(INST) -d $(AOLSERVER)/html index.adp
 
 missing: 
 	@nm $(NSLIBS) | awk '/T _Ns_/ {print $$3}' | sort > lib.out
