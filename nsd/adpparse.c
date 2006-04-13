@@ -33,7 +33,7 @@
  *	ADP parser.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpparse.c,v 1.19 2005/08/04 00:06:06 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpparse.c,v 1.20 2006/04/13 19:06:09 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -43,7 +43,7 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
 
 #define TAG_ADP		1
 #define TAG_PROC	2
-#define TAG_OPROC	3
+#define TAG_SCRIPT	3
 
 #define APPEND		"ns_adp_append "
 #define APPEND_LEN	(sizeof(APPEND)-1)
@@ -109,9 +109,10 @@ Ns_AdpRegisterParser(char *extension, Ns_AdpParserProc *proc)
 /*
  *----------------------------------------------------------------------
  *
- * NsTclRegisterTagCmd, NsTclRegisterAdpCmd --
+ * NsTclAdpRegisterAdpObjCmd, NsTclAdpRegisterProcObjCmd,
+ * NsTclAdpRegisterScriptObjCmd --
  *
- *	Register an ADP proc or string tag.
+ *	Register an proc, script, are ADP string tag.
  *	
  *
  * Results:
@@ -122,13 +123,6 @@ Ns_AdpRegisterParser(char *extension, Ns_AdpParserProc *proc)
  *
  *----------------------------------------------------------------------
  */
-
-int
-NsTclRegisterTagObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
-		       Tcl_Obj **objv)
-{
-    return RegisterObjCmd(arg, interp, objc, objv, TAG_OPROC);
-}
 
 int
 NsTclAdpRegisterAdpObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
@@ -143,6 +137,14 @@ NsTclAdpRegisterProcObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
 {
     return RegisterObjCmd(arg, interp, objc, objv, TAG_PROC);
 }
+
+int
+NsTclAdpRegisterScriptObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
+		       Tcl_Obj **objv)
+{
+    return RegisterObjCmd(arg, interp, objc, objv, TAG_SCRIPT);
+}
+
 
 static int
 RegisterObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
@@ -571,24 +573,29 @@ AppendTag(Parse *parsePtr, Tag *tagPtr, char *as, char *ae, char *se)
     Tcl_DStringInit(&script);
     Tcl_DStringAppend(&script, "ns_adp_append [", -1);
     if (tagPtr->type == TAG_ADP) {
+	/* NB: String will be an ADP fragment to evaluate. */
 	Tcl_DStringAppend(&script, "ns_adp_eval ", -1);
     }
     Tcl_DStringAppendElement(&script, tagPtr->string);
     if (tagPtr->type == TAG_PROC) {
+	/* NB: String was a procedure, append tag attributes. */
     	ParseAtts(as, ae, NULL, &script, 0);
     }
     if (se > ae) {
+	/* NB: Append enclosing text as argument to eval or proc. */
 	save = *se;
 	*se = '\0';
 	Tcl_DStringAppendElement(&script, ae + 1);
 	*se = save;
     }
-    if (tagPtr->type != TAG_PROC) {
+    if (tagPtr->type == TAG_SCRIPT || tagPtr->type == TAG_ADP) {
+	/* NB: Append code to create set with tag attributes. */
     	Tcl_DStringAppend(&script, " [ns_set create", -1);
     	Tcl_DStringAppendElement(&script, tagPtr->tag);
     	ParseAtts(as, ae, NULL, &script, 1);
     	Tcl_DStringAppend(&script, "]", 1);
     }
+    /* NB: Close ns_adp_append subcommand. */
     Tcl_DStringAppend(&script, "]", 1);
     AppendBlock(parsePtr, script.string, script.string+script.length, 's');
     Tcl_DStringFree(&script);
