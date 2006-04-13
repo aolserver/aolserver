@@ -34,7 +34,7 @@
  *      Manage the Ns_Conn structure
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.47 2005/08/11 22:55:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.48 2006/04/13 19:06:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -1297,7 +1297,14 @@ NsTclConnObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 	    break;
 
 	case CStatusIdx:
-	    Tcl_SetIntObj(result, Ns_ConnResponseStatus(conn));
+	    if (objc > 2) {
+		int status;
+		if (Tcl_GetIntFromObj(interp, objv[2], &status) != TCL_OK) {
+		    return TCL_ERROR;
+		}
+		Ns_ConnSetStatus(conn, status);
+	    }
+	    Tcl_SetIntObj(result, Ns_ConnGetStatus(conn));
 	    break;
 
 	case CSockIdx:
