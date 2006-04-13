@@ -27,11 +27,14 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/Makefile,v 1.62 2006/04/13 19:05:22 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/Makefile,v 1.63 2006/04/13 20:11:57 jgdavidson Exp $
 #
 #
 
-dirs=nsthread nsd nsdb nstclsh nssock nslog nsperm nscgi nscp
+bins=nsthread nsd nstclsh 
+mods=nsdb nssock nslog nsperm nscgi nscp
+dirs=$(bins) $(mods)
+
 SRCDIR=.
 include include/ns.mak
 
@@ -43,17 +46,30 @@ build:
 clean:
 	$(MAKEALL) clean $(dirs)
 
-install: install-tcl
-	$(MAKEALL) install $(dirs)
-	$(INST) -d $(AOLSERVER)/log
-	$(INST) -d $(AOLSERVER) examples/config/base.tcl
-	$(INST) -d $(AOLSERVER)/servers/server1/pages -n index.adp
+install: install-bins install-includes install-util install-tcl \
+	 install-mods install-skel
+
+install-bins:
+	$(MAKEALL) install $(bins)
+
+install-mods:
+	$(MAKEALL) install $(mods)
+
+install-util:
 	$(INST) -d $(INSTBIN) util/*.tcl
 	$(INST) -d $(INSTBIN) -e util/nsinstall-man.sh
-	$(INST) -d $(INSTINC) include/ns.mak include/*.c include/*.h
 
 install-tcl:
 	$(INST) -d $(AOLSERVER)/modules/tcl tcl/*.tcl
+
+install-includes:
+	$(INST) -d $(INSTINC) include/*.c include/*.h include/ns.mak \
+			      include/Makefile.*
+
+install-skel:
+	$(INST) -d $(AOLSERVER)/log
+	$(INST) -d $(AOLSERVER) examples/config/base.tcl
+	$(INST) -d $(AOLSERVER)/servers/server1/pages -n index.adp
 
 install-docs:
 	$(MAKEALL) install doc
