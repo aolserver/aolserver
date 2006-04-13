@@ -1,0 +1,165 @@
+
+'\"
+'\" The contents of this file are subject to the AOLserver Public License
+'\" Version 1.1 (the "License"); you may not use this file except in
+'\" compliance with the License. You may obtain a copy of the License at
+'\" http://aolserver.com/.
+'\"
+'\" Software distributed under the License is distributed on an "AS IS"
+'\" basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+'\" the License for the specific language governing rights and limitations
+'\" under the License.
+'\"
+'\" The Original Code is AOLserver Code and related documentation
+'\" distributed by AOL.
+'\" 
+'\" The Initial Developer of the Original Code is America Online,
+'\" Inc. Portions created by AOL are Copyright (C) 1999 America Online,
+'\" Inc. All Rights Reserved.
+'\"
+'\" Alternatively, the contents of this file may be used under the terms
+'\" of the GNU General Public License (the "GPL"), in which case the
+'\" provisions of GPL are applicable instead of those above.  If you wish
+'\" to allow use of your version of this file only under the terms of the
+'\" GPL and not to allow others to use your version of this file under the
+'\" License, indicate your decision by deleting the provisions above and
+'\" replace them with the notice and other provisions required by the GPL.
+'\" If you do not delete the provisions above, a recipient may use your
+'\" version of this file under either the License or the GPL.
+'\" 
+'\"
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_adp_ctl.n,v 1.1 2006/04/13 19:07:12 jgdavidson Exp $
+'\"
+'\" 
+.so man.macros
+.TH ns_adp_ctl n 4.5 AOLserver "AOLserver Built-In Commands"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+ns_adp_ctl \- ADP control command
+.SH SYNOPSIS
+.nf
+\fBns_adp_ctl bufsize\fR \fI?size?\fR
+\fBns_adp_ctl chan\fR \fIchannel\fR
+\fBns_adp_ctl autoabort\fR \fI?bool?\fR
+\fBns_adp_ctl detailerror\fR \fI?bool?\fR
+\fBns_adp_ctl displayerror\fR \fI?bool?\fR
+\fBns_adp_ctl expire\fR \fI?bool?\fR
+\fBns_adp_ctl gzip\fR \fI?bool?\fR
+\fBns_adp_ctl nocache\fR \fI?bool?\fR
+\fBns_adp_ctl safe\fR \fI?bool?\fR
+\fBns_adp_ctl singlescript\fR \fI?bool?\fR
+\fBns_adp_ctl stricterror\fR \fI?bool?\fR
+\fBns_adp_ctl trace\fR \fI?bool?\fR
+\fBns_adp_ctl trimspace\fR \fI?bool?\fR
+.fi
+.BE
+
+.SH DESCRIPTION
+This command enables control of the current ADP execution environment.
+Aside from the \fIbufsize\fR and \fIchan\fR subcommands, they all
+return a boolean value for a given ADP option.  If the \fIbool\fR
+argument is given, the option is set to the given value and the
+previous value is returned.
+
+.TP
+\fBns_adp_ctl bufsize\fR \fI?size?\fR
+This command returns the currently ADP output buffer size, setting
+it to a new value if the optionial \fIsize\fR argument is specified.
+
+.TP
+\fBns_adp_ctl chan\fR \fIchannel\fR
+This command is used to specify an open file channel to receive
+output when the buffer is flushed. If \fIchannel\fR is the null
+string, the output channel is cleared.  This capability can be
+useful for specialized uses of ADP outside the context of an HTTP
+connection, e.g., for debugging or testing.
+
+.TP
+\fBns_adp_ctl autoabort\fR \fI?bool?\fR
+Query or set the \fIautoabort\fR option.  When enabled, failure to
+flush a buffer (normally the result of a closed HTTP connection)
+generates an ADP exception, unwinding the ADP call stack.
+
+.TP
+\fBns_adp_ctl detailerror\fR \fI?bool?\fR
+Query or set the \fIdetailerror\fR option.  When enabled, errors
+in ADP pages are formatted with information about the context of
+the HTTP request.  This can be very helpful in debugging ADP errors
+but potentially a security risk if the HTTP context (e.g., cookie
+headers) contains personal or sensitive data.  Errors are logged
+to the server log and, if \fIdisplayerror\fR is enabled, appened
+to the output buffer.
+
+.TP
+\fBns_adp_ctl displayerror\fR \fI?bool?\fR
+Query or set the \fIdisplayerror\fR option.  When enabled, errors
+in ADP pages are formatted and appended to the output stream,
+normally visiable to a user's browser.  This option should generally
+be enabled in development and disabled in production.
+
+.TP
+\fBns_adp_ctl expire\fR \fI?bool?\fR
+Query or set the \fIexpire\fR option.  When enabled, the ADP request
+processing code adds an "Expires: now" header in the response buffer
+to disable any caching.  In practice, more thoughtful cache control
+mechanisms should be used based on the HTTP/1.1 spec.
+
+.TP
+\fBns_adp_ctl gzip\fR \fI?bool?\fR
+Query or set the \fIgzip\fR option.  When enabled, the output buffer
+is compressed before being returned in the response.  As ADP's are
+generally used to generate text data such as HTML or XML, compression
+is normally quite successful at reducing the response size.
+
+.TP
+\fBns_adp_ctl nocache\fR \fI?bool?\fR
+Query or set the \fInocache\fR option.  When enabled, all requests
+to cache executed ADP blocks via the \fBns_adp_include -cache\fR
+directive are ignored, resulting in normal execution of all code.
+
+.TP
+\fBns_adp_ctl safe\fR \fI?bool?\fR
+Query or set the \fIsafe\fR option. When enabled, all code is
+executed in "safe" mode, disabling and ignoring any code within <%
+... %> tags and only allowing execution of previously defined
+registered tags.
+
+.TP
+\fBns_adp_ctl singlescript\fR \fI?bool?\fR
+Query or set the \fIsinglescript\fR option.  When enabled, ADP pages
+are converted from independent text-script blocks into a single
+script, which text blocks replaced with a call to \fBns_adp_append\fR
+with the given text.  Functionally the output is the same however
+an error anywhere on the page will result in the entire ADP page
+returning instead of skipping to the next block which is the normal
+behavior. In practice, \fIsinglescript\fR is useful in development
+while in production leaving it disabled provides a more defensive
+execution environment where minor errors in one ADP do not inhibit
+execution of the overall page.
+
+.TP
+\fBns_adp_ctl stricterror\fR \fI?bool?\fR
+Query or set the \fIstricterror\fR option.  When enabled, the result
+is similar to that of \fIsinglescript\fR in that an error in a
+particular block will return the entire page instead of continuing
+to the next text or script block.
+
+.TP
+\fBns_adp_ctl trace\fR \fI?bool?\fR
+Query or set the \fItrace\fR option which currently does nothing.
+
+.TP
+\fBns_adp_ctl trimspace\fR \fI?bool?\fR
+Query or set the \fItrimspace\fR option.  When enabled, any white
+space at the start of the output buffer is eliminated.  White space
+can show up in the output as a result of ADP pages which do nothing
+but include other ADP's in a way to reuse code with the unfortunate
+side effect of the training newline at the end of a "<% ns_adp_include
+myfile.adp %>" ending up in the output stream.
+
+.SH "SEE ALSO"
+ns_adp(n), ns_adp_flush(n), ns_adp_close(n), ns_adp_mimetype(n)
+
+.SH KEYWORDS
+ADP, dynamic pages, buffer

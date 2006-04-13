@@ -1,0 +1,126 @@
+
+'\"
+'\" The contents of this file are subject to the AOLserver Public License
+'\" Version 1.1 (the "License"); you may not use this file except in
+'\" compliance with the License. You may obtain a copy of the License at
+'\" http://aolserver.com/.
+'\"
+'\" Software distributed under the License is distributed on an "AS IS"
+'\" basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+'\" the License for the specific language governing rights and limitations
+'\" under the License.
+'\"
+'\" The Original Code is AOLserver Code and related documentation
+'\" distributed by AOL.
+'\" 
+'\" The Initial Developer of the Original Code is America Online,
+'\" Inc. Portions created by AOL are Copyright (C) 1999 America Online,
+'\" Inc. All Rights Reserved.
+'\"
+'\" Alternatively, the contents of this file may be used under the terms
+'\" of the GNU General Public License (the "GPL"), in which case the
+'\" provisions of GPL are applicable instead of those above.  If you wish
+'\" to allow use of your version of this file only under the terms of the
+'\" GPL and not to allow others to use your version of this file under the
+'\" License, indicate your decision by deleting the provisions above and
+'\" replace them with the notice and other provisions required by the GPL.
+'\" If you do not delete the provisions above, a recipient may use your
+'\" version of this file under either the License or the GPL.
+'\" 
+'\"
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_adp_puts.n,v 1.1 2006/04/13 19:07:12 jgdavidson Exp $
+'\"
+'\" 
+.so man.macros
+.TH ns_adp_puts n 4.5 AOLserver "AOLserver Built-In Commands"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+ns_adp_append, ns_adp_close, ns_adp_dump, ns_adp_flush, ns_adp_puts, ns_adp_stream, ns_adp_tell, ns_adp_trunc, ns_puts \- ADP output commands
+.SH SYNOPSIS
+.nf
+\fBns_adp_append\fR \fIstring\fR ?\fIstring ...\fR?
+\fBns_adp_close\fR
+\fBns_adp_dump\fR
+\fBns_adp_flush\fR
+\fBns_adp_puts\fR ?\fI-nonewline\fR? \fIstring\fR
+\fBns_adp_stream\fR
+\fBns_adp_tell\fR
+\fBns_adp_trunc\fR ?\fIlength\fR?
+\fBns_puts\fR ?\fI-nonewline\fR? \fIstring\fR
+.fi
+.BE
+
+.SH DESCRIPTION
+.PP
+These commands enable adding to and manipulation of the ADP output
+buffer.  See \fBns_adp\fR for an overview on ADP pages.
+
+.TP
+\fBns_adp_append\fR \fIstring\fR ?\fIstring ...\fR?
+This command appends one or more strings to the ADP output buffer.
+For the case of a single argument, it is equivalent to \fBns_adp_puts
+-nonewline\fR \fIstring\fR.
+
+.TP
+\fBns_adp_close\fR
+This command can be used to flush and close the underlying HTTP
+connection.  ADP execution continues after the connection is closed;
+any text appended to the output buffer after the close is simply
+discarded when processing is complete.
+
+.TP
+\fBns_adp_dump\fR
+This command returns the text of the ADP buffer.
+
+.TP
+\fBns_adp_flush\fR
+This command flushes the contents of the ADP buffer to the current
+connection or file channel. It will raise a Tcl exception if the
+underlying flush failed, for example, if the HTTP connection is
+closed or the channel write failed.  Flushed content is returned
+in "chunked-encoding" format if the HTTP protocol version is at
+least 1.1 (normally the case for all modern browsers).  A call to
+\fBns_adp_flush\fR is not normally needed except for specialized
+applications as all content is automatically flushed at the end of
+a connection or on buffer overflow.  (see \fBns_adp_ctl bufsize\fR
+for details on buffer mangement).
+
+.TP
+\fBns_adp_puts\fR ?\fI-nonewline\fR? \fIstring\fR
+This function appends the specified \fIstring\fR to the ADP
+buffer.  Unless the optional \fI-nonewline\fR argument is used, a
+newline will be appended to the page after the string.  Note that
+the argument to ns_adp_puts is a single string unlike \fBns_adp_append\fR
+which takes a variable number of strings to append.
+
+.TP
+\fBns_adp_stream\fR
+This function begins streaming mode for the ADP. All data currently
+in the ADP output buffer is flushed and any subsequent data will
+be output directly to the connection.  It is equivalent to an
+\fBns_adp_flush\fR followed by an \fBns_adp_ctl bufsize 0\fR.
+
+.TP
+\fBns_adp_tell\fR
+This function returns the total number of bytes current in the ADP
+buffer.  A buffer overflow or direct call to \fBns_adp_flush\fR
+will reset this counter to zero so the result of \fBns_adp_tell\fR
+may not return the total number of bytes eventually sent.
+
+.TP
+\fBns_adp_trunc\fR ?\fIlength\fR?
+This function can be used to truncate output buffer to the requested
+size. This can be useful to trim unintended white space or to clear
+a result and generate an error message.  Note that content already
+streamed to the client, if any, cannot be truncated.
+
+.TP
+\fBns_puts\fR ?\fI-nonewline\fR? \fIstring\fR
+This command is a deprecated name for \fBns_adp_puts\fR.
+
+.SH "SEE ALSO"
+ns_adp(n), ns_adp_include(n)
+
+.SH KEYWORDS
+ADP, dynamic pages

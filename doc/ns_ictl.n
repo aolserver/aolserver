@@ -1,0 +1,496 @@
+'\"
+'\" The contents of this file are subject to the AOLserver Public License
+'\" Version 1.1 (the "License"); you may not use this file except in
+'\" compliance with the License. You may obtain a copy of the License at
+'\" http://aolserver.com/.
+'\"
+'\" Software distributed under the License is distributed on an "AS IS"
+'\" basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+'\" the License for the specific language governing rights and limitations
+'\" under the License.
+'\"
+'\" The Original Code is AOLserver Code and related documentation
+'\" distributed by AOL.
+'\" 
+'\" The Initial Developer of the Original Code is America Online,
+'\" Inc. Portions created by AOL are Copyright (C) 1999 America Online,
+'\" Inc. All Rights Reserved.
+'\"
+'\" Alternatively, the contents of this file may be used under the terms
+'\" of the GNU General Public License (the "GPL"), in which case the
+'\" provisions of GPL are applicable instead of those above.  If you wish
+'\" to allow use of your version of this file only under the terms of the
+'\" GPL and not to allow others to use your version of this file under the
+'\" License, indicate your decision by deleting the provisions above and
+'\" replace them with the notice and other provisions required by the GPL.
+'\" If you do not delete the provisions above, a recipient may use your
+'\" version of this file under either the License or the GPL.
+'\" 
+'\"
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_ictl.n,v 1.1 2006/04/13 19:07:12 jgdavidson Exp $
+'\"
+'\" 
+.so man.macros
+
+.TH ns_ictl n 4.5 AOLserver "AOLserver Built-In Commands"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+ns_ictl \- Facility to control AOLserver multi-threaded Tcl interpreters
+.SH SYNOPSIS
+.nf
+\fBns_ictl addmodule\fR \fImodule\fR
+\fBns_ictl cancel\fR \fIthread\fR
+\fBns_ictl cleanup\fR
+\fBns_ictl epoch\fR
+\fBns_ictl get\fR
+\fBns_ictl getmodules\fR
+\fBns_ictl gettraces\fR \fIwhich\fR
+\fBns_ictl once\fR \fIkey script\fR
+\fBns_ictl oncleanup\fR \fIscript\fR
+\fBns_ictl oncreate\fR \fIscript\fR
+\fBns_ictl ondelete\fR \fIscript\fR
+\fBns_ictl oninit\fR \fIscript\fR
+\fBns_ictl package\fR \fI?-exact? package ?version?\fR
+\fBns_ictl runtraces\fR \fIwhich\fR
+\fBns_ictl save\fR \fIscript\fR
+\fBns_ictl threads\fR
+\fBns_ictl trace\fR \fIwhen script\fR
+\fBns_ictl update\fR
+.fi
+.BE
+
+.SH DESCRIPTION
+.PP
+This command provides access to the internal facilities to control
+and configure multi-threaded Tcl interpreters in the context of
+AOLserver virtual servers.  It is normally used in startup
+initialization scripts to define how new interpreters are initialized
+when created and to support cleanup and re-initalization between
+transactions (e.g., HTTP connections).
+
+.TP
+\fBns_ictl addmodule\fR \fImodule\fR
+Add a module to the list of modules to be initialized at startup.
+This command is not normally required as each module specified in
+the AOLserver modules config section for the corresponding server
+(e.g., \fIns/server/server1/modules\fR) is automatically added to
+the list.
+
+.TP
+\fBns_ictl cancel\fR \fIthread\fR
+Send an asynchronous interrupt request to the specified thread,
+cancelling any script currently executing on any AOLserver created
+interpreter (note the interrupt is not virtual-server specific).
+This command utilizes the facilities of \fBTcl_AsyncMark\fR to mark
+as ready a callback registered with \fBTcl_AsyncCreate\fR. The
+callback places an error message in the interpreter result and
+returns \fBTCL_ERROR\fR to unwind the call stack. The underlying
+Tcl facility has limitations, e.g., the interrupt will only be
+noticed when Tcl checks via \fBTcl_AsyncReady\fR calls between
+commands and the interrupt can be caught with a \fBcatch\fR command.
+See the man page for \fBTcl_AsyncCreate\fR for details.
+
+.TP
+\fBns_ictl cleanup\fR
+This command invokes any callbacks registered during a transaction
+via the C-level \fBNs_TclRegisterDefer\fR routine.  Unlike callbacks
+registered with the \fBns_ictl trace deallocate\fR command or
+\fBNs_TclRegisterTrace\fR routine, these callbacks are executed
+only once and there is no Tcl-level access to the underlying
+\fBNs_TclRegisterDefer\fR routine.
+
+.TP
+\fBns_ictl epoch\fR
+This command returns the unique id for the current duplication
+script for the virtual server.  The id starts as 0 when the virtual
+server is created and is incremented each time a new script is saved
+via the \fBns_ictl save\fR command.
+
+.TP
+\fBns_ictl get\fR
+Return the current duplication script for the virtual server.  This
+command is useful to view the duplication script created by the
+initialization script at startup.
+
+.TP
+\fBns_ictl getmodules\fR
+Return the list of modules to be initialized at startup. This list
+corresponds to the names of modules specified in the virtual server
+modules config section, e.g., \fIns/server/server1/modules\fR unless
+additional modules are added via the \fBns_ictl addmodule\fR command.
+
+.TP
+\fBns_ictl gettraces\fR \fIwhich\fR
+Return the list of traces which will be invoked at the specified
+time. The \fIwhich\fR argument can be one of \fIcreate, delete,
+allocate, deallocate, getconn\fR, or \fIfreeconn\fR.  The traces are
+returned in the order in which they will be executed.  Script level
+traces are returns as strings to evaluate and C-level traces are
+returned with strings which specify the address of the underlying
+C procedure and argument.
+
+.TP
+\fBns_ictl once\fR \fIkey script\fR
+Evaluate given script once in the virtual server. The given key is
+a string name which uniquely identifies the corresponding script.
+This command is useful in a Tcl package which includes one-time
+initialization routines, e.g., calls to \fBns_register_proc\fR or
+initialization of shared variables using \fBnsv_set\fR (see
+\fBEXAMPLES\fR below).
+
+.TP
+\fBns_ictl oncleanup\fR \fIscript\fR
+This command is equivalent to \fBns_ictl trace deallocate\fR
+\fIscript\fR.
+
+.TP
+\fBns_ictl oncreate\fR \fIscript\fR
+This command is equivalent to \fBns_ictl trace create\fR \fIscript\fR.
+
+.TP
+\fBns_ictl ondelete\fR \fIscript\fR
+This command is equivalent to \fBns_ictl trace delete\fR \fIscript\fR.
+
+.TP
+\fBns_ictl oninit\fR \fIscript\fR
+This command is equivalent to \fBns_ictl trace allocate\fR \fIscript\fR.
+
+.TP
+\fBns_ictl package\fR \fI?-exact? package ?version?\fR
+This command is used to require a package in the calling interpreter
+and, if successfully loaded, in all other interpreters for the
+virtual server. In addition to ensuring version consistency for the
+package, it is equivalent to:
+
+.sp
+\fBset version [package require \fIpackage ?version?\fB]
+.br
+\fBns_ictl trace allocate [list package require \fIpackage\fB
+$version]\fR
+
+.TP
+\fBns_ictl runtraces\fR \fIwhich\fR
+This command runs the requested traces. The \fIwhich\fR argument
+must be one of \fBcreate\fR, \fBdelete\fR, \fBallocate\fR,
+\fBdeallocate\fR, \fBgetconn\fR, or \fBfreeconn\fR.  Direct calls
+to this command are not normally necessary as the underlying C code
+will invoke the callbacks at the required times.  Exceptions include
+calling \fBns_ictl runtraces\fR or testing purposes or to mimic the
+normal cleanup and initialization work performed on between
+transactions in a long running thread (see \fBEXAMPLES\fR below).
+
+.TP
+\fBns_ictl save\fR \fIscript\fR
+Save the given script as the duplication script, incrementing the
+virtual server epoch number.  This command is normally called by
+the bootstrap script after constructing the script to duplicate the
+procedures defined by sourcing the various module initialization
+script files.
+
+.TP
+\fBns_ictl threads\fR
+Return a list of all threads with interpreters for the virtual
+server. The ids return are small strings which represent the
+underlying thread ids and can be passed to the \fBns_ictl cancel\fR
+command to send an asynchronous cancel request.
+
+.TP
+\fBns_ictl trace create\fR \fIscript\fR
+Register \fIscript\fR to be called when an interpreter is first
+created. This is useful to create procedures, require packages, or
+initialize other state to be used during the lifetime of the
+interpreter.
+
+.TP
+\fBns_ictl trace delete\fR \fIscript\fR
+Register \fIscript\fR to be called before an interpreter is destroyed.
+This is useful to free any resources which may have been allocated
+for the interpreter during the lifetime of the interpreter.
+
+.TP
+\fBns_ictl trace allocate\fR \fIscript\fR
+Register \fIscript\fR to be called each time an interpreter is
+allocated for use by the \fBNs_TclAllocateInterp\fR routine. This
+is useful for reinitializing resources which may be used during a
+single transaction in the interpreter.
+
+.TP
+\fBns_ictl trace deallocate\fR \fIscript\fR
+Register \fIscript\fR to be called each time an interpreter is
+returned after a transaction with the \fBNs_TclDeAllocateInterp\fR
+routine. This is useful for garbage collection, i.e., freeing any
+resources which may be used during a single transaction in the
+interpreter.
+
+.TP
+\fBns_ictl trace getconn\fR \fIscript\fR
+Register \fIscript\fR to be called each time an interpreter is
+returned and associated with an HTTP connection with the
+\fBNs_GetConnInterp\fR routine. This could be useful to define
+variables relative to the HTTP request.
+
+.TP
+\fBns_ictl trace freeconn\fR \fIscript\fR
+Register \fIscript\fR to be called each time an HTTP connection is
+closed. This could be used to log information about the request,
+e.g., timing statistics.  Note that the interpreter may still be
+actively evaluating a script after the connection is closed, i.e.,
+this is not equivalent to \fBns_ictl trace deallocate\fR for
+connection-related interpreters.
+
+.TP
+\fBns_ictl update\fR
+This command can be used to atomically compare the epoch of the
+current duplication script with the epoch of the interpreter,
+evaluating the script and updating the epoch in the interpreter if
+they do not match.  This command is generally registered as a
+callback with \fBns_ictl trace allocate\fR by the legacy initialization
+code.
+
+.SH INTERPRETER ALLOCATION
+.PP
+Tcl interpreter in AOLserver are available on demand with state
+specific to a virtual server.  These interpreters are also expected
+to be reused for multiple transactions (e.g., HTTP connections,
+scheduled procedures, socket callbacks).
+
+.PP
+To support reuse, AOLserver provides the C-level \fBNs_TclAllocateInterp\fR
+routine to allocate an interpreter from a per-thread cache (creating
+and initializing a new interpreter if necessary) and the
+\fBNs_TclDeAllocateInterp\fR routine to return an interpreter to
+the cache when no longer required.  All interpreters in the per-thread
+cache are destroyed when a thread exists.
+
+.PP
+In general, only C-level extension writers need to call the C-level
+API's directly; the various Tcl-level interfaces in AOLserver (e.g.,
+\fBADP\fR pages, \fBns_regiseter_proc\fR, \fBns_schedule_proc\fR,
+\fBns_thread\fR, etc.) allocate and reuse interpreters using the
+C-level API's automatically before invoking the cooresponding script
+or ADP page.
+
+.SH INTERPRETER TRACES
+
+.PP
+To ensure a consistent state of interpreters when allocated and
+enable cleanup and reinitialization between transactions, each
+virtual server maintains a list of callbacks to be invoked at various
+points in the lifetime of an interpreter.  These callbacks are
+generally installed when the server is initialized at startup and
+then called automatically by the \fBNs_TclAllocateInterp\fR and
+\fBNs_TclDeAllocateInterp\fR API's at the appropriate times and in
+consistent order.  The \fBNs_TclRegisterTrace\fR routine can be
+used to register C-level callbacks and the \fBns_ictl trace\fR
+command can be used to register Tcl script callbacks.  The \fBns_ictl
+gettraces\fR command can be used to list all currently registered
+callbacks, both at the Tcl script and C level.
+
+.PP
+Callbacks registered via the tracing facility are invoked in a
+specific order depending on the type.  Initialization style callbacks
+including \fBcreate\fR, \fBallocate\fR, and \fBgetconn\fR are invoked
+in FIFO order, with all script callbacks invoked after all C-level
+callbacks.  This enables extension writers to utilize the facilities
+of previously initialized extensions. Correspondingly, cleanup style
+callbacks including \fBfreeconn\fR, \fBdeallocate\fR, and \fBdelete\fR
+are invoked in LIFO order, with all scripts callbacks invoked before
+C-level callbacks. This helps avoid the possibility that a cleanup
+callback utilizes features of a previously cleaned up extension.
+
+.PP
+In addition, the \fBns_ictl package\fR command can be used to
+consistently manage the loading of a Tcl package in all interpreters
+for a virtual server. This feature is mostly a convenience routine
+built above the generic trace framework with additional checks to
+ensure version number consistency.  Coupled with \fBns_ictl once\fR,
+the \fBns_ictl package\fR command provides a clean framework to
+utilize Tcl packages in multi-threaded AOLserver (see \fBEXAMPLES\fR).
+
+.SH VIRTUAL SERVER TCL INITIALIZATION
+.PP
+AOLserver also supports a Tcl initialization framework for virtual
+servers based on callbacks registered by loadable modules and the
+sourcing of scripts files located in corresponding directories.
+Options to \fBns_ictl\fR to support this framework include \fIsave\fR,
+\fIget\fR, \fIepoch\fR, and \fIupdate\fR and are used in conjunction
+with the generic tracing facility by the virtual server bootstrap
+script (normally \fIbin/init.tcl\fR). The \fBns_eval\fR command
+also relies on this framework to support dynamic update of the state
+of interpreters.
+
+.PP
+This initialization framework pre-dates the Tcl package facilities
+and utilizes introspection of the state of a startup interpreter
+at the end of initialization to construct a single script which
+attempts to duplicate the state in subsequent interpreters.  Steps
+taken during this initialization include:
+
+.TP
+1.  Load all modules in the server's module config section, e.g.,
+\fIns/server/server1/modules\fR.  Modules with Tcl C-level extensions
+typically call the legacy \fBNs_TclInitInterps\fR routine or the
+more general \fBNs_TclRegisterTrace\fR routine with the
+\fINS_TCL_TRACE_CREATE\fR flag in their module init routine to
+register a callback to invoke when new interpreters are created.
+The callback normally creates one or more new commands in the
+interpreter with \fBTcl_CreateObjCommand\fR but may perform any
+per-interpreter initialization required, e.g., creating and saving
+private state with the \fBTcl_SetAssocData\fR facility.  In addition,
+as modules are loaded, the string name of the module is added to
+the list of known modules.
+
+.TP
+2.  After all C modules are loaded, AOLserver creates a new Tcl
+interpreter for the virtual server, executing any trace callbacks
+already registered via the loaded C modules (e.g., any
+\fBNs_TclInitInterps\fR callbacks) and then sources the virtual
+server bootstrap script, normally \fIbin/init.tcl\fR.  This script
+creates a few utility procedures and then sources all \fIprivate\fR
+and \fIpublic\fR script files in directories which correspond to
+loaded modules in the order in which they were loaded.  These
+directories are normally relative to the virtual server and to the
+AOLserver installation directory, e.g., initialization script files
+for the module \fImymod\fR in the \fIserver1\fR virtual server would
+be searched for in the \fIservers/server1/modules/tcl/mymod/\fR and
+\fImodules/tcl/mymod/\fR.  Any \fIinit.tcl\fR file found in each
+directory is sourced first with all remaining files sourced in
+alphabetical order. In addition, any files in the \fIpublic\fR
+directory with identical names to files in the \fRprivate\fR directory
+are skipped as a means to enable overloading of specific functionality
+on a per-server basis.  In practice, most modules only contain
+shared utility procedures defined in the \fIpublic\fR directories
+and the \fIprivate\fR directories are empty or non-existant. The
+script files normally contain a mix of commands to evaluate once
+for server configuration (e.g., a call to \fBns_register_proc\fR
+to bind a Tcl procedure to an HTTP request URL) with \fBproc\fR and
+\fBnamespace\fR commands to provide additional functionality in the
+interpreter.
+
+.TP
+3.  After all script files have been sourced, the bootstrap script
+code then uses a collection of recursive procedures to extract the
+definitions of all procedures defined in all namespaces.  The
+definitions are used to construct a script which attempts to duplicate
+the state of the initialization interpreters.  This scripts is then
+saved as the per-virtual server duplication script with the \fBns_ictl
+save\fR command which also increments the \fIepoch\fR to 1.  There
+are limits to this approach to determine the full state, e.g., it
+does not attempt to duplicate any global variables which may have
+been defined in the startup scripts. Typically, startup scripts
+will use \fBnsv_set\fR or other mechanisms to store such shared
+state.
+
+.TP
+4.  The bootstrap code then uses the \fBns_ictl trace allocate\fR
+command to register a callback to the \fBns_ictl update\fR command
+each time an interpreter is allocated for use.  In practice,
+interpreters are created with the default \fIepoch\fR of 0 and the
+first call to \fBns_ictl update\fR determines an out-of-date
+condition, evaluates the duplication script, and increments the
+interpreter's \fIepoch\fR to 1 to match the state created by the
+startup interp.
+
+.TP
+5.  Subsequent calls the \fBns_eval\fR, if any, will evaluate the
+given script and then re-generate and save the duplication script
+as was done at startup, incrementing the \fIepoch\fR once again.
+In this way, dynamic updates which are detected in other interpreters
+on their next call to \fBns_ictl update\fR can be supported in a
+limited fashion.
+
+.PP
+In practice, while generally successful, this duplication technique
+has inhibited the clean use of proper Tcl package extensions and
+encouraged the use of the \fBns_eval\fR command which is generally
+not recommended for the non-deterministic manner in which it attempts
+to dynamically reconfigure a server.  Also, commands required to
+configure the server once (e.g., calls to \fBns_register_proc\fR)
+are inter-mixed with \fBproc\fR commands designed to extend
+functionality in all interpreters, complicating configuration
+management.
+
+.PP
+As an alternative, the example below illustrates a means to more
+explicitly manage configuration through a combination of direct
+calls to \fBns_ictl trace create\fR and \fBns_ictl once\fR.
+Unfortunately, the all encompassing nature of the legacy initialization
+approach makes it difficult to incrementally move to this cleaner
+approach because the duplication script construction code is unable
+to distinguish between state created with the newer, cleaner
+\fBns_ictl\fR commands and state created as a side effect of one
+or more script files being sourced.  As such, it is expected the
+legacy initialization framework will remain in place until AOLserver
+5.x when it will be removed entirely in a non-backwards compatible
+move towards the cleaner API's.
+
+.SH EXAMPLES
+.PP
+This example illustrates the use of \fBns_ictl package\fR and
+\fBns_ictl once\fR to load an AOLserver-aware Tcl package into a
+virtual server.  The following code could be added to the virtual
+server bootstrap script, \fIbin/init.tcl\fR, to load \fIMyPkg\fR
+in the virtual server:
+
+.PP
+.CS
+#
+# Startup code in bin/init.tcl:
+#
+# Load MyPkg in all interps (including this one).
+#
+ns_ictl package require MyPkg
+.CE
+
+.PP
+This call will result in the package being loaded into the startup
+interpreter in the ordinary Tcl fashion (see the \fBpackage\fR man
+page for details).  Ordinary Tcl extension packages would need no
+modifications but packages which utilize AOLserver-specific features
+or require garbage collection between transactions could also use
+\fBns_ictl\fR for finer grained control. For example, the \fIinit.tcl\fR
+script specified by the \fBpackage ifneeded\fR command in the
+\fIMyPkg\fR package's \fIpkgIndex.tcl\fR file could contains:
+
+.PP
+.CS
+#
+# Package code in lib/myPkg1.0/init.tcl:
+#
+#
+
+package provide MyPkg 1.0
+
+#
+# Server init which will be executed the first time called,
+# normally in the context of the startup interpreter as above.
+#
+
+ns_ictl once MyPkg {
+    # Register the run Tcl proc HTTP handler.
+    ns_register_proc /mypkg mkpkg::run
+    # Register a garbage collection callback.
+    ns_ictl trace deallocate mypkg::cleanup
+}
+
+#
+# Code which will be invoked to initialize the package in
+# all interpreters when required.
+#
+proc mypkg::run {} {
+    ... handle /mypkg requests ...
+}
+proc mkpkg::cleanup {} {
+    ... cleanup transaction resources for mypkg, e.g., db handles ...
+}
+.CE
+
+.SH "SEE ALSO"
+Ns_TclAllocateInterp(3), Ns_TclDeAllocateInterp(3),
+Ns_GetConnInterp(3), Ns_FreeConnInterp(3),
+Ns_TclInitInterps(3), Ns_TclRegisterTrace(3),
+Ns_TclRegisterDeferred(3), ns_atclose(n), ns_eval(n).
+
+.SH KEYWORDS
+threads, interpreters, traces, initialization

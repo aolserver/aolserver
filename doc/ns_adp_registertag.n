@@ -1,0 +1,212 @@
+
+'\"
+'\" The contents of this file are subject to the AOLserver Public License
+'\" Version 1.1 (the "License"); you may not use this file except in
+'\" compliance with the License. You may obtain a copy of the License at
+'\" http://aolserver.com/.
+'\"
+'\" Software distributed under the License is distributed on an "AS IS"
+'\" basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+'\" the License for the specific language governing rights and limitations
+'\" under the License.
+'\"
+'\" The Original Code is AOLserver Code and related documentation
+'\" distributed by AOL.
+'\" 
+'\" The Initial Developer of the Original Code is America Online,
+'\" Inc. Portions created by AOL are Copyright (C) 1999 America Online,
+'\" Inc. All Rights Reserved.
+'\"
+'\" Alternatively, the contents of this file may be used under the terms
+'\" of the GNU General Public License (the "GPL"), in which case the
+'\" provisions of GPL are applicable instead of those above.  If you wish
+'\" to allow use of your version of this file only under the terms of the
+'\" GPL and not to allow others to use your version of this file under the
+'\" License, indicate your decision by deleting the provisions above and
+'\" replace them with the notice and other provisions required by the GPL.
+'\" If you do not delete the provisions above, a recipient may use your
+'\" version of this file under either the License or the GPL.
+'\" 
+'\"
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_adp_registertag.n,v 1.1 2006/04/13 19:07:12 jgdavidson Exp $
+'\"
+'\" 
+.so man.macros
+.TH ns_adp_registertag n 4.0 AOLserver "AOLserver Built-In Commands"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+ns_adp_registeradp, ns_adp_registerproc, ns_adp_registerscript, ns_adp_registertag, ns_register_adptag \- ADP registered tags
+.SH SYNOPSIS
+.nf
+\fBns_adp_registeradp\fR \fItag\fR ?\fIendtag\fR? \fIadp\fR
+\fBns_adp_registerproc\fR \fItag\fR ?\fIendtag\fR? \fIproc\fR
+\fBns_adp_registerscript\fR \fItag\fR ?\fIendtag\fR? \fIscript\fR
+\fBns_adp_registertag\fR \fItag\fR ?\fIendtag\fR? \fIadp\fR
+\fBns_register_adptag\fR \fItag\fR ?\fIendtag\fR? \fIscript\fR
+.fi
+.BE
+
+.SH DESCRIPTION
+.PP
+These commands enable definition of HTML tags within an ADP file
+which are expanded and evaluated by the server before returning
+output to the client.  Tags are defined as eitehr a single tag with
+options, e.g., \fI<mytag a=b c=d>\fR or as an opening/closing tag
+pair, e.g., \fI<mytag> text </mytag>\fR.  This approach is an
+alternative to direct calls via the \fI<% script %>\fR syntax as
+described in the \fBns_adp\fR man page.
+
+.TP
+\fBns_adp_registeradp\fR \fItag\fR ?\fIendtag\fR? \fIadp\fR
+.TP
+\fBns_adp_registertag\fR \fItag\fR ?\fIendtag\fR? \fIadp\fR
+These commands are identical and register an ADP code fragment to
+be invoked when the specified tag is encountered while parsing an
+ADP.  The \fItag\fR argument specifies the tag that will trigger
+invocation of the ADP fragment, which is specified by the \fIadp\fR
+argument.
+.sp
+If the \fIendtag\fR argument is specified, then the ADP fragment
+will be invoked with two arguments: The first will be the enclosed
+content, and the second will be the name of an ns_set with any
+attributes specified in the tag.  If no \fIendtag\fR argument is
+specified, the ADP fragment will only be passed the name of the
+ns_set.  The arguments may be retrieved using \fBns_adp_bindargs\fR
+or \fBns_adp_argc\fR and \fBns_adp_argv\fR.
+.sp
+When the ADP fragment is invoked, its result is inserted in the
+output instead of the tag (or, if the \fIendtag\fR was specified,
+in place of the tag, end tag, and the enclosed content).
+.sp
+Note: Care must be taken when using this function from inside an
+ADP, because the \fIadpstring\fR is likely to contain script
+delimiters (\fB<% ... %>\fR) which will prematurely terminate script
+fragments.  It is probably easier to restrict use of this function
+to .tcl files.
+
+.TP
+\fBns_adp_registerproc\fR \fItag\fR ?\fIendtag\fR? \fIproc\fR
+This commands register a Tcl procedure to be evaluated when the
+given tag is encountered.  The \fItag\fR argument specifies the tag
+that will trigger a call to the procedure specified by the \fIproc\fR
+argument.
+.sp
+The procedure will be called with a variable number of arguments,
+one for each of the attributes provided in the tag.  If the
+\fIendtag\fR argument is specified, the procedure will also receive
+a final argument with the contents of the text enclosed between the
+tags.  No evaluation of the content will be performed, it will be
+passed as a single text block.
+.sp
+When the procedure is invoked, its result is inserted in the output
+instead of the tag (or, if the \fIendtag\fR was specified, in place
+of the tag, end tag, and the enclosed content).
+
+.TP
+\fBns_adp_registerscript\fR \fItag\fR ?\fIendtag\fR? \fIscript\fR
+.TP
+\fBns_register_adptag\fR \fItag\fR ?\fIendtag\fR? \fIscript\fR
+These commands are identical and register a Tcl script to be evaluated
+when the given tag is encountered.  The \fItag\fR argument specifies
+the tag that will trigger evaluation of the script specified by the
+\fIscript\fR argument.
+.sp
+If the \fIendtag\fR argument is specified, then the script will be
+modified with two arguments appended:  The first will be the enclosed
+content, and the second will be the name of an ns_set with any
+attributes specified in the tag.  If no \fIendtag\fR argument is
+specified, the script will be modified with just the name of the
+ns_set appended.
+.sp
+When the script is evaluated, its result is inserted in the output
+instead of the tag (or, if the \fIendtag\fR was specified, in place
+of the tag, end tag, and the enclosed content).
+
+.SH EXAMPLES
+.PP
+The following is a simple way of handling conditional content in
+ADPs:
+
+.CS
+proc remember {input tagset} {
+	global _adp_memory
+	set tagname [ns_set iget $tagset name]
+	if {[string match "" $tagname]} {
+		set _adp_memory($tagname) $input
+		return ""
+	} else {
+		return $input
+	}
+}
+proc recall {name} {
+	global _adp_memory
+	if {[info exists _adp_memory($name)]} {
+		set parsecommand [list ns_adp_parse -string]
+		lappend parsecommand $_adp_memory($name)
+		ns_puts -nonewline [uplevel $parsecommand]
+	} else {
+		ns_log Error "[ns_adp_argv 0]: Unable to recall \"$name\""
+	}
+}
+.CE
+
+If the preceding Tcl has been executed (perhaps during server startup),
+then the following ADP fragment displays the results of a database query in
+a table, or shows "No rows in result." if there are no rows:
+
+.CS
+<%
+	set rows {}
+	set db [ns_db gethandle]
+	ns_db exec "select somecolumn from sometable"
+	set row [ns_db bindargs $db]
+	while {[ns_db getrow $db $row] > 0} {
+		lappend rows [ns_set get $row "somecolumn"]
+	}
+	ns_db releasehandle $db
+%>
+<remember name="hasrows_header">
+<table>
+</remember>
+<remember name="hasrows_rows">
+<tr>
+	<td><%=$column%></td>
+</tr>
+</remember>
+<remember name="hasrows_footer">
+</table>
+</remember>
+No rows in result.
+<remember name="norows">
+<%
+	if {[llength $rows] > 0} {
+		recall "hasrows_header"
+		foreach row $rows {
+			set column $row
+			recall "hasrows_rows"
+		}
+		recall "hasrows_footer"
+	} else {
+		recall "norows"
+	}
+%>
+.CE
+
+.PP
+The following example demonstrates the use of \fBns_adp_registertag\fR:
+
+.CS
+ns_adp_registertag printdate {
+	The current date is: <%=[ns_httptime [ns_time]]%>
+}
+.CE
+Once defined, typically in a startup script, you could simple include
+the "<printdate>" tag to append the text with current date into the
+output buffer.
+
+.SH "SEE ALSO"
+ns_adp(1), ns_adp_eval(n), ns_adp_safeeval(n), ns_adp_include(n)
+
+.SH KEYWORDS
+ADP, dynamic pages, registered tag

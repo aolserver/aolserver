@@ -1,0 +1,93 @@
+'\"
+'\" The contents of this file are subject to the AOLserver Public License
+'\" Version 1.1 (the "License"); you may not use this file except in
+'\" compliance with the License. You may obtain a copy of the License at
+'\" http://aolserver.com/.
+'\"
+'\" Software distributed under the License is distributed on an "AS IS"
+'\" basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+'\" the License for the specific language governing rights and limitations
+'\" under the License.
+'\"
+'\" The Original Code is AOLserver Code and related documentation
+'\" distributed by AOL.
+'\" 
+'\" The Initial Developer of the Original Code is America Online,
+'\" Inc. Portions created by AOL are Copyright (C) 1999 America Online,
+'\" Inc. All Rights Reserved.
+'\"
+'\" Alternatively, the contents of this file may be used under the terms
+'\" of the GNU General Public License (the "GPL"), in which case the
+'\" provisions of GPL are applicable instead of those above.  If you wish
+'\" to allow use of your version of this file only under the terms of the
+'\" GPL and not to allow others to use your version of this file under the
+'\" License, indicate your decision by deleting the provisions above and
+'\" replace them with the notice and other provisions required by the GPL.
+'\" If you do not delete the provisions above, a recipient may use your
+'\" version of this file under either the License or the GPL.
+'\" 
+'\"
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_lctl.n,v 1.1 2006/04/13 19:07:12 jgdavidson Exp $
+'\"
+'\" 
+.so man.macros
+
+.TH ns_lctl n 4.5 AOLserver "AOLserver Built-In Commands"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+ns_for, ns_foreach, ns_while, ns_lctl \- Replacements for standard Tcl loop commands which enable monitoring and control
+.SH SYNOPSIS
+.nf
+\fBns_for \fIstart test next body\fR
+\fBns_foreach \fIvarname list body\fR
+\fBns_foreach \fIvarlist1 list1\fR ?\fIvarlist2 list2 ...\fR? \fIbody\fR
+\fBns_while \fItest body\fR
+\fBns_lctl cancel \fIid\fR
+\fBns_lctl eval \fIid script\fR
+\fBns_lctl info \fIid\fR
+\fBns_lctl install \fIcommand\fR
+\fBns_lctl list\fR
+\fBns_lctl pause \fIid\fR
+\fBns_lctl result \fIid\fR
+.fi
+.BE
+.SH DESCRIPTION
+.PP
+The \fBns_for\fR, \fBns_foreach\fR, and \fBns_while\fR commands are
+replacements for cooresponding Tcl commands with the additional
+capability of monitoring and control through the \fBns_lctl\fR command.
+.TP
+\fBns_for \fIstart test next body\fR
+See the \fIfor(n)\fR man page for usage.
+.TP
+\fBns_foreach \fIstart test next body\fR
+See the \fIforeach(n)\fR man page for usage.
+.TP
+\fBns_foreach \fIvarlist1 list1\fR ?\fIvarlist2 list2 ...\fR? \fIbody\fR
+See the \fIforeach(n)\fR man page for usage.
+.TP
+\fBns_while \fItest body\fR
+See the \fIwhile(n)\fR man page for usage.
+.TP
+\fBns_lctl cancel \fIid\fR
+Mark the given loop to cancel at the next iteration, resulting in the
+loop returning with \fBTCL_ERROR\fR.
+.TP
+\fBns_lctl eval \fIid script\fR
+.TP
+\fBns_lctl info \fIid\fR
+.TP
+\fBns_lctl install \fIcommand\fR
+.TP
+\fBns_lctl list\fR
+.TP
+\fBns_lctl pause \fIid\fR
+.TP
+\fBns_lctl result \fIid\fR
+.SH "SEE ALSO"
+for(n), foreach(n), while(n)
+
+.SH KEYWORDS
+threads, iteration, list, looping, cancel
+

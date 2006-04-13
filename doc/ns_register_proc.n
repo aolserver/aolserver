@@ -1,0 +1,196 @@
+
+'\"
+'\" The contents of this file are subject to the AOLserver Public License
+'\" Version 1.1 (the "License"); you may not use this file except in
+'\" compliance with the License. You may obtain a copy of the License at
+'\" http://aolserver.com/.
+'\"
+'\" Software distributed under the License is distributed on an "AS IS"
+'\" basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+'\" the License for the specific language governing rights and limitations
+'\" under the License.
+'\"
+'\" The Original Code is AOLserver Code and related documentation
+'\" distributed by AOL.
+'\" 
+'\" The Initial Developer of the Original Code is America Online,
+'\" Inc. Portions created by AOL are Copyright (C) 1999 America Online,
+'\" Inc. All Rights Reserved.
+'\"
+'\" Alternatively, the contents of this file may be used under the terms
+'\" of the GNU General Public License (the "GPL"), in which case the
+'\" provisions of GPL are applicable instead of those above.  If you wish
+'\" to allow use of your version of this file only under the terms of the
+'\" GPL and not to allow others to use your version of this file under the
+'\" License, indicate your decision by deleting the provisions above and
+'\" replace them with the notice and other provisions required by the GPL.
+'\" If you do not delete the provisions above, a recipient may use your
+'\" version of this file under either the License or the GPL.
+'\" 
+'\"
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_register_proc.n,v 1.1 2006/04/13 19:07:12 jgdavidson Exp $
+'\"
+'\" 
+.so man.macros
+
+.TH ns_register_proc n 4.5 AOLserver "AOLserver Built-In Commands"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+ns_register_adp, ns_register_proc, ns_unregister_adp, ns_unregister_proc \- Facilities to manage mappings for HTTP requests to Tcl procedures or ADP files
+.SH SYNOPSIS
+.nf
+\fBns_register_adp\fR ?\fI-noinherit\fR? \fImethod url file\fR
+\fBns_register_proc\fR ?\fI-noinherit\fR? \fImethod url proc\fR ?\fIarg\fR?
+\fBns_unregister_adp\fR ?\fI-noinherit\fR? \fImethod url\fR
+\fBns_unregister_proc\fR ?\fI-noinherit\fR? \fImethod url\fR
+.fi
+.BE
+
+.SH DESCRIPTION
+These commands manage mappings of HTTP request to Tcl procedures
+or ADP files.  The server will invoke the given procedure or ADP
+file when the corresponding method/url combination is requested.
+
+.PP
+The \fImethod\fR is normally one of \fIGET\fR or \fIPOST\fR although
+there is no restriction as internally method is always treated
+simply as a string.  Specialized applications, for example, a WebDav
+file server, could register additional methods such as \fIPUT\fR,
+\fIDELETE\fR, or \fIBROWSE\fR.
+
+.PP
+The \fIurl\fR parameter specifies the trailing, pathname portion
+of an url, for example, \fI/myapp/search\fR.  Requests for the
+specified url or any url's with additional path elements which do
+not have more specific mappings will be handled by the given procedure
+or ADP file.  This behavior can be changed with the optional
+\fI-noinherit\fR flag in which case only exact match url's will be
+handled.
+
+.PP
+In addition, for the final pathname component, a "glob-style" pattern
+may also be specified to further restrict the match.  For example,
+\fI/myapp/*.adp\fR would handle requests for all url which start
+with \fI/myapp\fR and have a final pathname component which ends
+with the \fI.adp\fR extension.  Note that the method cannot be
+specified as a glob pattern, i.e., attempting to map "*" will map
+the single character string "*" as the method, it will not map all
+possible methods.
+
+.PP
+Calls to \fBns_register_proc\fR and \fBns_register_adp\fR are
+normally placed in server initialization scripts.  The
+\fBns_unregister_proc\fR and \fBns_unregister_adp\fR commands are
+rarely used, normally only in the context of development or debugging.
+
+.TP
+\fBns_register_adp\fR ?\fI-noinherit\fR? \fImethod url file\fR
+This command maps the given method/url combination to a specific
+ADP file.  The \fIfile\fR argument must be an absolute pathname and
+a regular file.  When the server receives a matching request, it
+will allocate a Tcl interpreter and invoke the \fBns_adp_include\fR
+command with the given file, returning the results of the output
+buffer to the client when the command returns.
+.sp
+Note it is also possible to provide mappings for ADP files in the
+config file as well although those mappings are intended to support
+mixing of ADP and static files in the server's basic page root.
+Using \fBns_register_adp\fR can provide more general mappings, not
+requiring actual ADP files to exist at the corresponding location
+in the filesystem.
+
+.TP
+\fBns_register_proc\fR ?\fI-noinherit\fR? \fImethod url proc\fR ?\fIarg\fR?
+This command maps the given method/url combination to a Tcl procedure.
+When the server receives a matching request, it allocates a Tcl
+interpreter and calls \fBTcl_Eval\fR with a script constructed of
+the procedure with zero, one, or two arguments depending on the
+arguments expected for the procedure.  If the procedure accepts no
+arguments, none are passed and the \fIarg\fR parameter to
+\fBns_register_proc\fR, if given, is ignored.  If it takes one
+argument, the procedure is passed the optional \fIarg\fR parameter
+or a null string if no argument was given.  If the procedure accepts
+two arguments, the first argument will be the "connection id"
+followed by the argument as described for the case of one argument.
+The connection id is a small string of the form "cns#" where # is
+a monotonically increasing integer value which will eventually wrap
+after the server has been running for a long time.  This id is also
+returned via the the \fBns_conn id\fR command.  This connection id
+is for information purposes only and is is otherwise useless and
+not required to be passed to any other AOLserver Tcl command.  See
+the \fBEXAMPLES\fR section for details on how various arguments are
+handled for request procedures.
+
+.TP
+\fBns_unregister_adp\fR ?\fI-noinherit\fR? \fImethod url\fR
+.TP
+\fBns_unregister_proc\fR ?\fI-noinherit\fR? \fImethod url\fR
+These commands are identical and can be used to remove any mapping
+for the given method/url.  Note that no check is made to confirm
+the given mapping exists or was in fact a Tcl procedure, ADP file,
+or some other C-level mapping created with the \fBNs_RegisterRequest\fR
+routine.  The optional \fI-noinherit\fR flag, if specified, requests
+removal of mappings previously made with the \fI-noinherit\fR flag
+with the commands above or via the \fINS_OP_NOINHERIT\fR bit set
+in a call to the \fBNs_RegisterRequest\fR routine.
+
+.SH EXAMPLES
+The following example demonstrates the use of the \fI-noinherit\fR
+flag.  Assume the following startup initializations code:
+
+.CS
+ns_register_proc -noinherit GET /foo/bar Aproc
+ns_register_proc GET /foo/bar Bproc
+ns_register_proc GET /foo/bar/hmm Cproc
+.CE
+
+In this case, \fIAproc\fR will be called when the requested URL is
+exactly \fI/foo/bar\fR while \fIBproc\fR will be called when the
+requested URL is anything below \fI/foo/bar\fR, provided there is
+not already another procedure registered to be called for that exact
+URL or for an URL with a closer match. \fICproc\fR (not Bproc) will
+be called when the requested URL is equal to or below /foo/bar/hmm.
+
+.PP
+The following example demonstrates the multiple forms of which a
+Tcl procedure can be defined:
+
+.CS
+ns_register_proc GET /zeroargs 0args myarg
+ns_register_proc GET /onearg 1arg myarg
+ns_register_proc GET /twoargs 2args myarg
+ns_register_proc GET /twoargs 2args myarg
+
+proc 0args {} {
+    ns_returnnotice 200 "no args"
+} ;# noargs
+
+proc 1arg {arg} {
+    ns_returnnotice 200 "arg: $arg"
+} ;# context
+
+proc 2args {conn arg} {
+    ns_returnnotice 200 "connid: $conn, arg: $arg"
+} ;# conncontext
+.CE
+When a request for the /twoargs URL is received, the \fI2args\fR
+procedure will be called with the value of the connection id as the
+\fIconn\fR variable and "myarg" as the value of the \fIarg\fR
+variable.
+.sp
+When the server receives a request for \fI/onearg\fR, the server
+will invoke the \fI1arg\fR procedure with just "myarg" as the value
+for the \fIarg\fR procedure variable.  The connection id, if needed,
+can be obtained with \fBns_conn id\fR.
+.sp
+Finally, when the server receives a request for \fI/zeroargs\fR,
+the \fI0args\fR procedure will be called with no options.  The
+"myarg" value passed to \fBns_register_proc\fR is ignored and the
+connection id, if needed, can be obtained with \fBns_conn id\fR.
+
+.SH "SEE ALSO"
+ns_adp(n), Ns_RegisterRequest(3), Ns_UrlSpecificGet(n), Ns_UrlSpecificSet(n)
+
+.SH KEYWORDS
+request callback, connection

@@ -1,0 +1,120 @@
+
+'\"
+'\" The contents of this file are subject to the AOLserver Public License
+'\" Version 1.1 (the "License"); you may not use this file except in
+'\" compliance with the License. You may obtain a copy of the License at
+'\" http://aolserver.com/.
+'\"
+'\" Software distributed under the License is distributed on an "AS IS"
+'\" basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+'\" the License for the specific language governing rights and limitations
+'\" under the License.
+'\"
+'\" The Original Code is AOLserver Code and related documentation
+'\" distributed by AOL.
+'\" 
+'\" The Initial Developer of the Original Code is America Online,
+'\" Inc. Portions created by AOL are Copyright (C) 1999 America Online,
+'\" Inc. All Rights Reserved.
+'\"
+'\" Alternatively, the contents of this file may be used under the terms
+'\" of the GNU General Public License (the "GPL"), in which case the
+'\" provisions of GPL are applicable instead of those above.  If you wish
+'\" to allow use of your version of this file only under the terms of the
+'\" GPL and not to allow others to use your version of this file under the
+'\" License, indicate your decision by deleting the provisions above and
+'\" replace them with the notice and other provisions required by the GPL.
+'\" If you do not delete the provisions above, a recipient may use your
+'\" version of this file under either the License or the GPL.
+'\" 
+'\"
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_adp_exception.n,v 1.1 2006/04/13 19:07:12 jgdavidson Exp $
+'\"
+'\" 
+.so man.macros
+.TH ns_adp_exception n 4.5 AOLserver "AOLserver Built-In Commands"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+ns_adp_abort, ns_adp_break, ns_adp_exception, ns_adp_return \- ADP exception handling
+.SH SYNOPSIS
+.nf
+\fBns_adp_abort\fR ?\fIresult\fR?
+\fBns_adp_break\fR ?\fIresult\fR?
+\fBns_adp_exception\fR ?\fIvarName\fR?
+\fBns_adp_return\fR ?\fIresult\fR?
+.fi
+.BE
+
+.SH DESCRIPTION
+.PP
+These commands enable early return and interrupt of an ADP execution.
+Internally, the exception routines sets a flag and return TCL_ERROR
+to begin unwinding the current Tcl call stack and return control
+to the ADP evaluation engine.  It is possible for an enclosing
+\fBcatch\fR command to catch the exception and stop Tcl from returning
+control to ADP.  The \fBns_adp_exception\fR command can be used to
+test for this condition.
+
+.TP
+\fBns_adp_abort\fR ?\fIresult\fR?
+This command stops ADP processing, raising an execution and unwinding
+the stack to the top level as an error condition.  The request
+handling code which invokes the first ADP file will normallly
+generate an error message in this case, ignoring the contents of
+the output buffer, if any.  Note that the exeception can be caught
+by a \fBcatch\fR command in script block which executes \fBns_adp_abort\fR.
+However, when that block returns control to the ADP execution engine,
+the stack will be continue to be unwound.  The optional \fIresult\fR
+argument, if present, will be used to set the Tcl interpreter result
+string.
+
+.TP
+\fBns_adp_break\fR ?\fIresult\fR?
+This command stops execution of ADP and unwinds the ADP call stack.
+Unlike \fBns_adp_abort\fR, the request handling code will generate
+a normal HTTP response with any contents of the output buffer.  The
+optional \fIresult\fR argument, if present, will be used to set the
+Tcl interpreter result string.
+
+.TP
+\fBns_adp_exception\fR ?\fIvarName\fR?
+This command returns a boolean value if an exception has been raised.
+The optional \fIvarName\fR provides the name of a variable to store
+one of \fIok\fR, \fIbreak\fR, \fIabort\fR, or \fIreturn\fR to
+indicate the type of exception raised.
+
+.TP
+\fBns_adp_return\fR ?\fIresult\fR?
+This function halts processing of the current ADP and sends any
+pending output (from ns_adp_puts or static HTML) up to the point
+where it was called to the browser. Nothing in the current ADP is
+output or executed after it is called.  The \fIreturn_value\fR, if
+specified, becomes the return value of the ADP.  Note that this
+function returns only one level up the call stack.  By contrast,
+\fBns_adp_abort\fR and \fBns_adp_break\fR will return all the way
+up the call stack.  \fBns_adp_return\fR is typically used from an
+ADP included by another ADP, to stop processing of the inner ADP
+while allowing the calling ADP to continue.  The optional \fIresult\fR
+argument, if present, will be used to set the Tcl interpreter result
+string.
+
+.SH EXAMPLE
+The following example demonstrates halting execution of the ADP
+after returning a complete response with one of the \fBns_return\fR
+style commands:
+
+.CS
+<%
+if !$authorized {
+	ns_returnunauthorized; # Send complete response.
+	ns_adp_abort; # Execution stops here.
+}
+%>.
+.CE
+
+.SH "SEE ALSO"
+ns_adp(n)
+
+.SH KEYWORDS
+ADP, dynamic pages, exception
