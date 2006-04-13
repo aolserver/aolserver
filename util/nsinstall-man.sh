@@ -1,33 +1,39 @@
 #!/bin/sh
 
 #
-# installManPage --
+# nsinstall-man.sh --
 #
-#	Install a man page, making links to all functions/commands
-#	documented in the file.  Taken from the Tcl source.
+#	Install a man or HTML page, making links to all functions/commands
+#	documented in the file.  Modified from the Tcl source.
 #
-# $Id: nsinstall-man.sh,v 1.2 2005/08/17 22:55:03 jgdavidson Exp $
+# $Id: nsinstall-man.sh,v 1.3 2006/04/13 19:06:59 jgdavidson Exp $
 #
 
-ZIP=:
+ECHO=:
+LN=ln
+RM="rm -f"
+MD="mkdir -p"
+SED=sed
+CAT=cat
+CHMOD=chmod
+MODE=0444
+GROFF=groff
+HTM=""
+
 while true; do
     case $1 in
-        -s | --symlinks  )      S="-s ";;
-        -z | --compress  )    ZIP=$2;  shift ;;
-	-e | --extension )      Z=$2;  shift ;;
-	-s | --suffix    ) SUFFIX=$2;  shift ;;
+        -v | --verbose)  	  ECHO=echo;;
+        -s | --symlinks)  	  LN="$LN -s ";;
+	-h | --html)		  HTM=".htm";;
 	*)  break ;;
     esac
     shift
 done
-if test "$#" != 2; then
-    echo "Usage: installManPages <options> file dir"
+if test "$#" -ne 2; then
+    echo "Usage: $0 <options> file dir"
     exit 1
 fi
-
 MANPAGE=$1
-DIR=$2
-test -z "$S" && S="$DIR/"
 
 # A sed script to parse the alternative names out of a man page.
 #
@@ -46,7 +52,7 @@ test -z "$S" && S="$DIR/"
 #
 # Please keep the commented version above updated if you
 # change anything to the script below.
-NAMES=`sed -n '
+NAMES=`$SED -n '
     /^\\.SH NAME/{
 	s/^.*$//
 	n
@@ -57,21 +63,34 @@ NAMES=`sed -n '
 	q
     }' $MANPAGE`
 
-SECTION=`echo $MANPAGE | sed 's/.*\(.\)$/\1/'`
-SRCDIR=`dirname $MANPAGE`
+#
+# Create or link man pages for each name.
+#
+
+SECTION=`echo $MANPAGE | $SED 's/.*\(.\)$/\1/'`
+MACROS=`dirname $MANPAGE`/man.macros
+if test -z "$HTM"
+then
+    DIR=$2/man$SECTION
+    MAN2HTM=$CAT
+else
+    DIR=$2
+    MAN2HTM="$GROFF -Thtml -man"
+fi
 FIRST=""
-/bin/mkdir -p $DIR
-for f in $NAMES; do
-    f=$f.$SECTION$SUFFIX
+$MD $DIR
+for name in $NAMES; do
+    tail=$name.$SECTION
+    file=$DIR/$tail$HTM
+    $RM $file
     if test -z "$FIRST" ; then
-	FIRST=$f
-	rm -f $DIR/$FIRST $DIR/$FIRST.*
-	sed -e "/man\.macros/r $SRCDIR/man.macros" -e "/man\.macros/d" \
-	    $MANPAGE > $DIR/$FIRST
-	chmod 444 $DIR/$FIRST
-	$ZIP $DIR/$FIRST
+	FIRST=$file
+	$SED -e "/man\.macros/r $MACROS" -e "/man\.macros/d" $MANPAGE | \
+		$MAN2HTM > $file
+	$CHMOD $MODE $file
+    	$ECHO "created: $file ($MODE)"
     else
-	rm -f $DIR/$f $DIR/$f.*
-	ln $S$FIRST$Z $DIR/$f$Z
+	$LN $FIRST $file
+    	$ECHO "linked: $file"
     fi
 done
