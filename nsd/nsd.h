@@ -456,7 +456,7 @@ typedef struct Conn {
     struct NsServer *servPtr;
     struct Driver *drvPtr;
 
-    int          id;
+    unsigned int id;
     char	 idstr[16];
     struct {
         Ns_Time  accept;
@@ -674,16 +674,43 @@ typedef struct NsServer {
      * The following struct maintains the core Tcl config.
      */
 
-    struct {         
-	char	           *library;
-	struct TclTrace    *firstTracePtr;
+    struct {
+	/*
+	 * The following is the bootstrap script, normally bin/init.tcl.
+	 */
+
 	char	    	   *initfile;
-	Ns_RWLock	    lock;
-	char		   *script;
+
+	/*
+	 * The following support the loop control facilities.
+	 */
+
+	Tcl_HashTable loops;
+	Ns_Mutex      llock;
+	Ns_Cond	      lcond;
+
+	/*
+	 * The following support traces and one-time inits.
+	 */
+
+	Ns_RWLock	    tlock;	/* Lock for trace list. */
+	struct TclTrace    *firstTracePtr;
+	struct TclTrace    *lastTracePtr;
+	Ns_Cs		    olock;	/* Lock for one-time inits. */
+	Tcl_HashTable	    once;	/* Table of one-time inits. */
+	Ns_Mutex	    plock;	/* Lock for package table. */
+	Tcl_HashTable	    packages;	/* Table of server packages. */
+
+	/*
+	 * The following support the legacy module directories config.
+	 */
+
+	char	           *library;	/* Legacy library. */
+	char		   *script;	/* Legacy init script. */
 	int		    length;
 	int		    epoch;
-	bool		    oldhttp;
-	Tcl_DString	    modules;
+	Ns_RWLock	    slock;	/* Lock for init script. */
+	Tcl_DString	    modules;	/* List of server modules. */
     } tcl;
 
     /*
@@ -763,12 +790,11 @@ typedef struct NsServer {
  */
 
 typedef struct NsInterp {
-
-    struct NsInterp	  *nextPtr;
-    Tcl_Interp		  *interp;
-    NsServer  	    	  *servPtr;
-    int		   	   delete;
-    int			   epoch;
+    struct NsInterp	  *nextPtr;	/* Next interps for given server. */
+    Tcl_Interp		  *interp;	/* Pointer to cooresponding interp. */
+    NsServer  	    	  *servPtr;	/* Pointer to interp server. */
+    int		   	   delete;	/* Delete interp on next deallocate. */
+    int			   epoch;	/* Epoch of legacy config. */
 
     /*
      * The following pointer maintains the first in

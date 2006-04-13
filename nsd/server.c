@@ -33,7 +33,7 @@
  *	Routines for managing NsServer structures.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.44 2005/08/23 22:05:04 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.45 2006/04/13 19:06:32 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -333,9 +333,18 @@ CreateServer(char *server)
      * Initialize Tcl module config support.
      */
      
-    path = Ns_ConfigGetPath(server, NULL, "tcl", NULL);
+    Ns_MutexInit(&servPtr->tcl.llock);
+    Ns_CondInit(&servPtr->tcl.lcond);
+    Ns_RWLockInit(&servPtr->tcl.tlock);
+    Ns_CsInit(&servPtr->tcl.olock);
+    Ns_MutexInit(&servPtr->tcl.plock);
+    Ns_RWLockInit(&servPtr->tcl.slock);
+    Tcl_InitHashTable(&servPtr->tcl.packages, TCL_STRING_KEYS);
+    Tcl_InitHashTable(&servPtr->tcl.once, TCL_STRING_KEYS);
+    Tcl_InitHashTable(&servPtr->tcl.loops, TCL_ONE_WORD_KEYS);
     Tcl_DStringInit(&servPtr->tcl.modules);
-    Ns_RWLockInit(&servPtr->tcl.lock);
+
+    path = Ns_ConfigGetPath(server, NULL, "tcl", NULL);
     servPtr->tcl.library = Ns_ConfigGetValue(path, "library");
     if (servPtr->tcl.library == NULL) {
 	Ns_ModulePath(&ds, server, "tcl", NULL);
