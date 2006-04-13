@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/Makefile,v 1.61 2005/08/24 14:07:21 shmooved Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/Makefile,v 1.62 2006/04/13 19:05:22 jgdavidson Exp $
 #
 #
 
@@ -43,15 +43,20 @@ build:
 clean:
 	$(MAKEALL) clean $(dirs)
 
-install:
+install: install-tcl
 	$(MAKEALL) install $(dirs)
 	$(INST) -d $(AOLSERVER)/log
 	$(INST) -d $(AOLSERVER) examples/config/base.tcl
 	$(INST) -d $(AOLSERVER)/servers/server1/pages -n index.adp
-	$(INST) -d $(AOLSERVER)/modules/tcl tcl/*.tcl
 	$(INST) -d $(INSTBIN) util/*.tcl
 	$(INST) -d $(INSTBIN) -e util/nsinstall-man.sh
 	$(INST) -d $(INSTINC) include/ns.mak include/*.c include/*.h
+
+install-tcl:
+	$(INST) -d $(AOLSERVER)/modules/tcl tcl/*.tcl
+
+install-docs:
+	$(MAKEALL) install doc
 
 distclean: clean
 	$(RM) include/ns.mak include/ns.bak \
