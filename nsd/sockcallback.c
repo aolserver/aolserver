@@ -34,7 +34,7 @@
  *	Support for the socket callback thread.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sockcallback.c,v 1.16 2005/07/18 23:32:12 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/sockcallback.c,v 1.17 2006/04/13 19:06:41 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -385,12 +385,7 @@ SockCallbackThread(void *ignored)
 	    break;
 	}
 	pfds[0].revents = 0;
-	do {
-	    n = poll(pfds, (size_t)nfds, -1);
-	} while (n < 0 && errno == EINTR);
-	if (n < 0) {
-	    Ns_Fatal("poll() failed: %s", strerror(errno));
-	}
+	n = NsPoll(pfds, (size_t) nfds, NULL);
 	if ((pfds[0].revents & POLLIN) && recv(trigPipe[0], &c, 1, 0) != 1) {
 	    Ns_Fatal("trigger read() failed: %s", strerror(errno));
 	}
