@@ -1,6 +1,11 @@
 2006-04-13  Jim Davidson <jgdavidson@aol.com>
 
-	* Makefile:  Added install-tcl and install-docs directives.
+	* include/Makefile.global:
+	* include/Makefile.module: Backwards compatible makefiles
+	which map variables and include the new ns.mak.
+
+	* Makefile:  Added install-tcl, install-skel, install-util,
+	install-bins, and install-docs directives.
 
 	* configure:
 	* configure.in:  Uses CC var on OS/X which can be set for
