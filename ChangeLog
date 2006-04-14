@@ -1,3 +1,7 @@
+2006-04-14  Nathan Folkman <nathan.folkman@gmail.com>
+
+        * nsthread/reentrant.c: Updated ns_inet_ntoa() to be 64-bit safe.
+
 2006-04-13  Jim Davidson <jgdavidson@aol.com>
 
 	* include/Makefile.global:
