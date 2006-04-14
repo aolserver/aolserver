@@ -35,7 +35,7 @@
  *	data buffers.  See the corresponding manual page for details.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/reentrant.c,v 1.2 2003/01/18 19:56:30 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsthread/reentrant.c,v 1.3 2006/04/14 15:45:51 shmooved Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "thread.h"
 
@@ -73,11 +73,11 @@ ns_inet_ntoa(struct in_addr addr)
 {
     Tls *tlsPtr = GetTls();
     union {
-    	unsigned long l;
+    	unsigned int i;
     	unsigned char b[4];
     } u;
     
-    u.l = (unsigned long) addr.s_addr;
+    u.i = (unsigned int) addr.s_addr;
     sprintf(tlsPtr->nabuf, "%u.%u.%u.%u", u.b[0], u.b[1], u.b[2], u.b[3]);
     return tlsPtr->nabuf;
 }
