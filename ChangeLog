@@ -1,3 +1,65 @@
+2006-04-19  Jim Davidson <jgdavidson@aol.com>
+
+	* configure:
+	* configure.in: Removed check for zlib now loadable by
+	nszlib module.
+
+	* doc/Ns_Conn.3:
+	* doc/Ns_ConnClose.3 (new file):
+	* doc/Ns_ConnContent.3:
+	* doc/Ns_ConnCopy.3:
+	* doc/Ns_ConnDriver.3:
+	* doc/Ns_ConnFlush.3 (new file):
+	* doc/Ns_ConnHeaders.3 (removed):
+	* doc/Ns_ConnQuery.3:
+	* doc/Ns_ConnQueueHeaders.3 (new file):
+	* doc/Ns_ConnRead.3:
+	* doc/Ns_ConnRedirect.3 (new file):
+	* doc/Ns_ConnReturn.3:
+	* doc/Ns_ConnReturnData.3 (new file):
+	* doc/Ns_ConnReturnFile.3 (new file):
+	* doc/Ns_ConnReturnOpen.3 (new file):
+	* doc/Ns_ConnReturnStatus.3 (new file):
+	* doc/Ns_ConnSend.3:
+	* doc/Ns_ConnSetHeaders.3 (new file):
+	* doc/Ns_ConnStatus.3 (new file):
+	* doc/Ns_ConnType.3 (new file):
+	* doc/Ns_ConnWrite.3 (removed):
+	* doc/Ns_Gzip.3 (new file):
+	* doc/Ns_Info.3:
+	* doc/Ns_Pathname.3:  Update various man pages.
+
+	* include/ns.h: Added Ns_Gzip, Ns_SetGzipProc, and Ns_BinPath.
+
+	* nsd/compress.c: Changed from Ns_Compress to Ns_Gzip and
+	moved code to new nszlib module.
+
+	* nsd/connio.c: Updated to call Ns_Gzip, added Ns_ConnFlushDirect,
+	and fixed bug reading final line in Ns_ConnReadLine.
+
+	* nsd/fastpath.c: Fixed bug with mapped content.
+
+	* nsd/modload.c: Removed legacy pre-10.4 OS/X module loading
+	code as dlopen, etc. is now supported.
+
+	* nsd/pathname.c: Added Ns_BinPath.
+
+	* nsd/return.c: Now uses Ns_ConnFlushDirect in ReturnData
+	and changed Ns_ConnReturnHtml to call Ns_ConnReturnCharData
+	to ensure text is encoded as needed.
+
+	* nszlib/ChangeLog (new file):
+	* nszlib/Makefile (new file):
+	* nszlib/README (new file):
+	* nszlib/example.tcl (new file):
+	* nszlib/ns_zlib.n (new file):
+	* nszlib/nszlib.c (new file):
+	* nszlib/nszlib.h (new file):  New zlib extension for
+	AOLserver 4.5.  Provides both the "ns_zlib" command and
+	enables the Ns_Gzip routine.  Based on work by Vlad Seryakov
+	<vlad@crystalballinc.com>.
+
+
 2006-04-14  Nathan Folkman <nathan.folkman@gmail.com>
 
         * nsthread/reentrant.c: Updated ns_inet_ntoa() to be 64-bit safe.
@@ -3937,4 +3999,3 @@
 2000-04-12  Kris Rehberg 
 
 	*** AOLserver 3.0 FINAL Released ***
-	
