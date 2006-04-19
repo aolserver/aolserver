@@ -48,6 +48,13 @@
 	and changed Ns_ConnReturnHtml to call Ns_ConnReturnCharData
 	to ensure text is encoded as needed.
 
+	* nproxy/Makefile (new file):
+	* nsproxy/nsproxy.c (new file):
+	* nsproxy/nsproxy.h (new file):
+	* nsproxy/nsproxylib.c (new file):
+	* nsproxy/nsproxymod.c (new file):  New AOLserver/Tcl
+	pipe-based proxy support.
+
 	* nszlib/ChangeLog (new file):
 	* nszlib/Makefile (new file):
 	* nszlib/README (new file):
