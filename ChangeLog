@@ -1,3 +1,9 @@
+2006-04-19  Nathan Folkman <nathan.folkman@gmail.com>
+
+        * include/ns.mak.in: Fixed to better support building 64-bit
+        on Mac OS X. Assuming Tcl is built with 64-bit extensions
+        enabled, it is no longer necessary to explicitly set CC.
+
 2006-04-19  Jim Davidson <jgdavidson@aol.com>
 
 	* configure:
