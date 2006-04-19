@@ -5,7 +5,7 @@
         enabled, it is no longer necessary to explicitly set CC.
 
         * nszlib/Makefile: Added optional ZLIB environment variable
-        to allow user to define location of libz. Default is /usr/local.
+        to allow user to define location of libz. Default is /usr/lib.
 
 2006-04-19  Jim Davidson <jgdavidson@aol.com>
 
