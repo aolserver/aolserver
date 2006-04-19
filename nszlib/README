@@ -1,0 +1,63 @@
+ZLib Module for AOLserver 4.5
+Release 2.0
+
+This is AOLserver module that implements Zlib interface.  Allows
+compressing/uncompressing Tcl strings, gzip file support, and
+support for the Ns_Gzip AOLserver routine.
+
+
+Compiling and Installing:
+
+	To compile this driver, you'll need to have zlib library
+	compiled and installed.  Zlib is installed by default on
+	OS/X and can be easily added for Linux and FreeBSD (e.g.,
+	the zlib-devel package).
+
+	The makefile will produce both a dynamic library and an
+	AOLserver module.
+
+
+libnszlib:
+
+	The library includes an implementation of an "ns_zlib"
+	command to provide compression capabilities to a Tcl
+	interpreter.  It can be used with the "load" command, e.g.,
+	"load libnszlib.so".  The library depends on AOLserver
+	libnsd and Zlib libzlib libraries so they need to found in
+	the dynamic linker path as well.
+
+
+nszlib.so:
+
+	The AOLserver module, "nszlib.so", includes a call to both
+	add the "ns_zlib" command to all interpreters for the virutal
+	server and also installs an "Ns_GzipProc" so that the
+	"Ns_Gzip" function can be used to compress content, e.g.,
+	at the end of an ADP request.  See the Ns_Gzip(3) man page
+	for details.
+
+
+ns_zlib command:
+
+    	ns_zlib compress data
+		Returns compressed string
+
+    	ns_zlib uncompress data
+		Uncompresses previously compressed string
+
+    	ns_zlib gzip data
+		Returns compressed string in gzip format, string
+		can be saved in a file with extension .gz and gzip
+		will be able to uncompress it
+
+    	ns_zlib gzipfile file
+		Compresses the specified file, creating a file with
+		the same name but a .gz suffix appened
+
+    	ns_zlib gunzip file
+ 		Uncompresses gzip file and returns text
+
+Authors:
+
+	Vlad Seryakov vlad@crystalballinc.com
+	Jim Davidson jgdavidson@aol.com

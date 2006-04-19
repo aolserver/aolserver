@@ -1,0 +1,12 @@
+2006-04-19 Jim Davidson jgdavidson@aol.com
+
+	Updated to be the core Zlib extension for AOLserver including
+	support for Ns_Gzip via the Ns_GzipSetProc call.
+
+2004-04-02 Vlad Seryakov vlad@crystalballinc.com
+
+        * memory leak and Ns_ZlibCompress/Uncompress functions
+
+2003-11-02 Vlad Seryakov vlad@crystalballinc.com
+
+        * added gzipfile command as suggested by mbryzek@fastmail.fm
