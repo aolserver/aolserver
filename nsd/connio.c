@@ -34,7 +34,7 @@
  *      Handle connection I/O.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/connio.c,v 1.26 2006/04/13 19:06:19 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/connio.c,v 1.27 2006/04/19 17:48:43 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #define IOBUFSZ 2048
@@ -112,18 +112,15 @@ Ns_ConnClose(Ns_Conn *conn)
  *
  * Ns_ConnFlush --
  *
- *	Flush the headers and/or response content.  This is a bit of a
- * 	candy machine interface in that it handles the normal case of
- *	a single flush at the end of the connection plus the cases
- *	of streaming on buffer overflow or a forced flush.
+ *	Flush the headers and/or response content, handling character
+ *	encoding and/or gzip compression if necessary.
  *
  * Results:
  *	NS_ERROR if a connection write routine failed, NS_OK otherwise.
  *
  * Side effects:
- *  	Headers will be flushed on first write and Content may be
- *	encoded and/or gzip'ed. Output will be chunked if streaming
- *	to an HTTP version 1.1 or greater client.
+ *  	Content may be encoded and/or gzip'ed before calling
+ *	Ns_ConnFlushDirect.
  *
  *----------------------------------------------------------------------
  */
@@ -135,11 +132,9 @@ Ns_ConnFlush(Ns_Conn *conn, char *buf, int len, int stream)
     NsServer *servPtr = connPtr->servPtr;
     Tcl_Encoding encoding;
     Tcl_DString  enc, gzip;
-    struct iovec iov[4];
-    int i, nwrote, towrite, hlen, ioc, gzh;
-    char *ahdr, hdr[100];
+    char *ahdr;
+    int status;
 
-    gzh = 0;
     Tcl_DStringInit(&enc);
     Tcl_DStringInit(&gzip);
     if (len < 0) {
@@ -168,11 +163,47 @@ Ns_ConnFlush(Ns_Conn *conn, char *buf, int len, int stream)
 	    && (len > (int) servPtr->opts.gzipmin)
 	    && (ahdr = Ns_SetIGet(conn->headers, "Accept-Encoding")) != NULL
 	    && strstr(ahdr, "gzip") != NULL
-	    && Ns_Compress(buf, len, &gzip, servPtr->opts.gziplevel) == NS_OK) {
+	    && Ns_Gzip(buf, len, servPtr->opts.gziplevel, &gzip) == NS_OK) {
 	buf = gzip.string;
 	len = gzip.length;
-	gzh = 1;
+	Ns_ConnCondSetHeaders(conn, "Content-Encoding", "gzip");
     }
+
+    /*
+     * Flush content.
+     */
+
+    status = Ns_ConnFlushDirect(conn, buf, len, stream);
+    Tcl_DStringFree(&enc);
+    Tcl_DStringFree(&gzip);
+    return status;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_ConnFlushDirect --
+ *
+ *	Flush the headers and/or response content either as a single
+ *	response or in stream/chunked mode.
+ *
+ * Results:
+ *	NS_ERROR if a connection write routine failed, NS_OK otherwise.
+ *
+ * Side effects:
+ *  	Headers will be flushed on first write.  Output will be
+ *	chunked if streaming to an HTTP version 1.1 or greater client.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Ns_ConnFlushDirect(Ns_Conn *conn, char *buf, int len, int stream)
+{
+    struct iovec iov[4];
+    int i, nwrote, towrite, hlen, ioc;
+    char hdr[100];
 
     /*
      * Queue headers if not already sent.
@@ -190,9 +221,6 @@ Ns_ConnFlush(Ns_Conn *conn, char *buf, int len, int stream)
 	Ns_ConnSetRequiredHeaders(conn, Ns_ConnGetType(conn), hlen);
 	if (conn->flags & NS_CONN_CHUNK) {
 	    Ns_ConnCondSetHeaders(conn, "Transfer-Encoding", "chunked");
-	}
-	if (gzh) {
-	    Ns_ConnCondSetHeaders(conn, "Content-Encoding", "gzip");
 	}
 	Ns_ConnQueueHeaders(conn, Ns_ConnGetStatus(conn));
     }
@@ -244,8 +272,6 @@ Ns_ConnFlush(Ns_Conn *conn, char *buf, int len, int stream)
      */
 
     nwrote = Ns_ConnSend(conn, iov, ioc);
-    Tcl_DStringFree(&enc);
-    Tcl_DStringFree(&gzip);
     if (nwrote != towrite) {
     	return NS_ERROR;
     }
@@ -670,9 +696,15 @@ Ns_ConnReadLine(Ns_Conn *conn, Ns_DString *dsPtr, int *nreadPtr)
     char           *eol, *next;
     int             nread, ncopy, avail;
 
-    if (NsConnContent(conn, &next, &avail) == NULL
-	|| (eol = memchr(next, '\n', avail)) == NULL
-        || (nread = (eol - next)) > drvPtr->maxline) {
+    if (NsConnContent(conn, &next, &avail) == NULL) {
+	return NS_ERROR;
+    }
+    eol = memchr(next, '\n', avail);
+    if (eol == NULL) {
+	eol = next + avail;
+    }
+    nread = eol - next;
+    if (nread > drvPtr->maxline) {
 	return NS_ERROR;
     }
     ncopy = nread;
