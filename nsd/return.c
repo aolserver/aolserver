@@ -34,7 +34,7 @@
  *	Functions that return data to a browser. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.48 2005/10/07 00:48:23 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.49 2006/04/19 17:49:01 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -46,7 +46,7 @@ static int ReturnRedirect(Ns_Conn *conn, int status, int *resultPtr);
 static int ReturnOpen(Ns_Conn *conn, int status, char *type, Tcl_Channel chan,
 		      FILE *fp, int fd, off_t off, int len);
 static int ReturnData(Ns_Conn *conn, int status, char *data, int len,
-                          char *type, int sendRaw);
+                          char *type, int direct);
 static int HdrEq(Ns_Set *hdrs, char *key, char *value);
 static int CheckKeep(Ns_Conn *conn, int status);
 
@@ -639,7 +639,7 @@ Ns_ConnReturnAdminNotice(Ns_Conn *conn, int status, char *title, char *notice)
  *	Return a short notice to a client. 
  *
  * Results:
- *	See Ns_ReturnHtml. 
+ *	See Ns_ConnReturnHtml. 
  *
  * Side effects:
  *	None.
@@ -750,7 +750,8 @@ Ns_ConnReturnCharData(Ns_Conn *conn, int status, char *data, int len, char *type
  * ReturnData --
  *
  *	Sets required headers, dumps them, and then writes your data. 
- *      If raw is true, disable character encoding.
+ *      If direct is true, calls Ns_ConnFlushDirect which bypasses
+ *	character encoding and/or gzip compression.
  *
  * Results:
  *	NS_OK/NS_ERROR
@@ -762,12 +763,13 @@ Ns_ConnReturnCharData(Ns_Conn *conn, int status, char *data, int len, char *type
  */
 
 static int
-ReturnData(Ns_Conn *conn, int status, char *data, int len, char *type, int raw)
+ReturnData(Ns_Conn *conn, int status, char *data, int len, char *type,
+	   int direct)
 {
     Ns_ConnSetStatus(conn, status);
     Ns_ConnSetType(conn, type);
-    if (raw) {
-	Ns_ConnSetEncoding(conn, NULL);
+    if (direct) {
+    	return Ns_ConnFlushDirect(conn, data, len, 0);
     }
     return Ns_ConnFlush(conn, data, len, 0);
 }
@@ -792,7 +794,7 @@ ReturnData(Ns_Conn *conn, int status, char *data, int len, char *type, int raw)
 int
 Ns_ConnReturnHtml(Ns_Conn *conn, int status, char *html, int len)
 {
-    return Ns_ConnReturnData(conn, status, html, len, "text/html");
+    return Ns_ConnReturnCharData(conn, status, html, len, "text/html");
 }
 
 
