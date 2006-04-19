@@ -34,7 +34,7 @@
  *	Functions that manipulate or return paths. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/pathname.c,v 1.13 2003/02/04 23:10:48 jrasmuss23 Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/pathname.c,v 1.14 2006/04/19 17:48:57 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -222,11 +222,42 @@ Ns_LibPath(Ns_DString *dest, ...)
     va_list  ap;
     char    *path;
 
-    Ns_MakePath(dest, Ns_InfoHomePath(), "lib", NULL);
+    Ns_HomePath(dest, "lib", NULL);
     va_start(ap, dest);
     path = MakePath(dest, &ap);
     va_end(ap);
+    return path;
+}
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_BinPath --
+ *
+ *	Returns the path where AOLserver binaries exist, with 
+ *	varargs appended to it with slashes between each, stopping at 
+ *	null arg. 
+ *
+ * Results:
+ *	dest->string
+ *
+ * Side effects:
+ *	Appends to dest. 
+ *
+ *----------------------------------------------------------------------
+ */
+
+char *
+Ns_BinPath(Ns_DString *dest, ...)
+{
+    va_list  ap;
+    char    *path;
+
+    Ns_HomePath(dest, "bin", NULL);
+    va_start(ap, dest);
+    path = MakePath(dest, &ap);
+    va_end(ap);
     return path;
 }
 
@@ -257,7 +288,6 @@ Ns_HomePath(Ns_DString *dest, ...)
     va_start(ap, dest);
     path = MakePath(dest, &ap);
     va_end(ap);
-
     return path;
 }
 
@@ -286,7 +316,7 @@ Ns_ModulePath(Ns_DString *dest, char *server, char *module, ...)
     va_list         ap;
     char           *path;
 
-    Ns_MakePath(dest, Ns_InfoHomePath(), NULL);
+    Ns_HomePath(dest, NULL);
     if (server != NULL) {
        Ns_MakePath(dest, "servers", server, NULL);
     }
