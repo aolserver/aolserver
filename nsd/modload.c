@@ -34,15 +34,12 @@
  *	Load .so files into the server and initialize them. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/modload.c,v 1.16 2003/04/16 20:20:21 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/modload.c,v 1.17 2006/04/19 17:48:52 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
 #if defined(USE_DLSHL)
 #include <dl.h>
-#elif defined(USE_DYLD)
-#include <mach-o/dyld.h>
-static char *dylderr = "";
 #elif !defined(_WIN32)
 #include <dlfcn.h>
 #ifdef USE_RTLD_LAZY
@@ -386,50 +383,7 @@ NsLoadModules(char *server)
 static void *
 DlOpen(char *file)
 {
-#if defined(USE_DYLD)
-    int retry;
-    NSObjectFileImage image;
-    NSModule module;
-    NSObjectFileImageReturnCode	err;
-
-    module = NULL;
-    retry  = 0;
-
-    err = NSCreateObjectFileImageFromFile(file, &image);
-    switch (err) {
-	case NSObjectFileImageSuccess:
-        module = NSLinkModule(image, file, TRUE);
-	    break;
-	case NSObjectFileImageInappropriateFile:
-	    dylderr = "Inappropriate Mach-O file";
-	    retry   = 1;
-	    break;
-	case NSObjectFileImageArch:
-	    dylderr = "Inappropriate Mach-O architecture";
-	    break;
-	case NSObjectFileImageFormat:
-	    dylderr = "Invalid Mach-O file format";
-	    retry   = 1;
-	    break;
-	case NSObjectFileImageAccess:
-	    dylderr = "Permission denied";
-	    break;
-	default:
-	    dylderr = "Unknown error";
-	    break;
-    }
-    if (retry) {
-
-	/*
- 	 * Fallback to open shared library.
-	 */
-
-	module = (void *)NSAddImage(file,
-	        NSADDIMAGE_OPTION_WITH_SEARCHING |
-	        NSADDIMAGE_OPTION_RETURN_ON_ERROR);
-    }
-    return (void *) module;
-#elif defined(_WIN32)
+#if defined(_WIN32)
     return (void *) LoadLibrary(file);
 #elif defined(USE_DLSHL)
     return (void *) shl_load(file, BIND_VERBOSE|BIND_IMMEDIATE|BIND_RESTRICTED, 0);
@@ -489,21 +443,6 @@ DlSym2(void *handle, char *name)
     }
 #elif defined(_WIN32)
     symbol =  (void *) GetProcAddress((HMODULE) handle, name);
-#elif (USE_DYLD)
-    symbol = (void *) NSLookupSymbolInModule(handle, name);
-    if (symbol == NULL) {
-        
-        /*
-         * Fallback to get symbol from shared library
-         */
-
-        symbol = (void *) NSLookupSymbolInImage(handle, name,
-                NSLOOKUPSYMBOLINIMAGE_OPTION_BIND_NOW |
-                NSLOOKUPSYMBOLINIMAGE_OPTION_RETURN_ON_ERROR);
-    }
-    if (symbol != NULL) {
-    	symbol = (void *) NSAddressOfSymbol(symbol);
-    }
 #else
     symbol = dlsym(handle, name);
 #endif
@@ -534,8 +473,6 @@ DlError(void)
     return strerror(errno);
 #elif defined(_WIN32)
     return NsWin32ErrMsg(GetLastError());
-#elif defined(USE_DYLD)
-    return dylderr;
 #else
     return (char *) dlerror();
 #endif
