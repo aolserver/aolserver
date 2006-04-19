@@ -33,7 +33,7 @@
  *      All the public types and function declarations for the core
  *	AOLserver.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.83 2005/08/23 22:05:04 jgdavidson Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.84 2006/04/19 17:52:18 jgdavidson Exp $
  */
 
 #ifndef NS_H
@@ -319,8 +319,9 @@ typedef int   (Ns_RequestAuthorizeProc) (char *server, char *method,
 typedef void  (Ns_AdpParserProc)(Ns_DString *outPtr, char *page);
 typedef int   (Ns_UserAuthorizeProc) (char *user, char *passwd);
 typedef int   (Ns_LogFlushProc) (char *msg, size_t len);
-typedef int   (Ns_LogProc) (Ns_DString *dsPtr, Ns_LogSeverity severity, char * fmt, va_list ap);
-
+typedef int   (Ns_LogProc) (Ns_DString *dsPtr, Ns_LogSeverity severity,
+			    char * fmt, va_list ap);
+typedef int   (Ns_GzipProc)(char *buf, int len, int level, Tcl_DString *dsPtr);
 
 /*
  * The field of a key-value data structure.
@@ -590,7 +591,8 @@ NS_EXTERN void Ns_ClsSet(Ns_Cls *clsPtr, Ns_Conn *conn, void *data);
  * compress.c:
  */
 
-NS_EXTERN int Ns_Compress(char *buf, int len, Tcl_DString *outPtr, int level);
+NS_EXTERN void Ns_SetGzipProc(Ns_GzipProc *procPtr);
+NS_EXTERN int Ns_Gzip(char *buf, int len, int level, Tcl_DString *dsPtr);
 
 /*
  * config.c:
@@ -616,6 +618,7 @@ NS_EXTERN int Ns_ConnId(Ns_Conn *connPtr);
 NS_EXTERN int Ns_ConnRead(Ns_Conn *conn, void *vbuf, int toread);
 NS_EXTERN int Ns_ConnWrite(Ns_Conn *conn, void *buf, int towrite);
 NS_EXTERN int Ns_ConnFlush(Ns_Conn *conn, char *buf, int len, int stream);
+NS_EXTERN int Ns_ConnFlushDirect(Ns_Conn *conn, char *buf, int len, int stream);
 NS_EXTERN int Ns_ConnContentFd(Ns_Conn *conn);
 NS_EXTERN int Ns_ConnContentOnDisk(Ns_Conn *conn);
 NS_EXTERN int Ns_ConnReadLine(Ns_Conn *conn, Ns_DString *dsPtr, int *nreadPtr);
@@ -966,11 +969,13 @@ NS_EXTERN int Ns_ConnRedirect(Ns_Conn *conn, char *url);
  */
 
 NS_EXTERN int Ns_PathIsAbsolute(char *path);
-NS_EXTERN char *Ns_NormalizePath(Ns_DString *dsPtr, char *path);
-NS_EXTERN char *Ns_MakePath(Ns_DString *dsPtr, ...);
-NS_EXTERN char *Ns_LibPath(Ns_DString *dsPtr, ...);
 NS_EXTERN char *Ns_HomePath(Ns_DString *dsPtr, ...);
-NS_EXTERN char *Ns_ModulePath(Ns_DString *dsPtr, char *server, char *module, ...);
+NS_EXTERN char *Ns_LibPath(Ns_DString *dsPtr, ...);
+NS_EXTERN char *Ns_BinPath(Ns_DString *dsPtr, ...);
+NS_EXTERN char *Ns_ModulePath(Ns_DString *dsPtr, char *server,
+			      char *module, ...);
+NS_EXTERN char *Ns_MakePath(Ns_DString *dsPtr, ...);
+NS_EXTERN char *Ns_NormalizePath(Ns_DString *dsPtr, char *path);
 
 /*
  * proc.c:
