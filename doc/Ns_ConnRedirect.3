@@ -1,0 +1,100 @@
+
+'\"
+'\" The contents of this file are subject to the AOLserver Public License
+'\" Version 1.1 (the "License"); you may not use this file except in
+'\" compliance with the License. You may obtain a copy of the License at
+'\" http://aolserver.com/.
+'\"
+'\" Software distributed under the License is distributed on an "AS IS"
+'\" basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+'\" the License for the specific language governing rights and limitations
+'\" under the License.
+'\"
+'\" The Original Code is AOLserver Code and related documentation
+'\" distributed by AOL.
+'\" 
+'\" The Initial Developer of the Original Code is America Online,
+'\" Inc. Portions created by AOL are Copyright (C) 1999 America Online,
+'\" Inc. All Rights Reserved.
+'\"
+'\" Alternatively, the contents of this file may be used under the terms
+'\" of the GNU General Public License (the "GPL"), in which case the
+'\" provisions of GPL are applicable instead of those above.  If you wish
+'\" to allow use of your version of this file only under the terms of the
+'\" GPL and not to allow others to use your version of this file under the
+'\" License, indicate your decision by deleting the provisions above and
+'\" replace them with the notice and other provisions required by the GPL.
+'\" If you do not delete the provisions above, a recipient may use your
+'\" version of this file under either the License or the GPL.
+'\" 
+'\"
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_ConnRedirect.3,v 1.1 2006/04/19 17:37:30 jgdavidson Exp $
+'\"
+'\" 
+.so man.macros
+
+.TH Ns_ConnReturn 3 4.0 AOLserver "AOLserver Library Procedures"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+Ns_ConnRedirect \- Internally redirect a request to a new local url
+.SH SYNOPSIS
+.nf
+\fB#include "ns.h"\fR
+.sp
+int
+\fBNs_ConnRedirect\fR(\fIconn, url\fR)
+.SH ARGUMENTS
+.AS Ns_Conn conn in
+.AP Ns_Conn conn in
+Pointer to open connection.
+.AP char *url in
+Pointer to string of local url.
+.BE
+
+.SH DESCRIPTION
+.PP
+This routine can be used to internally redirect to a new, local url
+on the server.  The \fIurl\fR paramter specifies a path relative
+to the server, i.e., without the leading "http://host:port" portion.
+The server will reset the Ns_Request structure in the open connection
+pointed to by \fIconn\fR and restart connection handling, including
+authorization checks.  The result is a standard AOLserver request
+procedure result code, either from an underlying call to
+\fBNs_ConnRunRequest\fR or the result of one of the authorization
+response routines such as \fBNs_ConnReturnForbidden\fR.  Filter
+callbacks, if any, are not run again with the updated connection.
+
+.PP
+The \fBNs_ConnRedirect\fR routine is used internally in the server
+to support the basic file serving code (i.e., "fastpath") to redirect
+to specific files when a directory is opened and by the
+\fBNs_RegisterRedirect\fR routine to map standard reponse routines
+to user-provided local url's.
+
+.SH EXAMPLE
+.PP
+The following example demonstrates redirecting to an ADP help page
+within a custom C-level request callback whenever a ?help=topic
+query argument is present:
+
+.CS
+	int
+	MyRequest(void *arg, Ns_Conn *conn)
+	{
+		Ns_Set *query = Ns_ConnGetQuery(conn);
+
+		/* Redirect to help.adp for /myrequest?help=topic calls. */
+		if (Ns_SetGet(query, "help")) != NULL) {
+			return Ns_ConnReturnRedirect(conn, "/help.adp");
+		}
+		...  handle non-help requests ...
+	}
+
+.CE
+
+.SH "SEE ALSO"
+Ns_RegisterRedirct(3), Ns_ConnRunRequest(3), Ns_AuthorizeRequest(3)
+
+.SH KEYWORDS
+connection, redirect

@@ -1,0 +1,124 @@
+'\"
+'\" The contents of this file are subject to the AOLserver Public License
+'\" Version 1.1 (the "License"); you may not use this file except in
+'\" compliance with the License. You may obtain a copy of the License at
+'\" http://aolserver.com/.
+'\"
+'\" Software distributed under the License is distributed on an "AS IS"
+'\" basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+'\" the License for the specific language governing rights and limitations
+'\" under the License.
+'\"
+'\" The Original Code is AOLserver Code and related documentation
+'\" distributed by AOL.
+'\" 
+'\" The Initial Developer of the Original Code is America Online,
+'\" Inc. Portions created by AOL are Copyright (C) 1999 America Online,
+'\" Inc. All Rights Reserved.
+'\"
+'\" Alternatively, the contents of this file may be used under the terms
+'\" of the GNU General Public License (the "GPL"), in which case the
+'\" provisions of GPL are applicable instead of those above.  If you wish
+'\" to allow use of your version of this file only under the terms of the
+'\" GPL and not to allow others to use your version of this file under the
+'\" License, indicate your decision by deleting the provisions above and
+'\" replace them with the notice and other provisions required by the GPL.
+'\" If you do not delete the provisions above, a recipient may use your
+'\" version of this file under either the License or the GPL.
+'\" 
+'\"
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_ConnReturnData.3,v 1.1 2006/04/19 17:37:30 jgdavidson Exp $
+'\"
+'\" 
+.so man.macros
+
+.TH Ns_ConnReturnData 3 4.0 AOLserver "AOLserver Library Procedures"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+Ns_ConnReturnAdminNotice, Ns_ConnReturnData, Ns_ConnReturnHtml, Ns_ConnReturnNotice \- Routines to generate simple single-buffer responses
+.SH SYNOPSIS
+.nf
+\fB#include "ns.h"\fR
+int
+\fBNs_ConnReturnAdminNotice\fR(\fIconn, status, title, msg\fR)
+.sp
+int
+\fBNs_ConnReturnData\fR(\fIconn, status, data, len, type\fR)
+.sp
+int
+\fBNs_ConnReturnCharData\fR(\fIconn, status, data, len, type\fR)
+.sp
+int
+\fBNs_ConnReturnHtml\fR(\fIconn, status, msg, len\fR)
+.sp
+int
+\fBNs_ConnReturnNotice\fR(\fIconn, status, title, msg\fR)
+.SH ARGUMENTS
+.AS Ns_Conn conn in
+.AP Ns_Conn conn in
+Pointer to open connection.
+.AP int status in
+HTTP response status code.
+.AP char *type in
+Output content type.
+.AP char *title in
+Pointer to HTML page title string.
+.AP int len in
+Length of content buffer.
+.AP char *data in
+Pointer to content buffer.
+.AP char *msg in
+Pointer to HTML message buffer.
+.BE
+
+.SH DESCRIPTION
+.PP
+These routines are used to generate complete responses, including
+headers, status codes, content types, and the requested data.  They
+all return a status code which is NS_OK if the response was sent
+or NS_ERROR if an underlying call to sent the content failed.
+
+.TP
+int \fBNs_ConnReturnAdminNotice\fR(\fIconn, status, title, msg\fR)
+This routine is equivalent to \fBNs_ConnReturnNotice\fR. In prior
+versions, it would format a slightly different response which was
+later considered inconsequential.
+
+.TP
+int \fBNs_ConnReturnData\fR(\fIconn, status, data, len, type\fR)
+Generates a reponse with the given HTTP \fIstatus\fR including a
+\fIcontent-type\fR header with the given \fItype\fR.  Content pointed
+to by the \fIdata\fR argument of length \fIlen\fR is then sent
+without any modification via an underlying call to
+\fBNs_ConnFlushDirect\fR.
+
+.TP
+int \fBNs_ConnReturnCharData\fR(\fIconn, status, data, len, type\fR)
+Generates a response as with \fBNs_ConnReturnData\fR except that
+the given content pointed to by \fIdata\fR is assumed to be a text
+stream which is output encoded using the appropriate Tcl_Encoding
+based on the given \fItype\fR mimetype and possibly gzip compressed
+via an underlying call to \fBNs_ConnFlush\fR.
+
+.TP
+int \fBNs_ConnReturnHtml\fR(\fIconn, status, msg, len\fR)
+This is equivalent to \fBNs_ConnReturnCharData\fR(\fIconn, status,
+msg, len, "text/html"\fR).
+
+.TP
+int \fBNs_ConnReturnNotice\fR(\fIconn, status, title, msg\fR)
+Constructs a basic HTML response and sends it via \fBNs_ConnReturnHtml\fR.
+The \fItitle\fR string is placed both in the <head> portion as well
+as an <h2> tag in the <body> portion of the document.  If the title
+is NULL, it defaults to the string "Server Message".  The \fImsg\fR
+string, if not NULL, follows the body and is copied unaltered.  This
+routine is useful for generating very basic responses.  For example,
+it is used by the various builtin reponse routines such as
+\fBNs_ConnReturnUnauthorized\fR.
+
+.SH "SEE ALSO"
+Ns_ConnFlush(3), Ns_ConnReturnFile, Ns_ConnReturnOpenFd, Ns_ConnReturnUnathorized.
+
+.SH KEYWORDS
+connnection, encoding, response

@@ -28,7 +28,7 @@
 '\" version of this file under either the License or the GPL.
 '\" 
 '\"
-'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_Info.3,v 1.5 2003/04/10 22:00:43 shmooved Exp $
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_Info.3,v 1.6 2006/04/19 17:37:30 jgdavidson Exp $
 '\"
 '\" 
 .so man.macros
@@ -37,13 +37,10 @@
 .BS
 '\" Note:  do not modify the .SH NAME line immediately below!
 .SH NAME
-Ns_HomePath, Ns_InfoAddress, Ns_InfoBootTime, Ns_InfoBuildDate, Ns_InfoConfigFile, Ns_InfoErrorLog, Ns_InfoHomePath, Ns_InfoHostname, Ns_InfoLabel, Ns_InfoNameOfExecutable, Ns_InfoPid, Ns_InfoPlatform, Ns_InfoServerName, Ns_InfoServerVersion, Ns_InfoServersStarted, Ns_InfoShutdownPending, Ns_InfoStarted, Ns_InfoTag, Ns_InfoUptime, Ns_LibPath, Ns_PageRoot \- Get server information
+Ns_InfoAddress, Ns_InfoBootTime, Ns_InfoBuildDate, Ns_InfoConfigFile, Ns_InfoErrorLog, Ns_InfoHomePath, Ns_InfoHostname, Ns_InfoLabel, Ns_InfoNameOfExecutable, Ns_InfoPid, Ns_InfoPlatform, Ns_InfoServerName, Ns_InfoServerVersion, Ns_InfoServersStarted, Ns_InfoShutdownPending, Ns_InfoStarted, Ns_InfoTag, Ns_InfoUptime, Ns_PageRoot \- Get server information
 .SH SYNOPSIS
 .nf
 \fB#include "ns.h"\fR
-.sp
-char *
-\fBNs_HomePath\fR(\fINs_DString *dest, ...\fR)
 .sp
 char *
 \fBNs_InfoAddress\fR(\fIvoid\fR)
@@ -100,9 +97,6 @@ int
 \fBNs_InfoUptime\fR(\fIvoid\fR)
 .sp
 char *
-\fBNs_LibPath\fR(\fINs_DString *dest, ...\fR)
-.sp
-char *
 \fBNs_PageRoot\fR(\fIchar *server\fR)
 .BE
 
@@ -113,135 +107,112 @@ These functions return information about the server.
 Many of the functions return pointers to strings or other types of
 information which, in most cases, you must not free. These are denoted
 as "read-only" in the sections below.
-.TP
-\fBNs_HomePath\fR(\fIdest, ...\fR)
 
-Build a path relative to AOLserver's home directory. The result is
-placed into \fIdest\fR.  A string pointer that points directly to the
-result string inside of the \fIdest\fR \fINs_DString\fR is
-returned. This string pointer should be treated as
-read-only. \fIdest\fR must only be freed by \fBNs_DStringFree\fR.
 .TP
 \fBNs_InfoAddress\fR()
-
 Return the server IP address of the server. The IP address is defined
 in the server configuration file. The IP address is returned as a
-string pointer which you must treat as read-only. If you want to alter
-the string, you must use \fBns_strdup\fR to copy the string to another
-location in memory and modify that instead.
+string pointer which you must treat as read-only. If you want to
+alter the string, you must use \fBns_strdup\fR to copy the string
+to another location in memory and modify that instead.
+
 .TP
 \fBNs_InfoBootTime\fR()
-
 Return the time that the server was started as an int. Treat the
 result as time_t.
+
 .TP
 \fBNs_InfoBuildDate\fR()
-
 Return the date and time that this server was compiled as a string
 pointer. Treat the result as read-only.
+
 .TP
 \fBNs_InfoConfigFile\fR()
+Return the absolute path name of the configuration file in use as
+a string pointer. Treat the result as read-only.
 
-Return the absolute path name of the configuration file in use as a
-string pointer. Treat the result as read-only.
 .TP
 \fBNs_InfoErrorLog\fR()
-
-Return the name of the error log as a string pointer. Treat the result
-as read-only. The name may be just a name, a relative path or an
-absolute path depending on how it is defined in the server
+Return the name of the error log as a string pointer. Treat the
+result as read-only. The name may be just a name, a relative path
+or an absolute path depending on how it is defined in the server
 configuration file.
+
 .TP
 \fBNs_InfoHomePath\fR()
+Return the absolute directory path where AOLserver is installed as
+a string pointer. Treat the result as read-only.
 
-Return the absolute directory path where AOLserver is installed as a
-string pointer. Treat the result as read-only.
 .TP
 \fBNs_InfoHostname\fR()
-
 Return the hostname of the host that AOLserver is running on as a
 string pointer. The \fBgethostname\fR(2) function is used. If
-\fBgethostname\fR(2) fails to return a hostname, "localhost" is used
-instead. Treat the result as read-only.
+\fBgethostname\fR(2) fails to return a hostname, "localhost" is
+used instead. Treat the result as read-only.
+
 .TP
 \fBNs_InfoLabel\fR()
-
-Return the source code label for AOLserver as a string
-pointer. Statically defined in the source code. If no label was used,
+Return the source code label for AOLserver as a string pointer.
+Statically defined in the source code. If no label was used,
 "unlabeled" is returned. You can use these functions to provide the
-source code label when you report problems with the server. Treat the
-result as read-only.
+source code label when you report problems with the server. Treat
+the result as read-only.
+
 .TP
 \fBNs_InfoNameOfExecutable\fR()
-
 Return the name of the running executable as a string pointer. Treat
 the result as read-only.
+
 .TP
 \fBNs_InfoPid\fR()
-
 Return the pid of the running AOLserver executable as an int.
+
 .TP
 \fBNs_InfoPlatform\fR()
+Return the platform name as a string pointer, e.g. "linux". Treat
+the result as read-only.
 
-Return the platform name as a string pointer, e.g. "linux". Treat the
-result as read-only.
 .TP
 \fBNs_InfoServerName\fR()
+Return the AOLserver name string, e.g. "AOLserver". Statically
+defined in the source code. Treat the result as read-only.
 
-Return the AOLserver name string, e.g. "AOLserver". Statically defined in
-the source code. Treat the result as read-only.
 .TP
 \fBNs_InfoServerVersion\fR()
+Return the AOLserver version string, e.g. "3.5.2". Statically defined
+in the source code. Treat the result as read-only.
 
-Return the AOLserver version string, e.g. "3.5.2". Statically defined in
-the source code. Treat the result as read-only.
 .TP
 \fBNs_InfoServersStarted\fR()
-
 Return TRUE if the server has started, i.e., if initialization and
 module loading is complete. This is a compatibility function that
 calls \fBNs_InfoStarted\fR.
+
 .TP
 \fBNs_InfoShutdownPending\fR()
-
 Return TRUE if there is there a shutdown pending, i.e. if an INTR
 signal has been received or if \fBns_shutdown\fR has been called.
+
 .TP
 \fBNs_InfoStarted\fR()
-
 Return TRUE if the server has started, i.e., if initialization and
 module loading is complete.
+
 .TP
 \fBNs_InfoTag\fR()
+Return the CVS tag of this build of AOLserver. Statically defined
+in the source code. The value may be meaningless. Treat the result
+as read-only.
 
-Return the CVS tag of this build of AOLserver. Statically defined in
-the source code. The value may be meaningless. Treat the result as
-read-only.
 .TP
 \fBNs_InfoUptime\fR()
-
 Return how long, in seconds, AOLserver has been running.
-.TP
-\fBNs_LibPath\fR(\fIdest, ...\fR)
 
-Contsruct the path to AOLserver's lib directory with the given path
-components appended to it. The result is stored in \fIdest\fR. A
-string pointer that points directly to the result string inside of the
-\fIdest\fR \fINs_DString\fR is returned. This string pointer should be
-treated as read-only. \fIdest\fR must only be freed by
-\fBNs_DStringFree\fR.
-
-For example, if AOLserver is running out of /disk2/aolserver, then:
-
-Ns_LibPath(dest, "foo", "bar", NULL);
-
-would return "/disk2/aolserver/lib/foo/bar".
 .TP
 \fBNs_PageRoot\fR(\fIserver\fR)
-
 Return the path name of the AOLserver pages directory for a particular
-server as a string pointer. The \fIserver\fR argument is not
-used. Treat the result as read-only.
+server as a string pointer. The \fIserver\fR argument is not used.
+Treat the result as read-only.
 
 .SH "SEE ALSO"
 nsd(1), info(n)

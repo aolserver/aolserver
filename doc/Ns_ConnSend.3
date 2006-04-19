@@ -28,35 +28,215 @@
 '\" version of this file under either the License or the GPL.
 '\" 
 '\"
-'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_ConnSend.3,v 1.5 2003/04/10 22:00:37 shmooved Exp $
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_ConnSend.3,v 1.6 2006/04/19 17:37:30 jgdavidson Exp $
 '\"
 '\" 
 .so man.macros
 
-.TH Ns_ConnSend 3 4.0 AOLserver "AOLserver Library Procedures"
+.TH Ns_ConnSend 3 4.5 AOLserver "AOLserver Library Procedures"
 .BS
 '\" Note:  do not modify the .SH NAME line immediately below!
 .SH NAME
-Ns_ConnSendChannel, Ns_ConnSendDString, Ns_ConnSendFd, Ns_ConnSendFp \- library procedures
+Ns_ConnPrintfHeader, Ns_ConnPuts, Ns_ConnSend, Ns_ConnSendChannel, Ns_ConnSendDString, Ns_ConnSendFd, Ns_ConnSendFdEx, Ns_ConnSendFp, Ns_ConnWrite, Ns_WriteConn \- Routines to write data to the connection
 .SH SYNOPSIS
 .nf
 \fB#include "ns.h"\fR
 .sp
-\fBNs_ConnSendChannel\fR(\fIarg, arg\fR)
+int
+\fBNs_ConnPrintfHeader(\fIconn, fmt, ...\fR)
 .sp
-\fBNs_ConnSendDString\fR(\fIarg, arg\fR)
+int
+\fBNs_ConnPuts\fR(\fIconn, string\fR)
 .sp
-\fBNs_ConnSendFd\fR(\fIarg, arg\fR)
+int
+\fBNs_ConnSend\fR(\fIconn, bufs, nbufs\fR)
 .sp
-\fBNs_ConnSendFp\fR(\fIarg, arg\fR)
+int
+\fBNs_ConnSendChannel\fR(\fIconn, chan, nsend\fR)
+.sp
+int
+\fBNs_ConnSendDString\fR(\fIconn, dsPtr\fR)
+.sp
+int
+\fBNs_ConnSendFd\fR(\fIconn, fd, nsend\fR)
+.sp
+int
+\fBNs_ConnSendFdEx\fR(\fIconn, fd, off, nsend\fR)
+.sp
+int
+\fBNs_ConnSendFp\fR(\fIconn, fp, nsend\fR)
+.sp
+int
+\fBNs_ConnWrite\fR(\fIconn, buf, len\fR)
+.sp
+int
+\fBNs_WriteConn\fR(\fIconn, buf, len\fR)
+.SH ARGUMENTS
+.AS "struct iovec" "struct iovec" in
+.AP char *buf in
+Pointer to bytes of specified length.
+.AP Ns_Conn conn in
+Open connection on which to send content.
+.AP Ns_DString dsPtr in
+Pointer to initialized dstring with content to send.
+.AP int fd in
+File descriptor opened for read.
+.AP char *fmt in
+Pointer to \fBsprintf\fR style format string which specifies the
+types of the remaining variable number of arguments.
+.AP FILE *fp in
+Stdio FILE pointer opened for read.
+.AP int len in
+Length of bytes pointed to by \fIbuf\fR.
+.AP int nbufs in
+Number of iovec structures pointed to by \fIbufs\fR.
+.AP int nsend in
+Number of bytes to send from object.
+.AP off_t off in
+Offset into open file descriptor to begin sending content.
+.AP char *string in
+Pointer to null-terminated string.
+.AP "struct iovec" bufs in
+Pointer to array of iovec structures.
+.AP Tcl_Channel chan in
+Pointer to Tcl channel open for read.
 .BE
 
 .SH DESCRIPTION
 .PP
-These functions ...
+These functions are the lowest level routines which support sending
+content directly to a connection through the connection's communications
+driver (e.g., nssock or nsopenssl).  They all attempt to send the
+entire requested output, blocking the calling thread up to the
+driver-specific timeout if necessary.  Header data queued for send
+with \fBNs_ConnQueueHeaders\fR, if any, will be sent before the
+requested user data.
+
+.PP
+In practice, higher level routines such as the \fBNs_ConnReturn\fR
+functions and \fBNs_ConnFlush\fR are used to generate complete
+responses instead of these lower level routines.  The higher level
+routines construct appropriate headers, manage output character
+encoding, and support gzip compression, calling these lower level
+routines as needed.
+
+.TP
+int \fBNs_ConnPrintfHeader\fR(\fIconn, fmt, ...\fR)
+Contrary to it's name, this routine has nothing to do with HTTP
+headers.  Instead, it simply calls \fBNs_DStringPrintf\fR with a
+temporary dstring, the given \fIfmt\fR argument, and any variables
+arguments and then calls \fBNs_ConnSendDString\fR with the temporary
+dstring.  The result is NS_OK if all formatted bytes were sent,
+otherwise NS_ERROR.
+
+.TP
+int \fBNs_ConnPuts\fR(\fIconn, string\fR)
+This routines sends a null-terminated string to the client and
+returns NS_OK if successful or NS_ERROR on failure.  It is equivalent
+to \fBNs_WriteConn\fR(\fIconn, string, strlen(string)\fR).
+
+.TP
+int \fBNs_ConnSend\fR(\fIconn, bufs, nbufs\fR)
+This is the lowest level routine which calls the connection's
+communication driver to send an array of zero or more buffers.  The
+result is the total number of bytes sent which should equal the
+total requested data or -1 on error.  The number of bytes sent from
+queued header data, if any, is not included in the result.  The
+\fIbufs\fR argument is a pointer to an array of \fInbufs\fR iovec
+structures.  The usage is similar to the the Unix \fBwritev\fR
+system call.  The iovec structure is defined as:
+
+.CS
+	struct iovec {
+		void            *iov_base;
+		size_t           iov_len
+	}
+.CE
+
+Each element of the structure should contain a pointer to valid
+user data specified by \fIiov_base\fR of length \fIiov_len\fR.  A
+NULL value for \fIiov_base\fR and a cooresponding value of zero for
+\fIiov_len\fR is valid and will simply be skipped over when sending
+the total requested bytes.
+
+.TP
+int \fBNs_ConnSendChannel\fR(\fIconn, chan, nsend\fR)
+This routine copies \fInsend\fR bytes from the open Tcl channel to
+the connection.  The result is NS_OK if all bytes available in the
+open channel or all bytes requested where sent, otherwise NS_ERROR.
+
+.TP
+int \fBNs_ConnSendDString\fR(\fIconn, dsPtr\fR)
+This routines sends all content which exists in the dstring pointed
+to by \fIdsPtr\fR. The result is NS_OK if all bytes where sent,
+otherwise NS_ERROR.
+
+.TP
+int \fBNs_ConnSendFd\fR(\fIconn, fd, nsend\fR)
+This routine copies \fInsend\fR bytes from the open file descriptor
+to the connection.  The result is NS_OK if all bytes available in
+the open file or all bytes requested where sent, otherwise NS_ERROR.
+Copying begins from the current offset.
+
+.TP
+int \fBNs_ConnSendFp\fR(\fIconn, fp, nsend\fR)
+This routine copies \fInsend\fR bytes from the open stdio FILE to
+the connection.  The result is NS_OK if all bytes available in the
+open file or all bytes requested where sent, otherwise NS_ERROR.
+Copying begins from the current offset.
+
+.TP
+int \fBNs_ConnSendFdEx\fR(\fIconn, fd, off, nsend\fR)
+This routine copies \fInsend\fR bytes from the open file descriptor
+to the connection.  The result is NS_OK if all bytes available in
+the open file or all bytes requested where sent, otherwise NS_ERROR.
+Copying begins from the offset given in the \fIoff\fR parameter.
+(NOTE: This routine is currently not supported on Win32 and always
+returns NS_ERROR).
+
+.TP
+int \fBNs_ConnWrite\fR(\fIconn, buf, len\fR)
+This routine will send a single buffer pointed to by \fIbuf\fR of
+length \fIlen\fR.  The result is the number of bytes sent or -1 on
+error.  It is equivalent to calling \fBNs_ConnSend\fR with an single
+struct iovec.
+
+.TP
+int \fBNs_WriteConn\fR(\fIconn, buf, len\fR)
+This routine will send a single buffer pointed to by \fIbuf\fR of
+length \fIlen\fR.  The result is NS_OK if all content was sent,
+otherwise NS_ERROR.  It is equivalent to calling \fBNs_ConnWrite\fR
+and mapping the bytes sent or -1 error result to NS_OK or NS_ERROR.
+
+.SH EXMPLES
+.PP
+The following example demonstrates crafting some headers and then
+sending two buffers of data.  In this case, \fBNs_ConnSend\fR will
+actually call the communications driver with three buffers, the
+first pointing to header data queued for send by \fBNs_ConnQueueHeaders\fR
+followed by the two user data buffers.  The result, assuming all
+three buffers are resonably small, is likely an efficient single
+send on the socket:
+
+.CS
+	struct iovec iov[2];
+	int contentlength;
+
+	iov[0].iov_base = firstbuf;
+	iov[0].iov_len  = firstlen;
+	iov[1].iov_base = secondbuf;
+	iov[1].iov_len	= secondlen;
+	contentlength = iov[0].iov_len + iov[1].iov_len;
+	Ns_ConnSetRequiredHeaders(conn, "text/html", contentlength);
+	Ns_ConnQueueHeaders(conn, 200);
+	if (Ns_ConnSend(conn, iov, contentlength) != contentlength) {
+		... error, e.g., connection drop ...
+	}
+	Ns_ConnClose(conn);
+.CE
 
 .SH "SEE ALSO"
-nsd(1), info(n)
+Ns_ConnClose(3), Ns_ConnReturnHtml(3), Ns_ConnFlush(3)
 
 .SH KEYWORDS
-
+connection, i/o

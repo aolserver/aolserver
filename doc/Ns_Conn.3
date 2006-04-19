@@ -27,7 +27,7 @@
 '\" version of this file under either the License or the GPL.
 '\" 
 '\"
-'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_Conn.3,v 1.3 2005/07/18 23:34:00 jgdavidson Exp $
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_Conn.3,v 1.4 2006/04/19 17:37:30 jgdavidson Exp $
 '\"
 '\" 
 .so man.macros
@@ -36,7 +36,7 @@
 .BS
 '\" Note:  do not modify the .SH NAME line immediately below!
 .SH NAME
-Ns_Conn, Ns_ConnAuthPasswd, Ns_ConnAuthUser, Ns_ConnHeaders, Ns_ConnHost, Ns_ConnId, Ns_ConnInit, Ns_ConnLocation, Ns_ConnOutputHeaders, Ns_ConnPeer, Ns_ConnPeerPort, Ns_ConnPort, Ns_ConnResponseLength, Ns_ConnResponseStatus, Ns_ConnServer, Ns_ConnSock, \- data access routines for a connection
+Ns_ConnAuthPasswd, Ns_ConnAuthUser, Ns_ConnHeaders, Ns_ConnHost, Ns_ConnId, Ns_ConnLocation, Ns_ConnOutputHeaders, Ns_ConnPeer, Ns_ConnPeerPort, Ns_ConnPort, Ns_ConnResponseLength, Ns_ConnResponseStatus, Ns_ConnServer, Ns_ConnSock \- Routines to access data about a connection
 .SH SYNOPSIS
 .nf
 \fB#include "ns.h"\fR
@@ -55,9 +55,6 @@ char *
 .sp
 int
 \fBNs_ConnId\fR(\fINs_Conn *conn\fR)
-.sp
-int
-\fBNs_ConnInit\fR(\fINs_Conn *conn\fR)
 .sp
 char *
 \fBNs_ConnLocation\fR(\fINs_Conn *conn\fR)
@@ -95,8 +92,9 @@ Pointer to given connection.
 .PP
 These routines provide access to data stored within an active
 connection.  All routines take as an argument a pointer to an
-\fBNs_Conn\fR structure which is setup by the server and passed as
-to request handling procedures.
+\fBNs_Conn\fR structure which is setup by the server and passed to
+request handling procedures.
+
 .SH "THE NS_CONN STRUCTURE"
 .PP
 The \fBNs_Conn\fR structure includes the following fields:
@@ -112,17 +110,18 @@ typedef struct Ns_Conn {
     int         flags; 
 } Ns_Conn;
 .CE
+
 .PP
-All fields of an \fINs_Conn\fR structure should be considered read-only.
-The \fIrequest\fR field contains a pointer to the parsed HTTP request.
-See the manual page for \fBNs_ParseRequest\fR for details on what it
-contains.
+All fields of an \fINs_Conn\fR structure should be considered
+read-only.  The \fIrequest\fR field contains a pointer to the parsed
+HTTP request.  See the manual page for \fBNs_ParseRequest\fR for
+details on what it contains.
 .PP
 The \fIheaders\fR and \fIoutputHeaders\fR fields point to \fBNs_Set\fR
 structures for the input and output headers, respectively.  The
 \fIoutputHeaders\fR set will generally not contain any fields until
 after the request has been processed.  See the manual page on
-\fBNs_Set\fI for details on the fields of the structure and routines
+\fBNs_Set\fR for details on the fields of the structure and routines
 to access and manipulate them.
 .PP
 The \fIauthUser\fR and \fIauthPasswd\fR fields point to the decoded
@@ -130,11 +129,12 @@ username and password for the request or \fINULL\fR if no authorization
 was sent.
 .PP
 The \fIcontentLength\fR field is the length of the content, if any,
-sent with the request. See the man page on \fBNs_ContentContent\fR
+sent with the request. See the man page on \fBNs_ConnContent\fR
 for details on accessing the content.
 .PP
 The \fIflags\fR field is a bitmask with one or more \fINS_CONN\fR
 bits:
+
 .TP
 \fBNS_CONN_CLOSED\fR
 Connection is closed.
@@ -174,70 +174,91 @@ Connection content will be compressed if possible.
 .TP
 \fBNS_CONN_CHUNK\fR
 Content is being sent in chunked encoding mode.
+
 .PP
 These flags should be considered read-only.  Use the corresponding
 routines, e.g., \fBNs_ConnSetKeepAlive\fR, to set the flags if
 necessary.
-.PP
+
 .SH "CONNECTION ACCESS ROUTINES"
 In addition to the public fields, the routines above can be used
 to access data contained in the private components of the connection
 (in retrospect, all fields should have been private).
-.PP
-\fBNs_ConnAuthPasswd\fR returns the \fIauthPassword\fR field for
-the \fINs_Conn\fR stucture.
-.PP
-\fBNs_ConnAuthUser\fR returns the \fIauthUser\fR field for the
-\fINs_Conn\fR stucture.
-.PP
-\fBNs_ConnHeaders\fR returns the \fIheaders\fR field for the
-\fINs_Conn\fR stucture.
-.PP
-\fBNs_ConnHost\fR returns the IP address as a string that the
-communications driver is listening on, e.g., \fI127.0.0.1\fR for a
-server listening for connectionsn on \fIlocalhost\fR.
-.PP
-\fBNs_ConnId\fR returns a unique integer ID for the connection.
-The ids start at zero and increase monotonically with each new
-connection accepted by the server.
-.PP
-\fBNs_ConnInit\fR routine returns \fINS_OK\fR and currently has no
-effect.
-.PP
-\fBNs_ConnLocation\fR routines returns a pointer to a string which
-is the HTTP location for the connection, e.g., \fIhttp://www.mysite.com\fR.
-The string can be helpful to construct redirect messages.
-.PP
-\fBNs_ConnOutputHeaders\fR returns the \fIoutputHeaders\fR field
-for the \fINs_Conn\fR stucture.
-.PP
-\fBNs_ConnPeer\fR returns a string with an IP address for the remote
-end of the connection (e.g., the users browser).  Note this could
-also be the IP address of a proxy server.
-.PP
-\fBNs_ConnPeerPort\fR returns the port of the remote end of the
-connection.
-.PP
-\fBNs_ConnPort\fR returns the port for the server end point of the
-connection, by default port 80.
-.PP
-\fBNs_ConnResponseLength\fR returns the length of content sent to
-the client.  The result will be zero until a result has been
-generated.
-.PP
-\fBNs_ConnResponseStatus\fR returns the HTTP status code of the
-responses sent to the client, 200 for normal responses.
-.PP
-\fBNs_ConnServer\fR returns a pointer to the string name of the
-virtual server used for the connection. This string can then be
-passed to other virtual server specific routines, e.g.,
-\fBNs_TclAllocateInterp\fR.
-.PP
-\fBNs_ConnSock\fR returns the underlying socket file descriptor for
-the connection.  This can be useful for diagnostic or introspection
-routines (e.g., getpeername). It should otherwise not be manipulated
-or closed.
+
+.TP
+char *\fBNs_ConnAuthPasswd\fR
+Returns the \fIauthPassword\fR field for the \fINs_Conn\fR stucture.
+
+.TP
+char *\fBNs_ConnAuthUser\fR
+Returns the \fIauthUser\fR field for the \fINs_Conn\fR stucture.
+
+.TP
+Ns_Set *\fBNs_ConnHeaders\fR
+Returns the \fIheaders\fR field for the \fINs_Conn\fR stucture.
+
+.TP
+char *\fBNs_ConnHost\fR
+Returns the IP address as a string that the communications driver
+is listening on, e.g., \fI127.0.0.1\fR for a server listening for
+connectionsn on \fIlocalhost\fR.
+
+.TP
+int \fBNs_ConnId\fR
+Returns a unique integer ID for the connection.  The ids start at
+zero and increase monotonically with each new connection accepted
+by the server.
+
+.TP
+char *\fBNs_ConnLocation\fR
+Returns a pointer to a string which is the HTTP location for the
+connection, e.g., \fIhttp://www.mysite.com\fR.  The string can be
+helpful to construct redirect messages.
+
+.TP
+Ns_Set *\fBNs_ConnOutputHeaders\fR
+Returns the \fIoutputHeaders\fR field for the \fINs_Conn\fR stucture.
+
+.TP
+char *\fBNs_ConnPeer\fR
+Returns a string with an IP address for the remote end of the
+connection (e.g., the users browser).  Note this could also be the
+IP address of a proxy server.
+
+.TP
+int \fBNs_ConnPeerPort\fR
+Returns the port of the remote end of the connection.
+
+.TP
+int \fBNs_ConnPort\fR
+Returns the port for the server end point of the connection, by
+default port 80.
+
+.TP
+int \fBNs_ConnResponseLength\fR
+Returns the length of content sent to the client.  The result will
+be zero until a result has been generated.
+
+.TP
+int \fBNs_ConnResponseStatus\fR
+Returns the HTTP status code of the responses sent to the client,
+200 for normal responses.
+
+.TP
+char *\fBNs_ConnServer\fR
+Returns a pointer to the string name of the virtual server used for
+the connection. This string can then be passed to other virtual
+server specific routines, e.g., \fBNs_TclAllocateInterp\fR.
+
+.TP
+int \fBNs_ConnSock\fR
+Returns the underlying socket file descriptor for the connection.
+This can be useful for diagnostic or introspection routines (e.g.,
+getpeername). It should otherwise not be manipulated or closed.
+
 .SH "SEE ALSO"
-Ns_Set(3), Ns_ConnContent(3), Ns_ConnGetQuery(3), Ns_ParseRequest(3), ns_conn(n)
+Ns_Set(3), Ns_ConnContent(3), Ns_ConnGetQuery(3), Ns_ParseRequest(3),
+ns_conn(n)
+
 .SH KEYWORDS
 connection, location, headers

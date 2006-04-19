@@ -28,7 +28,7 @@
 '\" version of this file under either the License or the GPL.
 '\" 
 '\"
-'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_ConnDriver.3,v 1.5 2003/04/10 22:00:33 shmooved Exp $
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_ConnDriver.3,v 1.6 2006/04/19 17:37:30 jgdavidson Exp $
 '\"
 '\" 
 .so man.macros
@@ -37,22 +37,44 @@
 .BS
 '\" Note:  do not modify the .SH NAME line immediately below!
 .SH NAME
-Ns_ConnDriverContext, Ns_ConnDriverName \- library procedures
+Ns_ConnDriverContext, Ns_ConnDriverName \- Routines to access communication driver data
 .SH SYNOPSIS
 .nf
 \fB#include "ns.h"\fR
 .sp
-\fBNs_ConnDriverContext\fR(\fIarg, arg\fR)
+void *
+\fBNs_ConnDriverContext\fR(\fIconn\fR)
 .sp
-\fBNs_ConnDriverName\fR(\fIarg, arg\fR)
+char *
+\fBNs_ConnDriverName\fR(\fIconn\fR)
+.SH ARGUMENTS
+.AS Ns_Conn conn in
+.AP Ns_Conn conn in
+Pointer to open connection.
 .BE
 
 .SH DESCRIPTION
 .PP
-These functions ...
+These functions provide access to the underyling communications
+driver data for an open connection.
+
+.TP
+char *\fBNs_ConnDriverName\fR(\fIconn\fR)
+Returns the string name of the communication driver, e.g., "nssock".
+This is the name passed in the \fINs_DriverInitData\fR structure
+in a call to \fBNs_DriverInit\fR, not the module name for the
+particular instance of the loaded driver.
+
+.TP
+void *\fBNs_ConnDriverContent\fR(\fIconn\fR)
+Returns a pointer to the connection-specific driver context for the
+given connection.  This value is that of the \fIarg\fR element of
+the underlying \fINs_Sock\fR structure allocated by the server and
+used by communication drivers to manage private state.  If the
+connection is closed, the value returned is always NULL.
 
 .SH "SEE ALSO"
-nsd(1), info(n)
+Ns_DriverInit(3)
 
 .SH KEYWORDS
-
+connection, context

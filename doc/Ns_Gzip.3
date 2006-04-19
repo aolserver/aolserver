@@ -1,0 +1,96 @@
+
+'\"
+'\" The contents of this file are subject to the AOLserver Public License
+'\" Version 1.1 (the "License"); you may not use this file except in
+'\" compliance with the License. You may obtain a copy of the License at
+'\" http://aolserver.com/.
+'\"
+'\" Software distributed under the License is distributed on an "AS IS"
+'\" basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+'\" the License for the specific language governing rights and limitations
+'\" under the License.
+'\"
+'\" The Original Code is AOLserver Code and related documentation
+'\" distributed by AOL.
+'\" 
+'\" The Initial Developer of the Original Code is America Online,
+'\" Inc. Portions created by AOL are Copyright (C) 1999 America Online,
+'\" Inc. All Rights Reserved.
+'\"
+'\" Alternatively, the contents of this file may be used under the terms
+'\" of the GNU General Public License (the "GPL"), in which case the
+'\" provisions of GPL are applicable instead of those above.  If you wish
+'\" to allow use of your version of this file only under the terms of the
+'\" GPL and not to allow others to use your version of this file under the
+'\" License, indicate your decision by deleting the provisions above and
+'\" replace them with the notice and other provisions required by the GPL.
+'\" If you do not delete the provisions above, a recipient may use your
+'\" version of this file under either the License or the GPL.
+'\" 
+'\"
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_Gzip.3,v 1.1 2006/04/19 17:37:30 jgdavidson Exp $
+'\"
+'\" 
+.so man.macros
+
+.TH Ns_Gzip 3 4.5 AOLserver "AOLserver Library Procedures"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+Ns_Gzip, Ns_SetGzipProc \- GZIP compression support
+.SH SYNOPSIS
+.nf
+\fB#include "ns.h"\fR
+.sp
+int
+\fBNs_Gzip\fR(\fIbuf, len, level, dsPtr\fR)
+.sp
+void
+\fBNs_SetGzipProc\fR(\fIproc\fR)
+.SH ARGUMENTS
+.AS Tcl_DString dsPtr out
+.AP Tcl_DString dsPtr out
+Output buffer to placed compressed string.
+.AP int len in
+Length of string pointed to by \fIbuf\fR.
+.AP char *buf in
+Pointer to string to compress.
+.AP int level in
+Requested GZIP compression level.
+.AP Ns_GzipProc proc in
+Procedure to GZIP content.
+.BE
+
+.SH DESCRIPTION
+.PP
+These functions enable GZIP compress of text buffers.
+
+.TP
+int \fBNs_Gzip\fR(\fIbuf, len, level, dsPtr\fR)
+This function compresses a string pointed to by \fIbuf\fR of length
+\fIlen\fR, appending the output to the given \fIdsPtr\fR.
+The output buffer must already be initialized.  The \fIlevel\fR
+parameter specifies the compress level between 0 and 9; see the
+documentation in the zlib.h for details.
+.sp
+The function will return NS_OK if compression was successful,
+otherwise NS_ERROR.  A call to \fBNs_SetGzipProc\fR to install a
+compression function must have already occured.  The \fInszlib\fR
+module will install a suitable function when loaded.
+
+.TP
+void \fBNs_SetGzipProc\fR(\fIproc\fR)
+This function is used to install a compression function for
+\fBNs_Gzip\fR.  A call to \fBNs_SetGzipProc\fR would normally be
+in the module-load routine of a module which provides compression
+support, e.g., the \fInszlib\fR module.  The function should match
+the type \fBNs_GzipProc\fR:
+.sp
+.CS
+typedef int Ns_GzipProc(
+	char *\fIbuf\fR, int \fIlen\fR, int level, Tcl_DString *\fIdsPtr\fR
+\fR);
+.CE
+
+.SH KEYWORDS
+compress, gzip

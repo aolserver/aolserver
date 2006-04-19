@@ -1,0 +1,161 @@
+'\"
+'\" The contents of this file are subject to the AOLserver Public License
+'\" Version 1.1 (the "License"); you may not use this file except in
+'\" compliance with the License. You may obtain a copy of the License at
+'\" http://aolserver.com/.
+'\"
+'\" Software distributed under the License is distributed on an "AS IS"
+'\" basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+'\" the License for the specific language governing rights and limitations
+'\" under the License.
+'\"
+'\" The Original Code is AOLserver Code and related documentation
+'\" distributed by AOL.
+'\" 
+'\" The Initial Developer of the Original Code is America Online,
+'\" Inc. Portions created by AOL are Copyright (C) 1999 America Online,
+'\" Inc. All Rights Reserved.
+'\"
+'\" Alternatively, the contents of this file may be used under the terms
+'\" of the GNU General Public License (the "GPL"), in which case the
+'\" provisions of GPL are applicable instead of those above.  If you wish
+'\" to allow use of your version of this file only under the terms of the
+'\" GPL and not to allow others to use your version of this file under the
+'\" License, indicate your decision by deleting the provisions above and
+'\" replace them with the notice and other provisions required by the GPL.
+'\" If you do not delete the provisions above, a recipient may use your
+'\" version of this file under either the License or the GPL.
+'\" 
+'\"
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_ConnReturnStatus.3,v 1.1 2006/04/19 17:37:30 jgdavidson Exp $
+'\"
+'\" 
+.so man.macros
+
+.TH Ns_ConnReturnStatus 3 4.0 AOLserver "AOLserver Library Procedures"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+Ns_ConnReturnBadRequest, Ns_ConnReturnForbidden, Ns_ConnReturnInternalError, Ns_ConnReturnNoResponse, Ns_ConnReturnNotFound, Ns_ConnReturnNotImplemented, Ns_ConnReturnNotModified, Ns_ConnReturnOk, Ns_ConnReturnStatus, Ns_ConnReturnUnauthorized \- Routines to return simple standard responses
+.SH SYNOPSIS
+.nf
+\fB#include "ns.h"\fR
+.sp
+int
+\fBNs_ConnReturnBadRequest\fR(\fIconn, msg\fR)
+.sp
+int
+\fBNs_ConnReturnForbidden\fR(\fIconn\fR)
+.sp
+int
+\fBNs_ConnReturnInternalError\fR(\fIconn\fR)
+.sp
+int
+\fBNs_ConnReturnNoResponse\fR(\fIconn\fR)
+.sp
+int
+\fBNs_ConnReturnNotFound\fR(\fIconn\fR)
+.sp
+int
+\fBNs_ConnReturnNotImplemented\fR(\fIconn\fR)
+.sp
+int
+\fBNs_ConnReturnNotModified\fR(\fIconn\fR)
+.sp
+int
+\fBNs_ConnReturnOk\fR(\fIconn\fR)
+.sp
+int
+\fBNs_ConnReturnStatus\fR(\fIconn, status\fR)
+.sp
+int
+\fBNs_ConnReturnUnauthorized\fR(\fIconn\fR)
+.sp
+int
+.SH ARGUMENTS
+.AS Ns_Conn conn in
+.AP Ns_Conn conn in
+Pointer to open connection.
+.AP char *msg in
+String with additional message text.
+.AP int status in
+Integer HTTP status code.
+.BE
+
+.SH DESCRIPTION
+.PP
+These routines are used to generate complete responses, including
+headers, approriate status codes, content types, and possibly short
+HTML content messages for the most common HTTP error or status
+responses.  They each coorespond to a particular HTTP status code,
+for example, \fBNs_ConnReturnNotFound\fR generates an HTTP 404 "Not
+Found" response.  They all return NS_OK if the response was sent
+or NS_ERROR if an underlying routine failed.
+
+.PP
+The server can be configured to intercept calls to these
+routines and internally redirect to another local url.
+This can be used to generate a more meaningful message,
+perhaps in a language other than the internally compiled
+English strings, or to generate a valid HTTP 200 response
+with alternate content.  See the man page on \fBNs_RegisterReturn\fR
+for details.
+
+.TP
+int \fBNs_ConnReturnBadRequest\fR(\fIconn, msg\fR)
+Returns an HTTP 400 response with the short HTML message "Invalid
+Request: The HTTP request presented by your browser is invalid."
+The optional \fImsg\fR string, if present, is also included in the
+message body.
+
+.TP
+int \fBNs_ConnReturnForbidden\fR(\fIconn\fR)
+Returns an HTTP 403 response with the short HTML message "Forbidden:
+The requested URL cannot be accessed by this server."
+
+.TP
+int \fBNs_ConnReturnInternalError\fR(\fIconn\fR)
+Returns an HTTP 500 response with the short HTML message "Server
+Error: The requested URL cannot be accessed due to a system error
+on this server."
+
+.TP
+int \fBNs_ConnReturnNoResponse\fR(\fIconn\fR)
+Equivalent to \fBNs_ConnReturnStatus\fR(\fIconn, 204\fR).
+
+.TP
+int \fBNs_ConnReturnNotFound\fR(\fIconn\fR)
+Returns an HTTP 404 response with the short HTML message "Not Found:
+The requested URL was not found on this server."
+
+.TP
+int \fBNs_ConnReturnNotImplemented\fR(\fIconn\fR)
+Returns an HTTP 404 response with the short HTML message "Not
+Implemented: The requested URL or method is not implemented by this
+server."
+
+.TP
+int \fBNs_ConnReturnNotModified\fR(\fIconn\fR)
+Equivalent to \fBNs_ConnReturnStatus\fR(\fIconn, 304\fR).
+
+.TP
+int \fBNs_ConnReturnOk\fR(\fIconn\fR)
+Equivalent to \fBNs_ConnReturnStatus\fR(\fIconn, 200\fR).
+
+.TP
+int \fBNs_ConnReturnStatus\fR(\fIconn, status\fR)
+Generates a response with the given HTTP \fIstatus\fR with no
+content.
+
+.TP
+int \fBNs_ConnReturnUnauthorized\fR(\fIconn\fR)
+Returns an HTTP 401 response with the short HTML message "Access
+Denied: The requested URL cannot be accessed because a valid username
+and password are required."  A "WWW-Authenticate: Basic realm=\fIserver
+realm\fR" header is also included in the response.
+
+.SH "SEE ALSO"
+Ns_RegisterReturn(3), ns_return(n)
+
+.SH KEYWORDS
+connnection, response

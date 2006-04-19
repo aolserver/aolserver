@@ -1,0 +1,156 @@
+
+'\"
+'\" The contents of this file are subject to the AOLserver Public License
+'\" Version 1.1 (the "License"); you may not use this file except in
+'\" compliance with the License. You may obtain a copy of the License at
+'\" http://aolserver.com/.
+'\"
+'\" Software distributed under the License is distributed on an "AS IS"
+'\" basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+'\" the License for the specific language governing rights and limitations
+'\" under the License.
+'\"
+'\" The Original Code is AOLserver Code and related documentation
+'\" distributed by AOL.
+'\" 
+'\" The Initial Developer of the Original Code is America Online,
+'\" Inc. Portions created by AOL are Copyright (C) 1999 America Online,
+'\" Inc. All Rights Reserved.
+'\"
+'\" Alternatively, the contents of this file may be used under the terms
+'\" of the GNU General Public License (the "GPL"), in which case the
+'\" provisions of GPL are applicable instead of those above.  If you wish
+'\" to allow use of your version of this file only under the terms of the
+'\" GPL and not to allow others to use your version of this file under the
+'\" License, indicate your decision by deleting the provisions above and
+'\" replace them with the notice and other provisions required by the GPL.
+'\" If you do not delete the provisions above, a recipient may use your
+'\" version of this file under either the License or the GPL.
+'\" 
+'\"
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_ConnSetHeaders.3,v 1.1 2006/04/19 17:37:30 jgdavidson Exp $
+'\"
+'\" 
+.so man.macros
+
+.TH Ns_ConnSetHeaders 3 4.0 AOLserver "AOLserver Library Procedures"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+Ns_ConnCondSetHeaders, Ns_ConnSetExpiresHeader, Ns_ConnSetHeaders, Ns_ConnSetLastModifiedHeader, Ns_ConnSetLengthHeader, Ns_ConnSetRequiredHeaders \- Routines to manage response headers 
+.SH SYNOPSIS
+.nf
+\fB#include "ns.h"\fR
+.sp
+void
+\fBNs_ConnCondSetHeaders\fR(\fIconn, key, value\fR)
+.sp
+void
+\fBNs_ConnSetExpiresHeader\fR(\fIconn, expires\fR)
+.sp
+void
+\fBNs_ConnSetHeaders\fR(\fIconn, key, value\fR)
+.sp
+void
+\fBNs_ConnSetLastModifiedHeader\fR(\fIconn, mtime\fR)
+.sp
+void
+\fBNs_ConnSetLengthHeader\fR(\fIconn, length\fR)
+.sp
+void
+\fBNs_ConnSetRequiredHeaders\fR(\fIconn, type, length\fR)
+.sp
+void
+\fBNs_ConnSetTypeHeader\fR(\fIconn, type\fR)
+.SH ARGUMENTS
+.AS Ns_Conn conn in
+.AP Ns_Conn conn in
+Pointer to open connection.
+.AP char *expires in
+Pointer to string to construct an \fIexpires\fR header.
+.AP char *key in
+Pointer to string key for a header.
+.AP int length in
+Integer length of output content to construct a \fIcontent-length\fR header.
+.AP time_t mtime in
+Modification time stamp to construct a \fIlast-modified\fR header.
+.AP int status in
+HTTP result status code.
+.AP char *type in
+Pointer to mimetype string to construct a \fIcontent-type\fR header.
+.AP char *value in
+Pointer to a string value for a header.
+.BE
+
+.SH DESCRIPTION
+.PP
+These functions manage the output headers eventually sent through
+the given open connection to a client.  They operate by modifying
+the \fIoutputheaders\fR Ns_Set of the connection Ns_Conn structure.
+Headers can be modified until they are queued or sent directly via
+the \fBNs_ConnQueueHeaders\fR or \fBNs_ConnFlushHeaders\fR routines.
+It is possible to modify the \fIoutputheaders\fR directly although
+use of these functions is preferred for consistancy.
+
+.PP
+Note that higher level output routines such as \fBNs_ConnFlush\fR
+or the various \fBNs_ConnReturn\fR routines normally generate all
+the headers necessary for a given response.  These routines are
+normally only necessary for specialized applications which output
+additional specific headers or specialized request procedures which
+do not use the higher level output routines.
+
+.TP
+void \fBNs_ConnCondSetHeaders\fR(\fIconn, key, value\fR)
+Append an output header of the form \fIkey: value\fR only if the
+header does not already exist in the \fIoutputheaders\fR set.
+
+.TP
+void \fBNs_ConnSetExpiresHeader\fR(\fIconn, expires\fR)
+This routine is equivalent to \fBNs_ConnSetHeaders\fR(\fIconn,
+"Expires", expires\fR).  Note that the \fIexires\fR parameter is
+treated as a string, not a timestamp.  A timestamp can be constructed
+with the \fBNs_HttpTime\fR routine.
+
+.TP
+void \fBNs_ConnSetHeaders\fR(\fIconn, key, value\fR)
+Append a header of the form \fIkey: value\fR to the \fIoutputheaders\fR.
+This routine will append a new, possibly duplicate, header regardless
+of whether a matching header already exists in the \fIoutputheaders\fR.
+
+.TP
+void \fBNs_ConnSetLastModifiedHeader\fR(\fIconn, mtime\fR)
+This routine appends a \fIlast-modified\fR header if one does not
+already exists, formatting the given modification time as a proper
+HTTP timestamp with the \fBNs_HttpTime\fR routine.
+
+.TP
+void \fBNs_ConnSetLengthHeader\fR(\fIconn, length\fR)
+This routine appends a \fIcontent-length: length\fR header, formatting
+the given integer length as a string.  This routine will also record
+the response length internally in the \fIconn\fR structure so that
+it can be later retrieved via the \fBNs_ConnResponseLength\fR
+routine, for example, as part of a post-connection logging callback.
+
+.TP
+void \fBNs_ConnSetRequiredHeaders\fR(\fIconn, type, length\fR)
+This routine appends the basic headers normally required for a
+proper HTTP transaction.  These include \fImime-version\fR, \fIdate\fR,
+and \fIserver\fR as well as the \fIcontent-type: type\fR and
+\fIcontent-length: length\fR headers for the given arguments.  If
+\fItype\fR is NULL or \fIlength\fR is less than zero, the corresponding
+headers will not be appended.  This routine is often the only header
+construction routine necessary for request procedures which construct
+headers manually instead of calling routines such as \fBNs_ConnFlush\fR
+which handle header construction and queueing automatically.
+
+.TP
+void \fBNs_ConnSetTypeHeader\fR(\fIconn, type\fR)
+This routine is equivalent to \fBNs_ConnSetHeaders\fR(\fIconn,
+"content-type", type\fR).
+
+.SH "SEE ALSO"
+Ns_ConnQueueHeaders(3), Ns_ConnFlushHeaders(3), Ns_ConnFlush(3)
+
+.SH KEYWORDS
+headers, response

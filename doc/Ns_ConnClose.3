@@ -28,57 +28,45 @@
 '\" version of this file under either the License or the GPL.
 '\" 
 '\"
-'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Attic/Ns_ConnHeaders.3,v 1.4 2005/01/17 14:05:56 jgdavidson Exp $
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_ConnClose.3,v 1.1 2006/04/19 17:37:30 jgdavidson Exp $
 '\"
 '\" 
 .so man.macros
 
-.TH Ns_ConnHeaders 3 4.0 AOLserver "AOLserver Library Procedures"
+.TH Ns_ConnClose 3 4.0 AOLserver "AOLserver Library Procedures"
 .BS
 '\" Note:  do not modify the .SH NAME line immediately below!
 .SH NAME
-Ns_ConnCondSetHeaders, Ns_ConnConstructHeaders, Ns_ConnFlushHeaders, Ns_ConnGetStatus, Ns_ConnGetType, Ns_ConnPrintfHeader, Ns_ConnQueueHeaders, Ns_ConnSetExpiresHeader, Ns_ConnSetHeaders, Ns_ConnSetLastModifiedHeader, Ns_ConnSetLengthHeader, Ns_ConnSetRequiredHeaders, Ns_ConnSetStatus, Ns_ConnSetType, Ns_ConnSetTypeHeader \- library procedures
+Ns_ConnClose \- Close an open connection
 .SH SYNOPSIS
 .nf
 \fB#include "ns.h"\fR
 .sp
-\fBNs_ConnCondSetHeaders\fR(\fIarg, arg\fR)
-.sp
-\fBNs_ConnConstructHeaders\fR(\fIarg, arg\fR)
-.sp
-\fBNs_ConnFlushHeaders\fR(\fIarg, arg\fR)
-.sp
-\fBNs_ConnGetStatus\fR(\fIarg, arg\fR)
-.sp
-\fBNs_ConnGetType\fR(\fIarg, arg\fR)
-.sp
-\fBNs_ConnPrintfHeader\fR(\fIarg, arg\fR)
-.sp
-\fBNs_ConnQueueHeaders\fR(\fIarg, arg\fR)
-.sp
-\fBNs_ConnSetExpiresHeader\fR(\fIarg, arg\fR)
-.sp
-\fBNs_ConnSetHeaders\fR(\fIarg, arg\fR)
-.sp
-\fBNs_ConnSetLastModifiedHeader\fR(\fIarg, arg\fR)
-.sp
-\fBNs_ConnSetLengthHeader\fR(\fIarg, arg\fR)
-.sp
-\fBNs_ConnSetRequiredHeaders\fR(\fIarg, arg\fR)
-.sp
-\fBNs_ConnSetStatus\fR(\fIarg, arg\fR)
-.sp
-\fBNs_ConnSetType\fR(\fIarg, arg\fR)
-.sp
-\fBNs_ConnSetTypeHeader\fR(\fIarg, arg\fR)
+int
+\fBNs_ConnClose\fR(\fIconn\fR)
+.SH ARGUMENTS
+.AS Ns_Conn conn in
+.AP Ns_Conn conn in
+Pointer to open connection.
 .BE
 
 .SH DESCRIPTION
 .PP
-These functions ...
+This function calls the connection's communication driver to close
+the connection if it is not already closed.  It always returns
+NS_OK.
+.PP
+If the connection is marked for keep-alive, the underlying connection
+is not actually closed but instead returned to the driver thread
+to process additional requests, if any.  Connections are automatically
+marked for keep-alive by setting the \fINS_CONN_KEEPALIVE\fR flag
+if the client supports it by sending an appropriate
+\fIconnection-keepalive\fR header.  Keep alive can be disabled
+before a call to \fBNs_ConnClose\fR with the \fBNs_ConnSetKeepAliveFlag\fR
+routine with a zero value for the \fIflag\fR argument.
 
 .SH "SEE ALSO"
-nsd(1), info(n)
+Ns_ConnSetKeepAliveFlag(3), Ns_ConnGetKeepAliveFlag(3), Ns_ConnFlush(3)
 
 .SH KEYWORDS
-
+connection, close, keep-alive

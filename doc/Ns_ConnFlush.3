@@ -1,0 +1,141 @@
+
+'\"
+'\" The contents of this file are subject to the AOLserver Public License
+'\" Version 1.1 (the "License"); you may not use this file except in
+'\" compliance with the License. You may obtain a copy of the License at
+'\" http://aolserver.com/.
+'\"
+'\" Software distributed under the License is distributed on an "AS IS"
+'\" basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+'\" the License for the specific language governing rights and limitations
+'\" under the License.
+'\"
+'\" The Original Code is AOLserver Code and related documentation
+'\" distributed by AOL.
+'\" 
+'\" The Initial Developer of the Original Code is America Online,
+'\" Inc. Portions created by AOL are Copyright (C) 1999 America Online,
+'\" Inc. All Rights Reserved.
+'\"
+'\" Alternatively, the contents of this file may be used under the terms
+'\" of the GNU General Public License (the "GPL"), in which case the
+'\" provisions of GPL are applicable instead of those above.  If you wish
+'\" to allow use of your version of this file only under the terms of the
+'\" GPL and not to allow others to use your version of this file under the
+'\" License, indicate your decision by deleting the provisions above and
+'\" replace them with the notice and other provisions required by the GPL.
+'\" If you do not delete the provisions above, a recipient may use your
+'\" version of this file under either the License or the GPL.
+'\" 
+'\"
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_ConnFlush.3,v 1.1 2006/04/19 17:37:30 jgdavidson Exp $
+'\"
+'\" 
+.so man.macros
+
+.TH Ns_ConnFlush 3 4.5 AOLserver "AOLserver Library Procedures"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+Ns_ConnFlush, Ns_ConnFlushDirect \- Flush content to an open connection
+.SH SYNOPSIS
+.nf
+\fB#include "ns.h"\fR
+.sp
+int
+\fBNs_ConnFlush\fR(\fIconn, buf, len, stream\fR)
+.sp
+int
+\fBNs_ConnFlushDirect\fR(\fIconn, buf, len, stream\fR)
+.SH ARGUMENTS
+.AS Ns_Conn conn in
+.AP char *buf in
+Pointer to buffer to send.
+.AP Ns_Conn conn in
+Pointer to current connection.
+.AP int len in
+Length of bytes pointed to by \fIbuf\fR.
+.AP int stream in
+Boolean value to indicate a streamed response.
+.BE
+
+.SH DESCRIPTION
+.PP
+These routines support sending content to the client through the
+connection's communcation driver.  They support generating both
+complete single responses or streaming content through multiple
+calls.  They both take a pointer to the current connection specified
+by the \fIconn\fR argument and a pointer to content to send specified
+by \fIbuf\fR of length \fIlen\fR.  If \fIlen\fR is negative, \fIbuf\fR
+is assumed to be a null terminated string and \fIlen\fR is calculated
+by \fBstrlen\fR.
+
+.PP
+The \fIstream\fR argument, if zero, indicates a single response
+should be generated.  In this case, an appropriate \fIcontent-length\fR
+header is generated, the content is sent, and the connection is
+closed with \fBNs_ConnClose\fR.  If \fIstream\fR is not zero, the
+call is assumed to be one of potential multiple calls which will
+send content incrementally to the client.  Content streamed in this
+case is sent either in \fIchunked\fR encoding mode for HTTP/1.1
+clients or directly, without a \fIcontent-length\fR as was common
+in pre-HTTP/1.1 applications.  Applications which stream content
+should be sure to make a final call \fBNs_ConnFlush\fR or
+\fBNs_ConnFlushDirect\fR with \fIstream\fR set to zero to correctly
+flush and close the connection.
+
+.PP
+The \fBNs_ConnFlush\fR and \fBNs_ConnFlushDirect\fR differ in their
+treatment of the given content before sending.  \fBNs_ConnFlushDirect\fR
+does not alter the content in anyway, treating is as an arbitrary 
+array of bytes.  \fBNs_ConnFlush\fR assumes the content is UTF-8 text, e.g.,
+the result of an ADP page execution. In this case, if the connection
+has an associated output encoding set with the \fBNs_ConnSetEncoding\fR
+routine, it will be used to encode the content in the requested
+character set (e.g., from UTF-8 to iso8859-1).  In addition, if the
+server has gzip compression enabled, the \fBnszlib\fR module is loaded,
+the connection has been marked for gzip compression with the
+\fBNs_ConnSetGzipFlag\fR, and the size of the output data is greater
+than the server configured minimun gzip compression size, the content
+will be compressed and an appropriate header will be generated for
+the client.  Gzip compression is not supported when content is streamed
+to the client.
+
+.PP
+The first call to \fBNs_ConnFlush\fR or \fBNs_ConnFlushDirect\fR
+for a connection, in stream or single response mode, will result
+in appropriate headers being constructed and sent first before any
+user data.  These headers include the basic headers constructed via
+\fBNs_ConnSetRequiredHeaders\fR plus any additional application
+specific headers queued for output via \fBNs_ConnSetHeaders\fR or
+\fBNs_ConnCondSetHeaders\fR.  The \fBNs_ConnFlush\fR routine may
+add additional headers as needed to specify \fIchunked\fR and/or
+\fIgzip\fR encoding.
+
+.SH EXAMPLE
+The following example generates a simple text response:
+
+.CS
+	Ns_ConnSetStatus(conn, 200);
+	Ns_ConnSetType(conn, "text/plain");
+	Ns_ConnFlush(conn, "Hello", 5, 0);
+.CE
+
+The following example demonstrates streaming:
+
+.CS
+	Ns_ConnSetStatus(conn, 200);
+	Ns_ConnSetType(conn, "text/plain");
+	for (i = 0; i < 10; ++i) {
+		sprintf(buf, "stream: %d\n", i);
+		Ns_ConnFlush(conn, buf, -1, 1);
+	}
+	Ns_ConnFlush(conn, "done!", 5, 0);
+.CE
+
+.SH "SEE ALSO"
+Ns_ConnSend(n), Ns_ConnClose(3), Ns_ConnSetRequiredHeaders(3),
+Ns_ConnQueueHeaders(3)
+
+.SH KEYWORDS
+connection i/o, gzip, stream, encoding, flush

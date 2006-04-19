@@ -1,0 +1,106 @@
+
+'\"
+'\" The contents of this file are subject to the AOLserver Public License
+'\" Version 1.1 (the "License"); you may not use this file except in
+'\" compliance with the License. You may obtain a copy of the License at
+'\" http://aolserver.com/.
+'\"
+'\" Software distributed under the License is distributed on an "AS IS"
+'\" basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+'\" the License for the specific language governing rights and limitations
+'\" under the License.
+'\"
+'\" The Original Code is AOLserver Code and related documentation
+'\" distributed by AOL.
+'\" 
+'\" The Initial Developer of the Original Code is America Online,
+'\" Inc. Portions created by AOL are Copyright (C) 1999 America Online,
+'\" Inc. All Rights Reserved.
+'\"
+'\" Alternatively, the contents of this file may be used under the terms
+'\" of the GNU General Public License (the "GPL"), in which case the
+'\" provisions of GPL are applicable instead of those above.  If you wish
+'\" to allow use of your version of this file only under the terms of the
+'\" GPL and not to allow others to use your version of this file under the
+'\" License, indicate your decision by deleting the provisions above and
+'\" replace them with the notice and other provisions required by the GPL.
+'\" If you do not delete the provisions above, a recipient may use your
+'\" version of this file under either the License or the GPL.
+'\" 
+'\"
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_ConnQueueHeaders.3,v 1.1 2006/04/19 17:37:30 jgdavidson Exp $
+'\"
+'\" 
+.so man.macros
+
+.TH Ns_ConnQueueHeaders 3 4.0 AOLserver "AOLserver Library Procedures"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+Ns_ConnQueueHeaders, Ns_ConnFlushHeaders \- Routines to construct send HTTP response headers
+.SH SYNOPSIS
+.nf
+\fB#include "ns.h"\fR
+.sp
+void
+\fBNs_ConnFlushHeaders\fR(\fIconn, status\fR)
+.sp
+void
+\fBNs_ConnQueueHeaders\fR(\fIconn, status\fR)
+.SH ARGUMENTS
+.AS Ns_Conn conn in
+.AP Ns_Conn conn in
+Pointer to open connection.
+.AP int status in
+HTTP response status.
+.BE
+
+.SH DESCRIPTION
+.PP
+These function format headers pending in the \fIoutputheaders\fR
+Ns_Set of the given \fIconn\fR Ns_Conn structure to be sent to the
+client.  The headers data along with a preceeding HTTP response
+line with the given \fIstatus\fR code (e.g., "HTTP/1.1 200 OK") is
+formatted as a single string with \fI\r\n\fR separators between
+header \fIkey: value\fR pairs and a trailing \fI\r\n\fR to indicate
+end of headers.
+
+.TP
+int \fBNs_ConnFlushHeaders\fR(\fIconn\fR)
+This routine constructs the headers and then attempts to send them
+immediately to the client.  The result is either NS_OK if the content
+was sent, NS_ERROR otherwise.
+
+.TP
+void \fBNs_ConnQueueHeaders\fR(\fIconn\fR)
+This routine constructs the headers as with \fBNs_ConnFlushHeaders\fR
+but does not send the data to the client.  Instead, the resulting
+headers string is stored in an internal buffer to be sent later on
+the first call to \fBNs_ConnSend\fR.  Delaying the flush of the
+content helps increase performance by providing the opportunity to
+combine the headers and content responses into a single system call.
+
+.PP
+Note that higher level routines which generate complete responses
+such as the \fBNs_ConnReturn\fR routines or \fBNs_ConnFlush\fR call
+\fBNs_ConnQueueHeaders\fR automatically as needed.  Only custom
+code which constructs headers manually and sends content directly
+must include a call to \fBNs_ConnQueueHeaders\fR or
+\fBNs_ConnFlushHeaders\fR before generating the output content.
+
+.SH EXAMPLES
+The following example demonstrates a simple response.  In this case,
+the headers are queued and sent with the small "hello" message on
+the call to \fBNs_ConnPuts\fR which internally calls \fBNs_ConnSend\fR:
+
+.CS
+	Ns_ConnSetRequiredHeaders(conn, "text/plain", 5);
+	Ns_ConnQueueHeaders(conn, 200);
+	Ns_ConnPuts(conn, "hello");
+.CE
+
+.SH "SEE ALSO"
+Ns_ConnSetHeaders(3), Ns_ConnSend(3)
+
+.SH KEYWORDS
+connection, headers

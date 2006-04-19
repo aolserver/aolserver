@@ -1,0 +1,137 @@
+
+'\"
+'\" The contents of this file are subject to the AOLserver Public License
+'\" Version 1.1 (the "License"); you may not use this file except in
+'\" compliance with the License. You may obtain a copy of the License at
+'\" http://aolserver.com/.
+'\"
+'\" Software distributed under the License is distributed on an "AS IS"
+'\" basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+'\" the License for the specific language governing rights and limitations
+'\" under the License.
+'\"
+'\" The Original Code is AOLserver Code and related documentation
+'\" distributed by AOL.
+'\" 
+'\" The Initial Developer of the Original Code is America Online,
+'\" Inc. Portions created by AOL are Copyright (C) 1999 America Online,
+'\" Inc. All Rights Reserved.
+'\"
+'\" Alternatively, the contents of this file may be used under the terms
+'\" of the GNU General Public License (the "GPL"), in which case the
+'\" provisions of GPL are applicable instead of those above.  If you wish
+'\" to allow use of your version of this file only under the terms of the
+'\" GPL and not to allow others to use your version of this file under the
+'\" License, indicate your decision by deleting the provisions above and
+'\" replace them with the notice and other provisions required by the GPL.
+'\" If you do not delete the provisions above, a recipient may use your
+'\" version of this file under either the License or the GPL.
+'\" 
+'\"
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_ConnReturnOpen.3,v 1.1 2006/04/19 17:37:30 jgdavidson Exp $
+'\"
+'\" 
+.so man.macros
+
+.TH Ns_ConnReturnOpen 3 4.0 AOLserver "AOLserver Library Procedures"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+Ns_ConnReturnOpenChannel, Ns_ConnReturnOpenFd, Ns_ConnReturnFdEx, Ns_ConnReturnOpenFile \- Routines to send open file content
+.SH SYNOPSIS
+.nf
+\fB#include "ns.h"\fR
+int
+.sp
+int
+\fBNs_ConnReturnOpenChannel\fR(\fIconn, status, type, chan, len\fR)
+.sp
+int
+\fBNs_ConnReturnOpenFd\fR(\fIconn, status, type, fd, len\fR)
+.sp
+int
+\fBNs_ConnReturnOpenFdex\fR(\fIconn, status, type, fd, off, len\fR)
+.sp
+int
+\fBNs_ConnReturnOpenFile\fR(\fIconn, status, type, fp, len\fR)
+.SH ARGUMENTS
+.AS Tcl_Channel chan in
+.AP Tcl_Channel chan in
+Pointer to Tcl_Channel open for read.
+.AP Ns_Conn conn in
+Pointer to open connection.
+.AP FILE *fp in
+Pointer to stdio FILE open for read.
+.AP off_t off in
+Seek offset.
+.AP int fd int
+File descriptor open for read.
+.AP int status in
+HTTP status code.
+.AP char *type in
+Pointer to mimetype string.
+.BE
+
+.SH DESCRIPTION
+.PP
+These routines are used to generate complete responses, including
+headers, status codes, content types, and the content copied from
+the given open file. They all return a status code which is NS_OK
+if the response was sent or NS_ERROR if an underlying call to sent
+the content failed.  The response will include the given HTTP
+\fIstatus\fR code, a \fIcontent-type\fR header with the given
+\fItype\fR, and a \fIcontent-length\fR header with the length
+specified by \fIlen\fR.  No character output encoding or gzip
+compression is performed on the content.
+.PP
+For \fBNs_ConnReturnOpenFdEx\fR, copying begins at the offset
+specified by the \fIoff\fR argument
+Otherwise,
+these routines copy from the current read offset in the underlying
+open file.  No attempt is made to serialize access to the underlying
+object so independent open file objects and/or mutex locking is
+necessary if the same file is being sent simultaneously to multiple
+clients.
+
+.SH NOTES
+.TP
+Windows Support
+The \fBNs_ConnReturnOpenFdEx\fR routine is not currently supported
+on Windows.  When called on Windows, it will always return NS_ERROR.
+
+.TP
+Truncated Result
+The server will construct a \fIcontent-length\fR header based on
+the given \fIlen\fR argument. However, the server will send the
+content with an underlying call to a cooresponding \fBNs_ConnSend\fR
+function, e.g., \fBNs_ConnSendFd\fR for \fBNs_ConnReturnOpenFd\fR.
+These functions will send the requested content or all remaining
+content in the open file if less bytes are avilable without reporting
+an error due to the truncated response.  As the headers will have
+already been flushed before sending the content in this case, the
+\fIcontent-length\fR header will not be consistent with the actual
+bytes sent.  If it is not possible to ensure the remaining bytes
+will be equal or greater to the requested bytes to send, it is
+possible to specify -1 for \fIlen\fR to supress the \fIcontent-length\fR
+header entirely.  Most browsers will accept this resonse and simply
+calculate the length from the bytes receieved up until the socket
+is closed.
+
+.TP
+Performance Consideration
+As mentioned, these routines use underlying \fBNs_ConnSendFd\fR
+style routines to copy and send the content from open files.  This
+is not the approach used by the builtin file-serving code (aka the
+"fastpath").  The fastpath operates with filenames, not open file
+objects, and maintains a cached of pre-read or memory mapped regions
+to accelerate the common case of rapidly sending reasonably sized
+content to multiple, simultaneous clients.  The \fBNs_ConnReturnFile\fR
+routine utilizes the underlying fastpath and thus could be a faster
+means to send static files than directly opening files and calling
+these API's.
+
+.SH "SEE ALSO"
+Ns_ConnReturnFile(3), Ns_ConnFlush(3), Ns_ConnSendFd(3), Ns_ConnReturnData(3)
+
+.SH KEYWORDS
+connnection, response, file

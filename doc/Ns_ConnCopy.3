@@ -28,7 +28,7 @@
 '\" version of this file under either the License or the GPL.
 '\" 
 '\"
-'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_ConnCopy.3,v 1.5 2003/04/10 22:00:32 shmooved Exp $
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_ConnCopy.3,v 1.6 2006/04/19 17:37:30 jgdavidson Exp $
 '\"
 '\" 
 .so man.macros
@@ -37,26 +37,73 @@
 .BS
 '\" Note:  do not modify the .SH NAME line immediately below!
 .SH NAME
-Ns_ConnCopyToChannel, Ns_ConnCopyToDString, Ns_ConnCopyToFd, Ns_ConnCopyToFile \- library procedures
+Ns_ConnCopyToChannel, Ns_ConnCopyToDString, Ns_ConnCopyToFd, Ns_ConnCopyToFile \- Copy request content to open file or dstring
 .SH SYNOPSIS
 .nf
 \fB#include "ns.h"\fR
 .sp
-\fBNs_ConnCopyToChannel\fR(\fIarg, arg\fR)
+int
+\fBNs_ConnCopyToChannel\fR(\fIconn, ncopy, chan\fR)
 .sp
-\fBNs_ConnCopyToDString\fR(\fIarg, arg\fR)
+int
+\fBNs_ConnCopyToDString\fR(\fIconn, ncopy, dsPtr\fR)
 .sp
-\fBNs_ConnCopyToFd\fR(\fIarg, arg\fR)
+int
+\fBNs_ConnCopyToFd\fR(\fIconn, ncopy, fd\fR)
 .sp
-\fBNs_ConnCopyToFile\fR(\fIarg, arg\fR)
+int
+\fBNs_ConnCopyToFile\fR(\fIconn, ncopy, fp\fR)
+.SH ARGUMENTS
+.AS Ns_Channel chan in
+.AP Ns_Channel chan in
+Pointer to Tcl channel open for write.
+.AP Ns_Conn conn in
+Pointer to open connection.
+.AP Ns_DString dsPtr in
+Initialized dstring.
+.AP int fd in
+File descriptor open for write.
+.AP FILE fp in
+Stdio FILE pointer open for write.
+.AP int ncopy in
+Number of bytes to copy.
 .BE
 
 .SH DESCRIPTION
 .PP
-These functions ...
+These functions copy content from an open connection request to the
+given open file descriptor, FILE, dstring, or Tcl_Channel.  The
+routines work by copying from the content buffer; see the man page
+on \fBNs_ConnContent\fR for how this buffer is managed for both
+small and large requests.
+
+.PP
+The functions all return the number of bytes copied which will match
+the requested \fIncopy\fR argument unless there is an error writing
+the content or the requested bytes is greater than the number of
+bytes still available to be read.  An internal offset into the
+connection is maintained and is shared with routines such as
+\fBNs_ConnRead\fR which also consume content from the same buffer.
+Note that routines which access the entire content, e.g.,
+\fBNs_ConnContent\fR, \fBNs_ConnContentFd\fR, or \fBNs_ConnGetQuery\fR
+will continue to provide access to the entire request regardless
+if one of the \fBNs_ConnCopy\fR or \fBNs_ConnRead\fR functions have
+been used.
+
+.SH EXAMPLES
+The following example demonstrates copying user data to a
+temp file:
+
+.CS
+	fd = open("myfile.out", O_WRONLY|O_BINARY);
+	len = Ns_ConnContentLength(conn);
+	if (Ns_ConnCopyToFd(conn, len, fd) != len) {
+		... error writing content or content already consumed ...
+	}
+.CE
 
 .SH "SEE ALSO"
-nsd(1), info(n)
+Ns_ConnRead(3), Ns_ConnReadLine(3), Ns_ConnContent(3), Ns_ConnContentFd(3)
 
 .SH KEYWORDS
-
+connection, content, read
