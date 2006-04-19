@@ -27,12 +27,16 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nszlib/Makefile,v 1.1 2006/04/19 18:04:59 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nszlib/Makefile,v 1.2 2006/04/19 20:35:09 shmooved Exp $
+
+ifndef ZLIB
+    ZLIB = /usr/lib
+endif
 
 HDRS	= nszlib.h
 MOD	= nszlib
 MAN	= ns_zlib.n
 OBJS	= nszlib.o
 MODINIT = NsZlibModInit
-DLLLIBS = -lz
+DLLLIBS = -L$(ZLIB) -lz
 include ../include/ns.mak
