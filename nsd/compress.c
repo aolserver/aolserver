@@ -30,34 +30,25 @@
 /*
  * compress.c --
  *
- * Support for simple gzip compression using Zlib.
+ *	Support for loadable gzip compression.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/compress.c,v 1.6 2005/10/24 14:57:49 mooooooo Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/compress.c,v 1.7 2006/04/19 17:48:39 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
-#ifdef HAVE_ZLIB_H
-#include <zlib.h>
-#endif
 
-static char header[] = {
-    037, 0213,  /* GZIP magic number. */
-    010,        /* Z_DEFLATED */
-    0,          /* flags */
-    0,0,0,0,    /* timestamp */
-    0,          /* xflags */
-    03};        /* Unix OS_CODE */
+static Ns_GzipProc *gzipProcPtr;
 
 
 /*
  *----------------------------------------------------------------------
  *
- * Ns_Compress --
+ * Ns_Gzip --
  *
  *      Compress a string.
  *
  * Results:
- *      NS_OK if compression worked, NS_ERROR otherwise.
+ *      Result of external compress proc, if any, otherwise NS_ERROR.
  *
  * Side effects:
  *      Will write compressed content to given Tcl_DString.
@@ -66,47 +57,34 @@ static char header[] = {
  */
 
 int
-Ns_Compress(char *buf, int len, Tcl_DString *outPtr, int level)
+Ns_Gzip(char *buf, int len, int level, Tcl_DString *dsPtr)
 {
-#ifndef HAVE_LIBZ
-    return NS_ERROR;
-#else
-    uLongf glen;
-    char *gbuf;
-    uLong crc;
-    int skip;
-    uint32_t footer[2];
-
-    /*
-     * Grow buffer for header, footer, and maximum compressed size.
-     */
-
-    glen = compressBound(len) + sizeof(header) + sizeof(footer);
-    Tcl_DStringSetLength(outPtr, (int) glen);
-
-    /*
-     * Compress output starting 2-bytes from the end of the header. 
-     */
-
-    gbuf = outPtr->string;
-    skip = sizeof(header) - 2;
-    glen -= skip;
-    if (compress2(gbuf + skip, &glen, buf, (uLong) len, level) != Z_OK) {
-        return NS_ERROR;
+    if (gzipProcPtr != NULL) {
+	return (*gzipProcPtr)(buf, len, level, dsPtr);
     }
-    glen -= 4;
-    memcpy(gbuf, header, sizeof(header));
-    Tcl_DStringSetLength(outPtr, (int) glen + skip);
+    return NS_ERROR;
+}
 
-    /*
-     * Append footer of CRC and uncompressed length.
-     */
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_SetGzipProc --
+ *
+ *      Set the global procedure for compression.  Called by the
+ *	nszlib module when loaded.
+ *
+ * Results:
+ *      None.
+ *
+ * Side effects:
+ *      Later calls to Ns_Gzip will use given function.
+ *
+ *----------------------------------------------------------------------
+ */
 
-    crc = crc32(0, Z_NULL, 0);
-    crc = crc32(crc, buf, (uInt) len);
-    footer[0] = crc;
-    footer[1] = len;
-    Tcl_DStringAppend(outPtr, (char *) footer, sizeof(footer));
-    return NS_OK;
-#endif
+void
+Ns_SetGzipProc(Ns_GzipProc *procPtr)
+{
+    gzipProcPtr = procPtr;
 }
