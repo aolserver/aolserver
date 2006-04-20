@@ -1,0 +1,323 @@
+'\
+'\" The contents of this file are subject to the AOLserver Public License
+'\" Version 1.1 (the "License"); you may not use this file except in
+'\" compliance with the License. You may obtain a copy of the License at
+'\" http://aolserver.com/.
+'\"
+'\" Software distributed under the License is distributed on an "AS IS"
+'\" basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+'\" the License for the specific language governing rights and limitations
+'\" under the License.
+'\"
+'\" The Original Code is AOLserver Code and related documentation
+'\" distributed by AOL.
+'\" 
+'\" The Initial Developer of the Original Code is America Online,
+'\" Inc. Portions created by AOL are Copyright (C) 1999 America Online,
+'\" Inc. All Rights Reserved.
+'\"
+'\" Alternatively, the contents of this file may be used under the terms
+'\" of the GNU General Public License (the "GPL"), in which case the
+'\" provisions of GPL are applicable instead of those above.  If you wish
+'\" to allow use of your version of this file only under the terms of the
+'\" GPL and not to allow others to use your version of this file under the
+'\" License, indicate your decision by deleting the provisions above and
+'\" replace them with the notice and other provisions required by the GPL.
+'\" If you do not delete the provisions above, a recipient may use your
+'\" version of this file under either the License or the GPL.
+'\" 
+'\"
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/nsproxy/ns_proxy.n,v 1.1 2006/04/20 22:59:07 jgdavidson Exp $
+'\"
+'\" 
+.so man.macros
+
+.TH ns_proxy n 4.5 AOLserver "AOLserver Built-In Commands"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+ns_proxy \- Proxy-process Tcl interface
+.SH SYNOPSIS
+.nf
+\fBns_proxy active \fIpool\fR
+\fBns_proxy cleanup\fR
+\fBns_proxy config\fR \fIpool ?-opt val -opt val ...\fR
+\fBns_proxy eval \fIhandle script ?timeout?\fR
+\fBns_proxy get\fR \fIpool ?-handle n -timeout ms?
+\fBns_proxy ping\fR \fIhandle\fR
+\fBns_proxy release \fIhandle\fR
+.fi
+.BE
+
+.SH DESCRIPTION
+.PP
+This command provides a simple, robust proxy mechanism to evaluate
+Tcl scripts in a separate, pipe-connected process.  This approach
+can be useful both to isolate potentially thread-unsafe code outside
+the address space of a multithreaded process such as AOLserver or
+to enable separation and timeout of potentially misbehaving, long
+running scripts.
+.PP
+The command is provided by the \fInsproxy\fR dynamic library which
+can be loaded into an interpreter via the Tcl \fBload\fR command,
+for example:
+.PP
+
+.CS
+load /usr/local/lib/libnsproxy.so
+ns_proxy ...
+.CE
+
+.PP
+It can also possible to load the library into all interpreters of
+an AOLserver virutal server by specifying an \fInsproxy.so\fR entry
+in the server's module config entry, for example:
+
+.CS
+ns_section ns/server/server1/modules
+ns_param nsproxy nsproxy.so
+.CE
+
+.PP
+When loaded, the library adds the single \fBns_proxy\fR command with
+takes multiple options as described below.  Proxies are normally
+created on demand when requested and connected to the parent process
+via pipes used to send scripts and receive response.  The processes
+remain active until the parent process exits, effectively closing
+all pipes to the slave processes.
+
+.TP
+\fBns_proxy active \fIpool\fR
+Returns a list of all currently evaluating scripts in proxies for
+the given \fIpool\fR.  The output is a list which includes two
+elements, the string name of the proxy handle and the string for
+the script being executed.  It is also possible to view the currently
+evaluating scripts with the Unix \fIps\fR command as the proxy slave
+process re-writes it's command argument space with the request
+script before evaluation and clears it after sending the result.
+
+.TP
+\fBns_proxy cleanup\fR
+Releases any handles from any pools currently owned by a thread.
+This command is intended to be used as part of a garbage collection
+step at the end of a transaction.  Calling this command within
+AOLserver is not necessary as the module registers a trace to release
+all handles via the \fBNs_TclRegisterTrace\fR facility when
+interpreters are deallocated after a transaction, for example, at
+the end of a connection.
+
+.TP
+\fBns_proxy config\fR \fIpool ?-opt val -opt val ...\fR
+Configures options for the pool specified by \fIpool\fR.  The pool
+is created with default options if it does not already exist.  The
+result of \fBns_proxy config\fR is a list of the current options
+in the form \fI-opt val -opt val ...\fR.  Configurable options
+include:
+
+.TP
+-init script
+Specifies a script to evaluate when proxies are started.  This can
+be used to load additional libraries and/or source script files.
+The default is no script.
+
+.TP
+ -reinit script
+Specifies a script to evaluate after being allocated and before
+being returned to the caller.  This can be used to re-initalizes
+shared state.  The default is no script.
+
+.TP
+ -min n
+Sets the minimum number of proxy slave processes to pre-start before
+any allocations.  This defaults to 0 which results in on-demand
+start the first time proxies are requested.  Setting it to a higher
+number can be useful if initialization takes a significant amount
+of time.
+
+.TP
+ -max n
+Sets the maximum number of proxy slave processes.  Requests for
+proxies beyond the maximum will result in requesting threads
+waiting for existing proxies to be available instead of creating
+new proxy processes.  Setting this value to 0 disables the pool,
+causing all subsequent allocation requests to fail immediately (currently
+allocated proxies, if any, remain valid).
+
+.TP
+ -exec program
+Specifies the filename of a slave proxy program.  This defaults to
+\fInsproxy\fR in the \fIbin\fR subdirectory of the AOLserver process.
+It is possible to create a custom program and enter the proxy event
+loop with the \fBNs_ProxyMain\fR application startup routine; see
+the source code for details.
+
+.TP
+-getimeout ms
+Specifies the maximum time to wait to allocate handles from the pool.
+The default is 500 milliseconds, i.e., 1/2 of a second.
+
+.TP
+ -evaltimeout ms
+Specifies the maximum time to wait for a script to be evaluated in
+a proxy.  This parameter can be overridden on a per-call basis with
+the optional \fItimeout\fR parameter to \fBns_proxy eval\fR.  The
+default is 100 milliseconds, i.e., 1/10 of a second which assumes
+scripts are evaluated with minimal delay.
+
+.TP
+ -sendtimeout ms
+.TP
+ -recvtimeout ms
+Specifies the maximium time to wait to send a script and receive a
+result from a proxy.  The default is 100 milliseconds, i.e., 1/10
+of a second which assumes minimal delay sending and receiving
+reasonably sized scripts and results over the connecting pipe.
+
+.TP
+-waittimeout ms
+Specifies the maximum time to wait for a proxy to exit.  The wait
+is performed in a dedicated reaper thread.  The reaper will close
+the connection pipe and wait the given timeout.  If the timeout is
+exceeded, the reaper will send a SIGTERM signal and finally a SIGKILL
+signal to ensure the process eventually exits.  The default is 100
+milliseconds which should be ample time for a graceful exit unless
+the process is hung executing a very long, misbehaving script,
+resulting in a more disruptive SIGTERM or SIGKILL.
+
+.TP
+\fBns_proxy eval \fIhandle script ?timeout?\fR
+Evalutes \fIscript\fR in the proxy specified by \fIhandle\fR.  The
+optional \fItimeout\fR argument specifies a maximum number of
+milliseconds to wait for the command to complete before raising an
+error (see \fBERROR HANDLING\fR below for details on handling
+errors).
+
+.TP
+\fBns_proxy get\fR \fIpool ?-handle n -timeout ms?  Returns one or
+more handles to proxies from the specified \fIpool\fR.  The pool
+will be created with default options if it does not already exist.
+The optional \fI-handle n\fR arguments can be used to specify the
+number of handles to allocate, the default being 1.  The optional
+\fI-timeout ms\fR arguments specifies the maximum amount of time
+in milliseconds to wait for the handles to become availale before
+raising an error (see \fBERROR HANDLING\fR below for details on
+handling errors).  Requesting more than one handle in a single call
+if more than one handle is required is necessary as it is an error
+to request handles from a pool from which handles are already owned
+in the thread.  This restriction is to avoid a possible deadlock
+condition and is similar to the manner in which the \fBns_db
+gethandles\fR command operates.
+
+.TP
+\fBns_proxy ping\fR \fIhandle\fR
+This command sends a null request to the proxy specified by the
+\fIhandle\fR argument.  The proxy will be verified alive and restarted
+if necessary.  This command is not normally required as the \fBns_proxy
+eval\fR command will also verify and restart proxies as needed.
+
+.TP
+\fBns_proxy release \fIhandle\fR
+This command can be used to release a single proxy specified by the
+\fIhandle\fR argument.  All handles owned by a thread to the
+cooresponding pool must be returned before any handles can be
+allocated again.  Within AOLserver, a call to this routine is
+recommended for clarity but not stricting necessary.  As described
+above, AOLserver installs a trace to release all handles at the end
+of every connection during interprepter deallocation.
+
+.SH "ERROR HANDLING"
+.PP
+Errors generated by a script evaluated in a proxy interpreter are
+completely returned to the calling interpreter, including mapping
+the \fIerrorInfo\fR and \fIerrorInfo\fR global variables from the
+proxy to the parent if present and raising a Tcl exception.  This
+enables proxy code to look very similar to that which may use the
+internal \fBeval\fR command.
+
+.PP
+Errors raised by a failure to communicate with the proxy process
+due to a timeout or unexpected process exit are also communicated
+back to the parent interpreter as Tcl exceptions.  To distinguish
+between these cases, communication related errors set the
+\fIerrorCode\fR global variable with the first element
+\fBNSPROXY\fR.  The second element is one of the following:
+
+.TP
+\fBDEADLOCK\fR
+The interpreter attempted to allocate handles from a pool from which
+it already owns one or more handles.
+
+.TP
+\fBEXEC\fR
+The slave program specified by the \fI-exec program\fR option could
+not be started.
+
+.TP
+\fBINVALID\fR
+The response from the proxy was invalid.
+
+.TP
+\fBRECVFAIL\fR
+There was an error receiving the result from the slave process.
+
+.TP
+\fBSENDFAIL\fR
+There was an error sending the script to the slave process.
+
+.TP
+\fBTIMEOUT\fR
+The timeout specified for the pool by the \fI-evaltimeout\fR option
+or as the optional argument to the current call to \fBns_proxy
+eval\fR was exceeded.
+
+.TP
+\fBNOHANDLE\fR
+No handles were available from the pool.  The next element of
+\fIerrorCode\fR is a string with more detail on the failure and
+will be one of the following:
+
+.TP
+\fIqueue timeout\fR
+Timeout waiting behind other threads also allocating handles from
+the requested pool.
+
+.TP
+\fIpool disabled\fR
+The maximum number of handles in the pool was set with the \fI-max\fR
+config option to 0.
+
+.TP
+\fIinsufficient handles\fR
+The maximum number of handles in the pool set with the \fI-max\fR config
+option was less than the requested number of handles.
+
+.TP
+\fIproxy timeout\fR
+Timeout waiting for active proxies to become available.
+
+.SH EXAMPLES
+.PP
+The following demonstrates sending a script to a remote proxy:
+
+.CS
+	set handle [ns_proxy get myproxy]
+	ns_proxy eval $handle {info patchlevel}
+	ns_proxy release $handle
+.CE
+
+The following demonstrates using multiple proxies:
+
+.CS
+	ns_proxy config myproxy -max 10
+	set handles [ns_proxy get myproxy -handle 10]
+	foreach h $handles {
+		ns_proxy eval $h {puts "alive: [pid]"}
+	}
+	ns_proxy cleanup
+.CE
+
+.SH "SEE ALSO"
+eval(n)
+
+.SH KEYWORDS
+threads, interpreters, proxy, initialization
