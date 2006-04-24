@@ -112,7 +112,6 @@ Nszlib_Init(Tcl_Interp *interp)
 int
 NsZlibModInit(char *server, char *module)
 {
-    Ns_Log(Notice,"nszlib: zlib module version %s started",VERSION);
     Ns_SetGzipProc(ZlibGzip);
     Ns_TclRegisterTrace(server, ZlibTrace, NULL, NS_TCL_TRACE_CREATE);
     return NS_OK;
