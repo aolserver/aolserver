@@ -1,3 +1,16 @@
+2006-04-28  Jim Davidson <jgdavidson@aol.com>
+
+	* nsd/adpcmds.c:
+	* nsd/adprequest.c: Fixed crash bug with NsAdpAppend being
+	called without an active ADP execution frame.
+
+	* doc/Makefile:
+	* util/nsinstall-man.sh:  Makefile now installs man.macros
+	into the AOLserver include/ directory.  The install script
+	will search there and other common locations to support
+	installing man pages located outside the doc/ directory.
+
+
 2006-04-19  Nathan Folkman <nathan.folkman@gmail.com>
 
         * include/ns.mak.in: Fixed to better support building 64-bit
