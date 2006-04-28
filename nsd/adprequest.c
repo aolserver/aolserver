@@ -33,7 +33,7 @@
  *	ADP connection request support.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adprequest.c,v 1.29 2005/08/11 22:55:42 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adprequest.c,v 1.30 2006/04/28 13:08:08 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -157,38 +157,6 @@ Ns_AdpRequestEx(Ns_Conn *conn, char *file, Ns_Time *ttlPtr)
 	return NS_ERROR;
     }
     return NS_OK;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * NsAdpAppend --
- *
- *	Append content to the ADP output buffer, flushing the content
- *	if necessary.
- *
- * Results:
- *	TCL_ERROR if append and/or flush failed, TCL_OK otherwise.
- *
- * Side effects:
- *	Will set ADP error flag and leave an error message in
- *	the interp on flush failure.
- *
- *----------------------------------------------------------------------
- */
-
-int
-NsAdpAppend(NsInterp *itPtr, char *buf, int len)
-{
-    Tcl_DString *bufPtr = itPtr->adp.framePtr->outputPtr;
-
-    Ns_DStringNAppend(bufPtr, buf, len);
-    if (bufPtr->length > (int) itPtr->adp.bufsize
-	    && NsAdpFlush(itPtr, 1) != TCL_OK) {
-	return TCL_ERROR;
-    }
-    return TCL_OK;
 }
 
 

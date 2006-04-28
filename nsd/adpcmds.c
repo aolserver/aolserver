@@ -33,7 +33,7 @@
  *	ADP commands.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpcmds.c,v 1.25 2006/04/11 14:01:18 shmooved Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpcmds.c,v 1.26 2006/04/28 13:08:08 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -1065,6 +1065,57 @@ NsTclAdpMimeTypeObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
     return TCL_OK;
 }
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsAdpAppend --
+ *
+ *	Append content to the ADP output buffer, flushing the content
+ *	if necessary.
+ *
+ * Results:
+ *	TCL_ERROR if append and/or flush failed, TCL_OK otherwise.
+ *
+ * Side effects:
+ *	Will set ADP error flag and leave an error message in
+ *	the interp on flush failure.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+NsAdpAppend(NsInterp *itPtr, char *buf, int len)
+{
+    Tcl_DString *bufPtr;
+
+    if (GetOutput(itPtr, &bufPtr) != TCL_OK) {
+	return TCL_ERROR;
+    }
+    Ns_DStringNAppend(bufPtr, buf, len);
+    if (bufPtr->length > (int) itPtr->adp.bufsize
+	    && NsAdpFlush(itPtr, 1) != TCL_OK) {
+	return TCL_ERROR;
+    }
+    return TCL_OK;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * GetFrame --
+ *
+ *	Validate and return the current execution frame.
+ *
+ * Results:
+ *	TCL_ERROR if no active frame, TCL_OK otherwise.
+ *
+ * Side effects:
+ *	Will update given framePtrPtr with current frame.
+ *
+ *----------------------------------------------------------------------
+ */
 
 static int
 GetFrame(ClientData arg, AdpFrame **framePtrPtr)
@@ -1079,6 +1130,22 @@ GetFrame(ClientData arg, AdpFrame **framePtrPtr)
     return TCL_OK;
 }
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * GetOutput --
+ *
+ *	Validates and returns current output buffer.
+ *
+ * Results:
+ *	TCL_ERROR if GetFrame fails, TCL_OK otherwise.
+ *
+ * Side effects:
+ *	Will update given dsPtrPtr with buffer.
+ *
+ *----------------------------------------------------------------------
+ */
 
 static int
 GetOutput(ClientData arg, Tcl_DString **dsPtrPtr)
