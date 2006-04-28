@@ -6,7 +6,7 @@
 #	Install a man or HTML page, making links to all functions/commands
 #	documented in the file.  Modified from the Tcl source.
 #
-# $Id: nsinstall-man.sh,v 1.3 2006/04/13 19:06:59 jgdavidson Exp $
+# $Id: nsinstall-man.sh,v 1.4 2006/04/28 13:47:45 jgdavidson Exp $
 #
 
 ECHO=:
@@ -29,13 +29,47 @@ while true; do
     esac
     shift
 done
-if test "$#" -ne 2; then
-    echo "Usage: $0 <options> file dir"
+if test "$#" -ne 1 -a "$#" -ne 2; then
+    echo "Usage: $0 <options> file ?dir?"
+    exit 1
+fi
+if test "$#" -eq 2; then
+    DIR=$2
+else
+    DIR=$AOLSERVER
+fi
+if test -z "$DIR"; then
+    echo "Must specify output directory or set AOLSERVER environment variable."
     exit 1
 fi
 MANPAGE=$1
+SECTION=`echo $MANPAGE | $SED 's/.*\(.\)$/\1/'`
 
-# A sed script to parse the alternative names out of a man page.
+#
+# Search for man.macros in common locations.
+#
+
+MACROS=""
+for d in \
+	`dirname $MANPAGE` \
+	$AOLSERVER/include \
+	`dirname $0`/../include \
+	../doc \
+	./aolserver/doc
+do
+	f="$d/man.macros"
+	if test -r $f; then
+		MACROS=$f
+		break
+	fi
+done
+if test -z "$MACROS"; then
+    echo "Can not locate required man.macros"
+    exit 1
+fi
+
+#
+# Parse the alternative names out of a man page.
 #
 #    /^\\.SH NAME/{   ;# Look for a line, that starts with .SH NAME
 #	s/^.*$//      ;# Delete the content of this line from the buffer
@@ -67,23 +101,22 @@ NAMES=`$SED -n '
 # Create or link man pages for each name.
 #
 
-SECTION=`echo $MANPAGE | $SED 's/.*\(.\)$/\1/'`
-MACROS=`dirname $MANPAGE`/man.macros
-if test -z "$HTM"
-then
-    DIR=$2/man$SECTION
+if test -z "$HTM"; then
+    DIR=$DIR/man$SECTION
     MAN2HTM=$CAT
 else
-    DIR=$2
+    DIR=$DIR
     MAN2HTM="$GROFF -Thtml -man"
 fi
+
 FIRST=""
 $MD $DIR
-for name in $NAMES; do
+for name in $NAMES
+do
     tail=$name.$SECTION
     file=$DIR/$tail$HTM
     $RM $file
-    if test -z "$FIRST" ; then
+    if test -z "$FIRST"; then
 	FIRST=$file
 	$SED -e "/man\.macros/r $MACROS" -e "/man\.macros/d" $MANPAGE | \
 		$MAN2HTM > $file
