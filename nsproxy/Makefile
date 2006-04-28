@@ -27,17 +27,18 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsproxy/Makefile,v 1.1 2006/04/19 18:55:09 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsproxy/Makefile,v 1.2 2006/04/28 13:09:58 jgdavidson Exp $
 #
 
-MOD      =  nsproxy
-PGM	 =  nsproxy
-PGMOBJS  =  nsproxy.o
-OBJS     =  nsproxylib.o
-MODOBJS  =  nsproxymod.o
-HDRS	 =  nsproxy.h
-MODINIT	 =  NsProxy_ModInit
+MOD      = nsproxy
+PGM	 = nsproxy
+PGMOBJS  = nsproxy.o
+OBJS     = nsproxylib.o
+MODOBJS  = nsproxymod.o
+HDRS	 = nsproxy.h
+MODINIT	 = NsProxy_ModInit
 INSTALL	 = install-hdr
+MAN	 = ns_proxy.n
 
 include   $(AOLSERVER)/include/ns.mak
 
