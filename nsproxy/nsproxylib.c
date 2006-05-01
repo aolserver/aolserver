@@ -33,7 +33,7 @@
  *	Library for ns_proxy commands and main loops.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsproxy/nsproxylib.c,v 1.3 2006/05/01 13:16:54 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsproxy/nsproxylib.c,v 1.4 2006/05/01 14:25:46 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsproxy.h"
 #include <poll.h>
@@ -650,7 +650,7 @@ WaitFd(int fd, int event, int ms)
     pfd.revents = 0;
     do {
 	n = poll(&pfd, 1, ms);
-    } while (n < 0 && n == EINTR);
+    } while (n < 0 && errno == EINTR);
     if (n < 0 && errno != EINTR) {
 	Ns_Fatal("nsproxy: poll failed: %s", strerror(errno));
     }
