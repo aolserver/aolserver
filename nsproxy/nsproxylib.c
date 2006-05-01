@@ -33,7 +33,7 @@
  *	Library for ns_proxy commands and main loops.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsproxy/nsproxylib.c,v 1.2 2006/04/20 17:28:06 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsproxy/nsproxylib.c,v 1.3 2006/05/01 13:16:54 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsproxy.h"
 #include <poll.h>
@@ -1444,6 +1444,7 @@ CloseProxy(Proxy *proxyPtr)
 	Ns_CondSignal(&pcond);
 	if (!once) {
 	    Ns_ThreadCreate(CloseThread, NULL, 0, NULL);
+	    once = 1;
 	}
 	Ns_MutexUnlock(&plock);
 	proxyPtr->procPtr = NULL;

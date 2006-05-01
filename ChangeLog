@@ -1,3 +1,9 @@
+2006-05-01  Zoran Vasiljevic <zv@archiware.com>
+
+	* nsproxy/nsproxylib.c: CloseProxy() did not set "once" after
+	creating the cleanup thread, resulting in many cleanup threads
+	(needlessly) created.
+
 2006-04-28  Jim Davidson <jgdavidson@aol.com>
 
 	* nsd/adpcmds.c:
