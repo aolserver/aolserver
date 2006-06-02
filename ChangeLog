@@ -1,3 +1,18 @@
+2006-06-02  Jim Davidson <jgdavidson@aol.com>
+
+	* configure:
+	* configure.in: Added check for Darwin (OS/X) to disable
+	detection of poll which appears broken.  Result is select
+	is used instead.
+
+	* nsd/driver.c: Fixed spurious "recv failed" messages when
+	clients dropped which should only have shown up when the
+	"debug" flag was set for a comm driver.
+
+	* nsd/tclinit.c:
+	* nsd/tclloop.c: Minor edits to silence compiler warnings.
+
+
 2006-05-01  Zoran Vasiljevic <zv@archiware.com>
 
 	* nsproxy/nsproxylib.c: CloseProxy() did not set "once" after
