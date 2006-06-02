@@ -34,7 +34,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.53 2006/04/13 19:06:24 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.54 2006/06/02 21:36:46 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -74,6 +74,7 @@ char *states[] = {
 
 typedef enum {
     E_NOERROR = 0,
+    E_CLOSE,
     E_RECV,
     E_FDAGAIN,
     E_FDWRITE,
@@ -341,7 +342,7 @@ Ns_DriverInit(char *server, char *module, Ns_DriverInitData *init)
     drvPtr->arg = init->arg;
     drvPtr->opts = init->opts;
     drvPtr->servPtr = servPtr;
-    if (!Ns_ConfigGetBool(path, "debug", &n) && n) {
+    if (Ns_ConfigGetBool(path, "debug", &n) && n) {
 	drvPtr->flags |= DRIVER_DEBUG;
     }
     if (!Ns_ConfigGetInt(path, "bufsize", &n) || n < 1) { 
@@ -1626,6 +1627,7 @@ SockRead(Sock *sockPtr)
     Ns_Sock *sock = (Ns_Sock *) sockPtr;
     ReadErr err;
 
+    //errno = 0;
     ++sockPtr->nreads;
     if ((connPtr->flags & NS_CONN_READHDRS)) {
 	err = SockReadContent(drvPtr, sock, connPtr);
@@ -1711,8 +1713,10 @@ SockReadLine(Driver *drvPtr, Ns_Sock *sock, Conn *connPtr)
     buf.iov_base = bufPtr->string + len;
     buf.iov_len = max - len;
     n = (*drvPtr->proc)(DriverRecv, sock, &buf, 1);
-    if (n <= 0) {
+    if (n < 0) {
 	return E_RECV;
+    } else if (n == 0) {
+	return E_CLOSE;
     }
     len += n;
     Tcl_DStringSetLength(bufPtr, len);
@@ -1952,8 +1956,10 @@ SockReadContent(Driver *drvPtr, Ns_Sock *sock, Conn *connPtr)
 	}
     }
     n = (*drvPtr->proc)(DriverRecv, sock, &buf, 1);
-    if (n <= 0) {
+    if (n < 0) {
 	return E_RECV;
+    } else if (n == 0) {
+	return E_CLOSE;
     }
     if ((connPtr->flags & NS_CONN_FILECONTENT)
 	    && write(connPtr->tfd, fbuf, n) != n) {
@@ -2341,6 +2347,9 @@ LogReadError(Sock *sockPtr, ReadErr err)
     case E_NOERROR:		
 	msg = "no error";
 	break;
+    case E_CLOSE:		
+	msg = "client close";
+	break;
     case E_RECV:		
 	msg = "recv failed";
 	break;
@@ -2388,10 +2397,10 @@ LogReadError(Sock *sockPtr, ReadErr err)
     case E_FDWRITE:		
     case E_FDTRUNC:		
     case E_FDSEEK:		
-	fmt = "%d: %s: %s";
+	fmt = "conn[%d]: %s: %s";
 	break;
     default:
-	fmt = "%d: %s";
+	fmt = "conn[%d]: %s";
 	break;
     }
     Ns_Log(Error, fmt, sockPtr->connPtr->id, msg, strerror(errno));
