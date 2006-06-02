@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/configure.in,v 1.23 2006/04/19 17:52:56 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/configure.in,v 1.24 2006/06/02 18:32:58 jgdavidson Exp $
 #
 
 #
@@ -139,7 +139,18 @@ AC_SUBST(AOLSERVER)
 #
 
 AC_CHECK_HEADERS(inttypes.h)
-AC_CHECK_FUNCS(timegm fork1 poll drand48 random _NSGetEnviron)
+AC_CHECK_FUNCS(timegm fork1 drand48 random _NSGetEnviron)
+
+#
+# Poll is currently broken on OS/X.
+#
+
+system=`uname`
+if test "x$system" != "xDarwin"
+then
+    AC_CHECK_FUNCS(poll)
+fi
+
 AC_CHECK_HEADER(dl.h, AC_DEFINE(USE_DLSHL),)
 AC_MSG_CHECKING([need for dup high])
 AC_TRY_RUN([
