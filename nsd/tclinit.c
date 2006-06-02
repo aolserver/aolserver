@@ -79,7 +79,7 @@
  *	"ns:data" and accessible by NsGetInterpData.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.51 2006/04/13 19:06:50 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclinit.c,v 1.52 2006/06/02 18:51:49 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -1222,6 +1222,7 @@ badargs:
 	    break;
 	default:
 	    /* NB: Silence compiler. */
+	    when = 0;
 	    break;
 	}
 	goto trace;

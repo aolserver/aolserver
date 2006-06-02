@@ -34,7 +34,7 @@
  *	monitored and managed by "ns_loop_ctl" command.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclloop.c,v 1.1 2006/04/13 19:05:17 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclloop.c,v 1.2 2006/06/02 18:51:49 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -525,7 +525,7 @@ NsTclLoopCtlObjCmd(arg, interp, objc, objv)
     Tcl_HashSearch search;
     Ns_Time timeout;
     int lid, result, len, status;
-    char *str;
+    char *str = "";
     Tcl_Obj *objPtr, *listPtr;
     static CONST char *opts[] = {
         "list", "info", "pause", "resume", "cancel", "eval",
