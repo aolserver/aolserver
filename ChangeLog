@@ -1,3 +1,20 @@
+2006-06-19  Jim Davidson <jgdavidson@aol.com>
+
+	* nsd/adprequest.c:
+	* nsd/adpeval.c:
+	* nsd/adpcmds.c: Fixes for bug #1389389 where calls to ADP
+	outside a normal ADP request (e.g., within an ns_register_proc
+	callback) caused the connection to close.
+
+	* nsd/adpparse.c: Based on a patch from Alastair Young,
+	restored the AOLserver 3.x ADP parsing order where registered
+	tags, <% ... %> scripts, and <script> ... </script> tags
+	all have the same precedence.  Also, fixed the parser to
+	handle nested sequences, e.g.:
+
+		 <% ns_adp_puts [ns_adp_eval {<% ... %>} %>
+
+	
 2006-06-02  Jim Davidson <jgdavidson@aol.com>
 
 	* configure:
