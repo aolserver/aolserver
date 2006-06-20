@@ -267,6 +267,7 @@ typedef struct AdpCode {
 #define ADP_FLUSHED	0x1000	/* Some output has been sent. */
 #define ADP_ERRLOGGED	0x2000	/* Error message has already been logged. */
 #define ADP_AUTOABORT	0x4000	/* Raise abort on flush error. */
+#define ADP_EVAL_FILE	0x8000	/* Object to evaluate is a file. */
 
 /*
  * The following structure maitains data for each instance of
@@ -846,10 +847,11 @@ typedef struct NsInterp {
 	int                debugInit;
 	char              *debugFile;
 	Ns_Cache	  *cache;
-	Tcl_Channel	   chan;
 	int                depth;
 	char		  *cwd;
 	struct AdpFrame	  *framePtr;
+	Ns_Conn		  *conn;
+	Tcl_Channel	   chan;
 	Tcl_DString	   output;
     } adp;
     
@@ -919,8 +921,9 @@ extern void NsFreeConnInterp(Conn *connPtr);
 extern Ns_OpProc NsAdpProc;
 
 extern Ns_Cache *NsFastpathCache(char *server, int size);
-extern void NsAdpFree(NsInterp *itPtr);
 extern void NsAdpInit(NsInterp *itPtr);
+extern void NsAdpReset(NsInterp *itPtr);
+extern void NsAdpFree(NsInterp *itPtr);
 extern void NsTclRunAtClose(NsInterp *itPtr);
 extern int  NsUrlToFile(Ns_DString *dsPtr, NsServer *servPtr, char *url);
 

@@ -33,7 +33,7 @@
  *	ADP connection request support.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adprequest.c,v 1.30 2006/04/28 13:08:08 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adprequest.c,v 1.31 2006/06/20 03:21:42 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -145,6 +145,7 @@ Ns_AdpRequestEx(Ns_Conn *conn, char *file, Ns_Time *ttlPtr)
      * Include the ADP with the special start page and null args.
      */
 
+    itPtr->adp.conn = conn;
     start = servPtr->adp.startpage ? servPtr->adp.startpage : file;
     objv[0] = Tcl_NewStringObj(start, -1);
     objv[1] = Tcl_NewStringObj(file, -1);
@@ -153,7 +154,7 @@ Ns_AdpRequestEx(Ns_Conn *conn, char *file, Ns_Time *ttlPtr)
     result = NsAdpInclude(itPtr, 2, objv, start, ttlPtr);
     Tcl_DecrRefCount(objv[0]);
     Tcl_DecrRefCount(objv[1]);
-    if (result != TCL_OK) {
+    if (NsAdpFlush(itPtr, 0) != TCL_OK || result != TCL_OK) {
 	return NS_ERROR;
     }
     return NS_OK;
@@ -181,12 +182,19 @@ NsAdpFlush(NsInterp *itPtr, int stream)
 {
     Ns_Conn *conn;
     Tcl_Interp *interp = itPtr->interp;
-    Tcl_DString *bufPtr = &itPtr->adp.output;
     int len, wrote, result = TCL_ERROR, flags = itPtr->adp.flags;
     char *buf;
 
-    buf = bufPtr->string;
-    len = bufPtr->length;
+    /*
+     * Verify output context.
+     */
+
+    if (itPtr->adp.conn == NULL && itPtr->adp.chan == NULL) {
+	Tcl_SetResult(interp, "no adp output context", TCL_STATIC);
+	return TCL_ERROR;
+    }
+    buf = itPtr->adp.output.string;
+    len = itPtr->adp.output.length;
 
     /*
      * If enabled, trim leading whitespace if no content has been sent yet.
@@ -257,6 +265,7 @@ NsAdpFlush(NsInterp *itPtr, int stream)
 	    itPtr->adp.exception = ADP_ABORT;
     	}
     }
-    Tcl_DStringTrunc(bufPtr, 0);
+    Tcl_DStringTrunc(&itPtr->adp.output, 0);
+    NsAdpReset(itPtr);
     return result;
 }
