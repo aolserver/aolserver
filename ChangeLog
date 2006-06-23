@@ -1,3 +1,10 @@
+2006-06-22  Nathan Folkman <nathan.folkman@gmail.com>
+
+        * nsd/adprequest.c: Fixed bug preventing ns_adp_stream 
+        from working correctly due to NsAdpReset() being called 
+        when it should not have been.
+
+
 2006-06-19  Jim Davidson <jgdavidson@aol.com>
 
 	* nsd/adprequest.c:
