@@ -57,11 +57,6 @@ set pid [pid]
 set mode 0644
 set overwrite 1
 set iswin [string equal $tcl_platform(platform) windows]
-if $iswin {
-	set modestr ""
-} else {
-	set modestr " ($mode)"
-}
 
 
 #
@@ -128,6 +123,11 @@ if [info exists file] {
 if ![info exists dir] {
 	usage
 }
+if $iswin {
+	set modestr ""
+} else {
+	set modestr " ($mode)"
+}
 
 
 #
@@ -152,6 +152,11 @@ foreach src $files {
 			continue
 		}
 		file delete $dst
+	}
+	while {[file type $src] == "link"} {
+		set link [file readlink $src]
+		puts "follow link: $src = $link"
+		set src $link
 	}
 	file copy $src $tmp
 	if {!$iswin} {
