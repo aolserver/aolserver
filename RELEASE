@@ -1,0 +1,638 @@
+
+AOLserver 4.5 - June 2006
+-------------------------
+
+AOLserver 4.5 is a major upgrade including several new Tcl commands,
+C API's, and resource management improvements.
+
+
+Contents:
+--------
+
+New and Updated Binaries
+New Modules
+New and Updated Tcl Commands
+New and Updated C Routines
+Additional Updates
+Changes to the Build Process
+Bug Fixes
+Known Issues
+
+
+New and Updated Binaries:
+------------------------
+
+libnsd:
+	The AOLserver library now includes an entry point suitable
+	for loading into an ordinary, thread-enabled, tclsh, e.g.,:
+
+	# tclsh
+	% load /usr/local/aolserver/lib/libnsd.so
+	% ns_time
+
+	This provides the full set of Tcl commands within the
+	AOLserver core although several commands will generate
+	errors for lack of an HTTP request context (e.g., ns_conn).
+
+nstclsh:
+	A simple Tcl-shell linked against libnsd. It's equivalent
+	to loading libnsd into an ordinary tclsh as described above.
+
+
+New Modules:
+-----------
+
+nszlib:
+	The popular nszlib module written by Vlad Seryakov has been
+	integrated into the core release with modifications to
+	enable the new Ns_Gzip routine.  The module also provides
+	the "ns_zlib" command for compressing and uncompressing
+	strings and files.
+
+nsproxy:
+	The nsproxy modules provides the "ns_proxy" command which
+	enables sending Tcl scripts to a proxy process connected
+	via a pipe.  The proxy includes core Tcl commands as well
+	as AOLserver commands from the libnsd library. Evaluating
+	scripts in a proxy process can be used to isolate and/or
+	timeout thread-unsafe or otherwise unsafe 3rd party code.
+
+
+New and Updated Tcl Commands:
+----------------------------
+
+The following Tcl commands are new or updated from the last release.
+As few of the man pages have yet to be written, see the source code
+for usage details and options.
+
+ns_pools:
+	The "ns_pools" command enables configuration of one or more
+	pools of connection processing threads. The pools allow
+	certain requests to be handled by specific threads. This
+	could, for example, ensure multiple long running requests
+	don't block other short running requests.  Pools are selected
+	based on method/url pairs similar to the mappings managed
+	by the "ns_register_proc" command.  By default, all requests
+	are handled by a single, unlimited, "default" pool.  There
+	is also an "error" pool as described below.  Coupled with
+	the new "ns_limits" command, pools can provide for sophisticated
+	resource management.
+
+ns_limit:
+	The "ns_limit" command enables setting various resource
+	limits for specified method/url combinations. These limits
+	include such items as max concurrent connections, max file
+	upload size, and timeouts waiting for connection processing.
+	When limits are exceeded, connections are immediately
+	dispatched to a dedicated "error" connection processing
+	pool to generate a quick error response. By default all
+	requests share the same default limits.  Coupled with the
+	new "ns_pools" command, URL-based limits can provide for
+	sophisticated resource management.
+
+ns_register_fastpath:
+	The new "ns_register_fastpath" command enables mapping of
+	specific directories to the internal static file response
+	code. See also the new Ns_FastPathOp API.
+
+ns_adp_flush:
+	The "ns_adp_flush" command allows buffered ADP output to
+	be immediately flushed to the client. If no output has been
+	sent, the server will first generate the approriate HTTP
+	response headers for a streaming response.  An implicit
+	flush will also be performed when the ADP buffer overflows.
+
+ns_adp_close:
+	The "ns_adp_close" command flushes content as with ns_adp_flush
+	and then closes the connection so no additional content can
+	be sent. This can be useful to keep the client from waiting
+	while post-processing steps continue.
+
+ns_adp_registerscript
+	The "ns_adp_registerscript" command is similar to the
+	ns_adp_regsiteradp command except it registers an ordinary
+	script instead of text/script ADP code to execute for a
+	given tag.
+
+ns_adp_ictl:
+	The new "ns_adp_ictl" command provides various options to
+	manage the ADP execution environment for current Tcl
+	interpreter, e.g.:
+
+    	ns_adp_ctl bufsize ?size?;	# Max output before forced flush
+    	ns_adp_ctl autoabort ?bool?;	# Abort execution on client drop?
+    	ns_adp_ctl singlescript ?bool?;	# Compile pages as a single script?
+    	ns_adp_ctl gzip ?bool?;		# Gzip output if enabled in server?
+    	ns_adp_ctl trimspace ?bool?;	# Trim leading whitespace in response?
+    	ns_adp_ctl channel ?chan?;	# Set channel for ADP output
+	ns_adp_ctl trace ?bool?;	# Trace ADP execution
+	ns_adp_ctl detailerror ?bool?;	# Generate detailed error messages
+	ns_adp_ctl displayerror ?bool?;	# Format error message in page output
+	ns_adp_ctl stricterror ?bool?;	# Abort ADP execution on flush error
+
+ns_adp_include:
+	The "ns_adp_include" command has been enhanced with the new
+	"-cache ttl" and "-nocache" options to support execution
+	results caching. Applications which isolate fully dynamic
+	page components (e.g., personalized content) from partially
+	dynamic page components (e.g., slowly changing news headlines)
+	can benefit from using these options to cache and reuse the
+	results of slowly changing components. This approach has
+	the potential to dramatically improve the performance of
+	such applications.
+
+ns_adp_ident:
+	The new "ns_adp_ident" command can be used to tag and query
+	ADP file versions.
+
+ns_cache:
+	The "ns_cache" command enables creation and management of
+	memory-based caches utilizing the underlying Ns_Cache C
+	API's.
+
+ns_driver
+	The new "ns_driver" command provides a "list" option to
+	enumerate all driver instances and a "query" option to
+	return a Tcl list of various statistics for a given driver.
+
+ns_ictl:
+	The "ns_ictl" command has been enhanced with several new
+	options including:
+
+	trace:
+		Enables Tcl-script based callbacks at points defined
+		by the Ns_TclRegisterTrace routine.
+
+	threads:
+		Returns a list of all threads with Tcl interps for
+		current virtual server.
+
+	cancel:
+		Sends an async-cancel message to a given thread,
+		interrupting any Tcl execution in any AOLserver-based
+		interpreter executing on the thread.
+
+	package:
+		Registers a Tcl package to be automatically required
+		in each interp for the current virtual server.
+
+	once:
+		Registers a script to be executed exactly once for
+		a virtual server.
+
+ns_internalredirect:
+	The "ns_internalredirect" command enables re-authorization
+	and restart of a connection as if it where originally for
+	a different URL. This command provides access to the
+	previously private routines used internally for such purposes,
+	e.g., by the fastpath to handle directory URL's mapped to
+	an ADP index files such as "index.adp".
+
+ns_for:
+ns_foreach:
+ns_while:
+	These commands are replacments for the standard "for",
+	"foreach", and "while" command which have the same semantics
+	but also allow for monitoring and control by the "ns_loop_ctl"
+	command described below.
+
+ns_loop_ctl:
+	The "ns_loop_ctl" command enables listing, pause, resume,
+	cancel, and evaluation of a script within "ns_for",
+	"ns_foreach", and "ns_while" loops executing in other
+	threads. In addition, the "install" option can be used at
+	to swap the ns_for, ns_foreach, and ns_while commands for
+	the for, foreach, and while commands, enabling monitoring
+	of all loops in unmodified code.
+
+ns_register_encoding
+	The new "ns_register_encoding" command enables mapping of
+	method/URL combinations to specific charset encodings used
+	to decode the request. If no mapping exists for a given
+	method/URL, the server will use that defined for the virtual
+	server or process wide by the "urlcharset" config setting.
+	This setting defaults to NULL, or no encoding, thus assuming
+	UTF-8 characters in the request data.
+
+ns_returnmoved:
+	The "ns_returnmoved" command is similar to the "ns_returnredirect"
+	command but returns a 301 "permanently moved" HTTP status
+	code along with the redirected location.
+
+
+New and Updated C Routines:
+--------------------------
+
+The following routines are new or updated from the last release.
+As few of the man pages have yet to be written, see the source code
+for parameter and results details.
+
+Ns_BinPath:
+	New routine to construct file pathnames relative to the
+	bin/ subdirectory similar to the Ns_LibPath and Ns_HomePath
+	routines.
+
+Ns_ConnContent:
+	Return a pointer to request content. If the content is not
+	in memory and has been spooled to a temp file, a new file
+	mapping will be created and returned.  Note that the content
+	is likely, but not guarenteed, to be followed by a terminating
+	null byte. See also the "content" option of the "ns_conn"
+	command.
+
+Ns_ConnContentFd:
+	Return a file descriptor open on a temp file containing
+	request content.  If the content is in memory only, it will
+	first be copied to a newly allocated temp file.  You must
+	not close the returned fd as it is owned by the server core
+	which will reuse the open file for subsequent requests.
+	For an example, see nscgi/nscgi.c which has been updated
+	to use Ns_ConnContentFd instead of spooling to a temp file
+	directly. See also the "contentchannel" option to the
+	"ns_conn" command which returns a duplicate of the fd
+	returned via Ns_ConnContentFd registered as a Tcl channel.
+
+Ns_ConnContentOnDisk:
+	Returns 1 if the request content is already located in a
+	temp file or 0 if the content is located in memory.  A call
+	to Ns_ConnContent after Ns_ConnContentOnDisk has returned
+	1 will result in a new file memory mapping being created.
+
+Ns_ConnGetFile:
+Ns_ConnFirstFile:
+Ns_ConnNextFile:
+	Routines to find a specific file or enumerate all file
+	objects embedded within a multipart form. See also the
+	"files" option to the "ns_conn" command.
+
+Ns_ConnSendFdEx:
+	Send contents of an open file descriptor from a specific
+	file offset.  This routine uses pread on Unix to enable
+	multiple simultaneous calls with the same open fd and is
+	currently unsupported on Win32.
+
+Ns_ConnReturnOpenFdEx:
+	Generate a complete response with content from open file
+	descriptor at given offset. This routine uses Ns_ConnSendFdEx
+	and as such is also unsupported on Win32.
+
+Ns_ConnReturnServiceUnavailable:
+	New routine to return an HTTP 503 response.
+
+Ns_CheckStack:
+	Checks if the stack appears to have overrun. Note that the
+	ADP evaluation engine now calls Ns_CheckStack on entry to
+	each call frame and will generate an exception in the case
+	of an endlessly recursive ADP condition.
+
+Ns_ClsAlloc:
+Ns_ClsSet:
+Ns_ClsGet:
+	New interface, similar to thread-local storage, which enables
+	user data to be saved and retrieved within the connection
+	structure. This interface is intended to be used with the
+	Ns_QueueWait interface so that data can be saved in the
+	driver thread and retrieved later in a connection processing
+	thread.
+
+Ns_ConnSetStatus:
+Ns_ConnGetStatus:
+	New routines to set and get the HTTP status code to be used
+	in responses genenerated via Ns_ConnFlush. See also the
+	"status" option to the "ns_conn" command.
+
+Ns_ConnSetType:
+	Enhanced to more intelligently set the input and output
+	character encodings based on intended output charset. See
+	also the "ns_adp_mimetype" command and the "encoding" and
+	"urlencoding" options to the "ns_conn" command.
+
+Ns_ConnGetGzipFlag:
+Ns_ConnSetGzipFlag:
+Ns_ConnGetKeepAliveFlag:
+Ns_ConnSetKeepAliveFlag:
+	New utility routines to query or set the gzip and connection
+	keep-alive advisory flags.
+
+Ns_ConnFlush:
+	New general purpose routine to contruct and return dynamically
+	generated, text-based responses, e.g., as generated from
+	ADP.  The routine incorporates much of the logic previously
+	embedded in the ADP interface including the ability to
+	automatically covert from UTF-8 to the output encoding
+	and/or gzip-compress the output. In addition, the routine
+	supports streaming responses, generating headers on the
+	first call followed by HTTP/1.1-style chunked-encoding
+	blocks on subsequent calls. See also the "ns_adp_flush" and
+	"ns_adp_close" commands.
+
+Ns_ConnFlushDirect:
+	Similar to Ns_ConnFlush but without any modification of the
+	given buffer, thus useful for non-text content.
+
+Ns_DevNull:
+	Returns a shared file descriptor open on /dev/null. This
+	fd is owned by the AOLserver process and must not be closed.
+
+Ns_FastPathOp:
+	New request callback to utilize the internal "fastpath"
+	caching-file response code. See also the new "ns_register_fastpath"
+	command.
+
+Ns_AdpRequestEx:
+	Extended version of Ns_AdpRequest with an additional Ns_Time
+	argument, specifying the timeout of optional execution
+	results caching.
+
+Ns_FindCharset
+	Locates the charset string within a full mimetype string,
+	e.g., locating "utf-8" in "text/html; charset=utf-8".
+
+Ns_Gzip:
+Ns_SetGzipProc:
+	Routine to gzip-compress a buffer if a compression function
+	has been registered with a call to Ns_SetGzipProc. The new
+	"nszlib" module registers such a callback.
+
+Ns_GetAllAddrByHost:
+	New routine to return all addresses for a given host.  See
+	also the "ns_addrbyhost -all" command.
+
+Ns_ParseRequestEx:
+	New extended version of Ns_ParseRequest which takes an
+	optional Tcl_Encoding argument specifying the charset to
+	decode the URL. The default is based on the context of the
+	request.
+
+Ns_TaskCreate:
+Ns_TaskEnqueue:
+Ns_TaskRun:
+Ns_TaskCancel:
+Ns_TaskWait:
+Ns_TaskCallback:
+Ns_TaskDone:
+Ns_TaskFree:
+Ns_CreateTaskQueue:
+Ns_DestroyTaskQueue:
+	New facility for event-based callback queues designed to
+	replace the legacy Ns_SockCallback interface.  As an example,
+	see the "ns_http" command which has been updated to use the
+	task interface.
+
+Ns_TclRegisterTrace:
+	New routine to registere callbacks at specific points in
+	the lifetime of a Tcl interpreter.  This routine is a
+	replacement for the legacy Ns_TclRegisterAt* routines. See
+	also the "trace", "runtraces", and "gettraces", options to
+	the "ns_ictl" command.
+
+Ns_QueueWait:
+	New interface to enable event-driven callbacks in the driver
+	thread before dispatching to pools for processing. This
+	allows drivers to augment data received from the client
+	(headers, request, content) with additional data fetched
+	over the network (likely stored in connection-local storage
+	via Ns_Cls). An example would be to add certain personalization
+	data received via a Web service. The benefit of this approach
+	is to accumulate additional data efficiently with driver-thread
+	based event callbacks instead of through potentially blocking
+	calls withing connection threads.
+
+Ns_SockWaitEx:
+	New extended version of Ns_SockWait using higher-resolution
+	millisecond timeouts instead of 1-second resolution.
+
+ns_poll:
+	New wrapper around system-provided poll or an emulation
+	based on select when poll isn't available (Win32) or broken
+	(OS/X).
+
+Ns_LibInit:
+NsThreads_LibInit:
+	New routines to initialize the libnsd and libnsthread
+	libraries.  It is normally not necessary to call these
+	routines as the dynamic library entry points as well as the
+	Ns_Main and Ns_TclInit routines call these init routines
+	at startup.  They are available if necessary to initialize
+	specialized, staticlly linked applications.
+
+
+Additional Updates:
+------------------
+
+* Enabled a global, psuedo-server, to support all Tcl commands
+outside the context of a virtual server, e.g., when the libnsd.so
+library is loaded into a Tcl shell.
+
+* Updated Tcl trace execution order to be FIFO and LIFO for init
+and cleanup callbacks respectively.
+
+* Moved more of the legacy (and generally confusing) Tcl interp
+duplication code from C into the the bootstrap init.tcl script
+utilizing the ns_ictl command.
+
+* ADP output buffer is now configurable with a maximum size (see
+the "ns_adp_ctl" command above). Upon overflow, the current output
+will be flushed to the client immediately in streaming mode to avoid
+consuming unbounded memory.
+
+* Restored AOLserver 3.x ADP parsing order, based on a patch from
+Alastair Young, where registered tags, <% ... %> scripts, and
+<script> ... </script> tags all have the same precedence.  The ADP
+parser now also properly handles nested sequences, e.g.:
+
+	<% ns_adp_puts [ns_adp_eval {<% ... %>} %>
+
+* Enhanced ADP error messaging capabilities which can be managed
+on a per-interp basis with ns_adp_ctl or configured by default,
+e.g.:
+
+    ns_section "ns/server/server1/adp"
+	ns_param stricterror false  ;# Stop execution on error
+	ns_param detailerror true   ;# Include connection detail
+	ns_param displayerror false ;# Return error message to client
+
+When "detailerror" and/or "displayerror" are set, an error message
+similar to the following would be appened to the server log and/or
+included in the output sent to the client:
+
+This is an error.
+    while executing
+"error "This is an error.""
+    at line 4 of adp file "/aolserver/servers/server1/pages/error.adp"
+    while processing connection #2:
+        GET /error.adp HTTP/1.1
+        Accept: */*
+        Accept-Language: en
+        Accept-Encoding: gzip, deflate
+        User-Agent: Mozilla/5.0 (Macintosh; U; Intel Mac OS X; en) ...
+        Connection: keep-alive
+        Host: 192.168.2.1:8000
+
+* New ADP execution tracing which can be enabled for a request with
+the ns_adp_ctl command or configured by default, e.g.:
+
+    ns_section "ns/server/server1/adp"
+	ns_param trace false  ;# Enable text/script debug info.
+	ns_param tracesize 40 ;# Max chars of each chunk to log.
+
+The output of ADP tracing is somewhat limited and poorly formatted.
+
+* Communication driver threads are now dedicated to each instance
+of loaded drivers instead of a single thread multiplexing all I/O.
+This both simplified the code and enabled the new Ns_QueueWait API.
+
+* Communication driver threads now truncate instead of freeing I/O
+dstring buffers, avoiding repeated realloc calls between connections.
+* Re-ordered inits to ensure startup fds and log file are initialized
+first.
+
+* Communication drivers and connection data access routines have
+been updated to support large request content spooled to temp files
+instead of always copying to potentially large in-memory regions.
+See the Ns_ConnContentFd API for more details.
+
+* Updated to HTTP response version (1.0 or 1.1) to match client
+version.
+
+* Updated "ns_db" Tcl API to be a native Tcl_Obj command which
+should improve peroformance over the previous technique of multiple
+comparisons of command option strings.
+
+* Added debug driver configuration option which will enable logging
+of unusual I/O or protocol errors.
+
+* Simplified charset/encoding config for process-wide url decoding
+and per-virtual server defaults for dyanmic Tcl requests.
+
+* Several new default file extension to mimetype mappings have been
+added in nsd/mimetype.c, e.g., .mp3 = audio/mpeg.
+
+* Created new default index.adp page which displays a number of
+AOLserver configuration settings.
+
+* The OS/X dynamic library loading code has been removed in favor
+of the more standard dlopen/dlsym API now provided by OS/X 10.4.
+
+
+Changes to the Build Process:
+----------------------------
+
+* The Unix and Win32 build environments have been tightly integrated.
+Basically, the makefiles support both gmake on Unix and nmake on
+Win32 by including a platform-specific include/ns.mak created by
+the nsconfig.tcl Tcl script. As a side effect, several makefile
+variable names had to be changed, e.g., "LIB" on Unix is now "DLL"
+on Unix and Win32.  In addition, platform-indepedent Tcl scripts
+are used for file removal and copying, a further dependency on a
+working Tcl installation while building.
+
+* On Unix, backwards compatible Makefile.module and Makefile.global
+are provided which simply include the new ns.mak and map old variables
+to new names if present, e.g., "LIB" to "DLL".
+
+* On Win32, the legacy Visual Studio build directories have been
+removed entirely has their maintenance proved irritating and
+complicated.
+
+* A new util/nsinstall-man.sh script installs man pages and also
+optionally converts the pages to HTML using groff on Unix.
+
+* Several new makefile install directives have been added, including
+install-tcl, install-skel, install-util, install-bins, and install-docs.
+
+* Added new stubs and makefile targets to support building a library
+or module in a consistent way which separates the library code
+installed as both a static archive and dynamic lib from the library
+and/or module init calls.
+
+* Added mynsd example directory showing how to build a custom static
+linked nsd binary.  The previous conditional startup code and
+makefile support has been removed.
+
+* Compiling for 64-bit is known to work in general on Unix. It is
+unclear if AOLserver has ever been successfully compiled on 64-bit
+Windows and there is a known issue with the Win32 thread interface
+which would appear to make this not possible (the thread exit status
+pointer is cast to an smaller-sized integer). In addition, while
+AOLserver runs on 64-bit Unix systems, the interfaces have not been
+scrubbed and updated to support all 64-bit features, e.g., large
+file offsets. A more extensive 64-bit certification effort is planned
+for the next release.
+
+* Applied patches from Stephen Deasey for better compile time error
+checking, e.g., now checking printf-style arguments in Ns_DStringPrintf.
+
+
+Bug Fixes:
+---------
+
+* Fixed crash bug caused by certain command sequences generated
+when using the "ns_chan" Tcl API (SF #1094480).
+
+* Fixed crash bug in channel tables cleanup and closing code.
+
+* Fixed crash bug loading nsdb outside a virtual server.
+
+* Fixed invalid return code in Ns_ConnReadLine().
+
+* Updated simple HTML response routines (e.g., Ns_ConnReturnNotice,
+ns_returnnotice) to properly encode output from UTF-8.
+
+* Fixed bug where log level "dev" wasn't properly supported.
+
+* Switched to strtol() fromm atoi() for improved thread safety.
+
+* Added check for Darwin (OS/X) to disable detection of poll() which
+appears broken, using the poll() emulation code based on select()
+instead.
+
+* Fixed infinite recursion crash bug in GetAddr().
+
+* Removed minor memory leak when no CGI mappings are present.
+
+* Removed most panics when compiling on 64 bit machines.
+
+* A thread race condition which could lead to a crash when using
+"ns_server threads" has been fixed.
+
+
+Known Issues:
+------------
+
+* Documentation remains incomplete. We are still missing useful
+overview and getting started materials and, while significant
+progress has been made, most of the man pages are still empty stubs.
+
+* Loading libnsd into a tclsh and then creating new threads with
+the ns_thread command will result in a crash when those threads
+exit. The issues has to do with finalization of the async-cancel
+context used to support the new "ns_ictl cancel" feature.  This bug
+is not present when using the "nstclsh" binary.
+
+* The Win32 port does not support all of the new features of temp-file
+based request content. In particular, while large requests will
+spool to a temp file, a subsequent call to Ns_ConnContent will fail
+as the cooresponding file mapping code has not yet been written.
+
+* The build environment in general is annoying. As described, there
+was an effort in this release to support Unix and Win32 from the
+same makefiles which, while a bit clever, likely irritated more
+Unix developers than excited Win32 developers. In addition, the
+Unix configure script is weak, overly reliant on the context from
+a properly built Tcl installation, and the makefiles rely too much
+on GNU make features.  Creating a proper Unix configure script which
+creates proper Makefiles is planned for the next release along with
+a possible shift in the Win32 strategy (see next note).
+
+* AOLserver does not compile with the latest Visual C++ 2005 from
+Microsoft.  While some of the new safety and security features in
+Visual C++ are interesting and the debugger has always been excellent,
+the complexity of Visual Studio and incompatibility of the Microsoft
+command line tools with Unix equivalents makes supporting Win32
+increasingly irritating.  As such, we will be exploring a shift to
+Msys-based Win32 build in the next release, enabling us to utilize
+our Unix-based development approach while still allowing AOLserver
+to run against native Win32 libraries.  Feedback is appreciaated.
+For now, AOLserver can be compiled on Win32 as described in the
+README file using the previous release of Visual C++.
