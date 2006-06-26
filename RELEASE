@@ -98,7 +98,7 @@ ns_register_fastpath:
 ns_adp_flush:
 	The "ns_adp_flush" command allows buffered ADP output to
 	be immediately flushed to the client. If no output has been
-	sent, the server will first generate the approriate HTTP
+	sent, the server will first generate the appropriate HTTP
 	response headers for a streaming response.  An implicit
 	flush will also be performed when the ADP buffer overflows.
 
@@ -191,7 +191,7 @@ ns_internalredirect:
 ns_for:
 ns_foreach:
 ns_while:
-	These commands are replacments for the standard "for",
+	These commands are replacements for the standard "for",
 	"foreach", and "while" command which have the same semantics
 	but also allow for monitoring and control by the "ns_loop_ctl"
 	command described below.
@@ -201,8 +201,8 @@ ns_loop_ctl:
 	cancel, and evaluation of a script within "ns_for",
 	"ns_foreach", and "ns_while" loops executing in other
 	threads. In addition, the "install" option can be used at
-	to swap the ns_for, ns_foreach, and ns_while commands for
-	the for, foreach, and while commands, enabling monitoring
+	to swap the "ns_for", "ns_foreach", and "ns_while" commands for
+	the "for", "foreach", and "while" commands, enabling monitoring
 	of all loops in unmodified code.
 
 ns_register_encoding
@@ -236,7 +236,7 @@ Ns_ConnContent:
 	Return a pointer to request content. If the content is not
 	in memory and has been spooled to a temp file, a new file
 	mapping will be created and returned.  Note that the content
-	is likely, but not guarenteed, to be followed by a terminating
+	is likely, but not guaranteed, to be followed by a terminating
 	null byte. See also the "content" option of the "ns_conn"
 	command.
 
@@ -298,7 +298,7 @@ Ns_ClsGet:
 Ns_ConnSetStatus:
 Ns_ConnGetStatus:
 	New routines to set and get the HTTP status code to be used
-	in responses genenerated via Ns_ConnFlush. See also the
+	in responses generated via Ns_ConnFlush. See also the
 	"status" option to the "ns_conn" command.
 
 Ns_ConnSetType:
@@ -315,7 +315,7 @@ Ns_ConnSetKeepAliveFlag:
 	keep-alive advisory flags.
 
 Ns_ConnFlush:
-	New general purpose routine to contruct and return dynamically
+	New general purpose routine to construct and return dynamically
 	generated, text-based responses, e.g., as generated from
 	ADP.  The routine incorporates much of the logic previously
 	embedded in the ADP interface including the ability to
@@ -396,7 +396,7 @@ Ns_QueueWait:
 	data received via a Web service. The benefit of this approach
 	is to accumulate additional data efficiently with driver-thread
 	based event callbacks instead of through potentially blocking
-	calls withing connection threads.
+	calls within connection threads.
 
 Ns_SockWaitEx:
 	New extended version of Ns_SockWait using higher-resolution
@@ -414,13 +414,13 @@ NsThreads_LibInit:
 	routines as the dynamic library entry points as well as the
 	Ns_Main and Ns_TclInit routines call these init routines
 	at startup.  They are available if necessary to initialize
-	specialized, staticlly linked applications.
+	specialized, statically linked applications.
 
 
 Additional Updates:
 ------------------
 
-* Enabled a global, psuedo-server, to support all Tcl commands
+* Enabled a global, pseudo-server, to support all Tcl commands
 outside the context of a virtual server, e.g., when the libnsd.so
 library is loaded into a Tcl shell.
 
@@ -453,7 +453,7 @@ e.g.:
 	ns_param displayerror false ;# Return error message to client
 
 When "detailerror" and/or "displayerror" are set, an error message
-similar to the following would be appened to the server log and/or
+similar to the following would be appended to the server log and/or
 included in the output sent to the client:
 
 This is an error.
@@ -496,14 +496,14 @@ See the Ns_ConnContentFd API for more details.
 version.
 
 * Updated "ns_db" Tcl API to be a native Tcl_Obj command which
-should improve peroformance over the previous technique of multiple
+should improve performance over the previous technique of multiple
 comparisons of command option strings.
 
 * Added debug driver configuration option which will enable logging
 of unusual I/O or protocol errors.
 
 * Simplified charset/encoding config for process-wide url decoding
-and per-virtual server defaults for dyanmic Tcl requests.
+and per-virtual server defaults for dynamic Tcl requests.
 
 * Several new default file extension to mimetype mappings have been
 added in nsd/mimetype.c, e.g., .mp3 = audio/mpeg.
@@ -523,7 +523,7 @@ Basically, the makefiles support both gmake on Unix and nmake on
 Win32 by including a platform-specific include/ns.mak created by
 the nsconfig.tcl Tcl script. As a side effect, several makefile
 variable names had to be changed, e.g., "LIB" on Unix is now "DLL"
-on Unix and Win32.  In addition, platform-indepedent Tcl scripts
+on Unix and Win32.  In addition, platform-independent Tcl scripts
 are used for file removal and copying, a further dependency on a
 working Tcl installation while building.
 
@@ -581,7 +581,7 @@ ns_returnnotice) to properly encode output from UTF-8.
 
 * Fixed bug where log level "dev" wasn't properly supported.
 
-* Switched to strtol() fromm atoi() for improved thread safety.
+* Switched to strtol() from atoi() for improved thread safety.
 
 * Added check for Darwin (OS/X) to disable detection of poll() which
 appears broken, using the poll() emulation code based on select()
@@ -613,7 +613,7 @@ is not present when using the "nstclsh" binary.
 * The Win32 port does not support all of the new features of temp-file
 based request content. In particular, while large requests will
 spool to a temp file, a subsequent call to Ns_ConnContent will fail
-as the cooresponding file mapping code has not yet been written.
+as the corresponding file mapping code has not yet been written.
 
 * The build environment in general is annoying. As described, there
 was an effort in this release to support Unix and Win32 from the
@@ -633,6 +633,6 @@ command line tools with Unix equivalents makes supporting Win32
 increasingly irritating.  As such, we will be exploring a shift to
 Msys-based Win32 build in the next release, enabling us to utilize
 our Unix-based development approach while still allowing AOLserver
-to run against native Win32 libraries.  Feedback is appreciaated.
+to run against native Win32 libraries.  Feedback is appreciated.
 For now, AOLserver can be compiled on Win32 as described in the
 README file using the previous release of Visual C++.
