@@ -33,7 +33,7 @@
  *	Support for loadable gzip compression.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/compress.c,v 1.7 2006/04/19 17:48:39 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/compress.c,v 1.8 2006/06/26 00:28:09 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -87,4 +87,33 @@ void
 Ns_SetGzipProc(Ns_GzipProc *procPtr)
 {
     gzipProcPtr = procPtr;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_Compress, Ns_CompressGzip --
+ *
+ *      AOLserver 4.0 compression routines.
+ *
+ * Results:
+ *      See Ns_Gzip.
+ *
+ * Side effects:
+ *      See Ns_Gzip.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Ns_Compress(char *buf, int len, Tcl_DString *outPtr, int level)
+{
+    return Ns_Gzip(buf, len, level, outPtr);
+}
+
+int
+Ns_CompressGzip(char *buf, int len, Tcl_DString *outPtr, int level)
+{
+    return Ns_Gzip(buf, len, level, outPtr);
 }
