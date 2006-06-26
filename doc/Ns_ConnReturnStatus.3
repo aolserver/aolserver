@@ -27,7 +27,7 @@
 '\" version of this file under either the License or the GPL.
 '\" 
 '\"
-'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_ConnReturnStatus.3,v 1.1 2006/04/19 17:37:30 jgdavidson Exp $
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_ConnReturnStatus.3,v 1.2 2006/06/26 00:27:47 jgdavidson Exp $
 '\"
 '\" 
 .so man.macros
@@ -36,7 +36,7 @@
 .BS
 '\" Note:  do not modify the .SH NAME line immediately below!
 .SH NAME
-Ns_ConnReturnBadRequest, Ns_ConnReturnForbidden, Ns_ConnReturnInternalError, Ns_ConnReturnNoResponse, Ns_ConnReturnNotFound, Ns_ConnReturnNotImplemented, Ns_ConnReturnNotModified, Ns_ConnReturnOk, Ns_ConnReturnStatus, Ns_ConnReturnUnauthorized \- Routines to return simple standard responses
+Ns_ConnReturnBadRequest, Ns_ConnReturnForbidden, Ns_ConnReturnInternalError, Ns_ConnReturnNoResponse, Ns_ConnReturnNotFound, Ns_ConnReturnNotImplemented, Ns_ConnReturnNotModified, Ns_ConnReturnOk, Ns_ConnReturnStatus, Ns_ConnReturnUnauthorized, Ns_RegisterReturn \- Routines to return simple standard responses
 .SH SYNOPSIS
 .nf
 \fB#include "ns.h"\fR
@@ -71,7 +71,8 @@ int
 int
 \fBNs_ConnReturnUnauthorized\fR(\fIconn\fR)
 .sp
-int
+void
+\fBNs_RegisterReturn\fR(\fIstatus, url\fR)
 .SH ARGUMENTS
 .AS Ns_Conn conn in
 .AP Ns_Conn conn in
@@ -80,6 +81,8 @@ Pointer to open connection.
 String with additional message text.
 .AP int status in
 Integer HTTP status code.
+.AP char *url in
+String which specifies internal redirection url.
 .BE
 
 .SH DESCRIPTION
@@ -93,13 +96,13 @@ Found" response.  They all return NS_OK if the response was sent
 or NS_ERROR if an underlying routine failed.
 
 .PP
-The server can be configured to intercept calls to these
-routines and internally redirect to another local url.
-This can be used to generate a more meaningful message,
-perhaps in a language other than the internally compiled
-English strings, or to generate a valid HTTP 200 response
-with alternate content.  See the man page on \fBNs_RegisterReturn\fR
-for details.
+The default behavior is to return an internal, server generated
+response possibly with a short English language message, for example
+"The requested URL cannot be accessed by this server".  This behavior
+can be modified by calling the \fBNs_RegisterRedirect\fR to redirect
+responses internally for the cooresponding HTTP status code to
+another URL on the server.  The "redirects" server config section
+can be used to map these redirects at startup
 
 .TP
 int \fBNs_ConnReturnBadRequest\fR(\fIconn, msg\fR)
@@ -151,11 +154,18 @@ content.
 int \fBNs_ConnReturnUnauthorized\fR(\fIconn\fR)
 Returns an HTTP 401 response with the short HTML message "Access
 Denied: The requested URL cannot be accessed because a valid username
-and password are required."  A "WWW-Authenticate: Basic realm=\fIserver
+and password are required."  As "WWW-Authenticate: Basic realm=\fIserver
 realm\fR" header is also included in the response.
 
+.TP
+void \fBNs_RegisterReturn\fR(\fIstatus, url\fR)
+Redirect the above responses for the given \fIstatus\fR code from
+the simple internal messages described above to the given internal
+\fRurl\fR. The redirect is performed using \fBNs_ConnRedirect\fR.
+
 .SH "SEE ALSO"
-Ns_RegisterReturn(3), ns_return(n)
+Ns_ConnFlush(3), Ns_ConnRedirect(3), Ns_ConnSetRequiredHeaders(3),
+Ns_ConnQueueHeaders(3), ns_return(n)
 
 .SH KEYWORDS
 connnection, response
