@@ -33,7 +33,7 @@
  *	Library for ns_proxy commands and main loops.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsproxy/nsproxylib.c,v 1.4 2006/05/01 14:25:46 vasiljevic Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsproxy/nsproxylib.c,v 1.5 2006/06/26 00:28:30 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsproxy.h"
 #include <poll.h>
@@ -42,15 +42,15 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsp
 #define MINOR 1
 
 /*
- * The following structure defines a running proxy slave process.
+ * The following structure defines a running proxy child process.
  */
 
 typedef struct Proc {
-    struct Pool *poolPtr;
-    struct Proc *nextPtr;
-    int rfd;
-    int wfd;
-    int pid;
+    struct Pool *poolPtr;	/* Pool associated with proc. */
+    struct Proc *nextPtr;	/* Next in list of closing procs. */
+    int rfd;			/* Read file descriptor. */
+    int wfd;			/* Write file descriptor. */
+    int pid;			/* Process id. */
 } Proc;
 
 /*
@@ -79,14 +79,17 @@ typedef struct Res {
 
 typedef struct Proxy {
     struct Proxy *nextPtr;	/* Next in list of avail proxies. */
-    struct Proxy *runPtr;	/* Next in list of active proxies. */
     struct Pool *poolPtr;	/* Pointer to proxy's pool. */
+    enum {
+	Idle,			/* Ready to receive a script. */
+	Busy,			/* Evaluating a script. */
+	Done			/* Result is pending. */
+    } state;
     char id[16];		/* Proxy unique string id. */
-    Proc *procPtr;		/* Running slave, if any. */
+    Proc *procPtr;		/* Running child process, if any. */
     Tcl_HashEntry *idPtr;	/* Pointer to proxy table entry. */
     Tcl_HashEntry *cntPtr;	/* Pointer to count of proxies allocated. */
     Tcl_DString in;		/* Request dstring. */ 
-    Tcl_DString out;		/* Response dstring. */
 } Proxy;
 
 /*
@@ -96,7 +99,6 @@ typedef struct Proxy {
 typedef struct Pool {
     char *name;			/* Name of pool. */
     struct Proxy *firstPtr;	/* First in list of avail proxies. */
-    struct Proxy *runPtr;	/* First in list of running proxies. */
     char *exec;			/* Slave executable. */
     char *init;			/* Init script to eval on proxy start. */
     char *reinit;		/* Re-init scripts to eval on proxy put. */
@@ -104,12 +106,14 @@ typedef struct Pool {
     int   max;			/* Max number of handles. */
     int   min;			/* Min  number of handles. */
     int   avail;		/* Current number of available proxies. */
+    int	  wthave;		/* Total owned by waiting threads. */
+    int   wtwant;		/* Total requested of waiting threads. */
     int	  nextid;		/* Next in proxy unique ids. */
-    int   tget;
-    int	  teval;
-    int   tsend;
-    int   trecv;
-    int   twait;
+    int   tget;			/* Default get timeout. */
+    int	  teval;		/* Default eval timeout. */
+    int   twait;		/* Default wait timeout. */
+    int   tsend;		/* Send timeout. */
+    int   trecv;		/* Receive timeout. */
     Ns_Mutex lock;		/* Lock around pool. */
     Ns_Cond cond;		/* Cond for use while allocating handles. */
 } Pool;
@@ -120,31 +124,57 @@ typedef struct Pool {
  */
 
 typedef struct InterpData {
-    Tcl_Interp *interp;
-    Tcl_HashTable ids;
-    Tcl_HashTable cnts;
+    Tcl_HashTable ids;		/* Table of allocated proxy handles. */
+    Tcl_HashTable cnts;		/* Table of counts of allocated handles. */
 } InterpData;
+
+/*
+ * The following enum lists all possible error conditions.
+ */
+
+typedef enum Err {
+    ENone,
+    EBusy,
+    EDead,
+    EDeadlock,
+    EExec,
+    EGetTimeout,
+    EIdle,
+    EImport,
+    EInit,
+    ERange,
+    ERecv,
+    ESend,
+    ENoWait,
+    EEvalTimeout
+} Err;
 
 /*
  * Static functions defined in this file.
  */
 
 static Tcl_InterpDeleteProc DeleteData;
-static int CheckProxy(Tcl_Interp *interp, Proxy *proxyPtr);
 static void PutProxy(Proxy *proxyPtr);
 static int ReleaseProxy(Tcl_Interp *interp, Proxy *proxyPtr);
 static Pool *GetPool(InterpData *idataPtr, Tcl_Obj *obj);
-static int GetProxy(InterpData *idataPtr, Tcl_Obj *obj, Proxy **proxyPtrPtr);
-static void ReleaseHandles(InterpData *idataPtr);
-static void CloseProxy(Proxy *proxyPtr);
+static int GetProxy(Tcl_Interp *interp, InterpData *idataPtr, Tcl_Obj *obj, Proxy **proxyPtrPtr);
+static void ReleaseHandles(Tcl_Interp *interp, InterpData *idataPtr);
+static void Close(Proxy *proxyPtr);
 static void FreeProxy(Proxy *proxyPtr);
 static Tcl_ObjCmdProc ProxyObjCmd;
 static Tcl_ObjCmdProc ConfigObjCmd;
 static Tcl_ObjCmdProc GetObjCmd;
+static Err Check(Tcl_Interp *interp, Proxy *proxyPtr);
 static Proc *Exec(Tcl_Interp *interp, Proxy *proxyPtr);
-static int Call(Tcl_Interp *interp, Proxy *proxyPtr, char *script, int ms);
+static int Eval(Tcl_Interp *interp, Proxy *proxyPtr, char *script, int ms);
+static int Send(Tcl_Interp *interp, Proxy *proxyPtr, char *script);
+static int Wait(Tcl_Interp *interp, Proxy *proxyPtr, int ms);
+static int Recv(Tcl_Interp *interp, Proxy *proxyPtr);
+static void Kill(Proc *procPtr, int sig);
+static char *ProxyError(Tcl_Interp *interp, Err err);
+static void Reset(Proxy *proxyPtr);
 static int SendBuf(Proc *procPtr, int ms, Tcl_DString *dsPtr);
-static int RecvBuf(Proc *procPtr, int ms, Tcl_DString *dsPtr, int *errnumPtr);
+static int RecvBuf(Proc *procPtr, int ms, Tcl_DString *dsPtr);
 static int WaitFd(int fd, int events, int ms);
 static int Import(Tcl_Interp *interp, Tcl_DString *dsPtr, int *resultPtr);
 static void Export(Tcl_Interp *interp, int code, Tcl_DString *dsPtr);
@@ -153,13 +183,14 @@ static void FatalExit(char *func);
 static void SetOpt(char *str, char **optPtr);
 static void Append(Tcl_Interp *interp, char *flag, char *val);
 static void AppendInt(Tcl_Interp *interp, char *flag, int i);
+static Ns_ThreadProc CloseThread;
 
 /*
  * Static variables defined in this file.
  */
 
 static Tcl_HashTable pools;
-static char *assoc = "nsdb:data";
+static char *assoc = "nsproxy:data";
 static Ns_Cond pcond;
 static Ns_Mutex plock;
 static Proc *firstClosePtr;
@@ -220,7 +251,6 @@ Ns_ProxyInit(Tcl_Interp *interp)
     }
     Ns_MutexUnlock(&plock);
     idataPtr = ns_malloc(sizeof(InterpData));
-    idataPtr->interp = interp;
     Tcl_InitHashTable(&idataPtr->ids, TCL_STRING_KEYS);
     Tcl_InitHashTable(&idataPtr->cnts, TCL_ONE_WORD_KEYS);
     Tcl_SetAssocData(interp, assoc, DeleteData, idataPtr);
@@ -234,7 +264,7 @@ Ns_ProxyInit(Tcl_Interp *interp)
  *
  * Ns_ProxyMain --
  *
- *	Main loop for nsproxy slave processes.
+ *	Main loop for nsproxy child processes.
  *
  * Results:
  *	0.
@@ -309,7 +339,7 @@ Ns_ProxyMain(int argc, char **argv, Tcl_AppInitProc *init)
 
     Tcl_DStringInit(&in);
     Tcl_DStringInit(&out);
-    while (RecvBuf(&proc, -1, &in, NULL)) {
+    while (RecvBuf(&proc, -1, &in)) {
 	if (in.length < sizeof(Req)) {
 	    break;
 	}
@@ -376,418 +406,8 @@ Ns_ProxyCleanup(Tcl_Interp *interp, void *ignored)
 
     idataPtr = Tcl_GetAssocData(interp, assoc, NULL);
     if (idataPtr != NULL) {
-	ReleaseHandles(idataPtr);
+	ReleaseHandles(interp, idataPtr);
     }
-    return TCL_OK;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Exec --
- *
- *	Create a new proxy slave.
- *
- * Results:
- *	Pointer to new Proc or NULL on error.
- *
- * Side effects:
- *	None.
- *
- *----------------------------------------------------------------------
- */
-
-static Proc *
-Exec(Tcl_Interp *interp, Proxy *proxyPtr)
-{
-    Pool *poolPtr = proxyPtr->poolPtr;
-    char *argv[5], active[100];
-    Proc *procPtr;
-    int rpipe[2], wpipe[2], pid, len;
-
-    len = sizeof(active) - 1;
-    memset(active, ' ', len);
-    active[len] = '\0';
-    argv[0] = poolPtr->exec;
-    argv[1] = poolPtr->name;
-    argv[2] = proxyPtr->id;
-    argv[3] = active;
-    argv[4] = NULL;
-    if (ns_pipe(rpipe) != 0) {
-	Tcl_AppendResult(interp, "pipe failed: ", Tcl_PosixError(interp), NULL);
-	return NULL;
-    }
-    if (ns_pipe(wpipe) != 0) {
-	Tcl_AppendResult(interp, "pipe failed: ", Tcl_PosixError(interp), NULL);
-	close(rpipe[0]);
-	close(rpipe[1]);
-	return NULL;
-    }
-    pid = Ns_ExecArgv(poolPtr->exec, NULL, rpipe[0], wpipe[1], argv, NULL);
-    close(rpipe[0]);
-    close(wpipe[1]);
-    if (pid < 0) {
-	Tcl_AppendResult(interp, "exec failed: ", Tcl_PosixError(interp), NULL);
-	close(wpipe[0]);
-	close(rpipe[1]);
-	return NULL;
-    }
-    procPtr = ns_malloc(sizeof(Proc));
-    procPtr->poolPtr = proxyPtr->poolPtr;
-    procPtr->nextPtr = NULL;
-    procPtr->pid = pid;
-    procPtr->rfd = wpipe[0];
-    procPtr->wfd = rpipe[1];
-    return procPtr;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Call --
- *
- *	Invoke a proxy call.
- *
- * Results:
- *	Depends on script.
- *
- * Side effects:
- *	None.
- *
- *----------------------------------------------------------------------
- */
-
-static int
-Call(Tcl_Interp *interp, Proxy *proxyPtr, char *script, int ms)
-{
-    Pool *poolPtr = proxyPtr->poolPtr;
-    Proc *procPtr = proxyPtr->procPtr;
-    Proxy **runPtrPtr;
-    int len, result, errnum;
-    char *code, *err;
-    Req req;
-
-    if (ms < 0) {
-	ms = poolPtr->teval;
-    }
-    if (procPtr == NULL) {
-	code = "DEAD";
-	err = "no running process";
-    } else {
-    	len = script ? strlen(script) : 0;
-    	req.len = htonl(len);
-    	req.major = htons(MAJOR);
-    	req.minor = htons(MINOR);
-    	Tcl_DStringAppend(&proxyPtr->in, (char *) &req, sizeof(req));
-    	if (len > 0) {
-	    Tcl_DStringAppend(&proxyPtr->in, script, len);
-    	}
-	Ns_MutexLock(&poolPtr->lock);
-	proxyPtr->runPtr = poolPtr->runPtr;
-	poolPtr->runPtr = proxyPtr;
-	Ns_MutexUnlock(&poolPtr->lock);
-    	if (!SendBuf(procPtr, poolPtr->tsend, &proxyPtr->in)) {
-	    code = "SENDFAIL";
-	    err = strerror(errno);
-    	} else if (ms > 0 && !WaitFd(procPtr->rfd, POLLIN, ms)) {
-	    code = "TIMEOUT";
-	    err = "timeout waiting for response";
-    	} else if (!RecvBuf(procPtr, poolPtr->trecv, &proxyPtr->out, &errnum)) {
-	    code = "RECVFAIL";
-	    if (errnum == 0) {
-		err = "pipe closed";
-	    } else {
-	    	err = strerror(errnum);
-	    }
-    	} else if (Import(interp, &proxyPtr->out, &result) != TCL_OK) {
-	    code = "INVALID";
-	    err = "invalid proxy response";
-    	} else {
-    	    code = NULL;
-	}
-    	Tcl_DStringTrunc(&proxyPtr->in, 0);
-    	Tcl_DStringTrunc(&proxyPtr->out, 0);
-	Ns_MutexLock(&poolPtr->lock);
-	runPtrPtr = &poolPtr->runPtr;
-	while (*runPtrPtr != proxyPtr) {
-	    runPtrPtr = &(*runPtrPtr)->runPtr;
-	}
-	*runPtrPtr = proxyPtr->runPtr;
-	proxyPtr->runPtr = NULL;
-	Ns_MutexUnlock(&poolPtr->lock);
-    }
-    if (code != NULL) {
-	CloseProxy(proxyPtr);
-	Tcl_SetErrorCode(interp, "NSPROXY", code, err, NULL);
-	Tcl_AppendResult(interp, "proxy call failed: ", err, NULL);
-	return TCL_ERROR;
-    }
-    return result;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * SendBuf --
- *
- *	Send a dstring buffer.
- *
- * Results:
- *	1 if sent, 0 on error.
- *
- * Side effects:
- *	None.
- *
- *----------------------------------------------------------------------
- */
-
-static int
-SendBuf(Proc *procPtr, int ms, Tcl_DString *dsPtr)
-{
-    int n;
-    uint32_t ulen;
-    struct iovec iov[2];
-
-    ulen = htonl(dsPtr->length);
-    iov[0].iov_base = (caddr_t) &ulen;
-    iov[0].iov_len  = sizeof(ulen);
-    iov[1].iov_base = dsPtr->string;
-    iov[1].iov_len  = dsPtr->length;
-    while ((iov[0].iov_len + iov[1].iov_len) > 0) {
-	n = writev(procPtr->wfd, iov, 2);
-	if (n < 0 && errno == EAGAIN
-		&& WaitFd(procPtr->wfd, POLLOUT, ms)) {
-	    n = writev(procPtr->wfd, iov, 2);
-	}
-	if (n < 0) {
-	    return 0;
-	}
-	UpdateIov(iov, n);
-    }
-    return 1;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * RecvBuf --
- *
- *	Receive a dstring buffer.
- *
- * Results:
- *	1 if received, 0 on error.
- *
- * Side effects:
- *	Will resize output dstring as needed.
- *
- *----------------------------------------------------------------------
- */
-
-static int
-RecvBuf(Proc *procPtr, int ms, Tcl_DString *dsPtr, int *errnumPtr)
-{
-    uint32_t ulen;
-    struct iovec iov[2];
-    char *ptr;
-    int n, len, avail;
-
-    avail = dsPtr->spaceAvl - 1;
-    iov[0].iov_base = (caddr_t) &ulen;
-    iov[0].iov_len  = sizeof(ulen);
-    iov[1].iov_base = dsPtr->string;
-    iov[1].iov_len  = avail;
-    while (iov[0].iov_len > 0) {
-    	n = readv(procPtr->rfd, iov, 2);
-	if (n < 0 && errno == EAGAIN
-		&& WaitFd(procPtr->rfd, POLLIN, ms)) {
-    	    n = readv(procPtr->rfd, iov, 2);
-	}
-    	if (n <= 0) {
-	    goto err;
-	}
-	UpdateIov(iov, n);
-    }
-    n = avail - iov[1].iov_len;
-    Tcl_DStringSetLength(dsPtr, n);
-    len = ntohl(ulen);
-    Tcl_DStringSetLength(dsPtr, len);
-    len -= n;
-    ptr  = dsPtr->string + n;
-    while (len > 0) {
-	n = read(procPtr->rfd, ptr, len);
-	if (n < 0 && errno == EAGAIN
-		&& WaitFd(procPtr->rfd, POLLIN, ms)) {
-	    n = read(procPtr->rfd, ptr, len);
-	}
-	if (n <= 0) {
-	    goto err;
-	}
-	len -= n;
-	ptr += n;
-    }
-    return 1;
-
-err:
-    if (errnumPtr != NULL) {
-	*errnumPtr = errno;
-    }
-    return 0;
-}
-
-
-static int
-WaitFd(int fd, int event, int ms)
-{
-    struct pollfd pfd;
-    int n;
-
-    pfd.fd = fd;
-    pfd.events = event;
-    pfd.revents = 0;
-    do {
-	n = poll(&pfd, 1, ms);
-    } while (n < 0 && errno == EINTR);
-    if (n < 0 && errno != EINTR) {
-	Ns_Fatal("nsproxy: poll failed: %s", strerror(errno));
-    }
-    return n;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * UpdateIov --
- *
- *	Update the base and len in given iovec based on bytes
- *	already processed.
- *
- * Results:
- *	None.
- *
- * Side effects:
- *	Will update given iovec.
- *
- *----------------------------------------------------------------------
- */
-
-static void
-UpdateIov(struct iovec *iov, int n)
-{
-    if (n >= iov[0].iov_len) {
-	n -= iov[0].iov_len;
-	iov[0].iov_base = NULL;
-	iov[0].iov_len = 0;
-    } else {
-	iov[0].iov_len  -= n;
-	iov[0].iov_base += n;
-	n = 0;
-    }
-    iov[1].iov_len  -= n;
-    iov[1].iov_base += n;
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Export --
- *
- *	Export result of Tcl, include error, to given dstring.
- *
- * Results:
- *	None.
- *
- * Side effects:
- *	Given dstring will contain response header and data.
- *
- *----------------------------------------------------------------------
- */
-
-static void
-Export(Tcl_Interp *interp, int code, Tcl_DString *dsPtr)
-{
-    Res hdr;
-    char *einfo, *ecode, *result;
-    int   clen, ilen, rlen;
-
-    clen = ilen = rlen = 0;
-    if (interp != NULL) {
-    	if (code == TCL_OK) {
-	    einfo = ecode = NULL;
-    	} else {
-	    ecode = Tcl_GetVar(interp, "errorCode", TCL_GLOBAL_ONLY);
-	    einfo = Tcl_GetVar(interp, "errorInfo", TCL_GLOBAL_ONLY);
-    	}
-    	clen = ecode ? (strlen(ecode) + 1) : 0;
-    	ilen = einfo ? (strlen(einfo) + 1) : 0;
-	result = Tcl_GetStringResult(interp);
-	rlen = strlen(result);
-    }
-    hdr.code = htonl(code);
-    hdr.clen = htonl(clen);
-    hdr.ilen = htonl(ilen);
-    hdr.rlen = htonl(rlen);
-    Tcl_DStringAppend(dsPtr, (char *) &hdr, sizeof(hdr));
-    if (clen > 0) {
-    	Tcl_DStringAppend(dsPtr, ecode, clen);
-    }
-    if (ilen > 0) {
-    	Tcl_DStringAppend(dsPtr, einfo, ilen);
-    }
-    if (rlen > 0) {
-    	Tcl_DStringAppend(dsPtr, result, rlen);
-    }
-}
-
-
-/*
- *----------------------------------------------------------------------
- *
- * Import --
- *
- *	Import result of Tcl to given interp.
- *
- * Results:
- *	Tcl result code from remote.
- *
- * Side effects:
- *	Will set interp result and error data as needed.
- *
- *----------------------------------------------------------------------
- */
-
-static int
-Import(Tcl_Interp *interp, Tcl_DString *dsPtr, int *resultPtr)
-{
-    Res *resPtr;
-    char *str;
-    int rlen, clen, ilen;
-
-    if (dsPtr->length < sizeof(Res)) {
-	return TCL_ERROR;
-    }
-    resPtr = (Res *) dsPtr->string;
-    str = dsPtr->string + sizeof(Res);
-    clen = ntohl(resPtr->clen);
-    ilen = ntohl(resPtr->ilen);
-    rlen = ntohl(resPtr->rlen);
-    if (clen > 0) {
-	Tcl_SetErrorCode(interp, str, NULL);
-	str += clen;
-    }
-    if (ilen > 0) {
-        Tcl_AddErrorInfo(interp, str);
-	str += ilen;
-    }
-    if (rlen > 0) {
-    	Tcl_SetResult(interp, str, TCL_VOLATILE);
-    }
-    *resultPtr = ntohl(resPtr->code);
     return TCL_OK;
 }
 
@@ -817,11 +437,13 @@ ProxyObjCmd(ClientData data, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
     int result, ms;
     static char *opts[] = {
 	"get", "release", "eval", "cleanup",
-	"config", "ping", "active", NULL
+	"config", "ping", "active",
+	"send", "wait", "recv", NULL
     };
     enum {
 	PGetIdx, PReleaseIdx, PEvalIdx, PCleanupIdx, 
-	PConfigIdx, PPingIdx, PActiveIdx
+	PConfigIdx, PPingIdx, PActiveIdx,
+	PSendIdx, PWaitIdx, PRecvIdx
     } opt;
 
     if (objc < 2) {
@@ -841,13 +463,13 @@ ProxyObjCmd(ClientData data, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 	    Tcl_WrongNumArgs(interp, 2, objv, "handle");
 	    return TCL_ERROR;
 	}
-	if (!GetProxy(idataPtr, objv[2], &proxyPtr)) {
+	if (!GetProxy(interp, idataPtr, objv[2], &proxyPtr)) {
 	    return TCL_ERROR;
 	}
 	if (opt == PReleaseIdx) {
 	    result = ReleaseProxy(interp, proxyPtr);
 	} else {
-	    result = Call(interp, proxyPtr, NULL, -1);
+	    result = Eval(interp, proxyPtr, NULL, -1);
 	}
 	break;
 
@@ -860,19 +482,57 @@ ProxyObjCmd(ClientData data, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 	    Tcl_WrongNumArgs(interp, 2, objv, NULL);
 	    return TCL_ERROR;
 	}
-	ReleaseHandles(idataPtr);
+	ReleaseHandles(interp, idataPtr);
 	break;
 
     case PGetIdx:
 	result = GetObjCmd(data, interp, objc, objv);
 	break;
 
-    case PEvalIdx:
-	if (objc != 4 && objc != 5) {
+    case PSendIdx:
+	if (objc != 4) {
 	    Tcl_WrongNumArgs(interp, 2, objv, "handle script");
 	    return TCL_ERROR;
 	}
-	if (!GetProxy(idataPtr, objv[2], &proxyPtr)) {
+	if (!GetProxy(interp, idataPtr, objv[2], &proxyPtr)) {
+	    return TCL_ERROR;
+	}
+	result = Send(interp, proxyPtr, Tcl_GetString(objv[3]));
+	break;
+
+    case PWaitIdx:
+	if (objc != 3 && objc != 4) {
+	    Tcl_WrongNumArgs(interp, 2, objv, "handle ?timeout?");
+	    return TCL_ERROR;
+	}
+	if (!GetProxy(interp, idataPtr, objv[2], &proxyPtr)) {
+	    return TCL_ERROR;
+	}
+	if (objc == 3) {
+	    ms = -1;
+	} else if (Tcl_GetIntFromObj(interp, objv[3], &ms) != TCL_OK) {
+	    return TCL_ERROR;
+	}
+	result = Wait(interp, proxyPtr, ms);
+	break;
+
+    case PRecvIdx:
+	if (objc != 3) {
+	    Tcl_WrongNumArgs(interp, 2, objv, "handle");
+	    return TCL_ERROR;
+	}
+	if (!GetProxy(interp, idataPtr, objv[2], &proxyPtr)) {
+	    return TCL_ERROR;
+	}
+	result = Recv(interp, proxyPtr);
+	break;
+
+    case PEvalIdx:
+	if (objc != 4 && objc != 5) {
+	    Tcl_WrongNumArgs(interp, 2, objv, "handle script ?timeout?");
+	    return TCL_ERROR;
+	}
+	if (!GetProxy(interp, idataPtr, objv[2], &proxyPtr)) {
 	    return TCL_ERROR;
 	}
 	if (objc == 4) {
@@ -880,7 +540,7 @@ ProxyObjCmd(ClientData data, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 	} else if (Tcl_GetIntFromObj(interp, objv[4], &ms) != TCL_OK) {
 	    return TCL_ERROR;
 	}
-	result = Call(interp, proxyPtr, Tcl_GetString(objv[3]), ms);
+	result = Eval(interp, proxyPtr, Tcl_GetString(objv[3]), ms);
 	break;
 
     case PActiveIdx:
@@ -890,14 +550,19 @@ ProxyObjCmd(ClientData data, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 	}
 	poolPtr = GetPool(idataPtr, objv[2]);
 	Ns_MutexLock(&poolPtr->lock);
-	proxyPtr = poolPtr->runPtr;
+	proxyPtr = poolPtr->firstPtr;
 	while (proxyPtr != NULL) {
-	    Tcl_AppendElement(interp, proxyPtr->id);
-	    Tcl_AppendElement(interp, proxyPtr->in.string + sizeof(Req));   
-	    proxyPtr = proxyPtr->runPtr;
+	    if (proxyPtr->state != Idle) {
+	    	Tcl_AppendElement(interp, proxyPtr->id);
+	    	Tcl_AppendElement(interp, proxyPtr->in.string + sizeof(Req));   
+	    }
+	    proxyPtr = proxyPtr->nextPtr;
 	}
 	Ns_MutexUnlock(&poolPtr->lock);
+	break;
+
     }
+	
     return result;
 }
 
@@ -1089,10 +754,11 @@ GetObjCmd(ClientData data, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
     InterpData *idataPtr = data;
     Proxy *proxyPtr, *firstPtr;
     Tcl_HashEntry *cntPtr, *idPtr;
-    int i, status, new, nwant, n, ms, ok;
+    int i, waiter, new, nwant, n, ms, nhave;
     Ns_Time timeout;
-    char *arg, *err;
+    char *arg, *nwantStr;
     Pool *poolPtr;
+    Err err;
     static char *flags[] = {
 	"-timeout", "-handles", NULL
     };
@@ -1106,14 +772,9 @@ GetObjCmd(ClientData data, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
     }
     poolPtr = GetPool(idataPtr, objv[2]);
     cntPtr = Tcl_CreateHashEntry(&idataPtr->cnts, (char *) poolPtr, &new);
-    if ((int) Tcl_GetHashValue(cntPtr) > 0) {
-	err = "interp already owns handles";
-	Tcl_AppendResult(interp, err, " from pool \"", poolPtr->name, "\"", NULL);
-	Tcl_SetErrorCode(interp, "NSPROXY", "DEADLOCK", err, NULL);
-	return TCL_ERROR;
-    }
-
+    nhave = (int) Tcl_GetHashValue(cntPtr);
     nwant = 1;
+    nwantStr = "1";
     ms = poolPtr->tget;
     for (i = 3; i < objc; ++i) {
 	arg = Tcl_GetString(objv[2]);
@@ -1134,6 +795,7 @@ GetObjCmd(ClientData data, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 	    ms = n;
 	    break;
 	case FHandlesIdx:
+	    nwantStr = Tcl_GetString(objv[i]);
 	    nwant = n;
 	    break;
 	}
@@ -1144,57 +806,79 @@ GetObjCmd(ClientData data, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
      * handles.
      */
 
+    err = ENone;
+    firstPtr = NULL;
+    waiter = 0;
     Ns_GetTime(&timeout);
     Ns_IncrTime(&timeout, 0, ms * 1000);
-    err = NULL;
-    status = NS_OK;
     Ns_MutexLock(&poolPtr->lock);
-    while (status == NS_OK && poolPtr->waiting) {
-	status = Ns_CondTimedWait(&poolPtr->cond, &poolPtr->lock, &timeout);
-    }
-    if (status != NS_OK) {
-	err = "queue timeout";
-    } else {
-	poolPtr->waiting = 1;
-	while (status == NS_OK
-		&& poolPtr->max >= nwant
-		&& poolPtr->avail < nwant) {
-	    status = Ns_CondTimedWait(&poolPtr->cond, &poolPtr->lock, &timeout);
+    while (err == ENone && nwant > 0) {
+    	poolPtr->wthave += nhave;
+    	poolPtr->wtwant += nwant;
+	if ((nhave + nwant) > poolPtr->max) {
+	    err = ERange;
+	} else if (!waiter) {
+	    if ((poolPtr->wthave + poolPtr->wtwant) > poolPtr->max) {
+		err = EDeadlock;
+	    } else if (!poolPtr->waiting) {
+		poolPtr->waiting = 1;
+		waiter = 1;
+	    } else if (Ns_CondTimedWait(&poolPtr->cond, &poolPtr->lock,
+					&timeout) != NS_OK) {
+		err = EGetTimeout;
+	    }
 	}
-	if (poolPtr->max == 0) {
-	    err = "pool disabled";
-	} else if (poolPtr->max < nwant) {
-	    err = "insufficient handles";
-	} else if (status != NS_OK) {
-	    err = "proxy timeout";
-	} else {
-	    firstPtr = NULL;
-	    poolPtr->avail -= nwant;
-	    for (i = 0; i < nwant; ++i) {
-		proxyPtr = poolPtr->firstPtr;
+	if (err == ENone && waiter) {
+	    if (poolPtr->avail > 0) {
+		--poolPtr->avail;
+	    	proxyPtr = poolPtr->firstPtr;
 		if (proxyPtr != NULL) {
 		    poolPtr->firstPtr = proxyPtr->nextPtr;
 		} else {
-		    proxyPtr = ns_malloc(sizeof(Proxy));
-		    sprintf(proxyPtr->id, "proxy%d", poolPtr->nextid++);
+		    proxyPtr = ns_calloc(1, sizeof(Proxy));
 		    proxyPtr->poolPtr = poolPtr;
-    		    proxyPtr->procPtr = NULL;
+		    sprintf(proxyPtr->id, "proxy%d", poolPtr->nextid++);
 		    Tcl_DStringInit(&proxyPtr->in);
-		    Tcl_DStringInit(&proxyPtr->out);
-		    proxyPtr->idPtr = proxyPtr->cntPtr = NULL;
 		}
 		proxyPtr->nextPtr = firstPtr;
 		firstPtr = proxyPtr;
+	    	++nhave;
+		--nwant;
+	    } else if (Ns_CondTimedWait(&poolPtr->cond, &poolPtr->lock,
+					&timeout) != NS_OK) {
+		err = EGetTimeout;
 	    }
 	}
+	poolPtr->wthave -= nhave;
+	poolPtr->wtwant -= nwant;
+    }
+    if (waiter) {
 	poolPtr->waiting = 0;
-	Ns_CondBroadcast(&poolPtr->cond);
+    }
+    if (err == ENone) {
+	Ns_MutexUnlock(&poolPtr->lock);
+	proxyPtr = firstPtr;
+	while (err == ENone && proxyPtr != NULL) {
+	    err = Check(interp, proxyPtr);
+	    proxyPtr = proxyPtr->nextPtr;
+	}
+	Ns_MutexLock(&poolPtr->lock);
+    }
+    if (err != ENone) {
+	while ((proxyPtr = firstPtr) != NULL) {
+	    firstPtr = proxyPtr->nextPtr;
+	    proxyPtr->nextPtr = poolPtr->firstPtr;
+	    poolPtr->firstPtr = proxyPtr;
+	    ++poolPtr->avail;
+	    --nhave;
+	}
     }
     Ns_MutexUnlock(&poolPtr->lock);
-    if (err != NULL) {
-	Tcl_AppendResult(interp, "could not allocate from pool \"",
-		poolPtr->name, "\": ", err, NULL);
-	Tcl_SetErrorCode(interp, "NSPROXY", "NOHANDLE", err, NULL);
+    Ns_CondBroadcast(&poolPtr->cond);
+    if (err != ENone) {
+	Tcl_AppendResult(interp, "could not get ", nwantStr, " handle",
+			 nwant > 1 ? "s" : "", " from pool \"", poolPtr->name,
+			 "\": ", ProxyError(interp, err), NULL);
 	return TCL_ERROR;
     }
 
@@ -1202,9 +886,10 @@ GetObjCmd(ClientData data, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
      * Set total owned count and create handle ids.
      */
 
-    Tcl_SetHashValue(cntPtr, nwant);
-    proxyPtr = firstPtr;
-    while (proxyPtr != NULL) {
+    Tcl_SetHashValue(cntPtr, nhave);
+    while ((proxyPtr = firstPtr) != NULL) {
+	firstPtr = proxyPtr->nextPtr;
+	proxyPtr->nextPtr = NULL;
 	idPtr = Tcl_CreateHashEntry(&idataPtr->ids, proxyPtr->id, &new);
 	if (!new) {
 	    Ns_Fatal("nsproxy: duplicate proxy entry");
@@ -1212,36 +897,7 @@ GetObjCmd(ClientData data, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
     	Tcl_SetHashValue(idPtr, proxyPtr);
 	proxyPtr->cntPtr = cntPtr;
 	proxyPtr->idPtr  = idPtr;
-	proxyPtr = proxyPtr->nextPtr;
-    }
-
-    /*
-     * Check each proxy for valid connection.
-     */
-
-    ok = 1;
-    proxyPtr = firstPtr;
-    while (ok && proxyPtr != NULL) {
-	ok = CheckProxy(interp, proxyPtr);
-    	proxyPtr = proxyPtr->nextPtr;
-    }
-    if (!ok) {
-	while ((proxyPtr = firstPtr) != NULL) {
-	    firstPtr = proxyPtr->nextPtr;
-	    PutProxy(proxyPtr);
-	}
-    	Ns_CondBroadcast(&poolPtr->cond);
-	return TCL_ERROR;
-    }
-
-    /*
-     * Return the proxy id's.
-     */
-
-    proxyPtr = firstPtr;
-    while (proxyPtr != NULL) {
 	Tcl_AppendElement(interp, proxyPtr->id);
-	proxyPtr = proxyPtr->nextPtr;
     }
     return TCL_OK;
 }
@@ -1309,9 +965,8 @@ GetPool(InterpData *idataPtr, Tcl_Obj *obj)
  */
 
 int
-GetProxy(InterpData *idataPtr, Tcl_Obj *obj, Proxy **proxyPtrPtr)
+GetProxy(Tcl_Interp *interp, InterpData *idataPtr, Tcl_Obj *obj, Proxy **proxyPtrPtr)
 {
-    Tcl_Interp *interp = idataPtr->interp;
     Tcl_HashEntry *hPtr;
     char *id = Tcl_GetString(obj);
 
@@ -1328,9 +983,9 @@ GetProxy(InterpData *idataPtr, Tcl_Obj *obj, Proxy **proxyPtrPtr)
 /*
  *----------------------------------------------------------------------
  *
- * CheckProxy --
+ * Check --
  *
- *	Check a proxy, pinging the proc and creating a new slave
+ *	Check a proxy, pinging the proc and creating a new process
  *	as needed.
  *
  * Results:
@@ -1342,37 +997,558 @@ GetProxy(InterpData *idataPtr, Tcl_Obj *obj, Proxy **proxyPtrPtr)
  *----------------------------------------------------------------------
  */
 
-static int
-CheckProxy(Tcl_Interp *interp, Proxy *proxyPtr)
+static Err
+Check(Tcl_Interp *interp, Proxy *proxyPtr)
 {
     Pool *poolPtr = proxyPtr->poolPtr;
+    Err err = ENone;
 
     if (proxyPtr->procPtr != NULL
-	    && Call(interp, proxyPtr, NULL, -1) != TCL_OK) {
-	CloseProxy(proxyPtr);
+	    && Eval(interp, proxyPtr, NULL, -1) != TCL_OK) {
+	Close(proxyPtr);
 	Tcl_ResetResult(interp);
     }
     if (proxyPtr->procPtr == NULL) {
 	proxyPtr->procPtr = Exec(interp, proxyPtr);
 	if (proxyPtr->procPtr == NULL) {
-	    Tcl_SetErrorCode(interp, "NSPROXY", "EXEC",
-		"process exec failed", strerror(errno), NULL);
+	    err = EExec;
 	} else if (proxyPtr->poolPtr->init != NULL
-		&& Call(interp, proxyPtr, poolPtr->init, -1) != TCL_OK) {
-	    Tcl_AddErrorInfo(interp, "\n	(during process init)");
-	    CloseProxy(proxyPtr);
+		&& Eval(interp, proxyPtr, poolPtr->init, -1) != TCL_OK) {
+	    Close(proxyPtr);
+	    err = EInit;
 	}
     }
-    return (proxyPtr->procPtr == NULL ? 0 : 1);
+    return err;
 }
 
 
 /*
  *----------------------------------------------------------------------
  *
- * CloseProxy --
+ * Exec --
  *
- *	Close the given proxy handle, killing any slave.
+ *	Create a new proxy child process.
+ *
+ * Results:
+ *	Pointer to new Proc or NULL on error.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static Proc *
+Exec(Tcl_Interp *interp, Proxy *proxyPtr)
+{
+    Pool *poolPtr = proxyPtr->poolPtr;
+    char *argv[5], active[100];
+    Proc *procPtr;
+    int rpipe[2], wpipe[2], pid, len;
+
+    len = sizeof(active) - 1;
+    memset(active, ' ', len);
+    active[len] = '\0';
+    argv[0] = poolPtr->exec;
+    argv[1] = poolPtr->name;
+    argv[2] = proxyPtr->id;
+    argv[3] = active;
+    argv[4] = NULL;
+    if (ns_pipe(rpipe) != 0) {
+	Tcl_AppendResult(interp, "pipe failed: ", Tcl_PosixError(interp), NULL);
+	return NULL;
+    }
+    if (ns_pipe(wpipe) != 0) {
+	Tcl_AppendResult(interp, "pipe failed: ", Tcl_PosixError(interp), NULL);
+	close(rpipe[0]);
+	close(rpipe[1]);
+	return NULL;
+    }
+    pid = Ns_ExecArgv(poolPtr->exec, NULL, rpipe[0], wpipe[1], argv, NULL);
+    close(rpipe[0]);
+    close(wpipe[1]);
+    if (pid < 0) {
+	Tcl_AppendResult(interp, "exec failed: ", Tcl_PosixError(interp), NULL);
+	close(wpipe[0]);
+	close(rpipe[1]);
+	return NULL;
+    }
+    procPtr = ns_malloc(sizeof(Proc));
+    procPtr->poolPtr = proxyPtr->poolPtr;
+    procPtr->nextPtr = NULL;
+    procPtr->pid = pid;
+    procPtr->rfd = wpipe[0];
+    procPtr->wfd = rpipe[1];
+    return procPtr;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Eval --
+ *
+ *	Send a script and wait for and receive a response.
+ *
+ * Results:
+ *	Depends on script.
+ *
+ * Side effects:
+ *	Will return proxy response or format error message in given
+ *	interp.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+Eval(Tcl_Interp *interp, Proxy *proxyPtr, char *script, int ms)
+{
+    int result;
+
+    result = Send(interp, proxyPtr, script);
+    if (result == TCL_OK) {
+	result = Wait(interp, proxyPtr, ms);
+	if (result == TCL_OK) {
+	    result = Recv(interp, proxyPtr);
+	}
+    }
+    return result;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Send --
+ *
+ *	Send a script to a proxy.
+ *
+ * Results:
+ *	TCL_OK if script sent, TCL_ERROR otherwise.
+ *
+ * Side effects:
+ *	Will format error message in given interp on failure.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+Send(Tcl_Interp *interp, Proxy *proxyPtr, char *script)
+{
+    Err err = ENone;
+    int len;
+    Req req;
+
+    if (proxyPtr->procPtr == NULL) {
+	err = EDead;
+    } else if (proxyPtr->state != Idle) {
+	err = EBusy;
+    } else {
+	len = script ? strlen(script) : 0;
+	req.len = htonl(len);
+	req.major = htons(MAJOR);
+	req.minor = htons(MINOR);
+	proxyPtr->state = Busy;
+	Tcl_DStringAppend(&proxyPtr->in, (char *) &req, sizeof(req));
+	if (len > 0) {
+	    Tcl_DStringAppend(&proxyPtr->in, script, len);
+	}
+	if (!SendBuf(proxyPtr->procPtr, proxyPtr->poolPtr->tsend, &proxyPtr->in)) {
+	    Reset(proxyPtr);
+	    err = ESend;
+	}
+    }
+    if (err != ENone) {
+	Tcl_AppendResult(interp, "could not send script \"", script,
+			 "\" to proxy \"", proxyPtr->id, "\": ",
+			 ProxyError(interp, err), NULL);
+	return TCL_ERROR;
+    }
+    return TCL_OK;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Wait --
+ *
+ *	Wait for response from proxy process.
+ *
+ * Results:
+ *	TCL_OK if wait ok, TCL_ERROR otherwise.
+ *
+ * Side effects:
+ *	Will format error message in given interp on failure.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+Wait(Tcl_Interp *interp, Proxy *proxyPtr, int ms)
+{
+    Err err = ENone;
+
+    if (proxyPtr->state == Idle) {
+	err = EIdle;
+    } else if (proxyPtr->state != Done) {
+    	if (ms < 0) {
+	    ms = proxyPtr->poolPtr->teval;
+    	}
+    	if (WaitFd(proxyPtr->procPtr->rfd, POLLIN, ms)) {
+	    proxyPtr->state = Done;
+	} else {
+	    err = EEvalTimeout;
+	}
+    }
+    if (err != ENone) {
+	Tcl_AppendResult(interp, "wait for proxy \"", proxyPtr->id,
+			 "\" failed: ", ProxyError(interp, err), NULL);
+	return TCL_ERROR;
+    }
+    return TCL_OK;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Recv --
+ *
+ *	Receive proxy results.
+ *
+ * Results:
+ *	Standard Tcl result.
+ *
+ * Side effects:
+ *	Will append proxy results or error message to given interp.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+Recv(Tcl_Interp *interp, Proxy *proxyPtr)
+{
+    Pool *poolPtr = proxyPtr->poolPtr;
+    Proc *procPtr = proxyPtr->procPtr;
+    Tcl_DString out;
+    int result;
+    Err err = ENone;
+
+    if (proxyPtr->state == Idle) {
+	err = EIdle;
+    } else if (proxyPtr->state == Busy) {
+	err = ENoWait;
+    } else {
+	Tcl_DStringInit(&out);
+	if (!RecvBuf(procPtr, poolPtr->trecv, &out)) {
+	    err = ERecv;
+	} else if (!Import(interp, &out, &result)) {
+	    err = EImport;
+	} else {
+	    proxyPtr->state = Idle;
+	}
+    	Tcl_DStringFree(&out);
+    	Reset(proxyPtr);
+    }
+    if (err != ENone) {
+	Tcl_AppendResult(interp, "could not receive result from proxy \"",
+			 proxyPtr->id, "\": ", ProxyError(interp, err), NULL);
+	return TCL_ERROR;
+    }
+    return result;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * SendBuf --
+ *
+ *	Send a dstring buffer.
+ *
+ * Results:
+ *	1 if sent, 0 on error.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+SendBuf(Proc *procPtr, int ms, Tcl_DString *dsPtr)
+{
+    int n;
+    uint32_t ulen;
+    struct iovec iov[2];
+
+    ulen = htonl(dsPtr->length);
+    iov[0].iov_base = (caddr_t) &ulen;
+    iov[0].iov_len  = sizeof(ulen);
+    iov[1].iov_base = dsPtr->string;
+    iov[1].iov_len  = dsPtr->length;
+    while ((iov[0].iov_len + iov[1].iov_len) > 0) {
+	n = writev(procPtr->wfd, iov, 2);
+	if (n < 0 && errno == EAGAIN
+		&& WaitFd(procPtr->wfd, POLLOUT, ms)) {
+	    n = writev(procPtr->wfd, iov, 2);
+	}
+	if (n < 0) {
+	    return 0;
+	}
+	UpdateIov(iov, n);
+    }
+    return 1;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * RecvBuf --
+ *
+ *	Receive a dstring buffer.
+ *
+ * Results:
+ *	1 if received, 0 on error.
+ *
+ * Side effects:
+ *	Will resize output dstring as needed.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+RecvBuf(Proc *procPtr, int ms, Tcl_DString *dsPtr)
+{
+    uint32_t ulen;
+    struct iovec iov[2];
+    char *ptr;
+    int n, len, avail;
+
+    avail = dsPtr->spaceAvl - 1;
+    iov[0].iov_base = (caddr_t) &ulen;
+    iov[0].iov_len  = sizeof(ulen);
+    iov[1].iov_base = dsPtr->string;
+    iov[1].iov_len  = avail;
+    while (iov[0].iov_len > 0) {
+    	n = readv(procPtr->rfd, iov, 2);
+	if (n < 0 && errno == EAGAIN
+		&& WaitFd(procPtr->rfd, POLLIN, ms)) {
+    	    n = readv(procPtr->rfd, iov, 2);
+	}
+    	if (n <= 0) {
+	    goto err;
+	}
+	UpdateIov(iov, n);
+    }
+    n = avail - iov[1].iov_len;
+    Tcl_DStringSetLength(dsPtr, n);
+    len = ntohl(ulen);
+    Tcl_DStringSetLength(dsPtr, len);
+    len -= n;
+    ptr  = dsPtr->string + n;
+    while (len > 0) {
+	n = read(procPtr->rfd, ptr, len);
+	if (n < 0 && errno == EAGAIN
+		&& WaitFd(procPtr->rfd, POLLIN, ms)) {
+	    n = read(procPtr->rfd, ptr, len);
+	}
+	if (n <= 0) {
+	    goto err;
+	}
+	len -= n;
+	ptr += n;
+    }
+    return 1;
+
+err:
+    if (n == 0) {
+	errno = EPIPE;
+    }
+    return 0;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * WaitFd --
+ *
+ *	Wait for I/O on pipe file descriiptor.
+ *
+ * Results:
+ *	1 if ready, 0 otherwise.
+ *
+ * Side effects:
+ *	May wait up to given ms.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+WaitFd(int fd, int event, int ms)
+{
+    struct pollfd pfd;
+    int n;
+
+    pfd.fd = fd;
+    pfd.events = event;
+    pfd.revents = 0;
+    do {
+	n = poll(&pfd, 1, ms);
+    } while (n < 0 && errno == EINTR);
+    if (n < 0 && errno != EINTR) {
+	Ns_Fatal("nsproxy: poll failed: %s", strerror(errno));
+    }
+    return n;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * UpdateIov --
+ *
+ *	Update the base and len in given iovec based on bytes
+ *	already processed.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	Will update given iovec.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+UpdateIov(struct iovec *iov, int n)
+{
+    if (n >= iov[0].iov_len) {
+	n -= iov[0].iov_len;
+	iov[0].iov_base = NULL;
+	iov[0].iov_len = 0;
+    } else {
+	iov[0].iov_len  -= n;
+	iov[0].iov_base += n;
+	n = 0;
+    }
+    iov[1].iov_len  -= n;
+    iov[1].iov_base += n;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Export --
+ *
+ *	Export result of Tcl, include error, to given dstring.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	Given dstring will contain response header and data.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+Export(Tcl_Interp *interp, int code, Tcl_DString *dsPtr)
+{
+    Res hdr;
+    char *einfo, *ecode, *result;
+    int   clen, ilen, rlen;
+
+    clen = ilen = rlen = 0;
+    if (interp != NULL) {
+    	if (code == TCL_OK) {
+	    einfo = ecode = NULL;
+    	} else {
+	    ecode = Tcl_GetVar(interp, "errorCode", TCL_GLOBAL_ONLY);
+	    einfo = Tcl_GetVar(interp, "errorInfo", TCL_GLOBAL_ONLY);
+    	}
+    	clen = ecode ? (strlen(ecode) + 1) : 0;
+    	ilen = einfo ? (strlen(einfo) + 1) : 0;
+	result = Tcl_GetStringResult(interp);
+	rlen = strlen(result);
+    }
+    hdr.code = htonl(code);
+    hdr.clen = htonl(clen);
+    hdr.ilen = htonl(ilen);
+    hdr.rlen = htonl(rlen);
+    Tcl_DStringAppend(dsPtr, (char *) &hdr, sizeof(hdr));
+    if (clen > 0) {
+    	Tcl_DStringAppend(dsPtr, ecode, clen);
+    }
+    if (ilen > 0) {
+    	Tcl_DStringAppend(dsPtr, einfo, ilen);
+    }
+    if (rlen > 0) {
+    	Tcl_DStringAppend(dsPtr, result, rlen);
+    }
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Import --
+ *
+ *	Import result of Tcl to given interp.
+ *
+ * Results:
+ *	Tcl result code from remote.
+ *
+ * Side effects:
+ *	Will set interp result and error data as needed.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+Import(Tcl_Interp *interp, Tcl_DString *dsPtr, int *resultPtr)
+{
+    Res *resPtr;
+    char *str;
+    int rlen, clen, ilen;
+
+    if (dsPtr->length < sizeof(Res)) {
+	return 0;
+    }
+    resPtr = (Res *) dsPtr->string;
+    str = dsPtr->string + sizeof(Res);
+    clen = ntohl(resPtr->clen);
+    ilen = ntohl(resPtr->ilen);
+    rlen = ntohl(resPtr->rlen);
+    if ((clen + ilen + rlen) > (dsPtr->length - sizeof(Res))) {
+	return 0;
+    }
+    if (clen > 0) {
+	Tcl_SetErrorCode(interp, str, NULL);
+	str += clen;
+    }
+    if (ilen > 0) {
+        Tcl_AddErrorInfo(interp, str);
+	str += ilen;
+    }
+    if (rlen > 0) {
+    	Tcl_SetResult(interp, str, TCL_VOLATILE);
+    }
+    *resultPtr = ntohl(resPtr->code);
+    return 1;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Reset --
+ *
+ *	Reset a proxy for the next request.
  *
  * Results:
  *	None.
@@ -1384,54 +1560,35 @@ CheckProxy(Tcl_Interp *interp, Proxy *proxyPtr)
  */
 
 static void
-Kill(Proc *procPtr, int sig)
+Reset(Proxy *proxyPtr)
 {
-    Ns_Log(Warning, "[%s]: process %d won't die - sending sig %d",
-	procPtr->poolPtr->name, procPtr->pid, sig);
-    if (kill(procPtr->pid, sig) != 0 && errno != ESRCH) {
-	Ns_Fatal("kill(%d, %d) failed: %s", procPtr->pid, sig, strerror(errno));
+    if (proxyPtr->state != Idle) {
+	Close(proxyPtr);
+	proxyPtr->state = Idle;
     }
+    Tcl_DStringTrunc(&proxyPtr->in, 0);
 }
 
-static void
-CloseThread(void *ignored)
-{
-    Proc *procPtr;
-    int ms, zombie;
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Close --
+ *
+ *	Add proxy process to list to be closed by background
+ *	close monitoring thread.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	Process will eventually die.
+ *
+ *----------------------------------------------------------------------
+ */
 
-    Ns_ThreadSetName("-nsproxy:close-");
-    while (1) {
-	Ns_MutexLock(&plock);
-	while (firstClosePtr == NULL) {
-	    Ns_CondWait(&pcond, &plock);
-	}
-	procPtr = firstClosePtr;
-	firstClosePtr = procPtr->nextPtr;
-	Ns_MutexUnlock(&plock);
-	ms = procPtr->poolPtr->twait;
-	zombie = 0;
-	if (!WaitFd(procPtr->rfd, POLLIN, ms)) {
-	    Kill(procPtr, 15);
-	    if (!WaitFd(procPtr->rfd, POLLIN, ms)) {
-		Kill(procPtr, 9);
-		if (!WaitFd(procPtr->rfd, POLLIN, ms)) {
-		    zombie = 1;
-		}
-	    }
-	}
-	close(procPtr->rfd);
-	if (!zombie) {
-	    Ns_WaitProcess(procPtr->pid);
-	} else {
-	    Ns_Log(Warning, "zombie: %d", procPtr->pid);
-	}
-	ns_free(procPtr);
-    }
-}
-
-	
 static void
-CloseProxy(Proxy *proxyPtr)
+Close(Proxy *proxyPtr)
 {
     Proc *procPtr = proxyPtr->procPtr;
     static once = 0;
@@ -1451,12 +1608,28 @@ CloseProxy(Proxy *proxyPtr)
     }
 }
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * FreeProxy --
+ *
+ *	Close connection to proxy process and free proxy.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
 static void
 FreeProxy(Proxy *proxyPtr)
 {
-    CloseProxy(proxyPtr);
+    Close(proxyPtr);
     Ns_DStringFree(&proxyPtr->in);
-    Ns_DStringFree(&proxyPtr->out);
     ns_free(proxyPtr);
 }
 
@@ -1530,8 +1703,9 @@ ReleaseProxy(Tcl_Interp *interp, Proxy *proxyPtr)
 {
     int result = TCL_OK;
 
+    Reset(proxyPtr);
     if (proxyPtr->poolPtr->reinit != NULL) {
-	result = Call(interp, proxyPtr, proxyPtr->poolPtr->reinit, -1);
+	result = Eval(interp, proxyPtr, proxyPtr->poolPtr->reinit, -1);
     }
     PutProxy(proxyPtr);
     return result;
@@ -1555,7 +1729,7 @@ ReleaseProxy(Tcl_Interp *interp, Proxy *proxyPtr)
  */
 
 static void
-ReleaseHandles(InterpData *idataPtr)
+ReleaseHandles(Tcl_Interp *interp, InterpData *idataPtr)
 {
     Tcl_HashEntry *hPtr;
     Tcl_HashSearch search;
@@ -1564,7 +1738,7 @@ ReleaseHandles(InterpData *idataPtr)
     hPtr = Tcl_FirstHashEntry(&idataPtr->ids, &search);
     while (hPtr != NULL) {
 	proxyPtr = Tcl_GetHashValue(hPtr);
-	(void) ReleaseProxy(idataPtr->interp, proxyPtr);
+	(void) ReleaseProxy(interp, proxyPtr);
 	hPtr = Tcl_NextHashEntry(&search);
     }
 }
@@ -1591,11 +1765,93 @@ DeleteData(ClientData arg, Tcl_Interp *interp)
 {
     InterpData *idataPtr = arg;
 
-    ReleaseHandles(idataPtr);
+    ReleaseHandles(interp, idataPtr);
     Tcl_DeleteHashTable(&idataPtr->ids);
     Tcl_DeleteHashTable(&idataPtr->cnts);
     ns_free(idataPtr);
 }
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * CloseThread --
+ *
+ *	Background thread to close and wait for proxy process, killing
+ *	them if necessary.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+CloseThread(void *ignored)
+{
+    Proc *procPtr;
+    int ms, zombie;
+
+    Ns_ThreadSetName("-nsproxy:close-");
+    while (1) {
+	Ns_MutexLock(&plock);
+	while (firstClosePtr == NULL) {
+	    Ns_CondWait(&pcond, &plock);
+	}
+	procPtr = firstClosePtr;
+	firstClosePtr = procPtr->nextPtr;
+	Ns_MutexUnlock(&plock);
+	ms = procPtr->poolPtr->twait;
+	zombie = 0;
+	if (!WaitFd(procPtr->rfd, POLLIN, ms)) {
+	    Kill(procPtr, 15);
+	    if (!WaitFd(procPtr->rfd, POLLIN, ms)) {
+		Kill(procPtr, 9);
+		if (!WaitFd(procPtr->rfd, POLLIN, ms)) {
+		    zombie = 1;
+		}
+	    }
+	}
+	close(procPtr->rfd);
+	if (!zombie) {
+	    Ns_WaitProcess(procPtr->pid);
+	} else {
+	    Ns_Log(Warning, "zombie: %d", procPtr->pid);
+	}
+	ns_free(procPtr);
+    }
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Kill --
+ *
+ *	Kill a proxy process that won't die.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+Kill(Proc *procPtr, int sig)
+{
+    Ns_Log(Warning, "[%s]: process %d won't die - sending sig %d",
+	procPtr->poolPtr->name, procPtr->pid, sig);
+    if (kill(procPtr->pid, sig) != 0 && errno != ESRCH) {
+	Ns_Fatal("kill(%d, %d) failed: %s", procPtr->pid, sig, strerror(errno));
+    }
+}
+
 
 
 /*
@@ -1620,4 +1876,92 @@ FatalExit(char *func)
     fprintf(stderr, "proxy[%d]: %s failed: %s\n", getpid(), func,
 	    strerror(errno));
     exit(1);
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * ProxyError --
+ *
+ *	Formats an extended error message.
+ *
+ * Results:
+ *	Pointer to error message string.
+ *
+ * Side effects:
+ *	Will set the errorCode global variable.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static char *
+ProxyError(Tcl_Interp *interp, Err err)
+{
+    char *msg, *sysmsg, *code;
+
+    sysmsg = NULL;
+    switch (err) {
+    case ENone:
+	code = "ENone";
+	msg = "no error";
+	break;
+    case EDeadlock:
+	code = "EDeadlock";
+	msg = "allocation deadlock";
+	break;
+    case EExec:
+	code = "EExec";
+	msg = "could not create child process";
+	sysmsg = strerror(errno);
+	break;
+    case ERange:
+	code = "ERange";
+	msg = "insufficient handles";
+	break;
+    case EGetTimeout:
+	code = "EGetTimeout";
+	msg = "timeout waiting for handle";
+	break;
+    case EEvalTimeout:
+	code = "EEvalTimeout";
+	msg = "timeout waiting for evaluation";
+	break;
+    case ESend:
+	code = "ESend";
+	msg = "script send failed";
+	sysmsg = strerror(errno);
+	break;
+    case ERecv:
+	code = "ERecv";
+	msg = "result recv failed";
+	sysmsg = strerror(errno);
+	break;
+    case EIdle:
+	code = "EIdle";
+	msg = "no script evaluating";
+	break;
+    case EImport:
+	code = "EImport";
+	msg = "invalided response";
+	break;
+    case EInit:
+	code = "EInit";
+	msg = "init script failed"; 
+	break;
+    case EDead:
+	code = "EDead";
+	msg = "child process died";
+	break;
+    case ENoWait:
+	code = "ENoWait";
+	msg = "no wait for script result";
+	break;
+    case EBusy:
+	code = "EBusy";
+	msg = "currently evaluating a script"; 
+	break;
+    }
+    Tcl_SetErrorCode(interp, "NSPROXY", code, msg, sysmsg, NULL);
+    return msg;
 }

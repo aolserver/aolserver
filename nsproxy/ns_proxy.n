@@ -27,7 +27,7 @@
 '\" version of this file under either the License or the GPL.
 '\" 
 '\"
-'\" $Header: /Users/dossy/Desktop/cvs/aolserver/nsproxy/ns_proxy.n,v 1.1 2006/04/20 22:59:07 jgdavidson Exp $
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/nsproxy/ns_proxy.n,v 1.2 2006/06/26 00:28:30 jgdavidson Exp $
 '\"
 '\" 
 .so man.macros
@@ -46,6 +46,9 @@ ns_proxy \- Proxy-process Tcl interface
 \fBns_proxy get\fR \fIpool ?-handle n -timeout ms?
 \fBns_proxy ping\fR \fIhandle\fR
 \fBns_proxy release \fIhandle\fR
+\fBns_proxy recv \fIhandle\fR
+\fBns_proxy send \fIhandle script\fR
+\fBns_proxy wait \fIhandle ?timeout?\fR
 .fi
 .BE
 
@@ -193,6 +196,25 @@ error (see \fBERROR HANDLING\fR below for details on handling
 errors).
 
 .TP
+\fBns_proxy send \fIhandle script\fR
+Sends \fIscript\fR in the proxy specified by \fIhandle\fR.  Unlike
+with \fBns_proxy eval\fR, this option will return immediately while
+the script continues to execute in the proxy process. A later
+\fBns_proxy wait\fR followed by an \fBns_proxy recv\fR is expected.
+
+.TP
+\fBns_proxy wait \fIhandle ?timeout?\fR
+Waits for a script sent via \fBns_proxy send\fR in the proxy specified
+by the \fIhandle\fR argument to complete. The optional \fItimeout\fR
+parameter specifies the number of milliseconds to wait for the
+script to complete, the default is an indefinite wait.
+
+.TP
+\fBns_proxy recv \fIhandle\fR
+Receives a response from a script that was sent via \fBns_proxy
+send\fR and waited on via \fBns_proxy wait\fR.
+
+.TP
 \fBns_proxy get\fR \fIpool ?-handle n -timeout ms?  Returns one or
 more handles to proxies from the specified \fIpool\fR.  The pool
 will be created with default options if it does not already exist.
@@ -243,57 +265,33 @@ between these cases, communication related errors set the
 \fBNSPROXY\fR.  The second element is one of the following:
 
 .TP
-\fBDEADLOCK\fR
+\fBEDeadlock\fR
 The interpreter attempted to allocate handles from a pool from which
 it already owns one or more handles.
 
 .TP
-\fBEXEC\fR
+\fBEExec\fR
 The slave program specified by the \fI-exec program\fR option could
 not be started.
 
 .TP
-\fBINVALID\fR
-The response from the proxy was invalid.
+\fBERange\fR
+Insufficient handles available in pool.
 
 .TP
-\fBRECVFAIL\fR
+\fBERecv\fR
 There was an error receiving the result from the slave process.
 
 .TP
-\fBSENDFAIL\fR
+\fBESend\fR
 There was an error sending the script to the slave process.
 
 .TP
-\fBTIMEOUT\fR
+\fBETimeout\fR
 The timeout specified for the pool by the \fI-evaltimeout\fR option
 or as the optional argument to the current call to \fBns_proxy
 eval\fR was exceeded.
 
-.TP
-\fBNOHANDLE\fR
-No handles were available from the pool.  The next element of
-\fIerrorCode\fR is a string with more detail on the failure and
-will be one of the following:
-
-.TP
-\fIqueue timeout\fR
-Timeout waiting behind other threads also allocating handles from
-the requested pool.
-
-.TP
-\fIpool disabled\fR
-The maximum number of handles in the pool was set with the \fI-max\fR
-config option to 0.
-
-.TP
-\fIinsufficient handles\fR
-The maximum number of handles in the pool set with the \fI-max\fR config
-option was less than the requested number of handles.
-
-.TP
-\fIproxy timeout\fR
-Timeout waiting for active proxies to become available.
 
 .SH EXAMPLES
 .PP
@@ -302,6 +300,17 @@ The following demonstrates sending a script to a remote proxy:
 .CS
 	set handle [ns_proxy get myproxy]
 	ns_proxy eval $handle {info patchlevel}
+	ns_proxy release $handle
+.CE
+
+The following demonstrates an asyncronous request:
+
+.CS
+	set handle [ns_proxy get myproxy]
+	ns_proxy send $handle {long running script}
+	... continue other work ...
+	ns_proxy wait $handle
+	set result [ns_proxy recv $handle]
 	ns_proxy release $handle
 .CE
 
