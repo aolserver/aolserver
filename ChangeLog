@@ -1,3 +1,39 @@
+2006-06-25  Jim Davidson <jgdavidson@ool.com>
+
+	* RELEASE (new file): Release notes.
+
+	* include/ns.h: Update for version 4.5 final.
+
+	* nsd/adpcmds.c:
+	* nsd/tclcmds.c: Added ns_adp_compress command present in
+	version 4.0.x.
+
+	* nsd/compress.c: Added Ns_Compress and Ns_CompressGzip
+	routines present in version 4.0.x
+
+	* nsd/driver.c: Fixed bug with pre-HTTP/1.0 request parsing.
+
+	* tcl/sendmail.tcl: Updated with fixes in 4.0.x from
+	atp@piskorski.com.
+
+	* util/nsinstall.tcl: Updated to support installing from a
+	lndir-created symbolic-link tree build directory and fixed
+	bug logging file modes of installed files.
+
+	* nsproxy/ns_proxy.n:
+	* nsproxy/nsproxylib.c: Added the "send", "wait", and "recv"
+	options to the ns_proxy command to support async requests.
+	Also, updated the extended error response info.
+
+	* doc/man.macros (deleted)
+	* include/man.macros (new file): Moved man pages include
+	file to the include directory where it's installed for use
+	by extension man pages.
+
+	* doc/Ns_ConnReturnStatus.3: Added details on the
+	Ns_RegisterReturn(3) routine.
+
+
 2006-06-22  Nathan Folkman <nathan.folkman@gmail.com>
 
         * nsd/adprequest.c: Fixed bug preventing ns_adp_stream 
