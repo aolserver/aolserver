@@ -34,7 +34,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.54 2006/06/02 21:36:46 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.55 2006/06/26 00:28:18 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -1769,8 +1769,7 @@ SockReadLine(Driver *drvPtr, Ns_Sock *sock, Conn *connPtr)
 	    connPtr->rend = e;
 	    if (NsFindVersion(s, &connPtr->major, &connPtr->minor) == NULL
 		    || connPtr->major < 1) {
-        	connPtr->flags |= NS_CONN_SKIPHDRS;
-		e = s;
+        	connPtr->flags |= (NS_CONN_SKIPHDRS | NS_CONN_READHDRS);
 	    }
 	} else if (e > s) {
             if (Ns_ParseHeader(connPtr->headers, s, Preserve) != NS_OK) {
