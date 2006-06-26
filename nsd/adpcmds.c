@@ -33,7 +33,7 @@
  *	ADP commands.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpcmds.c,v 1.27 2006/06/20 03:21:42 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpcmds.c,v 1.28 2006/06/26 00:28:02 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -232,6 +232,47 @@ NsTclAdpCtlObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
 	}
 	Tcl_SetBooleanObj(Tcl_GetObjResult(interp), old);
 	break;
+    }
+    return TCL_OK;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsTclAdpCompressObjCmd --
+ *
+ *	Process the Tcl ns_adp_compress command to enable on-the-fly
+ *	gzip compression of ADP response.
+ *
+ * Results:
+ *	A standard Tcl result.
+ *
+ * Side effects:
+ *	None.
+ *
+ *----------------------------------------------------------------------
+ */
+ 
+int
+NsTclAdpCompressObjCmd(ClientData arg, Tcl_Interp *interp, int objc,
+		     Tcl_Obj **objv)
+{
+    NsInterp *itPtr = arg;
+    int compress = 1;
+
+    if (objc != 1 && objc != 2) {
+	Tcl_WrongNumArgs(interp, 1, objv, "?boolean?");
+        return TCL_ERROR;
+    }
+    if (objc >= 2
+	    && Tcl_GetBooleanFromObj(interp, objv[1], &compress) != TCL_OK) {
+        return TCL_ERROR;
+    }
+    if (compress) {
+	itPtr->adp.flags |= ADP_GZIP;
+    } else {
+	itPtr->adp.flags &= ~ADP_GZIP;
     }
     return TCL_OK;
 }

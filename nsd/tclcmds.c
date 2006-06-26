@@ -33,7 +33,7 @@
  * 	Connect Tcl command names to the functions that implement them
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.55 2006/04/13 19:06:45 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.56 2006/06/26 00:28:02 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -49,6 +49,7 @@ extern Tcl_ObjCmdProc
     NsTclAdpBindArgsObjCmd,
     NsTclAdpBreakObjCmd,
     NsTclAdpCloseObjCmd,
+    NsTclAdpCompressObjCmd,
     NsTclAdpCtlObjCmd,
     NsTclAdpDirObjCmd,
     NsTclAdpDumpObjCmd,
@@ -252,6 +253,7 @@ static Cmd cmds[] = {
     {"ns_adp_bind_args", NULL, NsTclAdpBindArgsObjCmd},
     {"ns_adp_break", NULL, NsTclAdpBreakObjCmd},
     {"ns_adp_close", NULL, NsTclAdpCloseObjCmd},
+    {"ns_adp_compress", NULL, NsTclAdpCompressObjCmd},
     {"ns_adp_ctl", NULL, NsTclAdpCtlObjCmd},
     {"ns_adp_debug", NsTclAdpDebugCmd, NULL},
     {"ns_adp_dir", NULL, NsTclAdpDirObjCmd},
