@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsproxy/Makefile,v 1.2 2006/04/28 13:09:58 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsproxy/Makefile,v 1.3 2006/06/26 00:28:23 jgdavidson Exp $
 #
 
 MOD      = nsproxy
@@ -40,7 +40,7 @@ MODINIT	 = NsProxy_ModInit
 INSTALL	 = install-hdr
 MAN	 = ns_proxy.n
 
-include   $(AOLSERVER)/include/ns.mak
+include   ../include/ns.mak
 
 install-hdr:
 	$(INST) -d $(AOLSERVER)/include $(HDRS)
