@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.mak.in,v 1.4 2006/04/19 20:17:28 shmooved Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.mak.in,v 1.5 2006/06/27 17:00:55 jgdavidson Exp $
 
 #
 # ns.mak.in --
@@ -65,6 +65,10 @@ TCLSH		= @TCLSH@
 INSTBIN		= $(AOLSERVER)/bin
 INSTLIB		= $(AOLSERVER)/lib
 INSTINC		= $(AOLSERVER)/include
+INSTTCL         = $(AOLSERVER)/modules/tcl
+INSTSRV         = $(AOLSERVER)/servers/server1
+INSTSRVMOD      = $(INSTSRV)/modules
+INSTSRVPAG      = $(INSTSRV)/pages
 SH		= /bin/sh
 
 #
@@ -109,11 +113,13 @@ CCLIBS		 = $(LIBS) @TCL_LD_FLAGS@
 # Shell utilities.
 #
 
-RANLIB	   = @TCL_RANLIB@
+RANLIB	  = @TCL_RANLIB@
 MAKEALL	  = $(TCLSH) $(UTILS)/nsmakeall.tcl
 RM        = $(TCLSH) $(UTILS)/nsremove.tcl
 INST	  = $(TCLSH) $(UTILS)/nsinstall.tcl
 INSTMAN   = $(SH) $(UTILS)/nsinstall-man.sh -v -s
+INSTALL_SH = $(UTILS)/install-sh -c
+INSTALL_DATA = $(INSTALL_SH) -m 644
 
 #
 # Platform-specific options.

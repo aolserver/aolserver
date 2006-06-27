@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/Makefile,v 1.63 2006/04/13 20:11:57 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/Makefile,v 1.64 2006/06/27 17:00:55 jgdavidson Exp $
 #
 #
 
@@ -58,6 +58,7 @@ install-mods:
 install-util:
 	$(INST) -d $(INSTBIN) util/*.tcl
 	$(INST) -d $(INSTBIN) -e util/nsinstall-man.sh
+	$(INST) -d $(INSTBIN) -e util/install-sh
 
 install-tcl:
 	$(INST) -d $(AOLSERVER)/modules/tcl tcl/*.tcl
