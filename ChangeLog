@@ -1,5 +1,12 @@
 2006-06-27  Jim Davidson <jgdavidson@ool.com>
 
+	* Makefile:
+	* util/install.sh (new file): Restored pre-4.5 Unix install
+	script installed in bin/ directory again.
+
+	* include/ns.mak.in: Restored various pre-4.5 Unix install
+	variables.
+
 	* nsd/adpeval.c: Removed some dead code.
 
 
