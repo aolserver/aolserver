@@ -33,7 +33,7 @@
  *	ADP string and file eval.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.47 2006/06/20 03:21:42 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.48 2006/06/27 16:34:49 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -146,7 +146,7 @@ NsAdpSource(NsInterp *itPtr, int objc, Tcl_Obj *objv[], int flags, char *resvar)
 static int
 AdpEval(NsInterp *itPtr, int objc, Tcl_Obj *objv[], int flags, char *resvar)
 {
-    Tcl_Interp	     *interp;
+    Tcl_Interp	     *interp = itPtr->interp;
     AdpCode	      code;
     Tcl_DString       output;
     Tcl_Obj	     *objPtr;
@@ -154,8 +154,8 @@ AdpEval(NsInterp *itPtr, int objc, Tcl_Obj *objv[], int flags, char *resvar)
     char	     *obj0;
     
     /*
-     * Push a frame, execute the code, and then move any result to the
-     * interp from the local output buffer.
+     * If the ADP object is a file, simply source it. Otherwise, parse
+     * the script as a temporary ADP code object and execute it directly.
      */
 
     Tcl_DStringInit(&output);
@@ -167,18 +167,21 @@ AdpEval(NsInterp *itPtr, int objc, Tcl_Obj *objv[], int flags, char *resvar)
     	result = AdpExec(itPtr, objc, objv, NULL, &code, NULL, &output);
     	NsAdpFreeCode(&code);
     }
-    if (result == TCL_OK) {
-        /*
-         * If the caller has supplied a variable for the adp's result value,
-         * then save the interp's result there prior to overwritting it.
-         */
 
-	interp = itPtr->interp;
-	objPtr = Tcl_GetObjResult(interp);
-        if (resvar != NULL && Tcl_SetVar2Ex(interp, resvar, NULL, objPtr,
-					    TCL_LEAVE_ERR_MSG) == NULL) {
-            result = TCL_ERROR;
-        } else { 
+    /*
+     * Set the interp result with the ADP output, saving the last interp
+     * result first if requested.
+     */
+
+    if (result == TCL_OK) {
+	if (resvar != NULL) {
+	    objPtr = Tcl_GetObjResult(interp);
+	    if (Tcl_SetVar2Ex(interp, resvar, NULL, objPtr, TCL_LEAVE_ERR_MSG)
+			      == NULL) {
+		result = TCL_ERROR;
+	    }
+	}
+	if (result == TCL_OK) {
 	    objPtr = Tcl_NewStringObj(output.string, output.length);
 	    Tcl_SetObjResult(interp, objPtr);
 	}
@@ -186,7 +189,6 @@ AdpEval(NsInterp *itPtr, int objc, Tcl_Obj *objv[], int flags, char *resvar)
     Tcl_DStringFree(&output);
     return result;
 }
-
 
 
 /*
@@ -214,7 +216,7 @@ NsAdpInclude(NsInterp *itPtr, int objc, Tcl_Obj *objv[], char *file,
 
     /*
      * If an ADP execution is already active, use the current output
-     * buffer. Otherwise, the top-level buffer in the ADP struct.
+     * buffer. Otherwise, use the top-level buffer in the ADP struct.
      */
 
     if (itPtr->adp.framePtr != NULL) {
@@ -1017,20 +1019,6 @@ AdpExec(NsInterp *itPtr, int objc, Tcl_Obj *objv[], char *file,
 	result = TCL_OK;
 	break;
     }
-
-#if 0
-    /*
-     * Flush output and reset ADP if this is the top level frame and
-     * no abort exception has been raised.
-     */
-
-    if (--itPtr->adp.depth == 0) {
-	if (itPtr->adp.exception != ADP_ABORT) {
-	    result = NsAdpFlush(itPtr, 0);
-	}
-	AdpReset(itPtr);
-    }
-#endif
 
     /*
      * Restore the previous call frame.
