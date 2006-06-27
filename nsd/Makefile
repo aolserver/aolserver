@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Makefile,v 1.51 2006/06/27 16:34:49 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Makefile,v 1.52 2006/06/27 16:35:55 jgdavidson Exp $
 #
 
 INSTALL	= install-init
@@ -35,7 +35,7 @@ HDRS	= nsd.h
 PGM	= nsd
 PGMOBJS	= main.o
 DLL	= nsd
-#DLLINIT	= Ns_LibInit
+DLLINIT	= Ns_LibInit
 OBJS	= adpcmds.o adpeval.o adpparse.o adprequest.o auth.o binder.o \
 	  cache.o callbacks.o cls.o compress.o config.o conn.o connio.o \
 	  crypt.o dns.o driver.o dsprintf.o dstring.o encoding.o exec.o \
