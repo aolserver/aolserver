@@ -34,7 +34,7 @@
  *	Functions that return data to a browser. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.49 2006/04/19 17:49:01 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/return.c,v 1.50 2006/07/07 03:27:22 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -42,6 +42,7 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
  * Local functions defined in this file
  */
 
+static void RegisterRedirect(NsServer *servPtr, int status, char *url);
 static int ReturnRedirect(Ns_Conn *conn, int status, int *resultPtr);
 static int ReturnOpen(Ns_Conn *conn, int status, char *type, Tcl_Channel chan,
 		      FILE *fp, int fd, off_t off, int len);
@@ -117,7 +118,7 @@ static int nreasons = (sizeof(reasons) / sizeof(reasons[0]));
 /*
  *----------------------------------------------------------------------
  *
- * Ns_RegisterReturn --
+ * Ns_RegisterRedirect, Ns_RegisterReturn --
  *
  *	Associate a URL with a status. Rather than return the
  *	default error page for this status, a redirect will be
@@ -127,7 +128,7 @@ static int nreasons = (sizeof(reasons) / sizeof(reasons[0]));
  *	None. 
  *
  * Side effects:
- *	None. 
+ *	A NULL url will remove a previous redirect, if any.
  *
  *----------------------------------------------------------------------
  */
@@ -135,11 +136,21 @@ static int nreasons = (sizeof(reasons) / sizeof(reasons[0]));
 void
 Ns_RegisterReturn(int status, char *url)
 {
-    NsServer	  *servPtr;
+    RegisterRedirect(NsGetInitServer(), status, url);
+}
+
+void
+Ns_RegisterRedirect(char *server, int status, char *url)
+{
+    RegisterRedirect(NsGetServer(server), status, url);
+}
+
+static void
+RegisterRedirect(NsServer *servPtr, int status, char *url)
+{
     Tcl_HashEntry *hPtr;
     int            new;
 
-    servPtr = NsGetInitServer();
     if (servPtr != NULL) {
     	hPtr = Tcl_CreateHashEntry(&servPtr->request.redirect,
 				   (char *) status, &new);

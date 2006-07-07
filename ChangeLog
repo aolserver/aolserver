@@ -1,3 +1,17 @@
+2006-07-07  Jim Davidson <jgdavidson@ool.com>
+
+	* include/ns.h:
+	* nsd/return.c: Added Ns_RegisterRedirect as a replacement
+	to Ns_RegisterReturn which did not require a virtual server
+	argument as expected.
+
+	* nsd/server.c: Updated to call new Ns_RegisterRedirect,
+	fixing bug #1518426
+
+	* doc/Ns_ConnReturnStatus.3: Updated to document the new
+	Ns_RegisterRedirect, removing reference to Ns_RegisterReturn.
+
+
 2006-06-28  Nathan Folkman <nathan.folkman@gmail.com>
 
         * nsd/adpeval.c: Fixed crash bug in NsAdpLogError() when 

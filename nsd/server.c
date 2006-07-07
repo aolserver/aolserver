@@ -33,7 +33,7 @@
  *	Routines for managing NsServer structures.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.45 2006/04/13 19:06:32 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.46 2006/07/07 03:27:22 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -44,6 +44,7 @@ static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd
 static void GetCharsetEncoding(char *path, char *key, char **charsetPtr,
 		   	       Tcl_Encoding *encodingPtr);
 static NsServer *CreateServer(char *server);
+static void RegisterRedirects(char *server);
 static void RegisterMaps(char *server, char *type, Ns_OpProc *proc);
 static void RegisterMap(char *server, char *type, char *map, Ns_OpProc *proc);
 
@@ -202,6 +203,7 @@ NsInitServer(char *server, Ns_ServerInitProc *initProc)
     RegisterMap(server, "fastpath", "/", Ns_FastPathOp);
     RegisterMaps(server, "fastpath", Ns_FastPathOp);
     RegisterMaps(server, "adp", NsAdpProc);
+    RegisterRedirects(server);
 
     /*
      * Call the given init proc, if any, which may register
@@ -241,9 +243,9 @@ CreateServer(char *server)
     Tcl_Encoding outputEncoding;
     Ns_DString ds;
     NsServer *servPtr;
-    char *path, *spath, *map, *key, *dirf, *p;
+    char *path, *spath, *dirf, *p;
     Ns_Set *set;
-    int i, n, status;
+    int i, n;
 
     Ns_DStringInit(&ds);
     servPtr = ns_calloc(1, sizeof(NsServer));
@@ -441,19 +443,7 @@ CreateServer(char *server)
     Tcl_InitHashTable(&servPtr->request.proxy, TCL_STRING_KEYS);
     Ns_MutexInit(&servPtr->request.plock);
     Ns_MutexSetName2(&servPtr->request.plock, "nsd:proxy", server);
-    path = Ns_ConfigGetPath(server, NULL, "redirects", NULL);
-    set = Ns_ConfigGetSection(path);
     Tcl_InitHashTable(&servPtr->request.redirect, TCL_ONE_WORD_KEYS);
-    for (i = 0; set != NULL && i < Ns_SetSize(set); ++i) {
-	key = Ns_SetKey(set, i);
-	map = Ns_SetValue(set, i);
-	status = atoi(key);
-	if (status <= 0 || *map == '\0') {
-	    Ns_Log(Error, "return: invalid redirect '%s=%s'", key, map);
-	} else {
-	    Ns_RegisterReturn(status, map);
-	}
-    }
 
     /*
      * Initialize ADP.
@@ -661,5 +651,43 @@ RegisterMap(char *server, char *type, char *map, Ns_OpProc *proc)
 	    }
 	}
 	Tcl_Free((char *) largv);
+    }
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * RegisterRedirects --
+ *
+ *	Register redirects for given server.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	See Ns_RegisterRedirect.
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+RegisterRedirects(char *server)
+{
+    char *path, *key, *url;
+    Ns_Set *set;
+    int i, status;
+
+    path = Ns_ConfigGetPath(server, NULL, "redirects", NULL);
+    set = Ns_ConfigGetSection(path);
+    for (i = 0; set != NULL && i < Ns_SetSize(set); ++i) {
+	key = Ns_SetKey(set, i);
+	url = Ns_SetValue(set, i);
+	status = atoi(key);
+	if (status <= 0 || *url == '\0') {
+	    Ns_Log(Error, "return: invalid redirect '%s=%s'", key, url);
+	} else {
+	    Ns_RegisterRedirect(server, status, url);
+	}
     }
 }
