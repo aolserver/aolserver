@@ -1,3 +1,10 @@
+2006-08-07  Dossy Shiobara <dossy@panoptic.com>
+
+	* include/nsattributes.h (1.4): Provide default no-op defines for
+	  gcc attributes correctly to enable builds on older gcc to work.
+	  Previously, "may_alias" attribute resulted in gcc older than 3.3
+	  to no longer build.  This minor change fixes this.
+
 2006-07-07  Jim Davidson <jgdavidson@ool.com>
 
 	* include/ns.h:
