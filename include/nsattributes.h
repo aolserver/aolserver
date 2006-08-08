@@ -32,13 +32,11 @@
  *      
  *	Type and programmer error checking attributes for GCC compiler.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/nsattributes.h,v 1.3 2005/08/25 15:46:11 shmooved Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/nsattributes.h,v 1.4 2006/08/08 01:15:26 dossy Exp $
  */
 
 #ifndef NSATTRS_H
 #define NSATTRS_H
-
-#ifndef __GNUC__ 
 
 # define _nsmalloc
 # define _nspure
@@ -55,8 +53,6 @@
 # define _nsnonnull
 # define _nswarnunused
 # define _nsmayalias
-
-#else
 
 #ifdef __GNUC_MINOR__
 #ifdef __GNUC_PREREQ
@@ -119,8 +115,6 @@
 #endif
 
 #endif /* __GNUC__PREREQ */
-
-#endif /* __GNUC__ */
 
 #define NS_RCSID(string) static const char *RCSID _nsunused = string \
     ", compiled: " __DATE__ " " __TIME__
