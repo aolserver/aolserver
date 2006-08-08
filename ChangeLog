@@ -29,6 +29,8 @@
 
 	*** AOLserver 4.5.0 RELEASED ***
 
+2006-06-27  tag aolserver_v45_r0
+
 2006-06-27  Jim Davidson <jgdavidson@ool.com>
 
 	* Makefile:
