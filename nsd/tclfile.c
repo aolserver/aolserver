@@ -34,7 +34,7 @@
  *	Tcl commands that do stuff to the filesystem. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclfile.c,v 1.24 2005/08/23 21:41:31 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclfile.c,v 1.25 2006/08/17 19:45:37 basscheffers Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #ifdef _WIN32
@@ -362,8 +362,8 @@ NsTclMkdirObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST ob
         Tcl_WrongNumArgs(interp, 1, objv, "dir");
         return TCL_ERROR;
     }
-    if (mkdir(Tcl_GetString(objv[1]), 0755) != 0) {
-        Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "mkdir (\"", 
+    if (mkdir(Tcl_GetString(objv[1]), 0777) != 0) {
+       Tcl_AppendStringsToObj(Tcl_GetObjResult(interp), "mkdir (\"", 
 		Tcl_GetString(objv[1]),
 		"\") failed:  ", Tcl_PosixError(interp), NULL);
         return TCL_ERROR;
