@@ -34,7 +34,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.17.2.10 2005/03/11 16:54:16 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.17.2.11 2006/12/15 17:34:51 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -771,6 +771,12 @@ DriverThread(void *ignored)
 	}
 	drvPtr = nextDrvPtr;
     }
+
+    /*
+     * Register an at-ready callback to trigger the poll.
+     */
+
+    Ns_RegisterAtReady(SockTrigger, NULL);
 
     /*
      * Loop forever until signalled to shutdown and all
