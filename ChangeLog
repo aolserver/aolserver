@@ -1,3 +1,9 @@
+2006-12-15  Dossy Shiobara <dossy@panoptic.com>
+
+	* nsd/driver.c (1.56): [BUG #1615787] Fix deadlock bug when driver
+	  thread stalls under specific conditions.  Thanks to Jeff Rogers
+	  and Gustaf Neumann.
+
 2005-10-25  Nathan Folkman <shmooved@aol.com>
 
         * tcl/return.tcl (new file): Implements ns_returnmoved
