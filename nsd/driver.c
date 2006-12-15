@@ -34,7 +34,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.55 2006/06/26 00:28:18 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/driver.c,v 1.56 2006/12/15 17:26:57 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -946,7 +946,13 @@ DriverThread(void *arg)
     drvPtr->flags |= flags;
     Ns_CondBroadcast(&drvPtr->cond);
     Ns_MutexUnlock(&drvPtr->lock);
-    
+
+    /*
+     * Register an at-ready callback to trigger the poll.
+     */
+
+    Ns_RegisterAtReady(TriggerDriver, drvPtr);   
+
     /*
      * Loop forever until signalled to shutdown and all
      * connections are complete and gracefully closed.
