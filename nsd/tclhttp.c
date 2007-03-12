@@ -33,7 +33,7 @@
  *	Support for the ns_http command.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclhttp.c,v 1.23 2005/08/01 20:27:05 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclhttp.c,v 1.24 2007/03/12 20:29:44 shmooved Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -61,7 +61,7 @@ static int HttpQueueCmd(NsInterp *itPtr, int objc, Tcl_Obj **objv, int run);
 static int SetWaitVar(Tcl_Interp *interp, Tcl_Obj *varPtr, Tcl_Obj *valPtr);
 static int HttpConnect(Tcl_Interp *interp, char *method, char *url,
 			Ns_Set *hdrs, Tcl_Obj *bodyPtr, Http **httpPtrPtr);
-static char *HttpResult(char *response, int *statusPtr, Ns_Set *hdrs);
+static char *HttpResult(Tcl_DString ds, int *statusPtr, Ns_Set *hdrs, Tcl_Obj **objPtrPtr);
 static void HttpClose(Http *httpPtr);
 static void HttpCancel(Http *httpPtr);
 static void HttpAbort(Http *httpPtr);
@@ -287,6 +287,7 @@ HttpWaitCmd(NsInterp *itPtr, int objc, Tcl_Obj **objv)
     Tcl_Obj *elapsedPtr = NULL;
     Tcl_Obj *resultPtr = NULL;
     Tcl_Obj *statusPtr = NULL;
+    Tcl_Obj *responsePtr;
     Ns_Set *hdrs = NULL;
     Ns_Time diff;
     char *arg, *content;
@@ -356,17 +357,17 @@ HttpWaitCmd(NsInterp *itPtr, int objc, Tcl_Obj **objv)
 	Tcl_AppendResult(interp, "http failed: ", httpPtr->error, NULL);
 	goto err;
     }
-    content = HttpResult(httpPtr->ds.string, &status, hdrs);
+    content = HttpResult(httpPtr->ds, &status, hdrs, &responsePtr);
     if (statusPtr != NULL &&
 		!SetWaitVar(interp, statusPtr, Tcl_NewIntObj(status))) {
 	goto err;
     }
     if (resultPtr == NULL) {
-	Tcl_SetResult(interp, content, TCL_VOLATILE);
+	    Tcl_SetObjResult(interp, responsePtr);
     } else {
-	if (!SetWaitVar(interp, resultPtr, Tcl_NewStringObj(content, -1))) {
-	    goto err;
-	}
+	    if (!SetWaitVar(interp, resultPtr, responsePtr)) {
+	        goto err;
+	    }
 	Tcl_SetBooleanObj(Tcl_GetObjResult(interp), 1);
     }
     result = TCL_OK;
@@ -489,7 +490,7 @@ HttpConnect(Tcl_Interp *interp, char *method, char *url, Ns_Set *hdrs,
     if (sock != INVALID_SOCKET) {
         httpPtr = ns_malloc(sizeof(Http));
         httpPtr->sock = sock;
-	httpPtr->error = NULL;
+	    httpPtr->error = NULL;
         Tcl_DStringInit(&httpPtr->ds);
         if (file != NULL) {
             *file = '/';
@@ -513,16 +514,16 @@ HttpConnect(Tcl_Interp *interp, char *method, char *url, Ns_Set *hdrs,
             for (i = 0; i < Ns_SetSize(hdrs); i++) {
                 Ns_DStringVarAppend(&httpPtr->ds,
                     Ns_SetKey(hdrs, i), ": ",
-		    Ns_SetValue(hdrs, i), "\r\n", NULL);
+		            Ns_SetValue(hdrs, i), "\r\n", NULL);
             }
         }
-	body = NULL;
-	if (bodyPtr != NULL) {
-	    body = Tcl_GetStringFromObj(bodyPtr, &len);
-	    if (len == 0) {
-		body = NULL;
+	    body = NULL;
+	    if (bodyPtr != NULL) {
+	        body = Tcl_GetByteArrayFromObj(bodyPtr, &len);
+	        if (len == 0) {
+		        body = NULL;
+	        }
 	    }
-	}
         if (body != NULL) {
             Ns_DStringPrintf(&httpPtr->ds, "Content-Length: %d\r\n", len);
         }
@@ -564,31 +565,35 @@ HttpConnect(Tcl_Interp *interp, char *method, char *url, Ns_Set *hdrs,
  */
 
 static char *
-HttpResult(char *response, int *statusPtr, Ns_Set *hdrs)
+HttpResult(Tcl_DString ds, int *statusPtr, Ns_Set *hdrs, Tcl_Obj **objPtrPtr)
 {
     int firsthdr, major, minor, len;
-    char *eoh, *body, *p, save;
+    char *eoh, *body, *p, *response, save;
 
+    response = ds.string;
     body = response;
     eoh = strstr(response, "\r\n\r\n");
     if (eoh != NULL) {
         body = eoh + 4;
-	eoh += 2;
+	    eoh += 2;
     } else {
         eoh = strstr(response, "\n\n");
         if (eoh != NULL) {
             body = eoh + 2;
-	    eoh += 1;
+	        eoh += 1;
         }
     }
+    
+    *objPtrPtr = Tcl_NewByteArrayObj(body, ds.length-(body-response));
+
     if (eoh == NULL) {
-	*statusPtr = 0;
+	    *statusPtr = 0;
     } else {
-	*eoh = '\0';
-	sscanf(response, "HTTP/%d.%d %d", &major, &minor, statusPtr);
+	    *eoh = '\0';
+	    sscanf(response, "HTTP/%d.%d %d", &major, &minor, statusPtr);
     	if (hdrs != NULL) {
-	    save = *body;
-	    *body = '\0';
+	        save = *body;
+	        *body = '\0';
             firsthdr = 1;
             p = response;
             while ((eoh = strchr(p, '\n')) != NULL) {
