@@ -1,3 +1,8 @@
+2007-03-12  Nathan Folkman <nathan.folkman@gmail.com>
+
+        * nsd/tclhttp.c: Added preliminary support to allow sending and
+        retrieving binary data correctly.
+
 2006-12-15  Dossy Shiobara <dossy@panoptic.com>
 
 	* nsd/driver.c (1.56): [BUG #1615787] Fix deadlock bug when driver
