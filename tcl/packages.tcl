@@ -1,5 +1,3 @@
-return
-
 set section "ns/server/[ns_info server]/packages"
 
 if {[llength [set libraryList [ns_config $section librarylist]]]} {
