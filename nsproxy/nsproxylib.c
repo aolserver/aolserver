@@ -33,7 +33,7 @@
  *	Library for ns_proxy commands and main loops.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsproxy/nsproxylib.c,v 1.5 2006/06/26 00:28:30 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsproxy/nsproxylib.c,v 1.6 2007/05/11 22:11:59 shmooved Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsproxy.h"
 #include <poll.h>
@@ -837,7 +837,7 @@ GetObjCmd(ClientData data, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 		} else {
 		    proxyPtr = ns_calloc(1, sizeof(Proxy));
 		    proxyPtr->poolPtr = poolPtr;
-		    sprintf(proxyPtr->id, "proxy%d", poolPtr->nextid++);
+                    sprintf(proxyPtr->id, "%s-proxy-%d", poolPtr->name, poolPtr->nextid++);
 		    Tcl_DStringInit(&proxyPtr->in);
 		}
 		proxyPtr->nextPtr = firstPtr;
