@@ -1,3 +1,11 @@
+2007-05-11  Nathan Folkman <nathan.folkman@gmail.com>
+
+        * nsproxy/nsproxylib.c: Fixed crash bug that occurred when trying
+        to create more then one proxy pool. The proxy id now takes the 
+        form of:
+
+        <pool>-proxy-<number>
+
 2007-03-12  Nathan Folkman <nathan.folkman@gmail.com>
 
         * nsd/tclhttp.c: Added preliminary support to allow sending and
