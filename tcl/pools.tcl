@@ -26,7 +26,7 @@
 # If you do not delete the provisions above, a recipient may use your
 # version of this file under either the License or the GPL.
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/pools.tcl,v 1.2 2007/08/01 21:27:24 michael_andrews Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/pools.tcl,v 1.3 2007/08/01 21:29:33 michael_andrews Exp $
 #
 
 set cfgsection "ns/server/[ns_info server]"
@@ -38,4 +38,4 @@ set timeout [ns_config $cfgsection threadtimeout 0]
 
 ns_pools set default -minthreads $minthreads -maxthreads $maxthreads -maxconns $maxconns -timeout $timeout
 
-ns_log debug "Default Pool: [ns_pools get default]"
+ns_log debug "default Pool: [ns_pools get default]"
