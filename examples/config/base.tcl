@@ -1,5 +1,5 @@
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/examples/config/base.tcl,v 1.3 2007/06/13 19:42:12 michael_andrews Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/examples/config/base.tcl,v 1.4 2007/08/01 21:35:26 michael_andrews Exp $
 # $Name:  $
 #
 # base.tcl --
@@ -54,7 +54,7 @@ ns_section "ns/server/server1"
     ns_param pageroot $pageRoot
     ns_param maxthreads 20
     ns_param minthreads 5
-    ns_param maxconns 20
+    ns_param maxconnections 20
     ns_param urlcharset "utf-8"
     ns_param outputcharset "utf-8"
     ns_param inputcharset "utf-8"
