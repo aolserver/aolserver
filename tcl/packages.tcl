@@ -26,18 +26,39 @@
 # If you do not delete the provisions above, a recipient may use your
 # version of this file under either the License or the GPL.
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/packages.tcl,v 1.4 2007/08/01 21:55:29 michael_andrews Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/packages.tcl,v 1.5 2007/08/17 19:34:15 michael_andrews Exp $
 #
 
 set section "ns/server/[ns_info server]/packages"
 
+if {![string length [set nsSetId [ns_configsection $section]]]} {
+    return
+}
+
 #
-# Add libraries to auto_path
+# Create a libraryList and a requireList
 #
-if {[llength [set libraryList [ns_config $section librarylist]]]} {
-    foreach library $libraryList {
-        if {[lsearch -exact $::auto_path $library] == -1} {
-            lappend ::auto_path $library
+for {set x 0} {$x < [ns_set size $nsSetId]} {incr x} {
+    set key [ns_set key $nsSetId $x]
+    set value [ns_set value $nsSetId $x]
+
+    if {[string eq "library" $key]} {
+        lappend libraryList $value
+    } elseif {[string eq "require" $key]} {
+        lappend requireList $value
+    }
+}
+
+ns_set free $nsSetId
+
+#
+# Add libraries to ::auto_path var
+#
+if {[info exists libraryList]} {
+    foreach lib $libraryList {
+        if {[lsearch -exact $::auto_path $lib] == -1} {
+            lappend ::auto_path $lib
+            ns_log debug "Added lib to ::auto_path: ${lib}"
         }
     }
 }
@@ -45,11 +66,11 @@ if {[llength [set libraryList [ns_config $section librarylist]]]} {
 #
 # Require packages
 #
-if {![llength [set packageList [ns_config $section packagelist]]]} {
-    return
+if {![info exists requireList]} {
+   return
 }
 
-foreach package $packageList { 
+foreach package $requireList { 
     if {[catch {set version [ns_ictl package require $package]}]} {
         ns_log error $::errorInfo
         continue
@@ -62,7 +83,7 @@ foreach package $packageList {
 # Run init commands
 #
 foreach command [list nsinit nspostinit] {
-    foreach package $packageList {
+    foreach package $requireList {
         set packageCommand "::${package}::${command}"
  
         if {![llength [info commands $packageCommand]]} {
