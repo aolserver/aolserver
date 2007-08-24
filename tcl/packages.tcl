@@ -26,7 +26,7 @@
 # If you do not delete the provisions above, a recipient may use your
 # version of this file under either the License or the GPL.
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/packages.tcl,v 1.5 2007/08/17 19:34:15 michael_andrews Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/packages.tcl,v 1.6 2007/08/24 19:30:15 michael_andrews Exp $
 #
 
 set section "ns/server/[ns_info server]/packages"
@@ -58,7 +58,7 @@ if {[info exists libraryList]} {
     foreach lib $libraryList {
         if {[lsearch -exact $::auto_path $lib] == -1} {
             lappend ::auto_path $lib
-            ns_log debug "Added lib to ::auto_path: ${lib}"
+            ns_log debug "added library to ::auto_path: ${lib}"
         }
     }
 }
@@ -76,7 +76,7 @@ foreach package $requireList {
         continue
     }
 
-    ns_log debug "Package Loaded: ${package}: ${version}"
+    ns_log debug "loaded package: ${package}: ${version}"
 }
 
 #
