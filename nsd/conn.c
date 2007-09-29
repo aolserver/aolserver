@@ -34,7 +34,7 @@
  *      Manage the Ns_Conn structure
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.48 2006/04/13 19:06:14 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.49 2007/09/29 20:08:52 gneumann Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -42,6 +42,8 @@ static void SetFlag(Ns_Conn *conn, int bit, int flag);
 static int GetChan(Tcl_Interp *interp, char *id, Tcl_Channel *chanPtr);
 static int GetIndices(Tcl_Interp *interp, Conn *connPtr, Tcl_Obj **objv,
 		      int *offPtr, int *lenPtr);
+static Tcl_Channel MakeConnChannel(Ns_Conn *conn, int spliceout);
+
 
 
 /*
@@ -1004,7 +1006,8 @@ NsTclConnObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
     char	 *content;
 
     static CONST char *opts[] = {
-	 "authpassword", "authuser", "close", "content", "contentlength",
+         "authpassword", "authuser", "channel", "close", "content", "contentlength",
+         "contentsentlength",
 	 "contentchannel", "copy", "driver", "encoding", "files",
 	 "fileoffset", "filelength", "fileheaders", "flags", "form",
 	 "headers", "host", "id", "isconnected", "location", "method",
@@ -1014,8 +1017,8 @@ NsTclConnObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 	 "write_encoded", NULL
     };
     enum {
-	 CAuthPasswordIdx, CAuthUserIdx, CCloseIdx, CContentIdx,
-	 CContentLengthIdx, CContentChannelIdx, CCopyIdx, CDriverIdx,
+	 CAuthPasswordIdx, CAuthUserIdx, CChannelIdx, CCloseIdx, CContentIdx,
+	 CContentLengthIdx, CContentSentLenIdx, CContentChannelIdx, CCopyIdx, CDriverIdx,
 	 CEncodingIdx, CFilesIdx, CFileOffIdx, CFileLenIdx,
 	 CFileHdrIdx, CFlagsIdx, CFormIdx, CHeadersIdx, CHostIdx,
 	 CIdIdx, CIsConnectedIdx, CLocationIdx, CMethodIdx,
@@ -1089,6 +1092,7 @@ NsTclConnObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 	    }
 	    break;
 
+  
 	case CContentIdx:
 	    if (objc != 2 && objc != 4) {
 		Tcl_WrongNumArgs(interp, 2, objv, "?off len?");
@@ -1329,7 +1333,29 @@ NsTclConnObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 		return TCL_ERROR;
 	    }
 	    break;
-	    
+
+        case CChannelIdx:
+	  chan = MakeConnChannel(conn, 1);
+	  if (chan == NULL) {
+            Tcl_AppendResult(interp, Tcl_PosixError(interp), NULL);
+            return TCL_ERROR;
+	  }
+	  Tcl_RegisterChannel(interp, chan);
+	  Tcl_SetStringObj(result, Tcl_GetChannelName(chan), -1);
+	  break;
+
+        case CContentSentLenIdx:
+	  if (objc == 2) {
+	    Tcl_SetIntObj(result, connPtr->nContentSent);
+	  } else if (objc == 3) {
+	    if (Tcl_GetIntFromObj(interp, objv[2], &connPtr->nContentSent) != TCL_OK) {
+	      return TCL_ERROR;
+	    }
+	  } else {
+	    Tcl_WrongNumArgs(interp, 2, objv, "?value?");
+	    return TCL_ERROR;
+	  }
+	  break;
     }
 
     return TCL_OK;
@@ -1521,4 +1547,61 @@ GetIndices(Tcl_Interp *interp, Conn *connPtr, Tcl_Obj **objv, int *offPtr, int *
     *offPtr = off;
     *lenPtr = len;
     return TCL_OK;
+}
+/*----------------------------------------------------------------------------
+ * MakeConnChannel --
+ *
+ *      Wraps a Tcl channel arround the current connection socket
+ *      and returns the channel handle to the caller.
+ *  
+ * Result:
+ *      Tcl_Channel handle or NULL.
+ *
+ * Side Effects:
+ *      Flushes the connection socket before dup'ing.
+ *      The resulting Tcl channel is set to blocking mode.
+ *
+ *----------------------------------------------------------------------------
+ */
+static Tcl_Channel
+MakeConnChannel(Ns_Conn *conn, int spliceout)
+{
+    Tcl_Channel chan;
+    int         sock;
+    Conn       *connPtr = (Conn *) conn;
+    
+    /*
+     * Assures the socket is flushed
+     */
+
+    Ns_WriteConn(conn, NULL, 0);
+
+    if (spliceout) {
+        sock = connPtr->sockPtr->sock;
+        connPtr->sockPtr->sock = -1;
+    } else {
+        sock = ns_sockdup(connPtr->sockPtr->sock);
+    }
+
+    if (sock == -1) {
+        return NULL;
+    }
+    
+    /*
+     * At this point we may also set some other
+     * chan config options (binary,encoding, etc)
+     */
+
+    Ns_SockSetBlocking(sock);
+
+    /*
+     * Wrap a Tcl TCP channel arround the socket.
+     */
+    
+    chan = Tcl_MakeTcpClientChannel((ClientData)sock);
+    if (chan == NULL && spliceout) {
+        connPtr->sockPtr->sock = sock;
+    }
+
+    return chan;
 }
