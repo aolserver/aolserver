@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 #
 
-# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/charsets.tcl,v 1.1 2003/03/06 19:41:24 mpagenva Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/charsets.tcl,v 1.2 2007/09/29 20:38:36 gneumann Exp $
 
 
 # charsets.tcl -
@@ -99,7 +99,7 @@ proc ns_setformencoding {charset} {
 
 proc _ns_multipartformdata_p {} {
     set type [string tolower [ns_set iget [ns_conn headers] content-type]]
-    return [expr {[string compare [ns_conn method] POST] == 0
+    return [expr {[ns_conn method] eq "POST" 
 		  && [string match *multipart/form-data* $type]}]
 }
 
@@ -110,7 +110,7 @@ proc _ns_multipartformdata_p {} {
 proc _ns_dbg_dump_the_form { prefix } {
 
     set the_form [ns_getform]
-    if {[string compare $the_form ""] != 0} {
+    if {$the_form ne "" } {
 
 	set n [ns_set size $the_form]
 	set buf "Current value of form($prefix):"
@@ -145,12 +145,12 @@ proc _ns_dbg_dump_the_form { prefix } {
 proc ns_formfieldcharset {name} {
     set charset ""
 
-    if [_ns_multipartformdata_p] {
+    if {[_ns_multipartformdata_p]} {
 	set form [ns_getform]
-	if {[string compare $form ""] != 0} {
+	if {$form ne "" } {
 	    set charset [ns_set get $form $name]
 
-	    if {[string compare $charset ""] != 0} {
+	    if {$charset ne "" } {
 		ns_urlcharset $charset
 	    }
 	}
@@ -160,7 +160,7 @@ proc ns_formfieldcharset {name} {
 	regexp "&$name=(\[^&]*)" "&$query" junk charset
     }
 
-    if {[string compare $charset ""] != 0} {
+    if {$charset ne "" } {
 	ns_urlcharset $charset
     }
 }
@@ -187,12 +187,12 @@ proc ns_cookiecharset {name} {
 
     foreach cookie $cookies {
 	set cookie [string trim $cookie]
-	if [regexp "$name=(.*)" $cookie junk charset] {
+	if {[regexp "$name=(.*)" $cookie junk charset]} {
 	    break
 	}
     }
 
-    if {[string compare $charset ""] != 0} {
+    if {$charset ne "" } {
 	ns_urlcharset $charset
     }
 }
@@ -212,11 +212,11 @@ proc ns_cookiecharset {name} {
 
 proc ns_encodingfortype {type} {
     set type [string trim [string tolower $type]]
-    if {[string length $type] == 0} {
+    if {$type eq ""} {
 	return binary
     } elseif {[regexp {;[ \t\r\n]*charset[ \t\r\n]*=([^;]*)} $type junk charset]} {
 	return [ns_encodingforcharset [string trim $charset]]
-    } elseif {[string match text/* $type]} {
+    } elseif {[string match "text/*" $type]} {
 	return [ns_encodingforcharset [ns_config ns/parameters OutputCharset iso-8859-1]]
     } else {
 	return binary
@@ -265,7 +265,7 @@ proc ns_choosecharset {args} {
 
     regsub -all {[ \t\r\n]} $accept_charset_header {} accept_charset_header
 
-    if {[string length $accept_charset_header] == 0} {
+    if {$accept_charset_header eq ""} {
 	# The client didn't specify any character sets, so send him
 	# the default.
 	return $default_charset
