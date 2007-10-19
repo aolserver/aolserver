@@ -34,7 +34,7 @@
  *	and service threads.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/queue.c,v 1.39 2007/10/19 09:46:38 gneumann Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/queue.c,v 1.40 2007/10/19 18:00:01 rmadilo Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -366,7 +366,7 @@ NsConnThread(void *arg)
 
     Ns_TlsSet(&ctdtls, dataPtr);
     Ns_MutexLock(&poolPtr->lock);
-    sprintf(name, "-conn:%d-", poolPtr->threads.nextid++);
+    sprintf(name, "-%s:%d-", poolPtr->name, poolPtr->threads.nextid++);
     Ns_MutexUnlock(&poolPtr->lock);
     Ns_ThreadSetName(name);
     ncons = poolPtr->threads.maxconns;
