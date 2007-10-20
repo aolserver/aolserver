@@ -28,7 +28,7 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/util.tcl,v 1.4 2002/02/08 07:56:16 hobbs Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/util.tcl,v 1.5 2007/10/20 16:39:21 gneumann Exp $
 #
 
 #
@@ -66,7 +66,7 @@ proc ns_findset {sets name} {
 proc getformdata {conn formVar} {
     upvar $formVar form
     set form [ns_conn form $conn]
-    if {[string match "" $form]} {
+    if {$form eq ""} {
 	ns_returnbadrequest $conn "Missing HTML FORM data"
 	return 0
     }
@@ -74,7 +74,7 @@ proc getformdata {conn formVar} {
 }
 
 proc ns_paren {val} {
-    if {$val != ""} {
+    if {$val ne ""} {
 	return "($val)"
     } else {
 	return ""
@@ -100,7 +100,7 @@ proc ns_formvalueput {htmlpiece dataname datavalue} {
 
     set newhtml ""
 
-    while {$htmlpiece != ""} {
+    while {$htmlpiece ne ""} {
 	if {[string index $htmlpiece 0] == "<"} {
 	    regexp {<([^>]*)>(.*)} $htmlpiece m tag htmlpiece
 	    set tag [string trim $tag]
@@ -193,7 +193,7 @@ proc ns_formvalueput {htmlpiece dataname datavalue} {
 
 			regexp {^([^<]*)(.*)} $htmlpiece m txt htmlpiece
 
-			if {[string match "" $value]} {
+			if {$value eq ""} {
 			    set value [string trim $txt]
 			}
 
@@ -283,15 +283,15 @@ proc ns_htmlselect args {
     set sort 0
     set labels {}
     while {[string index [lindex $args 0] 0] == "-"} {
-	if {[lindex $args 0] == "-multi"} {
+	if {[lindex $args 0] eq "-multi"} {
 	    set multi 1
 	    set args [lreplace $args 0 0]
 	}
-	if {[lindex $args 0] == "-sort"} {
+	if {[lindex $args 0] eq "-sort"} {
 	    set sort 1
 	    set args [lreplace $args 0 0]
 	}
-	if {[lindex $args 0] == "-labels"} {
+	if {[lindex $args 0] eq "-labels"} {
 	    set labels [lindex $args 1]
 	    set args [lreplace $args 0 1]
 	}
@@ -322,7 +322,7 @@ proc ns_htmlselect args {
     set len [llength $values]
     set lvpairs {}
     for {set i 0} {$i < $len} {incr i} {
-	if {[string match "" $labels]} {
+	if {$labels eq ""} {
 	    set label [lindex $values $i]
 	} else {
 	    set label [lindex $labels $i]
