@@ -983,7 +983,7 @@ extern void NsStartPools(void);
 extern void NsStopPools(Ns_Time *timeoutPtr);
 extern int NsTclGetPool(Tcl_Interp *interp, char *pool, Pool **poolPtrPtr);
 extern Tcl_ObjCmdProc NsTclListPoolsObjCmd;
-extern void NsCreateConnThread(Pool *poolPtr);
+extern void NsCreateConnThread(Pool *poolPtr, int joinThreads);
 extern void NsJoinConnThreads(void);
 extern int  NsStartDrivers(void);
 extern void NsWaitDriversShutdown(Ns_Time *toPtr);

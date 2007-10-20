@@ -33,7 +33,7 @@
  *  Routines for the managing the connection thread pools.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/pools.c,v 1.10 2005/08/02 21:58:52 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/pools.c,v 1.11 2007/10/20 11:57:19 gneumann Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -481,7 +481,7 @@ StartPool(Pool *poolPtr, void *ignored)
 
     poolPtr->threads.current = poolPtr->threads.idle = poolPtr->threads.min;
     for (i = 0; i < poolPtr->threads.min; ++i) {
-        NsCreateConnThread(poolPtr);
+        NsCreateConnThread(poolPtr, 1);
     }
 }
 

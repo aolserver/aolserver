@@ -34,7 +34,7 @@
  *	and service threads.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/queue.c,v 1.40 2007/10/19 18:00:01 rmadilo Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/queue.c,v 1.41 2007/10/20 11:57:19 gneumann Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -184,18 +184,19 @@ NsQueueConn(Conn *connPtr)
         ++poolPtr->threads.current;
         create = 1;
     }
+
     /* 
        Note that in situations, where the maximum number of 
        connection threads is reached (poolPtr->threads.idle == 0 and create == 0)
        the request is queued without resources to process these.
-       One has to take care about that one restarts the queue, when 
+       One has to take care about processing he entries of the queue, when 
        resources become available again.
     */
-    ++poolPtr->queue.wait.num;
 
+    ++poolPtr->queue.wait.num;
     Ns_MutexUnlock(&poolPtr->lock);
     if (create) {
-        NsCreateConnThread(poolPtr);
+        NsCreateConnThread(poolPtr, 1);
     } else {
         Ns_CondSignal(&poolPtr->cond);
     }
@@ -389,7 +390,10 @@ NsConnThread(void *arg)
        to max conns. However, the test with the queue.wait.num consition
        is better than a hang.
      */
-    while (poolPtr->threads.maxconns <= 0 || ncons-- > 0 || poolPtr->queue.wait.num > 1) {
+    while (poolPtr->threads.maxconns <= 0 
+           || ncons-- > 0 
+           /*|| poolPtr->queue.wait.num > 1*/
+           ) {
 
 	/*
 	 * Wait for a connection to arrive, exiting if one doesn't
@@ -405,17 +409,15 @@ NsConnThread(void *arg)
 	}
 
 	status = NS_OK;
-
-        if (poolPtr->queue.wait.num == 0) {
+        while (!poolPtr->shutdown
+               && status == NS_OK
+               && poolPtr->queue.wait.firstPtr == NULL) {
             /* 
                nothing is queued, we wait for a queue entry 
             */
-            while (!poolPtr->shutdown
-                   && status == NS_OK
-                   && poolPtr->queue.wait.firstPtr == NULL) {
-                status = Ns_CondTimedWait(&poolPtr->cond, &poolPtr->lock, timePtr);
-            }
+            status = Ns_CondTimedWait(&poolPtr->cond, &poolPtr->lock, timePtr);
         }
+
 	if (poolPtr->queue.wait.firstPtr == NULL) {
 	    msg = "timeout waiting for connection";
 	    break;
@@ -501,6 +503,18 @@ NsConnThread(void *arg)
         Ns_CondBroadcast(&poolPtr->cond);
     }
     Ns_MutexUnlock(&poolPtr->lock);
+
+    if (poolPtr->queue.wait.num > 0 && poolPtr->threads.idle == 0 && !poolPtr->shutdown) {
+        /* We are exiting from a thread in a situation, where more
+           queue entries are waiting. Since no other mechanism ensures
+           that the entries are processed, we recreate a new connection thread.
+        */
+        Ns_MutexLock(&poolPtr->lock);
+        poolPtr->threads.current++;
+        poolPtr->threads.idle++;
+        Ns_MutexUnlock(&poolPtr->lock);
+        NsCreateConnThread(poolPtr, 0); /* joinThreads == 0 to avoid deadlock */
+    }
 
     Ns_Log(Notice, "exiting: %s", msg);
     Ns_ThreadExit(dataPtr);
@@ -645,7 +659,7 @@ ConnRun(Conn *connPtr)
  */
 
 void
-NsCreateConnThread(Pool *poolPtr)
+NsCreateConnThread(Pool *poolPtr, int joinThreads)
 {
     ConnData *dataPtr;
 
@@ -653,7 +667,9 @@ NsCreateConnThread(Pool *poolPtr)
      * Reap any dead threads.
      */
 
-    NsJoinConnThreads();
+    if (joinThreads) {
+        NsJoinConnThreads();
+    }
 
     /*
      * Create a new connection thread.
