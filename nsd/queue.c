@@ -34,7 +34,7 @@
  *	and service threads.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/queue.c,v 1.42 2007/10/21 21:38:09 gneumann Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/queue.c,v 1.43 2007/10/22 22:56:23 gneumann Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -378,22 +378,7 @@ NsConnThread(void *arg)
      */
 
     Ns_MutexLock(&poolPtr->lock);
-    /* 
-       The last test (poolPtr->queue.wait.num > 0) might lead to situations
-       where a single connection thread processes more than maxconns 
-       connection requests. This condition fixes situations, where the
-       driver accepts more connection requests than resources available.
-       When e.g. the number of queued requests is higher than connections per threads,
-       this might lead to situations, where there server comes to a halt.
-       Maybe it is a good idea to limit the number of queued requests or
-       to start a new thread automatically, when the current one exists due
-       to max conns. However, the test with the queue.wait.num consition
-       is better than a hang.
-     */
-    while (poolPtr->threads.maxconns <= 0 
-           || ncons-- > 0 
-           /*|| poolPtr->queue.wait.num > 1*/
-           ) {
+    while (poolPtr->threads.maxconns <= 0 || ncons-- > 0) {
 
 	/*
 	 * Wait for a connection to arrive, exiting if one doesn't
@@ -503,10 +488,15 @@ NsConnThread(void *arg)
         Ns_CondBroadcast(&poolPtr->cond);
     }
 
-    if (poolPtr->queue.wait.num > 0 && poolPtr->threads.idle == 0 && !poolPtr->shutdown) {
-        /* We are exiting from a thread in a situation, where more
-           queue entries are waiting. Since no other mechanism ensures
-           that the entries are processed, we recreate a new connection thread.
+    
+    if (((poolPtr->queue.wait.num > 0 && poolPtr->threads.idle == 0)
+         || (poolPtr->threads.current < poolPtr->threads.min)
+         ) && !poolPtr->shutdown) {
+        /* 
+           We are either exiting from a thread in a situation, where more
+           queue entries are still waiting, or
+           we have less than minthreads connection threads alive.
+           In these situations recreate a connection thread.
         */
         poolPtr->threads.current++;
         poolPtr->threads.idle++;
