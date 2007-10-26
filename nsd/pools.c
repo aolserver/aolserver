@@ -33,7 +33,7 @@
  *  Routines for the managing the connection thread pools.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/pools.c,v 1.11 2007/10/20 11:57:19 gneumann Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/pools.c,v 1.12 2007/10/26 23:14:17 gneumann Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -183,6 +183,19 @@ NsTclPoolsObjCmd(ClientData data, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
                 poolPtr->threads.maxconns = val;
                 break;
             }
+        }
+        /* catch unsane values */
+        if (poolPtr->threads.max < 1) {
+            Tcl_SetResult(interp, "maxthreads can't be less than 1", TCL_STATIC);
+            return TCL_ERROR;
+        }
+        if (poolPtr->threads.min > poolPtr->threads.max) {
+            Tcl_SetResult(interp, "minthreads can't be larger than maxthreads", TCL_STATIC);
+            return TCL_ERROR;
+        }
+        if (poolPtr->threads.timeout < 1) {
+            Tcl_SetResult(interp, "timeout cannot be less than 1", TCL_STATIC);
+            return TCL_ERROR;
         }
         if (PoolResult(interp, poolPtr) != TCL_OK) {
             return TCL_ERROR;
@@ -479,8 +492,13 @@ StartPool(Pool *poolPtr, void *ignored)
 {
     int i;
 
-    poolPtr->threads.current = poolPtr->threads.idle = poolPtr->threads.min;
+    poolPtr->threads.current = 0;
+    poolPtr->threads.starting = 0;
+    poolPtr->threads.waiting = 0;
+    poolPtr->threads.idle = 0;
+
     for (i = 0; i < poolPtr->threads.min; ++i) {
+        poolPtr->threads.current ++;
         NsCreateConnThread(poolPtr, 1);
     }
 }

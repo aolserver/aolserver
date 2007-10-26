@@ -564,6 +564,8 @@ typedef struct Pool {
 	int 	    	    max;
     	int 	    	    current;
 	int 	    	    idle;
+	int 	    	    waiting;
+	int 	    	    starting;
 	int 	    	    timeout;
 	int		    maxconns;
     	unsigned int	    queued;
