@@ -27,7 +27,7 @@
  * version of this file under either the License or the GPL.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscgi/nscgi.c,v 1.23.2.3 2008/01/24 13:28:25 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscgi/nscgi.c,v 1.23.2.4 2008/01/24 13:31:47 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 #include <sys/stat.h>
@@ -120,6 +120,8 @@ typedef struct Map {
  
 static int devNull;
 
+static Tcl_ObjCmdProc CgiTclRegisterCgiObjCmd;
+static int AddCmds(Tcl_Interp *interp, void *arg);
 static Ns_OpProc CgiRequest;
 static void     CgiRegister(Mod *modPtr, char *map);
 static Ns_Callback CgiFreeMap;
@@ -134,6 +136,10 @@ static int      CgiReadLine(Cgi *cgiPtr, Ns_DString *dsPtr);
 static char    *NextWord(char *s);
 static void     SetAppend(Ns_Set *set, int index, char *sep, char *value);
 static void     SetUpdate(Ns_Set *set, char *key, char *value);
+
+/*
+ * For AOLserver
+ */
 
 int Ns_ModuleVersion = 1;
 
@@ -255,7 +261,63 @@ Ns_ModuleInit(char *server, char *module)
     }
     Ns_DStringFree(&ds);
 
+    Ns_TclInitInterps(server, AddCmds, modPtr);
+
     return NS_OK;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * AddCmds --
+ *
+ *	Add Tcl commands for nscgi 
+ *
+ * Results:
+ *	NS_OK 
+ *
+ * Side effects:
+ *	Adds Tcl commands 
+ *
+ *----------------------------------------------------------------------
+ */
+
+static int
+AddCmds(Tcl_Interp *interp, void *arg)
+{
+    Tcl_CreateObjCommand(interp, "ns_register_cgi", CgiTclRegisterCgiObjCmd, arg, NULL);
+    return NS_OK;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * CgiTclRegisterCgiObjCmd --
+ *
+ *	Implements ns_register_cgi as obj command.
+ *
+ * Results:
+ *	Tcl result. 
+ *
+ * Side effects:
+ *	See docs. 
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+CgiTclRegisterCgiObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    Mod     *modPtr = (Mod *) arg;
+
+    if (objc != 2) {
+        Tcl_WrongNumArgs(interp, 1, objv, "map");
+        return TCL_ERROR;
+    }
+    CgiRegister(modPtr, Tcl_GetString(objv[1]));
+    return TCL_OK;
 }
 
 
@@ -768,6 +830,13 @@ CgiExec(Cgi *cgiPtr, Ns_Conn *conn)
     /*
      * Set all the CGI specified variables.
      */
+
+    Ns_DStringAppend(dsPtr, conn->request->url);
+    if (conn->request->query != NULL) {
+        Ns_DStringVarAppend(dsPtr, "?", conn->request->query, NULL);
+    }
+    SetUpdate(cgiPtr->env, "REQUEST_URI", dsPtr->string);
+    Ns_DStringTrunc(dsPtr, 0);
 
     SetUpdate(cgiPtr->env, "SCRIPT_NAME", cgiPtr->name);
     SetUpdate(cgiPtr->env, "SCRIPT_FILENAME", cgiPtr->path);
