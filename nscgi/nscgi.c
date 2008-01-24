@@ -27,7 +27,7 @@
  * version of this file under either the License or the GPL.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscgi/nscgi.c,v 1.23.2.4 2008/01/24 13:31:47 dossy Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscgi/nscgi.c,v 1.23.2.5 2008/01/24 14:32:22 dossy Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 #include <sys/stat.h>
@@ -831,13 +831,7 @@ CgiExec(Cgi *cgiPtr, Ns_Conn *conn)
      * Set all the CGI specified variables.
      */
 
-    Ns_DStringAppend(dsPtr, conn->request->url);
-    if (conn->request->query != NULL) {
-        Ns_DStringVarAppend(dsPtr, "?", conn->request->query, NULL);
-    }
-    SetUpdate(cgiPtr->env, "REQUEST_URI", dsPtr->string);
-    Ns_DStringTrunc(dsPtr, 0);
-
+    SetUpdate(cgiPtr->env, "REQUEST_URI", conn->request->url);
     SetUpdate(cgiPtr->env, "SCRIPT_NAME", cgiPtr->name);
     SetUpdate(cgiPtr->env, "SCRIPT_FILENAME", cgiPtr->path);
     if (cgiPtr->pathinfo != NULL && *cgiPtr->pathinfo != '\0') {
