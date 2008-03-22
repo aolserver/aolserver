@@ -34,7 +34,7 @@
  *      Manipulate file descriptors of open files.
  */
  
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/fd.c,v 1.12 2005/10/08 20:20:51 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/fd.c,v 1.13 2008/03/22 17:43:39 gneumann Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #ifdef _WIN32
@@ -125,9 +125,17 @@ NsInitFd(void)
 	       strerror(errno));
     } else {
 	if (rl.rlim_cur != rl.rlim_max) {
-    	    rl.rlim_cur = rl.rlim_max;
+#if defined(__APPLE__) && defined(__ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__) && __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ > 1040
+            if (rl.rlim_max == RLIM_INFINITY) {
+                rl.rlim_cur = OPEN_MAX < rl.rlim_max ? OPEN_MAX : rl.rlim_max;
+            } else {
+                rl.rlim_cur = rl.rlim_max;
+            }
+#else
+            rl.rlim_cur = rl.rlim_max;
+#endif
     	    if (setrlimit(RLIMIT_NOFILE, &rl) != 0) {
-	        Ns_Log(Warning, "fd: setrlimit(RLIMIT_NOFILE, %d) failed: %s",
+	        Ns_Log(Warning, "fd: setrlimit(RLIMIT_NOFILE, %lld) failed: %s",
 		       rl.rlim_max, strerror(errno));
 	    } 
 	}
