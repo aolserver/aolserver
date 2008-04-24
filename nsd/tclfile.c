@@ -34,7 +34,7 @@
  *	Tcl commands that do stuff to the filesystem. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclfile.c,v 1.25 2006/08/17 19:45:37 basscheffers Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclfile.c,v 1.26 2008/04/24 07:13:40 gneumann Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #ifdef _WIN32
@@ -568,6 +568,40 @@ NsTclMkTempCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 int
 NsTclTmpNamObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
 {
+#ifdef WIN32
+    /*
+      The WIN32 implmentation of tmpnam() ignores the environment
+      variable TMP and generates filenames for the root
+      directory. Unfortunately, new WIN versions (Vista) don't allow
+      this. The suggested replacement is _tempnam().
+
+      The first argument of _tempnam() is the default directory, in case
+      the environment variable TMP is not set or points to a directory
+      that does not exist.
+    */
+    char *buf = _tempnam("/tmp", NULL);
+
+    if (buf == NULL) {
+	Tcl_SetResult(interp, "could not generate temporary filename.", TCL_STATIC);
+        return TCL_ERROR;
+    }
+    /*
+      Change back-slash characters into slash characters, as all other
+      paths are slash separated. Even some programs under Windows
+      do not allow back-slahed paths (e.g. Oracle's SqlLdr).
+    */
+    for (i = 0; i < strlen(buf); i++) {
+        if (buf[i] == '\\') buf[i] = '/';
+    }
+    /* 
+       The documentation says that _tempnam() allocates memory via
+       malloc(); to be sure, that the "right" free() is used, we do
+       not use TCL_DYNAMIC but the TCL_VOLATILE followed by the manual
+       free().
+    */
+    Tcl_SetResult(interp, buf, TCL_VOLATILE);
+    free(buf);
+#else
     char buf[L_tmpnam];
 
     if (tmpnam(buf) == NULL) {
@@ -575,6 +609,7 @@ NsTclTmpNamObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST o
         return TCL_ERROR;
     }
     Tcl_SetResult(interp, buf, TCL_VOLATILE);
+#endif
     return TCL_OK;
 }
 
