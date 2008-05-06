@@ -34,7 +34,7 @@
  *	Tcl commands that do stuff to the filesystem. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclfile.c,v 1.26 2008/04/24 07:13:40 gneumann Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclfile.c,v 1.27 2008/05/06 07:43:08 gneumann Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 #ifdef _WIN32
@@ -579,6 +579,7 @@ NsTclTmpNamObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST o
       the environment variable TMP is not set or points to a directory
       that does not exist.
     */
+    int i;
     char *buf = _tempnam("/tmp", NULL);
 
     if (buf == NULL) {
