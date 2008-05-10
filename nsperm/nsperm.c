@@ -11,7 +11,7 @@
  *
  * The Original Code is AOLserver Code and related documentation
  * distributed by AOL.
- * 
+ *
  * The Initial Developer of the Original Code is America Online,
  * Inc. Portions created by AOL are Copyright (C) 1999 America Online,
  * Inc. All Rights Reserved.
@@ -27,13 +27,13 @@
  * version of this file under either the License or the GPL.
  */
 
-/* 
+/*
  * nsperm --
  *
  *	Permissions
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsperm/nsperm.c,v 1.10 2005/08/08 11:30:15 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsperm/nsperm.c,v 1.11 2008/05/10 19:31:32 mooooooo Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 
@@ -110,19 +110,19 @@ static int AuthProc(char *server, char *method, char *url, char *user,
 static int             uskey = -1;
 static Tcl_HashTable   serversTable;
 
-
+
 /*
  *----------------------------------------------------------------------
  *
  * NsPerm_ModInit --
  *
- *	Initialize the perms module 
+ *	Initialize the perms module
  *
  * Results:
- *	NS_OK/NS_ERROR 
+ *	NS_OK/NS_ERROR
  *
  * Side effects:
- *	Init hash table, add tcl commands. 
+ *	Init hash table, add tcl commands.
  *
  *----------------------------------------------------------------------
  */
@@ -152,19 +152,19 @@ NsPerm_ModInit(char *server, char *module)
     return NS_OK;
 }
 
-
+
 /*
  *----------------------------------------------------------------------
  *
  * AddCmds --
  *
- *	Add tcl commands for perms 
+ *	Add tcl commands for perms
  *
  * Results:
- *	NS_OK 
+ *	NS_OK
  *
  * Side effects:
- *	Adds tcl commands 
+ *	Adds tcl commands
  *
  *----------------------------------------------------------------------
  */
@@ -176,19 +176,19 @@ AddCmds(Tcl_Interp *interpermPtr, void *arg)
     return NS_OK;
 }
 
-
+
 /*
  *----------------------------------------------------------------------
  *
  * PermCmd --
  *
- *	The ns_perm tcl command 
+ *	The ns_perm tcl command
  *
  * Results:
- *	Std tcl ret val 
+ *	Std tcl ret val
  *
  * Side effects:
- *	Yes. 
+ *	Yes.
  *
  *----------------------------------------------------------------------
  */
@@ -206,7 +206,7 @@ PermCmd(ClientData arg, Tcl_Interp *interp, int argc, CONST char **argv)
     }
     Ns_RWLockWrLock(&servPtr->lock);
     if (STREQ(argv[1], "adduser")) {
-	status = AddUserCmd(servPtr, interp, argc, (char**)argv);    
+	status = AddUserCmd(servPtr, interp, argc, (char**)argv);
     } else if (STREQ(argv[1], "addgroup")) {
 	status = AddGroupCmd(servPtr, interp, argc, (char**)argv);
     } else if (STREQ(argv[1], "allowuser")) {
@@ -229,22 +229,22 @@ PermCmd(ClientData arg, Tcl_Interp *interp, int argc, CONST char **argv)
     return status;
 }
 
-
+
 /*
  *----------------------------------------------------------------------
  *
  * AuthProc --
  *
- *	Authorize a URL--this callback is called when a new 
- *	connection is recieved 
+ *	Authorize a URL--this callback is called when a new
+ *	connection is recieved
  *
  * Results:
  *	NS_OK: accept;
- *	NS_FORBIDDEN or NS_UNAUTHORIZED: go away; 
- *	NS_ERROR: oops 
+ *	NS_FORBIDDEN or NS_UNAUTHORIZED: go away;
+ *	NS_ERROR: oops
  *
  * Side effects:
- *	None 
+ *	None
  *
  *----------------------------------------------------------------------
  */
@@ -289,7 +289,7 @@ AuthProc(char *server, char *method, char *url, char *user, char *pass,
     /*
      * Verify user password (if any).
      */
-     
+
     hPtr = Tcl_FindHashEntry(&servPtr->users, user);
     if (hPtr == NULL) {
     	goto done;
@@ -332,7 +332,7 @@ deny:
      * Loop over all groups in this perm record, and then
      * see if the user is in any of those groups.
      */
-    
+
     hPtr = Tcl_FirstHashEntry(&permPtr->denygroup, &search);
     while (hPtr != NULL) {
 	group = Tcl_GetHashKey(&permPtr->denygroup, hPtr);
@@ -351,7 +351,7 @@ deny:
     /*
      * Check the allow lists, starting with users
      */
-    
+
     if (Tcl_FindHashEntry(&permPtr->allowuser, user) != NULL) {
 	goto done;
     }
@@ -360,7 +360,7 @@ deny:
      * Loop over all groups in this perm record, and then
      * see if the user is in any of those groups.
      */
-    
+
     hPtr = Tcl_FirstHashEntry(&permPtr->allowgroup, &search);
     while (hPtr != NULL) {
 	group = Tcl_GetHashKey(&permPtr->allowgroup, hPtr);
@@ -384,19 +384,19 @@ done:
     return status;
 }
 
-
+
 /*
  *----------------------------------------------------------------------
  *
  * ValidateUserAddr --
  *
- *	Validate that the peer address is valid for this user 
+ *	Validate that the peer address is valid for this user
  *
  * Results:
- *	NS_TRUE if allowed, NS_FALSE if not 
+ *	NS_TRUE if allowed, NS_FALSE if not
  *
  * Side effects:
- *	None 
+ *	None
  *
  *----------------------------------------------------------------------
  */
@@ -412,7 +412,7 @@ ValidateUserAddr(User *userPtr, char *peer)
     if (peer == NULL) {
 	return NS_TRUE;
     }
-    
+
     peerip.s_addr = inet_addr(peer);
     if (peerip.s_addr == INADDR_NONE) {
 	return NS_FALSE;
@@ -422,12 +422,12 @@ ValidateUserAddr(User *userPtr, char *peer)
      * Loop over each netmask, AND the peer address with it,
      * then see if that address is in the list.
      */
-     
+
     hPtr = Tcl_FirstHashEntry(&userPtr->masks, &search);
     while (hPtr != NULL) {
 	mask.s_addr = (unsigned long) Tcl_GetHashKey(&userPtr->masks, hPtr);
 	ip.s_addr = peerip.s_addr & mask.s_addr;
-	
+
 	/*
 	 * There is a potential match. Now make sure it works with the
 	 * right address's mask.
@@ -473,7 +473,7 @@ ValidateUserAddr(User *userPtr, char *peer)
 	     * Break out of the loop as soon as a match is found or
 	     * all possibilities are exhausted.
 	     */
-	    
+
 	    while (start != NULL && start[0] != '\0') {
 		char *last;
 
@@ -499,23 +499,23 @@ ValidateUserAddr(User *userPtr, char *peer)
 	    }
 	}
     }
-    
+
     return retval;
 }
 
-
+
 /*
  *----------------------------------------------------------------------
  *
  * AddUserCmd --
  *
- *	Implements the Tcl command ns_perm adduser 
+ *	Implements the Tcl command ns_perm adduser
  *
  * Results:
- *	Tcl resut 
+ *	Tcl resut
  *
  * Side effects:
- *	A user may be added to the global user hash table 
+ *	A user may be added to the global user hash table
  *
  *----------------------------------------------------------------------
  */
@@ -580,10 +580,7 @@ AddUserCmd(Server *servPtr, Tcl_Interp *interp, int argc, char **argv)
 	     */
 
 	    *slash = '\0';
-	    ip.s_addr = inet_addr(net);
-	    mask.s_addr = inet_addr(slash+1);
-	    *slash = '\0';
-	    if (ip.s_addr == INADDR_NONE || mask.s_addr == INADDR_NONE) {
+	    if (inet_aton(net, &ip) == 0 || inet_aton(slash+1, &mask) == 0) {
 		Tcl_AppendResult(interp, "invalid address or hostname \"",
 				 net, "\". "
 				 "should be ipaddr/netmask or hostname",
@@ -610,7 +607,7 @@ AddUserCmd(Server *servPtr, Tcl_Interp *interp, int argc, char **argv)
 
 	    (void) Tcl_CreateHashEntry(&userPtr->masks,
 					(char *) mask.s_addr, &new);
-	    
+
 	    hPtr = Tcl_CreateHashEntry(&userPtr->nets, (char *) ip.s_addr, &new);
 	    Tcl_SetHashValue(hPtr, mask.s_addr);
 	}
@@ -623,7 +620,7 @@ AddUserCmd(Server *servPtr, Tcl_Interp *interp, int argc, char **argv)
     /*
      * Add the user.
      */
-     
+
     hPtr = Tcl_CreateHashEntry(&servPtr->users, name, &new);
     if (!new) {
     	Tcl_AppendResult(interp, "duplicate user: ", name, NULL);
@@ -650,19 +647,19 @@ fail:
     return TCL_ERROR;
 }
 
-
+
 /*
  *----------------------------------------------------------------------
  *
  * AddGroupCmd --
  *
- *	Add a group to the global groups list 
+ *	Add a group to the global groups list
  *
  * Results:
- *	Standard tcl 
+ *	Standard tcl
  *
  * Side effects:
- *	A group will be created 
+ *	A group will be created
  *
  *----------------------------------------------------------------------
  */
@@ -688,7 +685,7 @@ AddGroupCmd(Server *servPtr, Tcl_Interp *interp, int argc, char *argv[])
      * Create & populate the structure for a new group.
      */
 
-    name = argv[2];    
+    name = argv[2];
     groupPtr = ns_malloc(sizeof(Group));
     Tcl_InitHashTable(&groupPtr->users, TCL_STRING_KEYS);
 
@@ -697,7 +694,7 @@ AddGroupCmd(Server *servPtr, Tcl_Interp *interp, int argc, char *argv[])
      * it's ok, and add him. Also put the group into the user's list
      * of groups he's in.
      */
-     
+
     for (param = 3; param < argc; param++) {
     	user = argv[param];
     	hPtr = Tcl_FindHashEntry(&servPtr->users, user);
@@ -723,7 +720,7 @@ dupuser:
 	/*
 	 * Add the group to the user's list of groups
 	 */
-	
+
 	hPtr = Tcl_CreateHashEntry(&userPtr->groups, name, &new);
 	if (!new) {
 	    goto dupuser;
@@ -734,7 +731,7 @@ dupuser:
     /*
      * Add the group to the global list of groups
      */
-    
+
     hPtr = Tcl_CreateHashEntry(&servPtr->groups, name, &new);
     if (!new) {
 	Tcl_AppendResult(interp, "duplicate group: ", name, NULL);
@@ -758,20 +755,20 @@ fail:
     return TCL_ERROR;
 }
 
-
+
 /*
  *----------------------------------------------------------------------
  *
  * GroupCmd --
  *
- *	Add a group to allow or deny access. 
+ *	Add a group to allow or deny access.
  *
  * Results:
- *	Std tcl 
+ *	Std tcl
  *
  * Side effects:
- *	A perm record may be created, a group will be added to its 
- *	deny list 
+ *	A perm record may be created, a group will be added to its
+ *	deny list
  *
  *----------------------------------------------------------------------
  */
@@ -799,21 +796,21 @@ AllowDenyCmd(Server *servPtr, Tcl_Interp *interp, int argc, char **argv, int all
 	}
 	flags = NS_OP_NOINHERIT;
     }
-    key = argv[argc-1];    
+    key = argv[argc-1];
     url = argv[argc-2];
     method = argv[argc-3];
 
     /*
      * Construct the base url.
      */
-     
+
     Ns_DStringInit(&base);
     Ns_NormalizePath(&base, url);
-    
+
     /*
      * Locate and verify the exact record.
      */
-     
+
     permPtr = Ns_UrlSpecificGet(servPtr->server, method, url, uskey);
     if (permPtr != NULL && !STREQ(base.string, permPtr->baseurl)) {
     	permPtr = NULL;
