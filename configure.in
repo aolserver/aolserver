@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/configure.in,v 1.24 2006/06/02 18:32:58 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/configure.in,v 1.25 2008/05/13 21:25:23 dvrsn Exp $
 #
 
 #
@@ -95,6 +95,9 @@ case "$system" in
 	LDLIB="$TCL_SHLIB_LD"
 	case "$LDLIB" in
 	    *gcc*)
+		LDLIB="$LDLIB -nostartfiles"
+		;;
+	    *shared*)
 		LDLIB="$LDLIB -nostartfiles"
 		;;
 	esac
