@@ -2524,6 +2524,9 @@ case "$system" in
 	    *gcc*)
 		LDLIB="$LDLIB -nostartfiles"
 		;;
+	    *shared*)
+		LDLIB="$LDLIB -nostartfiles"
+		;;
 	esac
 	CCRPATH="\$(CCRFLAG)\$(INSTLIB)"
 	LDRPATH="\$(LDRFLAG)\$(INSTLIB)"
