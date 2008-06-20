@@ -1,3 +1,13 @@
+2008-06-20  Gustaf Neumann <neumann@wu-wien.ac.at>
+
+        * remove direct access to interp->result in
+            - nscp/nscp.c
+            - nsd/tclloop.c
+            - nsd/tclshare.c
+            - nsproxy/nsproxylib.c
+        * initializing potentially uninitialized variables in
+             - nsproxy/nsproxylib.c
+
 2008-05-13  Jeff Rogers <dvrsn@diphi.com>
 
         * configure.in: add -nostartfiles flag to link line when -shared

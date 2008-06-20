@@ -35,7 +35,7 @@
  *  	Tcl commands.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscp/nscp.c,v 1.24 2005/08/08 15:32:34 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nscp/nscp.c,v 1.25 2008/06/20 08:06:32 gneumann Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 
@@ -363,7 +363,7 @@ retry:
 	    Ns_TclLogError(interp);
 	}
 	Tcl_AppendResult(interp, "\r\n", NULL);
-	res = interp->result;
+        res = Tcl_GetStringResult(interp); 
 	len = strlen(res);
 	while (len > 0) {
 	    if ((n = send(sessPtr->sock, res, len, 0)) <= 0) goto done;

@@ -34,7 +34,7 @@
  *	monitored and managed by "ns_loop_ctl" command.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclloop.c,v 1.2 2006/06/02 18:51:49 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclloop.c,v 1.3 2008/06/20 08:06:32 gneumann Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -853,7 +853,7 @@ CheckControl(NsServer *servPtr, Tcl_Interp *interp, LoopData *dataPtr)
 	    }
 	    Ns_MutexLock(&servPtr->tcl.llock);
 	    if (dataPtr->evalPtr == NULL) {
-		Ns_Log(Error, "loopctl: dropped result: %s", interp->result);
+		Ns_Log(Error, "loopctl: dropped result: %s", Tcl_GetStringResult(interp));
 	    } else {
 		str = Tcl_GetStringFromObj(Tcl_GetObjResult(interp), &len);
 	    	Tcl_DStringAppend(&dataPtr->evalPtr->result, str, len);

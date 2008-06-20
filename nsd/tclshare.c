@@ -223,7 +223,7 @@ ShareVar(NsInterp *itPtr, Tcl_Interp *interp, char *varName)
             return TCL_ERROR;
         }
         
-        if (strcmp(interp->result, "1") == 0) {
+        if (strcmp(Tcl_GetStringResult(interp), "1") == 0) {
             /*
              * Get existing value in variable being shared.
              */
@@ -246,7 +246,7 @@ ShareVar(NsInterp *itPtr, Tcl_Interp *interp, char *varName)
                     char **argv;
                     int x;
                     Tcl_InitHashTable(&valuePtr->array, TCL_STRING_KEYS);
-                    if (Tcl_SplitList(interp, interp->result, &argc, 
+                    if (Tcl_SplitList(interp, Tcl_GetStringResult(interp), &argc, 
                                       (CONST char***)&argv) == TCL_OK) {
                         for (x = 0; x < argc; x += 2) {
                             Tcl_HashEntry* newEntry;
