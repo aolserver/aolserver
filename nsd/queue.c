@@ -34,7 +34,7 @@
  *	and service threads.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/queue.c,v 1.44 2007/10/26 23:14:17 gneumann Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/queue.c,v 1.45 2008/09/24 11:25:33 gneumann Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -179,7 +179,7 @@ NsQueueConn(Conn *connPtr)
     poolPtr->queue.wait.lastPtr = connPtr;
     connPtr->nextPtr = NULL;
 
-    if (poolPtr->queue.wait.num > 0
+    if (poolPtr->threads.waiting == 0
         && poolPtr->threads.current < poolPtr->threads.max) {
         /* 
            Create a new thread if no thread is waiting and the number
