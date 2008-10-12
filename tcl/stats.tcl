@@ -36,7 +36,7 @@ if {$enabled} {
 }
 
 proc _ns_stats.handleUrl {} {
-    set page [ns_conn urlv [expr [ns_conn urlc] - 1]]
+    set page [ns_conn urlv [expr {[ns_conn urlc] - 1}]]
     
     switch -exact $page {
         "adp.adp" -
@@ -67,7 +67,7 @@ proc _ns_stats.handleUrl {} {
 }
 
 proc _ns_stats.header {{stat ""}} {
-    if [string length $stat] {
+    if {[string length $stat]} {
         set title "AOLserver Stats: [ns_info hostname] - $stat"
         set nav "<a href=index.adp><font color=#ffffff>Main Menu</font></a> &gt; <font color=#ffcc00>$stat</font>"
     } else {
@@ -141,7 +141,7 @@ proc _ns_stats.adp {} {
         set s  ""
 
         foreach {k v} $stats {
-            if {[string match mtime $k]} {
+            if {"mtime" eq $k} {
                 lappend s [_ns_stats.fmtTime $v]
             } else {
                 lappend s $v
@@ -150,7 +150,7 @@ proc _ns_stats.adp {} {
         lappend results [concat $file $s]
     }
 
-    set rows [_ns_stats.sortResults $results [expr $col - 1] $numericSort $reverseSort]
+    set rows [_ns_stats.sortResults $results [expr {$col - 1}] $numericSort $reverseSort]
 
     set html [_ns_stats.header ADP]
     append html [_ns_stats.results $col $colTitles adp.adp $rows $reverseSort]
@@ -181,7 +181,7 @@ proc _ns_stats.cache {} {
     }
 
     set colTitles   [list Cache Max Current Entries Flushes Hits Misses "Hit Rate"]
-    set rows        [_ns_stats.sortResults $results [expr $col - 1] $numericSort $reverseSort]
+    set rows        [_ns_stats.sortResults $results [expr {$col - 1}] $numericSort $reverseSort]
     
     set html [_ns_stats.header Cache]
     append html [_ns_stats.results $col $colTitles cache.adp $rows $reverseSort]
@@ -214,13 +214,13 @@ proc _ns_stats.locks {} {
         if {$nbusy == 0} {
             set contention 0.0
         } else {
-            set contention [expr double($nbusy*100.0/$nlock)]
+            set contention [expr {double($nbusy*100.0/$nlock)}]
         }
 
         lappend results [list $name $owner $id $nlock $nbusy $contention]
     }
 
-    foreach result [_ns_stats.sortResults $results [expr $col - 1] $numericSort $reverseSort] {
+    foreach result [_ns_stats.sortResults $results [expr {$col - 1}] $numericSort $reverseSort] {
         set name        [lindex $result 0]
         set owner       [lindex $result 1]
         set id          [lindex $result 2]
@@ -264,7 +264,7 @@ proc _ns_stats.log {} {
     catch {
         set f [open [ns_info log]]
         seek $f 0 end
-        set n [expr [tell $f] -4000]
+        set n [expr {[tell $f] -4000}]
 
         if {$n < 0} {
             set n 4000
@@ -325,20 +325,20 @@ proc _ns_stats.mempools {} {
 		    set ng [lindex $b 2]
 		    set np [lindex $b 3]
 		    set nr [lindex $b 4]
-		    set nu [expr $ng - $np]
-		    set na [expr $nu * $bs]
+		    set nu [expr {$ng - $np}]
+		    set na [expr {$nu * $bs}]
 
-		    incr tops [expr $ng + $np]
+		    incr tops [expr {$ng + $np}]
 		    incr tlocks [lindex $b 5]
 		    incr twaits [lindex $b 6]
-		    incr tfree [expr $bs * $nf]
+		    incr tfree [expr {$bs * $nf}]
 		    incr talloc $na
 		    incr trequest $nr
 		    incr tused $nu
 
 		    if {$nr != 0} {
-			    set ov [expr $na - $nr]
-			    set op [format %4.2f%% [expr $ov.0 * 100 / $nr.0]]
+			    set ov [expr {$na - $nr}]
+			    set op [format %4.2f%% [expr {$ov * 100.0} / $nr]]
 		    } else {
 			    set ov "N/A"
 			    set op "N/A"
@@ -361,12 +361,12 @@ proc _ns_stats.mempools {} {
         <br>"
     }
 
-    set ov [expr $talloc - $trequest]
-    set op [format %4.2f [expr $ov.0 * 100 / $trequest.0]]
-    set av [format %4.2f [expr 100.0 - ($tlocks.0 * 100) / $tops.0]]
+    set ov [expr {$talloc - $trequest}]
+    set op [format %4.2f [expr {$ov * 100.0 / $trequest}]]
+    set av [format %4.2f [expr {100.0 - ($tlocks * 100.0) / $tops}]]
 
     if {$tlocks > 0} {
-	    set wr [format %4.2f [expr $twaits.0 / $tlocks.0]]
+	    set wr [format %4.2f [expr {$twaits*1.0 / $tlocks}]]
     } else {
 	    set wr N/A
     }
@@ -466,18 +466,18 @@ proc _ns_stats.sched {} {
         set arg         [lindex $s 8]
 
         if [catch {
-            set duration [expr $lastend - $laststart]
+            set duration [expr {$lastend - $laststart}]
         }] {
             set duration "0"
         }
 
         set state "pending"
 
-        if [_ns_stats.isThreadSuspended $flags] {
+        if {[_ns_stats.isThreadSuspended $flags]} {
             set state suspended
         }
 
-        if [_ns_stats.isThreadRunning $flags] {
+        if {[_ns_stats.isThreadRunning $flags]} {
             set state running
         }
 
@@ -486,7 +486,7 @@ proc _ns_stats.sched {} {
 
     set rows ""
 
-    foreach s [_ns_stats.sortResults $scheduledProcs [expr $col - 1] $numericSort $reverseSort] {
+    foreach s [_ns_stats.sortResults $scheduledProcs [expr {$col - 1}] $numericSort $reverseSort] {
         set id          [lindex $s 0]
         set state       [lindex $s 1]
         set flags       [join [_ns_stats.getSchedFlagTypes [lindex $s 4]] "<br>"]
@@ -524,7 +524,7 @@ proc _ns_stats.threads {} {
 
     set rows ""
 
-    foreach t [_ns_stats.sortResults [ns_info threads] [expr $col - 1] $numericSort $reverseSort] {
+    foreach t [_ns_stats.sortResults [ns_info threads] [expr {$col - 1}] $numericSort $reverseSort] {
         set thread  [lindex $t 0]
         set parent  [lindex $t 1]
         set id      [lindex $t 2]
@@ -533,11 +533,11 @@ proc _ns_stats.threads {} {
         set proc    [lindex $t 5]
         set arg     [lindex $t 6]
         
-        if {[string match "p:0x0" $proc]} {
+        if {"p:0x0" eq $proc} {
             set proc "NULL"
         }
         
-        if {[string match "a:0x0" $arg]} {
+        if {"a:0x0" eq $arg} {
             set arg "NULL"
         }
         
@@ -554,7 +554,7 @@ proc _ns_stats.threads {} {
 proc _ns_stats.results {{selectedColNum ""} {colTitles ""} {colUrl ""} {rows ""} {reverseSort ""} {colAlignment ""}} {
     set numCols [llength $colTitles]
 
-    for {set colNum 1} {$colNum < [expr $numCols + 1]} {incr colNum} {
+    for {set colNum 1} {$colNum < [expr {$numCols + 1}]} {incr colNum} {
         if {$colNum == $selectedColNum} {
             set colHdrColor($colNum)        "#666666"
             set colHdrFontColor($colNum)    "#ffffff"
@@ -579,7 +579,7 @@ proc _ns_stats.results {{selectedColNum ""} {colTitles ""} {colUrl ""} {rows ""}
         set url $colUrl
 
         if {$i == $selectedColNum} {
-            if $reverseSort {
+            if {$reverseSort} {
                 append url "?reversesort=0"
             } else {
                 append url "?reversesort=1"
@@ -590,10 +590,10 @@ proc _ns_stats.results {{selectedColNum ""} {colTitles ""} {colUrl ""} {rows ""}
 
         set colAlign "left"
 
-        if [llength $colAlignment] {
-            set align [lindex $colAlignment [expr $i - 1]]
+        if {[llength $colAlignment]} {
+            set align [lindex $colAlignment [expr {$i - 1}]]
 
-            if [string length $align] {
+            if {[string length $align]} {
                 set colAlign $align
             }
         }
@@ -613,10 +613,10 @@ proc _ns_stats.results {{selectedColNum ""} {colTitles ""} {colUrl ""} {rows ""}
         foreach column $row {
             set colAlign "left"
 
-            if [llength $colAlignment] {
-                set align [lindex $colAlignment [expr $i - 1]]
+            if {[llength $colAlignment]} {
+                set align [lindex $colAlignment [expr {$i - 1}]]
 
-                if [string length $align] {
+                if {[string length $align]} {
                     set colAlign $align
                 }
             }
@@ -678,29 +678,29 @@ proc _ns_stats.getSchedFlag {type} {
 }
 
 proc _ns_stats.isThreadSuspended {flags} {
-    return [expr $flags & [_ns_stats.getSchedFlag paused]]
+    return [expr {$flags & [_ns_stats.getSchedFlag paused]}]
 }
 
 proc _ns_stats.isThreadRunning {flags} {
-    return [expr $flags & [_ns_stats.getSchedFlag running]]
+    return [expr {$flags & [_ns_stats.getSchedFlag running]}]
 }
 
 proc _ns_stats.getSchedFlagTypes {flags} {
-    if [expr $flags & [_ns_stats.getSchedFlag once]] {
+    if [expr {$flags & [_ns_stats.getSchedFlag once]}] {
         set types "once"
     } else {
         set types "repeating"
     }
 
-    if [expr $flags & [_ns_stats.getSchedFlag daily]] {
+    if [expr {$flags & [_ns_stats.getSchedFlag daily]}] {
         lappend types "daily"
     }
 
-    if [expr $flags & [_ns_stats.getSchedFlag weekly]] {
+    if [expr {$flags & [_ns_stats.getSchedFlag weekly]}] {
         lappend types "weekly"
     }
 
-    if [expr $flags & [_ns_stats.getSchedFlag thread]] {
+    if [expr {$flags & [_ns_stats.getSchedFlag thread]}] {
         lappend types "thread"
     }
 
@@ -713,15 +713,15 @@ proc _ns_stats.fmtSeconds {seconds} {
     }
 
     if {$seconds < 3600} {
-        set mins [expr $seconds/60]
-        set secs [expr $seconds - ($mins * 60)]
+        set mins [expr {$seconds/60}]
+        set secs [expr {$seconds - ($mins * 60)}]
 
         return "${mins}:${secs} (m:s)"
     }
 
-    set hours [expr $seconds/3600]
+    set hours [expr {$seconds/3600}]
     set mins [expr ($seconds - ($hours * 3600))/60]
-    set secs [expr $seconds - (($hours * 3600) + ($mins * 60))]
+    set secs [expr {$seconds - (($hours * 3600) + ($mins * 60))}]
 
     return "${hours}:${mins}:${secs} (h:m:s)"
 }
@@ -750,14 +750,14 @@ proc _ns_stats.cmpField {v1 v2} {
     set v1  [lindex $v1 $_sortListTmp(field)]
     set v2  [lindex $v2 $_sortListTmp(field)]
 
-    if $_sortListTmp(numeric) {
-        if $_sortListTmp(reverse) {
+    if {$_sortListTmp(numeric)} {
+        if {$_sortListTmp(reverse)} {
             set cmp [_ns_stats.cmpNumeric $v2 $v1]
         } else {
             set cmp [_ns_stats.cmpNumeric $v1 $v2]
         }
     } else {
-        if $_sortListTmp(reverse) { 
+        if {$_sortListTmp(reverse)} { 
             set cmp [string compare $v2 $v1]
         } else {
             set cmp [string compare $v1 $v2]
