@@ -33,7 +33,7 @@
  *  Routines for the managing the connection thread pools.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/pools.c,v 1.12 2007/10/26 23:14:17 gneumann Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/pools.c,v 1.13 2008/12/05 08:51:43 gneumann Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -382,6 +382,7 @@ CreatePool(char *name)
     } else {
     	poolPtr = ns_calloc(sizeof(Pool), 1);
     	Ns_MutexInit(&poolPtr->lock);
+        Ns_MutexSetName(&poolPtr->lock, "ns:pools");
     	Ns_CondInit(&poolPtr->cond);
     	Tcl_SetHashValue(hPtr, poolPtr);
     	poolPtr->name = Tcl_GetHashKey(&pools, hPtr);

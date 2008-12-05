@@ -33,7 +33,7 @@
  *  Routines to manage resource limits.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/limits.c,v 1.10 2005/03/28 00:06:44 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/limits.c,v 1.11 2008/12/05 08:51:43 gneumann Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -273,6 +273,7 @@ FindLimits(char *limits, int create)
             limitsPtr = ns_malloc(sizeof(Limits));
             limitsPtr->name = Tcl_GetHashKey(&limtable, hPtr);
 	        Ns_MutexInit(&limitsPtr->lock);
+                Ns_MutexSetName(&limitsPtr->lock, "ns:limits");
 	        limitsPtr->nrunning = limitsPtr->nwaiting = 0;
 	        limitsPtr->ntimeout = limitsPtr->ndropped = limitsPtr->noverflow = 0;
 	        limitsPtr->maxrun = limitsPtr->maxwait = 100;

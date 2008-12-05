@@ -109,7 +109,7 @@
  *
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsext/nsext.c,v 1.12 2003/03/19 13:54:48 mpagenva Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsext/nsext.c,v 1.13 2008/12/05 08:51:44 gneumann Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsdb.h"
 #include "nsextmsg.h"
@@ -341,6 +341,7 @@ Ns_DbDriverInit(char *hDriver, char *configPath)
         ctx->connNum = 0;
         ctx->ident[0] = '\0';
         Ns_MutexInit(&ctx->muIdent);
+        Ns_MutexSetName(&ctx->muIdent, "nsext:ident");
         ctx->param = Ns_ConfigGetValue(configPath, CONFIG_PARAM);
         ctx->path = Ns_ConfigGetValue(configPath, CONFIG_LOCALDAEMON);
         ctx->host = Ns_ConfigGetValue(configPath, CONFIG_REMOTEHOST);

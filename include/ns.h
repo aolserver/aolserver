@@ -33,7 +33,7 @@
  *      All the public types and function declarations for the core
  *	AOLserver.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.86 2006/07/07 03:27:22 jgdavidson Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.87 2008/12/05 08:51:44 gneumann Exp $
  */
 
 #ifndef NS_H
@@ -46,7 +46,7 @@
                                 + NS_MINOR_VERSION * 100 \
                                 + NS_RELEASE_SERIAL)
 #define NS_VERSION		"4.5"
-#define NS_PATCH_LEVEL		"4.5.0"
+#define NS_PATCH_LEVEL		"4.5.0p1"
 
 #define NS_ALPHA_RELEASE	0
 #define NS_BETA_RELEASE		1

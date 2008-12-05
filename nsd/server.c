@@ -33,7 +33,7 @@
  *	Routines for managing NsServer structures.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.46 2006/07/07 03:27:22 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/server.c,v 1.47 2008/12/05 08:51:43 gneumann Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -336,10 +336,12 @@ CreateServer(char *server)
      */
      
     Ns_MutexInit(&servPtr->tcl.llock);
+    Ns_MutexSetName(&servPtr->tcl.llock, "ns:tcl.llock");
     Ns_CondInit(&servPtr->tcl.lcond);
     Ns_RWLockInit(&servPtr->tcl.tlock);
     Ns_CsInit(&servPtr->tcl.olock);
     Ns_MutexInit(&servPtr->tcl.plock);
+    Ns_MutexSetName(&servPtr->tcl.plock, "ns:tcl.plock");
     Ns_RWLockInit(&servPtr->tcl.slock);
     Tcl_InitHashTable(&servPtr->tcl.packages, TCL_STRING_KEYS);
     Tcl_InitHashTable(&servPtr->tcl.once, TCL_STRING_KEYS);
