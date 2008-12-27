@@ -33,7 +33,7 @@
  *  Routines for the managing the connection thread pools.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/pools.c,v 1.13 2008/12/05 08:51:43 gneumann Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/pools.c,v 1.14 2008/12/27 00:36:38 gneumann Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -119,10 +119,10 @@ NsTclPoolsObjCmd(ClientData data, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
         PGetIdx, PSetIdx, PListIdx, PRegisterIdx
     } opt;
     static CONST char *cfgs[] = {
-        "-maxthreads", "-minthreads", "-maxconns", "-timeout", NULL
+        "-maxthreads", "-minthreads", "-maxconns", "-timeout", "-spread", NULL
     };
     enum {
-        PCMaxThreadsIdx, PCMinThreadsIdx, PCMaxConnsIdx, PCTimeoutIdx
+        PCMaxThreadsIdx, PCMinThreadsIdx, PCMaxConnsIdx, PCTimeoutIdx, PCSpreadIdx
     } cfg;
 
     if (objc < 2) {
@@ -182,6 +182,10 @@ NsTclPoolsObjCmd(ClientData data, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
             case PCMaxConnsIdx:
                 poolPtr->threads.maxconns = val;
                 break;
+
+            case PCSpreadIdx:
+                poolPtr->threads.spread = val;
+                break;
             }
         }
         /* catch unsane values */
@@ -195,6 +199,14 @@ NsTclPoolsObjCmd(ClientData data, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
         }
         if (poolPtr->threads.timeout < 1) {
             Tcl_SetResult(interp, "timeout cannot be less than 1", TCL_STATIC);
+            return TCL_ERROR;
+        }
+        if (poolPtr->threads.maxconns < 1) {
+            Tcl_SetResult(interp, "maxconns cannot be less than 1", TCL_STATIC);
+            return TCL_ERROR;
+        }
+        if (poolPtr->threads.spread < 0 || poolPtr->threads.spread > 100 ) {
+            Tcl_SetResult(interp, "spread must be between 0 and 100", TCL_STATIC);
             return TCL_ERROR;
         }
         if (PoolResult(interp, poolPtr) != TCL_OK) {
@@ -390,6 +402,7 @@ CreatePool(char *name)
     	poolPtr->threads.max = 10;      
     	poolPtr->threads.timeout = 120; /* NB: Exit after 2 minutes idle. */
     	poolPtr->threads.maxconns = 0;  /* NB: Never exit thread. */
+    	poolPtr->threads.spread = 20;   /* NB: +-20% random variance on timeout and maxconns. */
    }
     return poolPtr;
 }
@@ -420,7 +433,9 @@ PoolResult(Tcl_Interp *interp, Pool *poolPtr)
         !AppendPool(interp, "current", poolPtr->threads.current) ||
         !AppendPool(interp, "maxconns", poolPtr->threads.maxconns) ||
         !AppendPool(interp, "queued", poolPtr->threads.queued) ||
-        !AppendPool(interp, "timeout", poolPtr->threads.timeout)) {
+        !AppendPool(interp, "timeout", poolPtr->threads.timeout) ||
+        !AppendPool(interp, "spread", poolPtr->threads.spread)
+      ) {
     	return TCL_ERROR;
     }
     return TCL_OK;

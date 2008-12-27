@@ -568,6 +568,7 @@ typedef struct Pool {
 	int 	    	    starting;
 	int 	    	    timeout;
 	int		    maxconns;
+	int		    spread;
     	unsigned int	    queued;
     } threads;
 
