@@ -26,7 +26,7 @@
 # If you do not delete the provisions above, a recipient may use your
 # version of this file under either the License or the GPL. 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/packages.tcl,v 1.7 2007/09/18 01:31:49 michael_andrews Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/packages.tcl,v 1.8 2009/01/19 12:21:08 gneumann Exp $
 #
 
 set section "ns/server/[ns_info server]/packages"
@@ -42,9 +42,9 @@ for {set x 0} {$x < [ns_set size $nsSetId]} {incr x} {
     set key [ns_set key $nsSetId $x]
     set value [ns_set value $nsSetId $x]
 
-    if {[string eq "library" $key]} {
+    if {"library" eq $key} {
         lappend libraryList $value
-    } elseif {[string eq "require" $key]} {
+    } elseif {"require" eq $key} {
         lappend requireList $value
     }
 }

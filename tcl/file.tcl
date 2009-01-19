@@ -28,7 +28,7 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/file.tcl,v 1.4 2003/11/01 16:42:26 vasiljevic Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/file.tcl,v 1.5 2009/01/19 12:21:08 gneumann Exp $
 #
 
 #
@@ -88,11 +88,11 @@ proc ns_sourceproc {conn args} {
 	    set errorInfo ""
 	}
 	
-	if {$code == 1 && $errorCode == "NS_TCL_ABORT"} {
+	if {$code == 1 && $errorCode eq "NS_TCL_ABORT"} {
 	    return
 	}
 
-	if { $errorPage == "" } {
+	if { $errorPage eq "" } {
 	    return -code $code \
 		-errorcode $errorCode -errorinfo $errorInfo $result
 	} else {

@@ -28,7 +28,7 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/fastpath.tcl,v 1.10 2004/08/18 03:43:20 dossy Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/fastpath.tcl,v 1.11 2009/01/19 12:21:08 gneumann Exp $
 #
 
 #
@@ -391,7 +391,7 @@ proc _ns_put {} {
 	    set ismw [_ns_ismw $file]
 	}
     }
-    if {$type == "application/x-naviwad"} {
+    if {$type eq "application/x-naviwad"} {
 	if {$exists} {
 	    if {!$ismw} {
 		return [ns_returnerror 500 "not miniweb"]

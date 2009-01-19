@@ -28,7 +28,7 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/sendmail.tcl,v 1.7 2006/06/26 00:28:42 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/sendmail.tcl,v 1.8 2009/01/19 12:21:08 gneumann Exp $
 #
 
 #
@@ -56,7 +56,7 @@ proc _ns_smtp_recv {rfp check timeout} {
         if {![string match $check $code]} {
             error "Expected a $check status line; got:\n$line"
         }
-        if {![string match "-" [string range $line 3 3]]} {
+        if {[string range $line 3 3] ne "-"} {
             break;
         }
     }
@@ -81,18 +81,18 @@ proc ns_sendmail { to from subject body {extraheaders {}} {bcc {}} } {
 
     ## Get smtp server into, if none then use localhost
     set smtp [ns_config ns/parameters smtphost]
-    if {[string match "" $smtp]} {
+    if {$smtp eq ""} {
         set smtp [ns_config ns/parameters mailhost]
     }
-    if {[string match "" $smtp]} {
+    if {$smtp eq ""} {
         set smtp localhost
     }
     set timeout [ns_config ns/parameters smtptimeout]
-    if {[string match "" $timeout]} {
+    if {$timeout eq ""} {
         set timeout 60
     }
     set smtpport [ns_config ns/parameters smtpport]
-    if {[string match "" $smtpport]} {
+    if {$smtpport eq ""} {
         set smtpport 25
     }
 
@@ -102,7 +102,7 @@ proc ns_sendmail { to from subject body {extraheaders {}} {bcc {}} } {
     }
 
     set bcclist [list]
-    if {![string match "" $bcclist_in]} {
+    if {$bcclist_in ne ""} {
         foreach bccaddr $bcclist_in {
             lappend bcclist "[string trim $bccaddr]"
         }
@@ -129,7 +129,7 @@ proc _ns_sendmail {smtp smtpport timeout tolist bcclist \
 
     ## Insert extra headers, if any (not for BCC)
     set message_id_already_done_p 0
-    if {![string match "" $extraheaders]} {
+    if {$extraheaders ne ""} {
         set size [ns_set size $extraheaders]
         for {set i 0} {$i < $size} {incr i} {
             set key [ns_set key $extraheaders $i]
@@ -187,7 +187,7 @@ proc _ns_sendmail {smtp smtpport timeout tolist bcclist \
 
     ## Terminate body with a solitary period
     foreach line [split $msg "\n"] {
-        if {[string match . $line]} {
+        if {"." eq $line} {
             append data .
         }
         append data $line

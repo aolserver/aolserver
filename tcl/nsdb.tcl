@@ -28,7 +28,7 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/nsdb.tcl,v 1.4 2002/02/08 07:56:16 hobbs Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/tcl/nsdb.tcl,v 1.5 2009/01/19 12:21:08 gneumann Exp $
 #
 
 #
@@ -67,20 +67,20 @@ proc ns_dbquotename {name} {
 #		into 2 single quotes). 
 
 proc ns_dbquotevalue {value {type text}} {
-    if {[string match "" $value]} {
+    if {$value eq ""} {
 	return "NULL"
     }
-    if {$type == "decimal" \
-	    || $type == "double" \
-	    || $type == "integer" \
-	    || $type == "int" \
-	    || $type == "real" \
-	    || $type == "smallint" \
-	    || $type == "bigint" \
-	    || $type == "bit" \
-	    || $type == "float" \
-	    || $type == "numeric" \
-	    || $type == "tinyint"} {
+    if {$type eq "decimal" \
+	    || $type eq "double" \
+	    || $type eq "integer" \
+	    || $type eq "int" \
+	    || $type eq "real" \
+	    || $type eq "smallint" \
+	    || $type eq "bigint" \
+	    || $type eq "bit" \
+	    || $type eq "float" \
+	    || $type eq "numeric" \
+	    || $type eq "tinyint"} {
 	return $value
     }
     regsub -all "'" $value "''" value
@@ -186,11 +186,11 @@ proc ns_parsesqltimestamp {opt sqltimestamp} {
 
 proc ns_buildsqltime {time ampm} {
 
-    if {[string match "" $time] && [string match "" $ampm]} {
+    if {"" eq $time && "" eq $ampm} {
 	return ""
     }
 
-    if {[string match "" $time] || [string match "" $ampm]} {
+    if {"" eq $time || "" eq $ampm} {
 	error "Invalid time: $time $ampm"
     }
     set seconds 0
@@ -203,11 +203,11 @@ proc ns_buildsqltime {time ampm} {
 	error "Invalid time: $time $ampm"
     }
 
-    if {$ampm == "AM"} {
+    if {$ampm eq "AM"} {
 	if {$hours == 12} {
 	    set hours 0
 	}
-    } elseif {$ampm == "PM"} {
+    } elseif {$ampm eq "PM"} {
 	if {$hours != 12} {
 	    incr hours 12
 	}
@@ -225,9 +225,9 @@ proc ns_buildsqltime {time ampm} {
 #
 
 proc ns_buildsqldate {month day year} {
-    if {[string match "" $month] \
-	    && [string match "" $day] \
-	    && [string match "" $year]} {
+    if {"" eq $month \
+	    && "" eq $day \
+	    && "" eq $year} {
 	return ""
     }
 
@@ -235,9 +235,9 @@ proc ns_buildsqldate {month day year} {
 	set month [expr {[lsearch [nsv_get _nsdb months] $month] + 1}]
     }
 
-    if {[string match "" $month] \
-	    || [string match "" $day] \
-	    || [string match "" $year] \
+    if {"" eq $month \
+	    || "" eq $day \
+	    || "" eq $year \
 	    || $month < 1 || $month > 12 \
 	    || $day < 1 || $day > 31 \
 	    || $year < 1\
@@ -263,7 +263,7 @@ proc ns_buildsqltimestamp {month day year time ampm} {
     set date [ns_buildsqldate $month $day $year]
     set time [ns_buildsqltime $time $ampm]
 
-    if {[string match "" $date] || [string match "" $time]} {
+    if {"" eq $date || "" eq $time} {
 	return ""
     }
 
