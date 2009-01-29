@@ -1,63 +1,365 @@
-2008-06-20  Gustaf Neumann <neumann@wu-wien.ac.at>
+2009-01-29 Gustaf Neumann  neumann@wu-wien.ac.at
+	* nsssl/ssltcl.c:
+	  Remove direct access to interp->result
 
-        * remove direct access to interp->result in
-            - nscp/nscp.c
-            - nsd/tclloop.c
-            - nsd/tclshare.c
-            - nsproxy/nsproxylib.c
-        * initializing potentially uninitialized variables in
-             - nsproxy/nsproxylib.c
+        * Changelog:
+          completed changelog, mark missing documentations
 
-2008-05-13  Jeff Rogers <dvrsn@diphi.com>
+2009-01-19 Gustaf Neumann  neumann@wu-wien.ac.at
 
-        * configure.in: add -nostartfiles flag to link line when -shared
-		is already there.  Without this, build fails against tcl8.5
-		* configure: regenerated
+	* tcl/fastpath.tcl,
+	* tcl/file.tcl:
+	* tcl/form.tcl:
+	* tcl/http.tcl:
+	* tcl/nsdb.tcl:
+	* tcl/packages.tcl:
+	* tcl/sendmail.tcl: Use Tcl 8.4 non-numeric comparison
+	  operators where appropriate
 
-2007-05-11  Nathan Folkman <nathan.folkman@gmail.com>
+2008-12-27 Gustaf Neumann  neumann@wu-wien.ac.at
 
-        * nsproxy/nsproxylib.c: Fixed crash bug that occurred when trying
-        to create more then one proxy pool. The proxy id now takes the 
-        form of:
+	* nsd/nsd.h:
+	* nsd/pools.c:
+	* nsd/queue.c:
+	* tcl/pools.tcl:
+          New configure parameter "spread" for ns_pools:    
+	
+          Background: Requests are distributed to idle threads via
+	  CondSignal, which delivers subsequent signals to idle
+	  threads in a circular manner (i.e. t1, t2, .. tn, then t1
+	  again) determined by the scheduling policy of the operating
+	  system. This round robin behavior has the disadvantage that
+	  multiple threads terminate about at the same time, based on
+	  the maxconnections (or maxconns) value. The idle timeout
+	  will never be used on a sufficiently busy server.  
 
-        <pool>-proxy-<number>
+          The mass termination of threads is performance-wise bad,
+	  especially when many connections threads are configured,
+	  since it is likely that about the same amount of threads
+	  will be recreated.  The "spread" parameter introduces a
+	  random factor into threadtimeout and maxconnections to avoid
+	  these termination cycles.  It adds +/- the specified
+	  percentage to maxconnections and threadtimeout (e.g. a
+	  spread of 20 means a random value between 0.80 to 1.20 of
+	  the specified value of maxconnections and threadtimeout for
+	  every connection thread).
 
-2007-03-12  Nathan Folkman <nathan.folkman@gmail.com>
+?DOC?
 
-        * nsd/tclhttp.c: Added preliminary support to allow sending and
-        retrieving binary data correctly.
-
-2006-12-15  Dossy Shiobara <dossy@panoptic.com>
-
-	* nsd/driver.c (1.56): [BUG #1615787] Fix deadlock bug when driver
-	  thread stalls under specific conditions.  Thanks to Jeff Rogers
-	  and Gustaf Neumann.
-
-2006-08-07  Dossy Shiobara <dossy@panoptic.com>
-
-	* include/nsattributes.h (1.4): Provide default no-op defines for
-	  gcc attributes correctly to enable builds on older gcc to work.
-	  Previously, "may_alias" attribute resulted in gcc older than 3.3
-	  to no longer build.  This minor change fixes this.
-
-2006-07-07  Jim Davidson <jgdavidson@ool.com>
+2008-12-05 Gustaf Neumann  neumann@wu-wien.ac.at
 
 	* include/ns.h:
-	* nsd/return.c: Added Ns_RegisterRedirect as a replacement
-	to Ns_RegisterReturn which did not require a virtual server
-	argument as expected.
+	* nsd/limits.c:
+	* nsd/pools.c:
+	* nsd/server.c:
+	* nsext/nsext.c:
+	- Provide names for all Ns_Mutex to report meaningful output
+	  in aolserver statistics 
+        - Set version number to 4.5.0p1 to differentiate from 4.5.0
+          unpatched release
+
+2008-10-12 Gustaf Neumann  neumann@wu-wien.ac.at
+
+	* tcl/stats.tcl: Fixed Tcl expressions such they can be
+	  compiled into Tcl byte code
+
+2008-09-24 Gustaf Neumann  neumann@wu-wien.ac.at
+
+	* nsd/queue.c: Fixed boundary condition for starting threads
+	  (there was a problem at least with keepwait > 0 and
+	  minthreads = 0)
+
+2008-06-20 Gustaf Neumann  neumann@wu-wien.ac.at
+
+	* nscp/nscp.c:
+	* nsd/tclloop.c:
+	* nsd/tclshare.c:
+	* nsproxy/nsproxylib.c:
+	  Remove direct access to interp->result
+
+        * Initializing potentially uninitialized variables 
+	  in nsproxy/nsproxylib.c:
+
+2008-05-13 Jeff Rogers <dvrsn@diphi.com>
+
+	* configure.in: Add -nostartfiles flag to link line when -shared
+ 	  is already there.  Without this, build fails against tcl8.5
+	* configure: Regenerated
+
+2008-05-10 Daniel P. Stasinski  mooooooo@users.sourceforge.net
+
+	* nsperm/nsperm.c:
+	  Fixed bug with netmask parsing 
+
+2008-05-06 Gustaf Neumann  neumann@wu-wien.ac.at
+
+	* nsd/tclfile.c:
+	  Adding missing variable declaration 
+
+2008-04-24 Gustaf Neumann  neumann@wu-wien.ac.at
+
+	* nsd/tclfile.c:
+	  Fix ns_tmpnam for WIN32 environments to return a path in the 
+	  TMP directory. 
+
+2008-03-22 Gustaf Neumann  neumann@wu-wien.ac.at
+
+	* nsd/fd.c: Fix for Mac OS X Leopard: setrlimit with
+	  RLIM_INFINITY fails and causes Ns_Log to crash (fix was
+	  sketched by David Caruso on the aolserver mailing list on
+	  Jan 10, 2008)
+
+2008-01-24 Dossy Shiobara   <dossy@panoptic.com>
+
+	* nscgi/nscgi.c: Added Tcl command "ns_register_cgi" which
+	  effectively does the same as "ns_param map" at startup, as
+	  it takes the same argument, the map string. Also,
+	  REQUEST_URI is now properly set in the env. for CGI
+	  executables.
+
+	* nscgi/nscgi.c: Backported nscgi.c rev 1.33 change to
+	  aolserver_v40_bp branch.
+
+	* nscgi/nscgi.c: Backported nscgi.c rev 1.34 change to
+	  aolserver_v40_bp branch.
+
+	* nscgi/nscgi.c: Oops, REQUEST_URI should have only been the
+	  Request-URI, not including the query string.
+
+	* nscgi/nscgi.c:
+	  Untabified source, no code changes. 
+
+?DOC?
+
+2007-10-26 Gustaf Neumann  neumann@wu-wien.ac.at
+
+	* nsd/nsd.h:
+	* nsd/pools.c:
+	* nsd/queue.c: Keep track of connection thread state. Two new
+ 	  variables are introduced:
+
+          - starting: keeps the number of currently 
+	    starting threads  
+          - waiting: the number of threads in the cond waiting state
+
+	  These variables help to get a more precise understanding and
+	  allow for better knowledge for thread creation (especially
+	  under heavy load)
+
+2007-10-22 Gustaf Neumann  neumann@wu-wien.ac.at
+
+	* nsd/queue.c: Remove old code for allowing to run more than
+	  maxconns requests in one thread (replaced by thread
+	  creation); Maintain min-threads threads when threads are
+	  exiting.
+
+2007-10-21 Gustaf Neumann  neumann@wu-wien.ac.at
+
+	* nsd/queue.c:
+	  Protect poolptr condition by mutex 
+
+2007-10-20 Gustaf Neumann  neumann@wu-wien.ac.at
+
+	* nsd/nsd.h:
+	* nsd/pools.c:
+	* nsd/queue.c:
+	  Continuing work on BUG #1615787; instead of performing in
+	  boundary situations in the worst case more than the
+	  configured maxconns requests, a new connection thread is
+	  created automatically after the exit of a thread coming to
+	  the end of it work cycle, when jobs are pending and no other
+	  thread is able to process these.
+
+	* tcl/util.tcl:
+	  using Tcl 8.4 string comparison operators 
+
+2007-10-19 Tom Jackson  rmadilo@users.sourceforge.net
+
+	* nsd/queue.c: Previous versions of AOLserver included the
+	  threadpool name in the name of the thread. This commit
+	  simply adds back that making it easier to figure out what
+	  threadpool was used for a request.
+
+2007-10-19 Gustaf Neumann  neumann@wu-wien.ac.at
+
+	* nsd/driver.c:
+	* nsd/queue.c:
+
+	  Better fix for BUG #1615787 in aolserver 4.5. Although the
+	  original fix apparently helped for www.openacs.org, it
+	  appears to simply change the timing, but did not fix the
+	  problem itself. The problem was that under limited resource
+	  configurations (e.g. maxthreads 5, maxconnections 3) and
+	  heavy traffic, incoming requests were queued but not
+	  processed in new connection threads. The situation was
+	  especially bad, when the number of queued requests was
+	  larger than maxconnections, since after processing n
+	  requests the server was idling with a high number of queued
+	  requests. New requests were put to the end of the queue
+	  while old (maybe already timed-out) requests are being
+	  served. The server appeared to hang.  The current fix cares
+	  for queued requests even when maxconns is exceeded. A maybe
+	  better approach is to limit the number of queued requests or
+	  to restart automatically threads when a thread exists due to
+	  maxconns exceeded.
+
+2007-09-29 Gustaf Neumann  neumann@wu-wien.ac.at
+
+	* nsd/conn.c:
+	  Extend ns_conn by two commands:  
+
+          - ns_conn channel: Return a Tcl channel from the current
+            connection. This channel can be used to talk via Tcl I/O
+            to the remote client afterwards. "ns_conn channel" was
+            originally written by Zoran.
+
+	  - ns_conn contentsentlength ?number?: Query or set the
+	    number of octets sent to the client. This command can be
+	    used in connection with "ns_conn channel" to adjust the
+	    length entry in a log file in cases, the file was sent via
+	    Tcl I/O.
+
+	* tcl/charsets.tcl:
+	  fix unbraced expressions and old style comparisons 
+?DOC?
+
+2007-08-24 Michael Andrews  michael_andrews@users.sourceforge.net
+
+	* tcl/packages.tcl:
+	  Modified log message to better conform to AOLserver standards. 
+
+2007-08-17 Michael Andrews  michael_andrews@users.sourceforge.net
+
+	* tcl/packages.tcl:
+	  I changed the way this file works. It now reads the 
+	  following from the server config:  
+ 
+         ns_section "ns/server/${serverName}/packages"     
+            ns_param library /some/path/here     
+            ns_param library /some/path/here     
+	    ns_param library /some/path/here     
+            ns_param library /some/path/here     
+            ns_param require packageNameHere     
+	    ns_param require packageNameHere     
+            ns_param require packageNameHere  
+
+        All "library" values are added to the ::auto_path All
+	"require" values are executed by "ns_ictl package require" The
+	"nsinit" and "nspostinit" procs are then run for each package.
+	This allows you to specify packages to load at start up.  
+
+?DOC?
+
+2007-08-01 Michael Andrews  michael_andrews@users.sourceforge.net
+
+	* tcl/packages.tcl:
+	  - Added License info 
+          - changed init commands to all lower case. 
+
+	* tcl/pools.tcl:
+	  Added pools.tcl file to set default pool params from server 
+	  config. 
+
+	* tcl/pools.tcl:
+	  Changed caps in debug notice. 
+
+	* tcl/pools.tcl:
+	  Changed debug to notice 
+
+	* tcl/pools.tcl:
+	  Changed maxconns to maxconnections as it was in old 
+	  AOLserver. 
+
+	* examples/config/base.tcl:
+	  Changed maxconns to maxconnections to be backward compatible 
+
+?DOC?
+
+2007-06-13 Michael Andrews  michael_andrews@users.sourceforge.net
+
+	* examples/config/base.tcl:
+	  Added nscp to the base.tcl (We need to redo the filesystem 
+	  layout and configs for the out of the box install). 
+
+2007-05-11 Nathan Folkman <nathan.folkman@gmail.com>
+
+        * nsproxy/nsproxylib.c: Fixed crash bug that occurred when
+          trying to create more then one proxy pool. The proxy id now
+          takes the form of:
+
+          <pool>-proxy-<number>
+?DOC?
+
+2007-05-08 Michael Andrews  michael_andrews@users.sourceforge.net
+
+	* tcl/init.tcl:
+	  No longer adds $AOLSERVER/lib to the auto_path if it already 
+	  exists. 
+
+	* tcl/packages.tcl:
+	  Optimized the code. 
+
+	* tcl/packages.tcl:
+	  removed hard return used for testing. 
+
+2007-05-07 Michael Andrews  michael_andrews@users.sourceforge.net
+
+	* tcl/packages.tcl:
+	  Added packages.tcl: 
+          1) Reads config to set lib paths. 
+          2) Reads config to load packages using ns_ictl. 
+          3) Runs nsInit procs. 
+          4) Runs nsPostInit procs. 
+
+2007-03-12 Nathan Folkman <nathan.folkman@gmail.com>
+
+	* nsd/tclhttp.c: Preliminary support added for getting and
+	  retrieving binary data.
+
+2007-01-22 Tom Jackson  rmadilo@users.sourceforge.net
+
+	* nsd/tclresp.c:
+	  Bug where Tcl_SetBooleanObj accesses shared object, fixed 
+	  with copy of obj 
+
+2006-12-15 Dossy Shiobara   <dossy@panoptic.com>
+
+	* nsd/driver.c: [BUG #1615787] Fix deadlock bug when driver
+	  thread stalls under specific conditions.  Thanks to Jeff
+	  Rogers and Gustaf Neumann.
+
+2006-08-17 Bas Scheffers basscheffers@users.sourceforge.net
+
+	* nsd/tclfile.c: Changed file permissions of mkdir to 777 so
+	  it works properly with the system's umask.
+
+2006-08-08 Dossy Shiobara  <dossy@panoptic.com>
+
+	* include/nsattributes.h: Provide default no-op defines for
+	  gcc attributes correctly to enable builds on older gcc to
+	  work.  Previously, "may_alias" attribute resulted in gcc
+	  older than 3.3 to no longer build.  This minor change fixes
+	  this.
+
+2006-07-07 Jim Davidson   <jgdavidson@ool.com>
+
+	* include/ns.h:
+
+	* nsd/return.c: Added Ns_RegisterRedirect as a replacement to
+	  Ns_RegisterReturn which did not require a virtual server
+	  argument as expected.
 
 	* nsd/server.c: Updated to call new Ns_RegisterRedirect,
-	fixing bug #1518426
+  	  fixing bug #1518426
 
 	* doc/Ns_ConnReturnStatus.3: Updated to document the new
-	Ns_RegisterRedirect, removing reference to Ns_RegisterReturn.
+	  Ns_RegisterRedirect, removing reference to
+	  Ns_RegisterReturn.
 
+2006-06-28 Nathan Folkman <nathan.folkman@gmail.com>
 
-2006-06-28  Nathan Folkman <nathan.folkman@gmail.com>
-
-        * nsd/adpeval.c: Fixed crash bug in NsAdpLogError() when 
-        a NULL adp->framePtr is encountered.
+	* nsd/adpeval.c: Fixed crash bug in NsAdpLogError() when a
+	  NULL adp->framePtr is encountered.
 
 
 2006-06-27  Dossy Shiobara <dossy@panoptic.com>
