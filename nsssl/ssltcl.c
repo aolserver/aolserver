@@ -52,7 +52,7 @@
  *
  */
 
-static const char *RCSID = "@(#): $Header: /Users/dossy/Desktop/cvs/aolserver/nsssl/ssltcl.c,v 1.1 2001/04/23 21:06:01 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#): $Header: /Users/dossy/Desktop/cvs/aolserver/nsssl/ssltcl.c,v 1.2 2009/01/29 12:49:45 gneumann Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "ns.h"
 #include "ssl.h"
@@ -653,12 +653,8 @@ DerEncodeCmd(ClientData dummy, Tcl_Interp *interp, int argc, char **argv)
 		    break;
 		}
 	    }
+            Tcl_SetResult(interp, *p == '\0' ? "1" : "0", TCL_STATIC);
 
-	    if (*p == '\0') {
-		interp->result = "1";
-	    } else {
-		interp->result = "0";
-	    }
         } else {
             Tcl_AppendResult(interp, "usage: \"", argv[0],
                              " valid options are octets or "
