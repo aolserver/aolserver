@@ -1,9 +1,26 @@
 2009-01-29 Gustaf Neumann  neumann@wu-wien.ac.at
+        * nsd/pools.c:
+          Fixed error message for 'ns_pools set' command
+
+        * nsd/tclcache.c: Fixed behavior such that 'return' in
+          'ns_cache eval' works like described in the documentation
+          and in the old nscache module. Example:
+
+            ns_cache eval mycache mykey { return [expr {1+1}] }
+
+          Before, 'return' raised a tcl error.
+
+	* doc/ns_cache.n: added documentation of optional 'pattern'
+          argument for 'ns_cache names'.
+
+        * Updated Changelog.
+
+2009-01-29 Gustaf Neumann  neumann@wu-wien.ac.at
 	* nsssl/ssltcl.c:
 	  Remove direct access to interp->result
 
-        * Changelog:
-          completed changelog, mark missing documentations
+        * Changelog: Completed Changelog entries from commits after
+          the 4.5.0 release.
 
 2009-01-19 Gustaf Neumann  neumann@wu-wien.ac.at
 
@@ -43,8 +60,6 @@
 	  spread of 20 means a random value between 0.80 to 1.20 of
 	  the specified value of maxconnections and threadtimeout for
 	  every connection thread).
-
-?DOC?
 
 2008-12-05 Gustaf Neumann  neumann@wu-wien.ac.at
 
@@ -128,8 +143,6 @@
 
 	* nscgi/nscgi.c:
 	  Untabified source, no code changes. 
-
-?DOC?
 
 2007-10-26 Gustaf Neumann  neumann@wu-wien.ac.at
 
@@ -221,7 +234,6 @@
 
 	* tcl/charsets.tcl:
 	  fix unbraced expressions and old style comparisons 
-?DOC?
 
 2007-08-24 Michael Andrews  michael_andrews@users.sourceforge.net
 
@@ -248,8 +260,6 @@
 	"nsinit" and "nspostinit" procs are then run for each package.
 	This allows you to specify packages to load at start up.  
 
-?DOC?
-
 2007-08-01 Michael Andrews  michael_andrews@users.sourceforge.net
 
 	* tcl/packages.tcl:
@@ -273,7 +283,6 @@
 	* examples/config/base.tcl:
 	  Changed maxconns to maxconnections to be backward compatible 
 
-?DOC?
 
 2007-06-13 Michael Andrews  michael_andrews@users.sourceforge.net
 
@@ -288,7 +297,6 @@
           takes the form of:
 
           <pool>-proxy-<number>
-?DOC?
 
 2007-05-08 Michael Andrews  michael_andrews@users.sourceforge.net
 
@@ -487,7 +495,7 @@
 
 	* configure:
 	* configure.in: Removed check for zlib now loadable by
-	nszlib module.
+	  nszlib module.
 
 	* doc/Ns_Conn.3:
 	* doc/Ns_ConnClose.3 (new file):
@@ -517,28 +525,28 @@
 	* include/ns.h: Added Ns_Gzip, Ns_SetGzipProc, and Ns_BinPath.
 
 	* nsd/compress.c: Changed from Ns_Compress to Ns_Gzip and
-	moved code to new nszlib module.
+	  moved code to new nszlib module.
 
 	* nsd/connio.c: Updated to call Ns_Gzip, added Ns_ConnFlushDirect,
-	and fixed bug reading final line in Ns_ConnReadLine.
+	  and fixed bug reading final line in Ns_ConnReadLine.
 
 	* nsd/fastpath.c: Fixed bug with mapped content.
 
 	* nsd/modload.c: Removed legacy pre-10.4 OS/X module loading
-	code as dlopen, etc. is now supported.
+	  code as dlopen, etc. is now supported.
 
 	* nsd/pathname.c: Added Ns_BinPath.
 
 	* nsd/return.c: Now uses Ns_ConnFlushDirect in ReturnData
-	and changed Ns_ConnReturnHtml to call Ns_ConnReturnCharData
-	to ensure text is encoded as needed.
+	  and changed Ns_ConnReturnHtml to call Ns_ConnReturnCharData
+	  to ensure text is encoded as needed.
 
 	* nproxy/Makefile (new file):
 	* nsproxy/nsproxy.c (new file):
 	* nsproxy/nsproxy.h (new file):
 	* nsproxy/nsproxylib.c (new file):
 	* nsproxy/nsproxymod.c (new file):  New AOLserver/Tcl
-	pipe-based proxy support.
+	  pipe-based proxy support.
 
 	* nszlib/ChangeLog (new file):
 	* nszlib/Makefile (new file):
@@ -547,9 +555,9 @@
 	* nszlib/ns_zlib.n (new file):
 	* nszlib/nszlib.c (new file):
 	* nszlib/nszlib.h (new file):  New zlib extension for
-	AOLserver 4.5.  Provides both the "ns_zlib" command and
-	enables the Ns_Gzip routine.  Based on work by Vlad Seryakov
-	<vlad@crystalballinc.com>.
+	  AOLserver 4.5.  Provides both the "ns_zlib" command and
+	  enables the Ns_Gzip routine.  Based on work by Vlad Seryakov
+	  <vlad@crystalballinc.com>.
 
 
 2006-04-14  Nathan Folkman <nathan.folkman@gmail.com>
