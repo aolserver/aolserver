@@ -33,7 +33,7 @@
  *	Tcl API for cache.c.  Based on work from the nscache module.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcache.c,v 1.2 2005/08/01 20:29:24 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcache.c,v 1.3 2009/01/31 21:35:08 gneumann Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -391,6 +391,7 @@ NsTclCacheObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 	    Tcl_WrongNumArgs(interp, 3, objv, "key script");
 	    return TCL_ERROR;
 	}
+        status = TCL_OK;
 	key = Tcl_GetString(objv[3]);
 	Ns_CacheLock(cachePtr->cache);
 	entry = Ns_CacheCreateEntry(cachePtr->cache, key, &new);
@@ -438,13 +439,17 @@ NsTclCacheObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 	    	status = Tcl_EvalObjEx(interp, objv[4], 0);
 	    	Ns_CacheLock(cachePtr->cache);
 		entry = Ns_CacheCreateEntry(cachePtr->cache, key, &new);
-	    	if (status != TCL_OK) {
-		    Ns_CacheFlushEntry(entry);
-		    err = 1;
-		} else {
+
+	    	if (status == TCL_OK || status == TCL_RETURN) {
 		    objPtr = Tcl_GetObjResult(interp);
 	    	    valPtr = NewVal(cachePtr, objPtr, &now);
 	    	    Ns_CacheSetValueSz(entry, valPtr, valPtr->length);
+
+                    if (status == TCL_RETURN) {
+                        status = TCL_OK;
+                    }
+		} else {
+		    Ns_CacheFlushEntry(entry);
 	    	}
 	    	Ns_CacheBroadcast(cachePtr->cache);
 	    }
@@ -453,6 +458,8 @@ NsTclCacheObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 	if (err) {
 	    return TCL_ERROR;
 	}
+
+        return status;
 	break;
     }
     return TCL_OK;
