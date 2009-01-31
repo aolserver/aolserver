@@ -33,7 +33,7 @@
  *  Routines for the managing the connection thread pools.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/pools.c,v 1.14 2008/12/27 00:36:38 gneumann Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/pools.c,v 1.15 2009/01/31 21:23:47 gneumann Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -153,7 +153,7 @@ NsTclPoolsObjCmd(ClientData data, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 
     case PSetIdx:
         if (objc < 3 || (((objc - 3) % 2) != 0)) {
-            Tcl_WrongNumArgs(interp, 2, objv, "limit ?opt val opt val...?");
+            Tcl_WrongNumArgs(interp, 2, objv, "pool ?opt val opt val...?");
             return TCL_ERROR;
         }
         pool = Tcl_GetString(objv[2]);
