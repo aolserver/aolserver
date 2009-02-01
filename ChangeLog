@@ -1,4 +1,15 @@
-2009-01-29 Gustaf Neumann  neumann@wu-wien.ac.at
+2009-02-01 Gustaf Neumann <neumann@wu-wien.ac.at>
+
+	*** AOLserver 4.5.1 RELEASED ***
+
+2009-02-01 Gustaf Neumann <neumann@wu-wien.ac.at>
+
+        * nsd/pools.c:
+
+2009-02-01 tag aolserver_v45_r1
+
+
+2009-01-29 Gustaf Neumann <neumann@wu-wien.ac.at>
         * nsd/pools.c:
           Fixed error message for 'ns_pools set' command
 
