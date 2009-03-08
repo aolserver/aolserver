@@ -33,7 +33,7 @@
  *	Simple main for ns_proxy slave.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsproxy/nsproxy.c,v 1.1 2006/04/19 18:55:09 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsproxy/nsproxy.c,v 1.2 2009/03/08 11:26:58 gneumann Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsproxy.h"
 
@@ -42,6 +42,7 @@ static Tcl_AppInitProc MyInit;
 int
 main(int argc, char **argv)
 {
+    Tcl_FindExecutable(argv[0]);
     return Ns_ProxyMain(argc, argv, MyInit);
 }
 
