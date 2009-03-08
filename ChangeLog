@@ -1,3 +1,14 @@
+2009-03-08 Gustaf Neumann <neumann@wu-wien.ac.at>
+        * Fix of two bugs with nsproxy:
+
+          a) The initialize Tcl to avoid crash with Tcl8.5, when the
+             nsproxy binary is started (see
+             http://groups.google.com/group/aolserver/browse_thread/thread/28113c5324a6747e)
+
+          b) Truncate name of proxy_id to avoid buffer overflows,
+             increase allowed length of proxy name from 16 to 64 (and
+             provide constant MAX_PROXY_ID_LEN to ease maintenance)
+
 2009-02-01 Gustaf Neumann <neumann@wu-wien.ac.at>
 
 	*** AOLserver 4.5.1 RELEASED ***
