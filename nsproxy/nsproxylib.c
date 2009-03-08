@@ -33,7 +33,7 @@
  *	Library for ns_proxy commands and main loops.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsproxy/nsproxylib.c,v 1.7 2008/06/20 08:06:33 gneumann Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsproxy/nsproxylib.c,v 1.8 2009/03/08 11:31:12 gneumann Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsproxy.h"
 #include <poll.h>
@@ -76,6 +76,7 @@ typedef struct Res {
  * The following structure defines a proxy connection allocated
  * from a pool.
  */
+#define MAX_PROXY_ID_LEN 64
 
 typedef struct Proxy {
     struct Proxy *nextPtr;	/* Next in list of avail proxies. */
@@ -85,7 +86,7 @@ typedef struct Proxy {
 	Busy,			/* Evaluating a script. */
 	Done			/* Result is pending. */
     } state;
-    char id[16];		/* Proxy unique string id. */
+    char id[MAX_PROXY_ID_LEN];	/* Proxy unique string id. */
     Proc *procPtr;		/* Running child process, if any. */
     Tcl_HashEntry *idPtr;	/* Pointer to proxy table entry. */
     Tcl_HashEntry *cntPtr;	/* Pointer to count of proxies allocated. */
@@ -193,7 +194,7 @@ static Tcl_HashTable pools;
 static char *assoc = "nsproxy:data";
 static Ns_Cond pcond;
 static Ns_Mutex plock;
-static Proc *firstClosePtr;
+static Proc *firstClosePtr = NULL;
 static Ns_DString defexec;
 
 
@@ -835,9 +836,22 @@ GetObjCmd(ClientData data, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 		if (proxyPtr != NULL) {
 		    poolPtr->firstPtr = proxyPtr->nextPtr;
 		} else {
+                    char int_buf[20]; /* same value as in other places */
+
 		    proxyPtr = ns_calloc(1, sizeof(Proxy));
 		    proxyPtr->poolPtr = poolPtr;
-                    sprintf(proxyPtr->id, "%s-proxy-%d", poolPtr->name, poolPtr->nextid++);
+                    
+                    /* The user provided name is used together with a
+                       constant string and a running number to the
+                       proxy id.  We have to truncate the name if it
+                       is too long to prevent buffer overflows; the
+                       constant part "-proxy-" is 7 characters long */
+                    sprintf(int_buf, "%d", poolPtr->nextid++);
+                    strncat(proxyPtr->id, poolPtr->name,  
+                            MAX_PROXY_ID_LEN - (strlen(int_buf) + 7 + 1));
+                    strcat(proxyPtr->id, "-proxy-");
+                    strcat(proxyPtr->id, int_buf);
+                    
 		    Tcl_DStringInit(&proxyPtr->in);
 		}
 		proxyPtr->nextPtr = firstPtr;
