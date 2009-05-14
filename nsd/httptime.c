@@ -27,7 +27,6 @@
  * version of this file under either the License or the GPL.
  */
 
-
 /* 
  * time.c --
  *
@@ -35,7 +34,7 @@
  *	by HTSUtils.c from CERN. See also RFC 1123.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/httptime.c,v 1.9 2003/01/18 19:24:20 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/httptime.c,v 1.10 2009/05/14 04:27:05 gneumann Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -54,6 +53,11 @@ static char *month_names[12] =
 {
     "Jan", "Feb", "Mar", "Apr", "May", "Jun",
     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+};
+
+static char *weekdays_names[7] =
+{ 
+  "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" 
 };
 
 
@@ -92,11 +96,14 @@ Ns_HttpTime(Ns_DString *pds, time_t *when)
     }
 
     /*
-     * This will most likely break if the locale is not an english one.
+     * Provide always english names independent of locale setting.
      * The format is RFC 1123: "Sun, 06 Nov 1997 09:12:45 GMT"
      */
     
-    strftime(buf, 40, "%a, %d %b %Y %H:%M:%S GMT", tmPtr);
+    snprintf(buf, 40, "%s, %02d %s %04d %02d:%02d:%02d GMT",
+             weekdays_names[tmPtr->tm_wday], tmPtr->tm_mday,
+             month_names[tmPtr->tm_mon], tmPtr->tm_year + 1900,
+             tmPtr->tm_hour, tmPtr->tm_min, tmPtr->tm_sec);
 
     Ns_DStringAppend(pds, buf);
     return pds->string;

@@ -1,3 +1,10 @@
+2009-05-14 Gustaf Neumann <neumann@wu-wien.ac.at>
+
+         * nsd/httptime.c
+           Made output of ns_httptime independent of locale setting.
+           The change is based on a patch of Alexey Pechnikov, 
+           fixing an incorrect patch in the debian source tree.
+
 2009-03-08 Gustaf Neumann <neumann@wu-wien.ac.at>
         * Fix of two bugs with nsproxy:
 
