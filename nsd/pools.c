@@ -33,7 +33,7 @@
  *  Routines for the managing the connection thread pools.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/pools.c,v 1.15 2009/01/31 21:23:47 gneumann Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/pools.c,v 1.16 2009/05/15 08:31:27 gneumann Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -201,8 +201,8 @@ NsTclPoolsObjCmd(ClientData data, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
             Tcl_SetResult(interp, "timeout cannot be less than 1", TCL_STATIC);
             return TCL_ERROR;
         }
-        if (poolPtr->threads.maxconns < 1) {
-            Tcl_SetResult(interp, "maxconns cannot be less than 1", TCL_STATIC);
+        if (poolPtr->threads.maxconns < 0) {
+            Tcl_SetResult(interp, "maxconns cannot be less than 0", TCL_STATIC);
             return TCL_ERROR;
         }
         if (poolPtr->threads.spread < 0 || poolPtr->threads.spread > 100 ) {

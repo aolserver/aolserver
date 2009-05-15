@@ -1,3 +1,8 @@
+2009-05-15 Gustaf Neumann <neumann@wu-wien.ac.at>
+
+         * nsd/pools.c:
+           Allowing maxconns to be set to 0
+
 2009-05-14 Gustaf Neumann <neumann@wu-wien.ac.at>
 
          * nsd/httptime.c:
