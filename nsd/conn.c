@@ -34,7 +34,7 @@
  *      Manage the Ns_Conn structure
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.49 2007/09/29 20:08:52 gneumann Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/conn.c,v 1.50 2009/12/08 04:12:19 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -143,7 +143,9 @@ Ns_ConnAuthPasswd(Ns_Conn *conn)
  *
  * Ns_ConnContentLength --
  *
- *	Get the content length from the client 
+ *	Get the content length to be sent from the client.
+ *	Note the data may not have been all received if
+ *	called in a "read" filter callback.
  *
  * Results:
  *	An integer content length, or 0 if none sent 
@@ -158,6 +160,33 @@ int
 Ns_ConnContentLength(Ns_Conn *conn)
 {
     return conn->contentLength;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * Ns_ConnContentAvail --
+ *
+ *	Get the content currently available from the client.
+ *	This will generally be all content unless it's called
+ *	during a read filter callback during upload.
+ *
+ * Results:
+ *	An integer content length, or 0 if none sent 
+ *
+ * Side effects:
+ *	None. 
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+Ns_ConnContentAvail(Ns_Conn *conn)
+{
+    Conn *connPtr = (Conn *) conn;
+
+    return connPtr->avail;
 }
 
 
@@ -1006,18 +1035,18 @@ NsTclConnObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
     char	 *content;
 
     static CONST char *opts[] = {
-         "authpassword", "authuser", "channel", "close", "content", "contentlength",
-         "contentsentlength",
+         "authpassword", "authuser", "channel", "close",
+	 "contentavail", "content", "contentlength", "contentsentlength",
 	 "contentchannel", "copy", "driver", "encoding", "files",
 	 "fileoffset", "filelength", "fileheaders", "flags", "form",
 	 "headers", "host", "id", "isconnected", "location", "method",
 	 "outputheaders", "peeraddr", "peerport", "port", "protocol",
 	 "query", "request", "server", "sock", "start", "status",
 	 "url", "urlc", "urlencoding", "urlv", "version",
-	 "write_encoded", NULL
+	 "write_encoded", "interp", NULL
     };
     enum {
-	 CAuthPasswordIdx, CAuthUserIdx, CChannelIdx, CCloseIdx, CContentIdx,
+	 CAuthPasswordIdx, CAuthUserIdx, CChannelIdx, CCloseIdx, CAvailIdx, CContentIdx,
 	 CContentLengthIdx, CContentSentLenIdx, CContentChannelIdx, CCopyIdx, CDriverIdx,
 	 CEncodingIdx, CFilesIdx, CFileOffIdx, CFileLenIdx,
 	 CFileHdrIdx, CFlagsIdx, CFormIdx, CHeadersIdx, CHostIdx,
@@ -1025,7 +1054,7 @@ NsTclConnObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 	 COutputHeadersIdx, CPeerAddrIdx, CPeerPortIdx, CPortIdx,
 	 CProtocolIdx, CQueryIdx, CRequestIdx, CServerIdx, CSockIdx,
 	 CStartIdx, CStatusIdx, CUrlIdx, CUrlcIdx, CUrlEncodingIdx,
-	 CUrlvIdx, CVersionIdx, CWriteEncodedIdx
+	 CUrlvIdx, CVersionIdx, CWriteEncodedIdx, CInterpIdx
     } opt;
 
     if (objc < 2) {
@@ -1075,6 +1104,10 @@ NsTclConnObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 	    
 	case CAuthPasswordIdx:
 	    Tcl_SetResult(interp, connPtr->authPasswd, TCL_STATIC);
+	    break;
+
+	case CAvailIdx:
+	    Tcl_SetIntObj(result, connPtr->avail);
 	    break;
 
 	case CContentChannelIdx:
@@ -1356,6 +1389,10 @@ NsTclConnObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj **objv)
 	    return TCL_ERROR;
 	  }
 	  break;
+
+	case CInterpIdx:
+	    Tcl_SetLongObj(result, (long) interp);
+	    break;
     }
 
     return TCL_OK;

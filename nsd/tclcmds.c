@@ -33,7 +33,7 @@
  * 	Connect Tcl command names to the functions that implement them
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.56 2006/06/26 00:28:02 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclcmds.c,v 1.57 2009/12/08 04:12:19 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -73,6 +73,7 @@ extern Tcl_ObjCmdProc
     NsTclCacheObjCmd,
     NsTclChanObjCmd,
     NsTclChmodObjCmd,
+    NsTclClsObjCmd,
     NsTclCondObjCmd,
     NsTclConnObjCmd,
     NsTclConnSendFpObjCmd,
@@ -126,6 +127,7 @@ extern Tcl_ObjCmdProc
     NsTclParseQueryObjCmd,
     NsTclPoolsObjCmd,
     NsTclPurgeFilesObjCmd,
+    NsTclQueWaitObjCmd,
     NsTclRWLockObjCmd,
     NsTclRandObjCmd,
     NsTclRegisterAdpObjCmd,
@@ -170,6 +172,7 @@ extern Tcl_ObjCmdProc
     NsTclSymlinkObjCmd,
     NsTclThreadObjCmd,
     NsTclTimeObjCmd,
+    NsTclTlsObjCmd,
     NsTclTmpNamObjCmd,
     NsTclTruncateObjCmd,
     NsTclUnRegisterObjCmd,
@@ -293,6 +296,7 @@ static Cmd cmds[] = {
     {"ns_charsets", NsTclCharsetsCmd, NULL},
     {"ns_checkurl", NULL, NsTclRequestAuthorizeObjCmd},
     {"ns_chmod", NULL, NsTclChmodObjCmd},
+    {"ns_cls", NULL, NsTclClsObjCmd},
     {"ns_cond", NULL, NsTclCondObjCmd},
     {"ns_config", NsTclConfigCmd, NULL},
     {"ns_configsection", NsTclConfigSectionCmd, NULL},
@@ -349,6 +353,7 @@ static Cmd cmds[] = {
     {"ns_pools", NULL, NsTclPoolsObjCmd},
     {"ns_purgefiles", NULL, NsTclPurgeFilesObjCmd},
     {"ns_puts", NULL, NsTclAdpPutsObjCmd},
+    {"ns_quewait", NULL, NsTclQueWaitObjCmd},
     {"ns_quotehtml", NsTclQuoteHtmlCmd, NULL},
     {"ns_rand", NULL, NsTclRandObjCmd},
     {"ns_register_adp", NULL, NsTclRegisterAdpObjCmd},
@@ -400,6 +405,7 @@ static Cmd cmds[] = {
     {"ns_symlink", NULL, NsTclSymlinkObjCmd},
     {"ns_thread", NULL, NsTclThreadObjCmd},
     {"ns_time", NULL, NsTclTimeObjCmd},
+    {"ns_tls", NULL, NsTclTlsObjCmd},
     {"ns_tmpnam", NULL, NsTclTmpNamObjCmd},
     {"ns_truncate", NULL, NsTclTruncateObjCmd},
     {"ns_unlink", NULL, NsTclUnlinkObjCmd},

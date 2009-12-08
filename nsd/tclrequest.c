@@ -33,7 +33,7 @@
  *	Routines for Tcl proc and ADP registered requests.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclrequest.c,v 1.13 2005/08/23 22:05:04 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclrequest.c,v 1.14 2009/12/08 04:12:19 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -257,10 +257,10 @@ NsTclRegisterFilterObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj 
     Tcl_Obj **lobjv;
     int       when, i;
     static CONST char *wopt[] = {
-        "prequeue", "preauth", "postauth", "trace", NULL
+        "read", "write", "prequeue", "preauth", "postauth", "trace", NULL
     };
     enum {
-        PQIdx, PRIdx, POIdx, TRIdx,
+        ReadIdx, WriteIdx, PreQueueIdx, PreAuthIdx, PostAuthIdx, TraceIdx,
     } widx;
 
     if (objc < 2) {
@@ -281,16 +281,22 @@ NsTclRegisterFilterObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj 
             return TCL_ERROR;
     	}
 	switch (widx) {
-	case PQIdx:
+	case ReadIdx:
+            when |= NS_FILTER_READ;
+	    break;
+	case WriteIdx:
+            when |= NS_FILTER_WRITE;
+	    break;
+	case PreQueueIdx:
             when |= NS_FILTER_PRE_QUEUE;
 	    break;
-	case PRIdx:
+	case PreAuthIdx:
             when |= NS_FILTER_PRE_AUTH;
 	    break;
-	case POIdx:
+	case PostAuthIdx:
             when |= NS_FILTER_POST_AUTH;
 	    break;
-	case TRIdx:
+	case TraceIdx:
             when |= NS_FILTER_TRACE;
 	    break;
 	}
@@ -504,6 +510,15 @@ ProcFilter(void *arg, Ns_Conn *conn, int why)
 	Tcl_DStringAppendElement(&script, procPtr->args ? procPtr->args : "");
     }
     switch (why) {
+	case NS_FILTER_READ:
+	    Tcl_DStringAppendElement(&script, "read");
+	    break;
+	case NS_FILTER_WRITE:
+	    Tcl_DStringAppendElement(&script, "write");
+	    break;
+	case NS_FILTER_PRE_QUEUE:
+	    Tcl_DStringAppendElement(&script, "prequeue");
+	    break;
 	case NS_FILTER_PRE_AUTH:
 	    Tcl_DStringAppendElement(&script, "preauth");
 	    break;

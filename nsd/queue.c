@@ -34,9 +34,10 @@
  *	and service threads.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/queue.c,v 1.46 2008/12/27 00:36:38 gneumann Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/queue.c,v 1.47 2009/12/08 04:12:19 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
+#include <math.h>
 
 /*
  * The following structure is allocated for each new thread.  The
@@ -557,16 +558,15 @@ NsConnThread(void *arg)
 static void
 ConnRun(Conn *connPtr)
 {
+    Tcl_Encoding    encoding = NULL;
     Ns_Conn 	  *conn = (Ns_Conn *) connPtr;
     NsServer	  *servPtr = connPtr->servPtr;
-    int            i, status;
-    Tcl_Encoding    encoding = NULL;
+    int		   i, status;
 	
     /*
-     * Initialize the connection encodings and headers. 
+     * Initialize the connection encodings. 
      */
     
-    connPtr->outputheaders = Ns_SetCreate(NULL);
     encoding = NsGetInputEncoding(connPtr);
     if (encoding == NULL) {
     	encoding = NsGetOutputEncoding(connPtr);
@@ -574,10 +574,10 @@ ConnRun(Conn *connPtr)
 	    encoding = connPtr->servPtr->urlEncoding;
 	}
     }
-    Ns_ConnSetUrlEncoding(conn, encoding);
-    if (servPtr->opts.hdrcase != Preserve) {
+    Ns_ConnSetUrlEncoding((Ns_Conn *) connPtr, encoding);
+    if (connPtr->servPtr->opts.hdrcase != Preserve) {
 	for (i = 0; i < Ns_SetSize(connPtr->headers); ++i) {
-    	    if (servPtr->opts.hdrcase == ToLower) {
+    	    if (connPtr->servPtr->opts.hdrcase == ToLower) {
 		Ns_StrToLower(Ns_SetKey(connPtr->headers, i));
 	    } else {
 		Ns_StrToUpper(Ns_SetKey(connPtr->headers, i));
@@ -644,17 +644,6 @@ ConnRun(Conn *connPtr)
 
     NsRunCleanups(conn);
     NsFreeConnInterp(connPtr);
-    if (connPtr->type != NULL) {
-        Ns_ConnSetType(conn, NULL);
-    }
-    if (connPtr->query != NULL) {
-        Ns_ConnClearQuery(conn);
-    }
-    if (connPtr->outputheaders != NULL) {
-    	Ns_SetFree(connPtr->outputheaders);
-	connPtr->outputheaders = NULL;
-    }
-    Ns_DStringTrunc(&connPtr->obuf, 0);
 }
 
 

@@ -27,7 +27,7 @@
 # version of this file under either the License or the GPL.
 # 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Makefile,v 1.52 2006/06/27 16:35:55 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/Makefile,v 1.53 2009/12/08 04:12:19 jgdavidson Exp $
 #
 
 INSTALL	= install-init
@@ -47,7 +47,7 @@ OBJS	= adpcmds.o adpeval.o adpparse.o adprequest.o auth.o binder.o \
 	  task.o tclcache.o tclcmds.o tclconf.o tclenv.o tclfile.o \
 	  tclhttp.o tclimg.o tclinit.o tcljob.o tclloop.o tclmisc.o \
 	  tclobj.o tclrequest.o tclresp.o tclsched.o tclset.o tclshare.o \
-	  tclsock.o tclthread.o tclvar.o tclxkeylist.o url.o \
+	  tclsock.o tclstore.o tclthread.o tclvar.o tclxkeylist.o url.o \
 	  urlencode.o urlopen.o urlspace.o uuencode.o stamp.o
 
 UNIXOBJS= unix.o 

@@ -27,14 +27,13 @@
  * version of this file under either the License or the GPL.
  */
 
-
 /*
  * tclsock.c --
  *
  *	Tcl commands that let you do TCP sockets. 
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclsock.c,v 1.24 2005/08/02 22:11:58 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclsock.c,v 1.25 2009/12/08 04:12:19 jgdavidson Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -72,6 +71,7 @@ static int EnterDupedSocks(Tcl_Interp *interp, SOCKET sock);
 static int SockSetBlockingObj(char *value, Tcl_Interp *interp, int objc, 
 				Tcl_Obj *CONST objv[]);
 static Ns_SockProc SockListenCallback;
+static Ns_QueueWaitProc WaitCallback;
 
 void
 NsTclSockArgProc(Tcl_DString *dsPtr, void *arg)
@@ -81,6 +81,81 @@ NsTclSockArgProc(Tcl_DString *dsPtr, void *arg)
     Tcl_DStringAppendElement(dsPtr, cbPtr->script);
 }
  
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * NsTclQueWaitObjCmd --
+ *
+ *	Implement the ns_quewait command to register a Tcl script
+ *	Ns_QueueWait callback.  Unlike the general ns_sockcallback,
+ *	the script will execute later in the same, connection-bound
+ *	interp which calls ns_quewait.  Thus the interface is
+ *	closer to Tcl's standard "fileevent" command.
+ *
+ * Results:
+ *	Tcl result. 
+ *
+ * Side effects:
+ *	Depends on callbacks.
+ *
+ *----------------------------------------------------------------------
+ */
+
+int
+NsTclQueWaitObjCmd(ClientData arg, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+{
+    TclSockCallback *cbPtr;
+    Ns_Conn *conn;
+    Tcl_Channel chan;
+    SOCKET sock;
+    int when;
+    Ns_Time timeout;
+    static CONST char *opt[] = {
+        "readable", "writable", NULL
+    };
+    enum {
+        ReadIdx, WriteIdx
+    } idx;
+
+    if (objc != 5) {
+        Tcl_WrongNumArgs(interp, 1, objv, "sockId event timeout script");
+        return TCL_ERROR;
+    }
+    if (NsTclGetConn((NsInterp *) arg, &conn) != TCL_OK) {
+	return TCL_ERROR;
+    }
+    chan = Tcl_GetChannel(interp, Tcl_GetString(objv[1]), NULL);
+    if (chan == NULL) {
+	return TCL_ERROR;
+    }
+    if (Tcl_GetIndexFromObj(interp, objv[2], opt, "event", 0,
+                	    (int *) &idx) != TCL_OK) {
+	return TCL_ERROR;
+    }
+    switch (idx) {
+    case ReadIdx:
+	when = NS_SOCK_READ;
+	break;
+    case WriteIdx:
+	when = NS_SOCK_WRITE;
+	break;
+    }
+    if (Ns_TclGetOpenFd(interp, Tcl_GetString(objv[1]),
+			(idx == WriteIdx) ? 1 :0, (int *) &sock) != TCL_OK) {
+	return TCL_ERROR;
+    }
+    if (Ns_TclGetTimeFromObj(interp, objv[3], &timeout) != TCL_OK) {
+	return TCL_ERROR;
+    }
+    if (Ns_QueueWait(conn, sock, WaitCallback, objv[4], when, &timeout) != NS_OK) {
+	Tcl_SetResult(interp, "could not register sock wait", TCL_STATIC);
+        return TCL_ERROR;
+    }
+    Tcl_IncrRefCount(objv[4]);
+    return TCL_OK;
+}
+
 
 /*
  *----------------------------------------------------------------------
@@ -1128,6 +1203,61 @@ fail:
 	return NS_FALSE;
     }
     return NS_TRUE;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * WaitCallback --
+ *
+ *	This is the C wrapper Ns_QueueWait callback registered in 
+ *	ns_quewait. 
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *	Will run Tcl script. 
+ *
+ *----------------------------------------------------------------------
+ */
+
+static void
+WaitCallback(Ns_Conn *conn, SOCKET sock, void *arg, int why)
+{
+    Tcl_Interp *interp = Ns_GetConnInterp(conn);
+    Tcl_Obj *objPtr = arg;
+    Tcl_DString ds;
+    char *s;
+    int len;
+
+    Tcl_DStringInit(&ds);
+    s = Tcl_GetStringFromObj(objPtr, &len);
+    Tcl_DStringAppend(&ds, s, len);
+
+    /*
+     * NB: While the C interface allows for a single callback
+     * to be registered (NS_SOCK_READ | NS_SOCK_WRITE), the
+     * ns_quewait command enforces only readable or writable
+     * at a time.
+     */
+
+    if (why == 0) {
+	s = "timeout";
+    } else if (why & NS_SOCK_READ) {
+	s = "readable";
+    } else if (why & NS_SOCK_WRITE) {
+	s = "writable";
+    } else if (why & NS_SOCK_DROP) { 
+	s = "dropped";
+    }
+    Tcl_DStringAppendElement(&ds, s);
+    if (Tcl_EvalEx(interp, ds.string, ds.length, 0) != TCL_OK) {
+	Ns_TclLogError(interp);
+    }
+    Tcl_DStringFree(&ds);
+    Tcl_DecrRefCount(objPtr);
 }
 
 
