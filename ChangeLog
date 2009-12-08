@@ -1,3 +1,48 @@
+2009-12-08 Jim Davidson <jgdavidson@aol.com>
+
+	* include/ns.h: Changed definition of Ns_QueueWait, added
+	NS_FILTER_READ and NS_FILTER_WRITE constants and definition
+	for new Ns_ConnContentAvail.
+
+	* nsd/Makefile: Added tclstore.o.
+
+	* nsd/conn.c: Added Ns_ConnContentAvail routine and "avail"
+	option to ns_conn command.
+
+	* nsd/connio.c: Add call to invoke new write filters.
+
+	* nsd/driver.c: Fixed bugs with the pre-queue filter and
+	que-wait callback interfaces, added calls to read filters,
+	and added a socket state transition debug log message.
+
+	* nsd/queue.c: Moved some connection setup/cleanup to the
+	driver to make pre-queue and read filters safer.
+
+	* nsd/tclrequest.c: Added "read" and "write" options to
+	ns_register_filter.
+
+	* nsd/tclstore.c (new file):
+	* nsd/tclsock.c:
+	* nsd/tclcmds.c: New ns_tls, ns_cls, and ns_quewait commands.
+
+	* tcl/pools.tcl: Changed default timeout from 0 (no longer
+	supported) to 30.
+
+	* doc/Ns_TempFile.3:
+	* doc/Ns_Filter.3: Added detail to what were man page stubs.
+
+	* doc/Ns_ConnContent.3: Added detail on Ns_ConnContentAvail
+	command and notes on usage in pre-queue and read filters.
+
+	* doc/ns_cls.n (new file):
+	* doc/ns_tls.n (new file):
+	* doc/ns_quewait.n (new file): Man pages for new commands.
+
+	* doc/Ns_Cleanup.3 (new file):
+	* doc/Ns_RegisterServerTrace (new file): New man pages for
+	routines previously documented in Ns_Filter.3.
+
+
 2009-05-15 Gustaf Neumann <neumann@wu-wien.ac.at>
 
          * nsd/pools.c:
