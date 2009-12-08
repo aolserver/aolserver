@@ -28,7 +28,7 @@
 '\" version of this file under either the License or the GPL.
 '\" 
 '\"
-'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_filter.n,v 1.4 2003/04/10 22:01:14 shmooved Exp $
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_filter.n,v 1.5 2009/12/08 15:33:00 jgdavidson Exp $
 '\"
 '\" 
 .so man.macros
@@ -37,122 +37,199 @@
 .BS
 '\" Note:  do not modify the .SH NAME line immediately below!
 .SH NAME
-ns_register_filter, ns_register_proc, ns_register_trace \- Register a filter, proc or trace callback
+ns_register_filter, ns_register_trace \- Register connection callbacks
 .SH SYNOPSIS
-\fBns_register_filter \fIoption \fR?\fIarg arg ...\fR?
 .sp
-\fBns_register_proc \fIoption \fR?\fIarg arg ...\fR?
+\fBns_register_trace \fImethod url script ?arg?\fR
 .sp
-\fBns_register_trace \fIoption \fR?\fIarg arg ...\fR?
+\fBns_register_filter read\fR \fImethod url script ?arg?\fR
+.sp
+\fBns_register_filter prequeue\fR \fImethod url script ?arg?\fR
+.sp
+\fBns_register_filter preauth\fR \fImethod url script ?arg?\fR
+.sp
+\fBns_register_filter postauth\fR \fImethod url script ?arg?\fR
+.sp
+\fBns_register_filter write\fR \fImethod url script ?arg?\fR
+.sp
+\fBns_register_filter trace\fR \fImethod url script ?arg?\fR
 .BE
 
 .SH DESCRIPTION
 .PP
+The \fBns_register_filter\fR and \fBns_register_trace\fR commands
+arrange for a Tcl procedures to be called at the requested state
+during a connections lifetime.
 
-
-.SS ns_register_filter: 
-Registers a Tcl filter script for the specified method/URL combination on a virtual server. The script can be called at one or more of three given times: pre-authorization, post-authorization before page data has been returned to the user, and after the connection has been processed and closed. 
-
-This function will be called at the specified stage of a connection, if the method/URL combination for the filter matches the method/URL combination for the connection using glob style matching. 
-
-The URLpattern can contain standard string-matching characters. For example, these are valid URL patterns: 
-
-/employees/*.tcl
-/accounts/*/out
-
-Valid values for the "when" argument are: preauth, postauth, and trace. 
-Using pre-authorization, the procedure will be called (assuming that the method/URL combination matches) just before authorization. If the procedure returns with a code of: 
-
-.IP \fBTCL_OK\fR 12
-(using: return "filter_ok"): The server will continue to the next pre-authorization filter for this connection, or, if there are no more pre-authorization filters, it will continue on with authorization.
-.IP \fBTCL_BREAK\fR 12
-(using: return "filter_break"): The server will not process any more pre-authorization filters for this connection, and it will continue on with authorization.
-.IP \fBTCL_RETURN\fR 12
-(using: return "filter_return"): The server will close the connection and will not run any more pre-authorization filters. It will not authorize the request, and it will not run the function registered for this METHOD/URL. It WILL run any trace functions registered for this METHOD/URL, usually including logging. It is assumed that the filter has sent a proper response (e.g., using ns_return) to the client before returning TCL_RETURN.
-
-.TP
-Using post-authorization, the procedure will be called (assuming that the method/URL combination matches) just after successful authorization. If the procedure returns: 
-
-.IP \fBTCL_OK\fR 12
-(using: return "filter_ok"): The server will continue to the next post-authorization filter for this connection, or, if there are no more post-authorization filters, it will run the function registered to handle this request.  
-.IP \fBTCL_BREAK\fR 12
-(using: return "filter_break"): The server will not process any more post-authorization filters for this connection, and it will run the function registered to handle this request.  
-.IP \fBTCL_RETURN\fR 12
-(using: return "filter_return"): The server will close the connection and will not run any more post-authorization filters and it will not run the function registered for this METHOD/URL. It WILL run any trace functions registered for this METHOD/URL, usually including logging. It is assumed that the filter has returned a proper response (e.g., using ns_return) to the client before returning TCL_RETURN.
-.TP
-Using trace, the procedure will be called (assuming that the method/URL combination match) after the connection has been totally processed and closed. If the procedure returns: 
-
-.IP \fBTCL_OK\fR 12
-(using: return "filter_ok"): The server will continue to the next trace filter.
-.IP \fBTCL_BREAK\fR 12  
-(using: return "filter_break"): The rest of the trace filters are ignored.
-.IP \fBTCL_RETURN\fR 12
-(using: return "filter_break"): The rest of the trace filters are ignored.
 .PP
-
-\fBSyntax for the registered procedure:\fR
-
-The conn (connection) argument is optional for procedures registered by ns_register_filter if the procedure has 1 or 2 arguments (including why but not including conn). The following examples show the variations that can be used in this case: 
-
-.CS
-.RE 
-\fBns_register_filter\fR \fItrace\fR GET /noargs filter_noargs
-\fBns_register_filter\fR \fItrace\fR GET /context filter_context fnord
-\fBns_register_filter\fR \fItrace\fR GET /conncontext filter_conncontext
-
-proc filter_noargs { why } {
-    ns_log Notice "filter noargs"
-    return filter_ok
-} ;# filter_noargs
-
-proc filter_context { arg why } {
-    ns_log Notice "filter context. Arg: $arg"
-    return filter_ok
-} ;# filter_noargs
-
-proc filter_conncontext { conn arg why } {
-    ns_log Notice "filter conn context"
-    return filter_ok
-} ;# filter_noargs
-.CE
-
-The conn (connection) argument is required for procedures registered by ns_register_filter if the procedure has 3 or more arguments (including why but not including conn). The conn argument is automatically filled with the connection information. The first argument following conn will always take the value supplied by ns_register_filter, if there is one, or an empty value. The why argument at the end is automatically filled with the type of filter requested. All other arguments must supply a default value. The following examples show the variations that can be used in this case: 
+The \fImethod\fR and \fIurl\fR arguments are specified using
+glob-style pattern matching to indicate for which requests the
+\fIproc\fR should be invoked.  This allows methods and/or urls to
+match more than one filter, all of which would be executed in FIFO
+order (unless a \fBfilter_break\fR or \fBfilter_return\fR exit code
+is returned as described below).  For example:
 
 .CS
-.RE
-\fBns_register_filter\fR \fIpostauth\fR GET /threeargs threeargs aaa
-\fBns_register_filter\fR \fIpostauth\fR GET /fourargs fourargs aaa bbb ccc
+# Invoke myproc before connection processing for any method
+# of .tcl scripts in the /employees directory.
+ns_register_filter postauth * /employees/*.tcl myproc
 
-proc threeargs { conn context { greeble bork } why } {
-    ...
-} ;
+# Invoke monitor during read for file uploads at the /upload/* URL
+ns_register_filter read POST /upload/* monitor
 
-proc fourargs { conn context { greeble bork } {hoover quark} why } {
-   ...
-} ;
+# Invoke logit at end of connection for all requests.
+ns_register_filter trace * * logit
 .CE
 
-When a GET of /threeargs is requested, the conn and why arguments will be filled automatically, the context argument will be assigned "aaa" and the greeble argument will be assigned the default value "bork". 
-When a GET of /fourargs is requested, the conn and why arguments will be filled automatically, the context argument will be assigned "aaa", the greeble argument will be assigned "bbb", and the hoover argument will be assigned the default value "quark". 
+.PP
+See the man pages for \fBstring(n)\fR for details on glob matching.
+Note this matching approach differs from that of the \fBns_register_proc\fR
+command which is designed to match the method exactly and the single
+most specific url pattern.
 
-.SS ns_register_trace:
-.IP "" 0
-Register a Tcl trace script to a method and matching URL. 
-(Note: This function is obsolete. Use \fBns_register_filter\fR instead.) 
+.PP
+The \fIproc\fR argument is the name of a Tcl procedure to invoke
+when the connection has reached the requested state.  The \fIproc\fR
+will be called with the string name of the connection state, e.g.,
+\fIpostauth\fR, \fItrace\fR, etc.  If an optional \fIarg\fR string
+is provided, that value will precede the reason string.
 
-\fBns_register_trace\fR registers a Tcl script as a trace for the specified method/URL combination. After the server handles the request for the specified method on an URL that matches the \fIURLpattern\fR, it calls the trace script with the connection id and any arguments (args) specified. 
-The \fIURLpattern\fR can contain standard string-matching characters. For example, these are valid URLpatterns: 
+.PP
+For \fBns_register_trace\fR, the results of the procedure call are
+ignored.  For \fBns_register_filter\fR, the result must be
+one of the following strings:
 
-/employees/*.tcl
-/accounts/*/out
+.TP
+\fBfilter_ok\fR
+The filter returned correctly and the server should continue
+invoking additional filters, if any.
 
-Note
-\fBns_register_trace\fR is similar to \fBns_register_proc\fR except that the pattern-matching for the URL is performed differently. With \fBns_register_proc\fR, the specified URL is used to match that URL and any URL below it in the hierarchy. Wildcards such as "*" are meaningful only for the final part of the URL, such as /scripts/*.tcl. With \fBns_register_trace\fR, the \fIURLpattern\fR is used to match URLs as a string with standard string-matching characters. 
-\fBns_register_proc\fR results in a single match, whereas multiple ns_register_trace's can be matched and will be called. 
+.TP
+\fBfilter_break\fR
+The filter returned correctly but the server should not
+invoke any additional filters.
 
+.TP
+\fBfilter_return\fR
+The filter returned correctly and as a side-effect generated a
+response to the client, for example, through a call to the
+\fBns_return\fR command.  The server should not invoke additional
+filters and close the connection.
+
+.PP
+If \fIproc\fR returns any other value or raises and exception, the
+server will stop invoking filters, generate an error response, and
+close the connection.
+
+.SH USAGE
+
+.TP
+\fBns_register_trace \fImethod url script ?arg?\fR
+This is equivalent to \fBns_register_filter trace\fR
+where the result is ignored.
+
+.TP
+\fBns_register_filter \fBread\fR \fImethod url script ?arg?\fR
+Invokes the given \fIproc\fR after each read from the client within
+the "driver" network I/O thread.  This callback is deferred until the
+minimum of the requests+headers have been received.  It can be
+useful to monitor the progress of a large file upload (see the
+\fBEXAMPLE\fR below).  The interpreter and thread will remain the
+same for all \fBread\fR callbacks but may differ from that used for
+other callbacks.  Also, as the procedure is not called within a
+connection thread, care must be taken that it executes quickly
+without blocking to avoid stalling the other network I/O being
+multiplexed by the driver thread.
+
+.TP
+\fBns_register_filter \fBprequeue\fR \fImethod url script ?arg?\fR
+Invokes the given \fIproc\fR after the request and content have
+been read from the client but before queueing for execution on a
+connection thread.  This callback can be used to register other
+network I/O waits; see \fBns_quewait\fR for details and an example.
+The interpreter and thread used for \fBprequeue\fR callbacks will
+differ from those used for other callbacks.  The \fBns_cls\fR command
+can be used to manage data between the interpreters.  Also, as the
+procedure is not called within a connection thread, care must be
+taken that it executes quickly without blocking to avoid stalling
+the other network I/O being multiplexed in the driver thread.
+
+.TP
+\fBns_register_filter \fBpreauth\fR \fImethod url script ?arg?\fR
+Invoke \fIproc\fR just before the server performs request
+authorization.  This callback will be invoked even if the 
+requests is ultimately not authorized.
+
+.TP
+\fBns_register_filter \fBpostauth\fR \fImethod url script ?arg?\fR
+Invoke \fIproc\fR after successful authorization.  If prior authorization
+fails, this callback will not be invoked.
+
+.TP
+\fBns_register_filter \fBwrite\fR \fImethod url script ?arg?\fR
+Invoke \fIproc\fR after each write to the client.  Note the
+server normally buffers response output so this callback is
+normally not invoked on each \fBns_adp_puts\fR and potentially
+just once when flushing the connection output buffers.
+
+.TP
+\fBns_register_filter \fBtrace\fR \fImethod url script ?arg?\fR
+Invoke \fIproc\fR after the server has sent a response to the
+client and closed the connection.  This can be useful for
+custom logging routines.
+
+.SH EXAMPLE
+
+.PP
+The following example uses a \fBread\fR filter to update status of
+a large HTTP POST to the /upload/\fIkey\fR url where \fIkey\fR is
+some client-specified unique value.  While the upload is in progress,
+it can be monitored with repeated GET requests to the /status/\fIkey\fR
+url with the same \fIkey\fR:
+
+.CS
+#
+# Register procs to receive uploads and check status
+# mainted in an nsv array.
+#
+
+ns_register_proc POST /upload upload.post
+ns_register_proc GET /status upload.status
+
+proc upload.status {} {
+	set key [ns_conn urlv 1]
+	if {[catch {set status [nsv_get status $key]}]} {
+		set status "unknown"
+	}
+	ns_return 200 text/plain $status
+}
+
+proc upload.post {} {
+	set key [ns_conn urlv 1]
+	nsv_unset status $key
+	# ... do something with content ...
+	ns_return 200 text/plain received
+}
+
+
+#
+# Register a read filter ot update status
+#
+
+ns_register_filter read POST /upload/* upload.update
+
+proc upload.update {why} {
+	set key [ns_conn urlv 1]
+	set expected [ns_conn contentlength]
+	set received [ns_conn contentavail]
+	set status [list $expected $received]
+	nsv_set status $key $status
+	return filter_ok
+}
+.CE
 
 .SH "SEE ALSO"
-ns_register_proc(n), ns_register_tag(n), ns_register_adptag(n)
+ns_register_proc(n), ns_register_tag(n), ns_register_adptag(n), ns_quewait(n)
 .CE
 .SH KEYWORDS
 
