@@ -28,35 +28,137 @@
 '\" version of this file under either the License or the GPL.
 '\" 
 '\"
-'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_Filter.3,v 1.5 2003/04/10 22:00:42 shmooved Exp $
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_Filter.3,v 1.6 2009/12/08 04:13:18 jgdavidson Exp $
 '\"
 '\" 
 .so man.macros
 
-.TH Ns_Filter 3 4.0 AOLserver "AOLserver Library Procedures"
+.TH Ns_Filter 3 4.6 AOLserver "AOLserver Library Procedures"
 .BS
 '\" Note:  do not modify the .SH NAME line immediately below!
 .SH NAME
-Ns_RegisterCleanup, Ns_RegisterConnCleanup, Ns_RegisterFilter, Ns_RegisterServerTrace \- library procedures
+Ns_RegisterFilter \- manage callbacks during a connection
 .SH SYNOPSIS
 .nf
 \fB#include "ns.h"\fR
 .sp
-\fBNs_RegisterCleanup\fR(\fIarg, arg\fR)
-.sp
-\fBNs_RegisterConnCleanup\fR(\fIarg, arg\fR)
-.sp
-\fBNs_RegisterFilter\fR(\fIarg, arg\fR)
-.sp
-\fBNs_RegisterServerTrace\fR(\fIarg, arg\fR)
+void
+\fBNs_RegisterFilter\fR(\fIchar *server, char *method, char *url, Ns_FilterProc *proc, int when, void *arg\fR)
+
+.SH ARGUMENTS
+.AS Ns_FilterProc *proc
+.AP char *server in
+Name of virtual server.
+
+.AP char *method in
+Glob matching pattern for requested methods.
+
+.AP char *url in
+Glob matching pattern for requested urls.
+
+.AP int when in
+OR-ed combination of the values \fBNS_FILTER_READ\fR,
+\fBNS_FILTER_PRE_QUEUE\fR, \fBNS_FILTER_PRE_AUTH\fR,
+\fBNS_FILTER_POST_AUTH\fR, \fBNS_FILTER_WRITE\fR, and
+\fBNS_FILTER_TRACE\fI indicating the connection state at
+which \fIproc\fR should be invoked.
+
+.AP void *arg in
+Arbitrary one-word value to pass to \fIproc\fR.
+
+.AP Ns_FilterProc *proc in
+Procedure to invoke when the connection reaches a requested
+state.
+
 .BE
+
 
 .SH DESCRIPTION
 .PP
-These functions ...
+\fBNs_RegisterFilter\fR may be called during server initialization to
+register callbacks to execute at various points during the connection
+lifetime.
+
+.PP
+The \fIwhen\fR argument to \fBNs_RegisterFilter\fR indicates when the
+callback is to be invoked.  It consists of an OR-ed combinations of
+any of the following values:
+.TP
+NS_FILTER_READ
+Invoke \fIproc\fR after each read from the client.  If there is no
+content to be uploaded (e.g., a simple GET request), this callback
+will fire just once after the HTTP request and headers lines have
+been read (which is considered the minimum context required for a
+valid connection).  If content is to be uploaded (e.g., on a PUT
+request with a non-zero Content-length: header), the routine will
+be invoked after any subsequent reads which may be required to
+receive the uploaded content. During this phase, the result of
+\fBNs_ConnContentAvail\fR may be less than \fBNs_ConnContentLength\fR,
+indicating content has not fully been uploaded.
+If \fIproc\fR
+returns a value other than \fBNS_OK\fR, the connection will be
+aborted.
+
+.sp
+NOTE(1): It is not safe to access the connection content during an
+\fBNS_FILTER_READ\fR callback with, e.g., a call to \fBNs_ConnContent\fR.
+It is only safe to access the connction request and headers and
+query the upload progress.
+
+.sp
+NOTE(2): This callback will be invoked in a thread other than the
+thread used to process the connection.  This may either be
+the "driver" thread used to accept and multiplex reads for all normal
+socket connections or one of the specialized read-ahead threads
+used to handle SSL connections.  In either case, it will not be
+possible to store context in thread-local storage to be later accessed 
+during connection processing.  See the \fBNs_ClsAlloc\fR, \fBNs_ClsSet\fR, and
+\fBNs_ClsGet\fR \fIconnection local storage\fR routines for a method to
+store arbitary context between threads.
+
+.sp
+NOTE(3): Any \fBTcl_Interp\fR allocated with \fBNs_GetConnInterp\fR
+will be released before switching threads, clearing any global
+variables or other state you may have set.  Again, use \fIconnection
+local stoarge\fR interface with the \fBns_cls\fR command for this
+purpose.
+
+.TP
+NS_FILTER_PRE_QUEUE
+Invoke \fIproc\fR after all content has been read from the client.
+This callback will occur just once within the single "driver" thread
+and can be used to register one or more \fBNs_QueueWait\fR callbacks
+to access addition, possibly blocking network resources before
+queueing the thread for processing.
+If this \fIproc\fR returns a value other than \fBNS_OK\fR, the conneciton
+will be aborted.
+
+.sp
+NOTE: See the comments above for \fBNS_FILTER_READ\fR for caveats
+of \fIproc\fR being invoked in a thread other than the conneciton
+processing thread.
+
+.TP
+NS_FILTER_PRE_AUTH
+Invoke \fIproc\fR just before connection authentication.
+
+.TP
+NS_FILTER_POST_AUTH
+Invoke \fIproc\fR just after a successful authentication.
+
+.TP
+NS_FILTER_WRITE
+Invoke \fIproc\fR after each write to the client.
+If \fIproc\fR
+returns a value other than \fBNS_OK\fR, the connection will be
+aborted.
+
+.TP
+NS_FILTER_TRACE
+
 
 .SH "SEE ALSO"
-nsd(1), info(n)
+Ns_RegisterConnCleanup(3), ns_register_filter(n), Ns_RegisterServerTrace(3)
 
 .SH KEYWORDS
 

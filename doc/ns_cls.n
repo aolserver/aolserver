@@ -1,0 +1,81 @@
+'\"
+'\" The contents of this file are subject to the AOLserver Public License
+'\" Version 1.1 (the "License"); you may not use this file except in
+'\" compliance with the License. You may obtain a copy of the License at
+'\" http://aolserver.com/.
+'\"
+'\" Software distributed under the License is distributed on an "AS IS"
+'\" basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+'\" the License for the specific language governing rights and limitations
+'\" under the License.
+'\"
+'\" The Original Code is AOLserver Code and related documentation
+'\" distributed by AOL.
+'\" 
+'\" The Initial Developer of the Original Code is America Online,
+'\" Inc. Portions created by AOL are Copyright (C) 1999 America Online,
+'\" Inc. All Rights Reserved.
+'\"
+'\" Alternatively, the contents of this file may be used under the terms
+'\" of the GNU General Public License (the "GPL"), in which case the
+'\" provisions of GPL are applicable instead of those above.  If you wish
+'\" to allow use of your version of this file only under the terms of the
+'\" GPL and not to allow others to use your version of this file under the
+'\" License, indicate your decision by deleting the provisions above and
+'\" replace them with the notice and other provisions required by the GPL.
+'\" If you do not delete the provisions above, a recipient may use your
+'\" version of this file under either the License or the GPL.
+'\" 
+'\"
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_cls.n,v 1.1 2009/12/08 04:13:18 jgdavidson Exp $
+'\"
+'\" 
+.so man.macros
+
+.TH ns_cls n 4.6 AOLserver "AOLserver Built-In Commands"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+ns_cls \- connection local storage command
+.SH SYNOPSIS
+\fBns_cls \fBalloc\fR
+.sp
+\fBns_cls \fget\fR \fIid\fR
+.sp
+\fBns_cls \fset\fR \fIid\fR \fIstring\fR
+.BE
+
+.SH DESCRIPTION
+.PP
+The \fBns_cls\fR command provides Tcl-level access to the \fBNs_Cls\fR
+connection-local storage interface.  This can be used to managed
+data between interpreters and threads where global variables cannot
+be utilized.  The semantics are similar to the thread-local storage
+\fBNs_Tls\fR interface and \fBns_tls\fR commmand.
+
+.SH USAGE
+.PP
+With the \fBalloc\fR option, \fBns_cls\fR returns a unique integer
+indentifier later used with the \fBget\fR and \fBset\fR options.
+It is only safe to call \fBns_cls alloc\fR at server startup.  The
+resulting \fIid\fR can be passed as an argument to callback
+registration routines, e.g., \fBns_register_filter\fR and
+\fBns_register_proc\fR.
+
+.PP
+The \fBset\fR and \fBget\fR options use the \fIid\fR returned by
+\fBalloc\fR to store and retrieve strings unique to the active
+connection, respectively.  Space utilized for storage of the string
+is automatically reclaimed by the server whenever it is modified
+and when the connection is closed.
+
+.SH EXAMPLE
+See the \fBns_quewait\fR man page for an example of using \fBns_cls\fR.
+
+.SH "SEE ALSO"
+Ns_ClsAlloc(3), Ns_ClsGet(3), Ns_ClsSet(3),
+Ns_TlsAlloc(3), Ns_TlsGet(3), Ns_TlsSet(3),
+ns_quewait(n), ns_register_filter(n), ns_register_proc(n),
+
+.SH KEYWORDS
+callback, connection

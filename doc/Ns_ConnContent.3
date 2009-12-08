@@ -28,16 +28,16 @@
 '\" version of this file under either the License or the GPL.
 '\" 
 '\"
-'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_ConnContent.3,v 1.3 2006/04/19 17:37:30 jgdavidson Exp $
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_ConnContent.3,v 1.4 2009/12/08 04:13:18 jgdavidson Exp $
 '\"
 '\" 
 .so man.macros
 
-.TH Ns_ConnContent 3 4.0 AOLserver "AOLserver Library Procedures"
+.TH Ns_ConnContent 3 4.6 AOLserver "AOLserver Library Procedures"
 .BS
 '\" Note:  do not modify the .SH NAME line immediately below!
 .SH NAME
-Ns_ConnContent, Ns_ConnContentLength, Ns_ConnContentFd, Ns_ConnContentOnDisk \- Routines to access request content
+Ns_ConnContent, Ns_ConnContentLength, Ns_ConnContentAvail, Ns_ConnContentFd, Ns_ConnContentOnDisk \- routines to access request content
 .SH SYNOPSIS
 .nf
 \fB#include "ns.h"\fR
@@ -49,38 +49,70 @@ int
 \fBNs_ConnContentLength\fR(\fINs_Conn *conn\fR)
 .sp
 int
+\fBNs_ConnContentAvail\fR(\fINs_Conn *conn\fR)
+.sp
+int
 \fBNs_ConnContentFd\fR(\fINs_Conn *conn\fR)
 .sp
 int
 \fBNs_ConnContentOnDisk\fR(\fINs_Conn *conn\fR)
 .SH ARGUMENTS
-.AS Ns_Conn *conn in
+.AS Ns_Conn *conn
 .AP Ns_Conn *conn in
 Pointer to given connection. 
 .sp
 .BE
 .SH DESCRIPTION
 .PP
-These procedures provide access to the request content sent with a
-request.
+These procedures provide access to the content sent with a
+request, e.g., a FORM post or PUT data.
 
 .TP
 char *\fBNs_ConnContent\fR
 Returns a pointer to the content in memory.  The result of
-\fBNs_ConnContent\fR is not guarenteed to be null-terminated.  Safe
+\fBNs_ConnContent\fR is not guaranteed to be null-terminated.  Safe
 code should be careful to use the result of \fBNs_ConnContentLength\fR
-to avoid overrun.
+to avoid overrun. Small content is in memory only; larger content
+is mapped from an opened temporary file. The result is managed by
+the server; the caller should not attempt to free or unmap the result.
+.sp
+NOTE: Attempting to invoke \fBNs_ConnContent\fR for large content
+simultaneously in many active connection threads may lead to the
+server running out of virtual memory. For large content (e.g.,
+large multipart file uploads), it's best
+to access the content incrementally via the open temporary file
+available via \fBNs_ConnContentFd\fR.
 
 .TP
 int \fBNs_ConnContentFd\fR
 Returns a file descriptor to an open temporary file which contains
-the content.
+the content.  Large content begin in a temporary file and smaller
+requests are copied to a file when requested. Open file is managed
+by the server; the caller should not close it directly.
+.sp
+NOTE: See the \fBNs_GetTemp\fR routine to details on how the
+open file is managed within the server.
 
 .TP
 int \fBNs_ConnContentLength\fR
 Returns the length of the memory buffer and/or the size of the open
-temporary file.  Any trailing \r\n sent beyond the content from
-common browsers on a POST request is not included.
+temporary file which has (or will be) uploaded from the client.
+Any trailing \r\n sent beyond the content from
+common browsers on a POST request is not included. As noted below,
+all content is pre-read before connection processing begins. The
+only exception is in a possible NS_FILTER_READ filter which will
+fire after any read requests after the HTTP request and header lines
+have been received. See \fBNs_ConnContentAvail\fR for more detail.
+
+.TP
+int \fBNs_ConnContentAvail\fR
+Returns the number of bytes currently uploaded. As noted below, all
+content is pre-read before connection processing begins so the result
+of this routine will always equal that of \fBNs_ConnContentLength\fR
+with the possible exception of being called within an NS_FILTER_READ
+filter callback where it may be less (all content not yet received)
+or perhaps more before the server truncates any spurious content
+received (e.g., any trailing \\r\\n from a form upload).
 
 .TP
 int \fBNs_ConnContentOnDisk\fR
@@ -101,9 +133,19 @@ small requests (the majority of simple POST's) are copied to memory.
 .PP
 There is no need for a request processing extension to consider
 possible delays in reading content from the client as all content
-is available before connection processing begins.  The rationale
+is available before connection processing begins.  The only exception
+is during an NS_FILTER_READ callback (see \fBNs_RegisterCallback\fR
+which will fire within
+the thread performing the pre-read, possibly before any content has
+been received. The difference between the results of
+\fBNs_ConnContentLength\fR and \fBNs_ConnContentAvail\fR may be used
+to determine if all content is not yet available during a read
+filter; accessing partially uploaded content is not safe.
+
+.PP
+The rationale
 for this approach is that the driver thread can efficiently multiplex
-reading content for serveral request, tolerating any network delays.
+reading content for several request, tolerating any network delays.
 Legacy direct content reading routines, for example, \fBNs_ConnRead\fR,
 are now emulated on top of the \fBNs_ConnContent\fR.
 
@@ -132,7 +174,7 @@ original location of the content.
 .PP
 The design goal of the server is to support the ordinary case of
 reasonably small content requests (i.e., POST forms and small file
-uploads) in a convienent way without limiting a custom app to support
+uploads) in a convenient way without limiting a custom app to support
 very large requests.  In particular, a call to \fBNs_ConnGetQuery\fR
 for a \fImultipart/file-upload\fR POST will result in an implicit
 call to \fBNs_ConnContent\fR to parse the fields.  This could require
@@ -149,7 +191,7 @@ a HTTP method other than \fIGET\fR or \fIPOST\fR required by
 \fBNs_ConnGetQuery\fR, e.g., \fIPUT\fR.
 
 .SH "SEE ALSO"
-Ns_Conn(3), Ns_ConnRead(3), ns_limits(n), ns_conn(n)
+Ns_Conn(3), Ns_ConnRead(3), Ns_GetTemp(3), ns_limits(n), ns_conn(n)
 
 .SH KEYWORDS
 connection, content

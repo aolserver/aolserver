@@ -1,0 +1,92 @@
+'\"
+'\" The contents of this file are subject to the AOLserver Public License
+'\" Version 1.1 (the "License"); you may not use this file except in
+'\" compliance with the License. You may obtain a copy of the License at
+'\" http://aolserver.com/.
+'\"
+'\" Software distributed under the License is distributed on an "AS IS"
+'\" basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+'\" the License for the specific language governing rights and limitations
+'\" under the License.
+'\"
+'\" The Original Code is AOLserver Code and related documentation
+'\" distributed by AOL.
+'\" 
+'\" The Initial Developer of the Original Code is America Online,
+'\" Inc. Portions created by AOL are Copyright (C) 1999 America Online,
+'\" Inc. All Rights Reserved.
+'\"
+'\" Alternatively, the contents of this file may be used under the terms
+'\" of the GNU General Public License (the "GPL"), in which case the
+'\" provisions of GPL are applicable instead of those above.  If you wish
+'\" to allow use of your version of this file only under the terms of the
+'\" GPL and not to allow others to use your version of this file under the
+'\" License, indicate your decision by deleting the provisions above and
+'\" replace them with the notice and other provisions required by the GPL.
+'\" If you do not delete the provisions above, a recipient may use your
+'\" version of this file under either the License or the GPL.
+'\" 
+'\"
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/Ns_RegisterConnCleanup.3,v 1.1 2009/12/08 04:13:18 jgdavidson Exp $
+'\"
+'\" 
+.so man.macros
+
+.TH Ns_Cleanup 3 4.5 AOLserver "AOLserver Library Procedures"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+Ns_RegisterCleanup, Ns_RegisterConnCleanup \- manage connection cleanup callbacks
+.SH SYNOPSIS
+.nf
+\fB#include "ns.h"\fR
+.sp
+void
+\fBNs_RegisterCleanup\fR(\fINs_TraceProc *proc, void *arg\fR)
+.sp
+void
+\fBNs_RegisterConnCleanup\fR(\fIchar *server, Ns_TraceProc *proc, void *arg\fR)
+
+.SH ARGUMENTS
+.AS Ns_TraceProc *proc
+.AP char *server in
+Name of virtual server.
+
+.AP void *arg in
+Arbitrary one-word value to pass to \fIproc\fR.
+
+.AP Ns_TraceProc *proc in
+Procedure to invoke at the end of connection processing.
+
+.BE
+
+.SH DESCRIPTION
+.PP
+These routines manage callbacks which are invoked in LIFO order at the
+end of a conneciton.
+
+.PP
+At the end of a connection, regardless of success or error, \fIproc\fR
+will be invoked.  It should have arguments and result that match
+the type \fBNs_TraceProc\fR:
+.sp
+.CS
+typedef void (Ns_TraceProc)(void \fIarg\fR, Ns_Conn *\fIconn\fR);
+.CE
+.sp
+The \fIarg\fR will have the same values as passed to
+\fBNs_RegisterConnCleanup\fR when the callback was created.  The
+\fIconn\fR will be a pointer to the current connection.  The
+\fIproc\fR may perform any actions necessary to free resources which
+may have been allocated and initalized in the course of the connection.
+
+.PP
+\fBNs_RegisterCleanup\fR is equivalent to \fBNs_RegisterConnCleanup\fR
+with the \fIserver\fR argument set to the currently initializing
+server.
+
+.SH "SEE ALSO"
+Ns_RegisterFilter(3), Ns_RegisterServerTrace(3)
+
+.SH KEYWORDS
+trace, callback, cleanup

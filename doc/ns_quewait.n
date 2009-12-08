@@ -1,0 +1,158 @@
+'\"
+'\" The contents of this file are subject to the AOLserver Public License
+'\" Version 1.1 (the "License"); you may not use this file except in
+'\" compliance with the License. You may obtain a copy of the License at
+'\" http://aolserver.com/.
+'\"
+'\" Software distributed under the License is distributed on an "AS IS"
+'\" basis, WITHOUT WARRANTY OF ANY KIND, either express or implied. See
+'\" the License for the specific language governing rights and limitations
+'\" under the License.
+'\"
+'\" The Original Code is AOLserver Code and related documentation
+'\" distributed by AOL.
+'\" 
+'\" The Initial Developer of the Original Code is America Online,
+'\" Inc. Portions created by AOL are Copyright (C) 1999 America Online,
+'\" Inc. All Rights Reserved.
+'\"
+'\" Alternatively, the contents of this file may be used under the terms
+'\" of the GNU General Public License (the "GPL"), in which case the
+'\" provisions of GPL are applicable instead of those above.  If you wish
+'\" to allow use of your version of this file only under the terms of the
+'\" GPL and not to allow others to use your version of this file under the
+'\" License, indicate your decision by deleting the provisions above and
+'\" replace them with the notice and other provisions required by the GPL.
+'\" If you do not delete the provisions above, a recipient may use your
+'\" version of this file under either the License or the GPL.
+'\" 
+'\"
+'\" $Header: /Users/dossy/Desktop/cvs/aolserver/doc/ns_quewait.n,v 1.1 2009/12/08 04:13:18 jgdavidson Exp $
+'\"
+'\" 
+.so man.macros
+
+.TH ns_quewait n 4.6 AOLserver "AOLserver Built-In Commands"
+.BS
+'\" Note:  do not modify the .SH NAME line immediately below!
+.SH NAME
+ns_quewait \- pre-queue network I/O callback interface
+.SH SYNOPSIS
+\fBns_quewait \fIchanId\fR \fBreadable\fR \fItimeout script\fR
+.sp
+\fBns_quewait \fIchanId\fR \fBwritable\fR \fItimeout script\fR
+.BE
+
+.SH DESCRIPTION
+.PP
+The \fBns_quewait\fR command enables Tcl-level use of the
+\fBNs_QueueWait\fR event callback interface.  This interface allows
+interacting with one or more, possibly blocking, network resources
+before a connection is queued for processing by a connection thread.
+The rationale is to perform possibly blocking and/or long-running
+network requests using an efficient event-driven programming approach
+instead of via blocking I/O calls during connection processing.  An
+initial call to \fBns_quewait\fR can be performed in a connection
+filter registered with the \fBns_register_filter\fR command using
+the \fIprequeue\fR option; calling \fBns_quewait\fR
+at any other time will result in an error exception.
+
+.PP
+As callbacks occurs within a "driver" accept and read-ahead thread,
+the caller needs to be careful not to block reading or writing to
+the given channel which would stall  the connection accept and
+read-ahead functions of the server.
+
+.SH USAGE
+.PP
+With the \fBreadable\fR option, the given \fIscript\fR will be
+invoked when content can be read from \fIchanId\fR without blocking.
+With the \fBwritable\fR option, the script will be invoked when
+content can be written to \fIchanId\fR without blocking.  In both
+cases, the server will only wait up to the absolute time specified
+by \fItimeout\fR.  The value of \fItimeout\fR can be onstructed
+using the \fBns_time\fR command.
+
+.PP
+Note that the server is monitoring the state of the channel's
+underlying socket; Tcl's normal buffering facilities may affect
+this result (see \fBfconfigure\fR for means to configure the buffering
+behavior of the channel).
+
+
+.PP
+When the \fIscript\fR is invoked, an additional argument will be appended
+to indicate why the callback is occuring.  This will normally match
+the event for which the callback was registered, i.e., \fBreadable\fR
+or \fBwritable\fR but may also be one of the following:
+
+.TP
+\fBtimeout\fR
+The channel was not readable or writable in the given absolute \fItimeout\fR
+value. In this case, the callback could abort it's attempt to interact
+with the remote resource.
+
+.TP
+\fBdropped\fR
+The HTTP connection was dropped and will not be processed by
+a connection thread.  The callback should perform whatever action is
+necessary to abort the remote network resource request.
+
+.SH EXAMPLE
+.PP
+The server-startup code uses a pre-queue filter which fires after
+all request and content data has been received from a client.  It
+makes an async connection to remote network resource and uses
+\fBns_quewait\fR to interact with the remote server. 
+
+.CS
+
+# Allocate a connection-local-storage (CLS) slot for the search results.
+set cls [ns_cls alloc]
+
+# Register a pre-queue filter to start the search I/O.
+ns_register_filter prequeue GET /search dosearch.prequeue $cls
+
+proc dosearch.prequeue {cls why} {
+    set s [socket -async 192.168.1.10 8888]
+    set now [ns_time]
+    set timeout [ns_time incr $now 1]; # NB: Total time for send+recv.
+    ns_quewait $s writable $timeout [list dosearch.quewait $cls $s $timeout]
+    return filter_ok
+}
+
+# Callback to send/recv request to search server, storing result in CLS.
+proc dosearch.quewait {cls s timeout why} {
+    switch $why {
+	writable {
+	    puts $s "... send some search result ..."
+	    flush $s
+	    ns_quewait $s readable $timeout [list dosearch.quewait $cls $s $timeout] 
+	}
+	readable {
+	    set result [gets $s]
+	    ns_cls set $cls $results
+	}
+	dropped -
+	timeout -
+	default {
+	    # NB: Clien drop, timeout, or error.
+	    close $s
+	}
+    }    
+}
+
+# Connection procedure to display results stored in CLS.
+ns_register_proc GET /search dosearch.proc $cls
+
+proc dosearch.proc {cls} {
+    ns_return 200 text/html "done: [ns_cls get $cls]"
+}
+
+.CE
+
+.SH "SEE ALSO"
+Ns_QueueWait(3), ns_cls(n), ns_register_filter(n)
+
+.SH KEYWORDS
+callback
