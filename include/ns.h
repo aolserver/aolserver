@@ -33,7 +33,7 @@
  *      All the public types and function declarations for the core
  *	AOLserver.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.88 2009/02/01 17:45:34 gneumann Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/ns.h,v 1.89 2009/12/08 04:10:56 jgdavidson Exp $
  */
 
 #ifndef NS_H
@@ -103,6 +103,8 @@
 #define NS_FILTER_TRACE           4
 #define NS_FILTER_VOID_TRACE      8
 #define NS_FILTER_PRE_QUEUE	 16
+#define NS_FILTER_READ	 	 32
+#define NS_FILTER_WRITE	 	 64
 #define NS_REGISTER_SERVER_TRACE 16
 #define NS_OP_NOINHERIT		  2
 #define NS_OP_NODELETE		  4
@@ -655,6 +657,7 @@ NS_EXTERN Ns_Set *Ns_ConnOutputHeaders(Ns_Conn *conn);
 NS_EXTERN char *Ns_ConnAuthUser(Ns_Conn *conn);
 NS_EXTERN char *Ns_ConnAuthPasswd(Ns_Conn *conn);
 NS_EXTERN int Ns_ConnContentLength(Ns_Conn *conn);
+NS_EXTERN int Ns_ConnContentAvail(Ns_Conn *conn);
 NS_EXTERN char *Ns_ConnContent(Ns_Conn *conn);
 NS_EXTERN char *Ns_ConnServer(Ns_Conn *conn);
 NS_EXTERN int Ns_ConnResponseStatus(Ns_Conn *conn);
@@ -697,7 +700,7 @@ NS_EXTERN int Ns_GetAllAddrByHost(Ns_DString *dsPtr, char *host);
 
 NS_EXTERN int Ns_DriverInit(char *server, char *module,
 			    Ns_DriverInitData *init);
-NS_EXTERN void Ns_QueueWait(Ns_Conn *conn, SOCKET sock, Ns_QueueWaitProc *proc,
+NS_EXTERN int Ns_QueueWait(Ns_Conn *conn, SOCKET sock, Ns_QueueWaitProc *proc,
     	     void *arg, int when, Ns_Time *timePtr);
 
 /*
