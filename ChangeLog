@@ -34,6 +34,9 @@
 	* doc/Ns_ConnContent.3: Added detail on Ns_ConnContentAvail
 	command and notes on usage in pre-queue and read filters.
 
+	* doc/ns_filter.n: Re-wrote man page to include new options
+	and a file upload progress example.
+
 	* doc/ns_cls.n (new file):
 	* doc/ns_tls.n (new file):
 	* doc/ns_quewait.n (new file): Man pages for new commands.
