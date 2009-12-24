@@ -28,7 +28,7 @@
 #
 
 #
-# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/init.tcl,v 1.33 2006/04/13 19:06:28 jgdavidson Exp $
+# $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/init.tcl,v 1.34 2009/12/24 19:50:34 dvrsn Exp $
 #
 
 #
@@ -432,6 +432,28 @@ proc _ns_getnamespaces {listVar {top "::"}} {
     }
 }
 
+#
+# _ns_genensemble -
+#
+#  if the passed command is an ensemble, returns a command 
+#  to recreate it
+#  otherwise, returns an empty string
+#
+
+if {[catch {package require Tcl 8.5}]} {
+    proc _ns_getensemble {cmd} {}
+} else {
+    proc _ns_getensemble {cmd} {
+        ::if {[::namespace ensemble exists $cmd]} {
+            ::array set _cfg [::namespace ensemble configure $cmd]
+            ::set _enns $_cfg(-namespace)
+            ::unset _cfg(-namespace)
+            ::set _encmd [::list namespace ensemble create -command $cmd {*}[::array get _cfg]]
+            return [::list namespace eval $_enns $_encmd]\n
+        }
+    }
+}
+
 
 #
 # _ns_getpackages -
@@ -546,6 +568,7 @@ proc _ns_getscript n {
                     && $_orig != [::namespace which -command $_cmnd]} {
                 ::append _import [::list namespace import -force $_orig] \n
             }
+	    ::append _import [_ns_getensemble $_cmnd]
         }
 
 
