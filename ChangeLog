@@ -1,3 +1,15 @@
+2009-12-24 Jeff Rogers <dvrsn@diphi.com>
+
+	* include/nsthread.h: added pre-8.6 compatibility define 
+	for Tcl_GetErrorLine
+
+	* nsd/adpeval.c:
+	* nsd/tclloop.c: removed direct access to TclInterp->errorLine
+	for tcl api change in TIP #336
+
+	* nsd/init.tcl: added _ns_genensemble to recreate ensemble
+	commands in interpreter init script
+
 2009-12-08 Jim Davidson <jgdavidson@aol.com>
 
 	* include/ns.h: Changed definition of Ns_QueueWait, added
