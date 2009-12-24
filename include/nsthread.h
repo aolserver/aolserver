@@ -32,7 +32,7 @@
  *
  *	Core threading and system headers.
  *
- *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/nsthread.h,v 1.31 2005/08/23 21:41:31 jgdavidson Exp $
+ *	$Header: /Users/dossy/Desktop/cvs/aolserver/include/nsthread.h,v 1.32 2009/12/24 19:50:06 dvrsn Exp $
  */
 
 #ifndef NSTHREAD_H
@@ -417,5 +417,13 @@ NS_EXTERN char *Ns_ThreadStrCopy(char *old);
 #define Ns_Fork ns_fork
 
 #endif	/* NS_NOCOMPAT */
+
+/*
+ * tcl 8.6 and TIP 330/336 compatability
+ */
+
+#if (TCL_MAJOR_VERSION < 8) || (TCL_MAJOR_VERSION == 8) && (TCL_MINOR_VERSION < 6)
+#define Tcl_GetErrorLine(interp) (interp->errorLine)
+#endif
 
 #endif /* NSTHREAD_H */

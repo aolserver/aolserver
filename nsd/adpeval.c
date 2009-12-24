@@ -33,7 +33,7 @@
  *	ADP string and file eval.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.49 2006/06/28 17:41:06 shmooved Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/adpeval.c,v 1.50 2009/12/24 19:50:07 dvrsn Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -836,7 +836,7 @@ NsAdpLogError(NsInterp *itPtr)
 
     if (framePtr != NULL) {
         Ns_DStringPrintf(&ds, "\n    at line %d of ",
-                        framePtr->line + interp->errorLine);
+                        framePtr->line + Tcl_GetErrorLine(interp));
     }
     inc = "";
     while (framePtr != NULL) {

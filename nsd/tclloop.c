@@ -34,7 +34,7 @@
  *	monitored and managed by "ns_loop_ctl" command.
  */
 
-static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclloop.c,v 1.3 2008/06/20 08:06:32 gneumann Exp $, compiled: " __DATE__ " " __TIME__;
+static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclloop.c,v 1.4 2009/12/24 19:50:08 dvrsn Exp $, compiled: " __DATE__ " " __TIME__;
 
 #include "nsd.h"
 
@@ -157,7 +157,7 @@ NsTclForObjCmd(arg, interp, objc, objv)
             if (result == TCL_ERROR) {
                 char msg[32 + TCL_INTEGER_SPACE];
 
-                sprintf(msg, "\n    (\"for\" body line %d)",interp->errorLine);
+                sprintf(msg, "\n    (\"for\" body line %d)",Tcl_GetErrorLine(interp));
                 Tcl_AddErrorInfo(interp, msg);
             }
             break;
@@ -242,7 +242,7 @@ NsTclWhileObjCmd(arg, interp, objc, objv)
                 char msg[32 + TCL_INTEGER_SPACE];
 
                 sprintf(msg, "\n    (\"while\" body line %d)",
-                        interp->errorLine);
+                        Tcl_GetErrorLine(interp));
                 Tcl_AddErrorInfo(interp, msg);
             }
             break;
@@ -460,7 +460,7 @@ NsTclForeachObjCmd(arg, interp, objc, objv)
                 char msg[32 + TCL_INTEGER_SPACE];
 
 		sprintf(msg, "\n    (\"foreach\" body line %d)",
-			interp->errorLine);
+			Tcl_GetErrorLine(interp));
 		Tcl_AddObjErrorInfo(interp, msg, -1);
 		break;
 	    } else {
