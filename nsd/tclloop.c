@@ -36,6 +36,10 @@
 
 static const char *RCSID = "@(#) $Header: /Users/dossy/Desktop/cvs/aolserver/nsd/tclloop.c,v 1.4 2009/12/24 19:50:08 dvrsn Exp $, compiled: " __DATE__ " " __TIME__;
 
+#ifdef __APPLE__
+#include <ctype.h>
+#endif
+
 #include "nsd.h"
 
 /*

@@ -1092,4 +1092,8 @@ extern Tcl_Encoding NsGetOutputEncoding(Conn *connPtr);
 
 extern int NsConnRunProxyRequest(Ns_Conn *conn);
 
+#ifdef __APPLE__
+extern void panic(char * format, ...);
+#endif
+
 #endif
